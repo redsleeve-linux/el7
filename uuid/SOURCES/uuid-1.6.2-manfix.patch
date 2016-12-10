@@ -1,0 +1,60 @@
+diff -up uuid-1.6.2/uuid.1.manfix uuid-1.6.2/uuid.1
+--- uuid-1.6.2/uuid.1.manfix	2008-07-04 23:43:23.000000000 +0200
++++ uuid-1.6.2/uuid.1	2013-07-31 18:40:20.029657197 +0200
+@@ -138,7 +138,7 @@
+ .if n .ad l
+ .nh
+ .SH "NAME"
+-\&\fB\s-1OSSP\s0 uuid\fR \- \fBUniversally Unique Identifier Command-Line Tool\fR
++\&\fBuuid\fR \- \fBOSSP Universally Unique Identifier Command-Line Tool\fR
+ .SH "VERSION"
+ .IX Header "VERSION"
+ \&\s-1OSSP\s0 uuid \s-11.6.2 (04-Jul-2008)\s0
+diff -up uuid-1.6.2/uuid.3.manfix uuid-1.6.2/uuid.3
+--- uuid-1.6.2/uuid.3.manfix	2013-07-31 18:16:07.710415398 +0200
++++ uuid-1.6.2/uuid.3	2013-07-31 18:38:49.528514078 +0200
+@@ -138,7 +138,7 @@
+ .if n .ad l
+ .nh
+ .SH "NAME"
+-\&\fB\s-1OSSP\s0 uuid\fR \- \fBUniversally Unique Identifier\fR
++\&\fBuuid\fR \- \fBOSSP Universally Unique Identifier\fR
+ .SH "VERSION"
+ .IX Header "VERSION"
+ \&\s-1OSSP\s0 uuid \s-11.6.2 (04-Jul-2008)\s0
+diff -up uuid-1.6.2/uuid++.3.manfix uuid-1.6.2/uuid++.3
+--- uuid-1.6.2/uuid++.3.manfix	2013-07-31 18:15:32.781746801 +0200
++++ uuid-1.6.2/uuid++.3	2013-07-31 18:39:06.351354798 +0200
+@@ -138,7 +138,7 @@
+ .if n .ad l
+ .nh
+ .SH "NAME"
+-\&\fB\s-1OSSP\s0 uuid\fR \- \fBUniversally Unique Identifier\fR (\*(C+ \s-1API\s0)
++\&\fBuuid\fR \- \fBOSSP Universally Unique Identifier\fR (\*(C+ \s-1API\s0)
+ .SH "VERSION"
+ .IX Header "VERSION"
+ \&\s-1OSSP\s0 uuid \s-11.6.2 (04-Jul-2008)\s0
+diff -up uuid-1.6.2/uuid.pod.manfix uuid-1.6.2/uuid.pod
+--- uuid-1.6.2/uuid.pod.manfix	2013-07-31 18:15:48.654596196 +0200
++++ uuid-1.6.2/uuid.pod	2013-07-31 18:39:20.136224282 +0200
+@@ -31,7 +31,7 @@
+ 
+ =head1 NAME
+ 
+-B<OSSP uuid> - B<Universally Unique Identifier>
++B<uuid> - B<OSSP Universally Unique Identifier>
+ 
+ =head1 VERSION
+ 
+diff -up uuid-1.6.2/uuid++.pod.manfix uuid-1.6.2/uuid++.pod
+--- uuid-1.6.2/uuid++.pod.manfix	2013-07-31 18:14:38.503261796 +0200
++++ uuid-1.6.2/uuid++.pod	2013-07-31 18:39:31.007121355 +0200
+@@ -31,7 +31,7 @@
+ 
+ =head1 NAME
+ 
+-B<OSSP uuid> - B<Universally Unique Identifier> (C++ API)
++B<uuid> - B<OSSP Universally Unique Identifier> (C++ API)
+ 
+ =head1 VERSION
+ 

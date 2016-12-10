@@ -1,0 +1,17 @@
+diff -up numactl-2.0.8/numactl.8.orig numactl-2.0.8/numactl.8
+--- numactl-2.0.8/numactl.8.orig	2013-08-19 18:09:06.810007252 +0200
++++ numactl-2.0.8/numactl.8	2013-08-19 18:09:36.746029049 +0200
+@@ -153,7 +153,11 @@ A !N-N notation indicates the inverse of
+ except N-N.  If used with + notation, specify !+N-N.
+ .TP
+ .B \-\-localalloc, \-l 
+-Always allocate on the current node.
++Falls back to the system default which is local allocation by using
++.I MPOL_DEFAULT
++policy. See
++.I mbind(2)
++for details.
+ .TP
+ .B \-\-preferred=node
+ Preferably allocate memory on 
+diff -up numactl-2.0.8/numactl.8.orig.orig numactl-2.0.8/numactl.8.orig

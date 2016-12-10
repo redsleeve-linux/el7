@@ -1,0 +1,50 @@
+From 32075635db57c3d5efe12f8fb569af857e01ccad Mon Sep 17 00:00:00 2001
+From: Petr Holasek <pholasek@redhat.com>
+Date: Wed, 14 Jan 2015 09:53:47 +0100
+Subject: [PATCH] libnuma: add check for return value of numa_node_to_cpus
+
+When numa_node_to_cpu() has been called on machine with non-contiguous
+nodes, it returned the first node which wasn't present on machine.
+Now, return code is checked and code skips over non-existing nodes to
+the right one.
+
+Also, caching of numa_node_to_cpus_v2() result while non-zero error had
+been returned was disabled.
+
+Signed-off-by: Petr Holasek <pholasek@redhat.com>
+
+Tested by Cliff Wickman (on attica.sgi.com)
+---
+ libnuma.c | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)
+
+diff -up numactl-2.0.9/libnuma.c.orig numactl-2.0.9/libnuma.c
+--- numactl-2.0.9/libnuma.c.orig	2013-10-08 23:34:57.000000000 +0200
++++ numactl-2.0.9/libnuma.c	2015-07-01 15:14:44.937178134 +0200
+@@ -1380,8 +1380,12 @@ numa_node_to_cpus_v2(int node, struct bi
+ 		if (mask != buffer)
+ 			numa_bitmask_free(mask);
+ 	} else {
+-		node_cpu_mask_v2[node] = mask;
+-	} 
++		/* we don't want to cache faulty result */
++		if (!err)
++			node_cpu_mask_v2[node] = mask;
++		else
++			numa_bitmask_free(mask);
++	}
+ 	return err; 
+ }
+ __asm__(".symver numa_node_to_cpus_v2,numa_node_to_cpus@@libnuma_1.2");
+@@ -1403,7 +1407,10 @@ int numa_node_of_cpu(int cpu)
+ 	bmp = numa_bitmask_alloc(ncpus);
+ 	nnodes = numa_max_node();
+ 	for (node = 0; node <= nnodes; node++){
+-		numa_node_to_cpus_v2_int(node, bmp);
++		if (numa_node_to_cpus_v2_int(node, bmp) < 0) {
++			/* It's possible for the node to not exist */
++			continue;
++		}
+ 		if (numa_bitmask_isbitset(bmp, cpu)){
+ 			ret = node;
+ 			goto end;

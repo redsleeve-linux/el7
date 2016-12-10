@@ -1,0 +1,60 @@
+From a69169698c4c086b7a74602938b329fb055fdf60 Mon Sep 17 00:00:00 2001
+From: Petr Holasek <pholasek@redhat.com>
+Date: Mon, 7 Dec 2015 15:32:29 +0100
+Subject: [PATCH] libnuma: supress warnings for non-existing node
+
+When calling numa_node_to_cpus on non-existing node number (e.g. for
+non-contiguous node numbers), a bit confusing warning is supressed. Since
+warnings are implemented as weak functions they cannot be overriden when
+using dlsym interface.
+
+Signed-off-by: Petr Holasek <pholasek@redhat.com>
+---
+ libnuma.c | 24 ++++++++++++++----------
+ 1 file changed, 14 insertions(+), 10 deletions(-)
+
+diff --git a/libnuma.c b/libnuma.c
+index 3717d5b..549525c 100644
+--- a/libnuma.c
++++ b/libnuma.c
+@@ -1276,11 +1276,13 @@ numa_node_to_cpus_v1(int node, unsigned long *buffer, int bufferlen)
+ 	sprintf(fn, "/sys/devices/system/node/node%d/cpumap", node);
+ 	f = fopen(fn, "r");
+ 	if (!f || getdelim(&line, &len, '\n', f) < 1) {
+-		numa_warn(W_nosysfs2,
+-		   "/sys not mounted or invalid. Assuming one node: %s",
+-			  strerror(errno));
+-		numa_warn(W_nosysfs2,
+-		   "(cannot open or correctly parse %s)", fn);
++		if (numa_bitmask_isbitset(numa_nodes_ptr, node)) {
++			numa_warn(W_nosysfs2,
++			   "/sys not mounted or invalid. Assuming one node: %s",
++				  strerror(errno));
++			numa_warn(W_nosysfs2,
++			   "(cannot open or correctly parse %s)", fn);
++		}
+ 		bitmask.maskp = (unsigned long *)mask;
+ 		bitmask.size  = buflen_needed * 8;
+ 		numa_bitmask_setall(&bitmask);
+@@ -1355,11 +1357,13 @@ numa_node_to_cpus_v2(int node, struct bitmask *buffer)
+ 	sprintf(fn, "/sys/devices/system/node/node%d/cpumap", node); 
+ 	f = fopen(fn, "r"); 
+ 	if (!f || getdelim(&line, &len, '\n', f) < 1) { 
+-		numa_warn(W_nosysfs2,
+-		   "/sys not mounted or invalid. Assuming one node: %s",
+-			  strerror(errno)); 
+-		numa_warn(W_nosysfs2,
+-		   "(cannot open or correctly parse %s)", fn);
++		if (numa_bitmask_isbitset(numa_nodes_ptr, node)) {
++			numa_warn(W_nosysfs2,
++			   "/sys not mounted or invalid. Assuming one node: %s",
++				  strerror(errno)); 
++			numa_warn(W_nosysfs2,
++			   "(cannot open or correctly parse %s)", fn);
++		}
+ 		numa_bitmask_setall(mask);
+ 		err = -1;
+ 	} 
+-- 
+2.4.3
+

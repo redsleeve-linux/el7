@@ -1,0 +1,12 @@
+diff -up uuid-1.6.2/pgsql/Makefile.multilibfix uuid-1.6.2/pgsql/Makefile
+--- uuid-1.6.2/pgsql/Makefile.multilibfix	2013-06-03 18:04:55.000000000 +0200
++++ uuid-1.6.2/pgsql/Makefile	2013-06-03 18:06:17.558717045 +0200
+@@ -36,7 +36,7 @@ enable_shared     = yes
+ include           $(top_builddir)/src/Makefile.shlib
+ 
+ uuid.sql: uuid.sql.in
+-	sed -e 's;MODULE_PATHNAME;$(DESTDIR)$(pkglibdir)/ossp-uuid$(DLSUFFIX);g' <uuid.sql.in >uuid.sql
++	sed -e 's;MODULE_PATHNAME;ossp-uuid$(DLSUFFIX);g' <uuid.sql.in >uuid.sql
+ 
+ install: all
+ 	$(mkinstalldirs) $(DESTDIR)$(pkglibdir)

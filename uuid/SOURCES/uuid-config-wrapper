@@ -1,0 +1,21 @@
+#!/bin/sh
+ARCH=32
+ARCH2=64
+LIBDIR1=/usr/lib
+LIBDIR2=/usr/lib64
+LIBFILE=libossp-uuid.so
+case $(uname -m) in
+    x86_64 | sparc64 | s390x | ppc64)
+       LIBDIR1=/usr/lib64
+       LIBDIR2=/usr/lib
+       ARCH=64
+       ARCH2=32
+       ;;
+esac
+if [ ! -x "$LIBDIR1/$LIBFILE" ]; then
+  if [ ! -x "$LIBDIR2/$LIBFILE" ]; then
+    echo "Library not found: $LIBFILE" >&2
+  else
+    ARCH=$ARCH2
+  fi
+fi

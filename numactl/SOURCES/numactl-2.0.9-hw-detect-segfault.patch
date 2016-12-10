@@ -1,0 +1,30 @@
+From: Elena Ufimtseva <ufimtseva@gmail.com>
+To: linux-numa@vger.kernel.org
+Cc: cpw@sgi.com, Elena Ufimtseva <ufimtseva@gmail.com>
+Subject: [PATCH] numactl: checks for numa when showing hardware
+Date: Sat, 23 Nov 2013 03:10:41 -0500
+
+Checks if NUMA is available before printing hardware,
+otherwise segfault occurs.
+
+Signed-off-by: Elena Ufimtseva <ufimtseva@gmail.com>
+---
+ numactl.c |    5 +++++
+ 1 files changed, 5 insertions(+), 0 deletions(-)
+
+diff --git a/numactl.c b/numactl.c
+index 97955a4..f30b53c 100755
+--- a/numactl.c
++++ b/numactl.c
+@@ -242,6 +242,11 @@ void hardware(void)
+ 	int prevnode=-1;
+ 	int skip=0;
+ 	int maxnode = numa_max_node();
++	
++	if (numa_available() < 0) {
++                printf("No NUMA available on this system\n");
++                exit(1);
++        }
+ 
+ 	for (i=0; i<=maxnode; i++)
+ 		if (numa_bitmask_isbitset(numa_nodes_ptr, i))

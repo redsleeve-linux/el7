@@ -1,0 +1,312 @@
+Date: Tue, 15 Jul 2014 13:53:14 -0400
+From: Bill Gray <bgray@redhat.com>
+To: linux-numa@vger.kernel.org
+Cc: Cliff Wickman <cpw@sgi.com>
+Subject: [PATCH] Fix numactl --show preferred node for case MPOL_BIND
+
+This patch is mostly to fix an issue in "numactl --show" which did not 
+print the correct preferred node:
+
+# for i in 0 1 2 3 4 5 6 7 ; do numactl -N$i -m$i numactl -s; done | 
+grep preferred
+preferred node: 4
+preferred node: 4
+preferred node: 4
+preferred node: 4
+preferred node: 4
+preferred node: 4
+preferred node: 4
+preferred node: 4
+
+# for i in 0 1 2 3 4 5 6 7 ; do ./numactl -N$i -m$i ./numactl -s; done | 
+grep preferred
+preferred node: 0
+preferred node: 1
+preferred node: 2
+preferred node: 3
+preferred node: 4
+preferred node: 5
+preferred node: 6
+preferred node: 7
+
+Patch Changes:
+- eliminated bitops.[cho]
+- eliminated redundant printcpumask() (which duplicated printmask())
+- added find_first() to util.[ch]
+- fixed some compiler warnings
+
+These files can be deleted:
+- Only in numactl-2.0.9-orig/: bitops.c
+- Only in numactl-2.0.9-orig/: bitops.h
+- Only in numactl-2.0.9-orig/: numastat
+- Only in numactl-2.0.9-orig/test: move_pages
+
+diffstats:
+  Makefile        |   12 ++++++------
+  bitops.c        |   13 -------------
+  bitops.h        |   13 -------------
+  migspeed.c      |    4 +---
+  numactl.c       |    5 ++---
+  numaint.h       |    2 +-
+  test/move_pages |binary
+ Makefile       |   12 ++++++------
+ bitops.c       |   13 -------------
+ bitops.h       |   13 -------------
+ migspeed.c     |    4 +---
+ numactl.c      |    5 ++---
+ numaint.h      |    2 +-
+ test/nodemap.c |    1 -
+ test/tbitmap.c |   10 +++++++++-
+ util.c         |   14 +++++---------
+ util.h         |    2 +-
+ 10 files changed, 25 insertions(+), 51 deletions(-)
+
+Signed-off-by: Bill Gray <bgray@redhat.com>
+
+Index: numactl-dev/bitops.c
+===================================================================
+--- numactl-dev.orig/bitops.c
++++ /dev/null
+@@ -1,13 +0,0 @@
+-#include "bitops.h"
+-
+-/* extremly dumb */
+-int find_first_bit(void *m, int max)
+-{
+-	unsigned long *mask = m;
+-	int i;
+-	for (i = 0; i < max; i++) {
+-		if (test_bit(i, mask))
+-			break;			
+-	}
+-	return i;
+-}
+Index: numactl-dev/bitops.h
+===================================================================
+--- numactl-dev.orig/bitops.h
++++ /dev/null
+@@ -1,13 +0,0 @@
+-#ifndef BITOPS_H
+-#define BITOPS_H 1
+-
+-#define BITS_PER_LONG (sizeof(unsigned long) * 8)
+-#define BYTES_PER_LONG (sizeof(long))
+-
+-#define test_bit(i,p)  ((p)[(i) / BITS_PER_LONG] &   (1UL << ((i)%BITS_PER_LONG)))
+-#define set_bit(i,p)   ((p)[(i) / BITS_PER_LONG] |=  (1UL << ((i)%BITS_PER_LONG)))
+-#define clear_bit(i,p) ((p)[(i) / BITS_PER_LONG] &= ~(1UL << ((i)%BITS_PER_LONG)))
+-
+-extern int find_first_bit(void *mask, int max);
+-
+-#endif
+Index: numactl-dev/Makefile
+===================================================================
+--- numactl-dev.orig/Makefile
++++ numactl-dev/Makefile
+@@ -23,7 +23,7 @@ ifeq ($(THREAD_SUPPORT),yes)
+ endif
+ 
+ CLEANFILES := numactl.o libnuma.o numactl numademo numademo.o distance.o \
+-	      memhog libnuma.so libnuma.so.1 numamon numamon.o syscall.o bitops.o \
++	      memhog libnuma.so libnuma.so.1 numamon numamon.o syscall.o \
+ 	      memhog.o util.o stream_main.o stream_lib.o shm.o stream clearcache.o \
+ 	      test/pagesize test/tshared test/mynode.o test/tshared.o mt.o empty.o empty.c \
+ 	      test/mynode test/ftok test/prefered test/randmap \
+@@ -32,8 +32,8 @@ CLEANFILES := numactl.o libnuma.o numact
+ 	      test/mbind_mig_pages test/migrate_pages \
+ 	      migratepages migspeed migspeed.o libnuma.a \
+ 	      test/move_pages test/realloc_test sysfs.o affinity.o \
+-	      test/node-parse rtnetlink.o test/A numastat
+-SOURCES := bitops.c libnuma.c distance.c memhog.c numactl.c numademo.c \
++	      test/node-parse rtnetlink.o test/A numastat numastat.o
++SOURCES := libnuma.c distance.c memhog.c numactl.c numademo.c \
+ 	numamon.c shm.c stream_lib.c stream_main.c syscall.c util.c mt.c \
+ 	clearcache.c test/*.c affinity.c sysfs.c rtnetlink.c numastat.c
+ 
+@@ -51,11 +51,11 @@ all: numactl migratepages migspeed libnu
+      test/mbind_mig_pages test/migrate_pages test/realloc_test libnuma.a \
+      test/node-parse numastat
+ 
+-numactl: numactl.o util.o shm.o bitops.o libnuma.so
++numactl: numactl.o util.o shm.o libnuma.so
+ 
+ numastat: CFLAGS += -std=gnu99
+ 
+-migratepages: migratepages.c util.o bitops.o libnuma.so
++migratepages: migratepages.c util.o libnuma.so
+ 
+ migspeed: LDLIBS += -lrt
+ migspeed: migspeed.o util.o libnuma.so
+@@ -129,7 +129,7 @@ test/nodemap: test/nodemap.c libnuma.so
+ 
+ test/distance: test/distance.c libnuma.so
+ 
+-test/tbitmap: test/tbitmap.c libnuma.so
++test/tbitmap: test/tbitmap.c libnuma.so util.o
+ 
+ test/move_pages: test/move_pages.c libnuma.so
+ 
+Index: numactl-dev/migspeed.c
+===================================================================
+--- numactl-dev.orig/migspeed.c
++++ numactl-dev/migspeed.c
+@@ -65,7 +65,6 @@ int main(int argc, char *argv[])
+ {
+ 	char *p;
+ 	int option;
+-	int error = 0;
+ 	struct timespec result;
+ 	unsigned long bytes;
+ 	double duration, mbytes;
+@@ -82,8 +81,7 @@ int main(int argc, char *argv[])
+ 	switch (option) {
+ 	case 'h' :
+ 	case '?' :
+-		error = 1;
+-		break;
++		usage();
+ 	case 'v' :
+ 		verbose++;
+ 		break;
+Index: numactl-dev/numactl.c
+===================================================================
+--- numactl-dev.orig/numactl.c
++++ numactl-dev/numactl.c
+@@ -119,7 +119,7 @@ void show_physcpubind(void)
+ 			}
+ 			err("sched_get_affinity");
+ 		}
+-		printcpumask("physcpubind", cpubuf);
++		printmask("physcpubind", cpubuf);
+ 		break;
+ 	}
+ }
+@@ -130,7 +130,6 @@ void show(void)
+ 	struct bitmask *membind, *interleave, *cpubind;
+ 	unsigned long cur;
+ 	int policy;
+-	int numa_num_nodes = numa_num_possible_nodes();
+ 	
+ 	if (numa_available() < 0) {
+ 		show_physcpubind();
+@@ -166,7 +165,7 @@ void show(void)
+ 		printf("%ld (interleave next)\n",cur);
+ 		break;
+ 	case MPOL_BIND:
+-		printf("%d\n", find_first_bit(&membind, numa_num_nodes));
++		printf("%d\n", find_first(membind));
+ 		break;
+ 	}
+ 	if (policy == MPOL_INTERLEAVE) {
+Index: numactl-dev/numaint.h
+===================================================================
+--- numactl-dev.orig/numaint.h
++++ numactl-dev/numaint.h
+@@ -1,5 +1,4 @@
+ /* Internal interfaces of libnuma */
+-#include "bitops.h"
+ 
+ extern int numa_sched_setaffinity_v1(pid_t pid, unsigned len, const unsigned long *mask);
+ extern int numa_sched_getaffinity_v1(pid_t pid, unsigned len, const unsigned long *mask);
+@@ -12,6 +11,7 @@ extern int numa_sched_getaffinity_v2_int
+ 
+ #define SHM_HUGETLB     04000   /* segment will use huge TLB pages */
+ 
++#define BITS_PER_LONG (sizeof(unsigned long) * 8)
+ #define CPU_BYTES(x) (round_up(x, BITS_PER_LONG)/8)
+ #define CPU_LONGS(x) (CPU_BYTES(x) / sizeof(long))
+ 
+Index: numactl-dev/test/nodemap.c
+===================================================================
+--- numactl-dev.orig/test/nodemap.c
++++ numactl-dev/test/nodemap.c
+@@ -1,5 +1,4 @@
+ #include "numa.h"
+-#include "bitops.h"
+ #include <stdio.h>
+ #include <stdlib.h>
+ 
+Index: numactl-dev/test/tbitmap.c
+===================================================================
+--- numactl-dev.orig/test/tbitmap.c
++++ numactl-dev/test/tbitmap.c
+@@ -7,6 +7,13 @@
+ #include <stdlib.h>
+ #include <ctype.h>
+ #include "numa.h"
++#include "util.h"
++
++/* For util.c. Fixme. */
++void usage(void)
++{
++	exit(1);
++}
+ 
+ #define ALIGN(x,a) (((x)+(a)-1)&~((a)-1))
+ 
+@@ -81,11 +88,12 @@ int main(void)
+ 		numa_bitmask_clearall(mask);
+ 		numa_bitmask_clearall(mask2);
+ 		numa_bitmask_setbit(mask, i);
++		assert(find_first(mask) == i);
+ 		bitmap_scnprintf(buf, sizeof(buf), mask);
+ 		strcat(buf,"\n");
+ 		if (numa_parse_bitmap(buf, mask2) < 0)
+ 			assert(0);
+-		if (memcmp(mask, mask2, sizeof(mask))) { 
++		if (memcmp(mask->maskp, mask2->maskp, numa_bitmask_nbytes(mask))) {
+ 			bitmap_scnprintf(buf, sizeof(buf), mask2);
+ 			printf("mask2 differs: %s\n", buf);
+ 			assert(0);
+Index: numactl-dev/util.c
+===================================================================
+--- numactl-dev.orig/util.c
++++ numactl-dev/util.c
+@@ -16,7 +16,6 @@
+ #include "numa.h"
+ #include "numaif.h"
+ #include "util.h"
+-#include "bitops.h"
+ #include <stdio.h>
+ #include <string.h>
+ #include <stdlib.h>
+@@ -28,23 +27,20 @@
+ void printmask(char *name, struct bitmask *mask)
+ {
+ 	int i;
+-
+ 	printf("%s: ", name);
+-	for (i = 0; i <= mask->size; i++)
++	for (i = 0; i < mask->size; i++)
+ 		if (numa_bitmask_isbitset(mask, i))
+ 			printf("%d ", i);
+ 	putchar('\n');
+ }
+ 
+-void printcpumask(char *name, struct bitmask *mask)
++int find_first(struct bitmask *mask)
+ {
+ 	int i;
+-	printf("%s: ", name);
+-	for (i = 0; i < mask->size; i++) {
++	for (i = 0; i < mask->size; i++)
+ 		if (numa_bitmask_isbitset(mask, i))
+-			printf("%d ", i);
+-	}
+-	putchar('\n');
++			return i;
++	return -1;
+ }
+ 
+ void complain(char *fmt, ...)
+Index: numactl-dev/util.h
+===================================================================
+--- numactl-dev.orig/util.h
++++ numactl-dev/util.h
+@@ -1,5 +1,5 @@
+ extern void printmask(char *name, struct bitmask *mask);
+-extern void printcpumask(char *name, struct bitmask *mask);
++extern int find_first(struct bitmask *mask);
+ extern struct bitmask *nodemask(char *s);
+ extern struct bitmask *cpumask(char *s, int *ncpus);
+ extern int read_sysctl(char *name);
