@@ -5,7 +5,7 @@ Version:        3.10.1
 %if "%{?enable_native_atlas}" != "0"
 %define dist .native
 %endif
-Release:        10%{?dist}
+Release:        10%{?dist}.redsleeve
 Summary:        Automatically Tuned Linear Algebra Software
 
 Group:          System Environment/Libraries
@@ -297,7 +297,8 @@ ix86 architecture.
 #beware - arch constant can change between releases
 %define arch_option -A 46 
 %define threads_option -t 2
-%global armflags -mfpu=neon -mfloat-abi=hard
+#%global armflags -mfpu=neon -mfloat-abi=hard
+%global armflags %{nil}
 %global mode %{nil}
 %else
 %global mode -b %{__isa_bits}
@@ -336,7 +337,7 @@ cp %{SOURCE11} CONFIG/ARCHS/
 cp %{SOURCE12} CONFIG/ARCHS/
 #cp %{SOURCE13} CONFIG/ARCHS/
 
-cp %{SOURCE14} CONFIG/ARCHS/
+#cp %{SOURCE14} CONFIG/ARCHS/
 #cp %{SOURCE8} CONFIG/ARCHS/
 #cp %{SOURCE9} CONFIG/ARCHS/
 
@@ -785,6 +786,9 @@ fi
 %endif
 
 %changelog
+* Sat Nov 28 2015 Jacco Ligthart <jacco@redsleeve.org> - 3.10.1-10.redsleeve
+- changed arm behaviour to default, without hardfpu
+
 * Thu Oct 23 2014 Jaromir Capik <jcapik@redhat.com> - 3.10.1-10
 - patching for Power8 to pass performance tunings and tests on P8 builders
 - re-enabling tests on ppc64le
