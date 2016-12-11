@@ -1,0 +1,70 @@
+From 55bb4d61227077c1d7d80cb8a15d84b028e0275c Mon Sep 17 00:00:00 2001
+From: Jacco Ligthart <jacco@redsleeve.org>
+Date: Sun, 11 Dec 2016 15:15:09 +0100
+Subject: [PATCH] Change default prefs to RedSleeve
+
+---
+ SOURCES/xulrunner-redsleeve-default-prefs.js | 20 ++++++++++++++++++++
+ SPECS/xulrunner.spec                         |  7 +++++--
+ 2 files changed, 25 insertions(+), 2 deletions(-)
+ create mode 100644 SOURCES/xulrunner-redsleeve-default-prefs.js
+
+diff --git a/SOURCES/xulrunner-redsleeve-default-prefs.js b/SOURCES/xulrunner-redsleeve-default-prefs.js
+new file mode 100644
+index 0000000..8f62816
+--- /dev/null
++++ b/SOURCES/xulrunner-redsleeve-default-prefs.js
+@@ -0,0 +1,20 @@
++pref("app.update.enabled", false);
++pref("app.update.autoInstallEnabled", false);
++pref("browser.display.use_system_colors",   true);
++pref("browser.link.open_external",          3);
++pref("general.smoothScroll",                true);
++pref("general.useragent.vendor", " RedSleeve");
++pref("general.useragent.vendorSub", "RPM_VERREL");
++pref("intl.locale.matchOS", true);
++pref("network.manage-offline-status", true);
++pref("toolkit.networkmanager.disable", false);
++pref("offline.autoDetect", true);
++pref("toolkit.storage.synchronous", 0);
++pref("browser.startup.homepage", "http://www.redsleeve.org");
++pref("startup.homepage_override_url", "http://www.redsleeve.org");
++pref("startup.homepage_welcome_url", "http://www.redsleeve.org");
++pref("javascript.options.baselinejit.content", false);
++pref("javascript.options.baselinejit.chrome", false);
++pref("extensions.shownSelectionUI",         true);
++pref("network.negotiate-auth.allow-insecure-ntlm-v1", true);
++pref("security.use_mozillapkix_verification", false);
+diff --git a/SPECS/xulrunner.spec b/SPECS/xulrunner.spec
+index 9cd1ff4..7eb540f 100644
+--- a/SPECS/xulrunner.spec
++++ b/SPECS/xulrunner.spec
+@@ -42,13 +42,13 @@
+ Summary:        XUL Runtime for Gecko Applications
+ Name:           xulrunner
+ Version:        31.6.0
+-Release:        2%{?pre_tag}%{?dist}
++Release:        2%{?pre_tag}%{?dist}.redsleeve
+ URL:            http://developer.mozilla.org/En/XULRunner
+ License:        MPLv1.1 or GPLv2+ or LGPLv2+
+ Group:          Applications/Internet
+ Source0:        ftp://ftp.mozilla.org/pub/firefox/releases/%{version}%{?pre_version}/source/firefox-%{version}%{ext_version}%{?pre_version}.source.tar.bz2
+ Source10:       %{name}-mozconfig
+-Source12:       xulrunner-centos-default-prefs.js
++Source12:       xulrunner-redsleeve-default-prefs.js
+ Source21:       %{name}.sh.in
+ Source23:       %{name}.1
+ Source100:      find-external-requires
+@@ -465,6 +465,9 @@ fi
+ #---------------------------------------------------------------------
+ 
+ %changelog
++* Sun May 17 2015 Jacco Ligthart <jacco@redsleeve.org> - 31.6.0-2.el7.redsleeve
++- Change default prefs to RedSleeve
++
+ * Tue Mar 31 2015 CentOS Sources <bugs@centos.org> - 31.6.0-2.el7.centos
+ - Change default prefs to CentOS
+ 
+-- 
+1.8.3.1
+

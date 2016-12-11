@@ -42,13 +42,13 @@
 Summary:        XUL Runtime for Gecko Applications
 Name:           xulrunner
 Version:        31.6.0
-Release:        2%{?pre_tag}%{?dist}
+Release:        2%{?pre_tag}%{?dist}.redsleeve
 URL:            http://developer.mozilla.org/En/XULRunner
 License:        MPLv1.1 or GPLv2+ or LGPLv2+
 Group:          Applications/Internet
 Source0:        ftp://ftp.mozilla.org/pub/firefox/releases/%{version}%{?pre_version}/source/firefox-%{version}%{ext_version}%{?pre_version}.source.tar.bz2
 Source10:       %{name}-mozconfig
-Source12:       xulrunner-centos-default-prefs.js
+Source12:       xulrunner-redsleeve-default-prefs.js
 Source21:       %{name}.sh.in
 Source23:       %{name}.1
 Source100:      find-external-requires
@@ -465,6 +465,9 @@ fi
 #---------------------------------------------------------------------
 
 %changelog
+* Sun May 17 2015 Jacco Ligthart <jacco@redsleeve.org> - 31.6.0-2.el7.redsleeve
+- Change default prefs to RedSleeve
+
 * Tue Mar 31 2015 CentOS Sources <bugs@centos.org> - 31.6.0-2.el7.centos
 - Change default prefs to CentOS
 
