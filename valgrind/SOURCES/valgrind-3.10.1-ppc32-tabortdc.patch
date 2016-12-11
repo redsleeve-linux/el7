@@ -1,0 +1,37 @@
+commit f874f7340f1880d9f2222d88afb9b4045652af56
+Author: Mark Wielaard <mjw@redhat.com>
+Date:   Thu Aug 27 22:37:29 2015 +0200
+
+    Bug 351873 Newer gcc doesn't allow __builtin_tabortdc[i] in ppc32 mode.
+
+diff --git a/none/tests/ppc64/test_touch_tm.c b/none/tests/ppc64/test_touch_tm.c
+index 6c0431d..57f89bb 100644
+--- a/none/tests/ppc64/test_touch_tm.c
++++ b/none/tests/ppc64/test_touch_tm.c
+@@ -8,8 +8,10 @@ int main (void) {
+     * The rest are just treated as NOPS.
+     */
+    __builtin_tabort (0);
++#ifdef __PPC64__
+    __builtin_tabortdc (0,0,0);
+    __builtin_tabortdci (0,0,0);
++#endif
+    __builtin_tabortwc (0,0,0);
+    __builtin_tabortwci (0,0,0);
+    __builtin_tbegin (0);
+
+diff --git a/none/tests/ppc32/test_touch_tm.c b/none/tests/ppc32/test_touch_tm.c
+index 6c0431d..57f89bb 100644
+--- a/none/tests/ppc32/test_touch_tm.c
++++ b/none/tests/ppc32/test_touch_tm.c
+@@ -8,8 +8,10 @@ int main (void) {
+     * The rest are just treated as NOPS.
+     */
+    __builtin_tabort (0);
++#ifdef __PPC64__
+    __builtin_tabortdc (0,0,0);
+    __builtin_tabortdci (0,0,0);
++#endif
+    __builtin_tabortwc (0,0,0);
+    __builtin_tabortwci (0,0,0);
+    __builtin_tbegin (0);

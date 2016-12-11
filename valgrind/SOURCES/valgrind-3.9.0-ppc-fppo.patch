@@ -12,18 +12,18 @@
  fi
  
  
---- valgrind-3.11.0/config.h.in.orig	2016-04-15 23:51:26.889440687 +0200
-+++ valgrind-3.11.0/config.h.in	2016-04-15 23:51:43.430126014 +0200
-@@ -55,9 +55,6 @@
- /* Define to 1 if as supports fxsave64/fxrstor64. */
- #undef HAVE_AS_AMD64_FXSAVE64
+--- valgrind-3.10.0.BETA1/config.h.in.orig	2014-09-02 12:34:44.000000000 +0200
++++ valgrind-3.10.0.BETA1/config.h.in	2014-09-02 13:48:03.331525994 +0200
+@@ -93,9 +93,6 @@
+ /* Define to 1 if you have the <asm/unistd.h> header file. */
+ #undef HAVE_ASM_UNISTD_H
  
 -/* Define to 1 if as supports floating point phased out category. */
 -#undef HAVE_AS_PPC_FPPO
 -
  /* Define to 1 if as supports mtocrf/mfocrf. */
  #undef HAVE_AS_PPC_MFTOCRF
- 
+
 --- valgrind-3.10.0.BETA1/configure.ac.orig	2014-09-02 14:01:04.443754937 +0200
 +++ valgrind-3.10.0.BETA1/configure.ac	2014-09-02 14:01:16.483727639 +0200
 @@ -2022,7 +2022,7 @@
