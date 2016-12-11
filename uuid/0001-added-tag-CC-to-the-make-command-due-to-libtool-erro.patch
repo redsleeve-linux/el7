@@ -1,0 +1,44 @@
+From be93ee2b522d7e87b4ac74eb014f69604a791259 Mon Sep 17 00:00:00 2001
+From: Jacco Ligthart <jacco@redsleeve.org>
+Date: Sun, 11 Dec 2016 15:13:56 +0100
+Subject: [PATCH] added "--tag=CC" to the make command due to libtool errors
+
+---
+ SPECS/uuid.spec | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/SPECS/uuid.spec b/SPECS/uuid.spec
+index 3860fcb..6553eec 100644
+--- a/SPECS/uuid.spec
++++ b/SPECS/uuid.spec
+@@ -13,7 +13,7 @@
+ 
+ Name:           uuid
+ Version:        1.6.2
+-Release:        26%{?dist}
++Release:        26%{?dist}.redsleeve
+ Summary:        Universally Unique Identifier library
+ License:        MIT
+ Group:          System Environment/Libraries
+@@ -144,7 +144,7 @@ export CXXFLAGS="$RPM_OPT_FLAGS"
+     --with-cxx \
+     --without-pgsql
+ 
+-make LIBTOOL=/usr/bin/libtool CFLAGS="$CFLAGS" CXXFLAGS="$CXXFLAGS" %{?_smp_mflags}
++make LIBTOOL="/usr/bin/libtool --tag=CC" CFLAGS="$CFLAGS" CXXFLAGS="$CXXFLAGS" %{?_smp_mflags}
+ 
+ # Build the Perl module.
+ pushd perl
+@@ -275,6 +275,9 @@ rm -rf $RPM_BUILD_ROOT
+ %{_libdir}/libossp-uuid_dce.so
+ 
+ %changelog
++* Thu Jan 01 2015 Jacco Ligthart <jacco@redsleeve.org> 1.6.2-26.redsleeve
++- added "--tag=CC" to the make command due to libtool errors
++
+ * Fri Jan 24 2014 Daniel Mach <dmach@redhat.com> - 1.6.2-26
+ - Mass rebuild 2014-01-24
+ 
+-- 
+1.8.3.1
+
