@@ -6,7 +6,7 @@
 
 Name:               bacula
 Version:            5.2.13
-Release:            23%{aarchrev}%{?dist}
+Release:            23%{aarchrev}%{?dist}.redsleeve
 Summary:            Cross platform network backup for Linux, Unix, Mac and Windows
 # See LICENSE for details
 License:            AGPLv3 with exceptions
@@ -915,6 +915,9 @@ fi
 %{_libdir}/nagios/plugins/check_bacula
 
 %changelog
+* Sat Nov 28 2015 Jacco Ligthart <jacco@redsleeve.org> 5.2.13-23.1.redsleeve
+- added arm to the multilib patch
+
 * Fri Aug 07 2015 Petr Hracek <phracek@redhat.com> - 5.2.13-23.1
 - Update SPEC file
   Related: #1195625
