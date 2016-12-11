@@ -1,0 +1,65 @@
+From 88a0ea054a97cff45320907dbb6273e305864b73 Mon Sep 17 00:00:00 2001
+From: Jacco Ligthart <jacco@redsleeve.org>
+Date: Sun, 11 Dec 2016 15:08:40 +0100
+Subject: [PATCH] use redsleeve-release instead of redhat-release for lsb
+ checks
+
+---
+ SOURCES/redhat-lsb-redsleeve-fix-release.patch | 12 ++++++++++++
+ SPECS/redhat-lsb.spec                          |  7 +++++--
+ 2 files changed, 17 insertions(+), 2 deletions(-)
+ create mode 100644 SOURCES/redhat-lsb-redsleeve-fix-release.patch
+
+diff --git a/SOURCES/redhat-lsb-redsleeve-fix-release.patch b/SOURCES/redhat-lsb-redsleeve-fix-release.patch
+new file mode 100644
+index 0000000..d096eef
+--- /dev/null
++++ b/SOURCES/redhat-lsb-redsleeve-fix-release.patch
+@@ -0,0 +1,12 @@
++diff -uNr redhat-lsb-4.1__orig/lsb-release-2.0/lsb_release redhat-lsb-4.1/lsb-release-2.0/lsb_release
++--- redhat-lsb-4.1__orig/lsb-release-2.0/lsb_release	2012-02-29 00:54:28.000000000 +0000
+++++ redhat-lsb-4.1/lsb-release-2.0/lsb_release	2015-03-27 12:59:00.207774300 +0000
++@@ -72,7 +72,7 @@
++ INFO_DISTRIB_SUFFIX="release"                 # <distrib>-<suffix>
++ ALTERNATE_DISTRIB_FILE="/etc/debian_version"  # for Debian [based distrib]
++ ALTERNATE_DISTRIB_NAME="Debian"               #     "
++-CHECKFIRST="/etc/redhat-release"              # check it before file search
+++CHECKFIRST="/etc/redsleeve-release"           # check it before file search
++ 
++ # Defines our exit codes
++ EXIT_STATUS="0"                           # default = Ok :)
+diff --git a/SPECS/redhat-lsb.spec b/SPECS/redhat-lsb.spec
+index 3b2926e..060cca1 100644
+--- a/SPECS/redhat-lsb.spec
++++ b/SPECS/redhat-lsb.spec
+@@ -58,7 +58,7 @@
+ Summary: Implementation of Linux Standard Base specification
+ Name: redhat-lsb
+ Version: 4.1
+-Release: 27%{?dist}.1
++Release: 27%{?dist}.redsleeve
+ URL: http://www.linuxfoundation.org/collaborate/workgroups/lsb
+ Source0: https://fedorahosted.org/releases/r/e/redhat-lsb/%{name}-%{version}-%{srcrelease}.tar.bz2
+ Patch0: lsb-release-3.1-update-init-functions.patch
+@@ -66,7 +66,7 @@ Patch1: redhat-lsb-lsb_start_daemon-fix.patch
+ Patch2: redhat-lsb-trigger.patch
+ Patch3: redhat-lsb-arm.patch
+ Patch4: redhat-lsb-aarch64.patch
+-Patch1000: redhat-lsb-centos-fix-release.patch
++Patch1000: redhat-lsb-redsleeve-fix-release.patch
+ License: GPLv2
+ Group: System Environment/Base
+ BuildRequires: glibc-static
+@@ -768,6 +768,9 @@ os.remove("%{_datadir}/lsb")
+ 
+ 
+ %changelog
++* Sun May 17 2015 Jacco Ligthart <jacco@redsleeve.org> - 4.1-27.el7.redsleeve
++- use redsleeve-release instead of redhat-release for lsb checks
++
+ * Fri Mar 27 2015 Karanbir Singh <kbsingh@centos.org> - 4.1-27.el7.centos.1
+ - use centos-release instead of redhat-release for lsb checks
+ 
+-- 
+1.8.3.1
+

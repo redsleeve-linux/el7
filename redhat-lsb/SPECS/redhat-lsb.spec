@@ -58,7 +58,7 @@
 Summary: Implementation of Linux Standard Base specification
 Name: redhat-lsb
 Version: 4.1
-Release: 27%{?dist}.1
+Release: 27%{?dist}.redsleeve
 URL: http://www.linuxfoundation.org/collaborate/workgroups/lsb
 Source0: https://fedorahosted.org/releases/r/e/redhat-lsb/%{name}-%{version}-%{srcrelease}.tar.bz2
 Patch0: lsb-release-3.1-update-init-functions.patch
@@ -66,7 +66,7 @@ Patch1: redhat-lsb-lsb_start_daemon-fix.patch
 Patch2: redhat-lsb-trigger.patch
 Patch3: redhat-lsb-arm.patch
 Patch4: redhat-lsb-aarch64.patch
-Patch1000: redhat-lsb-centos-fix-release.patch
+Patch1000: redhat-lsb-redsleeve-fix-release.patch
 License: GPLv2
 Group: System Environment/Base
 BuildRequires: glibc-static
@@ -768,6 +768,9 @@ os.remove("%{_datadir}/lsb")
 
 
 %changelog
+* Sun May 17 2015 Jacco Ligthart <jacco@redsleeve.org> - 4.1-27.el7.redsleeve
+- use redsleeve-release instead of redhat-release for lsb checks
+
 * Fri Mar 27 2015 Karanbir Singh <kbsingh@centos.org> - 4.1-27.el7.centos.1
 - use centos-release instead of redhat-release for lsb checks
 
