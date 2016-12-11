@@ -26,7 +26,7 @@
 Summary: A graphical interface for modifying system date and time
 Name: system-config-date
 Version: 1.10.6
-Release: 2%{?dist}
+Release: 2%{?dist}.redsleeve
 URL: http://fedorahosted.org/%{name}
 License: GPLv2+
 Group: System Environment/Base
@@ -87,8 +87,8 @@ make \
 %if 0%{?rhel} > 0
     POOL_NTP_ORG_VENDOR=rhel \
 %endif
-%if 0%{?centos_ver} > 0
-    POOL_NTP_ORG_VENDOR=centos \
+%if 0%{?redsleeve_ver} > 0
+    POOL_NTP_ORG_VENDOR=redsleeve \
 %endif
     %{?_smp_mflags}
 
@@ -134,6 +134,9 @@ fi
 #%{python_sitelib}/scdate.dbus-%{version}-py%{python_version}.egg-info
 
 %changelog
+* Tue May 19 2015 Jacco Ligthart <jacco@redsleeve.org> - 1.10.6-2.el7
+- change POOL_NTP_ORG_VENDOR=redsleeve if redsleeve_ver >0
+
 * Thu Jun 19 2014 Johnny Hughes <johnny@centos.org> - 1.10.6-2.el7
 - change POOL_NTP_ORG_VENDOR=centos if centos_ver >0
 
