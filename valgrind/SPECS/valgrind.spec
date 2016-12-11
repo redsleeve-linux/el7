@@ -3,7 +3,7 @@
 Summary: Tool for finding memory management bugs in programs
 Name: %{?scl_prefix}valgrind
 Version: 3.10.0
-Release: 16%{?dist}
+Release: 16%{?dist}.redsleeve
 Epoch: 1
 License: GPLv2+
 URL: http://www.valgrind.org/
@@ -129,6 +129,8 @@ Patch21: valgrind-3.10.1-ppc32-tabortdc.patch
 # The result would only be used for two test cases.
 Patch7001: valgrind-3.9.0-ppc-fppo.patch
 
+Patch10001: valgrind-3.9.0-enable-armv5.patch
+
 %if %{build_multilib}
 # Ensure glibc{,-devel} is installed for both multilib arches
 BuildRequires: /lib/libc.so.6 /usr/lib/libc.so /lib64/libc.so.6 /usr/lib64/libc.so
@@ -158,7 +160,7 @@ BuildRequires: procps
 
 %{?scl:Requires:%scl_runtime}
 
-ExclusiveArch: %{ix86} x86_64 ppc ppc64 ppc64le s390x armv7hl aarch64
+ExclusiveArch: %{ix86} x86_64 ppc ppc64 ppc64le s390x armv5tel aarch64
 %ifarch %{ix86}
 %define valarch x86
 %define valsecarch %{nil}
@@ -191,7 +193,7 @@ ExclusiveArch: %{ix86} x86_64 ppc ppc64 ppc64le s390x armv7hl aarch64
 %define valarch s390x
 %define valsecarch %{nil}
 %endif
-%ifarch armv7hl
+%ifarch armv5tel
 %define valarch arm
 %define valsecarch %{nil}
 %endif
@@ -259,6 +261,8 @@ Valgrind User Manual for details.
 
 # RHEL7 specific patches
 %patch7001 -p1
+
+%patch10001 -p1
 
 %build
 # We need to use the software collection compiler and binutils if available.
@@ -407,6 +411,9 @@ echo ===============END TESTING===============
 %endif
 
 %changelog
+* Sat Nov 28 2015 Jacco Ligthart <jacco@redsleeve.org> 3.10.0-16.redsleeve
+- added a patch to enable armv5tel (backport from F18 armv5tel)
+
 * Thu Aug 28 2015 Mark Wielaard <mjw@redhat.com> - 3.10.0-16
 - Patch both 32 and 64 in valgrind-3.10.1-ppc32-tabortdc.patch (#1257623)
 

@@ -1,0 +1,24 @@
+diff -ruN valgrind-3.9.0-orig/configure.ac valgrind-3.9.0/configure.ac
+--- valgrind-3.9.0-orig/configure.ac	2015-01-23 16:17:23.716605445 +0100
++++ valgrind-3.9.0/configure.ac	2015-01-23 16:24:44.855140950 +0100
+@@ -190,7 +190,7 @@
+         ARCH_MAX="s390x"
+         ;;
+ 
+-     armv7*)
++     armv[57]*)
+ 	AC_MSG_RESULT([ok (${host_cpu})])
+ 	ARCH_MAX="arm"
+ 	;;
+diff -ruN valgrind-3.9.0-orig/configure valgrind-3.9.0/configure
+--- valgrind-3.9.0-orig/configure       2015-01-23 16:27:12.464651357 +0100
++++ valgrind-3.9.0/configure    2015-01-23 16:30:11.694057168 +0100
+@@ -5390,7 +5390,7 @@
+         ARCH_MAX="s390x"
+         ;;
+ 
+-     armv7*)
++     armv[57]*)
+ 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: ok (${host_cpu})" >&5
+ $as_echo "ok (${host_cpu})" >&6; }
+ 	ARCH_MAX="arm"

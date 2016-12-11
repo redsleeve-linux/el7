@@ -1,0 +1,103 @@
+From 8f4013393f318a30230f18e2eaaf96390832604c Mon Sep 17 00:00:00 2001
+From: Jacco Ligthart <jacco@redsleeve.org>
+Date: Sun, 11 Dec 2016 23:35:34 +0100
+Subject: [PATCH] added a patch to enable armv5tel (backport from F18 armv5tel)
+
+---
+ SOURCES/valgrind-3.9.0-enable-armv5.patch | 24 ++++++++++++++++++++++++
+ SPECS/valgrind.spec                       | 13 ++++++++++---
+ 2 files changed, 34 insertions(+), 3 deletions(-)
+ create mode 100644 SOURCES/valgrind-3.9.0-enable-armv5.patch
+
+diff --git a/SOURCES/valgrind-3.9.0-enable-armv5.patch b/SOURCES/valgrind-3.9.0-enable-armv5.patch
+new file mode 100644
+index 0000000..4e765fe
+--- /dev/null
++++ b/SOURCES/valgrind-3.9.0-enable-armv5.patch
+@@ -0,0 +1,24 @@
++diff -ruN valgrind-3.9.0-orig/configure.ac valgrind-3.9.0/configure.ac
++--- valgrind-3.9.0-orig/configure.ac	2015-01-23 16:17:23.716605445 +0100
+++++ valgrind-3.9.0/configure.ac	2015-01-23 16:24:44.855140950 +0100
++@@ -190,7 +190,7 @@
++         ARCH_MAX="s390x"
++         ;;
++ 
++-     armv7*)
+++     armv[57]*)
++ 	AC_MSG_RESULT([ok (${host_cpu})])
++ 	ARCH_MAX="arm"
++ 	;;
++diff -ruN valgrind-3.9.0-orig/configure valgrind-3.9.0/configure
++--- valgrind-3.9.0-orig/configure       2015-01-23 16:27:12.464651357 +0100
+++++ valgrind-3.9.0/configure    2015-01-23 16:30:11.694057168 +0100
++@@ -5390,7 +5390,7 @@
++         ARCH_MAX="s390x"
++         ;;
++ 
++-     armv7*)
+++     armv[57]*)
++ 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: ok (${host_cpu})" >&5
++ $as_echo "ok (${host_cpu})" >&6; }
++ 	ARCH_MAX="arm"
+diff --git a/SPECS/valgrind.spec b/SPECS/valgrind.spec
+index 9b139cc..52f8376 100644
+--- a/SPECS/valgrind.spec
++++ b/SPECS/valgrind.spec
+@@ -3,7 +3,7 @@
+ Summary: Tool for finding memory management bugs in programs
+ Name: %{?scl_prefix}valgrind
+ Version: 3.10.0
+-Release: 16%{?dist}
++Release: 16%{?dist}.redsleeve
+ Epoch: 1
+ License: GPLv2+
+ URL: http://www.valgrind.org/
+@@ -129,6 +129,8 @@ Patch21: valgrind-3.10.1-ppc32-tabortdc.patch
+ # The result would only be used for two test cases.
+ Patch7001: valgrind-3.9.0-ppc-fppo.patch
+ 
++Patch10001: valgrind-3.9.0-enable-armv5.patch
++
+ %if %{build_multilib}
+ # Ensure glibc{,-devel} is installed for both multilib arches
+ BuildRequires: /lib/libc.so.6 /usr/lib/libc.so /lib64/libc.so.6 /usr/lib64/libc.so
+@@ -158,7 +160,7 @@ BuildRequires: procps
+ 
+ %{?scl:Requires:%scl_runtime}
+ 
+-ExclusiveArch: %{ix86} x86_64 ppc ppc64 ppc64le s390x armv7hl aarch64
++ExclusiveArch: %{ix86} x86_64 ppc ppc64 ppc64le s390x armv5tel aarch64
+ %ifarch %{ix86}
+ %define valarch x86
+ %define valsecarch %{nil}
+@@ -191,7 +193,7 @@ ExclusiveArch: %{ix86} x86_64 ppc ppc64 ppc64le s390x armv7hl aarch64
+ %define valarch s390x
+ %define valsecarch %{nil}
+ %endif
+-%ifarch armv7hl
++%ifarch armv5tel
+ %define valarch arm
+ %define valsecarch %{nil}
+ %endif
+@@ -260,6 +262,8 @@ Valgrind User Manual for details.
+ # RHEL7 specific patches
+ %patch7001 -p1
+ 
++%patch10001 -p1
++
+ %build
+ # We need to use the software collection compiler and binutils if available.
+ # The configure checks might otherwise miss support for various newer
+@@ -407,6 +411,9 @@ echo ===============END TESTING===============
+ %endif
+ 
+ %changelog
++* Sat Nov 28 2015 Jacco Ligthart <jacco@redsleeve.org> 3.10.0-16.redsleeve
++- added a patch to enable armv5tel (backport from F18 armv5tel)
++
+ * Thu Aug 28 2015 Mark Wielaard <mjw@redhat.com> - 3.10.0-16
+ - Patch both 32 and 64 in valgrind-3.10.1-ppc32-tabortdc.patch (#1257623)
+ 
+-- 
+1.8.3.1
+
