@@ -1,7 +1,7 @@
-Summary: The skeleton package which defines a simple CentOS Linux system
+Summary: The skeleton package which defines a simple RedSleeve Linux system
 Name: basesystem
 Version: 10.0
-Release: 7%{?dist}
+Release: 7%{?dist}.redsleeve
 License: Public Domain
 Group: System Environment/Base
 Requires(pre): setup filesystem
@@ -9,7 +9,7 @@ BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 BuildArch: noarch
 
 %description
-Basesystem defines the components of a basic CentOS Linux
+Basesystem defines the components of a basic RedSleeve Linux
 system (for example, the package installation order to use during
 bootstrapping). Basesystem should be in every installation of a system,
 and it should never be removed.
@@ -26,6 +26,9 @@ and it should never be removed.
 %defattr(-,root,root,-)
 
 %changelog
+* Sun May 17 2015 Jacco Ligthart <jacco@redsleeve.org> 10.0-7.el7.redsleeve
+- Roll in RedSleeve Branding
+
 * Fri Jun 27 2014 Johnny Hughes <johnny@centos.org> - 10.0-7.el7.centos
 - Roll in CentOS Branding
 
