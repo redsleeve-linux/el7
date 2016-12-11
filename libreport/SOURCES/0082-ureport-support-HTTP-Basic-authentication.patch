@@ -1,0 +1,138 @@
+From 2725a768826f832a2b37ee21fa306d6ec02472b9 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Tue, 16 Sep 2014 12:57:49 +0200
+Subject: [LIBREPORT PATCH 82/93] ureport: support HTTP Basic authentication
+
+Relate to rhbz#1139987
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/include/ureport.h | 16 ++++++++++++++++
+ src/lib/ureport.c     | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 52 insertions(+)
+
+diff --git a/src/include/ureport.h b/src/include/ureport.h
+index 3fffed7..3ee12cd 100644
+--- a/src/include/ureport.h
++++ b/src/include/ureport.h
+@@ -23,6 +23,8 @@
+ extern "C" {
+ #endif
+ 
++#include "internal_libreport.h"
++
+ #define UREPORT_CONF_FILE_PATH PLUGINS_CONF_DIR"/ureport.conf"
+ 
+ #define UREPORT_OPTION_VALUE_FROM_CONF(settings, opt, var, tr) do { const char *value = getenv("uReport_"opt); \
+@@ -50,6 +52,8 @@ struct ureport_server_config
+     char *ur_client_cert; ///< Path to certificate used for client
+                           ///< authentication (or NULL)
+     char *ur_client_key;  ///< Private key for the certificate
++    char *ur_username;    ///< username for basic HTTP auth
++    char *ur_password;    ///< password for basic HTTP auth
+     map_string_t *ur_http_headers; ///< Additional HTTP headers
+ 
+     struct ureport_preferences ur_prefs; ///< configuration for uReport generation
+@@ -99,6 +103,18 @@ ureport_server_config_set_client_auth(struct ureport_server_config *config,
+                                       const char *client_auth);
+ 
+ /*
++ * Configure user name and password for HTTP Basic authentication
++ *
++ * @param config Configured structure
++ * @param username User name
++ * @param password Password
++ */
++#define ureport_server_config_set_basic_auth libreport_ureport_server_config_set_basic_auth
++void
++ureport_server_config_set_basic_auth(struct ureport_server_config *config,
++                                     const char *username, const char *password);
++
++/*
+  * uReport server response
+  */
+ struct ureport_server_response
+diff --git a/src/lib/ureport.c b/src/lib/ureport.c
+index e1816ef..5453a37 100644
+--- a/src/lib/ureport.c
++++ b/src/lib/ureport.c
+@@ -70,8 +70,12 @@ ureport_server_config_set_client_auth(struct ureport_server_config *config,
+ 
+     if (strcmp(client_auth, "") == 0)
+     {
++        free(config->ur_client_cert);
+         config->ur_client_cert = NULL;
++
++        free(config->ur_client_key);
+         config->ur_client_key = NULL;
++
+         log_notice("Not using client authentication");
+     }
+     else if (strcmp(client_auth, "rhsm") == 0)
+@@ -181,10 +185,29 @@ ureport_server_config_set_client_auth(struct ureport_server_config *config,
+     {
+         log_notice("Using client certificate: %s", config->ur_client_cert);
+         log_notice("Using client private key: %s", config->ur_client_key);
++
++        free(config->ur_username);
++        config->ur_username = NULL;
++
++        free(config->ur_password);
++        config->ur_password = NULL;
+     }
+ }
+ 
+ void
++ureport_server_config_set_basic_auth(struct ureport_server_config *config,
++                                     const char *login, const char *password)
++{
++    ureport_server_config_set_client_auth(config, "");
++
++    free(config->ur_username);
++    config->ur_username = xstrdup(login);
++
++    free(config->ur_password);
++    config->ur_password = xstrdup(password);
++}
++
++void
+ ureport_server_config_load(struct ureport_server_config *config,
+                            map_string_t *settings)
+ {
+@@ -216,6 +239,8 @@ ureport_server_config_init(struct ureport_server_config *config)
+     config->ur_ssl_verify = true;
+     config->ur_client_cert = NULL;
+     config->ur_client_key = NULL;
++    config->ur_username = NULL;
++    config->ur_password = NULL;
+     config->ur_http_headers = new_map_string();
+     config->ur_prefs.urp_auth_items = NULL;
+ }
+@@ -229,6 +254,12 @@ ureport_server_config_destroy(struct ureport_server_config *config)
+     free(config->ur_client_key);
+     config->ur_client_key = DESTROYED_POINTER;
+ 
++    free(config->ur_username);
++    config->ur_username = DESTROYED_POINTER;
++
++    free(config->ur_password);
++    config->ur_password = DESTROYED_POINTER;
++
+     g_list_free_full(config->ur_prefs.urp_auth_items, free);
+     config->ur_prefs.urp_auth_items = DESTROYED_POINTER;
+ 
+@@ -619,6 +650,11 @@ ureport_do_post(const char *json, struct ureport_server_config *config,
+         post_state->client_cert_path = config->ur_client_cert;
+         post_state->client_key_path = config->ur_client_key;
+     }
++    else if (config->ur_username && config->ur_password)
++    {
++        post_state->username = config->ur_username;
++        post_state->password = config->ur_password;
++    }
+ 
+     char **headers = xmalloc(sizeof(char *) * (3 + size_map_string(config->ur_http_headers)));
+     headers[0] = (char *)"Accept: application/json";
+-- 
+1.8.3.1
+

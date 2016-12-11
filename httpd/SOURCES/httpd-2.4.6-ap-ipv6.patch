@@ -1,0 +1,139 @@
+diff --git a/support/ab.c b/support/ab.c
+index f54c402..93c9066 100644
+--- a/support/ab.c
++++ b/support/ab.c
+@@ -344,6 +344,7 @@ apr_time_t start, lasttime, stoptime;
+ char _request[2048];
+ char *request = _request;
+ apr_size_t reqlen;
++int requests_initialized = 0;
+ 
+ /* one global throw-away buffer to read stuff into */
+ char buffer[8192];
+@@ -1253,12 +1254,18 @@ static void start_connect(struct connection * c)
+         else {
+             set_conn_state(c, STATE_UNCONNECTED);
+             apr_socket_close(c->aprsock);
+-            err_conn++;
+-            if (bad++ > 10) {
++            if (good == 0 && destsa->next) {
++                destsa = destsa->next;
++                err_conn = 0;
++            }
++            else if (bad++ > 10) {
+                 fprintf(stderr,
+                    "\nTest aborted after 10 failures\n\n");
+                 apr_err("apr_socket_connect()", rv);
+             }
++            else {
++                err_conn++;
++            }
+ 
+             start_connect(c);
+             return;
+@@ -1339,6 +1346,7 @@ static void read_connection(struct connection * c)
+     apr_status_t status;
+     char *part;
+     char respcode[4];       /* 3 digits and null */
++    int i;
+ 
+     r = sizeof(buffer);
+ #ifdef USE_SSL
+@@ -1362,6 +1370,13 @@ static void read_connection(struct connection * c)
+                 good++;
+                 close_connection(c);
+             }
++            else if (scode == SSL_ERROR_SYSCALL 
++                     && c->read == 0
++                     && destsa->next
++                     && c->state == STATE_CONNECTING
++                     && good == 0) {
++                return;
++            }
+             else if (scode != SSL_ERROR_WANT_WRITE
+                      && scode != SSL_ERROR_WANT_READ) {
+                 /* some fatal error: */
+@@ -1387,8 +1402,8 @@ static void read_connection(struct connection * c)
+         }
+         /* catch legitimate fatal apr_socket_recv errors */
+         else if (status != APR_SUCCESS) {
+-            err_recv++;
+             if (recverrok) {
++                err_recv++;
+                 bad++;
+                 close_connection(c);
+                 if (verbosity >= 1) {
+@@ -1396,7 +1411,12 @@ static void read_connection(struct connection * c)
+                     fprintf(stderr,"%s: %s (%d)\n", "apr_socket_recv", apr_strerror(status, buf, sizeof buf), status);
+                 }
+                 return;
+-            } else {
++            } else if (destsa->next && c->state == STATE_CONNECTING
++                       && c->read == 0 && good == 0) {
++                return;
++            }
++            else {
++                err_recv++;
+                 apr_err("apr_socket_recv", status);
+             }
+         }
+@@ -1523,6 +1543,16 @@ static void read_connection(struct connection * c)
+             }
+             c->bread += c->cbx - (s + l - c->cbuff) + r - tocopy;
+             totalbread += c->bread;
++
++            /* We have received the header, so we know this destination socket
++             * address is working, so initialize all remaining requests. */
++            if (!requests_initialized) {
++                for (i = 1; i < concurrency; i++) {
++                    con[i].socknum = i;
++                    start_connect(&con[i]);
++                }
++                requests_initialized = 1;
++            }
+         }
+     }
+     else {
+@@ -1734,11 +1764,10 @@ static void test(void)
+     apr_signal(SIGINT, output_results);
+ #endif
+ 
+-    /* initialise lots of requests */
+-    for (i = 0; i < concurrency; i++) {
+-        con[i].socknum = i;
+-        start_connect(&con[i]);
+-    }
++    /* initialise first connection to determine destination socket address
++     * which should be used for next connections. */
++    con[0].socknum = 0;
++    start_connect(&con[0]);
+ 
+     do {
+         apr_int32_t n;
+@@ -1786,14 +1815,20 @@ static void test(void)
+             if ((rtnev & APR_POLLIN) || (rtnev & APR_POLLPRI) || (rtnev & APR_POLLHUP))
+                 read_connection(c);
+             if ((rtnev & APR_POLLERR) || (rtnev & APR_POLLNVAL)) {
+-                bad++;
+-                err_except++;
+-                /* avoid apr_poll/EINPROGRESS loop on HP-UX, let recv discover ECONNREFUSED */
+-                if (c->state == STATE_CONNECTING) {
+-                    read_connection(c);
++                if (destsa->next && c->state == STATE_CONNECTING && good == 0) {
++                    destsa = destsa->next;
++                    start_connect(c);
+                 }
+                 else {
+-                    start_connect(c);
++                    bad++;
++                    err_except++;
++                    /* avoid apr_poll/EINPROGRESS loop on HP-UX, let recv discover ECONNREFUSED */
++                    if (c->state == STATE_CONNECTING) {
++                        read_connection(c);
++                    }
++                    else {
++                        start_connect(c);
++                    }
+                 }
+                 continue;
+             }

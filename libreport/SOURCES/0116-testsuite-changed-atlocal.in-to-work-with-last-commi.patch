@@ -1,0 +1,37 @@
+From bc34787bfbaa2a4bcb74865c24fe56b0fd50d7e5 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Wed, 22 Oct 2014 00:17:28 +0200
+Subject: [LIBREPORT PATCH 116/118] testsuite: changed atlocal.in to work with
+ last commit
+
+Added special library libreport-web.la and CFLAGS DEFAULT_DUMP_DIR_MODE.
+
+Related #1140224
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ tests/atlocal.in | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/tests/atlocal.in b/tests/atlocal.in
+index 5150b21..1a82edb 100644
+--- a/tests/atlocal.in
++++ b/tests/atlocal.in
+@@ -6,10 +6,10 @@ CC='@CC@'
+ LIBTOOL="$abs_top_builddir/libtool"
+ 
+ # We want no optimization.
+-CFLAGS="@O0CFLAGS@ -I$abs_top_builddir/src/include -I$abs_top_builddir/src/lib -I$abs_top_builddir/src/gtk-helpers -D_GNU_SOURCE @GLIB_CFLAGS@ @GTK_CFLAGS@"
++CFLAGS="@O0CFLAGS@ -I$abs_top_builddir/src/include -I$abs_top_builddir/src/lib -I$abs_top_builddir/src/gtk-helpers -D_GNU_SOURCE @GLIB_CFLAGS@ @GTK_CFLAGS@ -DDEFAULT_DUMP_DIR_MODE=@DEFAULT_DUMP_DIR_MODE@"
+ 
+ # Are special link options needed?
+-LDFLAGS="@LDFLAGS@ $abs_top_builddir/src/lib/libreport.la $abs_top_builddir/src/gtk-helpers/libreport-gtk.la"
++LDFLAGS="@LDFLAGS@"
+ 
+ # Are special libraries needed?
+-LIBS="@LIBS@"
++LIBS="@LIBS@ $abs_top_builddir/src/lib/libreport.la $abs_top_builddir/src/gtk-helpers/libreport-gtk.la $abs_top_builddir/src/lib/libreport-web.la"
+-- 
+1.8.3.1
+

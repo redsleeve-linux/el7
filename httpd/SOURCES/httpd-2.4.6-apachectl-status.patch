@@ -1,0 +1,13 @@
+diff --git a/docs/man/apachectl.8 b/docs/man/apachectl.8
+index 4bfc7cb..372c08e 100644
+--- a/docs/man/apachectl.8
++++ b/docs/man/apachectl.8
+@@ -74,7 +74,7 @@ fullstatus
+ Displays a full status report from mod_status\&. For this to work, you need to have mod_status enabled on your server and a text-based browser such as lynx available on your system\&. The URL used to access the status report can be set by editing the STATUSURL variable in the script\&.  
+ .TP
+ status
+-Displays a brief status report\&. Similar to the fullstatus option, except that the list of requests currently being served is omitted\&.  
++Displays a brief status report using systemd\&. 
+ .TP
+ graceful
+ Gracefully restarts the Apache httpd daemon\&. If the daemon is not running, it is not started\&. This differs from a normal restart in that currently open connections are not aborted\&. A side effect is that old log files will not be closed immediately\&. This means that if used in a log rotation script, a substantial delay may be necessary to ensure that the old log files are closed before processing them\&. This command automatically checks the configuration files as in configtest before initiating the restart to make sure Apache doesn't die\&. This is equivalent to apachectl -k graceful\&.  

@@ -1,0 +1,55 @@
+From 61c3922184f8a5c8c29cbb0a67d907a5ab385daf Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Mon, 2 May 2016 13:38:18 +0200
+Subject: [PATCH] python: fix check for absolute path
+
+Related to rhbz#1166633
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/hooks/abrt_exception_handler.py.in | 20 ++++++++++++++------
+ 1 file changed, 14 insertions(+), 6 deletions(-)
+
+diff --git a/src/hooks/abrt_exception_handler.py.in b/src/hooks/abrt_exception_handler.py.in
+index 6cf36d0..7455663 100644
+--- a/src/hooks/abrt_exception_handler.py.in
++++ b/src/hooks/abrt_exception_handler.py.in
+@@ -167,13 +167,21 @@ def get_dso_list(tb):
+ 
+     return list(packages)
+ 
+-def conf_enabled(var_name):
++def require_abs_path():
++    """
++    Return True if absolute path requirement is enabled
++    in configuration
++    """
++
++    import problem
++
+     try:
+         conf = problem.load_plugin_conf_file("python.conf")
+-    except:
+-        return -1
+-    else:
+-        conf.get(var_name, -1)
++    except OsError:
++        return False
++
++    return conf.get("RequireAbsolutePath", "yes") == "yes"
++
+ 
+ def handleMyException((etype, value, tb)):
+     """
+@@ -219,7 +227,7 @@ def handleMyException((etype, value, tb)):
+         # (In this case we can't reliably determine package)
+         syslog("detected unhandled Python exception in '%s'" % sys.argv[0])
+         if sys.argv[0][0] != "/":
+-            if conf_enabled("RequireAbsolutePath") != 0:
++            if require_abs_path():
+                 raise Exception
+ 
+         import traceback
+-- 
+1.8.3.1
+

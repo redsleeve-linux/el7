@@ -1,0 +1,93 @@
+From caceb3a08644dae0ecae05a5b1f18b91a522356d Mon Sep 17 00:00:00 2001
+From: Martin Babinsky <mbabinsk@redhat.com>
+Date: Thu, 14 Jul 2016 17:14:59 +0200
+Subject: [PATCH] DNS install: Ensure that DNS servers container exists
+
+during DNS installation it is assumed that the cn=servers,cn=dns container is
+always present in LDAP backend when migrating DNS server info to LDAP.
+
+This may not always be the case (e.g. when a new replica is set up against
+older master) so the code must take additional steps to ensure this container
+is present.
+
+https://fedorahosted.org/freeipa/ticket/6083
+
+Reviewed-By: Stanislav Laznicka <slaznick@redhat.com>
+---
+ ipaserver/install/bindinstance.py | 21 +++++++++++++++++++++
+ ipaserver/install/plugins/dns.py  | 13 ++-----------
+ 2 files changed, 23 insertions(+), 11 deletions(-)
+
+diff --git a/ipaserver/install/bindinstance.py b/ipaserver/install/bindinstance.py
+index f4ed63141cf25dfcfdc72d37d6ff4563e4acccf1..844fb04a9d9feca936211964b75a0b3468ba663b 100644
+--- a/ipaserver/install/bindinstance.py
++++ b/ipaserver/install/bindinstance.py
+@@ -546,6 +546,26 @@ def remove_master_dns_records(hostname, realm):
+     bind.remove_server_ns_records(hostname)
+ 
+ 
++def ensure_dnsserver_container_exists(ldap, api_instance, logger=None):
++    """
++    Create cn=servers,cn=dns,$SUFFIX container. If logger is not None, emit a
++    message that the container already exists when DuplicateEntry is raised
++    """
++
++    entry = ldap.make_entry(
++        DN(api_instance.env.container_dnsservers, api_instance.env.basedn),
++        {
++            u'objectclass': [u'top', u'nsContainer'],
++            u'cn': [u'servers']
++        }
++    )
++    try:
++        ldap.add_entry(entry)
++    except errors.DuplicateEntry:
++        if logger is not None:
++            logger.debug('cn=servers,cn=dns container already exists')
++
++
+ class DnsBackup(object):
+     def __init__(self, service):
+         self.service = service
+@@ -942,6 +962,7 @@ class BindInstance(service.Service):
+         )
+ 
+     def __setup_server_configuration(self):
++        ensure_dnsserver_container_exists(self.admin_conn, self.api)
+         try:
+             self.api.Command.dnsserver_add(
+                 self.fqdn, idnssoamname=DNSName(self.fqdn).make_absolute(),
+diff --git a/ipaserver/install/plugins/dns.py b/ipaserver/install/plugins/dns.py
+index 4fa30661e40748cd32cb25c232168191db20c461..32247eedbac7fc7e00c7277ef0bc593a74cd22e4 100644
+--- a/ipaserver/install/plugins/dns.py
++++ b/ipaserver/install/plugins/dns.py
+@@ -29,6 +29,7 @@ from ipapython.dn import DN
+ from ipapython import dnsutil
+ from ipapython.ipa_log_manager import root_logger
+ from ipaserver.install import sysupgrade
++from ipaserver.install.bindinstance import ensure_dnsserver_container_exists
+ from ipaserver.plugins.dns import dns_container_exists
+ 
+ register = Registry()
+@@ -521,17 +522,7 @@ class update_dnsserver_configuration_into_ldap(DNSUpdater):
+             return False, []
+ 
+         # create container first, if doesn't exist
+-        entry = ldap.make_entry(
+-            DN(self.api.env.container_dnsservers, self.api.env.basedn),
+-            {
+-                u'objectclass': [u'top', u'nsContainer'],
+-                u'cn': [u'servers']
+-            }
+-        )
+-        try:
+-            ldap.add_entry(entry)
+-        except errors.DuplicateEntry:
+-            self.log.debug('cn=dnsservers container already exists')
++        ensure_dnsserver_container_exists(ldap, self.api, logger=self.log)
+ 
+         try:
+             self.api.Command.dnsserver_add(self.api.env.host)
+-- 
+2.7.4
+

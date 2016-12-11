@@ -1,0 +1,30 @@
+diff -up dhcp-4.2.5/includes/site.h.max-fd dhcp-4.2.5/includes/site.h
+--- dhcp-4.2.5/includes/site.h.max-fd	2016-04-21 15:15:14.618846830 +0200
++++ dhcp-4.2.5/includes/site.h	2016-04-21 15:17:06.529731652 +0200
+@@ -275,3 +275,9 @@
+    Care should be taken before enabling this option. */
+ 
+ /* #define SERVER_ID_CHECK */
++
++/* Limit the value of a file descriptor the serve will use
++   when accepting a connecting request.  This can be used to
++   limit the number of TCP connections that the server will
++   allow at one time.  A value of 0 means there is no limit.*/
++#define MAX_FD_VALUE 200
+diff -up dhcp-4.2.5/omapip/listener.c.max-fd dhcp-4.2.5/omapip/listener.c
+--- dhcp-4.2.5/omapip/listener.c.max-fd	2013-01-03 01:02:24.000000000 +0100
++++ dhcp-4.2.5/omapip/listener.c	2016-04-21 15:15:14.618846830 +0200
+@@ -239,7 +239,12 @@ isc_result_t omapi_accept (omapi_object_
+ 			return ISC_R_NORESOURCES;
+ 		return ISC_R_UNEXPECTED;
+ 	}
+-	
++
++	if ((MAX_FD_VALUE != 0) && (socket > MAX_FD_VALUE)) {
++		close(socket);
++		return (ISC_R_NORESOURCES);
++	}
++
+ #if defined (TRACING)
+ 	/* If we're recording a trace, remember the connection. */
+ 	if (trace_record ()) {

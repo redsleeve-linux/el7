@@ -1,0 +1,33 @@
+From 5da022d3f1e6e54067dc265a6f6a37b9214daa6d Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Tue, 28 Jul 2015 13:17:25 +0200
+Subject: [PATCH] abrt-auto-reporting: fix related to conditional compilation
+
+We discovered that conditional compilation in abrt-auto-reporting does not
+work. We forgot add -DAUTHENTICATED_AUTOREPORTING=1 flag if
+AUTHENTICATED_AUTOREPORTING is enabled.
+
+Related to rhbz#1191572
+---
+ src/daemon/Makefile.am | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/daemon/Makefile.am b/src/daemon/Makefile.am
+index 7211216..8cbc2bc 100644
+--- a/src/daemon/Makefile.am
++++ b/src/daemon/Makefile.am
+@@ -107,6 +107,11 @@ abrt_auto_reporting_CPPFLAGS = \
+     -I$(srcdir)/../lib \
+     $(LIBREPORT_CFLAGS) \
+     -D_GNU_SOURCE
++
++if AUTHENTICATED_AUTOREPORTING
++abrt_auto_reporting_CPPFLAGS += -DAUTHENTICATED_AUTOREPORTING=1
++endif
++
+ abrt_auto_reporting_LDADD = \
+     ../lib/libabrt.la \
+     $(LIBREPORT_LIBS)
+-- 
+2.4.3
+

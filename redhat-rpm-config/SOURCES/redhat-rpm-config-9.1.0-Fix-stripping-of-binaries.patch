@@ -1,0 +1,44 @@
+Based on:
+
+From 5b4805df2085b0e7c4f09caad62638c3238b3bc1 Mon Sep 17 00:00:00 2001
+From: Florian Festi <ffesti@redhat.com>
+Date: Tue, 30 Jun 2015 11:39:21 +0200
+Subject: [PATCH] Fix stripping of binaries for changed file output.
+
+file will print a "warning" that it only processed up to 256 notes.
+
+ - Related: 659614aeb6fffe3b249c12b442bd85129100f73b
+ - Related: http://rpm.org/ticket/887
+ - Related: rhbz#1206312
+
+--- redhat-rpm-config-9.1.0/brp-strip.orig	2010-02-02 10:24:04.000000000 +0100
++++ redhat-rpm-config-9.1.0/brp-strip	2016-05-11 14:21:47.846187676 +0200
+@@ -9,6 +9,6 @@
+ for f in `find $RPM_BUILD_ROOT -type f \( -perm -0100 -or -perm -0010 -or -perm -0001 \) -exec file {} \; | \
+         grep -v "^${RPM_BUILD_ROOT}/\?usr/lib/debug"  | \
+ 	grep -v ' shared object,' | \
+-	sed -n -e 's/^\(.*\):[ 	]*ELF.*, not stripped/\1/p'`; do
++	sed -n -e 's/^\(.*\):[ 	]*ELF.*, not stripped.*/\1/p'`; do
+ 	$STRIP -g "$f" || :
+ done
+--- redhat-rpm-config-9.1.0/brp-strip-comment-note.orig	2010-02-02 10:24:04.000000000 +0100
++++ redhat-rpm-config-9.1.0/brp-strip-comment-note	2016-05-11 14:21:47.846187676 +0200
+@@ -13,7 +13,7 @@
+ # for already stripped elf files in the build root
+ for f in `find $RPM_BUILD_ROOT -type f \( -perm -0100 -or -perm -0010 -or -perm -0001 \) -exec file {} \; | \
+         grep -v "^${RPM_BUILD_ROOT}/\?usr/lib/debug"  | \
+-	sed -n -e 's/^\(.*\):[ 	]*ELF.*, stripped/\1/p'`; do
++	sed -n -e 's/^\(.*\):[ 	]*ELF.*, stripped.*/\1/p'`; do
+ 	note="-R .note"
+ 	if $OBJDUMP -h $f | grep '^[ 	]*[0-9]*[ 	]*.note[ 	]' -A 1 | \
+ 		grep ALLOC >/dev/null; then
+--- redhat-rpm-config-9.1.0/brp-strip-shared.orig	2010-02-02 10:24:04.000000000 +0100
++++ redhat-rpm-config-9.1.0/brp-strip-shared	2016-05-11 14:21:47.846187676 +0200
+@@ -15,6 +15,6 @@
+ for f in `find $RPM_BUILD_ROOT -type f -a -exec file {} \; | \
+         grep -v "^${RPM_BUILD_ROOT}/\?usr/lib/debug"  | \
+ 	grep ' shared object,' | \
+-	sed -n -e 's/^\(.*\):[ 	]*ELF.*, not stripped/\1/p'`; do
++	sed -n -e 's/^\(.*\):[ 	]*ELF.*, not stripped.*/\1/p'`; do
+ 	$STRIP --strip-unneeded "$f"
+ done

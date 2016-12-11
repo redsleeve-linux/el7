@@ -1,0 +1,247 @@
+From d2dcaeddfe015d3fee3817737e1bae72f1ad3316 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Wed, 1 Jul 2015 13:38:57 +0200
+Subject: [PATCH] cli: enable polkit authentication on command line
+
+This patch will allow users to work with all problems without the need
+to run abrt-cli under root account.
+
+The polkit aget will run in a separate thread and will interact with a
+user via STDOUT and STDIN, so we should not introduce new threads using
+STDIN or STDOUT and all D-Bus calls should be synchronous.
+
+http://www.freedesktop.org/software/polkit/docs/latest/ref-authentication-agent-api.html
+
+Related: #1224984
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+
+Conflicts:
+	src/cli/Makefile.am
+---
+ configure.ac            |  1 +
+ doc/abrt-cli.txt        | 11 +++++++++--
+ src/cli/Makefile.am     |  2 ++
+ src/cli/abrt-cli-core.c | 50 +++++++++++++++++++++++++++++++++++++++++++++++--
+ src/cli/abrt-cli-core.h |  9 ++++++++-
+ src/cli/abrt-cli.c      | 15 ++++++++++++++-
+ 6 files changed, 82 insertions(+), 6 deletions(-)
+
+diff --git a/configure.ac b/configure.ac
+index d65bf54..56b8ad8 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -104,6 +104,7 @@ PKG_CHECK_MODULES([NSS], [nss])
+ PKG_CHECK_MODULES([LIBREPORT], [libreport])
+ PKG_CHECK_MODULES([LIBREPORT_GTK], [libreport-gtk])
+ PKG_CHECK_MODULES([POLKIT], [polkit-gobject-1])
++PKG_CHECK_MODULES([POLKIT_AGENT], [polkit-agent-1])
+ PKG_CHECK_MODULES([GIO], [gio-2.0])
+ PKG_CHECK_MODULES([SATYR], [satyr])
+ PKG_CHECK_MODULES([LIBSELINUX], [libselinux])
+diff --git a/doc/abrt-cli.txt b/doc/abrt-cli.txt
+index 399b5fd..0f18784 100644
+--- a/doc/abrt-cli.txt
++++ b/doc/abrt-cli.txt
+@@ -7,6 +7,8 @@ abrt-cli - List, remove, print, analyze, report problems
+ 
+ SYNOPSIS
+ --------
++'abrt-cli' [--authenticate] COMMAND [COMMAND OPTIONS]
++
+ 'abrt-cli' list    [-vn] [--detailed] [--since NUM] [--until NUM] [DIR]...
+ 
+ 'abrt-cli' remove  [-v]  DIR...
+@@ -19,8 +21,13 @@ SYNOPSIS
+ 
+ 'abrt-cli' process [-v]  [--since NUM] DIR...
+ 
+-OPTIONS
+--------
++GLOBAL OPTIONS
++--------------
++-a,--authenticate::
++   Enable PolicyKit authentication to be able to work with the system problems
++
++COMMAND OPTIONS
++---------------
+ -v,--verbose::
+    Be more verbose. Can be given multiple times.
+ 
+diff --git a/src/cli/Makefile.am b/src/cli/Makefile.am
+index 9fff5b3..a7c76ef 100644
+--- a/src/cli/Makefile.am
++++ b/src/cli/Makefile.am
+@@ -17,6 +17,7 @@ abrt_cli_CFLAGS = \
+ 	-I$(srcdir)/../include \
+ 	-I$(srcdir)/../lib \
+ 	$(LIBREPORT_CFLAGS) \
++	$(POLKIT_AGENT_CFLAGS) \
+ 	-DWORKFLOWS_DIR=\"${WORKFLOWS_DIR}\"
+ 
+ if SUGGEST_AUTOREPORTING
+@@ -24,6 +25,7 @@ abrt_cli_CFLAGS += -DSUGGEST_AUTOREPORTING=1
+ endif
+ 
+ abrt_cli_LDADD = \
++    $(POLKIT_AGENT_LIBS) \
+     $(LIBREPORT_LIBS) \
+     ../lib/libabrt.la
+ 
+diff --git a/src/cli/abrt-cli-core.c b/src/cli/abrt-cli-core.c
+index 46acd01..ca49dbd 100644
+--- a/src/cli/abrt-cli-core.c
++++ b/src/cli/abrt-cli-core.c
+@@ -20,6 +20,17 @@
+ #include "libabrt.h"
+ #include "abrt-cli-core.h"
+ 
++/* It is not possible to include polkitagent.h without the following define.
++ * Check out the included header file.
++ */
++#define POLKIT_AGENT_I_KNOW_API_IS_SUBJECT_TO_CHANGE
++#include <polkitagent/polkitagent.h>
++
++int g_cli_authenticate;
++
++static PolkitAgentListener *s_local_polkit_agent = NULL;
++static gpointer s_local_agent_handle = NULL;
++
+ /* Vector of problems: */
+ /* problem_data_vector[i] = { "name" = { "content", CD_FLAG_foo_bits } } */
+ 
+@@ -41,7 +52,7 @@ vector_of_problem_data_t *new_vector_of_problem_data(void)
+ 
+ vector_of_problem_data_t *fetch_crash_infos(void)
+ {
+-    GList *problems = get_problems_over_dbus(/*don't authorize*/false);
++    GList *problems = get_problems_over_dbus(g_cli_authenticate);
+     if (problems == ERR_PTR)
+         return NULL;
+ 
+@@ -97,7 +108,7 @@ char *find_problem_by_hash(const char *hash, GList *problems)
+ char *hash2dirname(const char *hash)
+ {
+     /* Try loading by dirname hash */
+-    GList *problems = get_problems_over_dbus(/*don't authorize*/false);
++    GList *problems = get_problems_over_dbus(g_cli_authenticate);
+     if (problems == ERR_PTR)
+         return NULL;
+ 
+@@ -112,3 +123,38 @@ char *hash2dirname_if_necessary(const char *input)
+ {
+     return isxdigit_str(input) ? hash2dirname(input) : xstrdup(input);
+ }
++
++void initialize_polkit_agent(void)
++{
++    GError *error = NULL;
++    PolkitSubject *subject = polkit_unix_process_new_for_owner(
++                                getpid(),
++                                /*start time from /proc*/0,
++                                getuid());
++
++    s_local_polkit_agent = polkit_agent_text_listener_new(NULL, &error);
++    if (s_local_polkit_agent == NULL)
++    {
++        error_msg_and_die("polkit_agent_text_listener_new: %s (%s, %d)\n",
++                error->message, g_quark_to_string (error->domain), error->code);
++    }
++
++    s_local_agent_handle = polkit_agent_listener_register(s_local_polkit_agent,
++            POLKIT_AGENT_REGISTER_FLAGS_RUN_IN_THREAD, subject, NULL, NULL, &error);
++    if (s_local_agent_handle == NULL)
++    {
++        error_msg_and_die("polkit_agent_listener_register: %s (%s, %d)\n",
++                error->message, g_quark_to_string (error->domain), error->code);
++    }
++
++    g_object_unref(subject);
++}
++
++void uninitialize_polkit_agent(void)
++{
++    if (s_local_agent_handle != NULL)
++        polkit_agent_listener_unregister(s_local_agent_handle);
++
++    if (s_local_polkit_agent != NULL)
++        g_object_unref(s_local_polkit_agent);
++}
+diff --git a/src/cli/abrt-cli-core.h b/src/cli/abrt-cli-core.h
+index d69d463..e2456e6 100644
+--- a/src/cli/abrt-cli-core.h
++++ b/src/cli/abrt-cli-core.h
+@@ -22,6 +22,10 @@
+ 
+ #include "problem_api.h"
+ 
++/* Use authenticate D-Bus methods. The authentication requires a polkit agent
++ * to finish an authenticated method successfully. */
++extern int g_cli_authenticate;
++
+ typedef GPtrArray vector_of_problem_data_t;
+ 
+ problem_data_t *get_problem_data(vector_of_problem_data_t *vector, unsigned i);
+@@ -37,6 +41,9 @@ char *hash2dirname(const char *hash);
+ /* If input looks like a hash, returns malloced string, or NULL if not found.
+  * Otherwise returns a copy of the input. */
+ char *hash2dirname_if_necessary(const char *input);
+-
++/* Initialize a new polkit text agent in a new thread */
++void initialize_polkit_agent(void);
++/* Uninitialize the polkit text agent */
++void uninitialize_polkit_agent(void);
+ 
+ #endif /* ABRT_CLI_CORE_H_ */
+diff --git a/src/cli/abrt-cli.c b/src/cli/abrt-cli.c
+index 8e19081..f45523e 100644
+--- a/src/cli/abrt-cli.c
++++ b/src/cli/abrt-cli.c
+@@ -19,6 +19,7 @@
+ 
+ #include "libabrt.h"
+ #include "builtin-cmd.h"
++#include "abrt-cli-core.h"
+ 
+ #define USAGE_OPTS_WIDTH 16
+ #define USAGE_GAP         2
+@@ -75,6 +76,10 @@ static unsigned handle_internal_options(int argc, const char **argv, const char
+         {
+             return skip + argc;
+         }
++        else if (strcmp(cmd, "-a") == 0 || strcmp(cmd, "--authenticate") == 0)
++        {
++            g_cli_authenticate = 1;
++        }
+         else
+             error_msg_and_die("%s", usage);
+ 
+@@ -122,7 +127,7 @@ int main(int argc, const char **argv)
+     argc--;
+ 
+     const char *abrt_cli_usage_string = _(
+-        "Usage: abrt-cli [--version] COMMAND [DIR]..."
++        "Usage: abrt-cli [--authenticate] [--version] COMMAND [DIR]..."
+         );
+ 
+     const struct cmd_struct commands[] = {
+@@ -141,8 +146,16 @@ int main(int argc, const char **argv)
+     argc -= skip;
+     argv += skip;
+     if (argc > 0)
++    {
++        if (g_cli_authenticate)
++            initialize_polkit_agent();
++
+         handle_internal_command(argc, argv, commands);
+ 
++        if (g_cli_authenticate)
++            uninitialize_polkit_agent();
++    }
++
+     /* user didn't specify command; print out help */
+     printf("%s\n\n", abrt_cli_usage_string);
+     list_cmds_help(commands);
+-- 
+2.4.3
+

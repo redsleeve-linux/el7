@@ -1,0 +1,36 @@
+From a20279617cf3a1dd9f9e64eb1c0af92f633d2296 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Tue, 25 Feb 2014 16:54:21 +0100
+Subject: [LIBREPORT PATCH 30/33] wizard: update the help text for screen
+ casters
+
+The only available screen casting program on RHEL7 is integrated GNOME3
+screen caster.
+
+Closes rhbz#1069340
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/gui-wizard-gtk/wizard.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/gui-wizard-gtk/wizard.c b/src/gui-wizard-gtk/wizard.c
+index 943b2d6..32e95c0 100644
+--- a/src/gui-wizard-gtk/wizard.c
++++ b/src/gui-wizard-gtk/wizard.c
+@@ -3404,10 +3404,10 @@ void create_assistant(bool expert_mode)
+         gtk_widget_set_sensitive(GTK_WIDGET(g_btn_startcast), false);
+         gtk_widget_set_tooltip_markup(GTK_WIDGET(g_btn_startcast),
+           _("In order to enable the built-in screencasting "
+-            "functionality the package recordmydesktop has to be installed. "
++            "functionality the package fros-gnome has to be installed. "
+             "Please run the following command if you want to install it."
+             "\n\n"
+-            "<b>su -c \"yum install recordmydesktop\"</b>"
++            "<b>su -c \"yum install fros-gnome\"</b>"
+             ));
+     }
+ 
+-- 
+1.8.3.1
+

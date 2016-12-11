@@ -1,0 +1,115 @@
+From 6048dae71114788b6e6dc13fe69e744463b552a1 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Tue, 24 Mar 2015 18:05:59 +0100
+Subject: [PATCH] problem_data: cache problem_item size
+
+This is necessary for problem_data gotten from D-Bus where the
+underlying files might not be directly accessible.
+
+Related: #1224984
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/include/problem_data.h |  8 ++++++++
+ src/lib/problem_data.c     | 27 +++++++++++++++++++++++----
+ 2 files changed, 31 insertions(+), 4 deletions(-)
+
+diff --git a/src/include/problem_data.h b/src/include/problem_data.h
+index 96d0af6..0fc8b78 100644
+--- a/src/include/problem_data.h
++++ b/src/include/problem_data.h
+@@ -46,9 +46,12 @@ enum {
+     CD_FLAG_BIGTXT        = (1 << 6),
+ };
+ 
++#define PROBLEM_ITEM_UNINITIALIZED_SIZE ((unsigned long)-1)
++
+ struct problem_item {
+     char    *content;
+     unsigned flags;
++    unsigned long size;
+     /* Used by UI for presenting "item allowed/not allowed" checkboxes: */
+     int      selected_by_user;     /* 0 "don't know", -1 "no", 1 "yes" */
+     int      allowed_by_reporter;  /* 0 "no", 1 "yes" */
+@@ -82,6 +85,11 @@ void problem_data_add(problem_data_t *problem_data,
+                 const char *name,
+                 const char *content,
+                 unsigned flags);
++struct problem_item *problem_data_add_ext(problem_data_t *problem_data,
++                const char *name,
++                const char *content,
++                unsigned flags,
++                unsigned long size);
+ void problem_data_add_text_noteditable(problem_data_t *problem_data,
+                 const char *name,
+                 const char *content);
+diff --git a/src/lib/problem_data.c b/src/lib/problem_data.c
+index 9a2b566..212f337 100644
+--- a/src/lib/problem_data.c
++++ b/src/lib/problem_data.c
+@@ -54,20 +54,27 @@ char *problem_item_format(struct problem_item *item)
+ 
+ int problem_item_get_size(struct problem_item *item, unsigned long *size)
+ {
++    if (item->size != PROBLEM_ITEM_UNINITIALIZED_SIZE)
++    {
++        *size = item->size;
++        return 0;
++    }
++
+     if (item->flags & CD_FLAG_TXT)
+     {
+-        *size = strlen(item->content);
++        *size = item->size = strlen(item->content);
+         return 0;
+     }
+ 
+     /* else if (item->flags & CD_FLAG_BIN) */
++
+     struct stat statbuf;
+     statbuf.st_size = 0;
+ 
+     if (stat(item->content, &statbuf) != 0)
+         return -errno;
+ 
+-    *size = statbuf.st_size;
++    *size = item->size = statbuf.st_size;
+     return 0;
+ }
+ 
+@@ -181,10 +188,11 @@ void problem_data_add_current_process_data(problem_data_t *pd)
+     }
+ }
+ 
+-void problem_data_add(problem_data_t *problem_data,
++struct problem_item *problem_data_add_ext(problem_data_t *problem_data,
+                 const char *name,
+                 const char *content,
+-                unsigned flags)
++                unsigned flags,
++                unsigned long size)
+ {
+     if (!(flags & CD_FLAG_BIN))
+         flags |= CD_FLAG_TXT;
+@@ -194,7 +202,18 @@ void problem_data_add(problem_data_t *problem_data,
+     struct problem_item *item = (struct problem_item *)xzalloc(sizeof(*item));
+     item->content = xstrdup(content);
+     item->flags = flags;
++    item->size = size;
+     g_hash_table_replace(problem_data, xstrdup(name), item);
++
++    return item;
++}
++
++void problem_data_add(problem_data_t *problem_data,
++                const char *name,
++                const char *content,
++                unsigned flags)
++{
++    problem_data_add_ext(problem_data, name, content, flags, PROBLEM_ITEM_UNINITIALIZED_SIZE);
+ }
+ 
+ void problem_data_add_text_noteditable(problem_data_t *problem_data,
+-- 
+2.4.3
+

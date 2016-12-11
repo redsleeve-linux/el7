@@ -1,0 +1,32 @@
+From 2ee7cd65c678f310154775d69bc0d044b8ad881a Mon Sep 17 00:00:00 2001
+From: David Kupka <dkupka@redhat.com>
+Date: Thu, 4 Aug 2016 16:02:24 +0200
+Subject: [PATCH] schema cache: Do not reset ServerInfo dirty flag
+
+Once dirty flag is set to True it must not be set back to False.
+Otherwise changes are not written back to file.
+
+https://fedorahosted.org/freeipa/ticket/6048
+
+Reviewed-By: Jan Cholasta <jcholast@redhat.com>
+---
+ ipaclient/remote_plugins/schema.py | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/ipaclient/remote_plugins/schema.py b/ipaclient/remote_plugins/schema.py
+index 5264d4cc177ba457c517f93f203e0baca7b0ac01..b49ccbb7f7905e2561598d66beca6d8b1d5ed48e 100644
+--- a/ipaclient/remote_plugins/schema.py
++++ b/ipaclient/remote_plugins/schema.py
+@@ -401,7 +401,8 @@ class ServerInfo(collections.MutableMapping):
+         return self._dict[key]
+ 
+     def __setitem__(self, key, value):
+-        self._dirty = key not in self._dict or self._dict[key] != value
++        if key not in self._dict or self._dict[key] != value:
++            self._dirty = True
+         self._dict[key] = value
+ 
+     def __delitem__(self, key):
+-- 
+2.7.4
+

@@ -1,0 +1,152 @@
+From b79d70c9977a9b5026f8976e172122bf78885dd8 Mon Sep 17 00:00:00 2001
+From: Florence Blanc-Renaud <flo@redhat.com>
+Date: Wed, 20 Jul 2016 11:02:30 +0200
+Subject: [PATCH] Show full error message for selinuxusermap-add-hostgroup
+
+While investigating the issue for selinuxusermap-add-hostgroup,
+we discovered that other commands were missing output.
+A first patch fixes most of the issues:
+freeipa-jcholast-677-frontend-copy-command-arguments-to-output-params-on-.patch
+
+This patch fixes servicedelegation CLI, where
+servicedelegation.takes_params was missing
+ipaallowedtarget_servicedelegationtarget, ipaallowedtoimpersonate and
+memberprincipal
+
+https://fedorahosted.org/freeipa/ticket/6026
+
+Reviewed-By: Jan Cholasta <jcholast@redhat.com>
+---
+ ipaserver/plugins/servicedelegation.py | 53 ++++++++++------------------------
+ 1 file changed, 15 insertions(+), 38 deletions(-)
+
+diff --git a/ipaserver/plugins/servicedelegation.py b/ipaserver/plugins/servicedelegation.py
+index 958c3b739a2dd465c2b685672c3deb1af8c36e4e..6f38c36a30363755c80081d02bf4c86d829eae34 100644
+--- a/ipaserver/plugins/servicedelegation.py
++++ b/ipaserver/plugins/servicedelegation.py
+@@ -96,30 +96,6 @@ PROTECTED_CONSTRAINT_TARGETS = (
+ )
+ 
+ 
+-output_params = (
+-    Str(
+-        'ipaallowedtarget_servicedelegationtarget',
+-        label=_('Allowed Target'),
+-    ),
+-    Str(
+-        'ipaallowedtoimpersonate',
+-        label=_('Allowed to Impersonate'),
+-    ),
+-    Str(
+-        'memberprincipal',
+-        label=_('Member principals'),
+-    ),
+-    Str(
+-        'failed_memberprincipal',
+-        label=_('Failed members'),
+-    ),
+-    Str(
+-        'ipaallowedtarget',
+-        label=_('Failed targets'),
+-    ),
+-)
+-
+-
+ class servicedelegation(LDAPObject):
+     """
+     Service Constrained Delegation base object.
+@@ -175,6 +151,21 @@ class servicedelegation(LDAPObject):
+             label=_('Delegation name'),
+             primary_key=True,
+         ),
++        Str(
++            'ipaallowedtarget_servicedelegationtarget',
++            label=_('Allowed Target'),
++            flags={'virtual_attribute', 'no_create', 'no_update', 'no_search'},
++        ),
++        Str(
++            'ipaallowedtoimpersonate',
++            label=_('Allowed to Impersonate'),
++            flags={'no_create', 'no_update', 'no_search'},
++        ),
++        Str(
++            'memberprincipal',
++            label=_('Member principals'),
++            flags={'no_create', 'no_update', 'no_search'},
++        ),
+     )
+ 
+ 
+@@ -186,8 +177,6 @@ class servicedelegation_add_member(LDAPAddMember):
+     principal_attr = 'memberprincipal'
+     principal_failedattr = 'failed_memberprincipal'
+ 
+-    has_output_params = LDAPAddMember.has_output_params + output_params
+-
+     def get_options(self):
+         for option in super(servicedelegation_add_member, self).get_options():
+             yield option
+@@ -268,8 +257,6 @@ class servicedelegation_remove_member(LDAPRemoveMember):
+     principal_attr = 'memberprincipal'
+     principal_failedattr = 'failed_memberprincipal'
+ 
+-    has_output_params = LDAPRemoveMember.has_output_params + output_params
+-
+     def get_options(self):
+         for option in super(
+                 servicedelegation_remove_member, self).get_options():
+@@ -397,8 +384,6 @@ class servicedelegationrule_del(LDAPDelete):
+ class servicedelegationrule_find(LDAPSearch):
+     __doc__ = _('Search for service delegations rule.')
+ 
+-    has_output_params = LDAPSearch.has_output_params + output_params
+-
+     msg_summary = ngettext(
+         '%(count)d service delegation rule matched',
+         '%(count)d service delegation rules matched', 0
+@@ -409,8 +394,6 @@ class servicedelegationrule_find(LDAPSearch):
+ class servicedelegationrule_show(LDAPRetrieve):
+     __doc__ = _('Display information about a named service delegation rule.')
+ 
+-    has_output_params = LDAPRetrieve.has_output_params + output_params
+-
+ 
+ @register()
+ class servicedelegationrule_add_member(servicedelegation_add_member):
+@@ -437,7 +420,6 @@ class servicedelegationrule_add_target(LDAPAddMember):
+     attribute_members = {
+         'ipaallowedtarget': ['servicedelegationtarget'],
+     }
+-    has_output_params = LDAPAddMember.has_output_params + output_params
+ 
+ 
+ @register()
+@@ -447,7 +429,6 @@ class servicedelegationrule_remove_target(LDAPRemoveMember):
+     attribute_members = {
+         'ipaallowedtarget': ['servicedelegationtarget'],
+     }
+-    has_output_params = LDAPRemoveMember.has_output_params + output_params
+ 
+ 
+ @register()
+@@ -492,8 +473,6 @@ class servicedelegationtarget_del(LDAPDelete):
+ class servicedelegationtarget_find(LDAPSearch):
+     __doc__ = _('Search for service delegation target.')
+ 
+-    has_output_params = LDAPSearch.has_output_params + output_params
+-
+     msg_summary = ngettext(
+         '%(count)d service delegation target matched',
+         '%(count)d service delegation targets matched', 0
+@@ -530,8 +509,6 @@ class servicedelegationtarget_find(LDAPSearch):
+ class servicedelegationtarget_show(LDAPRetrieve):
+     __doc__ = _('Display information about a named service delegation target.')
+ 
+-    has_output_params = LDAPRetrieve.has_output_params + output_params
+-
+ 
+ @register()
+ class servicedelegationtarget_add_member(servicedelegation_add_member):
+-- 
+2.7.4
+

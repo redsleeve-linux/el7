@@ -1,0 +1,34 @@
+From 38a8c2fb2b4a46a35899f6b1066ec65ef155eeac Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Thu, 9 Jul 2015 15:32:19 +0200
+Subject: [PATCH] lib: fix a SEGV in list_possible_events()
+
+The bug has been introduced in
+commit fc028b3417349fd60a2ddd1aff1127a417df512b
+
+Related: #1224984
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/lib/run_event.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/lib/run_event.c b/src/lib/run_event.c
+index 252c6bc..30df9af 100644
+--- a/src/lib/run_event.c
++++ b/src/lib/run_event.c
+@@ -360,7 +360,11 @@ static char* pop_next_command(GList **pp_rule_list,
+                 if (pd == NULL)
+                     free_me = real_val = dd_load_text_ext(dd, var_name, DD_FAIL_QUIETLY_ENOENT);
+                 else
++                {
+                     real_val = problem_data_get_content_or_NULL(pd, var_name);
++                    if (real_val == NULL)
++                        free_me = real_val = xstrdup("");
++                }
+                 free(var_name);
+                 int vals_differ = regex ? regcmp_lines(real_val, eq_sign + 1) : strcmp(real_val, eq_sign + 1);
+                 free(free_me);
+-- 
+2.4.3
+

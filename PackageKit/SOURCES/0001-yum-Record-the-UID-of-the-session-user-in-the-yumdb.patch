@@ -1,0 +1,193 @@
+From dec0fe1bef1424edc80902234d9730f66a586a07 Mon Sep 17 00:00:00 2001
+From: Richard Hughes <richard@hughsie.com>
+Date: Tue, 28 Jul 2015 16:49:10 +0100
+Subject: [PATCH] yum: Record the UID of the session user in the yumdb
+
+---
+ backends/yum/yumBackend.py       | 9 +++++++++
+ lib/python/packagekit/backend.py | 7 +++++++
+ src/pk-backend-spawn.c           | 6 ++++++
+ 3 files changed, 22 insertions(+)
+
+diff --git a/backends/yum/yumBackend.py b/backends/yum/yumBackend.py
+index 030f965..f097034 100755
+--- a/backends/yum/yumBackend.py
++++ b/backends/yum/yumBackend.py
+@@ -2299,6 +2299,12 @@ class PackageKitYumBackend(PackageKitBaseBackend, PackagekitPackage):
+             self.percentage(100)
+             return
+ 
++        # this is set to the calling using to avoid reading /proc/self/loginuid
++        # and always returning '0' for the pacakgekitd user.
++        #
++        # Yes, it's global. No, I don't think that's a wise design choice.
++        _cached_getloginuid = self.uid
++
+         try:
+             rpmDisplay = PackageKitCallback(self)
+             callback = ProcessTransPackageKitCallback(self)
+@@ -2339,6 +2345,9 @@ class PackageKitYumBackend(PackageKitBaseBackend, PackagekitPackage):
+         except Exception, e:
+             raise PkError(ERROR_INTERNAL_ERROR, _format_str(traceback.format_exc()))
+ 
++        # do a mostly pointless verification just to write the yumdb entries
++        self.yumbase.verifyTransaction()
++
+     def remove_packages(self, transaction_flags, package_ids, allowdep, autoremove):
+         '''
+         Implement the remove functionality
+diff --git a/lib/python/packagekit/backend.py b/lib/python/packagekit/backend.py
+index 7df664e..4b9eedc 100644
+--- a/lib/python/packagekit/backend.py
++++ b/lib/python/packagekit/backend.py
+@@ -62,6 +62,7 @@ class PackageKitBaseBackend:
+         self._locked = False
+         self.lang = "C"
+         self.has_network = False
++        self.uid = 0
+         self.background = False
+         self.interactive = False
+         self.cache_age = 0
+@@ -80,6 +81,12 @@ class PackageKitBaseBackend:
+         except KeyError as e:
+             print("Error: No NETWORK envp")
+ 
++        # try to get UID of running user
++        try:
++            self.uid = int(os.environ['UID'])
++        except KeyError as e:
++            print("Error: No UID envp")
++
+         # try to get BACKGROUND state
+         try:
+             if os.environ['BACKGROUND'] == 'TRUE':
+diff --git a/src/pk-backend-spawn.c b/src/pk-backend-spawn.c
+index 9d52957..3b1a571 100644
+--- a/src/pk-backend-spawn.c
++++ b/src/pk-backend-spawn.c
+@@ -782,6 +782,12 @@ pk_backend_spawn_get_envp (PkBackendSpawn *backend_spawn)
+ 	ret = pk_backend_job_get_interactive (priv->job);
+ 	g_hash_table_replace (env_table, g_strdup ("INTERACTIVE"), g_strdup (ret ? "TRUE" : "FALSE"));
+ 
++	/* UID */
++	ret = pk_backend_job_get_interactive (priv->job);
++	g_hash_table_replace (env_table,
++			      g_strdup ("UID"),
++			      g_strdup_printf ("%u", pk_backend_job_get_uid (priv->job)));
++
+ 	/* CACHE_AGE */
+ 	cache_age = pk_backend_job_get_cache_age (priv->job);
+ 	if (cache_age == G_MAXUINT) {
+-- 
+2.4.3
+
+commit 3afec0a55d362ee692da0731d8205cd7372efe36
+Author: Richard Hughes <richard@hughsie.com>
+Date:   Tue Jul 28 16:48:43 2015 +0100
+
+    hif: Record the UID of the session user in the yumdb
+
+diff --git a/backends/hif/pk-backend-hif.c b/backends/hif/pk-backend-hif.c
+index 7fcfdff..506f6b3 100644
+--- a/backends/hif/pk-backend-hif.c
++++ b/backends/hif/pk-backend-hif.c
+@@ -404,6 +404,8 @@ pk_backend_start_job (PkBackend *backend, PkBackendJob *job)
+ 	job_data->transaction = hif_transaction_new (priv->context);
+ 	hif_transaction_set_sources (job_data->transaction,
+ 				     hif_context_get_sources (priv->context));
++	hif_transaction_set_uid (job_data->transaction,
++				 pk_backend_job_get_uid (job));
+ 
+ #ifdef PK_BUILD_LOCAL
+ 	/* we don't want to enable this for normal runtime */
+commit c5c0db1bb5577244a7644eb513751be333705996
+Author: Richard Hughes <richard@hughsie.com>
+Date:   Tue Jul 28 15:00:31 2015 +0100
+
+    yum: Remove the obsolete service pack support
+
+diff --git a/backends/yum/yumBackend.py b/backends/yum/yumBackend.py
+index 5e0c978..030f965 100755
+--- a/backends/yum/yumBackend.py
++++ b/backends/yum/yumBackend.py
+@@ -2008,80 +2008,14 @@ class PackageKitYumBackend(PackageKitBaseBackend, PackagekitPackage):
+ 
+         # process these first
+         tempdir = tempfile.mkdtemp()
+-        inst_packs = []
+ 
+         for inst_file in inst_files:
+             if inst_file.endswith('.rpm'):
+                 continue
+-            elif inst_file.endswith('.servicepack'):
+-                inst_packs.append(inst_file)
+             else:
+                 self.error(ERROR_INVALID_PACKAGE_FILE, 'Only rpm files and packs are supported', exit=False)
+                 return
+ 
+-        # decompress and add the contents of any .servicepack files
+-        for inst_pack in inst_packs:
+-            inst_files.remove(inst_pack)
+-            pack = tarfile.TarFile(name = inst_pack, mode = "r")
+-            members = pack.getnames()
+-            for mem in members:
+-                pack.extract(mem, path = tempdir)
+-            files = os.listdir(tempdir)
+-
+-            # find the metadata file
+-            packtype = 'unknown'
+-            for fn in files:
+-                if fn == "metadata.conf":
+-                    config = ConfigParser.ConfigParser()
+-                    config.read(os.path.join(tempdir, fn))
+-                    if config.has_option('PackageKit Service Pack', 'type'):
+-                        packtype = config.get('PackageKit Service Pack', 'type')
+-                    break
+-
+-            # we only support update and install
+-            if packtype != 'install' and packtype != 'update':
+-                self.error(ERROR_INVALID_PACKAGE_FILE, 'no support for type %s' % packtype, exit=False)
+-                return
+-
+-            # add the file if it's an install, or update if installed
+-            for fn in files:
+-                if fn.endswith('.rpm'):
+-                    inst_file = os.path.join(tempdir, fn)
+-                    try:
+-                        # read the file
+-                        pkg = YumLocalPackage(ts=self.yumbase.rpmdb.readOnlyTS(), filename=inst_file)
+-                        pkgs_local = self.yumbase.rpmdb.searchNevra(name=pkg.name)
+-                    except yum.Errors.MiscError:
+-                        self.error(ERROR_INVALID_PACKAGE_FILE, "%s does not appear to be a valid package." % inst_file)
+-                    except yum.Errors.YumBaseError, e:
+-                        self.error(ERROR_INVALID_PACKAGE_FILE, 'Package could not be decompressed')
+-                    except exceptions.IOError, e:
+-                        self.error(ERROR_NO_SPACE_ON_DEVICE, "Disk error: %s" % _to_unicode(e))
+-                    except:
+-                        self.error(ERROR_UNKNOWN, "Failed to open local file -- please report")
+-                    else:
+-                        # trying to install package that already exists
+-                        if len(pkgs_local) == 1 and pkgs_local[0].EVR == pkg.EVR:
+-                            self.message('PACKAGE_ALREADY_INSTALLED', '%s is already installed and the latest version' % pkg.name)
+-
+-                        # trying to install package older than already exists
+-                        elif len(pkgs_local) == 1 and pkgs_local[0].EVR > pkg.EVR:
+-                            self.message('PACKAGE_ALREADY_INSTALLED', 'a newer version of %s is already installed' % pkg.name)
+-
+-                        # only update if installed
+-                        elif packtype == 'update':
+-                            if len(pkgs_local) > 0:
+-                                inst_files.append(inst_file)
+-
+-                        # only install if we passed the checks above
+-                        elif packtype == 'install':
+-                            inst_files.append(inst_file)
+-
+-        if len(inst_files) == 0:
+-            # More than one pkg to be installed, all of them already installed
+-            self.error(ERROR_ALL_PACKAGES_ALREADY_INSTALLED,
+-                       'All of the specified packages have already been installed')
+-
+         self._set_only_trusted(TRANSACTION_FLAG_ONLY_TRUSTED in transaction_flags or TRANSACTION_FLAG_SIMULATE in transaction_flags)
+ 
+         # self.yumbase.installLocal fails for unsigned packages when self.yumbase.conf.gpgcheck = 1

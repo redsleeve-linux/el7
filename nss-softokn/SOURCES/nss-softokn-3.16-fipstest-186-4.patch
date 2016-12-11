@@ -1,0 +1,157 @@
+diff -up ./nss/cmd/fipstest/fipstest.c.fipstest-186-4 ./nss/cmd/fipstest/fipstest.c
+--- ./nss/cmd/fipstest/fipstest.c.fipstest-186-4	2014-10-16 15:08:57.655496722 -0700
++++ ./nss/cmd/fipstest/fipstest.c	2014-10-16 15:14:09.808725748 -0700
+@@ -5129,6 +5129,118 @@ loser:
+     }
+ }
+ 
++static void 
++pad(unsigned char *buf, int pad_len, unsigned char *src, int src_len) 
++{
++    int offset = 0;
++    /* this shouldn't happen, fail right away rather than produce bad output */
++    if (pad_len < src_len) {
++	fprintf(stderr, "data bigger than expected! %d > %d\n", src_len, pad_len);
++	exit(1);
++    }
++
++    offset = pad_len - src_len;
++    memset(buf, 0, offset);
++    memcpy(buf+offset, src, src_len);
++    return;
++}
++
++
++/*
++ * Perform the DSA Key Pair Generation Test.
++ *
++ * reqfn is the pathname of the REQUEST file.
++ *
++ * The output RESPONSE file is written to stdout.
++ */
++void
++rsa_keypair_test(char *reqfn)
++{
++    char buf[800];       /* holds one line from the input REQUEST file
++                         * or to the output RESPONSE file.
++                         * 800 to hold (384 public key (x2 for HEX) + 1'\n'
++                         */
++    unsigned char buf2[400];   /* can't need more then 1/2 buf length */
++    FILE *rsareq;     /* input stream from the REQUEST file */
++    FILE *rsaresp;    /* output stream to the RESPONSE file */
++    int count;
++    int i;
++    int keySize;   /* key size in bits*/
++    int len;       /* key size in bytes */
++    int len2;      /* key size in bytes/2 (prime size) */
++    SECItem e;
++    unsigned char default_e[] = { 0x1, 0x0, 0x1 };
++
++    e.data = default_e;
++    e.len = sizeof (default_e);
++
++    rsareq = fopen(reqfn, "r");
++    rsaresp = stdout;
++    while (fgets(buf, sizeof buf, rsareq) != NULL) {
++        /* a comment or blank line */
++        if (buf[0] == '#' || buf[0] == '\n') {
++            fputs(buf, rsaresp);
++            continue;
++        }
++
++        /* [Mod = x] */
++        if (buf[0] == '[') {
++	    if (buf[1] == 'm') {
++        	if (sscanf(buf, "[mod = %d]", &keySize) != 1) {
++                    goto loser;
++        	}
++		len = keySize/8;
++		len2 = keySize/16;
++	    }
++            fputs(buf, rsaresp);
++            continue;
++        }
++        /* N = ...*/
++        if (buf[0] == 'N') {
++
++            if (sscanf(buf, "N = %d", &count) != 1) {
++                goto loser;
++            }
++
++            /* Generate a DSA key, and output the key pair for N times */
++            for (i = 0; i < count; i++) {
++                RSAPrivateKey *rsakey = NULL;
++                if ((rsakey = RSA_NewKey(keySize, &e)) == NULL) {
++                    fprintf(rsaresp, "ERROR: Unable to generate RSA key");
++                    goto loser;
++                }
++	        pad(buf2,len,rsakey->publicExponent.data,
++					 rsakey->publicExponent.len);
++                to_hex_str(buf, buf2, len);
++                fprintf(rsaresp, "e = %s\n", buf);
++	        pad(buf2,len2,rsakey->prime1.data,
++					 rsakey->prime1.len);
++                to_hex_str(buf, buf2, len2);
++                fprintf(rsaresp, "p = %s\n", buf);
++	        pad(buf2,len2,rsakey->prime2.data,
++					 rsakey->prime2.len);
++                to_hex_str(buf, buf2, len2);
++                fprintf(rsaresp, "q = %s\n", buf);
++	        pad(buf2,len,rsakey->modulus.data,
++					 rsakey->modulus.len);
++                to_hex_str(buf, buf2, len);
++                fprintf(rsaresp, "n = %s\n", buf);
++	        pad(buf2,len,rsakey->privateExponent.data,
++					 rsakey->privateExponent.len);
++                to_hex_str(buf, buf2, len);
++                fprintf(rsaresp, "d = %s\n", buf);
++                fprintf(rsaresp, "\n");
++                PORT_FreeArena(rsakey->arena, PR_TRUE);
++                rsakey = NULL;
++            }
++            continue;
++        }
++
++    }
++loser:
++    fclose(rsareq);
++}
++
+ /*
+  * Perform the RSA Signature Generation Test.
+  *
+@@ -5940,7 +6052,10 @@ int main(int argc, char **argv)
+         } else if (strcmp(argv[2], "sigver") == 0) {
+             /* Signature Verification Test */
+             rsa_sigver_test(argv[3]);
+-        }
++        } else if (strcmp(argv[2], "keypair") == 0) {
++            /* Key Pair Generation Test */
++            rsa_keypair_test(argv[3]);
++	}
+     /*************/
+     /*   HMAC    */
+     /*************/
+diff -up ./nss/cmd/fipstest/rsa.sh.fipstest-186-4 ./nss/cmd/fipstest/rsa.sh
+--- ./nss/cmd/fipstest/rsa.sh.fipstest-186-4	2014-10-16 15:08:57.656496739 -0700
++++ ./nss/cmd/fipstest/rsa.sh	2014-10-16 15:08:57.662496840 -0700
+@@ -23,6 +23,9 @@ if [ ${COMMAND} = "verify" ]; then
+ #The Fax file has the private exponent and the salt value, remove it
+ #also remove the false reason
+     sh ./validate1.sh ${TESTDIR} SigVer15_186-3.req ' ' '-e /^SaltVal/d -e/^d.=/d -e /^p.=/d -e /^q.=/d -e /^EM.with/d -e /^Result.=.F/s;.(.*);;'
++#
++# currently don't have a way to verify the RSA keygen
++#
+     exit 0
+ fi
+ 
+@@ -35,3 +38,9 @@ request=SigVer15_186-3.req
+ response=`echo $request | sed -e "s/req/rsp/"`
+ echo $request $response
+ fipstest rsa sigver ${REQDIR}/$request > ${RSPDIR}/$response
++
++#request=KeyGen_186-3.req
++request=KeyGen_RandomProbablyPrime3_3.req
++response=`echo $request | sed -e "s/req/rsp/"`
++echo $request $response
++fipstest rsa keypair ${REQDIR}/$request > ${RSPDIR}/$response

@@ -1,0 +1,30 @@
+From aa0151e852994dc4ac27a20e49e0db3ddaf5aad3 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Thu, 17 Apr 2014 17:20:48 +0200
+Subject: [ABRT PATCH 42/66] vmcore: start the service after kdump service
+
+kdump must be started first because it has to relabel the vmcore
+directories.
+
+Resolves rhbz#1086642
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ init-scripts/abrt-vmcore.service | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/init-scripts/abrt-vmcore.service b/init-scripts/abrt-vmcore.service
+index 000f0e3..caa3134 100644
+--- a/init-scripts/abrt-vmcore.service
++++ b/init-scripts/abrt-vmcore.service
+@@ -1,6 +1,6 @@
+ [Unit]
+ Description=Harvest vmcores for ABRT
+-After=abrtd.service
++After=abrtd.service kdump.service
+ Requisite=abrtd.service
+ ConditionDirectoryNotEmpty=/var/crash
+ 
+-- 
+1.8.3.1
+

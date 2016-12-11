@@ -1,0 +1,14 @@
+diff -up dhcp-4.2.5/client/dhclient.c.stateless-store-duid dhcp-4.2.5/client/dhclient.c
+--- dhcp-4.2.5/client/dhclient.c.stateless-store-duid	2014-12-09 17:29:32.683444318 +0100
++++ dhcp-4.2.5/client/dhclient.c	2014-12-09 17:30:53.917444318 +0100
+@@ -1151,7 +1151,9 @@ void run_stateless(int exit_mode)
+ 		if (default_duid.buffer != NULL)
+ 			data_string_forget(&default_duid, MDL);
+ 
+-		form_duid(&default_duid, MDL);
++		if (form_duid(&default_duid, MDL) == ISC_R_SUCCESS &&
++		    duid_type == DUID_LLT)
++			write_duid(&default_duid);
+ 	}
+ 
+ 	/* Start a configuration state machine. */

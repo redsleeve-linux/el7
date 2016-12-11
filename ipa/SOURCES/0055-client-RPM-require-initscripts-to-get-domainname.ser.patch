@@ -1,0 +1,28 @@
+From 99105177385dbed1082db8676a1ff052e99e1eda Mon Sep 17 00:00:00 2001
+From: Petr Spacek <pspacek@redhat.com>
+Date: Mon, 8 Aug 2016 13:13:18 +0200
+Subject: [PATCH] client: RPM require initscripts to get *-domainname.service
+
+https://fedorahosted.org/freeipa/ticket/4831
+
+Reviewed-By: Jan Cholasta <jcholast@redhat.com>
+---
+ freeipa.spec.in | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/freeipa.spec.in b/freeipa.spec.in
+index 77fca24ef0e1e244e53d203a228931b4a444fb5a..29b63c9300b73d82aea88dbcf50f2f6ab5f9e9bd 100644
+--- a/freeipa.spec.in
++++ b/freeipa.spec.in
+@@ -324,6 +324,8 @@ Requires: krb5-workstation
+ Requires: authconfig
+ Requires: pam_krb5
+ Requires: curl
++# NIS domain name config: /usr/lib/systemd/system/*-domainname.service
++Requires: initscripts
+ Requires: libcurl >= 7.21.7-2
+ Requires: xmlrpc-c >= 1.27.4
+ Requires: sssd >= 1.14.0
+-- 
+2.7.4
+

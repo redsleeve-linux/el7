@@ -1,0 +1,141 @@
+Index: modules/dav/main/mod_dav.c
+===================================================================
+--- a/modules/dav/main/mod_dav.c	(revision 1610012)
++++ b/modules/dav/main/mod_dav.c	(revision 1610013)
+@@ -396,9 +396,11 @@
+  */
+ static const char *dav_xml_escape_uri(apr_pool_t *p, const char *uri)
+ {
++    const char *e_uri = ap_escape_uri(p, uri);
++
+     /* check the easy case... */
+-    if (ap_strchr_c(uri, '&') == NULL)
+-        return uri;
++    if (ap_strchr_c(e_uri, '&') == NULL)
++        return e_uri;
+ 
+     /* there was a '&', so more work is needed... sigh. */
+ 
+@@ -406,7 +408,7 @@
+      * Note: this is a teeny bit of overkill since we know there are no
+      * '<' or '>' characters, but who cares.
+      */
+-    return apr_xml_quote_string(p, uri, 0);
++    return apr_xml_quote_string(p, e_uri, 0);
+ }
+ 
+ 
+Index: modules/dav/main/mod_dav.h
+===================================================================
+--- a/modules/dav/main/mod_dav.h	(revision 1610012)
++++ b/modules/dav/main/mod_dav.h	(revision 1610013)
+@@ -386,7 +386,9 @@
+                          * REGULAR and WORKSPACE resources,
+                          * and is always 1 for WORKING */
+ 
+-    const char *uri;    /* the escaped URI for this resource */
++    const char *uri;    /* the URI for this resource;
++                         * currently has an ABI flaw where sometimes it is
++                         * assumed to be encoded and sometimes not */
+ 
+     dav_resource_private *info;         /* the provider's private info */
+ 
+Index: modules/dav/main/props.c
+===================================================================
+--- a/modules/dav/main/props.c	(revision 1610012)
++++ b/modules/dav/main/props.c	(revision 1610013)
+@@ -321,10 +321,14 @@
+ /* do a sub-request to fetch properties for the target resource's URI. */
+ static void dav_do_prop_subreq(dav_propdb *propdb)
+ {
++    /* need to escape the uri that's in the resource struct because during
++     * the property walker it's not encoded. */
++    const char *e_uri = ap_escape_uri(propdb->resource->pool,
++                                      propdb->resource->uri);
++
+     /* perform a "GET" on the resource's URI (note that the resource
+        may not correspond to the current request!). */
+-    propdb->subreq = ap_sub_req_lookup_uri(propdb->resource->uri, propdb->r,
+-                                           NULL);
++    propdb->subreq = ap_sub_req_lookup_uri(e_uri, propdb->r, NULL);
+ }
+ 
+ static dav_error * dav_insert_coreprop(dav_propdb *propdb,
+Index: modules/dav/fs/repos.c
+===================================================================
+--- a/modules/dav/fs/repos.c	(revision 1610012)
++++ b/modules/dav/fs/repos.c	(revision 1610013)
+@@ -717,13 +717,13 @@
+     resource->pool = r->pool;
+ 
+     /* make sure the URI does not have a trailing "/" */
+-    len = strlen(r->unparsed_uri);
+-    if (len > 1 && r->unparsed_uri[len - 1] == '/') {
+-        s = apr_pstrmemdup(r->pool, r->unparsed_uri, len-1);
++    len = strlen(r->uri);
++    if (len > 1 && r->uri[len - 1] == '/') {
++        s = apr_pstrmemdup(r->pool, r->uri, len-1);
+         resource->uri = s;
+     }
+     else {
+-        resource->uri = r->unparsed_uri;
++        resource->uri = r->uri;
+     }
+ 
+     if (r->finfo.filetype != APR_NOFILE) {
+@@ -1482,18 +1482,6 @@
+     return dav_fs_deleteset(info->pool, resource);
+ }
+ 
+-/* Take an unescaped path component and escape it and append it onto a
+- * dav_buffer for a URI */
+-static apr_size_t dav_fs_append_uri(apr_pool_t *p, dav_buffer *pbuf,
+-                                    const char *path, apr_size_t pad)
+-{
+-    const char *epath = ap_escape_uri(p, path);
+-    apr_size_t epath_len = strlen(epath);
+-
+-    dav_buffer_place_mem(p, pbuf, epath, epath_len + 1, pad);
+-    return epath_len;
+-}
+-
+ /* ### move this to dav_util? */
+ /* Walk recursively down through directories, *
+  * including lock-null resources as we go.    */
+@@ -1549,7 +1537,6 @@
+     }
+     while ((apr_dir_read(&dirent, APR_FINFO_DIRENT, dirp)) == APR_SUCCESS) {
+         apr_size_t len;
+-        apr_size_t escaped_len;
+ 
+         len = strlen(dirent.name);
+ 
+@@ -1592,7 +1579,7 @@
+ 
+         /* copy the file to the URI, too. NOTE: we will pad an extra byte
+            for the trailing slash later. */
+-        escaped_len = dav_fs_append_uri(pool, &fsctx->uri_buf, dirent.name, 1);
++        dav_buffer_place_mem(pool, &fsctx->uri_buf, dirent.name, len + 1, 1);
+ 
+         /* if there is a secondary path, then do that, too */
+         if (fsctx->path2.buf != NULL) {
+@@ -1625,7 +1612,7 @@
+             fsctx->path2.cur_len += len;
+ 
+             /* adjust URI length to incorporate subdir and a slash */
+-            fsctx->uri_buf.cur_len += escaped_len + 1;
++            fsctx->uri_buf.cur_len += len + 1;
+             fsctx->uri_buf.buf[fsctx->uri_buf.cur_len - 1] = '/';
+             fsctx->uri_buf.buf[fsctx->uri_buf.cur_len] = '\0';
+ 
+@@ -1691,8 +1678,8 @@
+             */
+             dav_buffer_place_mem(pool, &fsctx->path1,
+                                  fsctx->locknull_buf.buf + offset, len + 1, 0);
+-            dav_fs_append_uri(pool, &fsctx->uri_buf,
+-                              fsctx->locknull_buf.buf + offset, 0);
++            dav_buffer_place_mem(pool, &fsctx->uri_buf,
++                                 fsctx->locknull_buf.buf + offset, len + 1, 0);
+             if (fsctx->path2.buf != NULL) {
+                 dav_buffer_place_mem(pool, &fsctx->path2,
+                                      fsctx->locknull_buf.buf + offset,

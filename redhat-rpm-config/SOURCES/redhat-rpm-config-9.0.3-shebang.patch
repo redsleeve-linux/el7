@@ -1,0 +1,11 @@
+--- redhat-rpm-config-9.0.3/find-requires.original	2015-01-07 10:47:24.250285190 +0900
++++ redhat-rpm-config-9.0.3/find-requires	2015-01-07 10:48:01.483585227 +0900
+@@ -74,7 +74,7 @@ fi
+ # --- Script interpreters.
+ for f in $scriptlist; do
+     [ -r $f -a -x $f ] || continue
+-    interp=`head -n 1 $f | sed -e 's/^\#\![ 	]*//' | cut -d" " -f1`
++    interp=`head -n 1 $f | grep '^#!' | sed -e 's/^\#\![ 	]*//' | cut -d" " -f1`
+     interplist="$interplist $interp"
+     case $interp in
+     */perl)	perllist="$perllist $f" ;;

@@ -1,0 +1,11 @@
+--- redhat-rpm-config-9.0.3/macros.orig	2016-01-05 16:21:18.708529423 +0100
++++ redhat-rpm-config-9.0.3/macros	2016-01-05 16:42:26.023939895 +0100
+@@ -202,7 +202,7 @@
+ 	%global kmodtool %{-s*}%{!-s:/usr/lib/rpm/redhat/kmodtool} \
+ 	%global kmod_version %{-v*}%{!-v:%{version}} \
+ 	%global kmod_release %{-r*}%{!-r:%{release}} \
+-	%global latest_kernel %(rpm -q --qf '%{VERSION}-%{RELEASE}.%{ARCH}\\\\n' `rpm -q kernel-devel | /usr/lib/rpm/redhat/rpmsort -r | head -n 1` | head -n 1) \
++	%global latest_kernel %(rpm -q --qf '%{VERSION}-%{RELEASE}.%{ARCH}\\\\n' `rpm -qa | egrep "^kernel(-rt|-aarch64)?-devel" | /usr/lib/rpm/redhat/rpmsort -r | head -n 1` | head -n 1) \
+ 	%{!?kernel_version:%{expand:%%global kernel_version %{latest_kernel}}} \
+ 	%global kverrel %(%{kmodtool} verrel %{?kernel_version} 2>/dev/null) \
+ 	flavors="default" \

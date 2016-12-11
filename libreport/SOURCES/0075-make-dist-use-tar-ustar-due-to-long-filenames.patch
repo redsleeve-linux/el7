@@ -1,0 +1,29 @@
+From 489348e485c93d819cc8569eac85c5d46396c22a Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Tue, 23 Sep 2014 10:48:36 +0200
+Subject: [LIBREPORT PATCH 75/93] make dist: use tar-ustar due to long
+ filenames
+
+Thanks Richard Marko <rmarko@redhat.com>!
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ configure.ac | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/configure.ac b/configure.ac
+index 1c9c7ce..df88240 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -20,7 +20,7 @@ AC_INIT([libreport],
+ 	[crash-catcher@fedorahosted.org])
+ 
+ AC_CONFIG_MACRO_DIR([m4])
+-AM_INIT_AUTOMAKE([-Wall foreign])
++AM_INIT_AUTOMAKE([-Wall foreign tar-ustar])
+ # Support silent build rules. Disable by either passing --disable-silent-rules
+ # to ./configure or passing V=1 to make
+ m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES])
+-- 
+1.8.3.1
+

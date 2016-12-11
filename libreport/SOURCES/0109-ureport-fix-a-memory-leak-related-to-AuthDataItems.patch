@@ -1,0 +1,28 @@
+From e5233a64b9b85f87163479be2cc63ea34b41c147 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Fri, 31 Oct 2014 09:27:33 +0100
+Subject: [LIBREPORT PATCH 109/109] ureport: fix a memory leak related to
+ AuthDataItems
+
+Related to rhbz#1139557
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/lib/ureport.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/lib/ureport.c b/src/lib/ureport.c
+index 40b7129..ae6a58d 100644
+--- a/src/lib/ureport.c
++++ b/src/lib/ureport.c
+@@ -641,6 +641,7 @@ ureport_from_dump_dir_ext(const char *dump_dir_path, const struct ureport_prefer
+             }
+ 
+             sr_report_add_auth(report, key, value);
++            free(value);
+         }
+ 
+         dd_close(dd);
+-- 
+1.8.3.1
+

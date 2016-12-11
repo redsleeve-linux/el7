@@ -1,0 +1,46 @@
+From 62f216d3716433b0288ff108f46b23cb0315f427 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Thu, 27 Feb 2014 16:17:06 +0100
+Subject: [LIBREPORT PATCH 34/34] remove invalid bytes from 'sv' strings
+
+Closes rhbz#1070882
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ po/sv.po | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/po/sv.po b/po/sv.po
+index 6c51ac5..23f155e 100644
+--- a/po/sv.po
++++ b/po/sv.po
+@@ -1345,7 +1345,7 @@ msgid ""
+ "CONFFILE lines should have 'PARAM = VALUE' format.\n"
+ "Recognized string parameter: SubmitURL.\n"
+ "Parameter can be overridden via $KerneloopsReporter_SubmitURL."
+-msgstr "& [-v] [-c KONFFIL]… -d KAT\n\nRapporter kärn-oops till kerneloops.org (eller liknande) webbplats.\n\nFiler med namn som anges i $EXCLUDE_FROM_REPORT ingår inte i tar-arkivet.\n\nKONFFIL-rader skall ha formatet ”PARAM = VÄRDE”.\nKänd strängparameter: SubmitURL.\nParameter kan åsidosättas via $KerneloopsReporter_SubmitURL."
++msgstr "& [-v] [-c KONFFIL]… -d KAT\n\nRapporter kärn-oops till kerneloops.org (eller liknande) webbplats.\n\nFiler med namn som anges i $EXCLUDE_FROM_REPORT ingår inte i tar-arkivet.\n\nKONFFIL-rader skall ha formatet ”PARAM = VÄRDE”.\nKänd strängparameter: SubmitURL.\nParameter kan åsidosättas via $KerneloopsReporter_SubmitURL."
+ 
+ #: ../src/plugins/reporter-kerneloops.c:167 ../src/plugins/ureport.c:456
+ msgid "Configuration file"
+@@ -1399,7 +1399,7 @@ msgid ""
+ "& [-v] -d DIR [-o FILE] [-a yes/no] [-r]\n"
+ "\n"
+ "Prints problem information to standard output or FILE"
+-msgstr "& [-v] -d KAT [-o FIL] [-a yes/no] [-r]\n\nSkriver probleminformation till standard ut eller FIL"
++msgstr "& [-v] -d KAT [-o FIL] [-a yes/no] [-r]\n\nSkriver probleminformation till standard ut eller FIL"
+ 
+ #: ../src/plugins/reporter-print.c:57
+ msgid "Output file"
+@@ -1442,7 +1442,7 @@ msgid ""
+ "Reports a problem to RHTSupport.\n"
+ "\n"
+ "If not specified, CONFFILE defaults to "
+-msgstr "\n& [-v] [-c KONFFIL] -d KAT\neller:\n& [-v] [-c KONFFIL] [-d KAT] -t[ID] FIL…\n\nRapporterar ett problem att RHTSupport.\n\nOm den inte anges, är standard för KONFFIL "
++msgstr "\n& [-v] [-c KONFFIL] -d KAT\neller:\n& [-v] [-c KONFFIL] [-d KAT] -t[ID] FIL…\n\nRapporterar ett problem att RHTSupport.\n\nOm den inte anges, är standard för KONFFIL "
+ 
+ #: ../src/plugins/reporter-rhtsupport.c:256
+ msgid "Upload FILEs [to case with this ID]"
+-- 
+1.8.3.1
+

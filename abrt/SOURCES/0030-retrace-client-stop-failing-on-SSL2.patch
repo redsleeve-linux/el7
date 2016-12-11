@@ -1,0 +1,37 @@
+From a0a65dcc1091dc5a1ad06f4e6b8eb90f47eef98f Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Tue, 4 Feb 2014 13:03:21 +0100
+Subject: [ABRT PATCH 30/30] retrace-client: stop failing on SSL2
+
+Closes rhbz#1060796
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/plugins/https-utils.c | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/plugins/https-utils.c b/src/plugins/https-utils.c
+index cb3c606..f1fe825 100644
+--- a/src/plugins/https-utils.c
++++ b/src/plugins/https-utils.c
+@@ -213,12 +213,13 @@ void ssl_connect(struct https_cfg *cfg, PRFileDesc **tcp_sock, PRFileDesc **ssl_
+         error_msg_and_die(_("Failed to wrap TCP socket by SSL."));
+     if (SECSuccess != SSL_OptionSet(*ssl_sock, SSL_HANDSHAKE_AS_CLIENT, PR_TRUE))
+         error_msg_and_die(_("Failed to enable client handshake to SSL socket."));
+-    if (SECSuccess != SSL_OptionSet(*ssl_sock, SSL_ENABLE_SSL2, PR_TRUE))
+-        error_msg_and_die(_("Failed to enable client handshake to SSL socket."));
++    // https://bugzilla.redhat.com/show_bug.cgi?id=1033024#c6
++    //if (SECSuccess != SSL_OptionSet(*ssl_sock, SSL_ENABLE_SSL2, PR_TRUE))
++    //    error_msg_and_die(_("Failed to enable SSL2."));
+     if (SECSuccess != SSL_OptionSet(*ssl_sock, SSL_ENABLE_SSL3, PR_TRUE))
+-        error_msg_and_die(_("Failed to enable client handshake to SSL socket."));
++        error_msg_and_die(_("Failed to enable SSL3."));
+     if (SECSuccess != SSL_OptionSet(*ssl_sock, SSL_ENABLE_TLS, PR_TRUE))
+-        error_msg_and_die(_("Failed to enable client handshake to SSL socket."));
++        error_msg_and_die(_("Failed to enable TLS."));
+     if (SECSuccess != SSL_SetURL(*ssl_sock, cfg->url))
+         error_msg_and_die(_("Failed to set URL to SSL socket."));
+ 
+-- 
+1.8.3.1
+

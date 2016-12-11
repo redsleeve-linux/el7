@@ -1,0 +1,95 @@
+From b654999d25de81e2c63b0765b6f16df2ff880144 Mon Sep 17 00:00:00 2001
+From: Jan Cholasta <jcholast@redhat.com>
+Date: Wed, 10 Aug 2016 09:02:47 +0200
+Subject: [PATCH] client: add missing output params to client-side commands
+
+Add output params for the otptoken-add-yubikey, vault-add, vault-mod,
+vault-archive and vault-retrieve commands.
+
+This fixes the commands not having any output in CLI.
+
+https://fedorahosted.org/freeipa/ticket/6182
+
+Reviewed-By: Alexander Bokovoy <abokovoy@redhat.com>
+Reviewed-By: David Kupka <dkupka@redhat.com>
+---
+ ipaclient/plugins/otptoken_yubikey.py |  6 ++++++
+ ipaclient/plugins/vault.py            | 24 ++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+)
+
+diff --git a/ipaclient/plugins/otptoken_yubikey.py b/ipaclient/plugins/otptoken_yubikey.py
+index 423b670de15dd7f803db1dcbb759bd0254827072..3c310eacbaeef654e43049db78437c8c29f52279 100644
+--- a/ipaclient/plugins/otptoken_yubikey.py
++++ b/ipaclient/plugins/otptoken_yubikey.py
+@@ -103,6 +103,12 @@ class otptoken_add_yubikey(Command):
+         for option in super(otptoken_add_yubikey, self).get_options():
+             yield option
+ 
++    def get_output_params(self):
++        for param in self.api.Command.otptoken_add.output_params():
++            yield param
++        for param in super(otptoken_add_yubikey, self).get_output_params():
++            yield param
++
+     def _iter_output(self):
+         return self.api.Command.otptoken_add.output()
+ 
+diff --git a/ipaclient/plugins/vault.py b/ipaclient/plugins/vault.py
+index 9026cbb0829a7557584df27a4262dfde640b4f28..3e116bbad54fea419b571d1f09c1b00280e94991 100644
+--- a/ipaclient/plugins/vault.py
++++ b/ipaclient/plugins/vault.py
+@@ -220,6 +220,12 @@ class vault_add(Local):
+         for option in super(vault_add, self).get_options():
+             yield option
+ 
++    def get_output_params(self):
++        for param in self.api.Command.vault_add_internal.output_params():
++            yield param
++        for param in super(vault_add, self).get_output_params():
++            yield param
++
+     def _iter_output(self):
+         return self.api.Command.vault_add_internal.output()
+ 
+@@ -418,6 +424,12 @@ class vault_mod(Local):
+         for option in super(vault_mod, self).get_options():
+             yield option
+ 
++    def get_output_params(self):
++        for param in self.api.Command.vault_mod_internal.output_params():
++            yield param
++        for param in super(vault_mod, self).get_output_params():
++            yield param
++
+     def _iter_output(self):
+         return self.api.Command.vault_mod_internal.output()
+ 
+@@ -600,6 +612,12 @@ class vault_archive(Local):
+         for option in super(vault_archive, self).get_options():
+             yield option
+ 
++    def get_output_params(self):
++        for param in self.api.Command.vault_archive_internal.output_params():
++            yield param
++        for param in super(vault_archive, self).get_output_params():
++            yield param
++
+     def _iter_output(self):
+         return self.api.Command.vault_archive_internal.output()
+ 
+@@ -846,6 +864,12 @@ class vault_retrieve(Local):
+         for option in super(vault_retrieve, self).get_options():
+             yield option
+ 
++    def get_output_params(self):
++        for param in self.api.Command.vault_retrieve_internal.output_params():
++            yield param
++        for param in super(vault_retrieve, self).get_output_params():
++            yield param
++
+     def _iter_output(self):
+         return self.api.Command.vault_retrieve_internal.output()
+ 
+-- 
+2.7.4
+

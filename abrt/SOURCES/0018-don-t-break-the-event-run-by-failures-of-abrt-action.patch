@@ -1,0 +1,105 @@
+From e6b19714485e72be99a9fcce62cd3a8a0e95808f Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Fri, 24 Jan 2014 14:26:02 +0100
+Subject: [ABRT PATCH 18/27] don't break the event run by failures of
+ abrt-action-notify
+
+Closes #789
+Closes rhbz#1057710
+
+rmarko: add newlines to sys.stderr.write calls
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/daemon/abrt_event.conf     |  2 ++
+ src/plugins/abrt-action-notify | 48 ++++++++++++++++++++++++------------------
+ 2 files changed, 30 insertions(+), 20 deletions(-)
+
+diff --git a/src/daemon/abrt_event.conf b/src/daemon/abrt_event.conf
+index 8a8e862..fe9c3d5 100644
+--- a/src/daemon/abrt_event.conf
++++ b/src/daemon/abrt_event.conf
+@@ -104,7 +104,9 @@ EVENT=open-gui
+ # Notify a new crash
+ EVENT=notify package!=
+         abrt-action-notify -d $DUMP_DIR
++        true # ignore failures because we want to run all 'notify' events
+ 
+ # Notify a new occurrence of a single crash
+ EVENT=notify-dup package!=
+         abrt-action-notify -d $DUMP_DIR
++        true # ignore failures because we want to run all 'notify' events
+diff --git a/src/plugins/abrt-action-notify b/src/plugins/abrt-action-notify
+index 72bfbf8..cbabf74 100644
+--- a/src/plugins/abrt-action-notify
++++ b/src/plugins/abrt-action-notify
+@@ -216,17 +216,22 @@ if __name__ == "__main__":
+                 format(DIR_PATH, ex.message))
+         sys.exit(RETURN_FAILURE)
+ 
++    # The execution must continue because we should try to notify via all
++    # configured channels. One of them might work properly.
++    return_status = RETURN_OK
+     try:
+         emit_crash_dbus_signal(PD)
+     except RuntimeError as ex:
+-        sys.stderr.write("Cannot notify '{0}': {1}\n".
++        sys.stderr.write("Cannot notify '{0}' via D-Bus: {1}\n".
+                 format(DIR_PATH, ex.message))
+-        sys.exit(RETURN_FAILURE)
++        return_status = RETURN_FAILURE
+     except KeyError as ex:
+         # this is a bug in build_notification_problem_data()
+         sys.stderr.write("BUG: problem data misses required element '{0}'"
+-                .format(ex.message))
+-        sys.exit(RETURN_FAILURE)
++                         " required for D-Bus notification\n"
++                         .format(ex.message))
++
++        return_status = RETURN_FAILURE
+ 
+     if OPTIONS.autoreporting or conf.get("AutoreportingEnabled", "no") == "yes":
+         event_name = OPTIONS.autoreporting_event
+@@ -234,20 +239,23 @@ if __name__ == "__main__":
+             if "AutoreportingEvent" in conf:
+                 event_name = conf["AutoreportingEvent"]
+             else:
+-                sys.stderr.write("Autoreporting event is not configured")
+-                sys.exit(RETURN_FAILURE)
+-
+-        try:
+-            run_autoreport(PD, event_name)
+-        except RuntimeError as ex:
+-            sys.stderr.write("Cannot notify '{0}': {1}\n".
+-                    format(DIR_PATH, ex.message))
+-            sys.exit(RETURN_FAILURE)
+-        except KeyError as ex:
+-            # this is a bug in build_notification_problem_data()
+-            sys.stderr.write("BUG: problem data misses required element '{0}'"
+-                    .format(ex.message))
+-            sys.exit(RETURN_FAILURE)
+-
+-    sys.exit(RETURN_OK)
++                sys.stderr.write("Autoreporting event is not configured\n")
++                return_status = RETURN_FAILURE
++
++        if event_name:
++            try:
++                run_autoreport(PD, event_name)
++            except RuntimeError as ex:
++                sys.stderr.write("Cannot notify '{0}' via uReport: {1}\n".
++                        format(DIR_PATH, ex.message))
++                return_status = RETURN_FAILURE
++            except KeyError as ex:
++                # this is a bug in build_notification_problem_data()
++                sys.stderr.write(
++                    "BUG: problem data misses required element '{0}'"
++                    " required for uReport notification\n".format(ex.message))
++
++                return_status = RETURN_FAILURE
++
++    sys.exit(return_status)
+ 
+-- 
+1.8.3.1
+

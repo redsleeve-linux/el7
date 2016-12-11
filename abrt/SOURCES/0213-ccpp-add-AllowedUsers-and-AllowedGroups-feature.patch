@@ -1,0 +1,155 @@
+From 29e8577ae1d7252513883941cae1c576f30c2d75 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Tue, 22 Mar 2016 12:35:55 +0100
+Subject: [PATCH] ccpp: add AllowedUsers and AllowedGroups feature
+
+The feature allows dump core only for allowed users.
+
+The logic is the following:
+ - if both options are not-defined or empty keep all core dumps
+ - else if crashed UID is in the list of users keep the core dump
+ - else if crashed UID belongs to a group in the list of groups keep the core dump
+
+Related to rhbz#1277849
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ doc/abrt-CCpp.conf.txt     | 10 ++++++++
+ src/hooks/CCpp.conf        |  7 ++++++
+ src/hooks/abrt-hook-ccpp.c | 63 ++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 80 insertions(+)
+
+diff --git a/doc/abrt-CCpp.conf.txt b/doc/abrt-CCpp.conf.txt
+index 4db4b54..dffa45d 100644
+--- a/doc/abrt-CCpp.conf.txt
++++ b/doc/abrt-CCpp.conf.txt
+@@ -43,6 +43,16 @@ IgnoredPaths = /path/to/ignore/*, */another/ignored/path* ...::
+    ABRT will ignore crashes in executables whose absolute path matches one of
+    specified patterns.
+ 
++AllowedUsers = root, ...::
++   ABRT will process only crashes of either allowed users 'AllowedUsers' or
++   users who are members of allowed group 'AllowedGroups'. If no allowed users
++   nor allowed group are specified ABRT will process crashes of all users.
++
++AllowedGroups = root, ...::
++   ABRT will process only crashes of either allowed users 'AllowedUsers' or
++   users who are members of allowed group 'AllowedGroups'. If no allowed users
++   nor allowed group are specified ABRT will process crashes of all users.
++
+ VerboseLog = NUM::
+    Used to make the hook more verbose
+ 
+diff --git a/src/hooks/CCpp.conf b/src/hooks/CCpp.conf
+index be55e05..af31ed5 100644
+--- a/src/hooks/CCpp.conf
++++ b/src/hooks/CCpp.conf
+@@ -37,3 +37,10 @@ SaveFullCore = yes
+ # specified patterns.
+ #
+ #IgnoredPaths =
++
++# ABRT will process only crashes of either allowed users or users who are
++# members of allowed group. If no allowed users nor allowed group are specified
++# ABRT will process crashes of all users.
++#
++#AllowedUsers =
++#AllowedGroups =
+diff --git a/src/hooks/abrt-hook-ccpp.c b/src/hooks/abrt-hook-ccpp.c
+index 18cd608..c9fbf68 100644
+--- a/src/hooks/abrt-hook-ccpp.c
++++ b/src/hooks/abrt-hook-ccpp.c
+@@ -645,6 +645,44 @@ static bool is_path_ignored(const GList *list, const char *path)
+     return false;
+ }
+ 
++static bool is_user_allowed(uid_t uid, const GList *list)
++{
++    const GList *li;
++    for (li = list; li != NULL; li = g_list_next(li))
++    {
++        const char *username = (const char*)li->data;
++        struct passwd *pw = getpwnam(username);
++        if (pw == NULL)
++        {
++            log_warning("can't get uid of user '%s' (listed in 'AllowedUsers')", username);
++            continue;
++        }
++
++        if(pw->pw_uid == uid)
++            return true;
++    }
++    return false;
++}
++
++static bool is_user_in_allowed_group(uid_t uid, const GList *list)
++{
++    const GList *li;
++    for (li = list; li != NULL; li = g_list_next(li))
++    {
++        const char *groupname = (const char*)li->data;
++        struct group *gr = getgrnam(groupname);
++        if (gr == NULL)
++        {
++            log_warning("can't get gid of group '%s' (listed in 'AllowedGroups')", groupname);
++            continue;
++        }
++
++        if(uid_in_group(uid, gr->gr_gid))
++            return true;
++    }
++    return false;
++}
++
+ static int test_configuration(bool setting_SaveFullCore, bool setting_CreateCoreBacktrace)
+ {
+     if (!setting_SaveFullCore && !setting_CreateCoreBacktrace)
+@@ -701,6 +739,8 @@ int main(int argc, char** argv)
+     bool setting_SaveFullCore;
+     bool setting_CreateCoreBacktrace;
+     GList *setting_ignored_paths = NULL;
++    GList *setting_allowed_users = NULL;
++    GList *setting_allowed_groups = NULL;
+     {
+         map_string_t *settings = new_map_string();
+         load_abrt_plugin_conf_file("CCpp.conf", settings);
+@@ -716,6 +756,13 @@ int main(int argc, char** argv)
+         if (value)
+             setting_ignored_paths = parse_list(value);
+ 
++        value = get_map_string_item_or_NULL(settings, "AllowedUsers");
++        if (value)
++            setting_allowed_users = parse_list(value);
++        value = get_map_string_item_or_NULL(settings, "AllowedGroups");
++        if (value)
++            setting_allowed_groups = parse_list(value);
++
+         setting_CreateCoreBacktrace = value ? string_to_bool(value) : true;
+         value = get_map_string_item_or_NULL(settings, "VerboseLog");
+         if (value)
+@@ -803,6 +850,22 @@ int main(int argc, char** argv)
+         return 0;
+     }
+ 
++    /* dumping core for user, if allowed */
++    if (setting_allowed_users || setting_allowed_groups)
++    {
++        if (setting_allowed_users && is_user_allowed(uid, setting_allowed_users))
++            log_debug("User %lu is listed in 'AllowedUsers'", (long unsigned)uid);
++        else if (setting_allowed_groups && is_user_in_allowed_group(uid, setting_allowed_groups))
++            log_debug("User %lu is member of group listed in 'AllowedGroups'", (long unsigned)uid);
++        else
++        {
++            error_msg_not_process_crash(pid_str, last_slash + 1, (long unsigned)uid, signal_no,
++                signame, "ignoring (not allowed in 'AllowedUsers' nor 'AllowedGroups')");
++
++            xfunc_die();
++        }
++    }
++
+     user_pwd = get_cwd(pid);
+     log_notice("user_pwd:'%s'", user_pwd);
+ 
+-- 
+1.8.3.1
+

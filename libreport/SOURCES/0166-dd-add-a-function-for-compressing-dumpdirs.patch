@@ -1,0 +1,528 @@
+From f9ff58e8cde1d3b6f5eb5307e2019d54c5e28487 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Thu, 11 Feb 2016 17:29:50 +0100
+Subject: [PATCH] dd: add a function for compressing dumpdirs
+
+Introduce dd_create_archive() function.
+
+I added the argument 'flags' in order to avoid the need to introduce
+dd_create_archive_ext() function in the future. I am sure will use this
+flag in the future (e.g. Encrypted).
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ po/POTFILES.in          |   1 +
+ src/include/dump_dir.h  |  26 +++++
+ src/lib/Makefile.am     |   1 +
+ src/lib/dump_dir.c      | 117 ++++++++++++++++++++
+ src/plugins/Makefile.am |   2 -
+ tests/dump_dir.at       | 275 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 420 insertions(+), 2 deletions(-)
+
+diff --git a/po/POTFILES.in b/po/POTFILES.in
+index 00046e2..30c9cb5 100644
+--- a/po/POTFILES.in
++++ b/po/POTFILES.in
+@@ -18,6 +18,7 @@ src/lib/abrt_sock.c
+ src/lib/client.c
+ src/lib/create_dump_dir.c
+ src/lib/curl.c
++src/lib/dump_dir.c
+ src/lib/event_config.c
+ src/lib/ureport.c
+ src/lib/make_descr.c
+diff --git a/src/include/dump_dir.h b/src/include/dump_dir.h
+index 07b119a..092ddeb 100644
+--- a/src/include/dump_dir.h
++++ b/src/include/dump_dir.h
+@@ -21,6 +21,9 @@
+ #ifndef LIBREPORT_DUMP_DIR_H_
+ #define LIBREPORT_DUMP_DIR_H_
+ 
++/* For const_string_vector_const_ptr_t */
++#include "libreport_types.h"
++
+ /* For DIR */
+ #include <sys/types.h>
+ #include <dirent.h>
+@@ -178,6 +181,29 @@ int fdump_dir_stat_for_uid(int dir_fd, uid_t uid);
+ */
+ int dd_mark_as_notreportable(struct dump_dir *dd, const char *reason);
+ 
++/* Creates a new archive from the dump directory contents
++ *
++ * The dd argument must be opened for reading.
++ *
++ * The archive_name must not exist. The file will be created with 0600 mode.
++ *
++ * The archive type is deduced from archive_name suffix. The supported archive
++ * suffixes are the following:
++ *   - '.tag.gz' (note: the implementation uses child gzip process)
++ *
++ * The archive will include only the files that are not in the exclude_elements
++ * list. See get_global_always_excluded_elements().
++ *
++ * The argument "flags" is currently unused.
++ *
++ * @return 0 on success; otherwise non-0 value. -ENOSYS if archive type is not
++ * supported. -EEXIST if the archive file already exists. -ECHILD if child
++ * process fails. Other negative values can be converted to errno values by
++ * turning them positive.
++ */
++int dd_create_archive(struct dump_dir *dd, const char *archive_name,
++        const_string_vector_const_ptr_t exclude_elements, int flags);
++
+ #ifdef __cplusplus
+ }
+ #endif
+diff --git a/src/lib/Makefile.am b/src/lib/Makefile.am
+index f9ea602..50142f7 100644
+--- a/src/lib/Makefile.am
++++ b/src/lib/Makefile.am
+@@ -79,6 +79,7 @@ libreport_la_CPPFLAGS = \
+     $(AUGEAS_CFLAGS) \
+     -D_GNU_SOURCE
+ libreport_la_LDFLAGS = \
++    -ltar \
+     -version-info 0:1:0
+ libreport_la_LIBADD = \
+     $(JSON_C_LIBS) \
+diff --git a/src/lib/dump_dir.c b/src/lib/dump_dir.c
+index 9096853..a5cd93e 100644
+--- a/src/lib/dump_dir.c
++++ b/src/lib/dump_dir.c
+@@ -17,6 +17,7 @@
+     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ */
+ #include <sys/utsname.h>
++#include <libtar.h>
+ #include "internal_libreport.h"
+ 
+ // Locking logic:
+@@ -1475,3 +1476,119 @@ int dd_mark_as_notreportable(struct dump_dir *dd, const char *reason)
+     dd_save_text(dd, FILENAME_NOT_REPORTABLE, reason);
+     return 0;
+ }
++
++/* flags - for future needs */
++int dd_create_archive(struct dump_dir *dd, const char *archive_name,
++        const_string_vector_const_ptr_t exclude_elements, int flags)
++{
++    if (suffixcmp(archive_name, ".tar.gz") != 0)
++        return -ENOSYS;
++
++    int result = 0;
++    pid_t child;
++    TAR* tar = NULL;
++    int pipe_from_parent_to_child[2];
++    xpipe(pipe_from_parent_to_child);
++    child = fork();
++    if (child < 0)
++    {
++        result = -errno;
++        /* Don't die, let the caller to execute his clean-up code. */
++        perror_msg("vfork");
++        return result;
++    }
++    if (child == 0)
++    {
++        /* child */
++        close(pipe_from_parent_to_child[1]);
++        xmove_fd(pipe_from_parent_to_child[0], 0);
++
++        int fd = open(archive_name, O_WRONLY | O_CREAT | O_EXCL, 0600);
++        if (fd < 0)
++        {
++            /* This r might interfer with exit status of gzip, but it is
++             * very unlikely (man 1 gzip):
++             *   Exit status is normally 0; if an error occurs, exit status is
++             *   1. If a warning occurs, exit status is 2.
++             */
++            result = errno == EEXIST ? 100 : 3;
++            perror_msg("Can't open '%s'", archive_name);
++            exit(result);
++        }
++
++        xmove_fd(fd, 1);
++        execlp("gzip", "gzip", NULL);
++        perror_msg_and_die("Can't execute '%s'", "gzip");
++    }
++    close(pipe_from_parent_to_child[0]);
++
++    /* If child died (say, in xopen), then parent might get SIGPIPE.
++     * We want to properly unlock dd, therefore we must not die on SIGPIPE:
++     */
++    sighandler_t old_handler = signal(SIGPIPE, SIG_IGN);
++
++    /* Create tar writer object */
++    if (tar_fdopen(&tar, pipe_from_parent_to_child[1], (char *)archive_name,
++                /*fileops:(standard)*/ NULL, O_WRONLY | O_CREAT, 0644, TAR_GNU) != 0)
++    {
++        result = -errno;
++        log_warning(_("Failed to open TAR writer"));
++        goto finito;
++    }
++
++    /* Write data to the tarball */
++    dd_init_next_file(dd);
++    char *short_name, *full_name;
++    while (dd_get_next_file(dd, &short_name, &full_name))
++    {
++        if (!(exclude_elements && is_in_string_list(short_name, exclude_elements)))
++        {
++           if (tar_append_file(tar, full_name, short_name))
++               result = -errno;
++        }
++
++        free(short_name);
++        free(full_name);
++
++        if (result != 0)
++            goto finito;
++    }
++
++    /* Close tar writer... */
++    if (tar_append_eof(tar) != 0)
++    {
++        result = -errno;
++        log_warning(_("Failed to finalize TAR archive"));
++        goto finito;
++    }
++
++finito:
++    signal(SIGPIPE, old_handler);
++
++    if (tar != NULL && tar_close(tar) != 0)
++    {
++        result = -errno;
++        log_warning(_("Failed to close TAR writer"));
++    }
++
++    /* ...and check that gzip child finished successfully */
++    int status;
++    safe_waitpid(child, &status, 0);
++    if (status != 0)
++    {
++        result = -ECHILD;
++        if (WIFSIGNALED(status))
++            log_warning(_("gzip killed with signal %d"), WTERMSIG(status));
++        else if (WIFEXITED(status))
++        {
++            if (WEXITSTATUS(status) == 100)
++                result = -EEXIST;
++            else
++                log_warning(_("gzip exited with %d"), WEXITSTATUS(status));
++        }
++        else
++            log_warning(_("gzip process failed"));
++    }
++
++    return result;
++}
+diff --git a/src/plugins/Makefile.am b/src/plugins/Makefile.am
+index 7ec08d7..d5d75b6 100644
+--- a/src/plugins/Makefile.am
++++ b/src/plugins/Makefile.am
+@@ -145,7 +145,6 @@ reporter_rhtsupport_CPPFLAGS = \
+     $(LIBREPORT_CFLAGS) \
+     $(LIBXML_CFLAGS) \
+     -D_GNU_SOURCE
+-reporter_rhtsupport_LDFLAGS = -ltar
+ reporter_rhtsupport_LDADD = \
+     $(GLIB_LIBS) \
+     $(LIBXML_LIBS) \
+@@ -168,7 +167,6 @@ reporter_upload_CPPFLAGS = \
+     $(CURL_CFLAGS) \
+     $(LIBREPORT_CFLAGS) \
+     -D_GNU_SOURCE
+-reporter_upload_LDFLAGS = -ltar
+ reporter_upload_LDADD = \
+     $(GLIB_LIBS) \
+     ../lib/libreport-web.la \
+diff --git a/tests/dump_dir.at b/tests/dump_dir.at
+index a579243..fb8c7ce 100644
+--- a/tests/dump_dir.at
++++ b/tests/dump_dir.at
+@@ -47,3 +47,278 @@ int main(void)
+     return 0;
+ }
+ ]])
++
++## ----------------- ##
++## dd_create_archive ##
++## ----------------- ##
++
++AT_TESTFUN([dd_create_archive],
++[[
++#include "internal_libreport.h"
++#include <libtar.h>
++#include <assert.h>
++
++void verify_archive(struct dump_dir *dd, const char *file_name,
++    const_string_vector_const_ptr_t included_files,
++    const_string_vector_const_ptr_t excluded_files)
++{
++    unsigned c = 0;
++    for (const_string_vector_const_ptr_t i = included_files; i && *i; ++i)
++        ++c;
++    int *check_array = xzalloc(c * sizeof(int));
++
++    int pipe_from_parent_to_child[2];
++    xpipe(pipe_from_parent_to_child);
++    pid_t child = fork();
++    if (child < 0)
++        perror_msg_and_die("vfork");
++
++    if (child == 0)
++    {
++        /* child */
++        close(pipe_from_parent_to_child[0]);
++        xmove_fd(xopen(file_name, O_RDONLY), 0);
++        xmove_fd(pipe_from_parent_to_child[1], 1);
++        execlp("gzip", "gzip", "-d", NULL);
++        perror_msg_and_die("Can't execute '%s'", "gzip");
++    }
++    close(pipe_from_parent_to_child[1]);
++
++    /* If child died (say, in xopen), then parent might get SIGPIPE.
++     * We want to properly unlock dd, therefore we must not die on SIGPIPE:
++     */
++    signal(SIGPIPE, SIG_IGN);
++
++    TAR* tar = NULL;
++    /* Create tar writer object */
++    if (tar_fdopen(&tar, pipe_from_parent_to_child[0], (char *)file_name,
++                /*fileops:(standard)*/ NULL, O_RDONLY, 0644, TAR_GNU) != 0)
++    {
++        fprintf(stderr, "Failed to open the pipe to gzip for archive: '%s'\n", file_name);
++        abort();
++    }
++
++    int r = 0;
++    const char *real_file = "/tmp/libreport-attest-extracted";
++    while ((r = th_read(tar)) == 0)
++    {
++        char *path = th_get_pathname(tar);
++
++        if (!TH_ISREG(tar))
++        {
++            fprintf(stderr, "Not regular file: '%s', found in archive: '%s'\n", path, file_name);
++            continue;
++        }
++
++        const_string_vector_const_ptr_t i = included_files;
++        for (c = 0; i && *i; ++i, ++c)
++        {
++            if (strcmp(*i, path) == 0)
++                break;
++        }
++
++        if (i && *i != NULL)
++        {
++            printf("Included file: '%s', found in archive '%s'\n", path, file_name);
++            check_array[c] += 1;
++
++            unlink(real_file);
++            if(tar_extract_regfile(tar, xstrdup(real_file)) != 0)
++            {
++                fprintf(stderr, "TAR failed to extract '%s' to '%s': %s\n", path, real_file, strerror(errno));
++                abort();
++            }
++
++            char *original = dd_load_text(dd, path);
++            assert(original != NULL);
++            assert(original[0] != '\0');
++
++            char *extracted = xmalloc_xopen_read_close("/tmp/libreport-attest-extracted", NULL);
++            assert(extracted != NULL);
++
++            if (strcmp(extracted, original) != 0)
++            {
++                fprintf(stderr, "Invalid file contents: '%s'\nExp: '%s'\nGot: '%s'\n", path, original, extracted);
++                abort();
++            }
++
++            free(original);
++            free(extracted);
++
++            continue;
++        }
++
++        i = excluded_files;
++        for (; i && *i; ++i)
++        {
++            if (strcmp(*i, path) == 0)
++                break;
++        }
++
++        if (i && *i != NULL)
++        {
++            fprintf(stderr, "Excluded file: '%s', found in archive '%s'\n", path, file_name);
++            abort();
++        }
++
++        fprintf(stderr, "Uncategorized file: '%s', found in archive '%s'\n", path, file_name);
++    }
++
++    if (r != 1)
++    {
++        fprintf(stderr, "th_read() failed: %s\n", strerror(errno));
++        abort();
++    }
++
++    tar_close(tar);
++
++    int status;
++    safe_waitpid(child, &status, 0);
++    if (status != 0)
++    {
++        fprintf(stderr, "gzip status code '%d'\n", status);
++        abort();
++    }
++
++    int err = 0;
++    const_string_vector_const_ptr_t i = included_files;
++    for (c = 0; i && *i; ++i, ++c)
++    {
++        switch (check_array[c])
++        {
++            case 0:
++                fprintf(stderr, "Not found included file: '%s', in archive: %s\n", *i, file_name);
++                ++err;
++                break;
++            case 1:
++                fprintf(stdout, "Found included file: '%s', in archive: %s\n", *i, file_name);
++                break;
++            default:
++                fprintf(stderr, "%d occurrences of included file: '%s', in archive: %s\n", check_array[c], *i, file_name);
++                ++err;
++                break;
++        }
++    }
++
++    if (err)
++        abort();
++
++    return;
++}
++
++int main(void)
++{
++    g_verbose = 3;
++
++    char template[] = "/tmp/XXXXXX";
++
++    if (mkdtemp(template) == NULL) {
++        perror("mkdtemp()");
++        return EXIT_FAILURE;
++    }
++
++    printf("Dump dir path: %s\n", template);
++
++    struct dump_dir *dd = dd_create(template, (uid_t)-1, 0640);
++    assert(dd != NULL || !"Cannot create new dump directory");
++
++
++#define COMMON_FILES "time", "last_occurrence", "uid", "kernel", \
++                     "architecture", "hostname", "os_info", "os_release", \
++                     "type", "count", "component", "program_log"
++#define SENSITIVE_FILES "environ", "backtrace", "secret_file", "private_file", \
++                        "useless_file"
++
++    dd_create_basic_files(dd, geteuid(), NULL);
++    dd_save_text(dd, FILENAME_TYPE, "attest");
++    dd_save_text(dd, FILENAME_COUNT, "1");
++    dd_save_text(dd, FILENAME_COMPONENT, "libreport-attest");
++    dd_save_text(dd, "program_log", "Something very important!");
++
++    const gchar *excluded_files[] = {
++        SENSITIVE_FILES,
++        NULL,
++    };
++
++    for (const gchar **iter = excluded_files; *iter; ++iter)
++        dd_save_text(dd, *iter, *iter);
++
++    /* Un-supported archive type */
++    {
++        fprintf(stderr, "TEST-CASE: Un-supported type\n");
++        fprintf(stdout, "TEST-CASE: Un-supported type\n");
++        const int r = dd_create_archive(dd, "/tmp/libreport-attest.omg", NULL, 0);
++        printf("dd_create_archive() == %d\n", r);
++        assert(r == -ENOSYS || !"Not supported");
++    }
++
++    /* File already exists. */
++    dd_close(dd);
++    dd = dd_opendir(template, DD_OPEN_READONLY);
++    {
++        fprintf(stderr, "TEST-CASE: File exists\n");
++        fprintf(stdout, "TEST-CASE: File exists\n");
++        char file_contents[] = "Non emtpy file";
++        const char *file_name = "/tmp/libreport-attest.tar.gz";
++        FILE *test_file = fopen(file_name, "w");
++        assert(test_file != NULL);
++        assert(fprintf(test_file, "%s", file_contents) == strlen(file_contents));
++        fclose(test_file);
++
++        assert(dd_create_archive(dd, file_name, NULL, 0) == -EEXIST || !"Exists");
++
++        char *canary = xmalloc_xopen_read_close(file_name, NULL);
++        assert(canary != NULL);
++        assert(strcmp(canary, file_contents) == 0);
++    }
++
++    dd_close(dd);
++    dd = dd_opendir(template, DD_OPEN_READONLY);
++    /* All elements */
++    {
++        fprintf(stderr, "TEST-CASE: Compress all elements\n");
++        fprintf(stdout, "TEST-CASE: Compress all elements\n");
++
++        const gchar *included_files[] = {
++            COMMON_FILES,
++            SENSITIVE_FILES,
++            NULL,
++        };
++
++        const char *file_name = "/tmp/libreport-attest-all.tar.gz";
++        unlink(file_name);
++        assert(dd_create_archive(dd, file_name, NULL, 0) == 0 || !"All elements");
++
++        verify_archive(dd, file_name, included_files, NULL);
++
++        unlink(file_name);
++    }
++
++    dd_close(dd);
++    dd = dd_opendir(template, DD_OPEN_READONLY);
++    /* Excluded elements */
++    {
++        fprintf(stderr, "TEST-CASE: Exclude elements\n");
++        fprintf(stdout, "TEST-CASE: Exclude elements\n");
++
++        const char *included_files[] = {
++            COMMON_FILES,
++            NULL,
++        };
++
++        const char *file_name = "/tmp/libreport-attest-excluded.tar.gz";
++        unlink(file_name);
++        assert(dd_create_archive(dd, file_name, excluded_files, 0) == 0 || !"Excluded elements");
++
++        verify_archive(dd, file_name, included_files, excluded_files);
++
++        unlink(file_name);
++    }
++
++    dd_close(dd);
++    dd = dd_opendir(template, DD_OPEN_READONLY);
++    assert(dd_delete(dd) == 0);
++
++    return 0;
++}
++]])
+-- 
+1.8.3.1
+

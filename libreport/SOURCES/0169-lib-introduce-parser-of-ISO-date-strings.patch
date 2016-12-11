@@ -1,0 +1,230 @@
+From 9e28f84f001e3fb26ab84b62f1c69ae56d63c6f8 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Fri, 12 Feb 2016 16:54:24 +0100
+Subject: [PATCH] lib: introduce parser of ISO date strings
+
+Make sure we can convert data back and forth without losing information.
+The introduced function complements iso_date_string().
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ po/POTFILES.in                   |   1 +
+ src/include/internal_libreport.h |  11 ++++
+ src/lib/iso_date_string.c        |  27 +++++++++-
+ tests/Makefile.am                |   3 +-
+ tests/iso_date.at                | 106 +++++++++++++++++++++++++++++++++++++++
+ tests/testsuite.at               |   1 +
+ 6 files changed, 147 insertions(+), 2 deletions(-)
+ create mode 100644 tests/iso_date.at
+
+diff --git a/po/POTFILES.in b/po/POTFILES.in
+index 30c9cb5..e952711 100644
+--- a/po/POTFILES.in
++++ b/po/POTFILES.in
+@@ -20,6 +20,7 @@ src/lib/create_dump_dir.c
+ src/lib/curl.c
+ src/lib/dump_dir.c
+ src/lib/event_config.c
++src/lib/iso_date_string.c
+ src/lib/ureport.c
+ src/lib/make_descr.c
+ src/lib/parse_options.c
+diff --git a/src/include/internal_libreport.h b/src/include/internal_libreport.h
+index b632803..78a17ae 100644
+--- a/src/include/internal_libreport.h
++++ b/src/include/internal_libreport.h
+@@ -644,6 +644,17 @@ char* get_environ(pid_t pid);
+ #define iso_date_string libreport_iso_date_string
+ char *iso_date_string(const time_t *pt);
+ #define LIBREPORT_ISO_DATE_STRING_SAMPLE "YYYY-MM-DD-hh:mm:ss"
++#define LIBREPORT_ISO_DATE_STRING_FORMAT "%Y-%m-%d-%H:%M:%S"
++
++/* Parses date into integer UNIX time stamp
++ *
++ * @param date The parsed date string
++ * @param pt Return value
++ * @return 0 on success; otherwise non-0 number. -EINVAL if the parameter date
++ * does not match LIBREPORT_ISO_DATE_STRING_FORMAT
++ */
++#define iso_date_string_parse libreport_iso_date_string_parse
++int iso_date_string_parse(const char *date, time_t *pt);
+ 
+ enum {
+     MAKEDESC_SHOW_FILES     = (1 << 0),
+diff --git a/src/lib/iso_date_string.c b/src/lib/iso_date_string.c
+index a7fb867..c0e567f 100644
+--- a/src/lib/iso_date_string.c
++++ b/src/lib/iso_date_string.c
+@@ -33,7 +33,32 @@ char *iso_date_string(const time_t *pt)
+     if (ptm->tm_year+1900 < 0 || ptm->tm_year+1900 > 9999)
+         error_msg_and_die("Year=%d?? Aborting", ptm->tm_year+1900);
+ 
+-    strftime(buf, sizeof(buf), "%Y-%m-%d-%H:%M:%S", ptm);
++    strftime(buf, sizeof(buf), LIBREPORT_ISO_DATE_STRING_FORMAT, ptm);
+ 
+     return buf;
+ }
++
++int iso_date_string_parse(const char *date, time_t *pt)
++{
++    struct tm local;
++    const char *r = strptime(date, LIBREPORT_ISO_DATE_STRING_FORMAT, &local);
++
++    if (r == NULL)
++    {
++        log_warning(_("String doesn't seem to be a date: '%s'"), date);
++        return -EINVAL;
++    }
++    if (*r != '\0')
++    {
++        log_warning(_("The date: '%s' has unrecognized suffix: '%s'"), date, r);
++        return -EINVAL;
++    }
++    if (local.tm_year < 70)
++    {
++        log_warning(_("The date: '%s' is out of UNIX time stamp range"), date);
++        return -EINVAL;
++    }
++
++    *pt = mktime(&local);
++    return 0;
++}
+diff --git a/tests/Makefile.am b/tests/Makefile.am
+index 5ed7af6..f36ab57 100644
+--- a/tests/Makefile.am
++++ b/tests/Makefile.am
+@@ -44,7 +44,8 @@ TESTSUITE_AT = \
+   string_list.at \
+   ureport.at \
+   dump_dir.at \
+-  global_config.at
++  global_config.at \
++  iso_date.at
+ 
+ EXTRA_DIST += $(TESTSUITE_AT)
+ TESTSUITE = $(srcdir)/testsuite
+diff --git a/tests/iso_date.at b/tests/iso_date.at
+new file mode 100644
+index 0000000..789b46d
+--- /dev/null
++++ b/tests/iso_date.at
+@@ -0,0 +1,106 @@
++# -*- Autotest -*-
++
++AT_BANNER([ISO_date])
++
++## --------------- ##
++## iso_date_string ##
++## --------------- ##
++
++AT_TESTFUN([iso_date_string],
++[[#include "internal_libreport.h"
++#include <assert.h>
++#include <string.h>
++#include <stdio.h>
++
++bool string_cmp(const char *orig, const char *other)
++{
++    if (strcmp(orig, other) == 0)
++        return true;
++
++    printf("'%s' != '%s'\n", orig, other);
++    return false;
++}
++
++int main(void)
++{
++    g_verbose=3;
++
++    setenv("TZ", "", 1);
++    setenv("LC_ALL", "C", 1);
++
++    time_t local[3];
++
++    time(&local[0]);
++    char *date = xstrdup(iso_date_string(NULL));
++
++    local[1] = local[0] + 1;
++    local[2] = local[0] + 2;
++    size_t i = 0;
++    for (; ARRAY_SIZE(local); ++i)
++    {
++        if (string_cmp(date, iso_date_string(local + i)))
++            break;
++    }
++    assert((i != ARRAY_SIZE(local)) || !"None of attempts hit result date");
++    free(date);
++
++    time_t y2k = 946684800;
++    assert(string_cmp("2000-01-01-00:00:00", iso_date_string(&y2k)));
++
++    return 0;
++}
++
++]])
++
++## --------------------- ##
++## iso_date_string_parse ##
++## --------------------- ##
++
++AT_TESTFUN([parse_numbers],
++[[#include "internal_libreport.h"
++#include <assert.h>
++#include <string.h>
++#include <stdio.h>
++
++int main(void)
++{
++    g_verbose=3;
++
++    setenv("TZ", "", 1);
++    setenv("LC_ALL", "C", 1);
++
++    {
++        time_t result = 0;
++        assert(iso_date_string_parse("", &result) == -EINVAL);
++    }
++
++    {
++        time_t result = 0;
++        assert(iso_date_string_parse("foo", &result) == -EINVAL);
++    }
++
++    {
++        time_t result = 0;
++        assert(iso_date_string_parse("1969-12-31-23:59:59", &result) == -EINVAL);
++    }
++
++    {
++        time_t result = 0;
++        assert(iso_date_string_parse("1970-01-01-00:00:00", &result) == 0);
++        assert(result == 0);
++    }
++
++    {
++        time_t result = 0;
++        assert(iso_date_string_parse("2000-01-01-00:00:00", &result) == 0);
++        assert(result == 946684800 || !"Y2k");
++    }
++
++    {
++        time_t result = 0;
++        assert(iso_date_string_parse("2000-01-01-00:00:00fooo", &result) == -EINVAL);
++    }
++
++    return 0;
++}
++]])
+diff --git a/tests/testsuite.at b/tests/testsuite.at
+index 91f0823..e5e2f72 100644
+--- a/tests/testsuite.at
++++ b/tests/testsuite.at
+@@ -19,3 +19,4 @@ m4_include([string_list.at])
+ m4_include([ureport.at])
+ m4_include([dump_dir.at])
+ m4_include([global_config.at])
++m4_include([iso_date.at])
+-- 
+1.8.3.1
+

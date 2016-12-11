@@ -1,0 +1,58 @@
+From 449698ddf727559f2df76ac15716951120f9c0c5 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Fri, 1 Aug 2014 09:31:53 +0200
+Subject: [ABRT PATCH 54/66] oops: add man page
+
+Related to rhbz#1076820
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ doc/Makefile.am        |  1 +
+ doc/abrt-oops.conf.txt | 23 +++++++++++++++++++++++
+ 2 files changed, 24 insertions(+)
+ create mode 100644 doc/abrt-oops.conf.txt
+
+diff --git a/doc/Makefile.am b/doc/Makefile.am
+index e76abde..0480114 100644
+--- a/doc/Makefile.am
++++ b/doc/Makefile.am
+@@ -47,6 +47,7 @@ MAN5_TXT += abrt-action-save-package-data.conf.txt
+ MAN5_TXT += abrt-xorg.conf.txt
+ MAN5_TXT += abrt-python.conf.txt
+ MAN5_TXT += abrt-CCpp.conf.txt
++MAN5_TXT += abrt-oops.conf.txt
+ MAN5_TXT += gpg_keys.conf.txt
+ MAN5_TXT += abrt-vmcore.conf.txt
+ 
+diff --git a/doc/abrt-oops.conf.txt b/doc/abrt-oops.conf.txt
+new file mode 100644
+index 0000000..e7e00e6
+--- /dev/null
++++ b/doc/abrt-oops.conf.txt
+@@ -0,0 +1,23 @@
++abrt-oops.conf(5)
++=================
++
++NAME
++----
++abrt-oops.conf - Configuration file for ABRT's Kernel Oops extractor
++
++DESCRIPTION
++-----------
++The configuration file consists of items in the format "Option = Value".
++The following items are recognized:
++
++OnlyFatalMCE = 'yes' / 'no'
++   If you want to see only fatal MCEs, set to "yes".
++   Defaults is 'yes': detect only fatal ones.
++
++SEE ALSO
++--------
++abrt.conf(5)
++
++AUTHORS
++-------
++* ABRT team
+-- 
+1.8.3.1
+

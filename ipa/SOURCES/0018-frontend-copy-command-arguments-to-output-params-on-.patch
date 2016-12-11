@@ -1,0 +1,39 @@
+From 1297d5f1ba731e81b03a2fca997487813a2e962a Mon Sep 17 00:00:00 2001
+From: Jan Cholasta <jcholast@redhat.com>
+Date: Mon, 18 Jul 2016 07:37:31 +0200
+Subject: [PATCH] frontend: copy command arguments to output params on client
+
+In commit f554078291d682d59956998af97f7d3066fbe7e7 we stopped copying
+command arguments to output params in order to remove redundancies and
+reduce API schema in size. Since then, output params were removed from
+API schema completely and are reconstructed on the client.
+
+Not including arguments in output params hides failed members from member
+commands' CLI output. To fix this, copy arguments to output params again,
+but only on the client side.
+
+https://fedorahosted.org/freeipa/ticket/6026
+
+Reviewed-By: Florence Blanc-Renaud <frenaud@redhat.com>
+---
+ ipaclient/frontend.py | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/ipaclient/frontend.py b/ipaclient/frontend.py
+index e8eacc068f4bec5ccdb21228b32a88aea24424df..1525c88b3dfeadccd8115cb4b6ba149caef22103 100644
+--- a/ipaclient/frontend.py
++++ b/ipaclient/frontend.py
+@@ -95,6 +95,10 @@ class ClientMethod(ClientCommand, Method):
+ 
+     def get_output_params(self):
+         seen = set()
++        for param in self.params():
++            if param.name not in self.obj.params:
++                seen.add(param.name)
++                yield param
+         for output_param in super(ClientMethod, self).get_output_params():
+             seen.add(output_param.name)
+             yield output_param
+-- 
+2.7.4
+

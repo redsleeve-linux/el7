@@ -1,0 +1,89 @@
+From 09da182cd50ee9df08a20180d5fd1d136dc794d3 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Sat, 8 Feb 2014 09:15:35 +0100
+Subject: [LIBREPORT PATCH 22/24] localization: properly handle locales with
+ encoding suffix
+
+XML nodes contain xml:lang attributes whose values are plain language
+codes (en_GB, zh_CN, ...).
+
+libreport tries to find exact match with cur locale which may be
+suffixed with char set identifier (.UTF-8). Therefore libreport never
+finds exact match.
+
+This patch removes the encoding suffix from cur locale string.
+
+Closes to rhbz#1063320
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/include/xml_parser.h      | 2 +-
+ src/lib/event_xml_parser.c    | 6 ++++--
+ src/lib/workflow_xml_parser.c | 4 +++-
+ 3 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/include/xml_parser.h b/src/include/xml_parser.h
+index 59517b3..36fd2ae 100644
+--- a/src/include/xml_parser.h
++++ b/src/include/xml_parser.h
+@@ -22,7 +22,7 @@
+ struct my_parse_data
+ {
+     workflow_t *workflow;
+-    const char *cur_locale;
++    char *cur_locale;
+     char *attribute_lang;
+     bool in_event_list;
+     bool exact_name;
+diff --git a/src/lib/event_xml_parser.c b/src/lib/event_xml_parser.c
+index 2a6f477..1f98158 100644
+--- a/src/lib/event_xml_parser.c
++++ b/src/lib/event_xml_parser.c
+@@ -60,7 +60,7 @@ struct my_parse_data
+ {
+     parsed_event_config_t event_config;
+     parsed_event_option_t cur_option;
+-    const char *cur_locale;
++    char *cur_locale;
+     char *attribute_lang;
+     bool in_adv_option;
+ };
+@@ -511,7 +511,8 @@ void load_event_description_from_file(event_config_t *event_config, const char*
+ {
+     log_notice("loading event: '%s'", filename);
+     struct my_parse_data parse_data = { {event_config, false, false, false}, {NULL, false, false}, NULL, NULL };
+-    parse_data.cur_locale = setlocale(LC_ALL, NULL);
++    parse_data.cur_locale = xstrdup(setlocale(LC_ALL, NULL));
++    strchrnul(parse_data.cur_locale, '.')[0] = '\0';
+ 
+     GMarkupParser parser;
+     memset(&parser, 0, sizeof(parser)); /* just in case */
+@@ -541,4 +542,5 @@ void load_event_description_from_file(event_config_t *event_config, const char*
+ 
+     consume_cur_option(&parse_data); /* just in case */
+     free(parse_data.attribute_lang); /* just in case */
++    free(parse_data.cur_locale);
+ }
+diff --git a/src/lib/workflow_xml_parser.c b/src/lib/workflow_xml_parser.c
+index 681b171..0efc733 100644
+--- a/src/lib/workflow_xml_parser.c
++++ b/src/lib/workflow_xml_parser.c
+@@ -165,7 +165,8 @@ void load_workflow_description_from_file(workflow_t *workflow, const char* filen
+ {
+     log_notice("loading workflow: '%s'", filename);
+     struct my_parse_data parse_data = { workflow, NULL, NULL, 0, 0, 0};
+-    parse_data.cur_locale = setlocale(LC_ALL, NULL);
++    parse_data.cur_locale = xstrdup(setlocale(LC_ALL, NULL));
++    strchrnul(parse_data.cur_locale, '.')[0] = '\0';
+ 
+     GMarkupParser parser;
+     memset(&parser, 0, sizeof(parser)); /* just in case */
+@@ -194,4 +195,5 @@ void load_workflow_description_from_file(workflow_t *workflow, const char* filen
+     g_markup_parse_context_free(context);
+ 
+     free(parse_data.attribute_lang); /* just in case */
++    free(parse_data.cur_locale);
+ }
+-- 
+1.8.3.1
+

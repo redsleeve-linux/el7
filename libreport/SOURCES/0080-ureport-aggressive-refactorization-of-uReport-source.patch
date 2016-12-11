@@ -1,0 +1,1636 @@
+From 85b9ada575f47a5f25f1ffeaccf9c4e1142fd689 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Sat, 13 Sep 2014 22:26:53 +0200
+Subject: [LIBREPORT PATCH 80/93] ureport: aggressive refactorization of
+ uReport source
+
+Simplify/unify the uReport API and provide a development documentation
+in form of Doxygen comments.
+
+Related to rhbz1139987
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ po/POTFILES.in                 |   4 +-
+ src/include/ureport.h          | 185 +++++++++++-
+ src/lib/ureport.c              | 633 ++++++++++++++++++++++++++++++++++++++---
+ src/plugins/reporter-ureport.c | 581 ++-----------------------------------
+ 4 files changed, 793 insertions(+), 610 deletions(-)
+
+diff --git a/po/POTFILES.in b/po/POTFILES.in
+index 7ba080c..00046e2 100644
+--- a/po/POTFILES.in
++++ b/po/POTFILES.in
+@@ -19,7 +19,7 @@ src/lib/client.c
+ src/lib/create_dump_dir.c
+ src/lib/curl.c
+ src/lib/event_config.c
+-src/lib/json.c
++src/lib/ureport.c
+ src/lib/make_descr.c
+ src/lib/parse_options.c
+ src/lib/problem_data.c
+@@ -42,7 +42,7 @@ src/plugins/report_Uploader.xml.in
+ src/plugins/report_uReport.xml.in
+ src/plugins/report_EmergencyAnalysis.xml.in
+ src/plugins/rhbz.c
+-src/plugins/ureport.c
++src/plugins/reporter-ureport.c
+ src/report-newt/report-newt.c
+ src/workflows/workflow_AnacondaFedora.xml.in
+ src/workflows/workflow_AnacondaRHEL.xml.in
+diff --git a/src/include/ureport.h b/src/include/ureport.h
+index d341f6e..3fffed7 100644
+--- a/src/include/ureport.h
++++ b/src/include/ureport.h
+@@ -19,12 +19,19 @@
+ #ifndef UREPORT_H_
+ #define UREPORT_H_
+ 
+-#include "problem_data.h"
+-
+ #ifdef __cplusplus
+ extern "C" {
+ #endif
+ 
++#define UREPORT_CONF_FILE_PATH PLUGINS_CONF_DIR"/ureport.conf"
++
++#define UREPORT_OPTION_VALUE_FROM_CONF(settings, opt, var, tr) do { const char *value = getenv("uReport_"opt); \
++        if (!value) { value = get_map_string_item_or_NULL(settings, opt); } if (value) { var = tr(value); } \
++    } while(0)
++
++#define UREPORT_SUBMIT_ACTION "reports/new/"
++#define UREPORT_ATTACH_ACTION "reports/attach/"
++
+ /*
+  * uReport generation configuration
+  */
+@@ -48,22 +55,176 @@ struct ureport_server_config
+     struct ureport_preferences ur_prefs; ///< configuration for uReport generation
+ };
+ 
+-struct abrt_post_state;
++/*
++ * Initialize structure members
++ *
++ * @param config Initialized structure
++ */
++#define ureport_server_config_init libreport_ureport_server_config_init
++void
++ureport_server_config_init(struct ureport_server_config *config);
++
++/*
++ * Release all allocated resources
++ *
++ * @param config Released structure
++ */
++#define ureport_server_config_destroy libreport_ureport_server_config_destroy
++void
++ureport_server_config_destroy(struct ureport_server_config *config);
+ 
+-#define ureport_post libreport_ureport_post
+-struct post_state *ureport_post(const char *json_ureport,
+-                                struct ureport_server_config *config);
++/*
++ * Loads uReport configuration from various sources.
++ *
++ * Replaces a value of an already configured option only if the
++ * option was found in a configuration source.
++ *
++ * @param config a server configuration to be populated
++ */
++#define ureport_server_config_load libreport_ureport_server_config_load
++void
++ureport_server_config_load(struct ureport_server_config *config,
++                           map_string_t *settings);
+ 
+-#define ureport_attach_rhbz libreport_ureport_attach_rhbz
+-struct post_state *ureport_attach_rhbz(const char *bthash, int rhbz_bug_id,
++/*
++ * Configure client certificate paths
++ *
++ * @param config Where the paths are stored
++ * @param client_path Path in form of cert_full_path:key_full_path or one of
++ *        the following string: 'rhsm', 'puppet'.
++ */
++#define ureport_server_config_set_client_auth libreport_ureport_server_config_set_client_auth
++void
++ureport_server_config_set_client_auth(struct ureport_server_config *config,
++                                      const char *client_auth);
++
++/*
++ * uReport server response
++ */
++struct ureport_server_response
++{
++    bool urr_is_error;  ///< True if server replied with error response
++    char *urr_value;    ///< Value of the response
++    char *urr_message;  ///< Additional message
++    char *urr_bthash;   ///< uReport's server side identifier
++    GList *urr_reported_to_list; ///< Known external reports for uReport
++                                 ///< in *reported_to* format
++    char *urr_solution; ///< URL pointing to solution for uReport
++};
++
++/* Can't include "abrt_curl.h", it's not a public API.
++ * Resorting to just forward-declaring the struct we need.
++ */
++struct post_state;
++
++/*
++ * Parse server reply
++ *
++ * @param post_state Server reply
++ * @param config Configuration used in communication
++ * @return Pointer to malloced memory or NULL in case of error in communication
++ */
++#define ureport_server_response_from_reply libreport_ureport_server_response_from_reply
++struct ureport_server_response *
++ureport_server_response_from_reply(struct post_state *post_state,
++                                   struct ureport_server_config *config);
++
++/*
++ * Save response in dump dir files
++ *
++ * @param resp Parsed server response
++ * @param dump_dir_pat Path to dump directory
++ * @param config Configuration used in communication
++ * @return False in case of any error; otherwise True.
++ */
++#define ureport_server_response_save_in_dump_dir libreport_ureport_server_response_save_in_dump_dir
++bool
++ureport_server_response_save_in_dump_dir(struct ureport_server_response *resp,
++                                         const char *dump_dir_path,
++                                         struct ureport_server_config *config);
++
++/*
++ * Build URL to submitted uReport
++ *
++ * @param resp Parsed server response
++ * @param config Configuration used in communication
++ * @return Malloced zero-terminated string
++ */
++#define ureport_server_response_get_report_url libreport_ureport_server_response_get_report_url
++char *
++ureport_server_response_get_report_url(struct ureport_server_response *resp,
+                                        struct ureport_server_config *config);
+ 
+-#define ureport_attach_email libreport_ureport_attach_email
+-struct post_state *ureport_attach_email(const char *bthash, const char *email,
+-                                        struct ureport_server_config *config);
++/*
++ * Release allocated resources
++ *
++ * @param resp Released structured
++ */
++#define ureport_server_response_free libreport_ureport_server_response_free
++void
++ureport_server_response_free(struct ureport_server_response *resp);
++
++/*
++ * Send JSON to server and obtain reply
++ *
++ * @param json Sent data
++ * @param config Configuration used in communication
++ * @param url_sfx Local part of the upload URL
++ * @return Malloced server reply or NULL in case of communication errors
++ */
++#define ureport_do_post libreport_ureport_do_post
++struct post_state *
++ureport_do_post(const char *json, struct ureport_server_config *config,
++                const char *url_sfx);
++
++/*
++ * Submit uReport on server
++ *
++ * @param json Sent data
++ * @param config Configuration used in communication
++ * @return Malloced, parsed server response
++ */
++#define ureport_submit libreport_ureport_submit
++struct ureport_server_response *
++ureport_submit(const char *json_ureport, struct ureport_server_config *config);
++
++/*
++ * Attach given string to uReport
++ *
++ * @param bthash uReport identifier
++ * @param type Type of attachment
++ * @param data Attached data
++ * @param config Configuration used in communication
++ * @return False in case of any error; otherwise True
++ */
++#define ureport_attach_string libreport_ureport_attach_string
++bool
++ureport_attach_string(const char *bthash, const char *type, const char *data,
++               struct ureport_server_config *config);
+ 
++/*
++ * Attach given integer to uReport
++ *
++ * @param bthash uReport identifier
++ * @param type Type of attachment
++ * @param data Attached data
++ * @param config Configuration used in communication
++ * @return False in case of any error; otherwise True
++ */
++#define ureport_attach_int libreport_ureport_attach_int
++bool
++ureport_attach_int(const char *bthash, const char *type, int data,
++                   struct ureport_server_config *config);
++
++/*
++ * Build uReport from dump dir
++ *
++ * @param dump_dir_path FS path to dump dir
++ * @return Malloced JSON string
++ */
+ #define ureport_from_dump_dir libreport_ureport_from_dump_dir
+-char *ureport_from_dump_dir(const char *dump_dir_path);
++char *
++ureport_from_dump_dir(const char *dump_dir_path);
+ 
+ #define ureport_from_dump_dir_ext libreport_ureport_from_dump_dir_ext
+ char *ureport_from_dump_dir_ext(const char *dump_dir_path,
+diff --git a/src/lib/ureport.c b/src/lib/ureport.c
+index 761fe62..e1816ef 100644
+--- a/src/lib/ureport.c
++++ b/src/lib/ureport.c
+@@ -26,9 +26,528 @@
+ #include "ureport.h"
+ #include "libreport_curl.h"
+ 
++#define DESTROYED_POINTER (void *)0xdeadbeef
+ 
+-static void ureport_add_str(struct json_object *ur, const char *key,
+-                            const char *s)
++#define BTHASH_URL_SFX "reports/bthash/"
++
++#define RHSM_CERT_PATH "/etc/pki/consumer/cert.pem"
++#define RHSM_KEY_PATH "/etc/pki/consumer/key.pem"
++
++#define RHSMENT_PEM_DIR_PATH "/etc/pki/entitlement"
++#define RHSMENT_ENT_DATA_BEGIN_TAG "-----BEGIN ENTITLEMENT DATA-----"
++#define RHSMENT_ENT_DATA_END_TAG "-----END ENTITLEMENT DATA-----"
++#define RHSMENT_SIG_DATA_BEGIN_TAG "-----BEGIN RSA SIGNATURE-----"
++#define RHSMENT_SIG_DATA_END_TAG "-----END RSA SIGNATURE-----"
++
++static char *
++puppet_config_print(const char *key)
++{
++    char *command = xasprintf("puppet config print %s", key);
++    char *result = run_in_shell_and_save_output(0, command, NULL, NULL);
++    free(command);
++
++    /* run_in_shell_and_save_output always returns non-NULL */
++    if (result[0] != '/')
++        goto error;
++
++    char *newline = strchrnul(result, '\n');
++    if (!newline)
++        goto error;
++
++    *newline = '\0';
++    return result;
++error:
++    free(result);
++    error_msg_and_die("Unable to determine puppet %s path (puppet not installed?)", key);
++}
++
++void
++ureport_server_config_set_client_auth(struct ureport_server_config *config,
++                                      const char *client_auth)
++{
++    if (client_auth == NULL)
++        return;
++
++    if (strcmp(client_auth, "") == 0)
++    {
++        config->ur_client_cert = NULL;
++        config->ur_client_key = NULL;
++        log_notice("Not using client authentication");
++    }
++    else if (strcmp(client_auth, "rhsm") == 0)
++    {
++        config->ur_client_cert = xstrdup(RHSM_CERT_PATH);
++        config->ur_client_key = xstrdup(RHSM_KEY_PATH);
++    }
++    else if (strcmp(client_auth, "rhsm-entitlement") == 0)
++    {
++        GList *certs = get_file_list(RHSMENT_PEM_DIR_PATH, "pem");
++        if (g_list_length(certs) != 2)
++        {
++            log_notice(RHSMENT_PEM_DIR_PATH" does not contain unique cert-key files pair");
++            log_notice("Not using client authentication");
++            return;
++        }
++
++        const char *cert = NULL;
++        const char *key = NULL;
++
++        file_obj_t *fst = (file_obj_t *)certs->data;
++        file_obj_t *scn = (file_obj_t *)certs->next->data;
++
++        if (strlen(fo_get_filename(fst)) < strlen(fo_get_filename(scn)))
++        {
++            cert = fo_get_filename(fst);
++            key = fo_get_filename(scn);
++
++            config->ur_client_cert = xstrdup(fo_get_fullpath(fst));
++            config->ur_client_key = xstrdup(fo_get_fullpath(scn));
++        }
++        else
++        {
++            cert = fo_get_filename(scn);
++            key = fo_get_filename(fst);
++
++            config->ur_client_cert = xstrdup(fo_get_fullpath(scn));
++            config->ur_client_key = xstrdup(fo_get_fullpath(fst));
++        }
++
++        const bool iscomplement = prefixcmp(key, cert) != 0 || strcmp("-key", key + strlen(cert)) != 0;
++        g_list_free_full(certs, (GDestroyNotify)free_file_obj);
++
++        if (iscomplement)
++        {
++            log_notice("Key file '%s' isn't complement to cert file '%s'",
++                    config->ur_client_key, config->ur_client_cert);
++            log_notice("Not using client authentication");
++
++            free(config->ur_client_cert);
++            free(config->ur_client_key);
++            config->ur_client_cert = NULL;
++            config->ur_client_key = NULL;
++
++            return;
++        }
++
++        char *certdata = xmalloc_open_read_close(config->ur_client_cert, /*no size limit*/NULL);
++        if (certdata != NULL)
++        {
++            char *ent_data = xstrdup_between(certdata,
++                    RHSMENT_ENT_DATA_BEGIN_TAG, RHSMENT_ENT_DATA_END_TAG);
++
++            char *sig_data = xstrdup_between(certdata,
++                    RHSMENT_SIG_DATA_BEGIN_TAG, RHSMENT_SIG_DATA_END_TAG);
++
++            if (ent_data != NULL && sig_data != NULL)
++            {
++                ent_data = strremovech(ent_data, '\n');
++                insert_map_string(config->ur_http_headers,
++                        xstrdup("X-RH-Entitlement-Data"),
++                        xasprintf(RHSMENT_ENT_DATA_BEGIN_TAG"%s"RHSMENT_ENT_DATA_END_TAG, ent_data));
++
++                sig_data = strremovech(sig_data, '\n');
++                insert_map_string(config->ur_http_headers,
++                        xstrdup("X-RH-Entitlement-Sig"),
++                        xasprintf(RHSMENT_SIG_DATA_BEGIN_TAG"%s"RHSMENT_SIG_DATA_END_TAG, sig_data));
++            }
++            else
++            {
++                log_notice("Cert file '%s' doesn't contain Entitlement and RSA Signature sections", config->ur_client_cert);
++                log_notice("Not using HTTP authentication headers");
++            }
++
++            free(sig_data);
++            free(ent_data);
++            free(certdata);
++        }
++    }
++    else if (strcmp(client_auth, "puppet") == 0)
++    {
++        config->ur_client_cert = puppet_config_print("hostcert");
++        config->ur_client_key = puppet_config_print("hostprivkey");
++    }
++    else
++    {
++        char *scratch = xstrdup(client_auth);
++        config->ur_client_cert = xstrdup(strtok(scratch, ":"));
++        config->ur_client_key = xstrdup(strtok(NULL, ":"));
++        free(scratch);
++
++        if (config->ur_client_cert == NULL || config->ur_client_key == NULL)
++            error_msg_and_die("Invalid client authentication specification");
++    }
++
++    if (config->ur_client_cert && config->ur_client_key)
++    {
++        log_notice("Using client certificate: %s", config->ur_client_cert);
++        log_notice("Using client private key: %s", config->ur_client_key);
++    }
++}
++
++void
++ureport_server_config_load(struct ureport_server_config *config,
++                           map_string_t *settings)
++{
++    UREPORT_OPTION_VALUE_FROM_CONF(settings, "URL", config->ur_url, (const char *));
++    UREPORT_OPTION_VALUE_FROM_CONF(settings, "SSLVerify", config->ur_ssl_verify, string_to_bool);
++
++    bool include_auth = false;
++    UREPORT_OPTION_VALUE_FROM_CONF(settings, "IncludeAuthData", include_auth, string_to_bool);
++
++    if (include_auth)
++    {
++        const char *auth_items = NULL;
++        UREPORT_OPTION_VALUE_FROM_CONF(settings, "AuthDataItems", auth_items, (const char *));
++        config->ur_prefs.urp_auth_items = parse_list(auth_items);
++
++        if (config->ur_prefs.urp_auth_items == NULL)
++            log_warning("IncludeAuthData set to 'yes' but AuthDataItems is empty.");
++    }
++
++    const char *client_auth = NULL;
++    UREPORT_OPTION_VALUE_FROM_CONF(settings, "SSLClientAuth", client_auth, (const char *));
++    ureport_server_config_set_client_auth(config, client_auth);
++}
++
++void
++ureport_server_config_init(struct ureport_server_config *config)
++{
++    config->ur_url = NULL;
++    config->ur_ssl_verify = true;
++    config->ur_client_cert = NULL;
++    config->ur_client_key = NULL;
++    config->ur_http_headers = new_map_string();
++    config->ur_prefs.urp_auth_items = NULL;
++}
++
++void
++ureport_server_config_destroy(struct ureport_server_config *config)
++{
++    free(config->ur_client_cert);
++    config->ur_client_cert = DESTROYED_POINTER;
++
++    free(config->ur_client_key);
++    config->ur_client_key = DESTROYED_POINTER;
++
++    g_list_free_full(config->ur_prefs.urp_auth_items, free);
++    config->ur_prefs.urp_auth_items = DESTROYED_POINTER;
++
++    free_map_string(config->ur_http_headers);
++    config->ur_http_headers = DESTROYED_POINTER;
++}
++
++void
++ureport_server_response_free(struct ureport_server_response *resp)
++{
++    if (!resp)
++        return;
++
++    free(resp->urr_solution);
++    resp->urr_solution = DESTROYED_POINTER;
++
++    g_list_free_full(resp->urr_reported_to_list, g_free);
++    resp->urr_reported_to_list = DESTROYED_POINTER;
++
++    free(resp->urr_bthash);
++    resp->urr_bthash = DESTROYED_POINTER;
++
++    free(resp->urr_message);
++    resp->urr_message = DESTROYED_POINTER;
++
++    free(resp->urr_value);
++    resp->urr_value = DESTROYED_POINTER;
++
++    free(resp);
++}
++
++static char *
++parse_solution_from_json_list(struct json_object *list,
++                              GList **reported_to)
++{
++    json_object *list_elem, *struct_elem;
++    const char *cause, *note, *url;
++    struct strbuf *solution_buf = strbuf_new();
++
++    const unsigned length = json_object_array_length(list);
++
++    const char *one_format = _("Your problem seems to be caused by %s\n\n%s\n");
++    if (length > 1)
++    {
++        strbuf_append_str(solution_buf, _("Your problem seems to be caused by one of the following:\n"));
++        one_format = "\n* %s\n\n%s\n";
++    }
++
++    bool empty = true;
++    for (unsigned i = 0; i < length; ++i)
++    {
++        list_elem = json_object_array_get_idx(list, i);
++        if (!list_elem)
++            continue;
++
++        if (!json_object_object_get_ex(list_elem, "cause", &struct_elem))
++            continue;
++
++        cause = json_object_get_string(struct_elem);
++            continue;
++
++        if (!json_object_object_get_ex(list_elem, "note", &struct_elem))
++            continue;
++
++        note = json_object_get_string(struct_elem);
++        if (!note)
++            continue;
++
++        empty = false;
++        strbuf_append_strf(solution_buf, one_format, cause, note);
++
++        if (!json_object_object_get_ex(list_elem, "url", &struct_elem))
++            continue;
++
++        url = json_object_get_string(struct_elem);
++        if (url)
++        {
++            char *reported_to_line = xasprintf("%s: URL=%s", cause, url);
++            *reported_to = g_list_append(*reported_to, reported_to_line);
++        }
++    }
++
++    if (empty)
++    {
++        strbuf_free(solution_buf);
++        return NULL;
++    }
++
++    return strbuf_free_nobuf(solution_buf);
++}
++
++/* reported_to json element should be a list of structures
++   {
++     "reporter": "Bugzilla",
++     "type": "url",
++     "value": "https://bugzilla.redhat.com/show_bug.cgi?id=XYZ"
++   }
++ */
++static GList *
++parse_reported_to_from_json_list(struct json_object *list)
++{
++    int i;
++    json_object *list_elem, *struct_elem;
++    const char *reporter, *value, *type;
++    char *reported_to_line, *prefix;
++    GList *result = NULL;
++
++    for (i = 0; i < json_object_array_length(list); ++i)
++    {
++        prefix = NULL;
++        list_elem = json_object_array_get_idx(list, i);
++        if (!list_elem)
++            continue;
++
++        if (!json_object_object_get_ex(list_elem, "reporter", &struct_elem))
++            continue;
++
++        reporter = json_object_get_string(struct_elem);
++        if (!reporter)
++            continue;
++
++        if (!json_object_object_get_ex(list_elem, "value", &struct_elem))
++            continue;
++
++        value = json_object_get_string(struct_elem);
++        if (!value)
++            continue;
++
++        if (!json_object_object_get_ex(list_elem, "type", &struct_elem))
++            continue;
++
++        type = json_object_get_string(struct_elem);
++        if (type)
++        {
++            if (strcasecmp("url", type) == 0)
++                prefix = xstrdup("URL=");
++            else if (strcasecmp("bthash", type) == 0)
++                prefix = xstrdup("BTHASH=");
++        }
++
++        if (!prefix)
++            prefix = xstrdup("");
++
++        reported_to_line = xasprintf("%s: %s%s", reporter, prefix, value);
++        free(prefix);
++
++        result = g_list_append(result, reported_to_line);
++    }
++
++    return result;
++}
++
++/*
++ * Reponse samples:
++ * {"error":"field 'foo' is required"}
++ * {"response":"true"}
++ * {"response":"false"}
++ */
++static struct ureport_server_response *
++ureport_server_parse_json(json_object *json)
++{
++    json_object *obj = NULL;
++    if (json_object_object_get_ex(json, "error", &obj))
++    {
++        struct ureport_server_response *out_response = xzalloc(sizeof(*out_response));
++        out_response->urr_is_error = true;
++        /*
++         * Used to use json_object_to_json_string(obj), but it returns
++         * the string in quote marks (") - IOW, json-formatted string.
++         */
++        out_response->urr_value = xstrdup(json_object_get_string(obj));
++        return out_response;
++    }
++
++    if (json_object_object_get_ex(json, "result", &obj))
++    {
++        struct ureport_server_response *out_response = xzalloc(sizeof(*out_response));
++        out_response->urr_value = xstrdup(json_object_get_string(obj));
++
++        json_object *message = NULL;
++        if (json_object_object_get_ex(json, "message", &message))
++            out_response->urr_message = xstrdup(json_object_get_string(message));
++
++        json_object *bthash = NULL;
++        if (json_object_object_get_ex(json, "bthash", &bthash))
++            out_response->urr_bthash = xstrdup(json_object_get_string(bthash));
++
++        json_object *reported_to_list = NULL;
++        if (json_object_object_get_ex(json, "reported_to", &reported_to_list))
++            out_response->urr_reported_to_list =
++                parse_reported_to_from_json_list(reported_to_list);
++
++        json_object *solutions = NULL;
++        if (json_object_object_get_ex(json, "solutions", &solutions))
++            out_response->urr_solution =
++                parse_solution_from_json_list(solutions, &(out_response->urr_reported_to_list));
++
++        return out_response;
++    }
++
++    return NULL;
++}
++
++struct ureport_server_response *
++ureport_server_response_from_reply(post_state_t *post_state,
++                                   struct ureport_server_config *config)
++{
++    /* Previously, the condition here was (post_state->errmsg[0] != '\0')
++     * however when the server asks for optional client authentication and we do not have the certificates,
++     * then post_state->errmsg contains "NSS: client certificate not found (nickname not specified)" even though
++     * the request succeeded.
++     */
++    if (post_state->curl_result != CURLE_OK)
++    {
++        error_msg(_("Failed to upload uReport to the server '%s' with curl: %s"), config->ur_url, post_state->errmsg);
++        return NULL;
++    }
++
++    if (post_state->http_resp_code == 404)
++    {
++        error_msg(_("The URL '%s' does not exist (got error 404 from server)"), config->ur_url);
++        return NULL;
++    }
++
++    if (post_state->http_resp_code == 500)
++    {
++        error_msg(_("The server at '%s' encountered an internal error (got error 500)"), config->ur_url);
++        return NULL;
++    }
++
++    if (post_state->http_resp_code == 503)
++    {
++        error_msg(_("The server at '%s' currently can't handle the request (got error 503)"), config->ur_url);
++        return NULL;
++    }
++
++    if (post_state->http_resp_code != 202
++            && post_state->http_resp_code != 400
++            && post_state->http_resp_code != 413)
++    {
++        /* can't print better error message */
++        error_msg(_("Unexpected HTTP response from '%s': %d"), config->ur_url, post_state->http_resp_code);
++        log_notice("%s", post_state->body);
++        return NULL;
++    }
++
++    json_object *const json = json_tokener_parse(post_state->body);
++
++    if (is_error(json))
++    {
++        error_msg(_("Unable to parse response from ureport server at '%s'"), config->ur_url);
++        log_notice("%s", post_state->body);
++        json_object_put(json);
++        return NULL;
++    }
++
++    struct ureport_server_response *response = ureport_server_parse_json(json);
++    json_object_put(json);
++
++    if (!response)
++        error_msg(_("The response from '%s' has invalid format"), config->ur_url);
++    else if ((post_state->http_resp_code == 202 && response->urr_is_error)
++                || (post_state->http_resp_code != 202 && !response->urr_is_error))
++    {
++        /* HTTP CODE 202 means that call was successful but the response */
++        /* has an error message */
++        error_msg(_("Type mismatch has been detected in the response from '%s'"), config->ur_url);
++    }
++
++    return response;
++}
++
++bool
++ureport_server_response_save_in_dump_dir(struct ureport_server_response *resp,
++                                         const char *dump_dir_path,
++                                         struct ureport_server_config *config)
++{
++    struct dump_dir *dd = dd_opendir(dump_dir_path, /* flags */ 0);
++    if (!dd)
++        return false;
++
++    if (resp->urr_bthash)
++    {
++        char *msg = xasprintf("uReport: BTHASH=%s", resp->urr_bthash);
++        add_reported_to(dd, msg);
++        free(msg);
++
++        char *report_url = ureport_server_response_get_report_url(resp, config);
++        msg = xasprintf("ABRT Server: URL=%s", report_url);
++        add_reported_to(dd, msg);
++        free(msg);
++        free(report_url);
++    }
++
++    if (resp->urr_reported_to_list)
++    {
++        for (GList *e = resp->urr_reported_to_list; e; e = g_list_next(e))
++            add_reported_to(dd, e->data);
++    }
++
++    if (resp->urr_solution)
++        dd_save_text(dd, FILENAME_NOT_REPORTABLE, resp->urr_solution);
++
++    dd_close(dd);
++    return true;
++}
++
++char *
++ureport_server_response_get_report_url(struct ureport_server_response *resp,
++                                       struct ureport_server_config *config)
++{
++    char *bthash_url = concat_path_file(config->ur_url, BTHASH_URL_SFX);
++    char *report_url = concat_path_file(bthash_url, resp->urr_bthash);
++    free(bthash_url);
++    return report_url;
++}
++
++static void
++ureport_add_str(struct json_object *ur, const char *key, const char *s)
+ {
+     struct json_object *jstring = json_object_new_string(s);
+     if (!jstring)
+@@ -37,7 +556,8 @@ static void ureport_add_str(struct json_object *ur, const char *key,
+     json_object_object_add(ur, key, jstring);
+ }
+ 
+-char *ureport_from_dump_dir_ext(const char *dump_dir_path, const struct ureport_preferences *preferences)
++char *
++ureport_from_dump_dir_ext(const char *dump_dir_path, const struct ureport_preferences *preferences)
+ {
+     char *error_message;
+     struct sr_report *report = sr_abrt_report_from_dir(dump_dir_path,
+@@ -77,28 +597,15 @@ char *ureport_from_dump_dir_ext(const char *dump_dir_path, const struct ureport_
+     return json_ureport;
+ }
+ 
+-char *ureport_from_dump_dir(const char *dump_dir_path)
++char *
++ureport_from_dump_dir(const char *dump_dir_path)
+ {
+     return ureport_from_dump_dir_ext(dump_dir_path, /*no preferences*/NULL);
+ }
+ 
+-static char *new_json_attachment(const char *bthash, const char *type, const char *data)
+-{
+-    struct json_object *attachment = json_object_new_object();
+-    if (!attachment)
+-        die_out_of_memory();
+-
+-    ureport_add_str(attachment, "bthash", bthash);
+-    ureport_add_str(attachment, "type", type);
+-    ureport_add_str(attachment, "data", data);
+-
+-    char *result = xstrdup(json_object_to_json_string(attachment));
+-    json_object_put(attachment);
+-
+-    return result;
+-}
+-
+-struct post_state *ureport_post(const char *json, struct ureport_server_config *config)
++struct post_state *
++ureport_do_post(const char *json, struct ureport_server_config *config,
++                const char *url_sfx)
+ {
+     int flags = POST_WANT_BODY | POST_WANT_ERROR_MSG;
+ 
+@@ -130,8 +637,10 @@ struct post_state *ureport_post(const char *json, struct ureport_server_config *
+         headers[i] = NULL;
+     }
+ 
+-    post_string_as_form_data(post_state, config->ur_url, "application/json",
+-                    (const char **)headers, json);
++    char *dest_url = concat_path_file(config->ur_url, url_sfx);
++
++    post_string_as_form_data(post_state, dest_url, "application/json",
++                     (const char **)headers, json);
+ 
+     /* Client authentication failed. Try again without client auth.
+      * CURLE_SSL_CONNECT_ERROR - cert not found/server doesnt trust the CA
+@@ -145,11 +654,13 @@ struct post_state *ureport_post(const char *json, struct ureport_server_config *
+         free_post_state(post_state);
+         post_state = new_post_state(flags);
+ 
+-        post_string_as_form_data(post_state, config->ur_url, "application/json",
++        post_string_as_form_data(post_state, dest_url, "application/json",
+                          (const char **)headers, json);
+ 
+     }
+ 
++    free(dest_url);
++
+     for (unsigned i = size_map_string(config->ur_http_headers); i != 0; --i)
+         free(headers[i + 1]);
+     free(headers);
+@@ -157,24 +668,70 @@ struct post_state *ureport_post(const char *json, struct ureport_server_config *
+     return post_state;
+ }
+ 
+-struct post_state *ureport_attach_rhbz(const char *bthash, int rhbz_bug_id,
+-                                       struct ureport_server_config *config)
++struct ureport_server_response *
++ureport_submit(const char *json, struct ureport_server_config *config)
+ {
+-    char *str_bug_id = xasprintf("%d", rhbz_bug_id);
+-    char *json_attachment = new_json_attachment(bthash, "RHBZ", str_bug_id);
+-    struct post_state *post_state = ureport_post(json_attachment, config);
+-    free(str_bug_id);
+-    free(json_attachment);
++    struct post_state *post_state = ureport_do_post(json, config, UREPORT_SUBMIT_ACTION);
+ 
+-    return post_state;
++    if (post_state == NULL)
++    {
++        error_msg(_("Failed on submitting the problem"));
++        return NULL;
++    }
++
++    struct ureport_server_response *resp = ureport_server_response_from_reply(post_state, config);
++    free(post_state);
++
++    return resp;
+ }
+ 
+-struct post_state *ureport_attach_email(const char *bthash, const char *email,
+-                                       struct ureport_server_config *config)
++static char *
++ureport_json_attachment_new(const char *bthash, const char *type, const char *data)
+ {
+-    char *json_attachment = new_json_attachment(bthash, "email", email);
+-    struct post_state *post_state = ureport_post(json_attachment, config);
+-    free(json_attachment);
++    struct json_object *attachment = json_object_new_object();
++    if (!attachment)
++        die_out_of_memory();
+ 
+-    return post_state;
++    ureport_add_str(attachment, "bthash", bthash);
++    ureport_add_str(attachment, "type", type);
++    ureport_add_str(attachment, "data", data);
++
++    char *result = xstrdup(json_object_to_json_string(attachment));
++    json_object_put(attachment);
++
++    return result;
++}
++
++bool
++ureport_attach_string(const char *bthash, const char *type, const char *data,
++               struct ureport_server_config *config)
++{
++    char *json = ureport_json_attachment_new(bthash, type, data);
++    post_state_t *post_state = ureport_do_post(json, config, UREPORT_ATTACH_ACTION);
++    free(json);
++
++    struct ureport_server_response *resp =
++        ureport_server_response_from_reply(post_state, config);
++    free_post_state(post_state);
++    /* don't use str_bo_bool() because we require "true" string */
++    const int result = !resp || resp->urr_is_error || strcmp(resp->urr_value, "true") != 0;
++
++    if (resp && resp->urr_is_error)
++        error_msg(_("The server at '%s' responded with an error: '%s'"),
++                config->ur_url, resp->urr_value);
++
++    ureport_server_response_free(resp);
++
++    return result;
++}
++
++bool
++ureport_attach_int(const char *bthash, const char *type, int data,
++                    struct ureport_server_config *config)
++{
++    char *data_str = xasprintf("%d", data);
++    const bool result = ureport_attach_string(bthash, type, data_str, config);
++    free(data_str);
++
++    return result;
+ }
+diff --git a/src/plugins/reporter-ureport.c b/src/plugins/reporter-ureport.c
+index d827c7d..7bd3fb3 100644
+--- a/src/plugins/reporter-ureport.c
++++ b/src/plugins/reporter-ureport.c
+@@ -22,482 +22,6 @@
+ #include "ureport.h"
+ #include "libreport_curl.h"
+ 
+-#define CONF_FILE_PATH PLUGINS_CONF_DIR"/ureport.conf"
+-
+-#define REPORT_URL_SFX "reports/new/"
+-#define ATTACH_URL_SFX "reports/attach/"
+-#define BTHASH_URL_SFX "reports/bthash/"
+-
+-#define RHSM_CERT_PATH "/etc/pki/consumer/cert.pem"
+-#define RHSM_KEY_PATH "/etc/pki/consumer/key.pem"
+-
+-#define RHAP_PEM_DIR_PATH "/etc/pki/entitlement"
+-#define RHAP_ENT_DATA_BEGIN_TAG "-----BEGIN ENTITLEMENT DATA-----"
+-#define RHAP_ENT_DATA_END_TAG "-----END ENTITLEMENT DATA-----"
+-#define RHAP_SIG_DATA_BEGIN_TAG "-----BEGIN RSA SIGNATURE-----"
+-#define RHAP_SIG_DATA_END_TAG "-----END RSA SIGNATURE-----"
+-
+-#define VALUE_FROM_CONF(opt, var, tr) do { const char *value = getenv("uReport_"opt); \
+-        if (!value) { value = get_map_string_item_or_NULL(settings, opt); } if (value) { var = tr(value); } \
+-    } while(0)
+-
+-static char *puppet_config_print(const char *key)
+-{
+-    char *command = xasprintf("puppet config print %s", key);
+-    char *result = run_in_shell_and_save_output(0, command, NULL, NULL);
+-    free(command);
+-
+-    /* run_in_shell_and_save_output always returns non-NULL */
+-    if (result[0] != '/')
+-        goto error;
+-
+-    char *newline = strchrnul(result, '\n');
+-    if (!newline)
+-        goto error;
+-
+-    *newline = '\0';
+-    return result;
+-error:
+-    free(result);
+-    error_msg_and_die("Unable to determine puppet %s path (puppet not installed?)", key);
+-}
+-
+-static void parse_client_auth_paths(struct ureport_server_config *config, const char *client_auth)
+-{
+-    if (client_auth == NULL)
+-        return;
+-
+-    if (strcmp(client_auth, "") == 0)
+-    {
+-        config->ur_client_cert = NULL;
+-        config->ur_client_key = NULL;
+-        log_notice("Not using client authentication");
+-    }
+-    else if (strcmp(client_auth, "rhsm") == 0)
+-    {
+-        config->ur_client_cert = xstrdup(RHSM_CERT_PATH);
+-        config->ur_client_key = xstrdup(RHSM_KEY_PATH);
+-    }
+-    else if (strcmp(client_auth, "rhsm-entitlement") == 0)
+-    {
+-        GList *certs = get_file_list(RHAP_PEM_DIR_PATH, "pem");
+-        if (g_list_length(certs) != 2)
+-        {
+-            log_notice(RHAP_PEM_DIR_PATH" does not contain unique cert-key files pair");
+-            log_notice("Not using client authentication");
+-            return;
+-        }
+-
+-        const char *cert = NULL;
+-        const char *key = NULL;
+-
+-        file_obj_t *fst = (file_obj_t *)certs->data;
+-        file_obj_t *scn = (file_obj_t *)certs->next->data;
+-
+-        if (strlen(fo_get_filename(fst)) < strlen(fo_get_filename(scn)))
+-        {
+-            cert = fo_get_filename(fst);
+-            key = fo_get_filename(scn);
+-
+-            config->ur_client_cert = xstrdup(fo_get_fullpath(fst));
+-            config->ur_client_key = xstrdup(fo_get_fullpath(scn));
+-        }
+-        else
+-        {
+-            cert = fo_get_filename(scn);
+-            key = fo_get_filename(fst);
+-
+-            config->ur_client_cert = xstrdup(fo_get_fullpath(scn));
+-            config->ur_client_key = xstrdup(fo_get_fullpath(fst));
+-        }
+-
+-        const bool iscomplement = prefixcmp(key, cert) != 0 || strcmp("-key", key + strlen(cert)) != 0;
+-        g_list_free_full(certs, (GDestroyNotify)free_file_obj);
+-
+-        if (iscomplement)
+-        {
+-            log_notice("Key file '%s' isn't complement to cert file '%s'",
+-                    config->ur_client_key, config->ur_client_cert);
+-            log_notice("Not using client authentication");
+-
+-            free(config->ur_client_cert);
+-            free(config->ur_client_key);
+-            config->ur_client_cert = NULL;
+-            config->ur_client_key = NULL;
+-
+-            return;
+-        }
+-
+-        char *certdata = xmalloc_open_read_close(config->ur_client_cert, /*no size limit*/NULL);
+-        if (certdata != NULL)
+-        {
+-            char *ent_data = xstrdup_between(certdata,
+-                    RHAP_ENT_DATA_BEGIN_TAG, RHAP_ENT_DATA_END_TAG);
+-
+-            char *sig_data = xstrdup_between(certdata,
+-                    RHAP_SIG_DATA_BEGIN_TAG, RHAP_SIG_DATA_END_TAG);
+-
+-            if (ent_data != NULL && sig_data != NULL)
+-            {
+-                ent_data = strremovech(ent_data, '\n');
+-                insert_map_string(config->ur_http_headers,
+-                        xstrdup("X-RH-Entitlement-Data"),
+-                        xasprintf(RHAP_ENT_DATA_BEGIN_TAG"%s"RHAP_ENT_DATA_END_TAG, ent_data));
+-
+-                sig_data = strremovech(sig_data, '\n');
+-                insert_map_string(config->ur_http_headers,
+-                        xstrdup("X-RH-Entitlement-Sig"),
+-                        xasprintf(RHAP_SIG_DATA_BEGIN_TAG"%s"RHAP_SIG_DATA_END_TAG, sig_data));
+-            }
+-            else
+-            {
+-                log_notice("Cert file '%s' doesn't contain Entitlement and RSA Signature sections", config->ur_client_cert);
+-                log_notice("Not using HTTP authentication headers");
+-            }
+-
+-            free(sig_data);
+-            free(ent_data);
+-            free(certdata);
+-        }
+-    }
+-    else if (strcmp(client_auth, "puppet") == 0)
+-    {
+-        config->ur_client_cert = puppet_config_print("hostcert");
+-        config->ur_client_key = puppet_config_print("hostprivkey");
+-    }
+-    else
+-    {
+-        char *scratch = xstrdup(client_auth);
+-        config->ur_client_cert = xstrdup(strtok(scratch, ":"));
+-        config->ur_client_key = xstrdup(strtok(NULL, ":"));
+-        free(scratch);
+-        if (config->ur_client_cert == NULL || config->ur_client_key == NULL)
+-            error_msg_and_die("Invalid client authentication specification");
+-    }
+-
+-    if (config->ur_client_cert && config->ur_client_key)
+-    {
+-        log_notice("Using client certificate: %s", config->ur_client_cert);
+-        log_notice("Using client private key: %s", config->ur_client_key);
+-    }
+-}
+-
+-/*
+- * Loads uReport configuration from various sources.
+- *
+- * Replaces a value of an already configured option only if the
+- * option was found in a configuration source.
+- *
+- * @param config a server configuration to be populated
+- */
+-static void load_ureport_server_config(struct ureport_server_config *config, map_string_t *settings)
+-{
+-    VALUE_FROM_CONF("URL", config->ur_url, (const char *));
+-    VALUE_FROM_CONF("SSLVerify", config->ur_ssl_verify, string_to_bool);
+-
+-    bool include_auth = false;
+-    VALUE_FROM_CONF("IncludeAuthData", include_auth, string_to_bool);
+-
+-    if (include_auth)
+-    {
+-        const char *auth_items = NULL;
+-        VALUE_FROM_CONF("AuthDataItems", auth_items, (const char *));
+-        config->ur_prefs.urp_auth_items = parse_list(auth_items);
+-
+-        if (config->ur_prefs.urp_auth_items == NULL)
+-            log_warning("IncludeAuthData set to 'yes' but AuthDataItems is empty.");
+-    }
+-
+-    const char *client_auth = NULL;
+-    VALUE_FROM_CONF("SSLClientAuth", client_auth, (const char *));
+-    parse_client_auth_paths(config, client_auth);
+-}
+-
+-struct ureport_server_response {
+-    bool is_error;
+-    char *value;
+-    char *message;
+-    char *bthash;
+-    GList *reported_to_list;
+-    char *solution;
+-};
+-
+-void free_ureport_server_response(struct ureport_server_response *resp)
+-{
+-    if (!resp)
+-        return;
+-
+-    free(resp->solution);
+-    g_list_free_full(resp->reported_to_list, g_free);
+-    free(resp->bthash);
+-    free(resp->message);
+-    free(resp->value);
+-    free(resp);
+-}
+-
+-static char *parse_solution_from_json_list(struct json_object *list, GList **reported_to)
+-{
+-    json_object *list_elem, *struct_elem;
+-    const char *cause, *note, *url;
+-    struct strbuf *solution_buf = strbuf_new();
+-
+-    const unsigned length = json_object_array_length(list);
+-
+-    const char *one_format = _("Your problem seems to be caused by %s\n\n%s\n");
+-    if (length > 1)
+-    {
+-        strbuf_append_str(solution_buf, _("Your problem seems to be caused by one of the following:\n"));
+-        one_format = "\n* %s\n\n%s\n";
+-    }
+-
+-    bool empty = true;
+-    for (unsigned i = 0; i < length; ++i)
+-    {
+-        list_elem = json_object_array_get_idx(list, i);
+-        if (!list_elem)
+-            continue;
+-
+-        if (!json_object_object_get_ex(list_elem, "cause", &struct_elem))
+-            continue;
+-
+-        cause = json_object_get_string(struct_elem);
+-            continue;
+-
+-        if (!json_object_object_get_ex(list_elem, "note", &struct_elem))
+-            continue;
+-
+-        note = json_object_get_string(struct_elem);
+-        if (!note)
+-            continue;
+-
+-        empty = false;
+-        strbuf_append_strf(solution_buf, one_format, cause, note);
+-
+-        if (!json_object_object_get_ex(list_elem, "url", &struct_elem))
+-            continue;
+-
+-        url = json_object_get_string(struct_elem);
+-        if (url)
+-        {
+-            char *reported_to_line = xasprintf("%s: URL=%s", cause, url);
+-            *reported_to = g_list_append(*reported_to, reported_to_line);
+-        }
+-    }
+-
+-    if (empty)
+-    {
+-        strbuf_free(solution_buf);
+-        return NULL;
+-    }
+-
+-    return strbuf_free_nobuf(solution_buf);
+-}
+-
+-/* reported_to json element should be a list of structures
+-{ "reporter": "Bugzilla",
+-  "type": "url",
+-  "value": "https://bugzilla.redhat.com/show_bug.cgi?id=XYZ" } */
+-static GList *parse_reported_to_from_json_list(struct json_object *list)
+-{
+-    int i;
+-    json_object *list_elem, *struct_elem;
+-    const char *reporter, *value, *type;
+-    char *reported_to_line, *prefix;
+-    GList *result = NULL;
+-
+-    for (i = 0; i < json_object_array_length(list); ++i)
+-    {
+-        prefix = NULL;
+-        list_elem = json_object_array_get_idx(list, i);
+-        if (!list_elem)
+-            continue;
+-
+-        if (!json_object_object_get_ex(list_elem, "reporter", &struct_elem))
+-            continue;
+-
+-        reporter = json_object_get_string(struct_elem);
+-        if (!reporter)
+-            continue;
+-
+-        if (!json_object_object_get_ex(list_elem, "value", &struct_elem))
+-            continue;
+-
+-        value = json_object_get_string(struct_elem);
+-        if (!value)
+-            continue;
+-
+-        if (!json_object_object_get_ex(list_elem, "type", &struct_elem))
+-            continue;
+-
+-        type = json_object_get_string(struct_elem);
+-        if (type)
+-        {
+-            if (strcasecmp("url", type) == 0)
+-                prefix = xstrdup("URL=");
+-            else if (strcasecmp("bthash", type) == 0)
+-                prefix = xstrdup("BTHASH=");
+-        }
+-
+-        if (!prefix)
+-            prefix = xstrdup("");
+-
+-        reported_to_line = xasprintf("%s: %s%s", reporter, prefix, value);
+-        free(prefix);
+-
+-        result = g_list_append(result, reported_to_line);
+-    }
+-
+-    return result;
+-}
+-
+-/*
+- * Reponse samples:
+- * {"error":"field 'foo' is required"}
+- * {"response":"true"}
+- * {"response":"false"}
+- */
+-static struct ureport_server_response *ureport_server_parse_json(json_object *json)
+-{
+-    json_object *obj = NULL;
+-    if (json_object_object_get_ex(json, "error", &obj))
+-    {
+-        struct ureport_server_response *out_response = xzalloc(sizeof(*out_response));
+-        out_response->is_error = true;
+-        /*
+-         * Used to use json_object_to_json_string(obj), but it returns
+-         * the string in quote marks (") - IOW, json-formatted string.
+-         */
+-        out_response->value = xstrdup(json_object_get_string(obj));
+-        return out_response;
+-    }
+-
+-    if (json_object_object_get_ex(json, "result", &obj))
+-    {
+-        struct ureport_server_response *out_response = xzalloc(sizeof(*out_response));
+-        out_response->value = xstrdup(json_object_get_string(obj));
+-
+-        json_object *message = NULL;
+-        if (json_object_object_get_ex(json, "message", &message))
+-            out_response->message = xstrdup(json_object_get_string(message));
+-
+-        json_object *bthash = NULL;
+-        if (json_object_object_get_ex(json, "bthash", &bthash))
+-            out_response->bthash = xstrdup(json_object_get_string(bthash));
+-
+-        json_object *reported_to_list = NULL;
+-        if (json_object_object_get_ex(json, "reported_to", &reported_to_list))
+-            out_response->reported_to_list = parse_reported_to_from_json_list(reported_to_list);
+-
+-        json_object *solutions = NULL;
+-        if (json_object_object_get_ex(json, "solutions", &solutions))
+-            out_response->solution = parse_solution_from_json_list(solutions, &(out_response->reported_to_list));
+-
+-        return out_response;
+-    }
+-
+-    return NULL;
+-}
+-
+-static struct ureport_server_response *get_server_response(post_state_t *post_state, struct ureport_server_config *config)
+-{
+-    /* Previously, the condition here was (post_state->errmsg[0] != '\0')
+-     * however when the server asks for optional client authentication and we do not have the certificates,
+-     * then post_state->errmsg contains "NSS: client certificate not found (nickname not specified)" even though
+-     * the request succeeded.
+-     */
+-    if (post_state->curl_result != CURLE_OK)
+-    {
+-        error_msg(_("Failed to upload uReport to the server '%s' with curl: %s"), config->ur_url, post_state->errmsg);
+-        return NULL;
+-    }
+-
+-    if (post_state->http_resp_code == 404)
+-    {
+-        error_msg(_("The URL '%s' does not exist (got error 404 from server)"), config->ur_url);
+-        return NULL;
+-    }
+-
+-    if (post_state->http_resp_code == 500)
+-    {
+-        error_msg(_("The server at '%s' encountered an internal error (got error 500)"), config->ur_url);
+-        return NULL;
+-    }
+-
+-    if (post_state->http_resp_code == 503)
+-    {
+-        error_msg(_("The server at '%s' currently can't handle the request (got error 503)"), config->ur_url);
+-        return NULL;
+-    }
+-
+-    if (post_state->http_resp_code != 202
+-            && post_state->http_resp_code != 400
+-            && post_state->http_resp_code != 413)
+-    {
+-        /* can't print better error message */
+-        error_msg(_("Unexpected HTTP response from '%s': %d"), config->ur_url, post_state->http_resp_code);
+-        log_notice("%s", post_state->body);
+-        return NULL;
+-    }
+-
+-    json_object *const json = json_tokener_parse(post_state->body);
+-
+-    if (is_error(json))
+-    {
+-        error_msg(_("Unable to parse response from ureport server at '%s'"), config->ur_url);
+-        log_notice("%s", post_state->body);
+-        json_object_put(json);
+-        return NULL;
+-    }
+-
+-    struct ureport_server_response *response = ureport_server_parse_json(json);
+-    json_object_put(json);
+-
+-    if (!response)
+-        error_msg(_("The response from '%s' has invalid format"), config->ur_url);
+-    else if ((post_state->http_resp_code == 202 && response->is_error)
+-                || (post_state->http_resp_code != 202 && !response->is_error))
+-    {
+-        /* HTTP CODE 202 means that call was successful but the response */
+-        /* has an error message */
+-        error_msg(_("Type mismatch has been detected in the response from '%s'"), config->ur_url);
+-    }
+-
+-    return response;
+-}
+-
+-typedef post_state_t *(*attach_handler)(const char *, void *, struct ureport_server_config *);
+-
+-static post_state_t *wrp_ureport_attach_rhbz(const char *ureport_hash, int *rhbz_bug,
+-        struct ureport_server_config *config)
+-{
+-    return ureport_attach_rhbz(ureport_hash, *rhbz_bug, config);
+-}
+-
+-static bool perform_attach(struct ureport_server_config *config, const char *ureport_hash,
+-        attach_handler handler, void *args)
+-{
+-    char *dest_url = concat_path_file(config->ur_url, ATTACH_URL_SFX);
+-    const char *old_url = config->ur_url;
+-    config->ur_url = dest_url;
+-    post_state_t *post_state = handler(ureport_hash, args, config);
+-    config->ur_url = old_url;
+-    free(dest_url);
+-
+-    struct ureport_server_response *resp = get_server_response(post_state, config);
+-    free_post_state(post_state);
+-    /* don't use str_bo_bool() because we require "true" string */
+-    const int result = !resp || resp->is_error || strcmp(resp->value,"true") != 0;
+-
+-    if (resp && resp->is_error)
+-    {
+-        error_msg(_("The server at '%s' responded with an error: '%s'"), config->ur_url, resp->value);
+-    }
+-
+-    free_ureport_server_response(resp);
+-
+-    return result;
+-}
+-
+ int main(int argc, char **argv)
+ {
+     setlocale(LC_ALL, "");
+@@ -508,18 +32,8 @@ int main(int argc, char **argv)
+ 
+     abrt_init(argv);
+ 
+-    struct ureport_server_config config = {
+-        .ur_url = NULL,
+-        .ur_ssl_verify = true,
+-        .ur_client_cert = NULL,
+-        .ur_client_key = NULL,
+-        .ur_http_headers = NULL,
+-        {
+-            .urp_auth_items = NULL,
+-        },
+-    };
+-
+-    config.ur_http_headers = new_map_string();
++    struct ureport_server_config config;
++    ureport_server_config_init(&config);
+ 
+     enum {
+         OPT_v = 1 << 0,
+@@ -532,7 +46,7 @@ int main(int argc, char **argv)
+ 
+     int ret = 1; /* "failure" (for now) */
+     bool insecure = !config.ur_ssl_verify;
+-    const char *conf_file = CONF_FILE_PATH;
++    const char *conf_file = UREPORT_CONF_FILE_PATH;
+     const char *arg_server_url = NULL;
+     const char *client_auth = NULL;
+     GList *auth_items = NULL;
+@@ -575,7 +89,7 @@ int main(int argc, char **argv)
+         "\n"
+         "Upload micro report or add an attachment to a micro report\n"
+         "\n"
+-        "Reads the default configuration from "CONF_FILE_PATH
++        "Reads the default configuration from "UREPORT_CONF_FILE_PATH
+     );
+ 
+     unsigned opts = parse_opts(argc, argv, program_options, program_usage_string);
+@@ -583,14 +97,14 @@ int main(int argc, char **argv)
+     map_string_t *settings = new_map_string();
+     load_conf_file(conf_file, settings, /*skip key w/o values:*/ false);
+ 
+-    load_ureport_server_config(&config, settings);
++    ureport_server_config_load(&config, settings);
+ 
+     if (opts & OPT_u)
+         config.ur_url = arg_server_url;
+     if (opts & OPT_k)
+         config.ur_ssl_verify = !insecure;
+     if (opts & OPT_t)
+-        parse_client_auth_paths(&config, client_auth);
++        ureport_server_config_set_client_auth(&config, client_auth);
+     if (opts & OPT_i)
+     {
+         g_list_free_full(config.ur_prefs.urp_auth_items, free);
+@@ -600,8 +114,6 @@ int main(int argc, char **argv)
+     if (!config.ur_url)
+         error_msg_and_die("You need to specify server URL");
+ 
+-    post_state_t *post_state = NULL;
+-
+     if (ureport_hash && ureport_hash_from_rt)
+         error_msg_and_die("You need to pass either -a bthash or -A");
+ 
+@@ -654,7 +166,7 @@ int main(int argc, char **argv)
+ 
+     if (email_address_from_env)
+     {
+-        VALUE_FROM_CONF("ContactEmail", email_address, (const char *));
++        UREPORT_OPTION_VALUE_FROM_CONF(settings, "ContactEmail", email_address, (const char *));
+ 
+         if (!email_address)
+             error_msg_and_die(_("Neither environment variable 'uReport_ContactEmail' nor configuration option 'ContactEmail' is set"));
+@@ -667,13 +179,13 @@ int main(int argc, char **argv)
+ 
+         if (rhbz_bug >= 0)
+         {
+-            if (perform_attach(&config, ureport_hash, (attach_handler)wrp_ureport_attach_rhbz, (void *)&rhbz_bug))
++            if (ureport_attach_int(ureport_hash, "RHBZ", rhbz_bug, &config))
+                 goto finalize;
+         }
+ 
+         if (email_address)
+         {
+-            if (perform_attach(&config, ureport_hash, (attach_handler)ureport_attach_email, (void *)email_address))
++            if (ureport_attach_string(ureport_hash, "email", email_address, &config))
+                 goto finalize;
+         }
+ 
+@@ -683,95 +195,48 @@ int main(int argc, char **argv)
+     if (!ureport_hash && (rhbz_bug >= 0 || email_address))
+         error_msg_and_die(_("You need to specify bthash of the uReport to attach."));
+ 
+-    /* -b, -a nor -r were specified - upload uReport from dump_dir */
+-    const char *server_url = config.ur_url;
+-    char *dest_url = concat_path_file(config.ur_url, REPORT_URL_SFX);
+-    config.ur_url = dest_url;
+-
+     char *json_ureport = ureport_from_dump_dir_ext(dump_dir_path, &(config.ur_prefs));
+     if (!json_ureport)
+     {
+         error_msg(_("Not uploading an empty uReport"));
+-        goto format_err;
++        goto finalize;
+     }
+ 
+-    post_state = ureport_post(json_ureport, &config);
++    struct ureport_server_response *response = ureport_submit(json_ureport, &config);
+     free(json_ureport);
+ 
+-    if (!post_state)
+-    {
+-        error_msg(_("Failed on submitting the problem"));
+-        goto format_err;
+-    }
+-
+-    struct ureport_server_response *response = get_server_response(post_state, &config);
+-
+     if (!response)
+-        goto format_err;
++        goto finalize;
+ 
+-    if (!response->is_error)
++    if (!response->urr_is_error)
+     {
+-        log_notice("is known: %s", response->value);
++        log_notice("is known: %s", response->urr_value);
+         ret = 0; /* "success" */
+ 
+-        dd = dd_opendir(dump_dir_path, /* flags */ 0);
+-        if (!dd)
++        if (!ureport_server_response_save_in_dump_dir(response, dump_dir_path, &config))
+             xfunc_die();
+ 
+-        if (response->bthash)
+-        {
+-            char *msg = xasprintf("uReport: BTHASH=%s", response->bthash);
+-            add_reported_to(dd, msg);
+-            free(msg);
+-
+-            char *bthash_url = concat_path_file(server_url, BTHASH_URL_SFX);
+-            msg = xasprintf("ABRT Server: URL=%s%s", bthash_url, response->bthash);
+-            add_reported_to(dd, msg);
+-            free(msg);
+-            free(bthash_url);
+-        }
+-
+-        if (response->reported_to_list)
+-        {
+-            for (GList *e = response->reported_to_list; e; e = g_list_next(e))
+-                add_reported_to(dd, e->data);
+-        }
+-
+-        if (response->solution)
+-            dd_save_text(dd, FILENAME_NOT_REPORTABLE, response->solution);
+-
+-        dd_close(dd);
+-
+         /* If a reported problem is not known then emit NEEDMORE */
+-        if (strcmp("true", response->value) == 0)
++        if (strcmp("true", response->urr_value) == 0)
+         {
+             log(_("This problem has already been reported."));
+-            if (response->message)
+-                log(response->message);
++            if (response->urr_message)
++                log(response->urr_message);
+ 
+             ret = EXIT_STOP_EVENT_RUN;
+         }
+     }
+     else
+-    {
+-        error_msg(_("Server responded with an error: '%s'"), response->value);
+-    }
+-
+-    free_ureport_server_response(response);
++        error_msg(_("Server responded with an error: '%s'"), response->urr_value);
+ 
+-format_err:
+-    free_post_state(post_state);
+-    free(dest_url);
++    ureport_server_response_free(response);
+ 
+ finalize:
+-    if (config.ur_prefs.urp_auth_items != auth_items)
+-        g_list_free_full(config.ur_prefs.urp_auth_items, free);
+-
+-    free_map_string(config.ur_http_headers);
++    if (config.ur_prefs.urp_auth_items == auth_items)
++        config.ur_prefs.urp_auth_items = NULL;
+ 
+     free_map_string(settings);
+-    free(config.ur_client_cert);
+-    free(config.ur_client_key);
++    ureport_server_config_destroy(&config);
+ 
+     return ret;
+ }
+-- 
+1.8.3.1
+

@@ -1,0 +1,30 @@
+From 058e260ac530f09f5fb5566a14a87614c4bdff63 Mon Sep 17 00:00:00 2001
+From: Martin Basti <mbasti@redhat.com>
+Date: Fri, 8 Jul 2016 13:40:02 +0200
+Subject: [PATCH] host-find: do not show SSH key by default
+
+Only function 'remove_sshpubkey_from_output_list_post' should be used in
+postcallbacks of *-find, otherwise only one entry will be cleaned up
+
+https://fedorahosted.org/freeipa/ticket/6043
+
+Reviewed-By: Stanislav Laznicka <slaznick@redhat.com>
+---
+ ipaserver/plugins/host.py | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/ipaserver/plugins/host.py b/ipaserver/plugins/host.py
+index 2c5cf48cb80c6a49b6577836231a19cd13d824e2..f342b05c87b936ab7b99009cfb0f6d3acde4ef93 100644
+--- a/ipaserver/plugins/host.py
++++ b/ipaserver/plugins/host.py
+@@ -1077,7 +1077,6 @@ class host_find(LDAPSearch):
+                 entry_attrs['managing'] = self.obj.get_managed_hosts(entry_attrs.dn)
+ 
+             convert_sshpubkey_post(entry_attrs)
+-            remove_sshpubkey_from_output_post(self.context, entry_attrs)
+             convert_ipaassignedidview_post(entry_attrs, options)
+ 
+         remove_sshpubkey_from_output_list_post(self.context, entries)
+-- 
+2.4.3
+

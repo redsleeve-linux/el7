@@ -1,0 +1,413 @@
+diff -up thunderbird-45.0/mozilla/toolkit/system/gnome/moz.build.moz-1134537-delete-nsgnomevfsservice thunderbird-45.0/mozilla/toolkit/system/gnome/moz.build
+--- thunderbird-45.0/mozilla/toolkit/system/gnome/moz.build.moz-1134537-delete-nsgnomevfsservice	2016-04-07 23:33:34.000000000 +0200
++++ thunderbird-45.0/mozilla/toolkit/system/gnome/moz.build	2016-05-11 13:56:15.863034987 +0200
+@@ -15,6 +15,12 @@ if CONFIG['MOZ_ENABLE_GCONF']:
+         'nsGConfService.cpp',
+     ]
+ 
++if CONFIG['MOZ_ENABLE_GNOMEVFS']:
++    SOURCES += [
++        'nsGnomeVFSService.cpp',
++    ]
++
++
+ if CONFIG['MOZ_ENABLE_GIO']:
+     SOURCES += [
+         'nsGIOService.cpp',
+@@ -29,6 +35,7 @@ LOCAL_INCLUDES += [
+ ]
+ 
+ CXXFLAGS += CONFIG['MOZ_GCONF_CFLAGS']
++CXXFLAGS += CONFIG['MOZ_GNOMEVFS_CFLAGS']
+ CXXFLAGS += CONFIG['MOZ_GIO_CFLAGS']
+ CXXFLAGS += CONFIG['GLIB_CFLAGS']
+ CXXFLAGS += CONFIG['MOZ_DBUS_GLIB_CFLAGS']
+@@ -38,3 +45,5 @@ if CONFIG['MOZ_ENABLE_GTK']:
+ 
+ if CONFIG['GNU_CXX']:
+     CXXFLAGS += ['-Wshadow']
++    
++OS_LIBS += CONFIG['MOZ_GNOMEVFS_LIBS']
+\ No newline at end of file
+diff -up thunderbird-45.0/mozilla/toolkit/system/gnome/nsGnomeModule.cpp.moz-1134537-delete-nsgnomevfsservice thunderbird-45.0/mozilla/toolkit/system/gnome/nsGnomeModule.cpp
+--- thunderbird-45.0/mozilla/toolkit/system/gnome/nsGnomeModule.cpp.moz-1134537-delete-nsgnomevfsservice	2016-04-07 23:33:34.000000000 +0200
++++ thunderbird-45.0/mozilla/toolkit/system/gnome/nsGnomeModule.cpp	2016-05-11 13:54:01.306097859 +0200
+@@ -12,6 +12,10 @@
+ #include "nsGConfService.h"
+ NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsGConfService, Init)
+ #endif
++#ifdef MOZ_ENABLE_GNOMEVFS
++#include "nsGnomeVFSService.h"
++NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsGnomeVFSService, Init)
++#endif
+ #ifdef MOZ_ENABLE_GIO
+ #include "nsGIOService.h"
+ #include "nsGSettingsService.h"
+@@ -26,6 +30,9 @@ NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsSy
+ #ifdef MOZ_ENABLE_GCONF
+ NS_DEFINE_NAMED_CID(NS_GCONFSERVICE_CID);
+ #endif
++#ifdef MOZ_ENABLE_GNOMEVFS
++NS_DEFINE_NAMED_CID(NS_GNOMEVFSSERVICE_CID);
++#endif
+ #ifdef MOZ_ENABLE_GIO
+ NS_DEFINE_NAMED_CID(NS_GIOSERVICE_CID);
+ NS_DEFINE_NAMED_CID(NS_GSETTINGSSERVICE_CID);
+@@ -37,6 +44,9 @@ static const mozilla::Module::CIDEntry k
+ #ifdef MOZ_ENABLE_GCONF
+   { &kNS_GCONFSERVICE_CID, false, nullptr, nsGConfServiceConstructor },
+ #endif
++#ifdef MOZ_ENABLE_GNOMEVFS
++  { &kNS_GNOMEVFSSERVICE_CID, false, nullptr, nsGnomeVFSServiceConstructor },
++#endif
+ #ifdef MOZ_ENABLE_GIO
+   { &kNS_GIOSERVICE_CID, false, nullptr, nsGIOServiceConstructor },
+   { &kNS_GSETTINGSSERVICE_CID, false, nullptr, nsGSettingsServiceConstructor },
+@@ -50,6 +60,9 @@ static const mozilla::Module::ContractID
+ #ifdef MOZ_ENABLE_GCONF
+   { NS_GCONFSERVICE_CONTRACTID, &kNS_GCONFSERVICE_CID },
+ #endif
++#ifdef MOZ_ENABLE_GNOMEVFS
++  { NS_GNOMEVFSSERVICE_CONTRACTID, &kNS_GNOMEVFSSERVICE_CID },
++#endif
+ #ifdef MOZ_ENABLE_GIO
+   { NS_GIOSERVICE_CONTRACTID, &kNS_GIOSERVICE_CID },
+   { NS_GSETTINGSSERVICE_CONTRACTID, &kNS_GSETTINGSSERVICE_CID },
+diff -up thunderbird-45.0/mozilla/toolkit/system/gnome/nsGnomeVFSService.cpp.moz-1134537-delete-nsgnomevfsservice thunderbird-45.0/mozilla/toolkit/system/gnome/nsGnomeVFSService.cpp
+--- thunderbird-45.0/mozilla/toolkit/system/gnome/nsGnomeVFSService.cpp.moz-1134537-delete-nsgnomevfsservice	2016-05-11 13:54:01.306097859 +0200
++++ thunderbird-45.0/mozilla/toolkit/system/gnome/nsGnomeVFSService.cpp	2016-05-11 13:54:01.306097859 +0200
+@@ -0,0 +1,225 @@
++/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
++/* This Source Code Form is subject to the terms of the Mozilla Public
++ * License, v. 2.0. If a copy of the MPL was not distributed with this
++ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
++
++#include "nsGnomeVFSService.h"
++#include "nsStringGlue.h"
++#include "nsIURI.h"
++#include "nsTArray.h"
++#include "nsIStringEnumerator.h"
++#include "nsAutoPtr.h"
++
++extern "C" {
++#include <libgnomevfs/gnome-vfs.h>
++#include <libgnomevfs/gnome-vfs-mime.h>
++#include <libgnomevfs/gnome-vfs-mime-handlers.h>
++}
++
++class nsGnomeVFSMimeApp : public nsIGnomeVFSMimeApp
++{
++public:
++  NS_DECL_ISUPPORTS
++  NS_DECL_NSIGNOMEVFSMIMEAPP
++
++  nsGnomeVFSMimeApp(GnomeVFSMimeApplication* aApp) : mApp(aApp) {}
++
++private:
++  ~nsGnomeVFSMimeApp() { gnome_vfs_mime_application_free(mApp); }
++  GnomeVFSMimeApplication *mApp;
++};
++
++NS_IMPL_ISUPPORTS(nsGnomeVFSMimeApp, nsIGnomeVFSMimeApp)
++
++NS_IMETHODIMP
++nsGnomeVFSMimeApp::GetId(nsACString& aId)
++{
++  aId.Assign(mApp->id);
++  return NS_OK;
++}
++
++NS_IMETHODIMP
++nsGnomeVFSMimeApp::GetName(nsACString& aName)
++{
++  aName.Assign(mApp->name);
++  return NS_OK;
++}
++
++NS_IMETHODIMP
++nsGnomeVFSMimeApp::GetCommand(nsACString& aCommand)
++{
++  aCommand.Assign(mApp->command);
++  return NS_OK;
++}
++
++NS_IMETHODIMP
++nsGnomeVFSMimeApp::GetCanOpenMultipleFiles(bool* aCanOpen)
++{
++  *aCanOpen = mApp->can_open_multiple_files;
++  return NS_OK;
++}
++
++NS_IMETHODIMP
++nsGnomeVFSMimeApp::GetExpectsURIs(int32_t* aExpects)
++{
++  *aExpects = mApp->expects_uris;
++  return NS_OK;
++}
++
++NS_IMETHODIMP
++nsGnomeVFSMimeApp::Launch(const nsACString &aUri)
++{
++  char *uri = gnome_vfs_make_uri_from_input(PromiseFlatCString(aUri).get());
++
++  if (! uri)
++    return NS_ERROR_FAILURE;
++
++  GList uris = { 0 };
++  uris.data = uri;
++
++  GnomeVFSResult result = gnome_vfs_mime_application_launch(mApp, &uris);
++  g_free(uri);
++
++  if (result != GNOME_VFS_OK)
++    return NS_ERROR_FAILURE;
++
++  return NS_OK;
++}
++
++class UTF8StringEnumerator : public nsIUTF8StringEnumerator
++{
++public:
++  UTF8StringEnumerator() : mIndex(0) { }
++private:
++  ~UTF8StringEnumerator() { }
++
++  NS_DECL_ISUPPORTS
++  NS_DECL_NSIUTF8STRINGENUMERATOR
++public:
++  nsTArray<nsCString> mStrings;
++  uint32_t            mIndex;
++};
++
++NS_IMPL_ISUPPORTS(UTF8StringEnumerator, nsIUTF8StringEnumerator)
++
++NS_IMETHODIMP
++UTF8StringEnumerator::HasMore(bool *aResult)
++{
++  *aResult = mIndex < mStrings.Length();
++  return NS_OK;
++}
++
++NS_IMETHODIMP
++UTF8StringEnumerator::GetNext(nsACString& aResult)
++{
++  if (mIndex >= mStrings.Length())
++    return NS_ERROR_UNEXPECTED;
++
++  aResult.Assign(mStrings[mIndex]);
++  ++mIndex;
++  return NS_OK;
++}
++
++NS_IMETHODIMP
++nsGnomeVFSMimeApp::GetSupportedURISchemes(nsIUTF8StringEnumerator** aSchemes)
++{
++  *aSchemes = nullptr;
++
++  RefPtr<UTF8StringEnumerator> array = new UTF8StringEnumerator();
++  NS_ENSURE_TRUE(array, NS_ERROR_OUT_OF_MEMORY);
++
++  for (GList *list = mApp->supported_uri_schemes; list; list = list->next) {
++    if (!array->mStrings.AppendElement((char*) list->data)) {
++      return NS_ERROR_OUT_OF_MEMORY;
++    }
++  }
++
++  NS_ADDREF(*aSchemes = array);
++  return NS_OK;
++}
++
++NS_IMETHODIMP
++nsGnomeVFSMimeApp::GetRequiresTerminal(bool* aRequires)
++{
++  *aRequires = mApp->requires_terminal;
++  return NS_OK;
++}
++
++nsresult
++nsGnomeVFSService::Init()
++{
++  return gnome_vfs_init() ? NS_OK : NS_ERROR_FAILURE;
++}
++
++NS_IMPL_ISUPPORTS(nsGnomeVFSService, nsIGnomeVFSService)
++
++NS_IMETHODIMP
++nsGnomeVFSService::GetMimeTypeFromExtension(const nsACString &aExtension,
++                                            nsACString& aMimeType)
++{
++  nsAutoCString fileExtToUse(".");
++  fileExtToUse.Append(aExtension);
++
++  const char *mimeType = gnome_vfs_mime_type_from_name(fileExtToUse.get());
++  aMimeType.Assign(mimeType);
++
++  // |mimeType| points to internal gnome-vfs data, so don't free it.
++
++  return NS_OK;
++}
++
++NS_IMETHODIMP
++nsGnomeVFSService::GetAppForMimeType(const nsACString &aMimeType,
++                                     nsIGnomeVFSMimeApp** aApp)
++{
++  *aApp = nullptr;
++  GnomeVFSMimeApplication *app =
++   gnome_vfs_mime_get_default_application(PromiseFlatCString(aMimeType).get());
++
++  if (app) {
++    nsGnomeVFSMimeApp *mozApp = new nsGnomeVFSMimeApp(app);
++    NS_ENSURE_TRUE(mozApp, NS_ERROR_OUT_OF_MEMORY);
++
++    NS_ADDREF(*aApp = mozApp);
++  }
++
++  return NS_OK;
++}
++
++NS_IMETHODIMP
++nsGnomeVFSService::GetDescriptionForMimeType(const nsACString &aMimeType,
++                                             nsACString& aDescription)
++{
++  const char *desc =
++    gnome_vfs_mime_get_description(PromiseFlatCString(aMimeType).get());
++  aDescription.Assign(desc);
++
++  // |desc| points to internal gnome-vfs data, so don't free it.
++
++  return NS_OK;
++}
++
++NS_IMETHODIMP
++nsGnomeVFSService::ShowURI(nsIURI *aURI)
++{
++  nsAutoCString spec;
++  aURI->GetSpec(spec);
++
++  if (gnome_vfs_url_show_with_env(spec.get(), nullptr) == GNOME_VFS_OK)
++    return NS_OK;
++
++  return NS_ERROR_FAILURE;
++}
++
++NS_IMETHODIMP
++nsGnomeVFSService::ShowURIForInput(const nsACString &aUri)
++{
++  char* spec = gnome_vfs_make_uri_from_input(PromiseFlatCString(aUri).get());
++  nsresult rv = NS_ERROR_FAILURE;
++
++  if (gnome_vfs_url_show_with_env(spec, nullptr) == GNOME_VFS_OK)
++    rv = NS_OK;
++
++  g_free(spec);
++  return rv;
++}
+diff -up thunderbird-45.0/mozilla/toolkit/system/gnome/nsGnomeVFSService.h.moz-1134537-delete-nsgnomevfsservice thunderbird-45.0/mozilla/toolkit/system/gnome/nsGnomeVFSService.h
+--- thunderbird-45.0/mozilla/toolkit/system/gnome/nsGnomeVFSService.h.moz-1134537-delete-nsgnomevfsservice	2016-05-11 13:54:01.307097859 +0200
++++ thunderbird-45.0/mozilla/toolkit/system/gnome/nsGnomeVFSService.h	2016-05-11 13:54:01.307097859 +0200
+@@ -0,0 +1,26 @@
++/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
++/* This Source Code Form is subject to the terms of the Mozilla Public
++ * License, v. 2.0. If a copy of the MPL was not distributed with this
++ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
++
++#ifndef nsGnomeVFSService_h_
++#define nsGnomeVFSService_h_
++
++#include "nsIGnomeVFSService.h"
++#include "mozilla/Attributes.h"
++
++#define NS_GNOMEVFSSERVICE_CID \
++{0x5f43022c, 0x6194, 0x4b37, {0xb2, 0x6d, 0xe4, 0x10, 0x24, 0x62, 0x52, 0x64}}
++
++class nsGnomeVFSService : public nsIGnomeVFSService
++{
++public:
++  NS_DECL_ISUPPORTS
++  NS_DECL_NSIGNOMEVFSSERVICE
++
++  nsresult Init();
++private:
++  ~nsGnomeVFSService() { };
++};
++
++#endif
+diff -up thunderbird-45.0/mozilla/xpcom/system/moz.build.moz-1134537-delete-nsgnomevfsservice thunderbird-45.0/mozilla/xpcom/system/moz.build
+--- thunderbird-45.0/mozilla/xpcom/system/moz.build.moz-1134537-delete-nsgnomevfsservice	2016-04-07 23:33:35.000000000 +0200
++++ thunderbird-45.0/mozilla/xpcom/system/moz.build	2016-05-11 13:54:01.307097859 +0200
+@@ -11,6 +11,7 @@ XPIDL_SOURCES += [
+     'nsIGConfService.idl',
+     'nsIGeolocationProvider.idl',
+     'nsIGIOService.idl',
++    'nsIGnomeVFSService.idl',
+     'nsIGSettingsService.idl',
+     'nsIHapticFeedback.idl',
+     'nsIPackageKitService.idl',
+diff -up thunderbird-45.0/mozilla/xpcom/system/nsIGnomeVFSService.idl.moz-1134537-delete-nsgnomevfsservice thunderbird-45.0/mozilla/xpcom/system/nsIGnomeVFSService.idl
+--- thunderbird-45.0/mozilla/xpcom/system/nsIGnomeVFSService.idl.moz-1134537-delete-nsgnomevfsservice	2016-05-11 13:54:01.307097859 +0200
++++ thunderbird-45.0/mozilla/xpcom/system/nsIGnomeVFSService.idl	2016-05-11 13:54:01.307097859 +0200
+@@ -0,0 +1,64 @@
++/* -*- Mode: IDL; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
++/* This Source Code Form is subject to the terms of the Mozilla Public
++ * License, v. 2.0. If a copy of the MPL was not distributed with this
++ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
++
++#include "nsISupports.idl"
++
++interface nsIUTF8StringEnumerator;
++interface nsIURI;
++
++/* nsIGnomeVFSMimeApp holds information about an application that is looked up
++   with nsIGnomeVFSService::GetAppForMimeType. */
++
++[scriptable, uuid(66009894-9877-405b-9321-bf30420e34e6)]
++interface nsIGnomeVFSMimeApp : nsISupports
++{
++  const long EXPECTS_URIS  = 0;
++  const long EXPECTS_PATHS = 1;
++  const long EXPECTS_URIS_FOR_NON_FILES = 2;
++
++  readonly attribute AUTF8String         id;
++  readonly attribute AUTF8String         name;
++  readonly attribute AUTF8String         command;
++  readonly attribute boolean             canOpenMultipleFiles;
++  readonly attribute long                expectsURIs;  // see constants above
++  readonly attribute nsIUTF8StringEnumerator supportedURISchemes;
++  readonly attribute boolean             requiresTerminal;
++
++  void launch(in AUTF8String uri);
++};
++
++/*
++ * The VFS service makes use of a registry for information.
++ *
++ * The MIME registry holds information about MIME types, such as which
++ * extensions map to a given MIME type.  The MIME registry also stores the
++ * id of the application selected to handle each MIME type.
++ */
++
++[scriptable, uuid(d1ac73a6-2ceb-4164-8142-215afe7fe8a6)]
++interface nsIGnomeVFSService : nsISupports
++{
++  /*** MIME registry methods ***/
++
++  /* Obtain the MIME type registered for an extension.  The extension
++     should not include a leading dot. */
++  AUTF8String        getMimeTypeFromExtension(in AUTF8String extension);
++
++  /* Obtain the preferred application for opening a given MIME type */
++  nsIGnomeVFSMimeApp getAppForMimeType(in AUTF8String mimeType);
++
++  /* Obtain a description for the given MIME type */
++  AUTF8String        getDescriptionForMimeType(in AUTF8String mimeType);
++
++  /*** Misc. methods ***/
++
++  /* Open the given URI in the default application */
++  void               showURI(in nsIURI uri);
++  [noscript] void    showURIForInput(in ACString uri);
++};
++
++%{C++
++#define NS_GNOMEVFSSERVICE_CONTRACTID "@mozilla.org/gnome-vfs-service;1"
++%}

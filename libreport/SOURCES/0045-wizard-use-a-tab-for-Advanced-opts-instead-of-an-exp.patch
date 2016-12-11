@@ -1,0 +1,187 @@
+From 6cf4c34ea589698c3c4b9a2a6b708ca66f446844 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Tue, 24 Jun 2014 16:25:30 +0200
+Subject: [LIBREPORT PATCH 45/93] wizard: use a tab for Advanced opts instead
+ of an expander
+
+GtkExpander containing wrapped labels  breaks GTK3's algorithm computing
+the window size when expanding/folding.
+
+A tab page seems to be more modern approach which does not causes any
+problems.
+
+The tab pages are filled with GtkScrolledWindow in order to prevent
+enlarging the configuration window behind screen limits.
+
+The worfklow window also uses tab pages but on the left side because
+two vertical tab page lines are strange.
+
+Resolves rhbz#965963
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/gtk-helpers/event_config_dialog.c    | 59 ++++++++++++++++++++------------
+ src/gtk-helpers/workflow_config_dialog.c | 25 +++++++++-----
+ 2 files changed, 55 insertions(+), 29 deletions(-)
+
+diff --git a/src/gtk-helpers/event_config_dialog.c b/src/gtk-helpers/event_config_dialog.c
+index 1ed5196..9d442d6 100644
+--- a/src/gtk-helpers/event_config_dialog.c
++++ b/src/gtk-helpers/event_config_dialog.c
+@@ -189,19 +189,18 @@ static void add_option_to_table(gpointer data, gpointer user_data)
+     free(option_label);
+ }
+ 
+-config_dialog_t *create_event_config_dialog_content(event_config_t *event, GtkWidget *content)
++static GtkWidget *create_event_config_grid()
+ {
+-    INITIALIZE_LIBREPORT();
+-
+-    if (content == NULL)
+-        content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
++    GtkWidget *option_table = gtk_grid_new();
+ 
+-    //event_config_t *event = get_event_config(event_name);
++    gtk_widget_set_margin_left(option_table, 5);
++    gtk_widget_set_margin_top(option_table, 5);
++    gtk_widget_set_margin_right(option_table, 5);
++    gtk_widget_set_margin_bottom(option_table, 5);
+ 
+-    GtkWidget *option_table = gtk_grid_new();
+     gtk_grid_set_row_homogeneous(GTK_GRID(option_table), FALSE);
+     gtk_grid_set_column_homogeneous(GTK_GRID(option_table), FALSE);
+-    gtk_grid_set_row_spacing(GTK_GRID(option_table), 2);
++    gtk_grid_set_row_spacing(GTK_GRID(option_table), 10);
+     g_object_set_data(G_OBJECT(option_table), "n-rows", (gpointer)-1);
+ 
+     gtk_widget_set_hexpand(option_table, TRUE);
+@@ -209,21 +208,28 @@ config_dialog_t *create_event_config_dialog_content(event_config_t *event, GtkWi
+     gtk_widget_set_halign(option_table, GTK_ALIGN_FILL);
+     gtk_widget_set_valign(option_table, GTK_ALIGN_FILL);
+ 
++    return option_table;
++}
++
++config_dialog_t *create_event_config_dialog_content(event_config_t *event, GtkWidget *content)
++{
++    INITIALIZE_LIBREPORT();
++
++    if (content == NULL)
++        content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
++
++    //event_config_t *event = get_event_config(event_name);
++    GtkWidget *notebook_layout = gtk_notebook_new();
++    gtk_box_pack_start(GTK_BOX(content), notebook_layout, TRUE, TRUE, 0);
++
++    GtkWidget *option_table = create_event_config_grid();
++
+     /* table to hold advanced options
+      * hidden in expander which is visible only if there's at least
+      * one advanced option
+     */
++    GtkWidget *adv_option_table = create_event_config_grid();
+ 
+-    GtkWidget *adv_option_table = gtk_grid_new();
+-    gtk_grid_set_row_homogeneous(GTK_GRID(adv_option_table), FALSE);
+-    gtk_grid_set_column_homogeneous(GTK_GRID(adv_option_table), FALSE);
+-    gtk_grid_set_row_spacing(GTK_GRID(adv_option_table), 2);
+-    g_object_set_data(G_OBJECT(adv_option_table), "n-rows", (gpointer)-1);
+-
+-    GtkWidget *adv_expander = gtk_expander_new(_("Advanced"));
+-    /* resize the toplevel widget containing the expander upon resizing and collapsing. */
+-    gtk_expander_set_resize_toplevel(GTK_EXPANDER(adv_expander), TRUE);
+-    gtk_container_add(GTK_CONTAINER(adv_expander), adv_option_table);
+     g_object_set_data(G_OBJECT(option_table), "advanced-options", adv_option_table);
+ 
+     has_password_option = false;
+@@ -250,11 +256,22 @@ config_dialog_t *create_event_config_dialog_content(event_config_t *event, GtkWi
+         g_signal_connect(pass_store_cb, "toggled", G_CALLBACK(on_show_pass_store_cb), NULL);
+     }
+ 
+-    gtk_box_pack_start(GTK_BOX(content), option_table, false, false, 20);
++    GtkWidget *option_table_lbl = gtk_label_new_with_mnemonic(_("Basic"));
++    GtkWidget *option_table_scrl = gtk_scrolled_window_new(NULL, NULL);
++    gtk_container_add(GTK_CONTAINER(option_table_scrl), option_table);
++    gtk_notebook_append_page(GTK_NOTEBOOK(notebook_layout), option_table_scrl, option_table_lbl);
+ 
+     /* add the adv_option_table to the dialog only if there is some adv option */
+     if (g_list_length(gtk_container_get_children(GTK_CONTAINER(adv_option_table))) > 0)
+-        gtk_box_pack_start(GTK_BOX(content), adv_expander, false, false, 0);
++    {
++        GtkWidget *adv_option_table_lbl = gtk_label_new_with_mnemonic(_("Advanced"));
++        GtkWidget *adv_option_table_scrl = gtk_scrolled_window_new(NULL, NULL);
++        gtk_container_add(GTK_CONTAINER(adv_option_table_scrl), adv_option_table);
++        gtk_notebook_append_page(GTK_NOTEBOOK(notebook_layout), adv_option_table_scrl, adv_option_table_lbl);
++    }
++    else
++        /* Do not show single tab 'Basic' */
++        gtk_notebook_set_show_tabs(GTK_NOTEBOOK(notebook_layout), FALSE);
+ 
+     /* add warning if secrets service is not available showing the nagging dialog
+      * is considered "too heavy UI" be designers
+@@ -311,7 +328,7 @@ config_dialog_t *create_event_config_dialog(const char *event_name, GtkWindow *p
+      * line wrapped.
+      */
+     gtk_window_set_resizable(GTK_WINDOW(dialog), true);
+-    gtk_window_set_default_size(GTK_WINDOW(dialog), 450, -1);
++    gtk_window_set_default_size(GTK_WINDOW(dialog), 450, 310);
+ 
+     if (parent_window != NULL)
+     {
+diff --git a/src/gtk-helpers/workflow_config_dialog.c b/src/gtk-helpers/workflow_config_dialog.c
+index 7c399e4..45d7fb6 100644
+--- a/src/gtk-helpers/workflow_config_dialog.c
++++ b/src/gtk-helpers/workflow_config_dialog.c
+@@ -29,15 +29,23 @@ enum
+ static GtkWindow *g_parent_window;
+ static GHashTable *g_events_options = NULL;
+ 
+-static void create_event_config_dialog_content_cb(event_config_t *ec, gpointer content)
++static void create_event_config_dialog_content_cb(event_config_t *ec, gpointer notebook)
+ {
+-    if (ec->options)
+-    {
+-        GtkWidget *ev_lbl = gtk_label_new(ec_get_screen_name(ec));
+-        gtk_box_pack_start(GTK_BOX(content), ev_lbl, false, false, 0);
+-    }
++    if (!ec->options)
++        return;
++
++    GtkWidget *ev_lbl = gtk_label_new(ec_get_screen_name(ec));
++
++    GtkWidget *content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
++    gtk_widget_set_margin_left(content, 10);
++    gtk_widget_set_margin_top(content, 5);
++    gtk_widget_set_margin_right(content, 10);
++    gtk_widget_set_margin_bottom(content, 10);
+ 
+     config_dialog_t *cdialog = create_event_config_dialog_content(ec, (GtkWidget *)content);
++
++    gtk_notebook_append_page(GTK_NOTEBOOK(notebook), content, ev_lbl);
++
+     if (g_events_options == NULL)
+     {
+         g_events_options = g_hash_table_new_full(
+@@ -46,8 +54,8 @@ static void create_event_config_dialog_content_cb(event_config_t *ec, gpointer c
+                     /*key_destroy_func:*/ g_free,
+                     /*value_destroy_func:*/ NULL);
+     }
+-    g_hash_table_insert(g_events_options, ec, cdialog);
+ 
++    g_hash_table_insert(g_events_options, ec, cdialog);
+ }
+ 
+ static void save_event_config_data_foreach(event_config_t *ec,
+@@ -91,7 +99,8 @@ config_dialog_t *create_workflow_config_dialog(const char *workflow_name, GtkWin
+     }
+ 
+     GtkWidget *scrolled = gtk_scrolled_window_new(NULL, NULL);
+-    GtkWidget *content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
++    GtkWidget *content = gtk_notebook_new();
++    gtk_notebook_set_tab_pos(GTK_NOTEBOOK(content), GTK_POS_LEFT);
+ 
+ #if ((GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION < 7) || (GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION == 7 && GTK_MICRO_VERSION < 8))
+     /* http://developer.gnome.org/gtk3/unstable/GtkScrolledWindow.html#gtk-scrolled-window-add-with-viewport */
+-- 
+1.8.3.1
+

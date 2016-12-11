@@ -1,0 +1,24 @@
+Index: modules/cache/cache_util.c
+===================================================================
+--- a/modules/cache/cache_util.c	(revision 1705527)
++++ b/modules/cache/cache_util.c	(revision 1705528)
+@@ -1254,7 +1254,6 @@
+     headers_out = apr_table_overlay(r->pool, r->headers_out,
+                                         r->err_headers_out);
+ 
+-    apr_table_clear(r->err_headers_out);
+
+     headers_out = ap_cache_cacheable_headers(r->pool, headers_out,
+                                                   r->server);
+Index: modules/cache/mod_cache.c
+===================================================================
+--- a/modules/cache/mod_cache.c	(revision 1705527)
++++ b/modules/cache/mod_cache.c	(revision 1705528)
+@@ -1452,6 +1452,7 @@
+          * headers that might have snuck in.
+          */
+         r->headers_out = ap_cache_cacheable_headers_out(r);
++        apr_table_clear(r->err_headers_out);
+ 
+         /* Merge in our cached headers.  However, keep any updated values. */
+         /* take output, overlay on top of cached */

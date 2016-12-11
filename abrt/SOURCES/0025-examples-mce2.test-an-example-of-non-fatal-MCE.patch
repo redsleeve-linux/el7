@@ -1,0 +1,49 @@
+From bbb0d8390b4880c439f89fc8f40a623becee607f Mon Sep 17 00:00:00 2001
+From: Denys Vlasenko <dvlasenk@redhat.com>
+Date: Tue, 10 Dec 2013 14:11:51 +0100
+Subject: [ABRT PATCH 25/27] examples/mce2.test: an example of non-fatal MCE
+
+Signed-off-by: Denys Vlasenko <dvlasenk@redhat.com>
+
+Related to rhbz#1032077
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ examples/mce2.right |  4 ++++
+ examples/mce2.test  | 13 +++++++++++++
+ 2 files changed, 17 insertions(+)
+ create mode 100644 examples/mce2.right
+ create mode 100644 examples/mce2.test
+
+diff --git a/examples/mce2.right b/examples/mce2.right
+new file mode 100644
+index 0000000..358fbcf
+--- /dev/null
++++ b/examples/mce2.right
+@@ -0,0 +1,4 @@
++abrt-dump-oops: Found oopses: 1
++
++Version: undefined
++mce: [Hardware Error]: Machine check events logged
+diff --git a/examples/mce2.test b/examples/mce2.test
+new file mode 100644
+index 0000000..c09ac88
+--- /dev/null
++++ b/examples/mce2.test
+@@ -0,0 +1,13 @@
++[    0.000000] Initializing cgroup subsys cpuset
++[    0.000000] Initializing cgroup subsys cpu
++[    0.000000] Initializing cgroup subsys cpuacct
++[    0.000000] Linux version 3.10.0-49.el7.x86_64 (mockbuild@x86-024.build.eng.bos.redhat.com) (gcc version 4.8.2 20131106 (Red Hat 4.8.2-3) (GCC) ) #1 SMP Tue Nov 12 16:19:27 EST 2013
++[    0.000000] Command line: BOOT_IMAGE=/vmlinuz-3.10.0-49.el7.x86_64 root=/dev/mapper/rhel-root ro rd.lvm.lv=rhel/root vconsole.font=latarcyrheb-sun16 rd.lvm.lv=rhel/swap vconsole.keymap=us crashkernel=auto rhgb quiet LANG=en_US.UTF-8
++...
++[  126.330988] SELinux: initialized (dev fuse, type fuse), uses genfs_contexts
++[  126.362117] SELinux: initialized (dev fusectl, type fusectl), uses genfs_contexts
++[  207.849710] Machine check injector initialized
++[  207.992935] ICMPv6: RA: ndisc_router_discovery failed to add default route
++[  209.024284] Starting machine check poll CPU 0
++[  209.024295] mce: [Hardware Error]: Machine check events logged
++[  209.024296] Machine check poll done on CPU 0
+-- 
+1.8.3.1
+

@@ -1,0 +1,157 @@
+From 4d7f256b83522de2046bcf783cd6bb2a4a025b29 Mon Sep 17 00:00:00 2001
+From: Martin Kosek <mkosek@redhat.com>
+Date: Fri, 5 Sep 2014 11:26:18 +0200
+Subject: [PATCH] Remove pkinit plugin
+
+This patch completely removes any signs of pkinit in the IPA package. It
+should be used only as addition to the first patch attached to the
+ticket.
+
+Rebased patch by Jan Zeleny and Rob Crittenden.
+
+https://fedorahosted.org/freeipa/ticket/616
+---
+ API.txt                     |   7 ---
+ ipaserver/plugins/pkinit.py | 105 --------------------------------------------
+ 2 files changed, 112 deletions(-)
+ delete mode 100644 ipaserver/plugins/pkinit.py
+
+diff --git a/API.txt b/API.txt
+index fb5bf83cea0633130217cf1327481c8e9b11c4fc..ab2262966d113fd91d13f36f73e691ce5178b50f 100644
+--- a/API.txt
++++ b/API.txt
+@@ -3583,11 +3583,6 @@ command: ping/1
+ args: 0,1,1
+ option: Str('version?')
+ output: Output('summary', type=[<type 'unicode'>, <type 'NoneType'>])
+-command: pkinit_anonymous/1
+-args: 1,1,1
+-arg: Str('action')
+-option: Str('version?')
+-output: Output('result')
+ command: plugins/1
+ args: 0,3,3
+ option: Flag('all', autofill=True, cli_name='all', default=True)
+@@ -6526,8 +6521,6 @@ default: permission_mod/1
+ default: permission_remove_member/1
+ default: permission_show/1
+ default: ping/1
+-default: pkinit/1
+-default: pkinit_anonymous/1
+ default: plugins/1
+ default: privilege/1
+ default: privilege_add/1
+diff --git a/ipaserver/plugins/pkinit.py b/ipaserver/plugins/pkinit.py
+deleted file mode 100644
+index 9aa101063705f54509d3de42c1acd23ca96f4a37..0000000000000000000000000000000000000000
+--- a/ipaserver/plugins/pkinit.py
++++ /dev/null
+@@ -1,105 +0,0 @@
+-# Authors:
+-#   Simo Sorce <ssorce@redhat.com>
+-#
+-# Copyright (C) 2010  Red Hat
+-# see file 'COPYING' for use and warranty information
+-#
+-# This program is free software; you can redistribute it and/or modify
+-# it under the terms of the GNU General Public License as published by
+-# the Free Software Foundation, either version 3 of the License, or
+-# (at your option) any later version.
+-#
+-# This program is distributed in the hope that it will be useful,
+-# but WITHOUT ANY WARRANTY; without even the implied warranty of
+-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-# GNU General Public License for more details.
+-#
+-# You should have received a copy of the GNU General Public License
+-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+-
+-from ipalib import api, errors
+-from ipalib import Str
+-from ipalib import Object, Command
+-from ipalib import _
+-from ipalib.plugable import Registry
+-from ipapython.dn import DN
+-
+-__doc__ = _("""
+-Kerberos pkinit options
+-
+-Enable or disable anonymous pkinit using the principal
+-WELLKNOWN/ANONYMOUS@REALM. The server must have been installed with
+-pkinit support.
+-
+-EXAMPLES:
+-
+- Enable anonymous pkinit:
+-  ipa pkinit-anonymous enable
+-
+- Disable anonymous pkinit:
+-  ipa pkinit-anonymous disable
+-
+-For more information on anonymous pkinit see:
+-
+-http://k5wiki.kerberos.org/wiki/Projects/Anonymous_pkinit
+-""")
+-
+-register = Registry()
+-
+-@register()
+-class pkinit(Object):
+-    """
+-    PKINIT Options
+-    """
+-    object_name = _('pkinit')
+-
+-    label=_('PKINIT')
+-
+-
+-def valid_arg(ugettext, action):
+-    """
+-    Accepts only Enable/Disable.
+-    """
+-    a = action.lower()
+-    if a != 'enable' and a != 'disable':
+-        raise errors.ValidationError(
+-            name='action',
+-            error=_('Unknown command %s') % action
+-        )
+-
+-@register()
+-class pkinit_anonymous(Command):
+-    __doc__ = _('Enable or Disable Anonymous PKINIT.')
+-
+-    princ_name = 'WELLKNOWN/ANONYMOUS@%s' % api.env.realm
+-    default_dn = DN(('krbprincipalname', princ_name), ('cn', api.env.realm), ('cn', 'kerberos'), api.env.basedn)
+-
+-    takes_args = (
+-        Str('action', valid_arg),
+-    )
+-
+-    def execute(self, action, **options):
+-        ldap = self.api.Backend.ldap2
+-        set_lock = False
+-        lock = None
+-
+-        entry_attrs = ldap.get_entry(self.default_dn, ['nsaccountlock'])
+-
+-        if 'nsaccountlock' in entry_attrs:
+-            lock = entry_attrs['nsaccountlock'][0].lower()
+-
+-        if action.lower() == 'enable':
+-            if lock == 'true':
+-                set_lock = True
+-                lock = None
+-        elif action.lower() == 'disable':
+-            if lock != 'true':
+-                set_lock = True
+-                lock = 'TRUE'
+-
+-        if set_lock:
+-            entry_attrs['nsaccountlock'] = lock
+-            ldap.update_entry(entry_attrs)
+-
+-        return dict(result=True)
+-
+-- 
+2.7.4
+

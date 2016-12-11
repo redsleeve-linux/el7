@@ -1,0 +1,90 @@
+From 2026313385db9ff2d1e74b22b7e2c6be7f7a9705 Mon Sep 17 00:00:00 2001
+From: Alexander Bokovoy <abokovoy@redhat.com>
+Date: Mon, 15 Aug 2016 18:32:25 +0300
+Subject: [PATCH] trust: make sure external trust topology is correctly
+ rendered
+
+When external trust is established, it is by definition is
+non-transitive: it is not possible to obtain Kerberos tickets to any
+service outside the trusted domain.
+
+Reflect this reality by only accepting UPN suffixes from the external
+trust -- since the trusted domain is a part of another forest and UPN
+suffixes are forest-wide, there could be user accounts in the trusted
+domain that use forest-wide UPN suffix but it will be impossible to
+reach the forest root via the externally trusted domain.
+
+Also, an argument to netr_DsRGetForestTrustInformation() has to be
+either forest root domain name or None (NULL). Otherwise we'll get
+an error as explained in MS-NRPC 3.5.4.7.5.
+
+https://fedorahosted.org/freeipa/ticket/6021
+
+Reviewed-By: Martin Babinsky <mbabinsk@redhat.com>
+---
+ ipaserver/dcerpc.py        |  2 +-
+ ipaserver/plugins/trust.py | 28 +++++++++++++++++-----------
+ 2 files changed, 18 insertions(+), 12 deletions(-)
+
+diff --git a/ipaserver/dcerpc.py b/ipaserver/dcerpc.py
+index a1c12f16a655493808d50e6adb95e618a664a98c..4d98485e17a9113322b7e38629fc43b593e99fd9 100644
+--- a/ipaserver/dcerpc.py
++++ b/ipaserver/dcerpc.py
+@@ -1449,7 +1449,7 @@ def fetch_domains(api, mydomain, trustdomain, creds=None, server=None):
+         # Older FreeIPA versions used netr_DsrEnumerateDomainTrusts call
+         # but it doesn't provide information about non-domain UPNs associated
+         # with the forest, thus we have to use netr_DsRGetForestTrustInformation
+-        domains = netr_pipe.netr_DsRGetForestTrustInformation(td.info['dc'], '', 0)
++        domains = netr_pipe.netr_DsRGetForestTrustInformation(td.info['dc'], None, 0)
+         return domains
+ 
+     domains = None
+diff --git a/ipaserver/plugins/trust.py b/ipaserver/plugins/trust.py
+index f2e0b1ee4b261ddc4f29477f46b7f4027af18892..8a25b560f9ae086ba8524cca22f39e8f67696146 100644
+--- a/ipaserver/plugins/trust.py
++++ b/ipaserver/plugins/trust.py
+@@ -1663,6 +1663,23 @@ def add_new_domains_from_trust(myapi, trustinstance, trust_entry, domains, **opt
+                     for x, y in six.iteritems(domains['suffixes'])
+                     if x not in domains['domains'])
+ 
++    try:
++        dn = myapi.Object.trust.get_dn(trust_name, trust_type=u'ad')
++        ldap = myapi.Backend.ldap2
++        entry = ldap.get_entry(dn)
++        tlns = entry.get('ipantadditionalsuffixes', [])
++        tlns.extend(x for x in suffixes if x not in tlns)
++        entry['ipantadditionalsuffixes'] = tlns
++        ldap.update_entry(entry)
++    except errors.EmptyModlist:
++        pass
++
++    is_nontransitive = int(trust_entry.get('ipanttrustattributes',
++                           [0])[0]) & LSA_TRUST_ATTRIBUTE_NON_TRANSITIVE
++
++    if is_nontransitive:
++        return result
++
+     for dom in six.itervalues(domains['domains']):
+         dom['trust_type'] = u'ad'
+         try:
+@@ -1686,17 +1703,6 @@ def add_new_domains_from_trust(myapi, trustinstance, trust_entry, domains, **opt
+             # Ignore updating duplicate entries
+             pass
+ 
+-    try:
+-        dn = myapi.Object.trust.get_dn(trust_name, trust_type=u'ad')
+-        ldap = myapi.Backend.ldap2
+-        entry = ldap.get_entry(dn)
+-        tlns = entry.get('ipantadditionalsuffixes', [])
+-        tlns.extend(x for x in suffixes if x not in tlns)
+-        entry['ipantadditionalsuffixes'] = tlns
+-        ldap.update_entry(entry)
+-    except errors.EmptyModlist:
+-        pass
+-
+     return result
+ 
+ 
+-- 
+2.7.4
+

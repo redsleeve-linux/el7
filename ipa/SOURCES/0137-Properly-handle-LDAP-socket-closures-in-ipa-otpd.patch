@@ -1,0 +1,81 @@
+From 31007eff1b8d858dfc51f730b47a7aaefc8e33e8 Mon Sep 17 00:00:00 2001
+From: Nathaniel McCallum <npmccallum@redhat.com>
+Date: Tue, 27 Sep 2016 14:34:05 -0400
+Subject: [PATCH] Properly handle LDAP socket closures in ipa-otpd
+
+In at least one case, when an LDAP socket closes, a read event is fired
+rather than an error event. Without this patch, ipa-otpd silently
+ignores this event and enters a state where all bind auths fail.
+
+To remedy this problem, we pass error events along the same path as read
+events. Should the actual read fail, we exit.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1377858
+https://fedorahosted.org/freeipa/ticket/6368
+
+Reviewed-By: Alexander Bokovoy <abokovoy@redhat.com>
+---
+ daemons/ipa-otpd/bind.c  | 10 ++++------
+ daemons/ipa-otpd/query.c | 13 ++++++-------
+ 2 files changed, 10 insertions(+), 13 deletions(-)
+
+diff --git a/daemons/ipa-otpd/bind.c b/daemons/ipa-otpd/bind.c
+index 022525b786705b4f58f861bc3b0a745ab8693755..a98312f906a785bfa9c98603a3577561552bfc0a 100644
+--- a/daemons/ipa-otpd/bind.c
++++ b/daemons/ipa-otpd/bind.c
+@@ -85,6 +85,9 @@ static void on_bind_readable(verto_ctx *vctx, verto_ev *ev)
+         if (rslt <= 0)
+             results = NULL;
+         ldap_msgfree(results);
++        otpd_log_err(EIO, "IO error received on bind socket");
++        verto_break(ctx.vctx);
++        ctx.exitstatus = 1;
+         return;
+     }
+ 
+@@ -137,11 +140,6 @@ void otpd_on_bind_io(verto_ctx *vctx, verto_ev *ev)
+     flags = verto_get_fd_state(ev);
+     if (flags & VERTO_EV_FLAG_IO_WRITE)
+         on_bind_writable(vctx, ev);
+-    if (flags & VERTO_EV_FLAG_IO_READ)
++    if (flags & (VERTO_EV_FLAG_IO_READ | VERTO_EV_FLAG_IO_ERROR))
+         on_bind_readable(vctx, ev);
+-    if (flags & VERTO_EV_FLAG_IO_ERROR) {
+-        otpd_log_err(EIO, "IO error received on bind socket");
+-        verto_break(ctx.vctx);
+-        ctx.exitstatus = 1;
+-    }
+ }
+diff --git a/daemons/ipa-otpd/query.c b/daemons/ipa-otpd/query.c
+index 67e2d751d8d1511d077a93d7673439be11812e6f..50e15603322c550a0eb14e1e3c502e1a229d1ebe 100644
+--- a/daemons/ipa-otpd/query.c
++++ b/daemons/ipa-otpd/query.c
+@@ -133,7 +133,11 @@ static void on_query_readable(verto_ctx *vctx, verto_ev *ev)
+     if (i != LDAP_RES_SEARCH_ENTRY && i != LDAP_RES_SEARCH_RESULT) {
+         if (i <= 0)
+             results = NULL;
+-        goto egress;
++        ldap_msgfree(results);
++        otpd_log_err(EIO, "IO error received on query socket");
++        verto_break(ctx.vctx);
++        ctx.exitstatus = 1;
++        return;
+     }
+ 
+     item = otpd_queue_pop_msgid(&ctx.query.responses, ldap_msgid(results));
+@@ -243,11 +247,6 @@ void otpd_on_query_io(verto_ctx *vctx, verto_ev *ev)
+     flags = verto_get_fd_state(ev);
+     if (flags & VERTO_EV_FLAG_IO_WRITE)
+         on_query_writable(vctx, ev);
+-    if (flags & VERTO_EV_FLAG_IO_READ)
++    if (flags & (VERTO_EV_FLAG_IO_READ | VERTO_EV_FLAG_IO_ERROR))
+         on_query_readable(vctx, ev);
+-    if (flags & VERTO_EV_FLAG_IO_ERROR) {
+-        otpd_log_err(EIO, "IO error received on query socket");
+-        verto_break(ctx.vctx);
+-        ctx.exitstatus = 1;
+-    }
+ }
+-- 
+2.10.2
+

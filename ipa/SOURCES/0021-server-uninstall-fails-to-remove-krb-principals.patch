@@ -1,0 +1,51 @@
+From 028ae66827085960cdfa9861c413a7aeccea5221 Mon Sep 17 00:00:00 2001
+From: Florence Blanc-Renaud <frenaud@redhat.com>
+Date: Mon, 11 Jul 2016 09:00:44 +0200
+Subject: [PATCH] server uninstall fails to remove krb principals
+
+This patch fixes the 3rd issue of ticket 6012:
+ipa-server-install --uninstall -U
+complains while removing Kerberos service principals from /etc/krb5.keytab
+----
+Failed to remove Kerberos service principals: Command '/usr/sbin/ipa-rmkeytab -k /etc/krb5.keytab -r DOM-221.ABC.IDM.LAB.ENG.BRQ.REDHAT.COM' returned non-zero exit status 5
+----
+
+This happens because the uninstaller performs the following sequence:
+1/ restore pre-install files, including /etc/krb5.keytab
+At this point /etc/krb5.keytab does not contain any principal for
+IPA domain
+2/ call ipa-client-install --uninstall, which in turns runs
+ipa-rmkeytab -k /etc/krb5.keytab -r <domain>
+to remove the principals.
+
+The fix ignores ipa-rmkeytab's exit code 5 (Principal name or realm not
+found in keytab)
+
+https://fedorahosted.org/freeipa/ticket/6012
+
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+---
+ client/ipa-client-install | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/client/ipa-client-install b/client/ipa-client-install
+index cee202f89e0f40f4b7ee77e5c38a2c7d50e0dee9..45185d44feb43a8b8d30e412a26dd63121be4ad1 100755
+--- a/client/ipa-client-install
++++ b/client/ipa-client-install
+@@ -614,6 +614,13 @@ def uninstall(options, env):
+             fp.close()
+             realm = parser.get('global', 'realm')
+             run([paths.IPA_RMKEYTAB, "-k", paths.KRB5_KEYTAB, "-r", realm])
++        except CalledProcessError as err:
++            if err.returncode != 5:
++                # 5 means Principal name or realm not found in keytab
++                # and can be ignored
++                root_logger.error(
++                    "Failed to remove Kerberos service principals: %s",
++                    str(err))
+         except Exception as e:
+             root_logger.error(
+                 "Failed to remove Kerberos service principals: %s", str(e))
+-- 
+2.7.4
+

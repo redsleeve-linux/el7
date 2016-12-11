@@ -1,0 +1,454 @@
+From bedb4f5a00ceaff0d55ecfe81ada9d0e983ca347 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Fri, 19 Dec 2014 00:19:34 +0100
+Subject: [LIBREPORT PATCH 124/124] ureport: introduce HTTPAuth
+
+Read HTTP Basic Authentication credentials from the configuration file.
+
+HTTPAuth has priority to SSLClientAuth. When both are set to some value
+the latter is ignored.
+
+HTTPAuth configuration option values:
+ - "rhts-credentials" : a place holder for Login= and Password= from
+                        rhtsupport.conf
+ - "<username>:<password>"
+ - "<username>" : a prompt will be issue for password (export
+                  REPORT_CLIENT_NONINTERACTIVE=1 env variable to tell
+                  libreport that it must not wait for user input).
+
+Related: #1140224
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ doc/reporter-ureport.txt                       |  17 +++
+ src/include/ureport.h                          |  17 +++
+ src/lib/ureport.c                              |  68 +++++++++++-
+ src/plugins/reporter-ureport.c                 |  11 +-
+ src/plugins/ureport.conf                       |  10 +-
+ tests/Makefile.am                              |   2 +-
+ tests/ureport-rhts-credentials/rhtsupport.conf |   2 +
+ tests/ureport.at                               | 145 +++++++++++++++++++++++++
+ 8 files changed, 264 insertions(+), 8 deletions(-)
+ create mode 100644 tests/ureport-rhts-credentials/rhtsupport.conf
+
+diff --git a/doc/reporter-ureport.txt b/doc/reporter-ureport.txt
+index 1a67441..420adcf 100644
+--- a/doc/reporter-ureport.txt
++++ b/doc/reporter-ureport.txt
+@@ -44,6 +44,19 @@ Configuration file lines should have 'PARAM = VALUE' format. The parameters are:
+    '<cert_path>:<key_path>';;
+       Manually supply paths to certificate and the corresponding key in PEM format.
+ 
++'HTTPAuth'::
++   Use the configured values to as HTTP Basic Authentication credentials.
++   Assigning any value to this option changes the default value of
++   IncludeAuthData to yes.
++
++   Possible values are::
++
++   'rhts-credentials';;
++      Uses Login= and Password= values from /etc/libreport/plugins/rhtsupport.conf.
++
++   '<user_name>:<password>';;
++      Manually supply credentials.
++
+ 'ContactEmail'::
+    Email address attached to a bthash on the server.
+ 
+@@ -93,6 +106,10 @@ OPTIONS
+    Enables client authentication. See 'SSLClientAuth' configuration file
+    option for list of possible values.
+ 
++-h, --http-auth CREDENTIALS::
++   Enables client authentication via HTTP Authentication. See 'HTTPAuth'
++   configuration file option for list of possible values.
++
+ -v::
+    Be more verbose. Can be given multiple times.
+ 
+diff --git a/src/include/ureport.h b/src/include/ureport.h
+index 104e8d0..780b898 100644
+--- a/src/include/ureport.h
++++ b/src/include/ureport.h
+@@ -126,6 +126,23 @@ ureport_server_config_set_basic_auth(struct ureport_server_config *config,
+                                      const char *username, const char *password);
+ 
+ /*
++ * Configure user name and password for HTTP Basic authentication according to
++ * user preferences.
++ *
++ *  "rhts-credentials" - Uses Login= and Password= from rhtsupport.conf
++ *  "<user_name>:<password>" - Manually supply user name and password.
++ *  "<user_name>" - Manually supply user name and be asked for password.
++ *
++ * The function uses ask_password() function from client.h
++ *
++ * @param config Configured structure
++ * @param http_auth_pref User HTTP Authentication preferences
++ */
++void
++ureport_server_config_load_basic_auth(struct ureport_server_config *config,
++                                      const char *http_auth_pref);
++
++/*
+  * uReport server response
+  */
+ struct ureport_server_response
+diff --git a/src/lib/ureport.c b/src/lib/ureport.c
+index fef3922..5065a52 100644
+--- a/src/lib/ureport.c
++++ b/src/lib/ureport.c
+@@ -23,6 +23,7 @@
+ #include <satyr/report.h>
+ 
+ #include "internal_libreport.h"
++#include "client.h"
+ #include "ureport.h"
+ #include "libreport_curl.h"
+ 
+@@ -249,18 +250,79 @@ ureport_server_config_set_basic_auth(struct ureport_server_config *config,
+ }
+ 
+ void
++ureport_server_config_load_basic_auth(struct ureport_server_config *config,
++                                      const char *http_auth_pref)
++{
++    if (http_auth_pref == NULL)
++        return;
++
++    map_string_t *settings = NULL;
++
++    char *tmp_password = NULL;
++    char *tmp_username = NULL;
++    const char *username = NULL;
++    const char *password = NULL;
++
++    if (strcmp(http_auth_pref, "rhts-credentials") == 0)
++    {
++        settings = new_map_string();
++
++        if (!load_plugin_conf_file("rhtsupport.conf", settings, /*skip key w/o values:*/ false))
++            error_msg_and_die("Could not get RHTSupport credentials");
++
++        username = get_map_string_item_or_NULL(settings, "Login");
++        password = get_map_string_item_or_NULL(settings, "Password");
++
++        if (config->ur_url == NULL)
++            ureport_server_config_set_url(config, xstrdup(RHSM_WEB_SERVICE_URL));
++    }
++    else
++    {
++        username = tmp_username = xstrdup(http_auth_pref);
++        password = strchr(tmp_username, ':');
++
++        if (password != NULL)
++            /* It is "char *", see strchr() few lines above. */
++            *((char *)(password++)) = '\0';
++    }
++
++    if (password == NULL)
++    {
++        char *message = xasprintf("Please provide uReport server password for user '%s':", username);
++        password = tmp_password = ask_password(message);
++        free(message);
++
++        if (password == NULL)
++            error_msg_and_die("Cannot continue without uReport server password!");
++    }
++
++    ureport_server_config_set_basic_auth(config, username, password);
++
++    free(tmp_password);
++    free(tmp_username);
++    free_map_string(settings);
++}
++
++void
+ ureport_server_config_load(struct ureport_server_config *config,
+                            map_string_t *settings)
+ {
+     UREPORT_OPTION_VALUE_FROM_CONF(settings, "URL", config->ur_url, xstrdup);
+     UREPORT_OPTION_VALUE_FROM_CONF(settings, "SSLVerify", config->ur_ssl_verify, string_to_bool);
+ 
++    const char *http_auth_pref = NULL;
++    UREPORT_OPTION_VALUE_FROM_CONF(settings, "HTTPAuth", http_auth_pref, (const char *));
++    ureport_server_config_load_basic_auth(config, http_auth_pref);
++
+     const char *client_auth = NULL;
+-    UREPORT_OPTION_VALUE_FROM_CONF(settings, "SSLClientAuth", client_auth, (const char *));
+-    ureport_server_config_set_client_auth(config, client_auth);
++    if (http_auth_pref == NULL)
++    {
++        UREPORT_OPTION_VALUE_FROM_CONF(settings, "SSLClientAuth", client_auth, (const char *));
++        ureport_server_config_set_client_auth(config, client_auth);
++    }
+ 
+     /* If SSLClientAuth is configured, include the auth items by default. */
+-    bool include_auth = !!config->ur_client_cert;
++    bool include_auth = config->ur_client_cert != NULL || config->ur_username != NULL;
+     UREPORT_OPTION_VALUE_FROM_CONF(settings, "IncludeAuthData", include_auth, string_to_bool);
+ 
+     if (include_auth)
+diff --git a/src/plugins/reporter-ureport.c b/src/plugins/reporter-ureport.c
+index f15d56d..22efb76 100644
+--- a/src/plugins/reporter-ureport.c
++++ b/src/plugins/reporter-ureport.c
+@@ -43,7 +43,8 @@ int main(int argc, char **argv)
+         OPT_u = 1 << 2,
+         OPT_k = 1 << 3,
+         OPT_t = 1 << 4,
+-        OPT_i = 1 << 5,
++        OPT_h = 1 << 5,
++        OPT_i = 1 << 6,
+     };
+ 
+     int ret = 1; /* "failure" (for now) */
+@@ -51,6 +52,7 @@ int main(int argc, char **argv)
+     const char *conf_file = UREPORT_CONF_FILE_PATH;
+     const char *arg_server_url = NULL;
+     const char *client_auth = NULL;
++    const char *http_auth = NULL;
+     GList *auth_items = NULL;
+     const char *dump_dir_path = ".";
+     const char *ureport_hash = NULL;
+@@ -67,6 +69,7 @@ int main(int argc, char **argv)
+         OPT_BOOL('k', "insecure", &insecure,
+                           _("Allow insecure connection to ureport server")),
+         OPT_STRING('t', "auth", &client_auth, "SOURCE", _("Use client authentication")),
++        OPT_STRING('h', "http-auth", &http_auth, "CREDENTIALS", _("Use HTTP Authentication")),
+         OPT_LIST('i', "auth_items", &auth_items, "AUTH_ITEMS", _("Additional files included in 'auth' key")),
+         OPT_STRING('c', NULL, &conf_file, "FILE", _("Configuration file")),
+         OPT_STRING('a', "attach", &ureport_hash, "BTHASH",
+@@ -85,8 +88,8 @@ int main(int argc, char **argv)
+     };
+ 
+     const char *program_usage_string = _(
+-        "& [-v] [-c FILE] [-u URL] [-k] [-t SOURCE] [-A -a bthash -B -b bug-id -E -e email] [-d DIR]\n"
+-        "& [-v] [-c FILE] [-u URL] [-k] [-t SOURCE] [-i AUTH_ITEMS]\\\n"
++        "& [-v] [-c FILE] [-u URL] [-k] [-t SOURCE] [-h CREDENTIALS] [-A -a bthash -B -b bug-id -E -e email] [-d DIR]\n"
++        "& [-v] [-c FILE] [-u URL] [-k] [-t SOURCE] [-h CREDENTIALS] [-i AUTH_ITEMS]\\\n"
+         "  [-A -a bthash -B -b bug-id -E -e email] [-d DIR]\n"
+         "\n"
+         "Upload micro report or add an attachment to a micro report\n"
+@@ -107,6 +110,8 @@ int main(int argc, char **argv)
+         config.ur_ssl_verify = !insecure;
+     if (opts & OPT_t)
+         ureport_server_config_set_client_auth(&config, client_auth);
++    if (opts & OPT_h)
++        ureport_server_config_load_basic_auth(&config, http_auth);
+     if (opts & OPT_i)
+     {
+         g_list_free_full(config.ur_prefs.urp_auth_items, free);
+diff --git a/src/plugins/ureport.conf b/src/plugins/ureport.conf
+index 42323d4..e04bf56 100644
+--- a/src/plugins/ureport.conf
++++ b/src/plugins/ureport.conf
+@@ -23,8 +23,16 @@ AuthDataItems = hostname, machineid
+ # None (default):
+ # SSLClientAuth =
+ # Using RH subscription management entitlement certificate:
+-SSLClientAuth = rhsm
++# SSLClientAuth = rhsm
+ # Using Puppet certificate:
+ # SSLClientAuth = puppet
+ # Using custom certificate:
+ # SSLClientAuth = /path/to/cert.pem:/path/to/key.pem
++
++# HTTP Basic authentication credentials.
++# Assingning any value to 'HTTPAuth' changes the default value of
++# 'IncludeAuthData' to 'yes'.
++# Use Login= and Password= from /etc/libreport/plugins/rhtsupport.conf:
++# HTTPAuth = rhts-credentials
++# Use username and password:
++# HTTPAuth = username:password
+diff --git a/tests/Makefile.am b/tests/Makefile.am
+index 1cfc206..a680f05 100644
+--- a/tests/Makefile.am
++++ b/tests/Makefile.am
+@@ -49,7 +49,7 @@ TESTSUITE = $(srcdir)/testsuite
+ MAINTAINERCLEANFILES = Makefile.in $(TESTSUITE)
+ check_DATA = atconfig atlocal $(TESTSUITE)
+ DISTCLEANFILES = atconfig
+-EXTRA_DIST += atlocal.in conf ureport
++EXTRA_DIST += atlocal.in conf ureport ureport-rhts-credentials
+ 
+ atconfig: $(top_builddir)/config.status
+ 	(cd ${top_builddir} && ./config.status ${subdir}/atconfig)
+diff --git a/tests/ureport-rhts-credentials/rhtsupport.conf b/tests/ureport-rhts-credentials/rhtsupport.conf
+new file mode 100644
+index 0000000..c30f743
+--- /dev/null
++++ b/tests/ureport-rhts-credentials/rhtsupport.conf
+@@ -0,0 +1,2 @@
++Login = rhn-user-name
++Password = rhn-password
+diff --git a/tests/ureport.at b/tests/ureport.at
+index 76e2f7a..3a824a2 100644
+--- a/tests/ureport.at
++++ b/tests/ureport.at
+@@ -109,6 +109,8 @@ AT_TESTFUN([ureport_server_config_load],
+ #include "ureport.h"
+ #include <assert.h>
+ 
++#define TESTING_CERTS_CORRECT_DIR_PATH "../../ureport/certs/correct"
++
+ int main(void)
+ {
+     g_verbose=3;
+@@ -248,6 +250,73 @@ int main(void)
+     ureport_server_config_destroy(&config);
+     free_map_string(settings);
+ 
++    /* value from env */
++    /* HTTPAuth set to 'username:password' */
++    /* SSLClientAuth set to 'rhsm' */
++    ureport_server_config_init(&config);
++
++    settings = new_map_string();
++
++    setenv("uReport_SSLClientAuth", "rhsm", 1);
++    setenv("uReport_HTTPAuth", "username:password", 1);
++    setenv("uReport_AuthDataItems", "hostname, time", 1);
++
++    setenv("LIBREPORT_DEBUG_RHSMENT_PEM_DIR_PATH", TESTING_CERTS_CORRECT_DIR_PATH, 1);
++
++    ureport_server_config_load(&config, settings);
++
++    assert(strcmp(config.ur_username, "username") == 0);
++    assert(strcmp(config.ur_password, "password") == 0);
++
++    assert(config.ur_client_cert == NULL);
++    assert(config.ur_client_key == NULL);
++    assert(size_map_string(config.ur_http_headers) == 0);
++
++    l = config.ur_prefs.urp_auth_items;
++    assert(strcmp(l->data, "hostname") == 0);
++    assert(strcmp(l->next->data, "time") == 0);
++
++    unsetenv("LIBREPORT_DEBUG_RHSMENT_PEM_DIR_PATH");
++
++    unsetenv("uReport_SSLClientAuth");
++    unsetenv("uReport_HTTPAuth");
++    unsetenv("uReport_AuthDataItems");
++
++    free_map_string(settings);
++
++    ureport_server_config_destroy(&config);
++
++    /* value from settings */
++    /* HTTPAuth set to 'username:password' */
++    /* SSLClientAuth set to 'rhsm' */
++    ureport_server_config_init(&config);
++
++    settings = new_map_string();
++    insert_map_string(settings, xstrdup("SSLClientAuth"), xstrdup("rhsm"));
++    insert_map_string(settings, xstrdup("HTTPAuth"), xstrdup("rhn-username:rhn-password"));
++    insert_map_string(settings, xstrdup("AuthDataItems"), xstrdup("hostname, type"));
++
++    setenv("LIBREPORT_DEBUG_RHSMENT_PEM_DIR_PATH", TESTING_CERTS_CORRECT_DIR_PATH, 1);
++
++    ureport_server_config_load(&config, settings);
++
++    assert(strcmp(config.ur_username, "rhn-username") == 0);
++    assert(strcmp(config.ur_password, "rhn-password") == 0);
++
++    assert(config.ur_client_cert == NULL);
++    assert(config.ur_client_key == NULL);
++    assert(size_map_string(config.ur_http_headers) == 0);
++
++    l = config.ur_prefs.urp_auth_items;
++    assert(strcmp(l->data, "hostname") == 0);
++    assert(strcmp(l->next->data, "type") == 0);
++
++    unsetenv("LIBREPORT_DEBUG_RHSMENT_PEM_DIR_PATH");
++
++    free_map_string(settings);
++
++    ureport_server_config_destroy(&config);
++
+     return 0;
+ }
+ ]])
+@@ -1133,3 +1202,79 @@ int main(void)
+ }
+ ]])
+ 
++
++## ------------------------------------- ##
++## ureport_server_config_load_basic_auth ##
++## ------------------------------------- ##
++
++AT_TESTFUN([ureport_server_config_load_basic_auth],
++[[
++#include "internal_libreport.h"
++#include "ureport.h"
++#include <assert.h>
++#include "libreport_curl.h"
++#include "problem_data.h"
++
++int main(void)
++{
++    g_verbose=3;
++
++    {
++        struct ureport_server_config config;
++        ureport_server_config_init(&config);
++
++        ureport_server_config_load_basic_auth(&config, "username:password");
++
++        assert(strcmp(config.ur_username, "username") == 0);
++        assert(strcmp(config.ur_password, "password") == 0);
++
++        ureport_server_config_destroy(&config);
++    }
++
++    {
++        struct ureport_server_config config;
++        ureport_server_config_init(&config);
++
++        setenv("LIBREPORT_DEBUG_PLUGINS_CONF_DIR", "../../ureport-rhts-credentials/", 1);
++
++        ureport_server_config_load_basic_auth(&config, "rhts-credentials");
++
++        assert(strcmp(config.ur_username, "rhn-user-name") == 0);
++        assert(strcmp(config.ur_password, "rhn-password") == 0);
++        assert(strcmp(config.ur_url, "https://api.access.redhat.com/rs/telemetry/abrt") == 0);
++
++        unsetenv("LIBREPORT_DEBUG_PLUGINS_CONF_DIR");
++        ureport_server_config_destroy(&config);
++    }
++
++    {
++        pid_t pid = fork();
++        if (pid < 0)
++        {
++            perror_msg("fork");
++            return -1;
++        }
++
++        if (pid == 0)
++        {
++            struct ureport_server_config config;
++            ureport_server_config_init(&config);
++
++            setenv("REPORT_CLIENT_NONINTERACTIVE", "1", 1);
++            ureport_server_config_load_basic_auth(&config, "username");
++
++            ureport_server_config_destroy(&config);
++
++            exit(0);
++        }
++
++        int status;
++        wait(&status);
++
++        assert(WIFEXITED(status));
++        assert(WEXITSTATUS(status) != 0);
++    }
++
++    return 0;
++}
++]])
+-- 
+1.8.3.1
+

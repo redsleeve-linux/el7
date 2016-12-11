@@ -1,0 +1,28 @@
+From e7aabc7d2db6b3178286f4226bd179316488a8d2 Mon Sep 17 00:00:00 2001
+From: Martin Milata <mmilata@redhat.com>
+Date: Wed, 22 Jan 2014 15:30:50 +0100
+Subject: [LIBREPORT PATCH 14/14] ureport.conf: turn on SSL auth with RHSM cert
+
+Related to rhbz#1053042
+
+Signed-off-by: Martin Milata <mmilata@redhat.com>
+---
+ src/plugins/ureport.conf | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/plugins/ureport.conf b/src/plugins/ureport.conf
+index 13b6386..407fbca 100644
+--- a/src/plugins/ureport.conf
++++ b/src/plugins/ureport.conf
+@@ -11,7 +11,7 @@ URL = http://bug-report.itos.redhat.com
+ # None (default):
+ # SSLClientAuth =
+ # Using RH subscription management certificate:
+-# SSLClientAuth = rhsm
++SSLClientAuth = rhsm
+ # Using Puppet certificate:
+ # SSLClientAuth = puppet
+ # Using custom certificate:
+-- 
+1.8.3.1
+

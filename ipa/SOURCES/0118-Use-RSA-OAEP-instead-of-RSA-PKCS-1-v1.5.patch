@@ -1,0 +1,33 @@
+From 88b8163fa5f3b4f01dab588c2b08db9258c55be1 Mon Sep 17 00:00:00 2001
+From: Christian Heimes <cheimes@redhat.com>
+Date: Mon, 5 Sep 2016 15:38:48 +0200
+Subject: [PATCH] Use RSA-OAEP instead of RSA PKCS#1 v1.5
+
+jwcrypto's RSA1-5 (PKCS#1 v1.5) is vulnerable to padding oracle
+side-channel attacks. OAEP (PKCS#1 v2.0) is a safe, more modern
+alternative.
+
+https://fedorahosted.org/freeipa/ticket/6278
+
+Signed-off-by: Christian Heimes <cheimes@redhat.com>
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+---
+ ipapython/secrets/client.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ipapython/secrets/client.py b/ipapython/secrets/client.py
+index 56ed6f7944c46393ed225cde1b5e0bb80fe6bef0..d9cc7d0f5b066dfd8efba480feb5f271ed1ebe83 100644
+--- a/ipapython/secrets/client.py
++++ b/ipapython/secrets/client.py
+@@ -86,7 +86,7 @@ class CustodiaClient(object):
+         url = 'https://%s/ipa/keys/%s' % (self.server, keyname)
+ 
+         # Prepare signed/encrypted request
+-        encalg = ('RSA1_5', 'A256CBC-HS512')
++        encalg = ('RSA-OAEP', 'A256CBC-HS512')
+         request = self.kemcli.make_request(keyname, encalg=encalg)
+ 
+         # Prepare Authentication header
+-- 
+2.7.4
+

@@ -1,0 +1,575 @@
+From a54df38f86a534b28c1b664bc283e9b8d17be8a1 Mon Sep 17 00:00:00 2001
+From: Ray Strode <rstrode@redhat.com>
+Date: Thu, 16 Jan 2014 15:44:50 -0500
+Subject: [PATCH 1/2] main: don't rely on show_trigger to cancel show delay
+
+We're going to be getting rid of show_trigger in a subsequent
+commit, so this commit changes the code to use the is_shown
+flag instead.
+---
+ src/main.c | 29 ++++++++++++++++-------------
+ 1 file changed, 16 insertions(+), 13 deletions(-)
+
+diff --git a/src/main.c b/src/main.c
+index bbd74f9..d9032a5 100644
+--- a/src/main.c
++++ b/src/main.c
+@@ -482,74 +482,77 @@ show_default_splash (state_t *state)
+ 
+ static void
+ cancel_pending_delayed_show (state_t *state)
+ {
+   bool has_open_seats;
+ 
+   if (isnan (state->splash_delay))
+     return;
+ 
+   ply_event_loop_stop_watching_for_timeout (state->loop,
+                                             (ply_event_loop_timeout_handler_t)
+                                             show_splash,
+                                             state);
+   state->splash_delay = NAN;
+   has_open_seats = ply_device_manager_has_open_seats (state->device_manager);
+ 
+   if (state->is_shown && has_open_seats)
+     {
+       ply_trace ("splash delay cancelled, showing splash immediately");
+       show_splash (state);
+     }
+ }
+ 
+ static void
+ on_ask_for_password (state_t      *state,
+                      const char   *prompt,
+                      ply_trigger_t *answer)
+ {
+   ply_entry_trigger_t *entry_trigger;
+ 
+-  /* Waiting to be shown, boot splash will
+-   * arrive shortly so just sit tight
+-   */
+-  if (state->show_trigger != NULL)
+-    {
+-      ply_trace ("splash still coming up, waiting a bit");
+-      cancel_pending_delayed_show (state);
+-    }
+-  else if (state->boot_splash == NULL)
++  if (state->boot_splash == NULL)
+     {
+-      /* No splash, client will have to get password */
+-      ply_trace ("no splash loaded, replying immediately with no password");
+-      ply_trigger_pull (answer, NULL);
+-      return;
++      /* Waiting to be shown, boot splash will
++       * arrive shortly so just sit tight
++       */
++      if (state->is_shown)
++        {
++          ply_trace ("splash still coming up, waiting a bit");
++          cancel_pending_delayed_show (state);
++        }
++      else
++        {
++          /* No splash, client will have to get password */
++          ply_trace ("no splash loaded, replying immediately with no password");
++          ply_trigger_pull (answer, NULL);
++          return;
++        }
+     }
+ 
+   entry_trigger = calloc (1, sizeof (ply_entry_trigger_t));
+   entry_trigger->type = PLY_ENTRY_TRIGGER_TYPE_PASSWORD;
+   entry_trigger->prompt = prompt;
+   entry_trigger->trigger = answer;
+   ply_trace ("queuing password request with boot splash");
+   ply_list_append_data (state->entry_triggers, entry_trigger);
+   update_display (state);
+ }
+ 
+ static void
+ on_ask_question (state_t      *state,
+                  const char   *prompt,
+                  ply_trigger_t *answer)
+ {
+   ply_entry_trigger_t *entry_trigger;
+ 
+   entry_trigger = calloc (1, sizeof (ply_entry_trigger_t));
+   entry_trigger->type = PLY_ENTRY_TRIGGER_TYPE_QUESTION;
+   entry_trigger->prompt = prompt;
+   entry_trigger->trigger = answer;
+   ply_trace ("queuing question with boot splash");
+   ply_list_append_data (state->entry_triggers, entry_trigger);
+   update_display (state);
+ }
+ 
+ static void
+ on_display_message (state_t       *state,
+                     const char    *message)
+-- 
+1.8.3.1
+
+
+From cdff09d1a2297501f294141182d8d8efcaf6fff3 Mon Sep 17 00:00:00 2001
+From: Ray Strode <rstrode@redhat.com>
+Date: Thu, 16 Jan 2014 15:38:05 -0500
+Subject: [PATCH 2/2] Revert "boot-server: defer show-splash reply until splash
+ shown"
+
+This reverts commit 126345af8704a9b10481657d79d66cbea93e1647.
+
+If plymouth show-splash blocks until the splash screen is shown,
+then systemd-ask-for-password-plymouth will block for 5 seconds
+before asking for the password (which would have canceled the 5
+second delay if it weren't for the dependency on plymouth-start.service)
+---
+ src/main.c            | 12 +-----------
+ src/ply-boot-server.c | 28 +---------------------------
+ src/ply-boot-server.h |  1 -
+ 3 files changed, 2 insertions(+), 39 deletions(-)
+
+diff --git a/src/main.c b/src/main.c
+index d9032a5..db1fd0a 100644
+--- a/src/main.c
++++ b/src/main.c
+@@ -74,61 +74,60 @@ typedef struct
+   const char    *keys;
+   ply_trigger_t *trigger;
+ } ply_keystroke_watch_t;
+ 
+ typedef struct 
+ {
+   enum {PLY_ENTRY_TRIGGER_TYPE_PASSWORD,
+         PLY_ENTRY_TRIGGER_TYPE_QUESTION}
+         type;
+   const char    *prompt;
+   ply_trigger_t *trigger;
+ } ply_entry_trigger_t;
+ 
+ typedef struct
+ {
+   ply_event_loop_t *loop;
+   ply_boot_server_t *boot_server;
+   ply_boot_splash_t *boot_splash;
+   ply_terminal_session_t *session;
+   ply_buffer_t *boot_buffer;
+   ply_progress_t *progress;
+   ply_list_t *keystroke_triggers;
+   ply_list_t *entry_triggers;
+   ply_buffer_t *entry_buffer;
+   ply_list_t *messages;
+   ply_command_parser_t *command_parser;
+   ply_mode_t mode;
+   ply_terminal_t *local_console_terminal;
+   ply_device_manager_t *device_manager;
+ 
+-  ply_trigger_t *show_trigger;
+   ply_trigger_t *deactivate_trigger;
+   ply_trigger_t *quit_trigger;
+ 
+   double start_time;
+   double splash_delay;
+ 
+   char kernel_command_line[PLY_MAX_COMMAND_LINE_SIZE];
+   uint32_t kernel_command_line_is_set : 1;
+   uint32_t no_boot_log : 1;
+   uint32_t showing_details : 1;
+   uint32_t system_initialized : 1;
+   uint32_t is_redirected : 1;
+   uint32_t is_attached : 1;
+   uint32_t should_be_attached : 1;
+   uint32_t should_retain_splash : 1;
+   uint32_t is_inactive : 1;
+   uint32_t is_shown : 1;
+   uint32_t should_force_details : 1;
+ 
+   char *override_splash_path;
+   char *system_default_splash_path;
+   char *distribution_default_splash_path;
+   const char *default_tty;
+ 
+   int number_of_errors;
+ } state_t;
+ 
+ static void show_splash (state_t *state);
+ static ply_boot_splash_t *load_built_in_theme (state_t *state);
+ static ply_boot_splash_t *load_theme (state_t    *state,
+@@ -848,85 +847,83 @@ plymouth_should_show_default_splash (state_t *state)
+ 
+   if (command_line_has_argument (state->kernel_command_line, "splash=verbose"))
+     {
+       ply_trace ("no default splash because kernel command line has option \"splash=verbose\"");
+       return false;
+     }
+ 
+   if (command_line_has_argument (state->kernel_command_line, "rhgb"))
+     {
+       ply_trace ("using default splash because kernel command line has option \"rhgb\"");
+       return true;
+     }
+ 
+   if (command_line_has_argument (state->kernel_command_line, "splash"))
+     {
+       ply_trace ("using default splash because kernel command line has option \"splash\"");
+       return true;
+     }
+ 
+   if (command_line_has_argument (state->kernel_command_line, "splash=silent"))
+     {
+       ply_trace ("using default splash because kernel command line has option \"splash=slient\"");
+       return true;
+     }
+ 
+   ply_trace ("no default splash because kernel command line lacks \"splash\" or \"rhgb\"");
+   return false;
+ }
+ 
+ static void
+-on_show_splash (state_t       *state,
+-                ply_trigger_t *show_trigger)
++on_show_splash (state_t *state)
+ {
+   bool has_open_seats;
+ 
+   if (state->is_shown)
+     {
+       ply_trace ("show splash called while already shown");
+       return;
+     }
+ 
+   if (state->is_inactive)
+     {
+       ply_trace ("show splash called while inactive");
+       return;
+     }
+ 
+   if (plymouth_should_ignore_show_splash_calls (state))
+     {
+       ply_trace ("show splash called while ignoring show splash calls");
+       dump_details_and_quit_splash (state);
+       return;
+     }
+ 
+-  state->show_trigger = show_trigger;
+   state->is_shown = true;
+   has_open_seats = ply_device_manager_has_open_seats (state->device_manager);
+ 
+   if (!state->is_attached && state->should_be_attached && has_open_seats)
+     attach_to_running_session (state);
+ 
+   if (has_open_seats)
+     {
+       ply_trace ("at least one seat already open, so loading splash");
+       show_splash (state);
+     }
+   else
+     {
+       ply_trace ("no seats available to show splash on, waiting...");
+     }
+ }
+ 
+ static void
+ on_seat_removed (state_t    *state,
+                  ply_seat_t *seat)
+ {
+   ply_keyboard_t *keyboard;
+ 
+   keyboard = ply_seat_get_keyboard (seat);
+ 
+   ply_trace ("no longer listening for keystrokes");
+   ply_keyboard_remove_input_handler (keyboard,
+                                      (ply_keyboard_input_handler_t)
+                                      on_keyboard_input);
+   ply_trace ("no longer listening for escape");
+@@ -960,67 +957,60 @@ show_splash (state_t *state)
+       running_time = now - state->start_time;
+       if (state->splash_delay > running_time)
+         {
+           double time_left = state->splash_delay - running_time;
+ 
+           ply_trace ("delaying show splash for %lf seconds",
+                      time_left);
+           ply_event_loop_stop_watching_for_timeout (state->loop,
+                                                     (ply_event_loop_timeout_handler_t)
+                                                     show_splash,
+                                                     state);
+           ply_event_loop_watch_for_timeout (state->loop,
+                                             time_left,
+                                             (ply_event_loop_timeout_handler_t)
+                                             show_splash,
+                                             state);
+           return;
+         }
+     }
+ 
+   if (plymouth_should_show_default_splash (state))
+     {
+       show_default_splash (state);
+       state->showing_details = false;
+     }
+   else
+     {
+       show_detailed_splash (state);
+       state->showing_details = true;
+     }
+-
+-  if (state->show_trigger != NULL)
+-    {
+-      ply_trace ("telling boot server about completed show operation");
+-      ply_trigger_pull (state->show_trigger, NULL);
+-      state->show_trigger = NULL;
+-    }
+ }
+ 
+ static void
+ on_seat_added (state_t    *state,
+                ply_seat_t *seat)
+ {
+   ply_keyboard_t *keyboard;
+ 
+   if (state->is_shown)
+     {
+       if (state->boot_splash == NULL)
+         {
+           ply_trace ("seat added before splash loaded, so loading splash now");
+           show_splash (state);
+         }
+       else
+         {
+           ply_trace ("seat added after splash loaded, so attaching to splash");
+           ply_boot_splash_attach_to_seat (state->boot_splash, seat);
+         }
+     }
+ 
+   keyboard = ply_seat_get_keyboard (seat);
+ 
+   ply_trace ("listening for keystrokes");
+   ply_keyboard_add_input_handler (keyboard,
+                                   (ply_keyboard_input_handler_t)
+                                   on_keyboard_input, state);
+   ply_trace ("listening for escape");
+   ply_keyboard_add_escape_handler (keyboard,
+diff --git a/src/ply-boot-server.c b/src/ply-boot-server.c
+index 78c9c52..3e67bfb 100644
+--- a/src/ply-boot-server.c
++++ b/src/ply-boot-server.c
+@@ -283,72 +283,60 @@ ply_boot_connection_send_answer (ply_boot_connection_t *connection,
+     {
+       size = strlen (answer);
+ 
+       if (!ply_write (connection->fd,
+                       PLY_BOOT_PROTOCOL_RESPONSE_TYPE_ANSWER,
+                       strlen (PLY_BOOT_PROTOCOL_RESPONSE_TYPE_ANSWER)) ||
+           !ply_write_uint32 (connection->fd,
+                              size) ||
+           !ply_write (connection->fd,
+                       answer, size))
+           ply_trace ("could not finish writing answer: %m");
+ 
+     }
+ 
+ }
+ 
+ static void
+ ply_boot_connection_on_password_answer (ply_boot_connection_t *connection,
+                                         const char            *password)
+ {
+   ply_trace ("got password answer");
+ 
+   ply_boot_connection_send_answer (connection, password);
+   if (password != NULL)
+     ply_list_append_data (connection->server->cached_passwords,
+                           strdup (password));
+ 
+ }
+ 
+ static void
+-ply_boot_connection_on_splash_shown (ply_boot_connection_t *connection)
+-{
+-  ply_trace ("shown");
+-  if (!ply_write (connection->fd,
+-                  PLY_BOOT_PROTOCOL_RESPONSE_TYPE_ACK,
+-                  strlen (PLY_BOOT_PROTOCOL_RESPONSE_TYPE_ACK)))
+-    {
+-      ply_trace ("could not finish writing deactivate reply: %m");
+-    }
+-}
+-
+-static void
+ ply_boot_connection_on_deactivated (ply_boot_connection_t *connection)
+ {
+   ply_trace ("deactivated");
+   if (!ply_write (connection->fd,
+                   PLY_BOOT_PROTOCOL_RESPONSE_TYPE_ACK,
+                   strlen (PLY_BOOT_PROTOCOL_RESPONSE_TYPE_ACK)))
+     {
+       ply_trace ("could not finish writing deactivate reply: %m");
+     }
+ }
+ 
+ static void
+ ply_boot_connection_on_quit_complete (ply_boot_connection_t *connection)
+ {
+   ply_trace ("quit complete");
+   if (!ply_write (connection->fd,
+                   PLY_BOOT_PROTOCOL_RESPONSE_TYPE_ACK,
+                   strlen (PLY_BOOT_PROTOCOL_RESPONSE_TYPE_ACK)))
+     {
+       ply_trace ("could not finish writing quit reply: %m");
+     }
+ }
+ 
+ static void
+ ply_boot_connection_on_question_answer (ply_boot_connection_t *connection,
+                                         const char             *answer)
+ {
+   ply_trace ("got question answer: %s", answer);
+   ply_boot_connection_send_answer (connection, answer);
+ }
+@@ -462,77 +450,63 @@ ply_boot_connection_on_request (ply_boot_connection_t *connection)
+           ply_error ("failed to parse percentage %s", argument);
+           value = 0;
+         }
+ 
+       ply_trace ("got system-update notification %li%%", value);
+       if (!ply_write (connection->fd,
+                       PLY_BOOT_PROTOCOL_RESPONSE_TYPE_ACK,
+                       strlen (PLY_BOOT_PROTOCOL_RESPONSE_TYPE_ACK)))
+         ply_trace ("could not finish writing update reply: %m");
+ 
+       if (server->system_update_handler != NULL)
+         server->system_update_handler (server->user_data, value, server);
+       free (argument);
+       free (command);
+       return;
+     }
+   else if (strcmp (command, PLY_BOOT_PROTOCOL_REQUEST_TYPE_SYSTEM_INITIALIZED) == 0)
+     {
+       ply_trace ("got system initialized notification");
+       if (server->system_initialized_handler != NULL)
+         server->system_initialized_handler (server->user_data, server);
+     }
+   else if (strcmp (command, PLY_BOOT_PROTOCOL_REQUEST_TYPE_ERROR) == 0)
+     {
+       ply_trace ("got error notification");
+       if (server->error_handler != NULL)
+         server->error_handler (server->user_data, server);
+     }
+   else if (strcmp (command, PLY_BOOT_PROTOCOL_REQUEST_TYPE_SHOW_SPLASH) == 0)
+     {
+-      ply_trigger_t *show_trigger;
+-
+       ply_trace ("got show splash request");
+-
+-      show_trigger = ply_trigger_new (NULL);
+-
+-      ply_trigger_add_handler (show_trigger,
+-                               (ply_trigger_handler_t)
+-                               ply_boot_connection_on_splash_shown,
+-                               connection);
+-
+       if (server->show_splash_handler != NULL)
+-        server->show_splash_handler (server->user_data, show_trigger, server);
+-
+-      free (argument);
+-      free (command);
+-      return;
++        server->show_splash_handler (server->user_data, server);
+     }
+   else if (strcmp (command, PLY_BOOT_PROTOCOL_REQUEST_TYPE_HIDE_SPLASH) == 0)
+     {
+       ply_trace ("got hide splash request");
+       if (server->hide_splash_handler != NULL)
+         server->hide_splash_handler (server->user_data, server);
+     }
+   else if (strcmp (command, PLY_BOOT_PROTOCOL_REQUEST_TYPE_DEACTIVATE) == 0)
+     {
+       ply_trigger_t *deactivate_trigger;
+ 
+       ply_trace ("got deactivate request");
+ 
+       deactivate_trigger = ply_trigger_new (NULL);
+ 
+       ply_trigger_add_handler (deactivate_trigger,
+                                (ply_trigger_handler_t)
+                                ply_boot_connection_on_deactivated,
+                                connection);
+ 
+       if (server->deactivate_handler != NULL)
+         server->deactivate_handler (server->user_data, deactivate_trigger, server);
+ 
+       free (argument);
+       free (command);
+       return;
+     }
+   else if (strcmp (command, PLY_BOOT_PROTOCOL_REQUEST_TYPE_REACTIVATE) == 0)
+     {
+       ply_trace ("got reactivate request");
+diff --git a/src/ply-boot-server.h b/src/ply-boot-server.h
+index 4436be8..b885a81 100644
+--- a/src/ply-boot-server.h
++++ b/src/ply-boot-server.h
+@@ -22,61 +22,60 @@
+ #ifndef PLY_BOOT_SERVER_H
+ #define PLY_BOOT_SERVER_H
+ 
+ #include <stdbool.h>
+ #include <stdint.h>
+ #include <unistd.h>
+ 
+ #include "ply-trigger.h"
+ #include "ply-boot-protocol.h"
+ #include "ply-event-loop.h"
+ 
+ typedef struct _ply_boot_server ply_boot_server_t;
+ 
+ typedef void (* ply_boot_server_update_handler_t) (void              *user_data,
+                                                    const char        *status,
+                                                    ply_boot_server_t *server);
+ 
+ typedef void (* ply_boot_server_change_mode_handler_t) (void              *user_data,
+                                                         const char        *mode,
+                                                         ply_boot_server_t *server);
+ 
+ typedef void (* ply_boot_server_system_update_handler_t) (void              *user_data,
+                                                           int                progress,
+                                                           ply_boot_server_t *server);
+ 
+ typedef void (* ply_boot_server_newroot_handler_t) (void              *user_data,
+                                                     const char        *root_dir,
+                                                     ply_boot_server_t *server);
+ 
+ typedef void (* ply_boot_server_show_splash_handler_t) (void              *user_data,
+-                                                        ply_trigger_t     *show_trigger,
+                                                         ply_boot_server_t *server);
+ 
+ typedef void (* ply_boot_server_hide_splash_handler_t) (void              *user_data,
+                                                         ply_boot_server_t *server);
+ 
+ typedef void (* ply_boot_server_password_answer_handler_t) (void              *answer_data,
+                                                             const char        *password,
+                                                             ply_boot_server_t *server);
+ typedef void (* ply_boot_server_ask_for_password_handler_t) (void              *user_data,
+                                                              const char        *prompt,
+                                                              ply_trigger_t     *answer,
+                                                              ply_boot_server_t *server);
+ typedef void (* ply_boot_server_question_answer_handler_t) (void               *answer_data,
+                                                             const char         *answer,
+                                                             ply_boot_server_t  *server);
+ typedef void (* ply_boot_server_ask_question_handler_t)      (void              *user_data,
+                                                               const char        *prompt,
+                                                               ply_trigger_t     *answer,
+                                                               ply_boot_server_t *server);
+ typedef void (* ply_boot_server_display_message_handler_t)   (void              *user_data,
+                                                               const char        *message,
+                                                               ply_boot_server_t *server);
+ typedef void (* ply_boot_server_hide_message_handler_t)   (void              *user_data,
+                                                            const char        *message,
+                                                            ply_boot_server_t *server);
+ typedef void (* ply_boot_server_watch_for_keystroke_handler_t) (void              *user_data,
+                                                                 const char        *keys,
+                                                                 ply_trigger_t     *answer,
+                                                                 ply_boot_server_t *server);
+ typedef void (* ply_boot_server_ignore_keystroke_handler_t) (void              *user_data,
+-- 
+1.8.3.1
+

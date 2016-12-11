@@ -1,0 +1,43 @@
+From 0b86e5f6275b88a0088c63c1ba76b1f682190694 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Thu, 23 Oct 2014 11:30:14 +0200
+Subject: [LIBREPORT PATCH 106/107] ureport: fall back to the hardcoded rhsm
+ cert dir
+
+This commit adds a fallback execution path for cases where getting the
+rhsm entitlement dir path via an execution of python from the
+librepor-web library fails for any reason.
+
+See commit 2b20c9f91342da7744ae40ee623735ab95f83219
+Related #1140224
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/lib/ureport.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/lib/ureport.c b/src/lib/ureport.c
+index f4f9b19..40b7129 100644
+--- a/src/lib/ureport.c
++++ b/src/lib/ureport.c
+@@ -32,6 +32,7 @@
+ 
+ #define RHSM_WEB_SERVICE_URL "https://api.access.redhat.com/rs/telemetry/abrt"
+ 
++#define RHSMENT_PEM_DIR_PATH "/etc/pki/entitlement"
+ #define RHSMENT_ENT_DATA_BEGIN_TAG "-----BEGIN ENTITLEMENT DATA-----"
+ #define RHSMENT_ENT_DATA_END_TAG "-----END ENTITLEMENT DATA-----"
+ #define RHSMENT_SIG_DATA_BEGIN_TAG "-----BEGIN RSA SIGNATURE-----"
+@@ -91,7 +92,8 @@ rhsm_config_get_entitlement_cert_dir(void)
+     return result;
+ error:
+     free(result);
+-    error_msg_and_die("Failed to get 'rhsm':'entitlementCertDir' from rhsm.config python module.");
++    error_msg("Failed to get 'rhsm':'entitlementCertDir' from rhsm.config python module. Using "RHSMENT_PEM_DIR_PATH);
++    return xstrdup(RHSMENT_PEM_DIR_PATH);
+ }
+ 
+ void
+-- 
+1.8.3.1
+

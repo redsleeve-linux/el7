@@ -1,0 +1,346 @@
+From b738ea5d78d7c6d7ba9d72c7cd57fe10f0f1b305 Mon Sep 17 00:00:00 2001
+From: David Kupka <dkupka@redhat.com>
+Date: Tue, 26 Jul 2016 13:35:22 +0200
+Subject: [PATCH] compat: Save server's API version in for pre-schema servers
+
+When client comunicates with server that doesn't support 'schema'
+command it needs to determine its api version to be able to use the
+right compat code. Storing information about server version reduces the
+need to call 'env' or 'ping' command only to first time the server is
+contacted.
+
+https://fedorahosted.org/freeipa/ticket/6069
+
+Reviewed-By: Jan Cholasta <jcholast@redhat.com>
+---
+ ipaclient/remote_plugins/__init__.py | 81 ++++++++++++++++++++++++++++++-
+ ipaclient/remote_plugins/compat.py   | 29 +++++++-----
+ ipaclient/remote_plugins/schema.py   | 92 +++---------------------------------
+ ipaplatform/base/paths.py            | 15 ++++++
+ 4 files changed, 116 insertions(+), 101 deletions(-)
+
+diff --git a/ipaclient/remote_plugins/__init__.py b/ipaclient/remote_plugins/__init__.py
+index 6454a4f4ef956a1ef545b82a649ebf26ef6edd7b..2be9222be693a5c4a04a735c216f590d75c1ecfe 100644
+--- a/ipaclient/remote_plugins/__init__.py
++++ b/ipaclient/remote_plugins/__init__.py
+@@ -2,9 +2,79 @@
+ # Copyright (C) 2016  FreeIPA Contributors see COPYING for license
+ #
+ 
++import collections
++import errno
++import json
++import os
++
+ from . import compat
+ from . import schema
+ from ipaclient.plugins.rpcclient import rpcclient
++from ipaplatform.paths import paths
++from ipapython.dnsutil import DNSName
++from ipapython.ipa_log_manager import log_mgr
++
++logger = log_mgr.get_logger(__name__)
++
++
++class ServerInfo(collections.MutableMapping):
++    _DIR = os.path.join(paths.USER_CACHE_PATH, 'ipa', 'servers')
++
++    def __init__(self, api):
++        hostname = DNSName(api.env.server).ToASCII()
++        self._path = os.path.join(self._DIR, hostname)
++        self._dict = {}
++        self._dirty = False
++
++        self._read()
++
++    def __enter__(self):
++        return self
++
++    def __exit__(self, *_exc_info):
++        self.flush()
++
++    def flush(self):
++        if self._dirty:
++            self._write()
++
++    def _read(self):
++        try:
++            with open(self._path, 'r') as sc:
++                self._dict = json.load(sc)
++        except EnvironmentError as e:
++            if e.errno != errno.ENOENT:
++                logger.warning('Failed to read server info: {}'.format(e))
++
++    def _write(self):
++        try:
++            try:
++                os.makedirs(self._DIR)
++            except EnvironmentError as e:
++                if e.errno != errno.EEXIST:
++                    raise
++            with open(self._path, 'w') as sc:
++                json.dump(self._dict, sc)
++        except EnvironmentError as e:
++            logger.warning('Failed to write server info: {}'.format(e))
++
++    def __getitem__(self, key):
++        return self._dict[key]
++
++    def __setitem__(self, key, value):
++        if key not in self._dict or self._dict[key] != value:
++            self._dirty = True
++        self._dict[key] = value
++
++    def __delitem__(self, key):
++        del self._dict[key]
++        self._dirty = True
++
++    def __iter__(self):
++        return iter(self._dict)
++
++    def __len__(self):
++        return len(self._dict)
+ 
+ 
+ def get_package(api):
+@@ -13,11 +83,18 @@ def get_package(api):
+     else:
+         client = rpcclient(api)
+         client.finalize()
++
++        try:
++            server_info = api._server_info
++        except AttributeError:
++            server_info = api._server_info = ServerInfo(api)
++
+         try:
+-            plugins = schema.get_package(api, client)
++            plugins = schema.get_package(api, server_info, client)
+         except schema.NotAvailable:
+-            plugins = compat.get_package(api, client)
++            plugins = compat.get_package(api, server_info, client)
+         finally:
++            server_info.flush()
+             if client.isconnected():
+                 client.disconnect()
+ 
+diff --git a/ipaclient/remote_plugins/compat.py b/ipaclient/remote_plugins/compat.py
+index aef5718fcaade157487c0e65562c3bc8a11ad7de..b6d099a075deaaa17143f8ddddfb11d97b75f0ed 100644
+--- a/ipaclient/remote_plugins/compat.py
++++ b/ipaclient/remote_plugins/compat.py
+@@ -31,23 +31,26 @@ class CompatObject(Object):
+     pass
+ 
+ 
+-def get_package(api, client):
+-    if not client.isconnected():
+-        client.connect(verbose=False)
+-
+-    env = client.forward(u'env', u'api_version', version=u'2.0')
++def get_package(api, server_info, client):
+     try:
+-        server_version = env['result']['api_version']
++        server_version = server_info['version']
+     except KeyError:
+-        ping = client.forward(u'ping', version=u'2.0')
++        if not client.isconnected():
++            client.connect(verbose=False)
++        env = client.forward(u'env', u'api_version', version=u'2.0')
+         try:
+-            match = re.search(u'API version (2\.[0-9]+)', ping['summary'])
++            server_version = env['result']['api_version']
+         except KeyError:
+-            match = None
+-        if match is not None:
+-            server_version = match.group(1)
+-        else:
+-            server_version = u'2.0'
++            ping = client.forward(u'ping', u'api_version', version=u'2.0')
++            try:
++                match = re.search(u'API version (2\.[0-9]+)', ping['summary'])
++            except KeyError:
++                match = None
++            if match is not None:
++                server_version = match.group(1)
++            else:
++                server_version = u'2.0'
++        server_info['version'] = server_version
+     server_version = LooseVersion(server_version)
+ 
+     package_names = {}
+diff --git a/ipaclient/remote_plugins/schema.py b/ipaclient/remote_plugins/schema.py
+index 8a77a15d489f067ab1312e863178458570403cc6..553da35127188b1ae842a7a0b58433e632c82b9f 100644
+--- a/ipaclient/remote_plugins/schema.py
++++ b/ipaclient/remote_plugins/schema.py
+@@ -22,6 +22,7 @@ from ipalib.errors import SchemaUpToDate
+ from ipalib.frontend import Object
+ from ipalib.output import Output
+ from ipalib.parameters import DefaultFrom, Flag, Password, Str
++from ipaplatform.paths import paths
+ from ipapython.ipautil import fsdecode
+ from ipapython.dn import DN
+ from ipapython.dnsutil import DNSName
+@@ -59,17 +60,6 @@ _PARAMS = {
+     'str': parameters.Str,
+ }
+ 
+-USER_CACHE_PATH = (
+-    os.environ.get('XDG_CACHE_HOME') or
+-    os.path.join(
+-        os.environ.get(
+-            'HOME',
+-            os.path.expanduser('~')
+-        ),
+-        '.cache'
+-    )
+-)
+-
+ logger = log_mgr.get_logger(__name__)
+ 
+ 
+@@ -348,66 +338,6 @@ class NotAvailable(Exception):
+     pass
+ 
+ 
+-class ServerInfo(collections.MutableMapping):
+-    _DIR = os.path.join(USER_CACHE_PATH, 'ipa', 'servers')
+-
+-    def __init__(self, api):
+-        hostname = DNSName(api.env.server).ToASCII()
+-        self._path = os.path.join(self._DIR, hostname)
+-        self._dict = {}
+-        self._dirty = False
+-
+-        self._read()
+-
+-    def __enter__(self):
+-        return self
+-
+-    def __exit__(self, *_exc_info):
+-        self.flush()
+-
+-    def flush(self):
+-        if self._dirty:
+-            self._write()
+-
+-    def _read(self):
+-        try:
+-            with open(self._path, 'r') as sc:
+-                self._dict = json.load(sc)
+-        except EnvironmentError as e:
+-            if e.errno != errno.ENOENT:
+-                logger.warning('Failed to read server info: {}'.format(e))
+-
+-    def _write(self):
+-        try:
+-            try:
+-                os.makedirs(self._DIR)
+-            except EnvironmentError as e:
+-                if e.errno != errno.EEXIST:
+-                    raise
+-            with open(self._path, 'w') as sc:
+-                json.dump(self._dict, sc)
+-        except EnvironmentError as e:
+-            logger.warning('Failed to write server info: {}'.format(e))
+-
+-    def __getitem__(self, key):
+-        return self._dict[key]
+-
+-    def __setitem__(self, key, value):
+-        if key not in self._dict or self._dict[key] != value:
+-            self._dirty = True
+-        self._dict[key] = value
+-
+-    def __delitem__(self, key):
+-        del self._dict[key]
+-        self._dirty = True
+-
+-    def __iter__(self):
+-        return iter(self._dict)
+-
+-    def __len__(self):
+-        return len(self._dict)
+-
+-
+ class Schema(object):
+     """
+     Store and provide schema for commands and topics
+@@ -429,7 +359,7 @@ class Schema(object):
+ 
+     """
+     namespaces = {'classes', 'commands', 'topics'}
+-    _DIR = os.path.join(USER_CACHE_PATH, 'ipa', 'schema', FORMAT)
++    _DIR = os.path.join(paths.USER_CACHE_PATH, 'ipa', 'schema', FORMAT)
+ 
+     def __init__(self, api, server_info, client):
+         self._dict = {}
+@@ -538,8 +468,6 @@ class Schema(object):
+             self._file.write(f.read())
+ 
+         with zipfile.ZipFile(self._file, 'r') as schema:
+-            self._dict['fingerprint'] = self._fingerprint
+-
+             for name in schema.namelist():
+                 ns, _slash, key = name.partition('/')
+                 if ns in self.namespaces:
+@@ -622,22 +550,14 @@ class Schema(object):
+         return self._help[namespace][member]
+ 
+ 
+-def get_package(api, client):
++def get_package(api, server_info, client):
+     try:
+         schema = api._schema
+     except AttributeError:
+-        try:
+-            server_info = api._server_info
+-        except AttributeError:
+-            server_info = api._server_info = ServerInfo(api)
+-
+-        try:
+-            schema = Schema(api, server_info, client)
+-            object.__setattr__(api, '_schema', schema)
+-        finally:
+-            server_info.flush()
++        schema = Schema(api, server_info, client)
++        object.__setattr__(api, '_schema', schema)
+ 
+-    fingerprint = str(schema['fingerprint'])
++    fingerprint = str(server_info['fingerprint'])
+     package_name = '{}${}'.format(__name__, fingerprint)
+     package_dir = '{}${}'.format(os.path.splitext(__file__)[0], fingerprint)
+ 
+diff --git a/ipaplatform/base/paths.py b/ipaplatform/base/paths.py
+index 5ffe689950792a40c179533c8baf2794c2388696..065a2011027bf362abd498d227e24928ccf66724 100644
+--- a/ipaplatform/base/paths.py
++++ b/ipaplatform/base/paths.py
+@@ -21,6 +21,8 @@
+ This base platform module exports default filesystem paths.
+ '''
+ 
++import os
++
+ 
+ class BasePathNamespace(object):
+     BASH = "/bin/bash"
+@@ -353,4 +355,17 @@ class BasePathNamespace(object):
+     IPA_CUSTODIA_AUDIT_LOG = '/var/log/ipa-custodia.audit.log'
+     IPA_GETKEYTAB = '/usr/sbin/ipa-getkeytab'
+ 
++    @property
++    def USER_CACHE_PATH(self):
++        return (
++            os.environ.get('XDG_CACHE_HOME') or
++            os.path.join(
++                os.environ.get(
++                    'HOME',
++                    os.path.expanduser('~')
++                ),
++                '.cache'
++            )
++        )
++
+ path_namespace = BasePathNamespace
+-- 
+2.7.4
+

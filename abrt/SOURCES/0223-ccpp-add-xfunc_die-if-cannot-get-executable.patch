@@ -1,0 +1,45 @@
+From ec6296c489571286f6ba4dc586fdd936b899ba92 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Thu, 21 Apr 2016 15:54:03 +0200
+Subject: [PATCH] ccpp: add xfunc_die() if cannot get executable
+
+Also remove extra checks of executable.
+
+Related to rhbz#1277849
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/hooks/abrt-hook-ccpp.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/hooks/abrt-hook-ccpp.c b/src/hooks/abrt-hook-ccpp.c
+index 8afd0d3..2c05c78 100644
+--- a/src/hooks/abrt-hook-ccpp.c
++++ b/src/hooks/abrt-hook-ccpp.c
+@@ -839,17 +839,21 @@ int main(int argc, char** argv)
+     int src_fd_binary = -1;
+     char *executable = get_executable(pid, setting_SaveBinaryImage ? &src_fd_binary : NULL);
+     if (executable == NULL)
++    {
+         error_msg_not_process_crash(pid_str, NULL, (long unsigned)uid, signal_no,
+                 signame, "ignoring (can't read /proc/PID/exe link)");
+ 
+-    if (executable && strstr(executable, "/abrt-hook-ccpp"))
++        xfunc_die();
++    }
++
++    if (strstr(executable, "/abrt-hook-ccpp"))
+     {
+         error_msg_and_die("PID %lu is '%s', not dumping it to avoid recursion",
+                         (long)pid, executable);
+     }
+ 
+     const char *last_slash = strrchr(executable, '/');
+-    if (executable && is_path_ignored(setting_ignored_paths, executable))
++    if (is_path_ignored(setting_ignored_paths, executable))
+     {
+         error_msg_not_process_crash(pid_str, last_slash + 1, (long unsigned)uid, signal_no,
+                 signame, "ignoring (listed in 'IgnoredPaths')");
+-- 
+1.8.3.1
+

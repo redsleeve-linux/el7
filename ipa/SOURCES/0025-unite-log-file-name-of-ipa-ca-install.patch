@@ -1,0 +1,54 @@
+From 41b85da8629e69efcc9acf65ba81ab79d38dc609 Mon Sep 17 00:00:00 2001
+From: Petr Vobornik <pvoborni@redhat.com>
+Date: Fri, 15 Jul 2016 16:25:36 +0200
+Subject: [PATCH] unite log file name of ipa-ca-install
+
+ipa-ca-install said that it used
+  /var/log/ipareplica-ca-install.log
+but in fact it used
+  /var/log/ipaserver-ca-install.log
+
+This patch unites it to ipareplica-ca-install.log
+
+It was chosen because of backwards compatibility - ipareplica-ca-install
+was more commonly used. ipaserver-ca-install.log was used only in rare
+CA less -> CA installation.
+
+https://fedorahosted.org/freeipa/ticket/6086
+
+Reviewed-By: Martin Babinsky <mbabinsk@redhat.com>
+Reviewed-By: Jan Cholasta <jcholast@redhat.com>
+Reviewed-By: Florence Blanc-Renaud <frenaud@redhat.com>
+---
+ install/tools/ipa-ca-install | 2 +-
+ ipaplatform/base/paths.py    | 1 -
+ 2 files changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/install/tools/ipa-ca-install b/install/tools/ipa-ca-install
+index ed685920cbadb9cd3fc80865afb1610ca42f8b13..985e7413aa06900976934c329757ce45da5ff12d 100755
+--- a/install/tools/ipa-ca-install
++++ b/install/tools/ipa-ca-install
+@@ -285,7 +285,7 @@ def main():
+             cainstance.is_ca_installed_locally()):
+         sys.exit("CA is already installed on this host.")
+ 
+-    standard_logging_setup(paths.IPASERVER_CA_INSTALL_LOG, debug=options.debug)
++    standard_logging_setup(log_file_name, debug=options.debug)
+     root_logger.debug("%s was invoked with options: %s,%s",
+                       sys.argv[0], safe_options, filename)
+     root_logger.debug("IPA version %s", version.VENDOR_VERSION)
+diff --git a/ipaplatform/base/paths.py b/ipaplatform/base/paths.py
+index d6fbe32f6839a5db40148777132ba1454cbc3382..1507ac36da5b40447c951ee608053a09b2db2fc3 100644
+--- a/ipaplatform/base/paths.py
++++ b/ipaplatform/base/paths.py
+@@ -307,7 +307,6 @@ class BasePathNamespace(object):
+     IPAREPLICA_CONNCHECK_LOG = "/var/log/ipareplica-conncheck.log"
+     IPAREPLICA_INSTALL_LOG = "/var/log/ipareplica-install.log"
+     IPARESTORE_LOG = "/var/log/iparestore.log"
+-    IPASERVER_CA_INSTALL_LOG = "/var/log/ipaserver-ca-install.log"
+     IPASERVER_INSTALL_LOG = "/var/log/ipaserver-install.log"
+     IPASERVER_KRA_INSTALL_LOG = "/var/log/ipaserver-kra-install.log"
+     IPASERVER_KRA_UNINSTALL_LOG = "/var/log/ipaserver-kra-uninstall.log"
+-- 
+2.7.4
+

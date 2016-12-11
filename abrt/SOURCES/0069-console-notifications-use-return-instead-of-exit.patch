@@ -1,0 +1,48 @@
+From 8482a75bf58d5e68f4c63746cb27433954f1d54a Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Thu, 9 Oct 2014 16:28:12 +0200
+Subject: [ABRT PATCH 69/69] console-notifications: use return instead of exit
+
+Thanks Ray Strode [halfline] <rstrode@redhat.com>
+
+Related to rhbz#1150169
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/cli/abrt-console-notification.sh | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cli/abrt-console-notification.sh b/src/cli/abrt-console-notification.sh
+index 849273c..38de7bb 100755
+--- a/src/cli/abrt-console-notification.sh
++++ b/src/cli/abrt-console-notification.sh
+@@ -1,13 +1,13 @@
+-# If shell is not connect to a terminal, exit immediately, because this script
++# If shell is not connect to a terminal, return immediately, because this script
+ # should print out ABRT's status and it is senseless to continue without
+ # terminal.
+-tty -s || exit 0
++tty -s || return 0
+ 
+ # If $HOME is not set, a non human user is logging in to shell but this script
+-# should provide information to human users, therefore exiting immediately
++# should provide information to human users, therefore returning immediately
+ # without showing the notification.
+ if [ -z "$HOME" ]; then
+-    exit 0
++    return 0
+ fi
+ 
+ if [ -z "$ABRT_DEBUG_LOG" ]; then
+@@ -19,7 +19,7 @@ SINCEFILE="$LPATHDIR/lastnotification"
+ 
+ if [ ! -f "$LPATHDIR" ]; then
+     # It might happen that user doesn't have write access on his home.
+-    mkdir -p "$LPATHDIR" >"$ABRT_DEBUG_LOG" 2>&1 || exit 0
++    mkdir -p "$LPATHDIR" >"$ABRT_DEBUG_LOG" 2>&1 || return 0
+ fi
+ 
+ TMPPATH=`mktemp --tmpdir="$LPATHDIR" lastnotification.XXXXXXXX 2> "$ABRT_DEBUG_LOG"`
+-- 
+1.8.3.1
+

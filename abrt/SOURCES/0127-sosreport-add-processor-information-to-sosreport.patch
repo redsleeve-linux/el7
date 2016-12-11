@@ -1,0 +1,27 @@
+From 472d45eaaae90263aa26172d4f1ec671b1d5f9c5 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Thu, 28 May 2015 11:40:08 +0200
+Subject: [PATCH] sosreport: add processor information to sosreport
+
+Related to rhbz#1221118
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/daemon/abrt_event.conf | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/daemon/abrt_event.conf b/src/daemon/abrt_event.conf
+index 54e1b3f..ec41653 100644
+--- a/src/daemon/abrt_event.conf
++++ b/src/daemon/abrt_event.conf
+@@ -76,6 +76,7 @@ EVENT=post-create
+                 --only=startup --only=yum --only=general --only=x11 \
+                 --only=cups --only=logs --only=grub2 --only=cron --only=pci \
+                 --only=auditd --only=selinux --only=lvm2 --only=sar \
++                --only=processor \
+                 >sosreport.log 2>&1 \
+         && {
+                 rm sosreport.log
+-- 
+2.4.3
+

@@ -1,0 +1,167 @@
+From 6e11121e7ec10cd63e6bbaa8e996b883e9fe1ac2 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Wed, 23 Mar 2016 17:11:56 +0100
+Subject: [PATCH] bugzilla: don't report private problem as comment
+
+Before this patch reporter-bugzilla ignored the Private report request
+and added a public comment to a duplicate bug because it was assumed
+that the duplicate comment cannot contain anything security sensitive.
+
+There are two problems with it. The assumption is invalid because the
+comment contains all one-line files including 'cmdline' and the reporter
+might added something private to the bug description.
+
+Bugzilla comments can be made private but not all users have rights to
+do so. On the contrary, all users can set a group to a bug report.
+Hence, this commit teaches reporter-bugzilla to ask the user if he/she
+wants to open a new, private bug report and immediately close it as a
+duplicate of the original or terminate the reporting. The tool will ask
+the question only if the users wants to open a private report and a
+duplicate bug report is found.
+
+Resolves: #1279453
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/plugins/reporter-bugzilla.c | 44 +++++++++++++++++++++++++++++++++++++++--
+ src/plugins/rhbz.c              | 23 +++++++++++++++++++++
+ src/plugins/rhbz.h              |  4 ++++
+ 3 files changed, 69 insertions(+), 2 deletions(-)
+
+diff --git a/src/plugins/reporter-bugzilla.c b/src/plugins/reporter-bugzilla.c
+index 941c91f..fbe7873 100644
+--- a/src/plugins/reporter-bugzilla.c
++++ b/src/plugins/reporter-bugzilla.c
+@@ -907,6 +907,7 @@ int main(int argc, char **argv)
+     unsigned opts = parse_opts(argc, argv, program_options, program_usage_string);
+     argv += optind;
+ 
++    load_global_configuration();
+     export_abrt_envvars(0);
+ 
+     map_string_t *settings = new_map_string();
+@@ -928,6 +929,8 @@ int main(int argc, char **argv)
+          */
+         /*free_map_string(settings);*/
+     }
++    /* either we got Bugzilla_CreatePrivate from settings or -g was specified on cmdline */
++    rhbz.b_create_private |= (opts & OPT_g);
+ 
+     log_notice("Initializing XML-RPC library");
+     xmlrpc_env env;
+@@ -1189,8 +1192,38 @@ int main(int argc, char **argv)
+             }
+         }
+ 
+-        if (existing_id < 0)
++        if (existing_id < 0 || rhbz.b_create_private)
+         {
++
++            if (existing_id >= 0)
++            {
++                char *msg = xasprintf(_(
++                "You have requested to make your data accessible only to a "
++                "specific group and this bug is a duplicate of bug: "
++                "%s/%u"
++                " "
++                "In case of bug duplicates a new comment is added to the "
++                "original bug report but access to the comments cannot be "
++                "restricted to a specific group."
++                " "
++                "Would you like to open a new bug report and close it as "
++                "DUPLICATE of the original one?"
++                " "
++                "Otherwise, the bug reporting procedure will be terminated."),
++                rhbz.b_bugzilla_url, existing_id);
++
++                int r = ask_yes_no(msg);
++                free(msg);
++
++                if (r == 0)
++                {
++                    log(_("Logging out"));
++                    rhbz_logout(client);
++
++                    exit(EXIT_CANCEL_BY_USER);
++                }
++            }
++
+             /* Create new bug */
+             log(_("Creating a new bug"));
+ 
+@@ -1205,7 +1238,7 @@ int main(int argc, char **argv)
+             int new_id = rhbz_new_bug(client,
+                     problem_data, rhbz.b_product, rhbz.b_product_version,
+                     summary, bzcomment,
+-                    (rhbz.b_create_private | (opts & OPT_g)), // either we got Bugzilla_CreatePrivate from settings or -g was specified on cmdline
++                    rhbz.b_create_private,
+                     rhbz.b_private_groups
+                     );
+             free(bzcomment);
+@@ -1241,6 +1274,13 @@ int main(int argc, char **argv)
+             bz = new_bug_info();
+             bz->bi_status = xstrdup("NEW");
+             bz->bi_id = new_id;
++
++            if (existing_id >= 0)
++            {
++                log(_("Closing bug %i as duplicate of bug %i"), new_id, existing_id);
++                rhbz_close_as_duplicate(client, new_id, existing_id, RHBZ_NOMAIL_NOTIFY);
++            }
++
+             goto log_out;
+         }
+ 
+diff --git a/src/plugins/rhbz.c b/src/plugins/rhbz.c
+index bad9ed4..a227c62 100644
+--- a/src/plugins/rhbz.c
++++ b/src/plugins/rhbz.c
+@@ -862,6 +862,29 @@ void rhbz_set_url(struct abrt_xmlrpc *ax, int bug_id, const char *url, int flags
+         xmlrpc_DECREF(result);
+ }
+ 
++void rhbz_close_as_duplicate(struct abrt_xmlrpc *ax, int bug_id,
++                        int duplicate_bug,
++                        int flags)
++{
++    func_entry();
++
++    const int nomail_notify = !!IS_NOMAIL_NOTIFY(flags);
++    xmlrpc_value *result = abrt_xmlrpc_call(ax, "Bug.update", "{s:i,s:s,s:s,s:i,s:i}",
++                              "ids", bug_id,
++                              "status", "CLOSED",
++                              "resolution", "DUPLICATE",
++                              "dupe_of", duplicate_bug,
++
++                /* Undocumented argument but it works with Red Hat Bugzilla version 4.2.4-7
++                 * and version 4.4.rc1.b02
++                 */
++                              "nomail", nomail_notify
++    );
++
++    if (result)
++        xmlrpc_DECREF(result);
++}
++
+ xmlrpc_value *rhbz_search_duphash(struct abrt_xmlrpc *ax,
+                         const char *product,
+                         const char *version,
+diff --git a/src/plugins/rhbz.h b/src/plugins/rhbz.h
+index 976d333..15e7699 100644
+--- a/src/plugins/rhbz.h
++++ b/src/plugins/rhbz.h
+@@ -74,6 +74,10 @@ void rhbz_add_comment(struct abrt_xmlrpc *ax, int bug_id, const char *comment,
+ 
+ void rhbz_set_url(struct abrt_xmlrpc *ax, int bug_id, const char *url, int flags);
+ 
++void rhbz_close_as_duplicate(struct abrt_xmlrpc *ax, int bug_id,
++                             int duplicate_bug,
++                             int flags);
++
+ void *rhbz_bug_read_item(const char *memb, xmlrpc_value *xml, int flags);
+ 
+ void rhbz_logout(struct abrt_xmlrpc *ax);
+-- 
+1.8.3.1
+

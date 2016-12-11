@@ -1,0 +1,151 @@
+From 71b1c4b5322051320574f4de113e139e8aeb4b89 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Tue, 4 Nov 2014 15:29:06 +0100
+Subject: [LIBREPORT PATCH 117/118] testsuite: do not expected ureport exiting
+ on rhsm cert errors
+
+Related #1140224
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ tests/Makefile.am |  2 +-
+ tests/ureport.at  | 66 +++++++++++++++++++++++++++++++++++++++++--------------
+ 2 files changed, 51 insertions(+), 17 deletions(-)
+
+diff --git a/tests/Makefile.am b/tests/Makefile.am
+index cda9375..1cfc206 100644
+--- a/tests/Makefile.am
++++ b/tests/Makefile.am
+@@ -49,7 +49,7 @@ TESTSUITE = $(srcdir)/testsuite
+ MAINTAINERCLEANFILES = Makefile.in $(TESTSUITE)
+ check_DATA = atconfig atlocal $(TESTSUITE)
+ DISTCLEANFILES = atconfig
+-EXTRA_DIST += atlocal.in conf
++EXTRA_DIST += atlocal.in conf ureport
+ 
+ atconfig: $(top_builddir)/config.status
+ 	(cd ${top_builddir} && ./config.status ${subdir}/atconfig)
+diff --git a/tests/ureport.at b/tests/ureport.at
+index 22d34e9..76e2f7a 100644
+--- a/tests/ureport.at
++++ b/tests/ureport.at
+@@ -339,12 +339,24 @@ void set_ureport_server_config(struct ureport_server_config *config,
+ 
+ void my_assert(const char *str1, const char *str2)
+ {
+-    if (str1 == NULL || str2 == NULL)
+-        assert( str1 == NULL && str2 == NULL );
+-    else
+-        assert(strcmp(str1, str2) == 0);
++    if (str1 == str2)
++        return;
+ 
+-    return;
++    if (str1 == NULL && str2 != NULL)
++    {
++        fprintf(stderr, "Assertion failed: NULL == '%s'\n", str2);
++        abort();
++    }
++    else if (str1 != NULL && str2 == NULL)
++    {
++        fprintf(stderr, "Assertion failed: '%s' == NULL\n", str1);
++        abort();
++    }
++    else if (strcmp(str1, str2) != 0)
++    {
++        fprintf(stderr, "Assertion failed: '%s' == '%s'\n", str1, str2);
++        abort();
++    }
+ }
+ 
+ void assert_ureport_server_config(struct ureport_server_config *config,
+@@ -365,8 +377,10 @@ void assert_ureport_server_config(struct ureport_server_config *config,
+     return;
+ }
+ 
+-int test_ureport_server_config_set_client_auth_exit_code(struct ureport_server_config *config,
+-                                                         const char *client_auth)
++int test_ureport_server_config_set_client_auth_exit_code_ext(struct ureport_server_config *config,
++                                                             const char *client_auth,
++                                                             const char *cert_file,
++                                                             const char *key_file)
+ {
+     ureport_server_config_init(config);
+ 
+@@ -380,6 +394,8 @@ int test_ureport_server_config_set_client_auth_exit_code(struct ureport_server_c
+     if (pid == 0)
+     {
+         ureport_server_config_set_client_auth(config, client_auth);
++        assert((cert_file == (void *)-1) || (cert_file == NULL && config->ur_client_cert == NULL) || (strcmp(cert_file, config->ur_client_cert) == 0));
++        assert((key_file == (void *)-1) || (key_file == NULL && config->ur_client_cert == NULL) || (strcmp(key_file, config->ur_client_key) == 0));
+         exit(0);
+     }
+     int status;
+@@ -390,6 +406,12 @@ int test_ureport_server_config_set_client_auth_exit_code(struct ureport_server_c
+     return status;
+ }
+ 
++int test_ureport_server_config_set_client_auth_exit_code(struct ureport_server_config *config,
++                                                         const char *client_auth)
++{
++    return test_ureport_server_config_set_client_auth_exit_code_ext(config, client_auth, (void *)-1, (void *)-1);
++}
++
+ int main(void)
+ {
+     g_verbose=3;
+@@ -418,8 +440,8 @@ int main(void)
+     assert(empty_cert_dir);
+     setenv("LIBREPORT_DEBUG_RHSMENT_PEM_DIR_PATH", empty_cert_dir, 1);
+ 
+-    int status = test_ureport_server_config_set_client_auth_exit_code(&config, "rhsm");
+-    assert(status != 0 && status != -1);
++    int status = test_ureport_server_config_set_client_auth_exit_code_ext(&config, "rhsm", NULL, NULL);
++    assert(status == 0);
+ 
+     assert(rmdir(empty_cert_dir) == 0);
+ 
+@@ -429,8 +451,8 @@ int main(void)
+ 
+     setenv("LIBREPORT_DEBUG_RHSMENT_PEM_DIR_PATH", TESTING_CERTS_INCORRECT_CONTENT_DIR_PATH, 1);
+ 
+-    status = test_ureport_server_config_set_client_auth_exit_code(&config, "rhsm");
+-    assert(status != 0 && status != -1);
++    status = test_ureport_server_config_set_client_auth_exit_code_ext(&config, "rhsm", NULL, NULL);
++    assert(status == 0);
+ 
+     /* client_auth == rhsm */
+     /* ur_url == NULL */
+@@ -548,12 +570,24 @@ AT_TESTFUN([ureport_server_config_set_basic_auth],
+ 
+ void my_assert(const char *str1, const char *str2)
+ {
+-    if (str1 == NULL || str2 == NULL)
+-        assert( str1 == NULL && str2 == NULL );
+-    else
+-        assert(strcmp(str1, str2) == 0);
++    if (str1 == str2)
++        return;
+ 
+-    return;
++    if (str1 == NULL && str2 != NULL)
++    {
++        fprintf(stderr, "Assertion failed: NULL == '%s'\n", str2);
++        abort();
++    }
++    else if (str1 != NULL && str2 == NULL)
++    {
++        fprintf(stderr, "Assertion failed: '%s' == NULL\n", str1);
++        abort();
++    }
++    else if (strcmp(str1, str2) != 0)
++    {
++        fprintf(stderr, "Assertion failed: '%s' == '%s'\n", str1, str2);
++        abort();
++    }
+ }
+ 
+ void assert_ureport_server_config(struct ureport_server_config *config,
+-- 
+1.8.3.1
+

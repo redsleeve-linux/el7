@@ -1,0 +1,31 @@
+From 4132b63a5e02b019826053a07b2be79c879c1f6e Mon Sep 17 00:00:00 2001
+From: Stanislav Laznicka <slaznick@redhat.com>
+Date: Mon, 11 Jul 2016 12:31:39 +0200
+Subject: [PATCH] Removed unused method parameter from migrate-ds
+
+An extra parameter on client side command override of migrate-ds output
+was causing errors.
+
+https://fedorahosted.org/freeipa/ticket/6034
+
+Reviewed-By: Martin Babinsky <mbabinsk@redhat.com>
+---
+ ipaclient/plugins/migration.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ipaclient/plugins/migration.py b/ipaclient/plugins/migration.py
+index 8ac5f66bf1440b245c1268cd97d5a3e0dc2e6226..cf8d461bfa144f1287ef36a231f553fd9cd102b3 100644
+--- a/ipaclient/plugins/migration.py
++++ b/ipaclient/plugins/migration.py
+@@ -50,7 +50,7 @@ can use their Kerberos accounts.''')
+                 option = option.clone_retype(option.name, File)
+             yield option
+ 
+-    def output_for_cli(self, textui, result, ldapuri, bindpw, **options):
++    def output_for_cli(self, textui, result, ldapuri, **options):
+         textui.print_name(self.name)
+         if not result['enabled']:
+             textui.print_plain(self.migration_disabled_msg)
+-- 
+2.4.3
+

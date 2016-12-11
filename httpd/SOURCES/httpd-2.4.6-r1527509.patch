@@ -1,0 +1,21 @@
+diff -Npru httpd-2.4.6.orig/modules/dav/main/mod_dav.c httpd-2.4.6/modules/dav/main/mod_dav.c
+--- httpd-2.4.6.orig/modules/dav/main/mod_dav.c 2015-06-24 12:24:47.920000000 -0400
++++ httpd-2.4.6/modules/dav/main/mod_dav.c      2015-06-24 12:27:19.706000000 -0400
+@@ -316,6 +316,8 @@ static int dav_error_response(request_re
+ {
+     r->status = status;
+ 
++    r->status_line = ap_get_status_line(status);
++
+     ap_set_content_type(r, "text/html; charset=ISO-8859-1");
+ 
+     /* begin the response now... */
+@@ -347,6 +349,8 @@ static int dav_error_response_tag(reques
+ {
+     r->status = err->status;
+ 
++    r->status_line = ap_get_status_line(err->status);
++
+     ap_set_content_type(r, DAV_XML_CONTENT_TYPE);
+ 
+     ap_rputs(DAV_XML_HEADER DEBUG_CR

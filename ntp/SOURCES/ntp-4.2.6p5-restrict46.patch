@@ -1,0 +1,12 @@
+diff -up ntp-4.2.6p5/ntpd/ntp_parser.y.restrict46 ntp-4.2.6p5/ntpd/ntp_parser.y
+--- ntp-4.2.6p5/ntpd/ntp_parser.y.restrict46	2015-12-03 18:14:32.378326330 +0100
++++ ntp-4.2.6p5/ntpd/ntp_parser.y	2015-12-03 18:21:08.369300132 +0100
+@@ -734,7 +734,7 @@ access_control_command
+ 					$4, 
+ 					ip_file->line_no));
+ 		}
+-	|	T_Restrict ip_address T_Mask ip_address ac_flag_list
++	|	T_Restrict address T_Mask ip_address ac_flag_list
+ 		{
+ 			enqueue(cfgt.restrict_opts,
+ 				create_restrict_node($2, $4, $5, ip_file->line_no));

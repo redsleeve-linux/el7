@@ -1,0 +1,31 @@
+--- ./redhat-rpm-config-9.1.0/macros.orig	2014-04-03 14:16:43.268991281 -0500
++++ ./redhat-rpm-config-9.1.0/macros	2014-04-03 14:16:49.720110279 -0500
+@@ -24,6 +24,10 @@
+ %_enable_debug_packages 1
+ %_include_minidebuginfo 1
+ 
++# Set to enforce patching libtool.m4 and associated configure files
++# to handle ppc64le.
++%_libtool_ppc64le_fix 1
++
+ #==============================================================================
+ # ---- configure and makeinstall.
+ #
+@@ -34,6 +36,7 @@
+   FFLAGS="${FFLAGS:-%optflags -I%_fmoddir}" ; export FFLAGS ; \
+   FCFLAGS="${FCFLAGS:-%optflags -I%_fmoddir}" ; export FCFLAGS ; \
+   LDFLAGS="${LDFLAGS:-%__global_ldflags}"; export LDFLAGS; \
++  [ "%_libtool_ppc64le_fix" == 1 ] && [ "%_arch" == ppc64le ] && /usr/lib/rpm/redhat/libtool-handle-ppc64le.sh ; \
+   for i in $(find . -name config.guess -o -name config.sub) ; do \
+       [ -f /usr/lib/rpm/redhat/$(basename $i) ] && %{__rm} -f $i && %{__cp} -fv /usr/lib/rpm/redhat/$(basename $i) $i ; \
+   done ; \
+--- ./redhat-rpm-config-9.1.0/rpmrc.orig	2014-04-07 14:11:22.818988723 -0700
++++ ./redhat-rpm-config-9.1.0/rpmrc	2014-04-07 14:16:50.407258196 -0700
+@@ -28,6 +28,7 @@
+ optflags: ppciseries %{__global_cflags} -m32
+ optflags: ppcpseries %{__global_cflags} -m32
+ optflags: ppc64 %{__global_cflags} -m64 -mcpu=power7 -mtune=power7
++optflags: ppc64le %{__global_cflags} -m64 -mcpu=power8 -mtune=power8
+ optflags: ppc64iseries %{__global_cflags} -m64
+ optflags: ppc64pseries %{__global_cflags} -m64
+ optflags: ppc8260 %{__global_cflags} -m32

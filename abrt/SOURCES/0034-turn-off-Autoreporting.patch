@@ -1,0 +1,28 @@
+From ff8acb9bb35ebcc0fc2541e245989afccc860671 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Mon, 10 Feb 2014 16:05:13 +0100
+Subject: [ABRT PATCH 34/34] turn off Autoreporting
+
+Closes rhbz#1051480
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/daemon/abrt.conf | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/daemon/abrt.conf b/src/daemon/abrt.conf
+index 403b93d..59d1831 100644
+--- a/src/daemon/abrt.conf
++++ b/src/daemon/abrt.conf
+@@ -34,7 +34,7 @@ AutoreportingEvent = report_uReport
+ 
+ # Enables automatic running of the event configured in AutoreportingEvent option.
+ #
+-AutoreportingEnabled = yes
++AutoreportingEnabled = no
+ 
+ # Enables shortened GUI reporting where the reporting is interrupted after
+ # AutoreportingEvent is done.
+-- 
+1.8.3.1
+

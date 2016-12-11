@@ -1,0 +1,47 @@
+From a10a6e9bbe8d53ffe661c180c6e75a4004d5f881 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Mon, 17 Mar 2014 10:37:58 +0100
+Subject: [LIBREPORT PATCH 40/93] report-gtk: confirm the ask dialogs on
+ 'Enter'
+
+This commit adds a convinient way of closing an ask dialog. If user
+enters some text, hitting 'Enter' key closes the dialog. Closing the
+dialog with empty input text is not allowed because it is simmilar to
+clicking 'Cancel' button.
+
+Related to rhbz#1067123
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/gui-wizard-gtk/wizard.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/src/gui-wizard-gtk/wizard.c b/src/gui-wizard-gtk/wizard.c
+index 32e95c0..f8df31a 100644
+--- a/src/gui-wizard-gtk/wizard.c
++++ b/src/gui-wizard-gtk/wizard.c
+@@ -1608,6 +1608,13 @@ static void run_event_gtk_alert(const char *msg, void *args)
+     log_request_response_communication(msg, NULL, (struct analyze_event_data *)args);
+ }
+ 
++static void gtk_entry_emit_dialog_response_ok(GtkEntry *entry, GtkDialog *dialog)
++{
++    /* Don't close the dialogue if the entry is empty */
++    if (gtk_entry_get_text_length(entry) > 0)
++        gtk_dialog_response(dialog, GTK_RESPONSE_OK);
++}
++
+ static char *ask_helper(const char *msg, void *args, bool password)
+ {
+     GtkWidget *dialog = gtk_message_dialog_new(GTK_WINDOW(g_wnd_assistant),
+@@ -1626,6 +1633,7 @@ static char *ask_helper(const char *msg, void *args, bool password)
+      * g_object_set
+      */
+     g_object_set(G_OBJECT(textbox), "editable", TRUE, NULL);
++    g_signal_connect(textbox, "activate", G_CALLBACK(gtk_entry_emit_dialog_response_ok), dialog);
+ 
+     if (password)
+         gtk_entry_set_visibility(GTK_ENTRY(textbox), FALSE);
+-- 
+1.8.3.1
+

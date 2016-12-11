@@ -1,0 +1,64 @@
+From 0e84b466b067c9db945de3ca08780e67148a20eb Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Wed, 8 Jan 2014 20:54:48 +0100
+Subject: [ABRT PATCH 6/6] post_report: always exit silenty
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/plugins/ccpp_event.conf   | 1 +
+ src/plugins/koops_event.conf  | 1 +
+ src/plugins/python_event.conf | 1 +
+ src/plugins/vmcore_event.conf | 1 +
+ 4 files changed, 4 insertions(+)
+
+diff --git a/src/plugins/ccpp_event.conf b/src/plugins/ccpp_event.conf
+index 79b9a8a..ccc9e83 100644
+--- a/src/plugins/ccpp_event.conf
++++ b/src/plugins/ccpp_event.conf
+@@ -95,6 +95,7 @@ EVENT=report_uReport analyzer=CCpp
+ # update ABRT database after successful report to bugzilla
+ EVENT=post_report analyzer=CCpp
+         reporter-ureport -A -B
++        exit 0
+ 
+ EVENT=analyze_CCpp analyzer=CCpp
+         abrt-action-perform-ccpp-analysis
+diff --git a/src/plugins/koops_event.conf b/src/plugins/koops_event.conf
+index 278d2a7..c0277c8 100644
+--- a/src/plugins/koops_event.conf
++++ b/src/plugins/koops_event.conf
+@@ -27,6 +27,7 @@ EVENT=report_uReport analyzer=Kerneloops
+ # Update ABRT database after successful report to bugzilla
+ EVENT=post_report analyzer=Kerneloops
+         reporter-ureport -A -B
++        exit 0
+ 
+ # Automatic/simple GUI-based kernel oopses reporting will do this:
+ EVENT=report-gui analyzer=Kerneloops
+diff --git a/src/plugins/python_event.conf b/src/plugins/python_event.conf
+index d872dfc..6a58252 100644
+--- a/src/plugins/python_event.conf
++++ b/src/plugins/python_event.conf
+@@ -23,6 +23,7 @@ EVENT=report_uReport analyzer=Python
+ # update ABRT database after successful report to bugzilla
+ EVENT=post_report analyzer=Python
+         reporter-ureport -A -B
++        exit 0
+ 
+ # Reporting of python exceptions
+ EVENT=report-gui analyzer=Python component!=anaconda
+diff --git a/src/plugins/vmcore_event.conf b/src/plugins/vmcore_event.conf
+index 04eb3db..f8de3c5 100644
+--- a/src/plugins/vmcore_event.conf
++++ b/src/plugins/vmcore_event.conf
+@@ -22,6 +22,7 @@ EVENT=report_Bugzilla analyzer=vmcore
+ # update ABRT database after successful report to bugzilla
+ EVENT=post_report analyzer=vmcore
+         reporter-ureport -A -B
++        exit 0
+ 
+ # Send micro report
+ EVENT=report_uReport analyzer=vmcore
+-- 
+1.8.3.1
+

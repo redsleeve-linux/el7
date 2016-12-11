@@ -1,0 +1,37 @@
+From 7e2a0632429559b88f367ec618f350330668e4ba Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Thu, 18 Dec 2014 23:56:15 +0100
+Subject: [LIBREPORT PATCH 121/124] lib: make config files loading quiter
+
+Related: #1140224, #1174833
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/lib/configuration_files.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib/configuration_files.c b/src/lib/configuration_files.c
+index 146ee4c..bc1852e 100644
+--- a/src/lib/configuration_files.c
++++ b/src/lib/configuration_files.c
+@@ -254,7 +254,7 @@ static bool internal_aug_get_all_option_names(augeas *aug, const char *real_path
+     }
+ 
+     /* The file is empty or contains only comments and new lines */
+-    log_notice("Configuration file '%s' contains no option", real_path);
++    log_info("Configuration file '%s' contains no option", real_path);
+     return true;
+ }
+ 
+@@ -297,7 +297,7 @@ bool load_conf_file(const char *path, map_string_t *settings, bool skipKeysWitho
+             goto cleanup;
+         }
+ 
+-        log_notice("Loaded option '%s' = '%s'", option, value);
++        log_info("Loaded option '%s' = '%s'", option, value);
+ 
+         if (!skipKeysWithoutValue || value[0] != '\0')
+             replace_map_string_item(settings, xstrdup(option), xstrdup(value));
+-- 
+1.8.3.1
+

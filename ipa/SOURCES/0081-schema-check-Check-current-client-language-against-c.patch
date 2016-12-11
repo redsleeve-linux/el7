@@ -1,0 +1,57 @@
+From 70430cf0c22ab28a145de775aee343b3605c798a Mon Sep 17 00:00:00 2001
+From: David Kupka <dkupka@redhat.com>
+Date: Tue, 16 Aug 2016 15:36:07 +0200
+Subject: [PATCH] schema check: Check current client language against cached
+ one
+
+https://fedorahosted.org/freeipa/ticket/6204
+
+Reviewed-By: Jan Cholasta <jcholast@redhat.com>
+---
+ ipaclient/remote_plugins/schema.py | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/ipaclient/remote_plugins/schema.py b/ipaclient/remote_plugins/schema.py
+index e8b3f61bd8460c60630e8710028da79654819bd1..6fc70bf4b294badedd651e15b7e403cc40619f5c 100644
+--- a/ipaclient/remote_plugins/schema.py
++++ b/ipaclient/remote_plugins/schema.py
+@@ -7,6 +7,7 @@ import contextlib
+ import errno
+ import fcntl
+ import json
++import locale
+ import os
+ import sys
+ import time
+@@ -440,14 +441,19 @@ class Schema(object):
+             self._dict[ns] = {}
+             self._namespaces[ns] = _SchemaNameSpace(self, ns)
+ 
++        self._language = (
++            locale.setlocale(locale.LC_ALL, '').split('.')[0].lower()
++        )
+         try:
+             self._fingerprint = server_info['fingerprint']
+             self._expiration = server_info['expiration']
++            language = server_info['language']
+         except KeyError:
+             is_known = False
+         else:
+             is_known = (not api.env.force_schema_check and
+-                        self._expiration > time.time())
++                        self._expiration > time.time() and
++                        self._language == language)
+ 
+         if is_known:
+             try:
+@@ -470,6 +476,7 @@ class Schema(object):
+ 
+         server_info['fingerprint'] = self._fingerprint
+         server_info['expiration'] = self._expiration
++        server_info['language'] = self._language
+ 
+     @contextlib.contextmanager
+     def _open(self, filename, mode):
+-- 
+2.7.4
+

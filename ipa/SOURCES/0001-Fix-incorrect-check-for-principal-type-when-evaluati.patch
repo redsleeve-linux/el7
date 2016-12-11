@@ -1,0 +1,34 @@
+From 808772d7426dae6924c62ca327116c3152729a8e Mon Sep 17 00:00:00 2001
+From: Martin Babinsky <mbabinsk@redhat.com>
+Date: Fri, 1 Jul 2016 11:55:47 +0200
+Subject: [PATCH] Fix incorrect check for principal type when evaluating CA
+ ACLs
+
+This error prevented hosts to request certificates for themselves.
+
+https://fedorahosted.org/freeipa/ticket/3864
+
+Reviewed-By: Petr Spacek <pspacek@redhat.com>
+---
+ ipaserver/plugins/caacl.py | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/ipaserver/plugins/caacl.py b/ipaserver/plugins/caacl.py
+index 3f813a7efb9e554abcb8dd2946eea73065c93414..9a60f7e27809c4f41b160647efafde94dbe90bf0 100644
+--- a/ipaserver/plugins/caacl.py
++++ b/ipaserver/plugins/caacl.py
+@@ -64,8 +64,10 @@ def _acl_make_request(principal_type, principal, ca_id, profile_id):
+     req = pyhbac.HbacRequest()
+     req.targethost.name = ca_id
+     req.service.name = profile_id
+-    if principal_type == 'user' or principal_type == 'host':
++    if principal_type == 'user':
+         req.user.name = principal.username
++    elif principal_type == 'host':
++        req.user.name = principal.hostname
+     elif principal_type == 'service':
+         req.user.name = unicode(principal)
+     groups = []
+-- 
+2.9.0
+

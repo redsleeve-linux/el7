@@ -1,0 +1,46 @@
+From 57ef3de7bed1dbe3028e9589063b7ee2a373630d Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Fri, 12 Sep 2014 16:09:06 +0200
+Subject: [LIBREPORT PATCH 66/93] testsuite: add test for strremovech(str, ch)
+
+Related to rhbz#1140224
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ tests/strbuf.at | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)
+
+diff --git a/tests/strbuf.at b/tests/strbuf.at
+index 9f1d6ef..a548044 100644
+--- a/tests/strbuf.at
++++ b/tests/strbuf.at
+@@ -71,3 +71,26 @@ int main(void)
+   return 0;
+ }
+ ]])
++
++
++## ----------- ##
++## strremovech ##
++## ----------- ##
++
++AT_TESTFUN([strremovech],
++[[
++#include "internal_libreport.h"
++#include <assert.h>
++int main(void)
++{
++    char test[] = "Hello , world!";
++
++    if (strcmp(strremovech(test, ' '), "Hello,world!") != 0)
++    {
++        fprintf(stderr, "Expected: 'Hello,world!'\nResult  : '%s'", test);
++        assert(!"Failed to remove space");
++    }
++
++    return 0;
++}
++]])
+-- 
+1.8.3.1
+

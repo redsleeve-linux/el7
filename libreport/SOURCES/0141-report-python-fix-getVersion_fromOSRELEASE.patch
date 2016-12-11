@@ -1,0 +1,154 @@
+From c25b7bd7a28a093284d7ffe41db3ede51542439c Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Wed, 4 Mar 2015 11:38:45 +0100
+Subject: [PATCH] report-python: fix getVersion_fromOSRELEASE
+
+Related to rhbz#1198551
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/report-python/__init__.py |  5 +++-
+ tests/osinfo.at               | 24 +++++++--------
+ tests/report_python.at        | 68 +++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 84 insertions(+), 13 deletions(-)
+
+diff --git a/src/report-python/__init__.py b/src/report-python/__init__.py
+index b0ba497..e2716a5 100644
+--- a/src/report-python/__init__.py
++++ b/src/report-python/__init__.py
+@@ -33,7 +33,7 @@ SYSTEM_RELEASE_PATHS = ["/etc/system-release","/etc/redhat-release"]
+ SYSTEM_RELEASE_DEPS = ["system-release", "redhat-release"]
+ SYSTEM_OS_RELEASE_FILE = "/etc/os-release"
+ OS_RELEASE_PRODUCT_FIELDS = ["REDHAT_BUGZILLA_PRODUCT", "REDHAT_SUPPORT_PRODUCT", "NAME"]
+-OS_RELEASE_VERSION_FIELDS = ["REDHAT_BUGZILLA_VERSION", "REDHAT_SUPPORT_VERSION", "NAME"]
++OS_RELEASE_VERSION_FIELDS = ["REDHAT_BUGZILLA_PRODUCT_VERSION", "REDHAT_SUPPORT_PRODUCT_VERSION", "VERSION_ID"]
+ 
+ _hardcoded_default_product = ""
+ _hardcoded_default_version = ""
+@@ -72,6 +72,9 @@ def parse_os_release_lines(osreleaselines):
+     osrel = {}
+ 
+     for line in osreleaselines:
++        if line.endswith("\n"):
++            line = line[:-1]
++
+         kvp = line.split('=')
+         if len(kvp) < 2:
+             continue
+diff --git a/tests/osinfo.at b/tests/osinfo.at
+index 868a9a2..6ece180 100644
+--- a/tests/osinfo.at
++++ b/tests/osinfo.at
+@@ -408,18 +408,18 @@ report = __import__("report-python", globals(), locals(), [], -1)
+ sys.modules["report"] = report
+ 
+ lines = [
+-    'NAME=fedora',
+-    'VERSION="20 (Heisenbug)"',
+-    'ID=fedora',
+-    'VERSION_ID=20',
+-    'PRETTY_NAME="Fedora 20 (Heisenbug)"',
+-    'ANSI_COLOR="0;34"',
+-    'CPE_NAME="cpe:/o:fedoraproject:fedora:20"',
+-    'HOME_URL="https://fedoraproject.org/"',
+-    'BUG_REPORT_URL="https://bugzilla.redhat.com/"',
+-    'REDHAT_BUGZILLA_PRODUCT="Fedora"',
+-    'REDHAT_BUGZILLA_PRODUCT_VERSION=20',
+-    'REDHAT_SUPPORT_PRODUCT="Fedora"',
++    'NAME=fedora\n',
++    'VERSION="20 (Heisenbug)"\n',
++    'ID=fedora\n',
++    'VERSION_ID=20\n',
++    'PRETTY_NAME="Fedora 20 (Heisenbug)"\n',
++    'ANSI_COLOR="0;34"\n',
++    'CPE_NAME="cpe:/o:fedoraproject:fedora:20"\n',
++    'HOME_URL="https://fedoraproject.org/"\n',
++    'BUG_REPORT_URL="https://bugzilla.redhat.com/"\n',
++    'REDHAT_BUGZILLA_PRODUCT="Fedora"\n',
++    'REDHAT_BUGZILLA_PRODUCT_VERSION=20\n',
++    'REDHAT_SUPPORT_PRODUCT="Fedora"\n',
+     'REDHAT_SUPPORT_PRODUCT_VERSION=20',
+ ]
+ 
+diff --git a/tests/report_python.at b/tests/report_python.at
+index 5569b1f..a05498c 100644
+--- a/tests/report_python.at
++++ b/tests/report_python.at
+@@ -2,6 +2,74 @@
+ 
+ AT_BANNER([report_python])
+ 
++## ------------------------- ##
++## arbitrary_etc_os_releases ##
++## ------------------------- ##
++
++AT_PYTESTFUN([arbitrary_etc_os_releases],
++[[import sys
++import tempfile
++import os
++
++sys.path.insert(0, "../../../src/report-python")
++sys.path.insert(0, "../../../src/report-python/.libs")
++
++report = __import__("report-python", globals(), locals(), [], -1)
++sys.modules["report"] = report
++
++
++PRODUCT_TEST_CASES = [
++    ("REDHAT_BUGZILLA_PRODUCT", "bugzilla-product"),
++    ("REDHAT_SUPPORT_PRODUCT", "support-product"),
++    ("NAME", "os-name")
++]
++
++VERSION_TEST_CASES = [
++    ("REDHAT_BUGZILLA_PRODUCT_VERSION", "bugzilla-product-version"),
++    ("REDHAT_SUPPORT_PRODUCT_VERSION", "support-product-version"),
++    ("VERSION_ID", "os-version-id")
++]
++
++def run_test(fields, getter, expected):
++    retval = True
++
++    osrelf = tempfile.NamedTemporaryFile(delete=False)
++    osrelf.write("ID=\"field-id\"\n")
++
++    for (field, value) in fields:
++        osrelf.write("%s=%s\n" %(field, value))
++
++    osrelf.write("PRETTY_NAME=\"field-pretty-name\"\n")
++    osrelf.close()
++
++    result = getter(file_path=osrelf.name)
++    if result != expected:
++        print("expected: '%s'" % (expected))
++        print("result  : '%s'" % (result))
++        retval = False
++
++    os.remove(osrelf.name)
++    return retval
++
++
++def verify_information_type(test_cases, stuffing, getter):
++    retval = 0
++    for i in xrange(0, len(test_cases)):
++        for j in xrange(len(test_cases), i, -1):
++            if not run_test(stuffing + test_cases[i:j], getter, test_cases[i][1]):
++                print("field   : '%s'" % (test_cases[i][0]))
++                retval += 1
++
++
++def main():
++    verify_information_type(PRODUCT_TEST_CASES, VERSION_TEST_CASES, report.getProduct_fromOSRELEASE)
++    verify_information_type(VERSION_TEST_CASES, PRODUCT_TEST_CASES, report.getVersion_fromOSRELEASE)
++
++
++if __name__ == "__main__":
++    sys.exit(main())
++]])
++
+ ## ----------------------- ##
+ ## get_from_etc_os_release ##
+ ## ----------------------- ##
+-- 
+2.4.3
+

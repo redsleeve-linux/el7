@@ -1,0 +1,116 @@
+From 7fc5bd1851d9b1b3f18eb8037432edbd7f7b7e66 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Wed, 8 Jul 2015 14:16:39 +0200
+Subject: [PATCH] cli: enable authetication for all commands
+
+I forgot to test the info, rm and status commands when I was working on
+commit cb770e507f247476651b84ebbef63a5cd4c41d11 and later on I found out
+that these commands must be updated to work with the system problems.
+
+Related: #1224984
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/cli/list.c   |  2 +-
+ src/cli/rm.c     | 41 ++++++++++++++++++++++++++++-------------
+ src/cli/status.c |  3 ++-
+ 3 files changed, 31 insertions(+), 15 deletions(-)
+
+diff --git a/src/cli/list.c b/src/cli/list.c
+index 483e9de..909d36d 100644
+--- a/src/cli/list.c
++++ b/src/cli/list.c
+@@ -35,7 +35,7 @@ static problem_data_t *load_problem_data(const char *problem_id)
+     char *name2 = NULL;
+ 
+     /* First, check if there is a problem with the passed id */
+-    GList *problems = get_problems_over_dbus(/*don't authorize*/false);
++    GList *problems = get_problems_over_dbus(g_cli_authenticate);
+     GList *item = g_list_find_custom(problems, problem_id, (GCompareFunc)strcmp);
+ 
+     /* (git requires at least 5 char hash prefix, we do the same) */
+diff --git a/src/cli/rm.c b/src/cli/rm.c
+index fe458ff..37d50e2 100644
+--- a/src/cli/rm.c
++++ b/src/cli/rm.c
+@@ -19,12 +19,39 @@
+ 
+ #include "libabrt.h"
+ #include "builtin-cmd.h"
++#include "abrt-cli-core.h"
+ 
+ /* TODO npajkovs:
+  *   add -n, --dry-run
+  *   add -q, --quite
+  */
+ 
++static int remove_using_dbus(const char **dirs_strv)
++{
++    GList *dirs = NULL;
++    while (*dirs_strv)
++        dirs = g_list_prepend(dirs, (void *)*dirs_strv++);
++    const int ret = delete_problem_dirs_over_dbus(dirs);
++    g_list_free(dirs);
++    return ret;
++}
++
++static int remove_using_abrtd_or_fs(const char **dirs_strv)
++{
++    int errs = 0;
++    while (*dirs_strv)
++    {
++        int status;
++        const char *rm_dir = *dirs_strv++;
++        status = delete_dump_dir_possibly_using_abrtd(rm_dir);
++        if (!status)
++            log("rm '%s'", rm_dir);
++        else
++            errs++;
++    }
++    return errs;
++}
++
+ int cmd_remove(int argc, const char **argv)
+ {
+     const char *program_usage_string = _(
+@@ -42,17 +69,5 @@ int cmd_remove(int argc, const char **argv)
+     if (!argv[0])
+         show_usage_and_die(program_usage_string, program_options);
+ 
+-    int errs = 0;
+-    while (*argv)
+-    {
+-        int status;
+-        const char *rm_dir = *argv++;
+-        status = delete_dump_dir_possibly_using_abrtd(rm_dir);
+-        if (!status)
+-            log("rm '%s'", rm_dir);
+-        else
+-            errs++;
+-    }
+-
+-    return errs;
++    return (g_cli_authenticate ? remove_using_dbus : remove_using_abrtd_or_fs)(argv);
+ }
+diff --git a/src/cli/status.c b/src/cli/status.c
+index a65ba05..0635289 100644
+--- a/src/cli/status.c
++++ b/src/cli/status.c
+@@ -20,12 +20,13 @@
+ #include <unistd.h>
+ #include <sys/types.h>
+ #include "problem_api.h"
++#include "abrt-cli-core.h"
+ 
+ static unsigned int count_problem_dirs(unsigned long since)
+ {
+     unsigned count = 0;
+ 
+-    GList *problems = get_problems_over_dbus(/*don't authorize*/false);
++    GList *problems = get_problems_over_dbus(g_cli_authenticate);
+     for (GList *iter = problems; iter != NULL; iter = g_list_next(iter))
+     {
+         const char *problem_id = (const char *)iter->data;
+-- 
+2.4.3
+

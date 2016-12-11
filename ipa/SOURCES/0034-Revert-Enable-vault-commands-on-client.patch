@@ -1,0 +1,65 @@
+From 872e67c0121250dd41e2d6953810582f1e5dda27 Mon Sep 17 00:00:00 2001
+From: Jan Cholasta <jcholast@redhat.com>
+Date: Mon, 25 Jul 2016 14:00:08 +0200
+Subject: [PATCH] Revert "Enable vault-* commands on client"
+
+This reverts commit 9feeaca9fb552229638ce98086aa75905a45b48d.
+
+https://fedorahosted.org/freeipa/ticket/6089
+
+Reviewed-By: Florence Blanc-Renaud <flo@redhat.com>
+---
+ ipaclient/plugins/vault.py | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/ipaclient/plugins/vault.py b/ipaclient/plugins/vault.py
+index a3ce6fecbfd38b342f826d8d27940d991d821e90..b7e0cfffb2fff62fdbbf438964d124fc2dd8ac36 100644
+--- a/ipaclient/plugins/vault.py
++++ b/ipaclient/plugins/vault.py
+@@ -202,6 +202,10 @@ class vault_add(Local):
+         ),
+     )
+ 
++    @property
++    def NO_CLI(self):
++        return self.api.Command.vault_add_internal.NO_CLI
++
+     def get_args(self):
+         for arg in self.api.Command.vault_add_internal.args():
+             yield arg
+@@ -395,6 +399,10 @@ class vault_mod(Local):
+         ),
+     )
+ 
++    @property
++    def NO_CLI(self):
++        return self.api.Command.vault_mod_internal.NO_CLI
++
+     def get_args(self):
+         for arg in self.api.Command.vault_mod_internal.args():
+             yield arg
+@@ -569,6 +577,10 @@ class vault_archive(Local):
+         ),
+     )
+ 
++    @property
++    def NO_CLI(self):
++        return self.api.Command.vault_archive_internal.NO_CLI
++
+     def get_args(self):
+         for arg in self.api.Command.vault_archive_internal.args():
+             yield arg
+@@ -813,6 +825,10 @@ class vault_retrieve(Local):
+         ),
+     )
+ 
++    @property
++    def NO_CLI(self):
++        return self.api.Command.vault_retrieve_internal.NO_CLI
++
+     def get_args(self):
+         for arg in self.api.Command.vault_retrieve_internal.args():
+             yield arg
+-- 
+2.7.4
+

@@ -1,0 +1,18 @@
+commit 5f0420ad1ee3528bf83a28ea54c51af2b09ecfa5
+Author:  <harlan@hms-mbp11.local>
+Date:   Mon Nov 19 20:17:35 2012 -0800
+
+    [Bug 2246] Clear sys_leap when voting says to disarm the leap
+
+diff --git a/ntpd/ntp_proto.c b/ntpd/ntp_proto.c
+index 1259d52..397a80f 100644
+--- a/ntpd/ntp_proto.c
++++ b/ntpd/ntp_proto.c
+@@ -1948,6 +1948,7 @@ clock_update(
+ 		} else if (leapsec > 0) {
+ 			report_event(EVNT_DISARMED, NULL, NULL);
+ 			leapsec = 0;
++			sys_leap = LEAP_NOWARNING;
+ 		}
+ 		break;
+ 

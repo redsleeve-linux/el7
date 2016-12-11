@@ -1,0 +1,131 @@
+From fcdd55f0dd8fb7ffbf1bfaf3f701a0ffa005bf00 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Tue, 24 Mar 2015 20:54:40 +0100
+Subject: [PATCH] libabrt: add wrappers TestElemeExists and GetInfo for one
+ element
+
+To conveniently use the DBus methods.
+
+Related: #1224984
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/include/libabrt.h      | 18 +++++++++++
+ src/lib/problem_api_dbus.c | 75 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 93 insertions(+)
+
+diff --git a/src/include/libabrt.h b/src/include/libabrt.h
+index 6a51c80..5d74aa3 100644
+--- a/src/include/libabrt.h
++++ b/src/include/libabrt.h
+@@ -140,6 +140,24 @@ void koops_print_suspicious_strings_filtered(const regex_t **filterout);
+ int chown_dir_over_dbus(const char *problem_dir_path);
+ 
+ /**
++  @brief Checks whether the given element name exists
++
++  Might require authorization
++
++  @return Positive number if such an element exist, 0 if doesn't and negative number if an error occurs.
++ */
++int test_exist_over_dbus(const char *problem_id, const char *element_name);
++
++/**
++  @ Returns value of the given element name
++
++  Might require authorization
++
++  @return malloced string or NULL if no such an element exists; ERR_PTR in case of any error.
++ */
++char *load_text_over_dbus(const char *problem_id, const char *element_name);
++
++/**
+  @brief Delets multiple problems specified by their id (as returned from problem_data_save)
+ 
+  @param problem_dir_paths List of problem ids
+diff --git a/src/lib/problem_api_dbus.c b/src/lib/problem_api_dbus.c
+index 549175c..5148932 100644
+--- a/src/lib/problem_api_dbus.c
++++ b/src/lib/problem_api_dbus.c
+@@ -227,3 +227,78 @@ problem_data_t *get_full_problem_data_over_dbus(const char *problem_dir_path)
+ 
+     return pd;
+ }
++
++int test_exist_over_dbus(const char *problem_id, const char *element_name)
++{
++    INITIALIZE_LIBABRT();
++
++    GDBusProxy *proxy = get_dbus_proxy();
++    if (!proxy)
++        return -1;
++
++    GError *error = NULL;
++    GVariant *result = g_dbus_proxy_call_sync(proxy,
++                                            "TestElementExists",
++                                            g_variant_new("(ss)", problem_id, element_name),
++                                            G_DBUS_CALL_FLAGS_NONE,
++                                            -1,
++                                            NULL,
++                                            &error);
++
++    if (error)
++    {
++        error_msg(_("Can't test whether the element exists over abrt-dbus: %s"), error->message);
++        g_error_free(error);
++        return -1;
++    }
++
++    gboolean retval;
++    g_variant_get(result, "(b)", &retval);
++    g_variant_unref(result);
++
++    return retval;
++}
++
++char *load_text_over_dbus(const char *problem_id, const char *element_name)
++{
++    INITIALIZE_LIBABRT();
++
++    GDBusProxy *proxy = get_dbus_proxy();
++    if (!proxy)
++        return ERR_PTR;
++
++    GVariantBuilder *builder = g_variant_builder_new(G_VARIANT_TYPE("as"));
++    g_variant_builder_add(builder, "s", element_name);
++    GVariant *params = g_variant_new("(sas)", problem_id, builder);
++    g_variant_builder_unref(builder);
++
++    GError *error = NULL;
++    GVariant *result = g_dbus_proxy_call_sync(proxy,
++                                            "GetInfo",
++                                            params,
++                                            G_DBUS_CALL_FLAGS_NONE,
++                                            -1,
++                                            NULL,
++                                            &error);
++
++    if (error)
++    {
++        error_msg(_("Can't get problem data from abrt-dbus: %s"), error->message);
++        g_error_free(error);
++        return ERR_PTR;
++    }
++
++    GVariant *values = g_variant_get_child_value(result, 0);
++    g_variant_unref(result);
++
++    char *retval = NULL;
++    if (g_variant_n_children(values) == 1)
++    {
++        GVariant *contents = g_variant_get_child_value(values, 0);
++        gchar *key;
++        g_variant_get(contents, "{&ss}", &key, &retval);
++    }
++
++    g_variant_unref(values);
++    return retval;
++}
+-- 
+2.4.3
+

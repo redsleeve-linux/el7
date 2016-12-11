@@ -1,0 +1,35 @@
+From c5211c6542dd7168c2b63bd8f28051215a5dcc32 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Wed, 8 Jan 2014 20:49:58 +0100
+Subject: [ABRT PATCH 5/6] Enable sosreport
+
+Related to rhbz#1032585
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/daemon/abrt_event.conf | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/daemon/abrt_event.conf b/src/daemon/abrt_event.conf
+index a53001a..2aecb2a 100644
+--- a/src/daemon/abrt_event.conf
++++ b/src/daemon/abrt_event.conf
+@@ -67,12 +67,12 @@ EVENT=post-create runlevel=
+ # Example: if you want to save sosreport immediately at the moment of a crash:
+ # (alternatively, you can add similar command to EVENT=analyze_foo's,
+ # if you would rather perform this collection later):
+-#EVENT=post-create
++EVENT=post-create
+         nice sosreport --tmp-dir "$DUMP_DIR" --batch \
+-                --only=anaconda --only=bootloader --only=devicemapper \
++                --only=anaconda --only=boot --only=devicemapper \
+                 --only=filesys --only=hardware --only=kernel --only=libraries \
+                 --only=memory --only=networking --only=nfsserver --only=pam \
+-                --only=process --only=rpm -k rpm.rpmva=off --only=ssh \
++                --only=process --only=ssh \
+                 --only=startup --only=yum --only=general --only=x11 \
+                 >sosreport.log 2>&1 \
+         && {
+-- 
+1.8.3.1
+

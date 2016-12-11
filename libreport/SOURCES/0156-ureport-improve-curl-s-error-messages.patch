@@ -1,0 +1,47 @@
+From b3d0e0225d155744f5aece391db31644dd7bd83a Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Wed, 16 Sep 2015 14:44:31 +0200
+Subject: [PATCH] ureport: improve curl's error messages
+
+There were cases the 'post_state->errmsg' was empty and error message looks
+like "Failed to upload uReport to the server 'https://localhost:12345/faf' with
+curl:". This is kind of confusing because there is no information related to
+curl error part.  In the case the 'post_state->errmsg' is empty, error message
+without "with curl:" part will be printed. Also print information stored in
+'post_state->curl_error_msg', if is not empty.
+
+Now, in the case the 'post_state->errmsg' is empty, the error message may look
+like this:
+Failed to upload uReport to the server 'https://localhost:12345/faf'
+Error: curl_easy_perform: Problem with the SSL CA cert (path? access rights?)
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/lib/ureport.c | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/lib/ureport.c b/src/lib/ureport.c
+index 76bcc95..ebeaa8b 100644
+--- a/src/lib/ureport.c
++++ b/src/lib/ureport.c
+@@ -566,7 +566,16 @@ ureport_server_response_from_reply(post_state_t *post_state,
+      */
+     if (post_state->curl_result != CURLE_OK)
+     {
+-        error_msg(_("Failed to upload uReport to the server '%s' with curl: %s"), config->ur_url, post_state->errmsg);
++        if (post_state->errmsg != NULL && strcmp( post_state->errmsg, "") != 0)
++            error_msg(_("Failed to upload uReport to the server '%s' with curl: %s"),
++                                                                    config->ur_url,
++                                                                    post_state->errmsg);
++        else
++            error_msg(_("Failed to upload uReport to the server '%s'"), config->ur_url);
++
++        if (post_state->curl_error_msg != NULL && strcmp(post_state->curl_error_msg, "") != 0)
++            error_msg(_("Error: %s"), post_state->curl_error_msg);
++
+         return NULL;
+     }
+ 
+-- 
+2.4.3
+

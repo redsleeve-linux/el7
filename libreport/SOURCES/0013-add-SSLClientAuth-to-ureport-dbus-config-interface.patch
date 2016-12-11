@@ -1,0 +1,28 @@
+From b40bce3a493e9fa305d4aee38a2d176c39a26543 Mon Sep 17 00:00:00 2001
+From: Martin Milata <mmilata@redhat.com>
+Date: Mon, 20 Jan 2014 16:37:15 +0100
+Subject: [LIBREPORT PATCH 13/14] add SSLClientAuth to ureport dbus config
+ interface
+
+Related to rhbz#1053042.
+
+Signed-off-by: Martin Milata <mmilata@redhat.com>
+---
+ doc/plugins-dbus/com.redhat.problems.configuration.ureport.xml.in | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/doc/plugins-dbus/com.redhat.problems.configuration.ureport.xml.in b/doc/plugins-dbus/com.redhat.problems.configuration.ureport.xml.in
+index 58498c7..28c5fea 100644
+--- a/doc/plugins-dbus/com.redhat.problems.configuration.ureport.xml.in
++++ b/doc/plugins-dbus/com.redhat.problems.configuration.ureport.xml.in
+@@ -8,6 +8,7 @@
+     <interface name="com.redhat.problems.configuration.ureport">
+         <property name="URL" type="s" access="readwrite" />
+         <property name="SSLVerify" type="b" access="readwrite" />
++        <property name="SSLClientAuth" type="s" access="readwrite" />
+         <!-- <property name="ContactEmail" type="s" access="readwrite" /> -->
+     </interface>
+ </node>
+-- 
+1.8.3.1
+

@@ -1,0 +1,52 @@
+From 8750c84bbfef36ceeaac8e7c8e3b788c31f68317 Mon Sep 17 00:00:00 2001
+From: Martin Babinsky <mbabinsk@redhat.com>
+Date: Tue, 13 Sep 2016 15:40:04 +0200
+Subject: [PATCH] ipa passwd: use correct normalizer for user principals
+
+Commit c2af032c0333f7e210c54369159d1d9f5e3fec74 introduced a regression in the
+handling of user principals supplied to the`ipa passwd` command. This patch
+restores the original behavior which lowercases the username portion of the
+principal.
+
+https://fedorahosted.org/freeipa/ticket/6329
+
+Reviewed-By: Alexander Bokovoy <abokovoy@redhat.com>
+---
+ ipaserver/plugins/passwd.py | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/ipaserver/plugins/passwd.py b/ipaserver/plugins/passwd.py
+index 1576c4ca85cb761d2a124a932a26b371b9e87107..ebc41d90009d7145ada75f3cabe3c01c6d25f6ea 100644
+--- a/ipaserver/plugins/passwd.py
++++ b/ipaserver/plugins/passwd.py
+@@ -29,7 +29,8 @@ from ipalib.plugable import Registry
+ from ipalib.request import context
+ from ipapython import kerberos
+ from ipapython.dn import DN
+-from ipaserver.plugins.service import validate_realm, normalize_principal
++from ipaserver.plugins.baseuser import normalize_user_principal
++from ipaserver.plugins.service import validate_realm
+ 
+ if six.PY3:
+     unicode = str
+@@ -66,7 +67,7 @@ def get_current_password(principal):
+     be ignored later.
+     """
+     current_principal = krb_utils.get_principal()
+-    if current_principal == unicode(normalize_principal(principal)):
++    if current_principal == unicode(normalize_user_principal(principal)):
+         return None
+     else:
+         return MAGIC_VALUE
+@@ -84,7 +85,7 @@ class passwd(Command):
+             primary_key=True,
+             autofill=True,
+             default_from=lambda: kerberos.Principal(krb_utils.get_principal()),
+-            normalizer=lambda value: normalize_principal(value),
++            normalizer=lambda value: normalize_user_principal(value),
+         ),
+         Password('password',
+                  label=_('New Password'),
+-- 
+2.10.2
+

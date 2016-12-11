@@ -1,0 +1,394 @@
+From 387e6fd8c974cf0c6b96b075baa968f86d6ed96f Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Mon, 19 Oct 2015 14:07:40 +0200
+Subject: [PATCH] reported_to: add a function formatting reported_to lines
+
+Use this function to ensure consistent reported_to formatting.
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+
+Conflicts:
+	po/POTFILES.in
+---
+ po/POTFILES.in         |   1 +
+ src/include/dump_dir.h |  49 ++++++++++++++--
+ src/lib/dump_dir.c     |  12 ++++
+ src/lib/reported_to.c  |  55 +++++++++++++++---
+ tests/reported_to.at   | 148 ++++++++++++++++++++++++++++++++++++++++++++++++-
+ 5 files changed, 251 insertions(+), 14 deletions(-)
+
+diff --git a/po/POTFILES.in b/po/POTFILES.in
+index e952711..1222c95 100644
+--- a/po/POTFILES.in
++++ b/po/POTFILES.in
+@@ -25,6 +25,7 @@ src/lib/ureport.c
+ src/lib/make_descr.c
+ src/lib/parse_options.c
+ src/lib/problem_data.c
++src/lib/reported_to.c
+ src/lib/run_event.c
+ src/plugins/abrt_rh_support.c
+ src/plugins/report_Bugzilla.xml.in
+diff --git a/src/include/dump_dir.h b/src/include/dump_dir.h
+index 092ddeb..fff23f2 100644
+--- a/src/include/dump_dir.h
++++ b/src/include/dump_dir.h
+@@ -121,20 +121,57 @@ int dd_chown(struct dump_dir *dd, uid_t new_uid);
+ 
+ 
+ /* reported_to handling */
+-#define add_reported_to_data libreport_add_reported_to_data
+-int add_reported_to_data(char **reported_to, const char *line);
+-#define add_reported_to libreport_add_reported_to
+-void add_reported_to(struct dump_dir *dd, const char *line);
+ struct report_result {
+     char *label;
+     char *url;
+     char *msg;
+     char *bthash;
+-    /* char *whole_line; */
+-    /* time_t timestamp; */
++    time_t timestamp;
+     /* ^^^ if you add more fields, don't forget to update free_report_result() */
+ };
+ typedef struct report_result report_result_t;
++
++/* Appends a new unique line to the list of report results
++ *
++ * If the reported_to data already contains the given line, the line will not
++ * be added again.
++ *
++ * @param reported_to The data
++ * @param line The appended line
++ * @return 1 if the line was added at the end of the reported_to; otherwise 0.
++ */
++#define add_reported_to_data libreport_add_reported_to_data
++int add_reported_to_data(char **reported_to, const char *line);
++
++/* Appends a new unique entry to the list of report results
++ *
++ * result->label must be non-empty string which does not contain ':' character.
++ *
++ * The function converts the result to a valid reported_to line and calls
++ * add_reported_to_data().
++ *
++ * @param reported_to The data
++ * @param result The appended entry
++ * @return -EINVAL if result->label is invalid; otherwise return value of
++ * add_reported_to_data
++ */
++#define add_reported_to_entry_data libreport_add_reported_to_entry_data
++int add_reported_to_entry_data(char **reported_to, struct report_result *result);
++
++/* This is a wrapper of add_reported_to_data which accepts 'struct dump_dir *'
++ * in the first argument instead of 'char **'. The added line is stored in
++ * 'reported_to' dump directory file.
++ */
++#define add_reported_to libreport_add_reported_to
++void add_reported_to(struct dump_dir *dd, const char *line);
++
++/* This is a wrapper of add_reported_to_entry_data which accepts 'struct
++ * dump_dir *' in the first argument instead of 'char **'. The added entry is
++ * stored in 'reported_to' dump directory file.
++ */
++#define add_reported_to_entry libreport_add_reported_to_entry
++void add_reported_to_entry(struct dump_dir *dd, struct report_result *result);
++
+ #define free_report_result libreport_free_report_result
+ void free_report_result(struct report_result *result);
+ #define find_in_reported_to_data libreport_find_in_reported_to_data
+diff --git a/src/lib/dump_dir.c b/src/lib/dump_dir.c
+index a5cd93e..9b5b1b5 100644
+--- a/src/lib/dump_dir.c
++++ b/src/lib/dump_dir.c
+@@ -1306,6 +1306,18 @@ void add_reported_to(struct dump_dir *dd, const char *line)
+     free(reported_to);
+ }
+ 
++void add_reported_to_entry(struct dump_dir *dd, struct report_result *result)
++{
++    if (!dd->locked)
++        error_msg_and_die("dump_dir is not opened"); /* bug */
++
++    char *reported_to = dd_load_text_ext(dd, FILENAME_REPORTED_TO, DD_FAIL_QUIETLY_ENOENT | DD_LOAD_TEXT_RETURN_NULL_ON_FAILURE);
++    if (add_reported_to_entry_data(&reported_to, result))
++        dd_save_text(dd, FILENAME_REPORTED_TO, reported_to);
++
++    free(reported_to);
++}
++
+ report_result_t *find_in_reported_to(struct dump_dir *dd, const char *report_label)
+ {
+     char *reported_to = dd_load_text_ext(dd, FILENAME_REPORTED_TO,
+diff --git a/src/lib/reported_to.c b/src/lib/reported_to.c
+index bc0c2d2..3245ada 100644
+--- a/src/lib/reported_to.c
++++ b/src/lib/reported_to.c
+@@ -45,6 +45,45 @@ int add_reported_to_data(char **reported_to, const char *line)
+     return 1;
+ }
+ 
++int add_reported_to_entry_data(char **reported_to, struct report_result *result)
++{
++    if (NULL == result->label || result->label[0] == '\0')
++    {
++        log_warning(_("Report result label mustn't be empty string."));
++        return -EINVAL;
++    }
++
++    if (strchr(result->label, ':') != NULL)
++    {
++        log_warning(_("Report result label mustn't contain ':' character."));
++        return -EINVAL;
++    }
++
++    struct strbuf *buf = strbuf_new();
++    strbuf_append_strf(buf, "%s:", result->label);
++
++    if (result->timestamp != 0)
++    {
++        const char *const time = iso_date_string(&(result->timestamp));
++        strbuf_append_strf(buf, " TIME=%s", time);
++    }
++
++    if (result->url != NULL)
++        strbuf_append_strf(buf, " URL=%s", result->url);
++
++    if (result->bthash != NULL)
++        strbuf_append_strf(buf, " BTHASH=%s", result->bthash);
++
++    /* MSG must be last because the value is delimited by new line character */
++    if (result->msg != NULL)
++        strbuf_append_strf(buf, " MSG=%s", result->msg);
++
++    const int r = add_reported_to_data(reported_to, buf->buf);
++    strbuf_free(buf);
++
++    return r;
++}
++
+ void free_report_result(struct report_result *result)
+ {
+     if (!result)
+@@ -94,13 +133,15 @@ static report_result_t *parse_reported_line(const char *line, size_t label_len)
+             free(result->bthash);
+             result->bthash = xstrndup(line + 7, end - (line + 7));
+         }
+-        //else
+-        //if (strncmp(line, "TIME=", 5) == 0)
+-        //{
+-        //    free(result->time);
+-        //    result->time = foo(line + 5, end - (line + 5));
+-        //}
+-        //...
++        if (strncmp(line, "TIME=", 5) == 0)
++        {
++            char *datetime = xstrndup(line + 5, end - (line + 5));
++            const int r = iso_date_string_parse(datetime, &result->timestamp);
++            if (r != 0)
++                log_warning(_("Ignored invalid ISO date of report result '%s'"), result->label);
++
++            free(datetime);
++        }
+         line = end;
+         continue;
+     }
+diff --git a/tests/reported_to.at b/tests/reported_to.at
+index 42af44f..ecf323d 100644
+--- a/tests/reported_to.at
++++ b/tests/reported_to.at
+@@ -53,6 +53,138 @@ int main(void)
+ }
+ ]])
+ 
++
++## -------------------------- ##
++## add_reported_to_entry_data ##
++## -------------------------- ##
++
++AT_TESTFUN([add_reported_to_entry_data],
++[[
++#include "internal_libreport.h"
++#include <assert.h>
++
++bool string_cmp(const char *orig, const char *other)
++{
++    if (strcmp(orig, other) == 0)
++        return true;
++
++    printf("Exp: '%s'\nGot: '%s'\n", orig, other);
++    return false;
++}
++
++int main(void)
++{
++    g_verbose=3;
++
++    setenv("TZ", "", 1);
++    setenv("LC_ALL", "C", 1);
++
++    {
++        char *reported_to = NULL;
++        report_result_t result = {
++            .label = NULL,
++        };
++
++        assert(add_reported_to_entry_data(&reported_to, &result) == -EINVAL || !"0 string");
++    }
++
++    {
++        char *reported_to = NULL;
++        report_result_t result = {
++            .label = (char *)"",
++        };
++
++        assert(add_reported_to_entry_data(&reported_to, &result) == -EINVAL || !"Empty string");
++    }
++
++    {
++        char *reported_to = NULL;
++        report_result_t result = {
++            .label = (char *)"Fo:",
++        };
++
++        assert(add_reported_to_entry_data(&reported_to, &result) == -EINVAL || !"Contains :");
++    }
++
++    {
++        char *reported_to = NULL;
++        report_result_t result = {
++            .label = (char *)"Foo = blah",
++        };
++
++        assert(add_reported_to_entry_data(&reported_to, &result) || !"Label contains = and space");
++        assert(reported_to != NULL);
++        assert(string_cmp("Foo = blah:\n", reported_to));
++    }
++
++    {
++        char *reported_to = NULL;
++        report_result_t result = {
++            .label = (char *)"OnlyURL",
++            .url = (char *)"http://test1.com",
++        };
++
++        assert(add_reported_to_entry_data(&reported_to, &result) || !"Only URL");
++        assert(reported_to != NULL);
++        assert(string_cmp("OnlyURL: URL=http://test1.com\n", reported_to));
++    }
++
++    {
++        char *reported_to = NULL;
++        report_result_t result = {
++            .label = (char *)"OnlyBTHASH",
++            .bthash = (char *)"0123456789ABCDEF",
++        };
++
++        assert(add_reported_to_entry_data(&reported_to, &result) || !"Only BTHASH");
++        assert(reported_to != NULL);
++        assert(string_cmp("OnlyBTHASH: BTHASH=0123456789ABCDEF\n", reported_to));
++    }
++
++    {
++        char *reported_to = NULL;
++        report_result_t result = {
++            .label = (char *)"OnlyMSG",
++            .msg = (char *)"Message = foo : blah!",
++        };
++
++        assert(add_reported_to_entry_data(&reported_to, &result) || !"Only MSG");
++        assert(reported_to != NULL);
++        assert(string_cmp("OnlyMSG: MSG=Message = foo : blah!\n", reported_to));
++    }
++
++    {
++        char *reported_to = NULL;
++        report_result_t result = {
++            .label = (char *)"OnlyTIME",
++            /* 2000-01-01-00:00:00 */
++            .timestamp = 946684800,
++        };
++
++        assert(add_reported_to_entry_data(&reported_to, &result) || !"Only MSG");
++        assert(reported_to != NULL);
++        assert(string_cmp("OnlyTIME: TIME=2000-01-01-00:00:00\n", reported_to));
++    }
++
++    {
++        char *reported_to = NULL;
++        report_result_t result = {
++            .label = (char *)"Everything",
++            /* 2000-01-01-00:00:00 */
++            .timestamp = 946684800,
++            .url = (char *)"http://epic.win",
++            .bthash = (char *)"0123456789ABCDEF",
++            .msg = (char *)"Exhausting libreport test!",
++        };
++
++        assert(add_reported_to_entry_data(&reported_to, &result) || !"Everything");
++        assert(reported_to != NULL);
++        assert(string_cmp("Everything: TIME=2000-01-01-00:00:00 URL=http://epic.win BTHASH=0123456789ABCDEF MSG=Exhausting libreport test!\n", reported_to));
++    }
++}
++]])
++
++
+ ## ---------------------- ##
+ ## parse_reported_to_data ##
+ ## ---------------------- ##
+@@ -87,6 +219,12 @@ bool parse_and_check(const char *reported_to, GList *expected)
+             goto finish;
+         }
+ 
++        if(e->timestamp != c->timestamp)
++        {
++            printf("Timestamps: '%lld' != '%lld'\n", e->timestamp, c->timestamp);
++            goto finish;
++        }
++
+         if(!((e->url == NULL && c->url == NULL) || strcmp(e->url, c->url) == 0))
+         {
+             printf("'%s' != '%s'\n", e->url, c->url);
+@@ -116,20 +254,26 @@ int main(void)
+ {
+     g_verbose=3;
+ 
++    setenv("TZ", "", 1);
++    setenv("LC_ALL", "C", 1);
++
+ #define FIRST_LINE "Bugzilla: URL=https://goodluck.org"
++#define FOURTH_LINE "Bugzilla: TIME=invalid URL=https://goodluck.org"
+     report_result_t first_result = {
+         .label = (char *)"Bugzilla",
+         .url   = (char *)"https://goodluck.org"
+     };
+ 
+ #define SECOND_LINE "ABRT Server: BTHASH=81680083BIGBOOBS"
++#define FIFTH_LINE "ABRT Server: TIME=invalid BTHASH=81680083BIGBOOBS"
+     report_result_t second_result = {
+         .label = (char *)"ABRT Server",
+         .bthash = (char *)"81680083BIGBOOBS"
+     };
+ 
+-#define THIRD_LINE "RHTSupport: TIME=12345678 URL=https://access.redhat.com/home MSG=The world's best IT support"
++#define THIRD_LINE "RHTSupport: TIME=2000-01-01-00:00:00 URL=https://access.redhat.com/home MSG=The world's best IT support"
+     report_result_t third_result = {
++        .timestamp = 946684800,
+         .label = (char *)"RHTSupport",
+         .url = (char *)"https://access.redhat.com/home",
+         .msg = (char *)"The world's best IT support",
+@@ -137,9 +281,11 @@ int main(void)
+ 
+     GList *expected = g_list_append(NULL, &first_result);
+     assert(parse_and_check(FIRST_LINE, expected));
++    assert(parse_and_check(FOURTH_LINE, expected));
+ 
+     expected = g_list_append(expected, &second_result);
+     assert(parse_and_check(FIRST_LINE"\n"SECOND_LINE, expected));
++    assert(parse_and_check(FIRST_LINE"\n"FIFTH_LINE, expected));
+ 
+     expected = g_list_append(expected, &third_result);
+     assert(parse_and_check(FIRST_LINE"\n"SECOND_LINE"\n"THIRD_LINE, expected));
+-- 
+1.8.3.1
+

@@ -1,0 +1,151 @@
+From 7767a6befe2cc461cd6b8aadff1626108e3101b0 Mon Sep 17 00:00:00 2001
+From: Pavel Vomacka <pvomacka@redhat.com>
+Date: Tue, 16 Aug 2016 10:03:36 +0200
+Subject: [PATCH] Add warning about only one existing CA server
+
+It is not safe to have only one CA server in topology. Therefore there is a check
+and in case that there is only one CA server a warning is shown. The warning is
+shown after each refreshing of servers facet.
+
+https://fedorahosted.org/freeipa/ticket/5828
+
+Reviewed-By: Tomas Krizek <tkrizek@redhat.com>
+---
+ install/ui/src/freeipa/topology.js | 73 +++++++++++++++++++++++++++++++++++++-
+ install/ui/test/data/ipa_init.json |  2 ++
+ ipaserver/plugins/internal.py      |  2 ++
+ 3 files changed, 76 insertions(+), 1 deletion(-)
+
+diff --git a/install/ui/src/freeipa/topology.js b/install/ui/src/freeipa/topology.js
+index 7e501eb3506587ea653497d2806938890066e4f0..c33adba9a3c704b66b85689dd18e927ab975d2fe 100644
+--- a/install/ui/src/freeipa/topology.js
++++ b/install/ui/src/freeipa/topology.js
+@@ -28,13 +28,14 @@ define([
+         './facets/Facet',
+         './topology_graph',
+         './navigation',
++        './widget',
+         // plain imports
+         './search',
+         './entity'],
+             function(lang, declare, Evented, Stateful, Deferred, on, all, when,
+                 builder, IPA, $, menu, metadata_provider, phases, reg, rpc,
+                 text, mod_details, mod_facet, mod_field, ActionMixin,
+-                HeaderMixin, Facet, topology_graph, navigation) {
++                HeaderMixin, Facet, topology_graph, navigation, widget_mod) {
+ /**
+  * Topology module
+  * @class
+@@ -206,6 +207,7 @@ return {
+     facets: [
+            {
+             $type: 'search',
++            $factory: topology.servers_search_facet,
+             no_update: true,
+             disable_facet_tabs: false,
+             tabs_in_sidebar: true,
+@@ -483,6 +485,75 @@ topology.location_adapter = declare([mod_field.Adapter], {
+     }
+ });
+ 
++topology.servers_search_facet = function(spec, no_init) {
++    spec = spec || {};
++
++    var that = IPA.search_facet(spec);
++
++    that.create_get_records_command = function(pkeys, on_success, on_error) {
++
++        var on_success_extended = function(data, text_status, xhr) {
++            // Call original on_success handler
++            on_success(data, text_status, xhr);
++
++            var result = data.result.results;
++            var counter = 0;
++
++            for (var i=0, l=result.length; i<l; i++) {
++                var current = result[i];
++                var roles = current.result.enabled_role_servrole;
++                for (var k=0, m=roles.length; k<m; k++) {
++                    if (roles[k] === 'CA server') counter++;
++                }
++            }
++
++            // Create dialog and show it only when there is only one CA server
++            if (counter != 1) return;
++
++            var message = text.get('@i18n:objects.servers.ca_warning_message');
++            var dialog = IPA.dialog({
++                name: 'ca_warning',
++                title: '@i18n:objects.servers.ca_warning_title',
++                sections: [
++                    {
++                        show_header: false,
++                        layout:
++                        {
++                            $factory: widget_mod.fluid_layout,
++                            widget_cls: "col-sm-12 controls",
++                            label_cls: "hide"
++                        },
++                        fields: [
++                            {
++                                field: false,
++                                $type: 'html',
++                                html: message
++                            }
++                        ]
++                    }
++                ]
++            });
++
++            dialog.create_button({
++                name: 'ok',
++                label: '@i18n:buttons.ok',
++                click: function() {
++                    dialog.close();
++                }
++            });
++
++            dialog.open();
++        };
++
++        var batch = that.table_facet_create_get_records_command(pkeys,
++                                                on_success_extended, on_error);
++
++        return batch;
++    };
++
++    return that;
++};
++
+ topology.servers_facet = function(spec, no_init) {
+     spec = spec || {};
+ 
+diff --git a/install/ui/test/data/ipa_init.json b/install/ui/test/data/ipa_init.json
+index 77d6fce4e9ca0cf281d89e09f803d6a1a81c6870..efaf6b649296507c3b5b78c96d64db50e087370a 100644
+--- a/install/ui/test/data/ipa_init.json
++++ b/install/ui/test/data/ipa_init.json
+@@ -552,6 +552,8 @@
+                             "label_singular": "Server Role",
+                         },
+                         "servers": {
++                            "ca_warning_message": "It is strongly recommended to keep the CA services installed on more than one server.",
++                            "ca_warning_title": "Warning: Only One CA Server Detected",
+                             "remove_server": "Delete Server",
+                             "remove_server_msg": "Deleting a server removes it permanently from the topology. Note that this is a non-reversible action."
+                         },
+diff --git a/ipaserver/plugins/internal.py b/ipaserver/plugins/internal.py
+index ff29262180a967b2611db17271a742c5e472a19f..8af0af76c0b6305e9411d5bf4763d80df7304924 100644
+--- a/ipaserver/plugins/internal.py
++++ b/ipaserver/plugins/internal.py
+@@ -704,6 +704,8 @@ class i18n_messages(Command):
+                 "label_singular": _("Server Role"),
+             },
+             "servers": {
++                "ca_warning_message": _("It is strongly recommended to keep the CA services installed on more than one server."),
++                "ca_warning_title": _("Warning: Only One CA Server Detected"),
+                 "remove_server": _("Delete Server"),
+                 "remove_server_msg": _("Deleting a server removes it permanently from the topology. Note that this is a non-reversible action.")
+             },
+-- 
+2.7.4
+

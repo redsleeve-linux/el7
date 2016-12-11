@@ -1,0 +1,203 @@
+From 8d8919987929cc5eb27e45dfc58f18b78dd0e484 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Tue, 22 Mar 2016 15:15:43 +0100
+Subject: [PATCH] lib: move CREATE_PRIVATE_TICKET to the global configuration
+
+The plugins should not rely directly on the environment variables. This
+patch should ensure that every one uses the same logic to interpret the
+environment variables.
+
+Related to rhbz#1279453
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/gui-wizard-gtk/main.c          |  1 +
+ src/gui-wizard-gtk/wizard.c        |  9 +----
+ src/include/global_configuration.h | 15 +++++++++
+ src/lib/global_configuration.c     | 22 +++++++++++++
+ src/plugins/reporter-bugzilla.c    |  4 +--
+ tests/global_config.at             | 67 ++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 107 insertions(+), 11 deletions(-)
+
+diff --git a/src/gui-wizard-gtk/main.c b/src/gui-wizard-gtk/main.c
+index 41a8089..1a10258 100644
+--- a/src/gui-wizard-gtk/main.c
++++ b/src/gui-wizard-gtk/main.c
+@@ -186,6 +186,7 @@ int main(int argc, char **argv)
+ 
+     g_dump_dir_name = xstrdup(argv[0]);
+ 
++    load_global_configuration();
+     /* load /etc/abrt/events/foo.{conf,xml} stuff
+        and $XDG_CACHE_HOME/abrt/events/foo.conf */
+     g_event_config_list = load_event_config_data();
+diff --git a/src/gui-wizard-gtk/wizard.c b/src/gui-wizard-gtk/wizard.c
+index 17257ec..6a1bdc0 100644
+--- a/src/gui-wizard-gtk/wizard.c
++++ b/src/gui-wizard-gtk/wizard.c
+@@ -2168,14 +2168,7 @@ static void add_warning(const char *warning)
+ 
+ static void on_sensitive_ticket_clicked_cb(GtkWidget *button, gpointer user_data)
+ {
+-    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
+-    {
+-        xsetenv(CREATE_PRIVATE_TICKET, "1");
+-    }
+-    else
+-    {
+-        safe_unsetenv(CREATE_PRIVATE_TICKET);
+-    }
++    set_global_create_private_ticket(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)), /*transient*/0);
+ }
+ 
+ static void on_privacy_info_btn(GtkWidget *button, gpointer user_data)
+diff --git a/src/include/global_configuration.h b/src/include/global_configuration.h
+index 9666796..bc5513d 100644
+--- a/src/include/global_configuration.h
++++ b/src/include/global_configuration.h
+@@ -38,6 +38,21 @@ void free_global_configuration(void);
+ #define get_global_always_excluded_elements libreport_get_global_always_excluded_elements
+ string_vector_ptr_t get_global_always_excluded_elements(void);
+ 
++#define get_global_create_private_ticket libreport_get_global_create_private_ticket
++bool get_global_create_private_ticket(void);
++
++/**
++ * Configures the create private ticket global option
++ *
++ * The function changes the configuration only for the current process by
++ * default.
++ *
++ * @param enabled The option's value
++ * @param flags For future needs (enable persistent configuration)
++ */
++#define set_global_create_private_ticket libreport_set_global_create_private_ticket
++void set_global_create_private_ticket(bool enabled, int flags);
++
+ #ifdef __cplusplus
+ }
+ #endif
+diff --git a/src/lib/global_configuration.c b/src/lib/global_configuration.c
+index 903a2fb..ef921e9 100644
+--- a/src/lib/global_configuration.c
++++ b/src/lib/global_configuration.c
+@@ -141,3 +141,25 @@ string_vector_ptr_t get_global_always_excluded_elements(void)
+ 
+     return ret;
+ }
++
++bool get_global_create_private_ticket(void)
++{
++    assert_global_configuration_initialized();
++
++    char *env_create_private = getenv(CREATE_PRIVATE_TICKET);
++
++    if (env_create_private == NULL)
++        return false;
++
++    return string_to_bool(env_create_private);
++}
++
++void set_global_create_private_ticket(bool enabled, int flags/*unused - persistent*/)
++{
++    assert_global_configuration_initialized();
++
++    if (enabled)
++        xsetenv(CREATE_PRIVATE_TICKET, "1");
++    else
++        safe_unsetenv(CREATE_PRIVATE_TICKET);
++}
+diff --git a/src/plugins/reporter-bugzilla.c b/src/plugins/reporter-bugzilla.c
+index d11fadf..941c91f 100644
+--- a/src/plugins/reporter-bugzilla.c
++++ b/src/plugins/reporter-bugzilla.c
+@@ -740,9 +740,7 @@ static void set_settings(struct bugzilla_struct *b, map_string_t *settings)
+     environ = getenv("Bugzilla_DontMatchComponents");
+     b->b_DontMatchComponents = environ ? environ : get_map_string_item_or_empty(settings, "DontMatchComponents");
+ 
+-    environ = getenv(CREATE_PRIVATE_TICKET);
+-    if (environ)
+-        b->b_create_private = string_to_bool(environ);
++    b->b_create_private = get_global_create_private_ticket();
+ 
+     if (!b->b_create_private)
+     {
+diff --git a/tests/global_config.at b/tests/global_config.at
+index a6f5423..05a0ffa 100644
+--- a/tests/global_config.at
++++ b/tests/global_config.at
+@@ -102,3 +102,70 @@ int main(int argc, char **argv)
+     return EXIT_SUCCESS;
+ }
+ ]])
++
++## --------------------- ##
++## create_private_ticket ##
++## --------------------- ##
++
++AT_TESTFUN([create_private_ticket],
++[[
++#include "testsuite.h"
++
++TS_MAIN
++{
++    char cwd_buf[PATH_MAX + 1];
++    static const char *dirs[] = {
++        NULL,
++        NULL,
++    };
++    dirs[0] = getcwd(cwd_buf, sizeof(cwd_buf));
++
++    static int dir_flags[] = {
++        CONF_DIR_FLAG_NONE,
++        -1,
++    };
++
++    unlink("libreport.conf");
++    FILE *lrf = fopen("libreport.conf", "wx");
++    assert(lrf != NULL);
++    fclose(lrf);
++
++    assert(load_global_configuration_from_dirs(dirs, dir_flags));
++
++    TS_ASSERT_FALSE_MESSAGE(get_global_create_private_ticket(), "False by default");
++
++    set_global_create_private_ticket(false, 0);
++
++    TS_ASSERT_FALSE_MESSAGE(get_global_create_private_ticket(), "Still false");
++
++    set_global_create_private_ticket(true, 0);
++
++    TS_ASSERT_TRUE_MESSAGE(get_global_create_private_ticket(), "Configuration accepted");
++    TS_ASSERT_STRING_EQ(getenv(CREATE_PRIVATE_TICKET), "1", "Correct ENVIRONMENT value");
++
++    set_global_create_private_ticket(true, 0);
++
++    TS_ASSERT_TRUE_MESSAGE(get_global_create_private_ticket(), "Configuration sanity");
++    TS_ASSERT_STRING_EQ(getenv(CREATE_PRIVATE_TICKET), "1", "Correct ENVIRONMENT value");
++
++    set_global_create_private_ticket(false, 0);
++
++    TS_ASSERT_FALSE_MESSAGE(get_global_create_private_ticket(), "Reverted back to False");
++    TS_ASSERT_STRING_NULL_OR_EMPTY(getenv(CREATE_PRIVATE_TICKET), "Correct ENVIRONMENT value");
++
++    xsetenv(CREATE_PRIVATE_TICKET, "1");
++
++    TS_ASSERT_TRUE_MESSAGE(get_global_create_private_ticket(), "Loaded from environment");
++
++    unsetenv(CREATE_PRIVATE_TICKET);
++
++    TS_ASSERT_FALSE_MESSAGE(get_global_create_private_ticket(), "Reflects environment");
++
++    xsetenv(CREATE_PRIVATE_TICKET, "0");
++
++    TS_ASSERT_FALSE_MESSAGE(get_global_create_private_ticket(), "Zero is false");
++
++    free_global_configuration();
++}
++TS_RETURN_MAIN
++]])
+-- 
+1.8.3.1
+

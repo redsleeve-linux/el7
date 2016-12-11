@@ -1,0 +1,22 @@
+--- a/modules/proxy/mod_proxy_fcgi.c	2015/01/14 13:22:50	1651657
++++ b/modules/proxy/mod_proxy_fcgi.c	2015/01/14 13:24:10	1651658
+@@ -204,9 +204,19 @@
+     apr_status_t rv;
+     apr_size_t len;
+     int i, numenv;
++    char *proxyfilename = r->filename;
++
++    /* Strip balancer prefix */
++    if (r->filename && !strncmp(r->filename, "proxy:balancer://", 17)) { 
++        char *newfname = apr_pstrdup(r->pool, r->filename+17);
++        newfname = ap_strchr(newfname, '/');
++        r->filename  = newfname;
++    }
+ 
+     ap_add_common_vars(r);
+     ap_add_cgi_vars(r);
++ 
++    r->filename = proxyfilename;
+ 
+     /* XXX are there any FastCGI specific env vars we need to send? */
+ 

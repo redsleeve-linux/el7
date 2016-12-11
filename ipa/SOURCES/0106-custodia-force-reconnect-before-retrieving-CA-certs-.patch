@@ -1,0 +1,34 @@
+From d5723c202f45edc17c45a7f2a1970eebed259dd5 Mon Sep 17 00:00:00 2001
+From: Jan Cholasta <jcholast@redhat.com>
+Date: Thu, 1 Sep 2016 10:32:18 +0200
+Subject: [PATCH] custodia: force reconnect before retrieving CA certs from
+ LDAP
+
+Force reconnect to LDAP as DS might have been restarted after the
+connection was opened, rendering the connection invalid.
+
+This fixes a crash in ipa-replica-install with --setup-ca.
+
+https://fedorahosted.org/freeipa/ticket/6207
+
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+---
+ ipaserver/install/custodiainstance.py | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/ipaserver/install/custodiainstance.py b/ipaserver/install/custodiainstance.py
+index 18bd51426cde09af6a34855a49db386a72cc6b9c..32740274ceae17eebeeb32ef5e043cf4b738ee0d 100644
+--- a/ipaserver/install/custodiainstance.py
++++ b/ipaserver/install/custodiainstance.py
+@@ -158,6 +158,8 @@ class CustodiaInstance(SimpleServiceInstance):
+             # Add CA certificates
+             tmpdb = CertDB(self.realm, nssdir=tmpnssdir)
+             self.suffix = ipautil.realm_to_suffix(self.realm)
++            if self.admin_conn is not None:
++                self.ldap_disconnect()
+             self.import_ca_certs(tmpdb, True)
+ 
+             # Now that we gathered all certs, re-export
+-- 
+2.7.4
+

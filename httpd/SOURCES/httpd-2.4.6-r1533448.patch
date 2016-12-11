@@ -1,0 +1,155 @@
+Index: modules/dav/fs/repos.c
+===================================================================
+--- a/modules/dav/fs/repos.c	(revision 1533447)
++++ b/modules/dav/fs/repos.c	(revision 1533448)
+@@ -717,13 +717,13 @@
+     resource->pool = r->pool;
+ 
+     /* make sure the URI does not have a trailing "/" */
+-    len = strlen(r->uri);
+-    if (len > 1 && r->uri[len - 1] == '/') {
+-        s = apr_pstrmemdup(r->pool, r->uri, len-1);
++    len = strlen(r->unparsed_uri);
++    if (len > 1 && r->unparsed_uri[len - 1] == '/') {
++        s = apr_pstrmemdup(r->pool, r->unparsed_uri, len-1);
+         resource->uri = s;
+     }
+     else {
+-        resource->uri = r->uri;
++        resource->uri = r->unparsed_uri;
+     }
+ 
+     if (r->finfo.filetype != APR_NOFILE) {
+@@ -1482,6 +1482,18 @@
+     return dav_fs_deleteset(info->pool, resource);
+ }
+ 
++/* Take an unescaped path component and escape it and append it onto a
++ * dav_buffer for a URI */
++static apr_size_t dav_fs_append_uri(apr_pool_t *p, dav_buffer *pbuf,
++                                    const char *path, apr_size_t pad)
++{
++    const char *epath = ap_escape_uri(p, path);
++    apr_size_t epath_len = strlen(epath);
++
++    dav_buffer_place_mem(p, pbuf, epath, epath_len + 1, pad);
++    return epath_len;
++}
++
+ /* ### move this to dav_util? */
+ /* Walk recursively down through directories, *
+  * including lock-null resources as we go.    */
+@@ -1537,6 +1549,7 @@
+     }
+     while ((apr_dir_read(&dirent, APR_FINFO_DIRENT, dirp)) == APR_SUCCESS) {
+         apr_size_t len;
++        apr_size_t escaped_len;
+ 
+         len = strlen(dirent.name);
+ 
+@@ -1579,7 +1592,7 @@
+ 
+         /* copy the file to the URI, too. NOTE: we will pad an extra byte
+            for the trailing slash later. */
+-        dav_buffer_place_mem(pool, &fsctx->uri_buf, dirent.name, len + 1, 1);
++        escaped_len = dav_fs_append_uri(pool, &fsctx->uri_buf, dirent.name, 1);
+ 
+         /* if there is a secondary path, then do that, too */
+         if (fsctx->path2.buf != NULL) {
+@@ -1612,7 +1625,7 @@
+             fsctx->path2.cur_len += len;
+ 
+             /* adjust URI length to incorporate subdir and a slash */
+-            fsctx->uri_buf.cur_len += len + 1;
++            fsctx->uri_buf.cur_len += escaped_len + 1;
+             fsctx->uri_buf.buf[fsctx->uri_buf.cur_len - 1] = '/';
+             fsctx->uri_buf.buf[fsctx->uri_buf.cur_len] = '\0';
+ 
+@@ -1678,8 +1691,8 @@
+             */
+             dav_buffer_place_mem(pool, &fsctx->path1,
+                                  fsctx->locknull_buf.buf + offset, len + 1, 0);
+-            dav_buffer_place_mem(pool, &fsctx->uri_buf,
+-                                 fsctx->locknull_buf.buf + offset, len + 1, 0);
++            dav_fs_append_uri(pool, &fsctx->uri_buf,
++                              fsctx->locknull_buf.buf + offset, 0);
+             if (fsctx->path2.buf != NULL) {
+                 dav_buffer_place_mem(pool, &fsctx->path2,
+                                      fsctx->locknull_buf.buf + offset,
+Index: modules/dav/main/mod_dav.c
+===================================================================
+--- a/modules/dav/main/mod_dav.c	(revision 1533447)
++++ b/modules/dav/main/mod_dav.c	(revision 1533448)
+@@ -396,11 +396,9 @@
+  */
+ static const char *dav_xml_escape_uri(apr_pool_t *p, const char *uri)
+ {
+-    const char *e_uri = ap_escape_uri(p, uri);
+-
+     /* check the easy case... */
+-    if (ap_strchr_c(e_uri, '&') == NULL)
+-        return e_uri;
++    if (ap_strchr_c(uri, '&') == NULL)
++        return uri;
+ 
+     /* there was a '&', so more work is needed... sigh. */
+ 
+@@ -408,7 +406,7 @@
+      * Note: this is a teeny bit of overkill since we know there are no
+      * '<' or '>' characters, but who cares.
+      */
+-    return apr_xml_quote_string(p, e_uri, 0);
++    return apr_xml_quote_string(p, uri, 0);
+ }
+ 
+ 
+@@ -604,7 +602,8 @@
+     return DONE;
+ }
+ 
+-/* handy function for return values of methods that (may) create things */
++/* handy function for return values of methods that (may) create things.
++ * locn if provided is assumed to be escaped. */
+ static int dav_created(request_rec *r, const char *locn, const char *what,
+                        int replaced)
+ {
+@@ -612,8 +611,6 @@
+ 
+     if (locn == NULL) {
+         locn = r->unparsed_uri;
+-    } else {
+-        locn = ap_escape_uri(r->pool, locn);
+     }
+ 
+     /* did the target resource already exist? */
+@@ -3004,7 +3001,7 @@
+     }
+ 
+     /* return an appropriate response (HTTP_CREATED or HTTP_NO_CONTENT) */
+-    return dav_created(r, lookup.rnew->uri, "Destination",
++    return dav_created(r, lookup.rnew->unparsed_uri, "Destination",
+                        resnew_state == DAV_RESOURCE_EXISTS);
+ }
+ 
+@@ -4610,7 +4607,7 @@
+ 
+     /* return an appropriate response (HTTP_CREATED) */
+     /* ### spec doesn't say what happens when destination was replaced */
+-    return dav_created(r, lookup.rnew->uri, "Binding", 0);
++    return dav_created(r, lookup.rnew->unparsed_uri, "Binding", 0);
+ }
+ 
+ 
+Index: modules/dav/main/mod_dav.h
+===================================================================
+--- a/modules/dav/main/mod_dav.h	(revision 1533447)
++++ b/modules/dav/main/mod_dav.h	(revision 1533448)
+@@ -386,7 +386,7 @@
+                          * REGULAR and WORKSPACE resources,
+                          * and is always 1 for WORKING */
+ 
+-    const char *uri;    /* the URI for this resource */
++    const char *uri;    /* the escaped URI for this resource */
+ 
+     dav_resource_private *info;         /* the provider's private info */
+ 

@@ -1,0 +1,38 @@
+From 602d1c5190cfb879f81ced19e60d1eb08bd559f0 Mon Sep 17 00:00:00 2001
+From: Martin Basti <mbasti@redhat.com>
+Date: Thu, 21 Jul 2016 18:49:57 +0200
+Subject: [PATCH] Use copy when replacing files to keep SELinux context
+
+When installer replaces any file with newer, it must use 'copy' instead of
+'mv' to keep SELinux context valid.
+
+https://fedorahosted.org/freeipa/ticket/6111
+
+Reviewed-By: Petr Spacek <pspacek@redhat.com>
+---
+ ipapython/ipautil.py | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/ipapython/ipautil.py b/ipapython/ipautil.py
+index 763a99c117e22a4ac49d8d34b38230f3da7c8435..9964fba4f694b57242b3bd3065a418917d977533 100644
+--- a/ipapython/ipautil.py
++++ b/ipapython/ipautil.py
+@@ -528,10 +528,14 @@ def dir_exists(filename):
+     except Exception:
+         return False
+ 
++
+ def install_file(fname, dest):
++    # SELinux: use copy to keep the right context
+     if file_exists(dest):
+         os.rename(dest, dest + ".orig")
+-    shutil.move(fname, dest)
++    shutil.copy(fname, dest)
++    os.remove(fname)
++
+ 
+ def backup_file(fname):
+     if file_exists(fname):
+-- 
+2.7.4
+

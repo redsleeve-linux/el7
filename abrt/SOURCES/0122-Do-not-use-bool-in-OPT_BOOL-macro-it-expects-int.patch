@@ -1,0 +1,26 @@
+From 8b5ec646d59be4a52efd66a2331ee0ffbe6cd2bc Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Wed, 14 Jan 2015 11:51:59 +0100
+Subject: [PATCH] Do not use 'bool' in OPT_BOOL() macro : it expects 'int'
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/daemon/abrt-auto-reporting.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/daemon/abrt-auto-reporting.c b/src/daemon/abrt-auto-reporting.c
+index f3b4ed0..573c1ae 100644
+--- a/src/daemon/abrt-auto-reporting.c
++++ b/src/daemon/abrt-auto-reporting.c
+@@ -204,7 +204,7 @@ int main(int argc, char *argv[])
+         OPT_c = 1 << 4,
+     };
+ 
+-    bool anonymous = false;
++    int anonymous = 0;
+     const char *username = NULL;
+     const char *password = NULL;
+     const char *certificate = NULL;
+-- 
+2.4.3
+

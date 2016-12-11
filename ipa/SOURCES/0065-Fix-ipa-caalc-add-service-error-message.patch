@@ -1,0 +1,31 @@
+From 69a3d8a8abffe7a785efda8e6e2012718521783f Mon Sep 17 00:00:00 2001
+From: Tomas Krizek <tkrizek@redhat.com>
+Date: Tue, 9 Aug 2016 14:09:24 +0200
+Subject: [PATCH] Fix ipa-caalc-add-service error message
+
+When service is not found in ipa-caalc-add-service command, return the
+entire principal name of the service instead of the first character.
+
+https://fedorahosted.org/freeipa/ticket/6171
+
+Reviewed-By: Petr Spacek <pspacek@redhat.com>
+---
+ ipaserver/plugins/service.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ipaserver/plugins/service.py b/ipaserver/plugins/service.py
+index 28ea364e9aca8c997a86e27c529fc49d8410115b..a44dcaa5e348d3deedda6c0b4f55760ad873cf49 100644
+--- a/ipaserver/plugins/service.py
++++ b/ipaserver/plugins/service.py
+@@ -575,7 +575,7 @@ class service(LDAPObject):
+             pass
+ 
+         try:
+-            return dn['krbprincipalname'][0]
++            return dn['krbprincipalname']
+         except KeyError:
+             return unicode(dn)
+ 
+-- 
+2.7.4
+

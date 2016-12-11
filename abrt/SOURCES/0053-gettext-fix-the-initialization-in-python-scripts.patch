@@ -1,0 +1,187 @@
+From c647c9eaecde2653366decd9a992e75943db7fc0 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Tue, 22 Jul 2014 16:13:25 +0200
+Subject: [ABRT PATCH 53/66] gettext: fix the initialization in python scripts
+
+ABRT scripts cannot import and use _ symbol from reportclient because
+reporclient's _ is bound to 'libreport' package.
+
+Related to rhbz#1087880
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+
+Conflicts:
+	src/plugins/abrt-action-ureport
+---
+ po/POTFILES.in                               |  2 ++
+ src/daemon/abrt-handle-upload.in             | 26 ++++++++++++++++++++++++--
+ src/plugins/abrt-action-analyze-vmcore.in    | 25 ++++++++++++++++++++++++-
+ src/plugins/abrt-action-install-debuginfo.in |  2 +-
+ src/plugins/abrt-action-ureport              | 24 ++++++++++++++++++++++--
+ 5 files changed, 73 insertions(+), 6 deletions(-)
+
+diff --git a/po/POTFILES.in b/po/POTFILES.in
+index ff9b97a..e3f917b 100644
+--- a/po/POTFILES.in
++++ b/po/POTFILES.in
+@@ -14,6 +14,7 @@ src/daemon/abrtd.c
+ src/daemon/abrt-handle-event.c
+ src/daemon/abrt-upload-watch.c
+ src/daemon/abrt-auto-reporting.c
++src/daemon/abrt-handle-upload.in
+ src/lib/abrt_conf.c
+ src/lib/hooklib.c
+ src/lib/problem_api.c
+@@ -32,6 +33,7 @@ src/plugins/abrt-action-generate-core-backtrace.c
+ src/plugins/abrt-action-install-debuginfo.in
+ src/plugins/abrt-action-perform-ccpp-analysis.in
+ src/plugins/abrt-action-trim-files.c
++src/plugins/abrt-action-ureport
+ src/plugins/abrt-gdb-exploitable
+ src/plugins/abrt-watch-log.c
+ src/plugins/abrt-dump-oops.c
+diff --git a/src/daemon/abrt-handle-upload.in b/src/daemon/abrt-handle-upload.in
+index 084170e..dbc4534 100755
+--- a/src/daemon/abrt-handle-upload.in
++++ b/src/daemon/abrt-handle-upload.in
+@@ -11,7 +11,29 @@ import tempfile
+ import shutil
+ import datetime
+ 
+-from reportclient import _, set_verbosity, error_msg_and_die, error_msg, log
++from reportclient import set_verbosity, error_msg_and_die, error_msg, log
++
++GETTEXT_PROGNAME = "abrt"
++import locale
++import gettext
++
++_ = lambda x: gettext.lgettext(x)
++
++def init_gettext():
++    try:
++        locale.setlocale(locale.LC_ALL, "")
++    except locale.Error:
++        os.environ['LC_ALL'] = 'C'
++        locale.setlocale(locale.LC_ALL, "")
++    # Defeat "AttributeError: 'module' object has no attribute 'nl_langinfo'"
++    try:
++        gettext.bind_textdomain_codeset(GETTEXT_PROGNAME, locale.nl_langinfo(locale.CODESET))
++    except AttributeError:
++        pass
++    gettext.bindtextdomain(GETTEXT_PROGNAME, '/usr/share/locale')
++    gettext.textdomain(GETTEXT_PROGNAME)
++
++
+ import problem
+ 
+ def write_str_to(filename, s):
+@@ -32,7 +54,7 @@ if __name__ == "__main__":
+         sys.exit(die_exitcode)
+ 
+     # localization
+-    #init_gettext() - done by reportclient module init
++    init_gettext()
+ 
+     verbose = 0
+     ABRT_VERBOSE = os.getenv("ABRT_VERBOSE")
+diff --git a/src/plugins/abrt-action-analyze-vmcore.in b/src/plugins/abrt-action-analyze-vmcore.in
+index 11ad846..c08af80 100644
+--- a/src/plugins/abrt-action-analyze-vmcore.in
++++ b/src/plugins/abrt-action-analyze-vmcore.in
+@@ -8,7 +8,28 @@ import sys
+ import getopt
+ from subprocess import Popen, PIPE
+ 
+-from reportclient import _, verbose, set_verbosity, error_msg_and_die, error_msg
++from reportclient import verbose, set_verbosity, error_msg_and_die, error_msg
++
++GETTEXT_PROGNAME = "abrt"
++import locale
++import gettext
++
++_ = lambda x: gettext.lgettext(x)
++
++def init_gettext():
++    try:
++        locale.setlocale(locale.LC_ALL, "")
++    except locale.Error:
++        os.environ['LC_ALL'] = 'C'
++        locale.setlocale(locale.LC_ALL, "")
++    # Defeat "AttributeError: 'module' object has no attribute 'nl_langinfo'"
++    try:
++        gettext.bind_textdomain_codeset(GETTEXT_PROGNAME, locale.nl_langinfo(locale.CODESET))
++    except AttributeError:
++        pass
++    gettext.bindtextdomain(GETTEXT_PROGNAME, '/usr/share/locale')
++    gettext.textdomain(GETTEXT_PROGNAME)
++
+ 
+ PROGNAME = "abrt-action-analyze-vmcore"
+ 
+@@ -26,6 +47,8 @@ if __name__ == "__main__":
+     tmpdir = ""
+     vmcore = ""
+ 
++    init_gettext()
++
+     help_text = _("Usage: {0} [-v[v]] [--core=VMCORE]").format(PROGNAME)
+     try:
+         opts, args = getopt.getopt(sys.argv[1:], "hvd", ["help", "core="])
+diff --git a/src/plugins/abrt-action-install-debuginfo.in b/src/plugins/abrt-action-install-debuginfo.in
+index 5fd3110..f46d1b2 100644
+--- a/src/plugins/abrt-action-install-debuginfo.in
++++ b/src/plugins/abrt-action-install-debuginfo.in
+@@ -11,7 +11,7 @@ import errno
+ import getopt
+ import reportclient
+ from subprocess import Popen, PIPE
+-from reportclient import _, verbose, log, log1, log2, set_verbosity, error_msg_and_die, error_msg
++from reportclient import verbose, log, log1, log2, set_verbosity, error_msg_and_die, error_msg
+ import time
+ from reportclient.debuginfo import DebugInfoDownload, filter_installed_debuginfos, build_ids_to_path, clean_up
+ import problem
+diff --git a/src/plugins/abrt-action-ureport b/src/plugins/abrt-action-ureport
+index 8c0f36f..e38a92c 100755
+--- a/src/plugins/abrt-action-ureport
++++ b/src/plugins/abrt-action-ureport
+@@ -10,7 +10,27 @@ import os
+ import getopt
+ 
+ from report import dd_opendir, DD_FAIL_QUIETLY_ENOENT
+-from reportclient import _, set_verbosity, error_msg_and_die, error_msg, log1, log
++from reportclient import set_verbosity, error_msg_and_die, error_msg, log1, log
++
++GETTEXT_PROGNAME = "abrt"
++import locale
++import gettext
++
++_ = lambda x: gettext.lgettext(x)
++
++def init_gettext():
++    try:
++        locale.setlocale(locale.LC_ALL, "")
++    except locale.Error:
++        os.environ['LC_ALL'] = 'C'
++        locale.setlocale(locale.LC_ALL, "")
++    # Defeat "AttributeError: 'module' object has no attribute 'nl_langinfo'"
++    try:
++        gettext.bind_textdomain_codeset(GETTEXT_PROGNAME, locale.nl_langinfo(locale.CODESET))
++    except AttributeError:
++        pass
++    gettext.bindtextdomain(GETTEXT_PROGNAME, '/usr/share/locale')
++    gettext.textdomain(GETTEXT_PROGNAME)
+ 
+ def spawn_and_wait(prog):
+     try:
+@@ -32,7 +52,7 @@ def try_parse_number(dd, filename):
+ 
+ if __name__ == "__main__":
+     # localization
+-    #init_gettext() - done by reportclient module init
++    init_gettext()
+ 
+     verbose = 0
+     ABRT_VERBOSE = os.getenv("ABRT_VERBOSE")
+-- 
+1.8.3.1
+

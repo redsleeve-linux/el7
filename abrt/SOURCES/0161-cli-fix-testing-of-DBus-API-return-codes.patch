@@ -1,0 +1,56 @@
+From b5c28f6c7ce86fc53048d5c51a4850a82f48f876 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Tue, 11 Aug 2015 10:01:53 +0200
+Subject: [PATCH] cli: fix testing of DBus API return codes
+
+The DBus wrapper functions uses ERR_PTR to report an error, so the
+callers has to test the returned pointers for NULL and for ERR_PTR.
+
+Related: rhbz#1224984
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/cli/list.c   | 3 +++
+ src/cli/status.c | 5 ++++-
+ 2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/cli/list.c b/src/cli/list.c
+index c76e4fb..e688d2f 100644
+--- a/src/cli/list.c
++++ b/src/cli/list.c
+@@ -36,6 +36,9 @@ static problem_data_t *load_problem_data(const char *problem_id)
+ 
+     /* First, check if there is a problem with the passed id */
+     GList *problems = get_problems_over_dbus(g_cli_authenticate);
++    if (problems == ERR_PTR)
++        return NULL;
++
+     GList *item = g_list_find_custom(problems, problem_id, (GCompareFunc)strcmp);
+ 
+     /* (git requires at least 5 char hash prefix, we do the same) */
+diff --git a/src/cli/status.c b/src/cli/status.c
+index 0635289..3620cea 100644
+--- a/src/cli/status.c
++++ b/src/cli/status.c
+@@ -27,6 +27,9 @@ static unsigned int count_problem_dirs(unsigned long since)
+     unsigned count = 0;
+ 
+     GList *problems = get_problems_over_dbus(g_cli_authenticate);
++    if (problems == ERR_PTR)
++        return count;
++
+     for (GList *iter = problems; iter != NULL; iter = g_list_next(iter))
+     {
+         const char *problem_id = (const char *)iter->data;
+@@ -37,7 +40,7 @@ static unsigned int count_problem_dirs(unsigned long since)
+         }
+ 
+         char *time_str = load_text_over_dbus(problem_id, FILENAME_LAST_OCCURRENCE);
+-        if (time_str == NULL)
++        if (time_str == ERR_PTR || time_str == NULL)
+         {
+             log_debug("Not counting problem %s: failed to get time element", problem_id);
+             continue;
+-- 
+2.4.3
+

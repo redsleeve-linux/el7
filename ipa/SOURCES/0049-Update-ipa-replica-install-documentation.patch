@@ -1,0 +1,45 @@
+From 2c82ea7bd562c34fd6ea9476b3b9b25f399bb0f1 Mon Sep 17 00:00:00 2001
+From: Tomas Krizek <tkrizek@redhat.com>
+Date: Fri, 5 Aug 2016 09:25:05 +0200
+Subject: [PATCH] Update ipa-replica-install documentation
+
+Update the ipa-replica-install man page and help to reflect that replica_file
+is optional instead of mandatory.
+
+https://fedorahosted.org/freeipa/ticket/6164
+
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+---
+ install/tools/ipa-replica-install       | 2 +-
+ install/tools/man/ipa-replica-install.1 | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/install/tools/ipa-replica-install b/install/tools/ipa-replica-install
+index 17fc957a583739bbda386676f44209e196282a9a..b3f0361c6577cb693dcc0d81d8ca95b0c220679e 100755
+--- a/install/tools/ipa-replica-install
++++ b/install/tools/ipa-replica-install
+@@ -27,7 +27,7 @@ ReplicaInstall = cli.install_tool(
+     Replica,
+     command_name='ipa-replica-install',
+     positional_arguments=['replica_file'],
+-    usage='%prog [options] REPLICA_FILE',
++    usage='%prog [options] [REPLICA_FILE]',
+     log_file_name=paths.IPAREPLICA_INSTALL_LOG,
+     debug_option=True,
+ )
+diff --git a/install/tools/man/ipa-replica-install.1 b/install/tools/man/ipa-replica-install.1
+index 55bae2cb77e1a1c520e0598983b8939a919a9ee9..af37b07956691aeb676bb8e41e90f6ce783a5270 100644
+--- a/install/tools/man/ipa-replica-install.1
++++ b/install/tools/man/ipa-replica-install.1
+@@ -22,7 +22,7 @@ ipa\-replica\-install \- Create an IPA replica
+ .SH "SYNOPSIS"
+ .SS "DOMAIN LEVEL 0"
+ .TP
+-ipa\-replica\-install [\fIOPTION\fR]... replica_file
++ipa\-replica\-install [\fIOPTION\fR]... [replica_file]
+ .SS "DOMAIN LEVEL 1"
+ .TP
+ ipa\-replica\-install [\fIOPTION\fR]...
+-- 
+2.7.4
+

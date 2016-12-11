@@ -1,0 +1,12 @@
+diff -Nuar redhat-rpm-config-9.1.0_old/macros redhat-rpm-config-9.1.0/macros
+--- redhat-rpm-config-9.1.0_old/macros	2014-01-15 15:29:28.259001613 +0800
++++ redhat-rpm-config-9.1.0/macros	2014-01-15 15:30:16.044001574 +0800
+@@ -232,7 +232,7 @@
+ 	then \
+ 		nobuildreqs="yes" \
+ 	fi \
+-	override_filelist="$filelist" override_preamble="$preamble" nobuildreqs="$nobuildreqs" kmod_version=%kmod_version kmod_release=%kmod_release %{kmodtool} rpmtemplate %{-n*}%{!-n:%name} %{kernel_version} $flavors_to_build 2>/dev/null \
++	override_filelist="$filelist" override_preamble="$preamble" nobuildreqs="$nobuildreqs" kmod_version=%kmod_version kmod_release=%kmod_release %{kmodtool} rpmtemplate %{-n*}%{!-n:%name} %{kverrel} $flavors_to_build 2>/dev/null \
+ )}
+ 
+ #==============================================================================

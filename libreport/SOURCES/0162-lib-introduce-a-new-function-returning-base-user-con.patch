@@ -1,0 +1,82 @@
+From b429af7c61bb1abe791ceb34fb6b6cf7382f832b Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Fri, 12 Feb 2016 14:25:05 +0100
+Subject: [PATCH] lib: introduce a new function returning base user conf
+ directory
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/include/internal_libreport.h |  3 +++
+ src/lib/configuration_files.c    |  9 +++++++++
+ src/lib/user_settings.c          | 12 +++++-------
+ 3 files changed, 17 insertions(+), 7 deletions(-)
+
+diff --git a/src/include/internal_libreport.h b/src/include/internal_libreport.h
+index b36cbd9..38d75a1 100644
+--- a/src/include/internal_libreport.h
++++ b/src/include/internal_libreport.h
+@@ -738,6 +738,9 @@ bool load_conf_file(const char *pPath, map_string_t *settings, bool skipKeysWith
+ #define load_plugin_conf_file libreport_load_plugin_conf_file
+ bool load_plugin_conf_file(const char *name, map_string_t *settings, bool skipKeysWithoutValue);
+ 
++#define get_user_conf_base_dir libreport_get_user_conf_base_dir
++const char *get_user_conf_base_dir(void);
++
+ #define load_conf_file_from_dirs libreport_load_conf_file_from_dirs
+ bool load_conf_file_from_dirs(const char *base_name, const char *const *directories, map_string_t *settings, bool skipKeysWithoutValue);
+ 
+diff --git a/src/lib/configuration_files.c b/src/lib/configuration_files.c
+index 4975d62..b145b9f 100644
+--- a/src/lib/configuration_files.c
++++ b/src/lib/configuration_files.c
+@@ -318,6 +318,15 @@ finalize:
+     return retval;
+ }
+ 
++const char *get_user_conf_base_dir(void)
++{
++    static char *base_dir = NULL;
++    if (base_dir == NULL)
++        base_dir = concat_path_file(g_get_user_config_dir(), "abrt/settings/");
++
++    return base_dir;
++}
++
+ bool load_conf_file_from_dirs(const char *base_name, const char *const *directories, map_string_t *settings, bool skipKeysWithoutValue)
+ {
+     if (NULL == directories || NULL == *directories)
+diff --git a/src/lib/user_settings.c b/src/lib/user_settings.c
+index 4cd87ff..cdc8482 100644
+--- a/src/lib/user_settings.c
++++ b/src/lib/user_settings.c
+@@ -18,21 +18,19 @@
+ #include "internal_libreport.h"
+ #include <augeas.h>
+ 
+-#define BASE_DIR_FOR_USER_CONFIG_FILE "abrt/settings/"
+-
+ static map_string_t *user_settings;
+ static char *conf_path;
+ 
+ static char *get_user_config_file_path(const char *name, const char *suffix)
+ {
+-    char *s, *conf;
++    char *s = NULL;
++    char *conf;
+ 
+     if (suffix != NULL)
+-        s = xasprintf(BASE_DIR_FOR_USER_CONFIG_FILE"%s.%s", name, suffix);
+-    else
+-        s = xasprintf(BASE_DIR_FOR_USER_CONFIG_FILE"%s", name);
++        s = xasprintf("%s.%s", name, suffix);
++
++    conf = concat_path_file(get_user_conf_base_dir(), s != NULL ? s : name);
+ 
+-    conf = concat_path_file(g_get_user_config_dir(), s);
+     free(s);
+     return conf;
+ }
+-- 
+1.8.3.1
+

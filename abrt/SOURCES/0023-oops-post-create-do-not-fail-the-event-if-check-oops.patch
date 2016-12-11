@@ -1,0 +1,33 @@
+From b75653c212a0d50e163e9a550a4c4b7e650402c2 Mon Sep 17 00:00:00 2001
+From: Denys Vlasenko <dvlasenk@redhat.com>
+Date: Wed, 4 Dec 2013 13:26:35 +0100
+Subject: [ABRT PATCH 23/27] oops post-create: do not fail the event if
+ check-oops-for-hw-error exits nonzero
+
+Signed-off-by: Denys Vlasenko <dvlasenk@redhat.com>
+
+Related to rhbz#1032077
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/plugins/koops_event.conf | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/plugins/koops_event.conf b/src/plugins/koops_event.conf
+index 3740f65..37a79a9 100644
+--- a/src/plugins/koops_event.conf
++++ b/src/plugins/koops_event.conf
+@@ -4,7 +4,9 @@ EVENT=post-create analyzer=Kerneloops
+         abrt-action-analyze-oops &&
+         dmesg >>dmesg &&
+         abrt-action-save-kernel-data &&
+-        abrt-action-check-oops-for-hw-error
++        # Do not fail the event (->do not delete problem dir)
++        # if check-oops-for-hw-error exits nonzero:
++        { abrt-action-check-oops-for-hw-error || true; }
+ 
+ # If you want behavior similar to one provided by kerneloops daemon
+ # distributed by kerneloops.org - that is, if you want
+-- 
+1.8.3.1
+

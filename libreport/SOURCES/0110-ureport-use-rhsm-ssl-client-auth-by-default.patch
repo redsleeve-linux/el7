@@ -1,0 +1,33 @@
+From a5b30291b63dc8d70d24191e39095e6dbb392f32 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Mon, 3 Nov 2014 15:51:32 +0100
+Subject: [LIBREPORT PATCH 110/113] ureport: use 'rhsm' ssl client auth by
+ default
+
+libreport used to be configured to use 'rhsm' by default and I (Jakub
+Filak <jfilak@redhat.com>) inappropriately changed it to no ssl
+client auth in commit 4f61f5d9eec75e471c8176dac0c21f4361e40ee6
+
+Related to rhbz#1140224
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/plugins/ureport.conf | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/plugins/ureport.conf b/src/plugins/ureport.conf
+index 9e0415f..42323d4 100644
+--- a/src/plugins/ureport.conf
++++ b/src/plugins/ureport.conf
+@@ -23,7 +23,7 @@ AuthDataItems = hostname, machineid
+ # None (default):
+ # SSLClientAuth =
+ # Using RH subscription management entitlement certificate:
+-# SSLClientAuth = rhsm
++SSLClientAuth = rhsm
+ # Using Puppet certificate:
+ # SSLClientAuth = puppet
+ # Using custom certificate:
+-- 
+1.8.3.1
+

@@ -1,0 +1,378 @@
+From 8293d36c504b59a6dac46187baf51719ab355fd2 Mon Sep 17 00:00:00 2001
+From: David Kupka <dkupka@redhat.com>
+Date: Wed, 20 Jul 2016 13:23:33 +0200
+Subject: [PATCH] frontend: Change doc, summary, topic and NO_CLI to class
+ properties
+
+Avoid need to instantiate all commands just to get information for
+displaying help.
+
+https://fedorahosted.org/freeipa/ticket/6048
+
+Reviewed-By: Jan Cholasta <jcholast@redhat.com>
+---
+ ipaclient/frontend.py                 | 32 ++++++++++++++-------
+ ipaclient/plugins/automount.py        |  9 ++++--
+ ipaclient/plugins/otptoken_yubikey.py | 11 +++++---
+ ipaclient/plugins/vault.py            | 35 ++++++++++++++---------
+ ipaclient/remote_plugins/schema.py    | 53 +++++++++++++++++++++++++++++++----
+ ipalib/frontend.py                    | 10 ++++---
+ ipalib/plugable.py                    | 17 ++++++-----
+ 7 files changed, 120 insertions(+), 47 deletions(-)
+
+diff --git a/ipaclient/frontend.py b/ipaclient/frontend.py
+index 1525c88b3dfeadccd8115cb4b6ba149caef22103..aeaed550771d3c6af04a9b34fcae414faacb47d7 100644
+--- a/ipaclient/frontend.py
++++ b/ipaclient/frontend.py
+@@ -2,9 +2,11 @@
+ # Copyright (C) 2016  FreeIPA Contributors see COPYING for license
+ #
+ 
++from ipalib import api
+ from ipalib.frontend import Command, Method
+ from ipalib.parameters import Str
+ from ipalib.text import _
++from ipalib.util import classproperty
+ 
+ 
+ class ClientCommand(Command):
+@@ -111,20 +113,30 @@ class CommandOverride(Command):
+     def __init__(self, api):
+         super(CommandOverride, self).__init__(api)
+ 
+-        next_class = api.get_plugin_next(type(self))
++        next_class = self.__get_next()
+         self.next = next_class(api)
+ 
+-    @property
+-    def doc(self):
+-        return self.next.doc
++    @classmethod
++    def __get_next(cls):
++        return api.get_plugin_next(cls)
+ 
+-    @property
+-    def NO_CLI(self):
+-        return self.next.NO_CLI
++    @classmethod
++    def __doc_getter(cls):
++        return cls.__get_next().doc
+ 
+-    @property
+-    def topic(self):
+-        return self.next.topic
++    doc = classproperty(__doc_getter)
++
++    @classmethod
++    def __NO_CLI_getter(cls):
++        return cls.__get_next().NO_CLI
++
++    NO_CLI = classproperty(__NO_CLI_getter)
++
++    @classmethod
++    def __topic_getter(cls):
++        return cls.__get_next().topic
++
++    topic = classproperty(__topic_getter)
+ 
+     @property
+     def forwarded_name(self):
+diff --git a/ipaclient/plugins/automount.py b/ipaclient/plugins/automount.py
+index c6537bc6c24b905a8e1f7fb6a7e2c931b95374c7..925b635ff27411fc7e2f8c3dae17c747216d7fb6 100644
+--- a/ipaclient/plugins/automount.py
++++ b/ipaclient/plugins/automount.py
+@@ -27,6 +27,7 @@ from ipalib import api, errors
+ from ipalib import Flag, Str
+ from ipalib.frontend import Command, Method, Object
+ from ipalib.plugable import Registry
++from ipalib.util import classproperty
+ from ipalib import _
+ from ipapython.dn import DN
+ 
+@@ -52,11 +53,13 @@ class _fake_automountlocation_show(Method):
+ 
+ @register(override=True, no_fail=True)
+ class automountlocation_tofiles(MethodOverride):
+-    @property
+-    def NO_CLI(self):
+-        return isinstance(self.api.Command.automountlocation_show,
++    @classmethod
++    def __NO_CLI_getter(cls):
++        return isinstance(api.Command.automountlocation_show,
+                           _fake_automountlocation_show)
+ 
++    NO_CLI = classproperty(__NO_CLI_getter)
++
+     def output_for_cli(self, textui, result, *keys, **options):
+         maps = result['result']['maps']
+         keys = result['result']['keys']
+diff --git a/ipaclient/plugins/otptoken_yubikey.py b/ipaclient/plugins/otptoken_yubikey.py
+index 3c310eacbaeef654e43049db78437c8c29f52279..549376a0ff65d44c5698666a84608849152368b2 100644
+--- a/ipaclient/plugins/otptoken_yubikey.py
++++ b/ipaclient/plugins/otptoken_yubikey.py
+@@ -23,10 +23,11 @@ import six
+ import usb.core
+ import yubico
+ 
+-from ipalib import _, IntEnum
++from ipalib import _, api, IntEnum
+ from ipalib.errors import NotFound
+ from ipalib.frontend import Command, Method, Object
+ from ipalib.plugable import Registry
++from ipalib.util import classproperty
+ 
+ if six.PY3:
+     unicode = str
+@@ -74,11 +75,13 @@ class otptoken_add_yubikey(Command):
+     )
+     has_output_params = takes_options
+ 
+-    @property
+-    def NO_CLI(self):
+-        return isinstance(self.api.Command.otptoken_add,
++    @classmethod
++    def __NO_CLI_getter(cls):
++        return isinstance(api.Command.otptoken_add,
+                           _fake_otptoken_add)
+ 
++    NO_CLI = classproperty(__NO_CLI_getter)
++
+     def get_args(self):
+         for arg in self.api.Command.otptoken_add.args():
+             yield arg
+diff --git a/ipaclient/plugins/vault.py b/ipaclient/plugins/vault.py
+index 3e116bbad54fea419b571d1f09c1b00280e94991..c0ded21d515fe41bde5fb0e547087cb7789aa6a3 100644
+--- a/ipaclient/plugins/vault.py
++++ b/ipaclient/plugins/vault.py
+@@ -38,7 +38,8 @@ import nss.nss as nss
+ 
+ from ipaclient.frontend import MethodOverride
+ from ipalib.frontend import Local, Method, Object
+-from ipalib import errors
++from ipalib.util import classproperty
++from ipalib import api, errors
+ from ipalib import Bytes, Flag, Str
+ from ipalib.plugable import Registry
+ from ipalib import _
+@@ -202,11 +203,13 @@ class vault_add(Local):
+         ),
+     )
+ 
+-    @property
+-    def NO_CLI(self):
+-        return isinstance(self.api.Command.vault_add_internal,
++    @classmethod
++    def __NO_CLI_getter(cls):
++        return isinstance(api.Command.vault_add_internal,
+                           _fake_vault_add_internal)
+ 
++    NO_CLI = classproperty(__NO_CLI_getter)
++
+     def get_args(self):
+         for arg in self.api.Command.vault_add_internal.args():
+             yield arg
+@@ -406,11 +409,13 @@ class vault_mod(Local):
+         ),
+     )
+ 
+-    @property
+-    def NO_CLI(self):
+-        return isinstance(self.api.Command.vault_mod_internal,
++    @classmethod
++    def __NO_CLI_getter(cls):
++        return isinstance(api.Command.vault_mod_internal,
+                           _fake_vault_mod_internal)
+ 
++    NO_CLI = classproperty(__NO_CLI_getter)
++
+     def get_args(self):
+         for arg in self.api.Command.vault_mod_internal.args():
+             yield arg
+@@ -591,11 +596,13 @@ class vault_archive(Local):
+         ),
+     )
+ 
+-    @property
+-    def NO_CLI(self):
+-        return isinstance(self.api.Command.vault_archive_internal,
++    @classmethod
++    def __NO_CLI_getter(cls):
++        return isinstance(api.Command.vault_archive_internal,
+                           _fake_vault_archive_internal)
+ 
++    NO_CLI = classproperty(__NO_CLI_getter)
++
+     def get_args(self):
+         for arg in self.api.Command.vault_archive_internal.args():
+             yield arg
+@@ -846,11 +853,13 @@ class vault_retrieve(Local):
+         ),
+     )
+ 
+-    @property
+-    def NO_CLI(self):
+-        return isinstance(self.api.Command.vault_retrieve_internal,
++    @classmethod
++    def __NO_CLI_getter(cls):
++        return isinstance(api.Command.vault_retrieve_internal,
+                           _fake_vault_retrieve_internal)
+ 
++    NO_CLI = classproperty(__NO_CLI_getter)
++
+     def get_args(self):
+         for arg in self.api.Command.vault_retrieve_internal.args():
+             yield arg
+diff --git a/ipaclient/remote_plugins/schema.py b/ipaclient/remote_plugins/schema.py
+index d039fb41991c26a9c7b7f76f6959668efb677586..f165736cde6f08d6d22c17070d570da261799e4b 100644
+--- a/ipaclient/remote_plugins/schema.py
++++ b/ipaclient/remote_plugins/schema.py
+@@ -89,10 +89,32 @@ class _SchemaPlugin(object):
+     bases = None
+     schema_key = None
+ 
+-    def __init__(self, full_name):
++    def __init__(self, schema, full_name):
+         self.name, _slash, self.version = full_name.partition('/')
+         self.full_name = full_name
+-        self.__class = None
++        self._schema = schema
++        self._class = None
++
++    @property
++    def doc(self):
++        if self._class is not None:
++            return self._class.doc
++        else:
++            schema = self._schema[self.schema_key][self.full_name]
++            try:
++                return schema['doc']
++            except KeyError:
++                return None
++
++    @property
++    def summary(self):
++        if self._class is not None:
++            return self._class.summary
++        else:
++            if self.doc is not None:
++                return self.doc.split('\n\n', 1)[0].strip()
++            else:
++                return u'<%s>' % self.full_name
+ 
+     def _create_default_from(self, api, name, keys):
+         cmd_name = self.full_name
+@@ -200,18 +222,37 @@ class _SchemaPlugin(object):
+         return self.name, self.bases, class_dict
+ 
+     def __call__(self, api):
+-        if self.__class is None:
++        if self._class is None:
+             schema = api._schema[self.schema_key][self.full_name]
+             name, bases, class_dict = self._create_class(api, schema)
+-            self.__class = type(name, bases, class_dict)
++            self._class = type(name, bases, class_dict)
+ 
+-        return self.__class(api)
++        return self._class(api)
+ 
+ 
+ class _SchemaCommandPlugin(_SchemaPlugin):
+     bases = (_SchemaCommand,)
+     schema_key = 'commands'
+ 
++    @property
++    def topic(self):
++        if self._class is not None:
++            return self._class.topic
++        else:
++            schema = self._schema[self.schema_key][self.full_name]
++            try:
++                return str(schema['topic_topic']).partition('/')[0]
++            except KeyError:
++                return None
++
++    @property
++    def NO_CLI(self):
++        if self._class is not None:
++            return self._class.NO_CLI
++        else:
++            schema = self._schema[self.schema_key][self.full_name]
++            return 'cli' in schema.get('exclude', [])
++
+     def _create_output(self, api, schema):
+         if schema.get('multivalue', False):
+             type_type = (tuple, list)
+@@ -565,7 +606,7 @@ def get_package(api, client):
+     module.register = plugable.Registry()
+     for plugin_cls in (_SchemaCommandPlugin, _SchemaObjectPlugin):
+         for full_name in schema[plugin_cls.schema_key]:
+-            plugin = plugin_cls(str(full_name))
++            plugin = plugin_cls(schema, str(full_name))
+             plugin = module.register()(plugin)
+     sys.modules[module_name] = module
+ 
+diff --git a/ipalib/frontend.py b/ipalib/frontend.py
+index cb00841f21bd5a3e3b4095dcd17a8816ca24400f..455b222d4d7fcbb65b43c4d8e1ffbbaf3e131d22 100644
+--- a/ipalib/frontend.py
++++ b/ipalib/frontend.py
+@@ -38,7 +38,7 @@ from ipalib.errors import (ZeroArgumentError, MaxArgumentError, OverlapError,
+     ValidationError, ConversionError)
+ from ipalib import errors, messages
+ from ipalib.request import context, context_frame
+-from ipalib.util import json_serialize
++from ipalib.util import classproperty, json_serialize
+ 
+ if six.PY3:
+     unicode = str
+@@ -426,9 +426,11 @@ class Command(HasParam):
+ 
+     api_version = API_VERSION
+ 
+-    @property
+-    def topic(self):
+-        return type(self).__module__.rpartition('.')[2]
++    @classmethod
++    def __topic_getter(cls):
++        return cls.__module__.rpartition('.')[2]
++
++    topic = classproperty(__topic_getter)
+ 
+     @property
+     def forwarded_name(self):
+diff --git a/ipalib/plugable.py b/ipalib/plugable.py
+index 26fbeaa26d7986f2e184f0974ef396bd323d6bf5..073ad05d7aee5e83cae5c6e20bac8f9439505198 100644
+--- a/ipalib/plugable.py
++++ b/ipalib/plugable.py
+@@ -155,19 +155,22 @@ class Plugin(ReadOnly):
+ 
+     bases = classproperty(__bases_getter)
+ 
+-    @property
+-    def doc(self):
+-        return type(self).__doc__
++    @classmethod
++    def __doc_getter(cls):
++        return cls.__doc__
+ 
+-    @property
+-    def summary(self):
+-        doc = self.doc
++    doc = classproperty(__doc_getter)
++
++    @classmethod
++    def __summary_getter(cls):
++        doc = cls.doc
+         if not _(doc).msg:
+-            cls = type(self)
+             return u'<%s.%s>' % (cls.__module__, cls.__name__)
+         else:
+             return unicode(doc).split('\n\n', 1)[0].strip()
+ 
++    summary = classproperty(__summary_getter)
++
+     @property
+     def api(self):
+         """
+-- 
+2.7.4
+

@@ -1,0 +1,41 @@
+diff -U10 ./nss/lib/softoken/fipstokn.c.limit-create-fipscheck ./nss/lib/softoken/fipstokn.c
+--- ./nss/lib/softoken/fipstokn.c.limit-create-fipscheck	2014-12-19 13:18:57.374673644 +0100
++++ ./nss/lib/softoken/fipstokn.c	2014-12-19 13:40:13.817982735 +0100
+@@ -742,27 +742,36 @@
+     }
+     return rv;
+ }
+ 
+ 
+ /* FC_CreateObject creates a new object. */
+  CK_RV FC_CreateObject(CK_SESSION_HANDLE hSession,
+ 		CK_ATTRIBUTE_PTR pTemplate, CK_ULONG ulCount, 
+ 					CK_OBJECT_HANDLE_PTR phObject) {
+     CK_OBJECT_CLASS * classptr;
++    CK_RV rv = CKR_OK;
+ 
+-    SFTK_FIPSCHECK();
+     CHECK_FORK();
+ 
+     classptr = (CK_OBJECT_CLASS *)fc_getAttribute(pTemplate,ulCount,CKA_CLASS);
+     if (classptr == NULL) return CKR_TEMPLATE_INCOMPLETE;
+ 
++    if (*classptr == CKO_NETSCAPE_NEWSLOT || *classptr == CKO_NETSCAPE_DELSLOT) {
++        if (sftk_fatalError)
++            return CKR_DEVICE_ERROR;
++    } else {
++        rv = sftk_fipsCheck();
++        if (rv != CKR_OK)
++            return rv;
++    }
++
+     /* FIPS can't create keys from raw key material */
+     if (SFTK_IS_NONPUBLIC_KEY_OBJECT(*classptr)) {
+ 	rv = CKR_ATTRIBUTE_VALUE_INVALID;
+     } else {
+ 	rv = NSC_CreateObject(hSession,pTemplate,ulCount,phObject);
+     }
+     if (sftk_audit_enabled && SFTK_IS_KEY_OBJECT(*classptr)) {
+ 	sftk_AuditCreateObject(hSession,pTemplate,ulCount,phObject,rv);
+     }
+     return rv;

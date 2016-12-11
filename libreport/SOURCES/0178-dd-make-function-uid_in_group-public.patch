@@ -1,0 +1,58 @@
+From 444c282364a9d25f30942ceffdd5a52dd2b7183d Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Mon, 14 Dec 2015 16:21:29 +0100
+Subject: [PATCH] dd: make function uid_in_group() public
+
+Related to rhbz#1277849
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/include/internal_libreport.h | 9 +++++++++
+ src/lib/dump_dir.c               | 4 +---
+ 2 files changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/src/include/internal_libreport.h b/src/include/internal_libreport.h
+index 651e339..70eb299 100644
+--- a/src/include/internal_libreport.h
++++ b/src/include/internal_libreport.h
+@@ -816,6 +816,15 @@ int delete_dump_dir_possibly_using_abrtd(const char *dump_dir_name);
+ #define steal_directory libreport_steal_directory
+ struct dump_dir *steal_directory(const char *base_dir, const char *dump_dir_name);
+ 
++/* Resolves if the given user is in given group
++ *
++ * @param uid user ID
++ * @param gid group ID
++ * @returns TRUE in case the user is in the group otherwise returns FALSE
++ */
++#define uid_in_group libreport_uid_in_group
++bool uid_in_group(uid_t uid, gid_t gid);
++
+ /* Tries to open dump_dir_name with writing access. If function needs to steal
+  * directory calls ask_continue(new base dir, dump dir) callback to ask user
+  * for permission. If ask_continue param is NULL the function thinks that an
+diff --git a/src/lib/dump_dir.c b/src/lib/dump_dir.c
+index 9b5b1b5..1e6ce64 100644
+--- a/src/lib/dump_dir.c
++++ b/src/lib/dump_dir.c
+@@ -1375,8 +1375,7 @@ void delete_dump_dir(const char *dirname)
+     }
+ }
+ 
+-#if DUMP_DIR_OWNED_BY_USER == 0
+-static bool uid_in_group(uid_t uid, gid_t gid)
++bool uid_in_group(uid_t uid, gid_t gid)
+ {
+     char **tmp;
+     struct passwd *pwd = getpwuid(uid);
+@@ -1403,7 +1402,6 @@ static bool uid_in_group(uid_t uid, gid_t gid)
+     log_info("user %s DOESN'T belong to group: %s",  pwd->pw_name, grp->gr_name);
+     return FALSE;
+ }
+-#endif
+ 
+ int fdump_dir_stat_for_uid(int dir_fd, uid_t uid)
+ {
+-- 
+1.8.3.1
+

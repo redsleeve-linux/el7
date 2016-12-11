@@ -1,0 +1,31 @@
+From 0d5962e52aa9418ec0285f202aa786083aec67c3 Mon Sep 17 00:00:00 2001
+From: Martin Babinsky <mbabinsk@redhat.com>
+Date: Wed, 13 Jul 2016 18:22:04 +0200
+Subject: [PATCH] messages: specify message type for ResultFormattingError
+
+the ResultFormattingError message class was missing a `type` member which
+could cause `otptoken-add` command to crash during QR image rendering using
+suboptimal TTY settings
+
+https://fedorahosted.org/freeipa/ticket/6081
+
+Reviewed-By: Alexander Bokovoy <abokovoy@redhat.com>
+---
+ ipalib/messages.py | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/ipalib/messages.py b/ipalib/messages.py
+index 7288606f6ac923c2c87fadba5f2a6a2d9dadb7f5..6abad64a8259a8e164db60f63e75bbb9c230e7bf 100644
+--- a/ipalib/messages.py
++++ b/ipalib/messages.py
+@@ -363,6 +363,7 @@ class ResultFormattingError(PublicMessage):
+     """
+     **13019** Unable to correctly format some part of the result
+     """
++    type = "warning"
+     errno = 13019
+ 
+ 
+-- 
+2.7.4
+

@@ -1,0 +1,349 @@
+From 5560ca0e51919bc5aeccb22584e24219040dc78b Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Tue, 24 Mar 2015 20:57:34 +0100
+Subject: [PATCH] cli: use the DBus methods for getting problem information
+
+The dump directory is no longer accessible by non-root users and we also
+want to get rid of direct access to allow administrators (wheel members)
+see problem data without the need to ChownProblem directory before.
+
+Related: #1224984
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/cli/abrt-cli-core.c | 74 ++++++++++++++++++++++++-------------------------
+ src/cli/abrt-cli-core.h |  4 ++-
+ src/cli/list.c          | 45 +++++++++++-------------------
+ src/cli/process.c       |  6 +---
+ src/cli/status.c        | 66 +++++++++++++------------------------------
+ 5 files changed, 77 insertions(+), 118 deletions(-)
+
+diff --git a/src/cli/abrt-cli-core.c b/src/cli/abrt-cli-core.c
+index 23a74a8..77a37f7 100644
+--- a/src/cli/abrt-cli-core.c
++++ b/src/cli/abrt-cli-core.c
+@@ -39,24 +39,22 @@ vector_of_problem_data_t *new_vector_of_problem_data(void)
+     return g_ptr_array_new_with_free_func((void (*)(void*)) &problem_data_free);
+ }
+ 
+-static int
+-append_problem_data(struct dump_dir *dd, void *arg)
++vector_of_problem_data_t *fetch_crash_infos(void)
+ {
+-    vector_of_problem_data_t *vpd = arg;
+-
+-    problem_data_t *problem_data = create_problem_data_from_dump_dir(dd);
+-    problem_data_add(problem_data, CD_DUMPDIR, dd->dd_dirname,
+-                            CD_FLAG_TXT + CD_FLAG_ISNOTEDITABLE + CD_FLAG_LIST);
+-    g_ptr_array_add(vpd, problem_data);
+-    return 0;
+-}
++    GList *problems = get_problems_over_dbus(/*don't authorize*/false);
++    if (problems == ERR_PTR)
++        return NULL;
+ 
+-vector_of_problem_data_t *fetch_crash_infos(GList *dir_list)
+-{
+     vector_of_problem_data_t *vpd = new_vector_of_problem_data();
+ 
+-    for (GList *li = dir_list; li; li = li->next)
+-        for_each_problem_in_dir(li->data, getuid(), append_problem_data, vpd);
++    for (GList *iter = problems; iter; iter = g_list_next(iter))
++    {
++        problem_data_t *problem_data = get_full_problem_data_over_dbus((const char *)(iter->data));
++        if (problem_data == ERR_PTR)
++            continue;
++
++        g_ptr_array_add(vpd, problem_data);
++    }
+ 
+     return vpd;
+ }
+@@ -74,36 +72,38 @@ static bool isxdigit_str(const char *str)
+     return true;
+ }
+ 
+-struct name_resolution_param {
+-    const char *shortcut;
+-    unsigned strlen_shortcut;
+-    char *found_name;
+-};
+-
+-static int find_dir_by_hash(struct dump_dir *dd, void *arg)
++char *find_problem_by_hash(const char *hash, GList *problems)
+ {
+-    struct name_resolution_param *param = arg;
+-    char hash_str[SHA1_RESULT_LEN*2 + 1];
+-    str_to_sha1str(hash_str, dd->dd_dirname);
+-    if (strncasecmp(param->shortcut, hash_str, param->strlen_shortcut) == 0)
++    unsigned hash_len = strlen(hash);
++    if (!isxdigit_str(hash) || hash_len < 5)
++        return NULL;
++
++    char *found_name = NULL;
++    for (GList *iter = problems; iter; iter = g_list_next(iter))
+     {
+-        if (param->found_name)
+-            error_msg_and_die(_("'%s' identifies more than one problem directory"), param->shortcut);
+-        param->found_name = xstrdup(dd->dd_dirname);
++        char hash_str[SHA1_RESULT_LEN*2 + 1];
++        str_to_sha1str(hash_str, (const char *)(iter->data));
++        if (strncasecmp(hash, hash_str, hash_len) == 0)
++        {
++            if (found_name)
++                error_msg_and_die(_("'%s' identifies more than one problem directory"), hash);
++            found_name = xstrdup((const char *)(iter->data));
++        }
+     }
+-    return 0;
++
++    return found_name;
+ }
+ 
+ char *hash2dirname(const char *hash)
+ {
+-    unsigned hash_len = strlen(hash);
+-    if (!isxdigit_str(hash) || hash_len < 5)
++    /* Try loading by dirname hash */
++    GList *problems = get_problems_over_dbus(/*don't authorize*/false);
++    if (problems == ERR_PTR)
+         return NULL;
+ 
+-    /* Try loading by dirname hash */
+-    struct name_resolution_param param = { hash, hash_len, NULL };
+-    GList *dir_list = get_problem_storages();
+-    for (GList *li = dir_list; li; li = li->next)
+-        for_each_problem_in_dir(li->data, getuid(), find_dir_by_hash, &param);
+-    return param.found_name;
++    char *found_name = find_problem_by_hash(hash, problems);
++
++    g_list_free_full(problems, free);
++
++    return found_name;
+ }
+diff --git a/src/cli/abrt-cli-core.h b/src/cli/abrt-cli-core.h
+index 83d0b5d..33b2ea6 100644
+--- a/src/cli/abrt-cli-core.h
++++ b/src/cli/abrt-cli-core.h
+@@ -28,9 +28,11 @@ problem_data_t *get_problem_data(vector_of_problem_data_t *vector, unsigned i);
+ 
+ void free_vector_of_problem_data(vector_of_problem_data_t *vector);
+ vector_of_problem_data_t *new_vector_of_problem_data(void);
+-vector_of_problem_data_t *fetch_crash_infos(GList *dir_list);
++vector_of_problem_data_t *fetch_crash_infos(void);
+ 
+ /* Returns malloced string, or NULL if not found: */
++char *find_problem_by_hash(const char *hash, GList *problems);
++/* Returns malloced string, or NULL if not found: */
+ char *hash2dirname(const char *hash);
+ 
+ 
+diff --git a/src/cli/list.c b/src/cli/list.c
+index ccb5f3b..1594906 100644
+--- a/src/cli/list.c
++++ b/src/cli/list.c
+@@ -30,33 +30,28 @@
+  *       ~/.abrt/spool and /var/tmp/abrt? needs more _meditation_.
+  */
+ 
+-static problem_data_t *load_problem_data(const char *dump_dir_name)
++static problem_data_t *load_problem_data(const char *problem_id)
+ {
+-    /* First, try loading by dirname */
+-    int sv_logmode = logmode;
+-    logmode = 0; /* suppress EPERM/EACCES errors in opendir */
+-    struct dump_dir *dd = dd_opendir(dump_dir_name, /*flags:*/ DD_OPEN_READONLY);
+-    logmode = sv_logmode;
++    char *name2 = NULL;
++
++    /* First, check if there is a problem with the passed id */
++    GList *problems = get_problems_over_dbus(/*don't authorize*/false);
++    GList *item = g_list_find_custom(problems, problem_id, (GCompareFunc)strcmp);
+ 
+     /* (git requires at least 5 char hash prefix, we do the same) */
+-    if (!dd && errno == ENOENT)
++    if (item == NULL)
+     {
+         /* Try loading by dirname hash */
+-        char *name2 = hash2dirname(dump_dir_name);
+-        if (name2)
+-            dd = dd_opendir(name2, /*flags:*/ DD_OPEN_READONLY);
+-        free(name2);
+-    }
++        name2 = find_problem_by_hash(problem_id, problems);
++        if (name2 == NULL)
++            return NULL;
+ 
+-    if (!dd)
+-        return NULL;
++        problem_id = name2;
++    }
+ 
+-    problem_data_t *problem_data = create_problem_data_from_dump_dir(dd);
+-    problem_data_add(problem_data, CD_DUMPDIR, dd->dd_dirname,
+-                            CD_FLAG_TXT + CD_FLAG_ISNOTEDITABLE + CD_FLAG_LIST);
+-    dd_close(dd);
++    problem_data_t *problem_data = get_full_problem_data_over_dbus(problem_id);
+ 
+-    return problem_data;
++    return (problem_data == ERR_PTR ? NULL : problem_data);
+ }
+ 
+ /** Prints basic information about a crash to stdout. */
+@@ -176,7 +171,7 @@ static bool print_crash_list(vector_of_problem_data_t *crash_list, int detailed,
+ int cmd_list(int argc, const char **argv)
+ {
+     const char *program_usage_string = _(
+-        "& list [options] [DIR]..."
++        "& list [options]"
+         );
+ 
+     int opt_not_reported = 0;
+@@ -194,15 +189,8 @@ int cmd_list(int argc, const char **argv)
+     };
+ 
+     parse_opts(argc, (char **)argv, program_options, program_usage_string);
+-    argv += optind;
+-
+-    GList *D_list = NULL;
+-    while (*argv)
+-        D_list = g_list_append(D_list, xstrdup(*argv++));
+-    if (!D_list)
+-        D_list = get_problem_storages();
+ 
+-    vector_of_problem_data_t *ci = fetch_crash_infos(D_list);
++    vector_of_problem_data_t *ci = fetch_crash_infos();
+ 
+     g_ptr_array_sort_with_data(ci, &cmp_problem_data, (char *) FILENAME_LAST_OCCURRENCE);
+ 
+@@ -212,7 +200,6 @@ int cmd_list(int argc, const char **argv)
+     print_crash_list(ci, opt_detailed, opt_not_reported, opt_since, opt_until, CD_TEXT_ATT_SIZE_BZ);
+ 
+     free_vector_of_problem_data(ci);
+-    list_free_with_free(D_list);
+ 
+ #if SUGGEST_AUTOREPORTING != 0
+     load_abrt_conf();
+diff --git a/src/cli/process.c b/src/cli/process.c
+index 7f4fff5..39462f9 100644
+--- a/src/cli/process.c
++++ b/src/cli/process.c
+@@ -152,18 +152,14 @@ int cmd_process(int argc, const char **argv)
+     };
+ 
+     parse_opts(argc, (char **)argv, program_options, program_usage_string);
+-    argv += optind;
+ 
+-    GList *D_list = get_problem_storages();
+-
+-    vector_of_problem_data_t *ci = fetch_crash_infos(D_list);
++    vector_of_problem_data_t *ci = fetch_crash_infos();
+ 
+     g_ptr_array_sort_with_data(ci, &cmp_problem_data, (char *) FILENAME_LAST_OCCURRENCE);
+ 
+     process_crashes(ci, opt_since);
+ 
+     free_vector_of_problem_data(ci);
+-    list_free_with_free(D_list);
+ 
+     return 0;
+ }
+diff --git a/src/cli/status.c b/src/cli/status.c
+index 1de2d41..68bdd0e 100644
+--- a/src/cli/status.c
++++ b/src/cli/status.c
+@@ -21,53 +21,36 @@
+ #include <sys/types.h>
+ #include "problem_api.h"
+ 
+-struct time_range {
+-    unsigned count;
+-    unsigned long since;
+-};
+-
+-static int count_dir_if_newer_than(struct dump_dir *dd, void *arg)
+-{
+-    struct time_range *me = arg;
+-
+-    if (dd_exist(dd, FILENAME_REPORTED_TO))
+-        return 0;
+-
+-    char *time_str = dd_load_text(dd, FILENAME_LAST_OCCURRENCE);
+-    long val = atol(time_str);
+-    free(time_str);
+-    if (val < me->since)
+-        return 0;
+-
+-    me->count++;
+-    return 0;
+-}
+-
+-static void count_problems_in_dir(gpointer data, gpointer arg)
++static unsigned int count_problem_dirs(unsigned long since)
+ {
+-    char *path = data;
+-    struct time_range *me = arg;
++    unsigned count = 0;
+ 
+-    log_info("scanning '%s' for problems since %lu", path, me->since);
++    GList *problems = get_problems_over_dbus(/*don't authorize*/false);
++    for (GList *iter = problems; iter != NULL; iter = g_list_next(iter))
++    {
++        const char *problem_id = (const char *)iter->data;
++        if (test_exist_over_dbus(problem_id, FILENAME_REPORTED_TO))
++            continue;
+ 
+-    for_each_problem_in_dir(path, getuid(), count_dir_if_newer_than, me);
+-}
++        char *time_str = load_text_over_dbus(problem_id, FILENAME_LAST_OCCURRENCE);
++        if (time_str == NULL)
++            continue;
+ 
+-static unsigned int count_problem_dirs(GList *paths, unsigned long since)
+-{
+-    struct time_range me;
+-    me.count = 0;
+-    me.since = since;
++        long val = atol(time_str);
++        free(time_str);
++        if (val < since)
++            return 0;
+ 
+-    g_list_foreach(paths, count_problems_in_dir, &me);
++        count++;
++    }
+ 
+-    return me.count;
++    return count;
+ }
+ 
+ int cmd_status(int argc, const char **argv)
+ {
+     const char *program_usage_string = _(
+-        "& status [DIR]..."
++        "& status"
+         );
+ 
+     int opt_bare = 0; /* must be _int_, OPT_BOOL expects that! */
+@@ -81,17 +64,8 @@ int cmd_status(int argc, const char **argv)
+     };
+ 
+     parse_opts(argc, (char **)argv, program_options, program_usage_string);
+-    argv += optind;
+-
+-    GList *problem_dir_list = NULL;
+-    while (*argv)
+-        problem_dir_list = g_list_append(problem_dir_list, xstrdup(*argv++));
+-    if (!problem_dir_list)
+-        problem_dir_list = get_problem_storages();
+-
+-    unsigned int problem_count = count_problem_dirs(problem_dir_list, opt_since);
+ 
+-    list_free_with_free(problem_dir_list);
++    unsigned int problem_count = count_problem_dirs(opt_since);
+ 
+     /* show only if there is at least 1 problem or user set the -v */
+     if (problem_count > 0 || g_verbose > 0)
+-- 
+2.4.3
+

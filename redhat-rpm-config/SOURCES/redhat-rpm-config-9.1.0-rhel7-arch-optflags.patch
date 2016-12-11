@@ -1,0 +1,36 @@
+diff -up redhat-rpm-config-9.1.0/rpmrc.arch-optflags redhat-rpm-config-9.1.0/rpmrc
+--- redhat-rpm-config-9.1.0/rpmrc.arch-optflags	2013-09-13 08:48:58.573383192 +0300
++++ redhat-rpm-config-9.1.0/rpmrc	2013-09-13 08:52:22.535847799 +0300
+@@ -3,7 +3,7 @@ include: /usr/lib/rpm/rpmrc
+ optflags: i386 %{__global_cflags} -m32 -march=i386 -mtune=generic -fasynchronous-unwind-tables
+ optflags: i486 %{__global_cflags} -m32 -march=i486 -fasynchronous-unwind-tables
+ optflags: i586 %{__global_cflags} -m32 -march=i586 -mtune=generic -fasynchronous-unwind-tables
+-optflags: i686 %{__global_cflags} -m32 -march=i686 -mtune=atom -fasynchronous-unwind-tables
++optflags: i686 %{__global_cflags} -m32 -march=x86-64 -mtune=generic -mfpmath=sse -fasynchronous-unwind-tables
+ optflags: athlon %{__global_cflags} -m32 -march=athlon -fasynchronous-unwind-tables
+ optflags: ia64 %{__global_cflags}
+ optflags: x86_64 %{__global_cflags} -m64 -mtune=generic
+@@ -24,10 +24,10 @@ optflags: sparc64v %{__global_cflags} -m
+ 
+ optflags: m68k %{__global_cflags}
+ 
+-optflags: ppc %{__global_cflags} -m32
++optflags: ppc %{__global_cflags} -m32 -mcpu=power7 -mtune=power7
+ optflags: ppciseries %{__global_cflags} -m32
+ optflags: ppcpseries %{__global_cflags} -m32
+-optflags: ppc64 %{__global_cflags} -m64
++optflags: ppc64 %{__global_cflags} -m64 -mcpu=power7 -mtune=power7
+ optflags: ppc64iseries %{__global_cflags} -m64
+ optflags: ppc64pseries %{__global_cflags} -m64
+ optflags: ppc8260 %{__global_cflags} -m32
+@@ -61,8 +61,8 @@ optflags: atariclone %{__global_cflags}
+ optflags: milan %{__global_cflags}
+ optflags: hades %{__global_cflags}
+ 
+-optflags: s390 %{__global_cflags} -m31 -march=z9-109 -mtune=z10
+-optflags: s390x %{__global_cflags} -m64 -march=z9-109 -mtune=z10
++optflags: s390 %{__global_cflags} -m31 -march=z196 -mtune=zEC12
++optflags: s390x %{__global_cflags} -m64 -march=z196 -mtune=zEC12
+ 
+ optflags: aarch64 %{__global_cflags}
+ 

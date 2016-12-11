@@ -1,0 +1,174 @@
+From 1628320b093e3605e91f0aa7183b6859920a0a85 Mon Sep 17 00:00:00 2001
+From: Ray Strode <rstrode@redhat.com>
+Date: Thu, 6 Feb 2014 14:42:40 -0500
+Subject: [PATCH 1/2] main: don't nullify local_console_terminal in quit_splash
+
+quit_splash gets called on hide-splash so nullify the terminal
+will make it unavailable on later show-splash calls.
+---
+ src/main.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/src/main.c b/src/main.c
+index 91e0649..1f9f6dd 100644
+--- a/src/main.c
++++ b/src/main.c
+@@ -1042,61 +1042,60 @@ load_devices (state_t                    *state,
+ {
+   state->device_manager = ply_device_manager_new (state->default_tty, flags);
+   state->local_console_terminal = ply_device_manager_get_default_terminal (state->device_manager);
+ 
+   ply_device_manager_watch_seats (state->device_manager,
+                                   (ply_seat_added_handler_t)
+                                   on_seat_added,
+                                   (ply_seat_removed_handler_t)
+                                   on_seat_removed,
+                                   state);
+ }
+ 
+ static void
+ quit_splash (state_t *state)
+ {
+   ply_trace ("quiting splash");
+   if (state->boot_splash != NULL)
+     {
+       ply_trace ("freeing splash");
+       ply_boot_splash_free (state->boot_splash);
+       state->boot_splash = NULL;
+     }
+ 
+   if (state->local_console_terminal != NULL)
+     {
+       if (!state->should_retain_splash)
+         {
+           ply_trace ("Not retaining splash, so deallocating VT");
+           ply_terminal_deactivate_vt (state->local_console_terminal);
+         }
+-      state->local_console_terminal = NULL;
+     }
+ 
+   detach_from_running_session (state);
+ }
+ 
+ static void
+ hide_splash (state_t *state)
+ {
+   state->is_shown = false;
+ 
+   cancel_pending_delayed_show (state);
+ 
+   if (state->boot_splash == NULL)
+     return;
+ 
+   ply_boot_splash_hide (state->boot_splash);
+ 
+   if (state->local_console_terminal != NULL)
+     ply_terminal_set_mode (state->local_console_terminal, PLY_TERMINAL_MODE_TEXT);
+ }
+ 
+ static void
+ dump_details_and_quit_splash (state_t *state)
+ {
+   state->showing_details = false;
+   toggle_between_splash_and_details (state);
+ 
+   ply_device_manager_deactivate_renderers (state->device_manager);
+   hide_splash (state);
+   quit_splash (state);
+-- 
+1.8.3.1
+
+
+From fea0252399bf9d13e88b27b7296f263732f180fc Mon Sep 17 00:00:00 2001
+From: Ray Strode <rstrode@redhat.com>
+Date: Thu, 6 Feb 2014 15:22:54 -0500
+Subject: [PATCH 2/2] main: detach from keyboard on hide-splash
+
+Currently plymouth stays in control of the terminal
+after hide-splash.  This is wrong.  Once plymouth is
+hidden, the terminal should be free to use for other
+programs.
+
+This commit makes sure we free up the terminal on
+hide splash.
+---
+ src/main.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/main.c b/src/main.c
+index 1f9f6dd..92a1cfd 100644
+--- a/src/main.c
++++ b/src/main.c
+@@ -1035,66 +1035,69 @@ on_seat_added (state_t    *state,
+                                   on_enter, state);
+ 
+ }
+ 
+ static void
+ load_devices (state_t                    *state,
+               ply_device_manager_flags_t  flags)
+ {
+   state->device_manager = ply_device_manager_new (state->default_tty, flags);
+   state->local_console_terminal = ply_device_manager_get_default_terminal (state->device_manager);
+ 
+   ply_device_manager_watch_seats (state->device_manager,
+                                   (ply_seat_added_handler_t)
+                                   on_seat_added,
+                                   (ply_seat_removed_handler_t)
+                                   on_seat_removed,
+                                   state);
+ }
+ 
+ static void
+ quit_splash (state_t *state)
+ {
+   ply_trace ("quiting splash");
+   if (state->boot_splash != NULL)
+     {
+       ply_trace ("freeing splash");
+       ply_boot_splash_free (state->boot_splash);
+       state->boot_splash = NULL;
+     }
+ 
++  ply_device_manager_deactivate_keyboards (state->device_manager);
++
+   if (state->local_console_terminal != NULL)
+     {
+       if (!state->should_retain_splash)
+         {
+           ply_trace ("Not retaining splash, so deallocating VT");
+           ply_terminal_deactivate_vt (state->local_console_terminal);
++          ply_terminal_close (state->local_console_terminal);
+         }
+     }
+ 
+   detach_from_running_session (state);
+ }
+ 
+ static void
+ hide_splash (state_t *state)
+ {
+   state->is_shown = false;
+ 
+   cancel_pending_delayed_show (state);
+ 
+   if (state->boot_splash == NULL)
+     return;
+ 
+   ply_boot_splash_hide (state->boot_splash);
+ 
+   if (state->local_console_terminal != NULL)
+     ply_terminal_set_mode (state->local_console_terminal, PLY_TERMINAL_MODE_TEXT);
+ }
+ 
+ static void
+ dump_details_and_quit_splash (state_t *state)
+ {
+   state->showing_details = false;
+   toggle_between_splash_and_details (state);
+ 
+   ply_device_manager_deactivate_renderers (state->device_manager);
+   hide_splash (state);
+-- 
+1.8.3.1
+

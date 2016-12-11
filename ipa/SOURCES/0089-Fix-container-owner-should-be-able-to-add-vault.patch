@@ -1,0 +1,34 @@
+From d3e11b06bbb996b1605f15912be106dcf47b357a Mon Sep 17 00:00:00 2001
+From: Martin Basti <mbasti@redhat.com>
+Date: Thu, 18 Aug 2016 10:11:25 +0200
+Subject: [PATCH] Fix: container owner should be able to add vault
+
+With recent change in DS (CVE fix), ds is not returging DuplicatedEntry
+error in case that user is not permitted by ACI to write, but ACIError instead.
+
+Is safe to ignore ACI error in container, because it will be raised
+again later if user has no access to container.
+
+https://fedorahosted.org/freeipa/ticket/6159
+
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+---
+ ipaserver/plugins/vault.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ipaserver/plugins/vault.py b/ipaserver/plugins/vault.py
+index c9b7cb942cfbca74134bce4ba039619b4f5f2845..5c4c09685ceb95c6634306c4275008d602099e12 100644
+--- a/ipaserver/plugins/vault.py
++++ b/ipaserver/plugins/vault.py
+@@ -783,7 +783,7 @@ class vault_add_internal(LDAPCreate):
+ 
+         try:
+             self.obj.create_container(parent_dn, owner_dn)
+-        except errors.DuplicateEntry as e:
++        except (errors.DuplicateEntry, errors.ACIError):
+             pass
+ 
+         # vault should be owned by the creator
+-- 
+2.7.4
+

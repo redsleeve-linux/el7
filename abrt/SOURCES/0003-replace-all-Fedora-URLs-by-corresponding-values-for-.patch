@@ -1,0 +1,55 @@
+From 30c70b7dd18681017b4b5277a324f04063be96c7 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Wed, 8 Jan 2014 20:45:08 +0100
+Subject: [ABRT PATCH 3/6] replace all Fedora URLs by corresponding values for
+ RHEL
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/plugins/abrt-retrace-client.c        | 2 +-
+ src/plugins/analyze_CCpp.xml.in          | 2 +-
+ src/plugins/analyze_RetraceServer.xml.in | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/plugins/abrt-retrace-client.c b/src/plugins/abrt-retrace-client.c
+index 60bbbc2..3b6c247 100644
+--- a/src/plugins/abrt-retrace-client.c
++++ b/src/plugins/abrt-retrace-client.c
+@@ -60,7 +60,7 @@ static bool no_pkgcheck;
+ 
+ static struct https_cfg cfg =
+ {
+-    .url = "retrace.fedoraproject.org",
++    .url = "localhost",
+     .port = 443,
+     .ssl_allow_insecure = false,
+ };
+diff --git a/src/plugins/analyze_CCpp.xml.in b/src/plugins/analyze_CCpp.xml.in
+index a7ce4dd..6f02692 100644
+--- a/src/plugins/analyze_CCpp.xml.in
++++ b/src/plugins/analyze_CCpp.xml.in
+@@ -26,7 +26,7 @@
+     <options>
+         <option type="text" name="RETRACE_SERVER_URL">
+            <_label>Retrace server URL</_label>
+-           <default-value>retrace.fedoraproject.org</default-value>
++           <default-value>localhost</default-value>
+            <allow-empty>no</allow-empty>
+            <_description>Address of the retrace server</_description>
+        </option>
+diff --git a/src/plugins/analyze_RetraceServer.xml.in b/src/plugins/analyze_RetraceServer.xml.in
+index e437cac..cf1d25a 100644
+--- a/src/plugins/analyze_RetraceServer.xml.in
++++ b/src/plugins/analyze_RetraceServer.xml.in
+@@ -12,7 +12,7 @@
+     <options>
+         <option type="text" name="RETRACE_SERVER_URL">
+            <_label>Retrace server URL</_label>
+-           <default-value>retrace.fedoraproject.org</default-value>
++           <default-value>localhost</default-value>
+            <allow-empty>no</allow-empty>
+            <_description>Address of the retrace server</_description>
+        </option>
+-- 
+1.8.3.1
+

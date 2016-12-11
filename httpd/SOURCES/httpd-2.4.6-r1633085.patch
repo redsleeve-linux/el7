@@ -1,0 +1,14 @@
+--- a/modules/ssl/ssl_engine_io.c	2014/10/20 09:11:19	1633084
++++ b/modules/ssl/ssl_engine_io.c	2014/10/20 09:18:22	1633085
+@@ -1322,6 +1322,11 @@
+                           "\"SSLVerifyClient optional_no_ca\" "
+                           "configuration");
+             ssl_log_ssl_error(SSLLOG_MARK, APLOG_INFO, server);
++
++            /* on session resumption ssl_callback_SSLVerify() 
++             * will not be called, therefore we have to set it here
++             */
++            sslconn->verify_info = "GENEROUS";
+         }
+         else {
+             const char *error = sslconn->verify_error ?

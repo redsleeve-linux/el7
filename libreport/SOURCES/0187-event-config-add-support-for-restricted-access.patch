@@ -1,0 +1,418 @@
+From 4d4ddb1005eda2a9ecf49f23d973d784bf6460de Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Tue, 22 Mar 2016 15:07:15 +0100
+Subject: [PATCH] event config: add support for 'restricted access'
+
+The xml event definition must hold the information about availability of
+creating tickets with restricted access.
+
+The tools like report-gtk and report-cli must use this information to:
+- offer the users the possibility to open the report with restricted access
+- tell the users whether the ticket will be private or not based on the
+  configuration of the event
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ doc/report_event.conf.txt                          | 10 ++++
+ src/include/event_config.h                         |  7 +++
+ src/lib/event_config.c                             | 34 ++++++++++++
+ src/lib/event_xml_parser.c                         | 20 ++++++++
+ tests/Makefile.am                                  |  3 +-
+ .../conf/event_implicit_no_support_restricted.xml  | 13 +++++
+ tests/conf/event_no_support_restricted.xml         | 15 ++++++
+ tests/conf/event_support_restricted_no_option.xml  | 15 ++++++
+ .../conf/event_support_restricted_with_option.xml  | 15 ++++++
+ tests/event_config.at                              | 60 ++++++++++++++++++++++
+ tests/testsuite.at                                 |  1 +
+ tests/xml_definition.at                            | 51 ++++++++++++++++++
+ 12 files changed, 243 insertions(+), 1 deletion(-)
+ create mode 100644 tests/conf/event_implicit_no_support_restricted.xml
+ create mode 100644 tests/conf/event_no_support_restricted.xml
+ create mode 100644 tests/conf/event_support_restricted_no_option.xml
+ create mode 100644 tests/conf/event_support_restricted_with_option.xml
+ create mode 100644 tests/event_config.at
+
+diff --git a/doc/report_event.conf.txt b/doc/report_event.conf.txt
+index 887c3e8..c7e736e 100644
+--- a/doc/report_event.conf.txt
++++ b/doc/report_event.conf.txt
+@@ -71,6 +71,8 @@ Each file has XML formatting with the following DTD:
+ <!ELEMENT exclude-binary-items     ("yes"|"no")>
+ <!ELEMENT minimal-rating           ("0"|"1"|"2"|"3"|"4")>
+ <!ELEMENT gui-review-elements      ("yes"|"no")>
++<!ELEMENT support-restricted-access ("yes"|"no")>
++<!ATTLIST support-restricted-access optionname CDATA #IMPLIED>
+ <!ELEMENT options          (option*,advanced-options)>
+ <!ELEMENT advanced-options (option)*>
+ <!ELEMENT option           (label+,description+,note-html+,allow-empty?,default-value?)>
+@@ -117,6 +119,14 @@ gui-review-elements::
+     can be published. If "no", the event is executed automatically. If not
+     provided, "yes" is expected.
+ 
++support-restricted-access::
++    If "yes", the UI tools will offer the users to enter the new report with
++    restricted access. If "no", the UI tools will never offer the users to
++    enter the report with restricted access. "no" is the default value. The
++    element should have one argument named 'optionname' which defines name of
++    an option holding configuration of the restricted access feature. The
++    option must of 'bool' type.
++
+ advanced-options::
+     List of options which are hidden in the default view.
+ 
+diff --git a/src/include/event_config.h b/src/include/event_config.h
+index e2fcc23..7d137c1 100644
+--- a/src/include/event_config.h
++++ b/src/include/event_config.h
+@@ -80,6 +80,8 @@ typedef struct
+     long  ec_minimal_rating;
+     bool  ec_skip_review;
+     bool  ec_sending_sensitive_data;
++    bool  ec_supports_restricted_access;
++    char *ec_restricted_access_option;
+ 
+     GList *ec_imported_event_names;
+     GList *options;
+@@ -98,6 +100,11 @@ const char *ec_get_long_desc(event_config_t *ec);
+ void ec_set_long_desc(event_config_t *ec, const char *long_desc);
+ bool ec_is_configurable(event_config_t* ec);
+ 
++/* Returns True if the event is configured to create ticket with restricted
++ * access.
++ */
++bool ec_restricted_access_enabled(event_config_t *ec);
++
+ void free_event_config(event_config_t *p);
+ 
+ 
+diff --git a/src/lib/event_config.c b/src/lib/event_config.c
+index 30b94d3..4155938 100644
+--- a/src/lib/event_config.c
++++ b/src/lib/event_config.c
+@@ -88,6 +88,39 @@ void ec_print(event_config_t *ec)
+         );
+ }
+ 
++bool ec_restricted_access_enabled(event_config_t *ec)
++{
++    if (!ec->ec_supports_restricted_access)
++    {
++        if (ec->ec_restricted_access_option != NULL)
++            log_warning("Event '%s' does not support restricted access but has the option", ec_get_name(ec));
++
++        return false;
++    }
++
++    if (ec->ec_restricted_access_option == NULL)
++    {
++        log_debug("Event '%s' supports restricted access but is missing the option", ec_get_name(ec));
++        return false;
++    }
++
++    event_option_t *eo = get_event_option_from_list(ec->ec_restricted_access_option, ec->options);
++    if (eo == NULL)
++    {
++        log_warning("Event '%s' supports restricted access but the option is not defined", ec_get_name(ec));
++        return false;
++    }
++
++    if (eo->eo_type != OPTION_TYPE_BOOL)
++    {
++        log_warning("Restricted option '%s' of Event '%s' is not of 'bool' type",
++                    ec->ec_restricted_access_option, ec_get_name(ec));
++        return false;
++    }
++
++    return eo->eo_value != NULL && string_to_bool(eo->eo_value);
++}
++
+ void free_event_option(event_option_t *p)
+ {
+     if (!p)
+@@ -112,6 +145,7 @@ void free_event_config(event_config_t *p)
+     free(p->ec_exclude_items_by_default);
+     free(p->ec_include_items_by_default);
+     free(p->ec_exclude_items_always);
++    free(p->ec_restricted_access_option);
+     g_list_free_full(p->ec_imported_event_names, free);
+     g_list_free_full(p->options, (GDestroyNotify)free_event_option);
+ 
+diff --git a/src/lib/event_xml_parser.c b/src/lib/event_xml_parser.c
+index a15f1e1..a5e3d3e 100644
+--- a/src/lib/event_xml_parser.c
++++ b/src/lib/event_xml_parser.c
+@@ -33,6 +33,8 @@
+ #define MINIMAL_RATING_ELEMENT  "minimal-rating"
+ #define GUI_REVIEW_ELEMENTS     "gui-review-elements"
+ #define SENDING_SENSITIVE_DATA_ELEMENT  "sending-sensitive-data"
++#define SUPPORTS_RESTRICTED_ACCESS_ELEMENT "support-restricted-access"
++#define RESTRICTED_ACCESS_OPTION_ATTR "optionname"
+ 
+ #define REQUIRES_ELEMENT        "requires-items"
+ #define EXCL_BY_DEFAULT_ELEMENT "exclude-items-by-default"
+@@ -234,6 +236,20 @@ static void start_element(GMarkupParseContext *context,
+         free(parse_data->attribute_lang);
+         parse_data->attribute_lang = get_element_lang(parse_data, attribute_names, attribute_values);
+     }
++    else
++    if (strcmp(element_name, SUPPORTS_RESTRICTED_ACCESS_ELEMENT) == 0)
++    {
++        if ((     attribute_names[0] != NULL
++               && strcmp(attribute_names[0], RESTRICTED_ACCESS_OPTION_ATTR) != 0)
++            || attribute_names[1] != NULL)
++        {
++            error_msg("XML event configuration error: '%s' element misses attribute '%s'",
++                    SUPPORTS_RESTRICTED_ACCESS_ELEMENT, RESTRICTED_ACCESS_OPTION_ATTR);
++            return;
++        }
++
++        parse_data->event_config.values->ec_restricted_access_option = xstrdup(attribute_values[0]);
++    }
+ }
+ 
+ // Called for close tags </foo>
+@@ -489,6 +505,10 @@ static void text(GMarkupParseContext *context,
+         {
+             ui->ec_sending_sensitive_data = string_to_bool(text_copy);
+         }
++        else if (strcmp(inner_element, SUPPORTS_RESTRICTED_ACCESS_ELEMENT) == 0)
++        {
++            ui->ec_supports_restricted_access = string_to_bool(text_copy);
++        }
+     }
+     free(text_copy);
+ }
+diff --git a/tests/Makefile.am b/tests/Makefile.am
+index 825a870..9aa3a07 100644
+--- a/tests/Makefile.am
++++ b/tests/Makefile.am
+@@ -46,7 +46,8 @@ TESTSUITE_AT = \
+   dump_dir.at \
+   global_config.at \
+   iso_date.at \
+-  uriparser.at
++  uriparser.at \
++  event_config.at
+ 
+ TESTSUITE_AT_IN = \
+   bugzilla_plugin.at
+diff --git a/tests/conf/event_implicit_no_support_restricted.xml b/tests/conf/event_implicit_no_support_restricted.xml
+new file mode 100644
+index 0000000..eb37be8
+--- /dev/null
++++ b/tests/conf/event_implicit_no_support_restricted.xml
+@@ -0,0 +1,13 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<event>
++    <name>Bugzilla</name>
++    <description>Report to Bugzilla bug tracker</description>
++    <long-description>Report to Bugzilla bug tracker in long description</long-description>
++
++    <options>
++        <option type="text" name="Bugzilla_BugzillaURL">
++            <label>Bugzilla URL</label>
++            <note-html>Bugzilla HTML note</note-html>
++        </option>
++    </options>
++</event>
+diff --git a/tests/conf/event_no_support_restricted.xml b/tests/conf/event_no_support_restricted.xml
+new file mode 100644
+index 0000000..b2c83b1
+--- /dev/null
++++ b/tests/conf/event_no_support_restricted.xml
+@@ -0,0 +1,15 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<event>
++    <name>Bugzilla</name>
++    <description>Report to Bugzilla bug tracker</description>
++    <long-description>Report to Bugzilla bug tracker in long description</long-description>
++
++    <support-restricted-access>no</support-restricted-access>
++
++    <options>
++        <option type="text" name="Bugzilla_BugzillaURL">
++            <label>Bugzilla URL</label>
++            <note-html>Bugzilla HTML note</note-html>
++        </option>
++    </options>
++</event>
+diff --git a/tests/conf/event_support_restricted_no_option.xml b/tests/conf/event_support_restricted_no_option.xml
+new file mode 100644
+index 0000000..b70e64b
+--- /dev/null
++++ b/tests/conf/event_support_restricted_no_option.xml
+@@ -0,0 +1,15 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<event>
++    <name>Bugzilla</name>
++    <description>Report to Bugzilla bug tracker</description>
++    <long-description>Report to Bugzilla bug tracker in long description</long-description>
++
++    <support-restricted-access>yes</support-restricted-access>
++
++    <options>
++        <option type="text" name="Bugzilla_BugzillaURL">
++            <label>Bugzilla URL</label>
++            <note-html>Bugzilla HTML note</note-html>
++        </option>
++    </options>
++</event>
+diff --git a/tests/conf/event_support_restricted_with_option.xml b/tests/conf/event_support_restricted_with_option.xml
+new file mode 100644
+index 0000000..ce5a1f9
+--- /dev/null
++++ b/tests/conf/event_support_restricted_with_option.xml
+@@ -0,0 +1,15 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<event>
++    <name>Bugzilla</name>
++    <description>Report to Bugzilla bug tracker</description>
++    <long-description>Report to Bugzilla bug tracker in long description</long-description>
++
++    <support-restricted-access optionname="Bugzilla_RestrictedAccess">yes</support-restricted-access>
++
++    <options>
++        <option type="bool" name="Bugzilla_RestrictedAccess">
++            <label>Bugzilla URL</label>
++            <default-value>no</default-value>
++        </option>
++    </options>
++</event>
+diff --git a/tests/event_config.at b/tests/event_config.at
+new file mode 100644
+index 0000000..5baf000
+--- /dev/null
++++ b/tests/event_config.at
+@@ -0,0 +1,60 @@
++# -*- Autotest -*-
++
++AT_BANNER([Event config])
++
++## ----------------- ##
++## restricted_access ##
++## ----------------- ##
++
++AT_TESTFUN([restricted_access],
++[[
++
++#include "testsuite.h"
++
++TS_MAIN
++{
++    event_config_t *ect = new_event_config("restricted_access");
++
++    TS_ASSERT_FALSE(ect->ec_supports_restricted_access);
++    TS_ASSERT_PTR_IS_NULL(ect->ec_restricted_access_option);
++    TS_ASSERT_FALSE(ec_restricted_access_enabled(ect));
++
++    ect->ec_supports_restricted_access = true;
++
++    TS_ASSERT_PTR_IS_NULL(ect->ec_restricted_access_option);
++    TS_ASSERT_FALSE(ec_restricted_access_enabled(ect));
++
++    ect->ec_restricted_access_option = xstrdup("PrivateTicket");
++
++    TS_ASSERT_FALSE(ec_restricted_access_enabled(ect));
++
++    event_option_t *eot = new_event_option();
++    eot->eo_name = xstrdup("PrivateTicket");
++    eot->eo_value = NULL;
++
++    ect->options = g_list_prepend(ect->options, eot);
++
++    TS_ASSERT_FALSE(ec_restricted_access_enabled(ect));
++
++    eot->eo_type = OPTION_TYPE_BOOL;
++    eot->eo_value = xstrdup("no");
++
++    TS_ASSERT_FALSE(ec_restricted_access_enabled(ect));
++
++    free(eot->eo_value);
++    eot->eo_value = xstrdup("yes");
++
++    TS_ASSERT_TRUE(ec_restricted_access_enabled(ect));
++
++    eot->eo_type = OPTION_TYPE_NUMBER;
++
++    TS_ASSERT_FALSE(ec_restricted_access_enabled(ect));
++
++    ect->ec_supports_restricted_access = false;
++
++    TS_ASSERT_FALSE(ec_restricted_access_enabled(ect));
++
++    free_event_config(ect);
++}
++TS_RETURN_MAIN
++]])
+diff --git a/tests/testsuite.at b/tests/testsuite.at
+index c8269b1..392c3db 100644
+--- a/tests/testsuite.at
++++ b/tests/testsuite.at
+@@ -22,3 +22,4 @@ m4_include([global_config.at])
+ m4_include([iso_date.at])
+ m4_include([uriparser.at])
+ m4_include([bugzilla_plugin.at])
++m4_include([event_config.at])
+diff --git a/tests/xml_definition.at b/tests/xml_definition.at
+index 29043f8..7d2140f 100644
+--- a/tests/xml_definition.at
++++ b/tests/xml_definition.at
+@@ -137,3 +137,54 @@ int main(void)
+     return EXIT_SUCCESS;
+ }
+ ]])
++
++## ----------------- ##
++## restricted_access ##
++## ----------------- ##
++
++AT_TESTFUN([restricted_access],
++[[
++
++#include "testsuite.h"
++
++TS_MAIN
++{
++    {
++        event_config_t *event_config = new_event_config("event_test_definition");
++        load_event_description_from_file(event_config, "../../conf/event_no_support_restricted.xml");
++
++        TS_ASSERT_FALSE(event_config->ec_supports_restricted_access);
++        TS_ASSERT_PTR_IS_NULL(event_config->ec_restricted_access_option);
++
++        free_event_config(event_config);
++    }
++    {
++        event_config_t *event_config = new_event_config("event_test_definition");
++        load_event_description_from_file(event_config, "../../conf/event_implicit_no_support_restricted.xml");
++
++        TS_ASSERT_FALSE(event_config->ec_supports_restricted_access);
++        TS_ASSERT_PTR_IS_NULL(event_config->ec_restricted_access_option);
++
++        free_event_config(event_config);
++    }
++    {
++        event_config_t *event_config = new_event_config("event_test_definition");
++        load_event_description_from_file(event_config, "../../conf/event_support_restricted_no_option.xml");
++
++        TS_ASSERT_TRUE(event_config->ec_supports_restricted_access);
++        TS_ASSERT_PTR_IS_NULL(event_config->ec_restricted_access_option);
++
++        free_event_config(event_config);
++    }
++    {
++        event_config_t *event_config = new_event_config("event_test_definition");
++        load_event_description_from_file(event_config, "../../conf/event_support_restricted_with_option.xml");
++
++        TS_ASSERT_TRUE(event_config->ec_supports_restricted_access);
++        TS_ASSERT_STRING_EQ(event_config->ec_restricted_access_option, "Bugzilla_RestrictedAccess", "Loaded from configuration");
++
++        free_event_config(event_config);
++    }
++}
++TS_RETURN_MAIN
++]])
+-- 
+1.8.3.1
+

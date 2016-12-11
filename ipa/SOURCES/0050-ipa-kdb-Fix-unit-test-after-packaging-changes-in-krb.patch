@@ -1,0 +1,29 @@
+From 92c1f960cd31417d898230f9cb538dc2336ba590 Mon Sep 17 00:00:00 2001
+From: Lukas Slebodnik <lslebodn@redhat.com>
+Date: Fri, 5 Aug 2016 08:34:23 +0200
+Subject: [PATCH] ipa-kdb: Fix unit test after packaging changes in krb5
+
+Resolves:
+https://fedorahosted.org/freeipa/ticket/6173
+
+Reviewed-By: Alexander Bokovoy <abokovoy@redhat.com>
+---
+ freeipa.spec.in | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/freeipa.spec.in b/freeipa.spec.in
+index ff27a32eebcc640cdbc8895f47732f06a90c4a1b..e1d98a44d04804a6bb2d4b17206aa7c280d64eb9 100644
+--- a/freeipa.spec.in
++++ b/freeipa.spec.in
+@@ -108,6 +108,8 @@ BuildRequires:  python-netifaces >= 0.10.4
+ # Build dependencies for unit tests
+ BuildRequires:  libcmocka-devel
+ BuildRequires:  nss_wrapper
++# Required by ipa_kdb_tests
++BuildRequires:  %{_libdir}/krb5/plugins/kdb/db2.so
+ 
+ %if 0%{?with_python3}
+ BuildRequires:  python3-devel
+-- 
+2.7.4
+

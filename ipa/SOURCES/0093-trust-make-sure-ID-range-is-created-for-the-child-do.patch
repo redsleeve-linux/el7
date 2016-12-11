@@ -1,0 +1,71 @@
+From 590c3649471832092a20a5eaf09ed0418ae468f6 Mon Sep 17 00:00:00 2001
+From: Alexander Bokovoy <abokovoy@redhat.com>
+Date: Sat, 6 Aug 2016 11:12:13 +0300
+Subject: [PATCH] trust: make sure ID range is created for the child domain
+ even if it exists
+
+ID ranges for child domains of a forest trust were created incorrectly
+in FreeIPA 4.4.0 due to refactoring of -- if the domain was already
+existing, we never attempted to create the ID range for it.
+
+At the same time, when domain was missing, we attempted to add ID range
+and passed both forest root and the child domain names to add_range().
+However, add_range() only looks at the first positional argument which
+was the forest root name. That ID range always exists (it is created
+before child domains are processed).
+
+Modify the code to make sure child domain name is passed as the first
+positional argument. In addition, the oddjob helper should explicitly
+set context='server' so that idrange code will be able to see and use
+ipaserver/dcerpc.py helpers.
+
+Resolves: https://fedorahosted.org/freeipa/ticket/5738
+Reviewed-By: Martin Babinsky <mbabinsk@redhat.com>
+---
+ install/oddjob/com.redhat.idm.trust-fetch-domains |  2 +-
+ ipaserver/plugins/trust.py                        | 10 +++++++---
+ 2 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/install/oddjob/com.redhat.idm.trust-fetch-domains b/install/oddjob/com.redhat.idm.trust-fetch-domains
+index 7c948fd53bd54bf3638ef3cc4407576b9011f4fb..bffa021cd4f01d31b7271d1ad84420884ce8d99e 100755
+--- a/install/oddjob/com.redhat.idm.trust-fetch-domains
++++ b/install/oddjob/com.redhat.idm.trust-fetch-domains
+@@ -76,7 +76,7 @@ env._bootstrap(debug=options.debug, log=None)
+ env._finalize_core(**dict(DEFAULT_CONFIG))
+ 
+ # Initialize the API with the proper debug level
+-api.bootstrap(in_server=True, debug=env.debug, log=None)
++api.bootstrap(in_server=True, debug=env.debug, log=None, context='server')
+ api.finalize()
+ 
+ # Only import trust plugin after api is initialized or internal imports
+diff --git a/ipaserver/plugins/trust.py b/ipaserver/plugins/trust.py
+index 8a25b560f9ae086ba8524cca22f39e8f67696146..b9d9b122a90de62946307b99b44932129eb611e8 100644
+--- a/ipaserver/plugins/trust.py
++++ b/ipaserver/plugins/trust.py
+@@ -1690,15 +1690,19 @@ def add_new_domains_from_trust(myapi, trustinstance, trust_entry, domains, **opt
+             if 'raw' in options:
+                 dom['raw'] = options['raw']
+ 
+-            res = myapi.Command.trustdomain_add(trust_name, name, **dom)
+-            result.append(res['result'])
++            try:
++                res = myapi.Command.trustdomain_add(trust_name, name, **dom)
++                result.append(res['result'])
++            except errors.DuplicateEntry:
++                # Ignore updating duplicate entries
++                pass
+ 
+             if idrange_type != u'ipa-ad-trust-posix':
+                 range_name = name.upper() + '_id_range'
+                 dom['range_type'] = u'ipa-ad-trust'
+                 add_range(myapi, trustinstance,
+                           range_name, dom['ipanttrusteddomainsid'],
+-                          trust_name, name, **dom)
++                          name, **dom)
+         except errors.DuplicateEntry:
+             # Ignore updating duplicate entries
+             pass
+-- 
+2.7.4
+

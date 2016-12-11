@@ -1,0 +1,43 @@
+From 8d54f840cdb094ca8e32f02e967393d7498ee26d Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Fri, 20 Feb 2015 00:27:05 +0100
+Subject: [PATCH 1007/1015] reporter-mantisbt: change default formating file
+ for duplicate issues
+
+reporter-mantisbt doesn't work well with mantisbt_format.conf as a default
+format conf file for creating duplicate issues because the note which is added
+doesn't contain an 'Additional information' section.
+
+Default formating file for duplicate is mantisbt_formatdup.conf
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/plugins/reporter-mantisbt.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/plugins/reporter-mantisbt.c b/src/plugins/reporter-mantisbt.c
+index d281cdb..dc9968f 100644
+--- a/src/plugins/reporter-mantisbt.c
++++ b/src/plugins/reporter-mantisbt.c
+@@ -253,7 +253,8 @@ int main(int argc, char **argv)
+         "\nRecognized boolean parameter (VALUE should be 1/0, yes/no): SSLVerify, CreatePrivate."
+         "\nParameters can be overridden via $Mantisbt_PARAM environment variables."
+         "\n"
+-        "\nFMTFILE and FMTFILE2 default to "CONF_DIR"/plugins/mantisbt_format.conf"
++        "\nFMTFILE default to "CONF_DIR"/plugins/mantisbt_format.conf."
++        "\nFMTFILE2 default to "CONF_DIR"/plugins/mantisbt_formatdup.conf."
+     );
+ 
+     enum {
+@@ -272,7 +273,7 @@ int main(int argc, char **argv)
+     const char *dump_dir_name = ".";
+     GList *conf_file = NULL;
+     const char *fmt_file = CONF_DIR"/plugins/mantisbt_format.conf";
+-    const char *fmt_file2 = fmt_file;
++    const char *fmt_file2 = CONF_DIR"/plugins/mantisbt_formatdup.conf";
+     char *abrt_hash = NULL;
+     char *ticket_no = NULL;
+     const char *tracker_str = "ABRT Server";
+-- 
+1.8.3.1
+

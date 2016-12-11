@@ -1,0 +1,282 @@
+From d3ac6c888953d0bcd304d30dfa0f1c731987f358 Mon Sep 17 00:00:00 2001
+From: Denys Vlasenko <dvlasenk@redhat.com>
+Date: Mon, 6 Jan 2014 16:46:48 +0100
+Subject: [ABRT PATCH 20/27] move MCE handling in event to
+ abrt-action-check-oops-for-hw-error
+
+Having a separate tool should help with internationalization
+
+Signed-off-by: Denys Vlasenko <dvlasenk@redhat.com>
+
+Related to rhbz#1032077
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ configure.ac                                       |   1 +
+ doc/Makefile.am                                    |   1 +
+ po/POTFILES.in                                     |   1 +
+ src/plugins/Makefile.am                            |   3 +
+ src/plugins/abrt-action-check-oops-for-hw-error.in | 118 +++++++++++++++++++++
+ src/plugins/koops_event.conf                       |  57 +---------
+ 8 files changed, 129 insertions(+), 55 deletions(-)
+ create mode 100644 src/plugins/abrt-action-check-oops-for-hw-error.in
+
+diff --git a/configure.ac b/configure.ac
+index 3bd13bc..346faa8 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -279,6 +279,7 @@ AC_CONFIG_FILES([
+ 	src/dbus/Makefile
+ 	src/plugins/abrt-action-install-debuginfo
+ 	src/plugins/abrt-action-analyze-vmcore
++	src/plugins/abrt-action-check-oops-for-hw-error
+ 	src/python-problem/Makefile
+ 	src/python-problem/doc/Makefile
+ 	src/python-problem/tests/Makefile
+diff --git a/doc/Makefile.am b/doc/Makefile.am
+index f1abef8..e76abde 100644
+--- a/doc/Makefile.am
++++ b/doc/Makefile.am
+@@ -32,6 +32,7 @@ MAN1_TXT += abrt-action-save-package-data.txt
+ MAN1_TXT += abrt-action-save-kernel-data.txt
+ MAN1_TXT += abrt-install-ccpp-hook.txt
+ MAN1_TXT += abrt-action-analyze-vmcore.txt
++MAN1_TXT += abrt-action-check-oops-for-hw-error.txt
+ MAN1_TXT += abrt-action-analyze-ccpp-local.txt
+ MAN1_TXT += abrt-watch-log.txt
+ MAN1_TXT += abrt-upload-watch.txt
+diff --git a/po/POTFILES.in b/po/POTFILES.in
+index 5f883c0..6d90162 100644
+--- a/po/POTFILES.in
++++ b/po/POTFILES.in
+@@ -25,6 +25,7 @@ src/plugins/abrt-action-analyze-oops.c
+ src/plugins/abrt-action-analyze-xorg.c
+ src/plugins/abrt-action-analyze-python.c
+ src/plugins/abrt-action-analyze-vmcore.in
++src/plugins/abrt-action-check-oops-for-hw-error.in
+ src/plugins/abrt-action-generate-backtrace.c
+ src/plugins/abrt-action-generate-core-backtrace.c
+ src/plugins/abrt-action-install-debuginfo.in
+diff --git a/src/plugins/Makefile.am b/src/plugins/Makefile.am
+index 60246f2..dd32c7d 100644
+--- a/src/plugins/Makefile.am
++++ b/src/plugins/Makefile.am
+@@ -5,6 +5,7 @@ bin_SCRIPTS = \
+     abrt-action-analyze-core \
+     abrt-action-analyze-vulnerability \
+     abrt-action-analyze-vmcore \
++    abrt-action-check-oops-for-hw-error \
+     abrt-action-list-dsos \
+     abrt-action-perform-ccpp-analysis \
+     abrt-action-save-kernel-data \
+@@ -74,6 +75,7 @@ PYTHON_FILES = \
+     abrt-action-analyze-core \
+     abrt-action-analyze-vulnerability \
+     abrt-action-analyze-vmcore.in \
++    abrt-action-check-oops-for-hw-error.in \
+     abrt-action-perform-ccpp-analysis.in \
+     abrt-action-notify
+ 
+@@ -88,6 +90,7 @@ EXTRA_DIST = \
+     analyze_RetraceServer.xml.in \
+     analyze_VMcore.xml.in \
+     abrt-action-analyze-vmcore \
++    abrt-action-check-oops-for-hw-error \
+     abrt-action-save-kernel-data \
+     abrt-action-ureport \
+     abrt-gdb-exploitable \
+diff --git a/src/plugins/abrt-action-check-oops-for-hw-error.in b/src/plugins/abrt-action-check-oops-for-hw-error.in
+new file mode 100644
+index 0000000..83c0f22
+--- /dev/null
++++ b/src/plugins/abrt-action-check-oops-for-hw-error.in
+@@ -0,0 +1,118 @@
++#!/usr/bin/python -u
++
++import sys
++import os
++import locale
++import gettext
++
++GETTEXT_PROGNAME = "abrt"
++
++_ = gettext.lgettext
++
++def file_has_string(filename, string):
++    try:
++        f = open(filename, "r")
++    except IOError as e:
++        #print e
++        return False
++    for line in f:
++        if string in line:
++            f.close()
++            return True
++    f.close()
++    return False
++
++
++def tail_with_search(filename, string, maxlen):
++    try:
++        f = open(filename, "r")
++    except IOError as e:
++        #print e
++        return []
++    l = []
++    for line in f:
++        if string in line:
++            l.append(line)
++            if len(l) > maxlen:
++                del l[0]
++    f.close()
++    return l
++
++
++if __name__ == "__main__":
++    try:
++        locale.setlocale(locale.LC_ALL, "")
++    except locale.Error:
++        os.environ['LC_ALL'] = 'C'
++        locale.setlocale(locale.LC_ALL, "")
++
++    # Defeat "AttributeError: 'module' object has no attribute 'nl_langinfo'"
++    try:
++        gettext.bind_textdomain_codeset(GETTEXT_PROGNAME,
++                                        locale.nl_langinfo(locale.CODESET))
++    except AttributeError:
++        pass
++
++    gettext.bindtextdomain(GETTEXT_PROGNAME, '/usr/share/locale')
++    gettext.textdomain(GETTEXT_PROGNAME)
++
++    #
++    # So far we only look for Machine Check Exceptions here.
++    #
++
++    # See if MCEs were seen
++    if not file_has_string("dmesg", "Machine check events logged"):
++        sys.exit(0)
++    #
++    # There was an MCE. IOW: it's not a bug, it's a HW error.
++    f = open("not-reportable", "w")
++    f.write("The kernel log indicates that hardware errors were detected.\n");
++    f.write("This is most likely not a software problem.\n");
++    f.close()
++
++    #
++    # Did mcelog logged it to /var/log/mcelog
++    # (RHEL6 by default does this)?
++    if os.path.exists("/var/log/mcelog"):
++        f = open("comment", "w")
++        f.write("The kernel log indicates that hardware errors were detected.\n")
++        f.write("/var/log/mcelog file may have more information.\n")
++        f.write("The last 20 lines of /var/log/mcelog are:\n")
++        f.write("=========================================\n")
++        #tail -n20 /var/log/mcelog 2>&1
++        l = tail_with_search("/var/log/mcelog", "", 20)
++        for line in l:
++            f.write(line)
++        f.close()
++        sys.exit(0)
++    #
++    # On RHEL7, mcelog is run so that its output ends up in syslog.
++    # Do we see that?
++    if file_has_string("/var/log/messages", "mcelog: Hardware event"):
++        f = open("comment", "w")
++        f.write("The kernel log indicates that hardware errors were detected.\n")
++        f.write("System log may have more information.\n")
++        f.write("The last 20 mcelog lines of system log are:\n")
++        f.write("==========================================\n")
++        #grep -Fi 'mcelog:' /var/log/messages | tail -n20 2>&1
++        l = tail_with_search("/var/log/messages", "mcelog:", 20)
++        for line in l:
++            f.write(line)
++        f.close()
++        sys.exit(0)
++    #
++    # Apparently, there is no running mcelog daemon!
++    # Let user know that he needs one.
++    f = open("comment", "w")
++    f.write("The kernel log indicates that hardware errors were detected.\n")
++    f.write("The data was saved by kernel for processing by the mcelog tool.\n")
++    f.write("However, neither /var/log/mcelog nor system log contain mcelog messages.\n")
++    f.write("Most likely reason is that mcelog is not installed or not configured\n")
++    f.write("to be started during boot.\n")
++    f.write("Without this tool running, the binary data saved by kernel\n")
++    f.write("is of limited usefulness.\n")
++    f.write("(You can save this data anyway by running 'cat </dev/mcelog >FILE').\n")
++    f.write("The recommended course of action is to install mcelog.\n")
++    f.write("If another hardware error would occur, a user-readable description\n")
++    f.write("of it will be saved in system log or /var/log/mcelog.\n")
++    f.close()
+diff --git a/src/plugins/koops_event.conf b/src/plugins/koops_event.conf
+index 7dfbe36..3740f65 100644
+--- a/src/plugins/koops_event.conf
++++ b/src/plugins/koops_event.conf
+@@ -3,61 +3,8 @@ EVENT=post-create analyzer=Kerneloops
+         # >> instead of > is due to bugzilla.redhat.com/show_bug.cgi?id=854266
+         abrt-action-analyze-oops &&
+         dmesg >>dmesg &&
+-        abrt-action-save-kernel-data
+-        abrt-action-save-kernel-data || exit $?
+-        #
+-        # If it exists, we can save a copy of MCE log here:
+-        #test -f /var/log/mcelog && cp /var/log/mcelog .
+-        # but in current config, sosreport already does that.
+-        #
+-        # See if MCEs were seen but mcelog isn't installed or running
+-        grep -qFi 'Machine check events logged' dmesg || exit 0
+-        #
+-        # There was an MCE. IOW: it's not a bug, it's a HW error.
+-        # Did mcelog logged it to /var/log/mcelog
+-        # (RHEL6 by default does this)?
+-        test -f /var/log/mcelog &&
+-        {
+-                # (Ab)use user comment field to inform user about it.
+-                echo "The kernel log indicates that hardware errors were detected."
+-                echo "/var/log/mcelog file may have more information."
+-                echo "The last 20 lines of /var/log/mcelog are:"
+-                echo "========================================="
+-                # Redirecting sterr in case selinux makes it unreadable
+-                # (annoying anyway, but at least user knows what's going on):
+-                tail -n20 /var/log/mcelog 2>&1
+-                exit 0
+-        } >comment
+-        #
+-        # On RHEL7, mcelog is run so that its output ends up in syslog.
+-        # Do we see that?
+-        grep -qFi 'mcelog: Hardware event' /var/log/messages &&
+-        {
+-                echo "The kernel log indicates that hardware errors were detected."
+-                echo "System log may have more information."
+-                echo "The last 20 mcelog lines of system log are:"
+-                echo "========================================="
+-                # Redirecting sterr in case selinux makes it unreadable
+-                # (annoying anyway, but at least user knows what's going on):
+-                grep -Fi 'mcelog:' /var/log/messages | tail -n20 2>&1
+-                exit 0
+-        } >comment
+-        #
+-        # Apparently, there is no running mcelog daemon!
+-        # Let user know that he needs one.
+-        {
+-        echo "The kernel log indicates that hardware errors were detected."
+-        echo "The data was saved by kernel for processing by the mcelog tool."
+-        echo "However, neither /var/log/mcelog nor system log contain mcelog messages."
+-        echo "Most likely reason is that mcelog is not installed or not configured"
+-        echo "to be started during boot."
+-        echo "Without this tool running, the binary data saved by kernel"
+-        echo "is of limited usefulness."
+-        echo "(You can save this data anyway by running 'cat </dev/mcelog >FILE')."
+-        echo "The recommended course of action is to install mcelog."
+-        echo "If another hardware error would occur, a user-readable description"
+-        echo "of it will be saved in system log or /var/log/mcelog."
+-        } >comment
++        abrt-action-save-kernel-data &&
++        abrt-action-check-oops-for-hw-error
+ 
+ # If you want behavior similar to one provided by kerneloops daemon
+ # distributed by kerneloops.org - that is, if you want
+-- 
+1.8.3.1
+

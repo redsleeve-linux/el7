@@ -1,0 +1,30 @@
+From e0feef4849e45208974c72fce2c60ac4adc4eab6 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Fri, 15 Apr 2016 10:59:15 +0200
+Subject: [PATCH] RHTSupport: include count in Support cases
+
+We want to provide GSS with a count of crash occurrences.
+
+Related to #1258482
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/plugins/report_RHTSupport.xml.in | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/plugins/report_RHTSupport.xml.in b/src/plugins/report_RHTSupport.xml.in
+index 60e18d9..357a94d 100644
+--- a/src/plugins/report_RHTSupport.xml.in
++++ b/src/plugins/report_RHTSupport.xml.in
+@@ -5,7 +5,7 @@
+ 
+     <requires-items>package</requires-items>
+     <requires-details>yes</requires-details>
+-    <exclude-items-by-default>count,event_log,vmcore</exclude-items-by-default>
++    <exclude-items-by-default>event_log,vmcore</exclude-items-by-default>
+     <exclude-items-always></exclude-items-always>
+     <exclude-binary-items>no</exclude-binary-items>
+     <include-items-by-default></include-items-by-default>
+-- 
+1.8.3.1
+

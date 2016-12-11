@@ -1,0 +1,28 @@
+From db7950c119f71df018ae1759933c0a8dca1072df Mon Sep 17 00:00:00 2001
+From: Martin Babinsky <mbabinsk@redhat.com>
+Date: Mon, 4 Jul 2016 13:33:10 +0200
+Subject: [PATCH] ipa-nis-manage: Use server API to retrieve plugin status
+
+https://fedorahosted.org/freeipa/ticket/6027
+
+Reviewed-By: Florence Blanc-Renaud <frenaud@redhat.com>
+---
+ install/tools/ipa-nis-manage | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/install/tools/ipa-nis-manage b/install/tools/ipa-nis-manage
+index f70961309c34e48ea1b4c1b144c9c0df5860f667..64de9e848ff7c382ddaea0729352da2584be6031 100755
+--- a/install/tools/ipa-nis-manage
++++ b/install/tools/ipa-nis-manage
+@@ -116,7 +116,7 @@ def main():
+     if not dirman_password:
+         sys.exit("No password supplied")
+ 
+-    api.bootstrap(context='cli', debug=options.debug)
++    api.bootstrap(context='cli', debug=options.debug, in_server=True)
+     api.finalize()
+ 
+     conn = None
+-- 
+2.4.3
+

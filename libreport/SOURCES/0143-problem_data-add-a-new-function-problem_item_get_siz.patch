@@ -1,0 +1,92 @@
+From cbd400521218fe1e259493058799125a69bd7c3b Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Mon, 16 Mar 2015 08:15:00 +0100
+Subject: [PATCH] problem_data: add a new function problem_item_get_size
+
+Related: #1224984
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/include/problem_data.h |  1 +
+ src/lib/make_descr.c       | 12 ++++--------
+ src/lib/problem_data.c     | 19 +++++++++++++++++++
+ 3 files changed, 24 insertions(+), 8 deletions(-)
+
+diff --git a/src/include/problem_data.h b/src/include/problem_data.h
+index 02c945c..96d0af6 100644
+--- a/src/include/problem_data.h
++++ b/src/include/problem_data.h
+@@ -59,6 +59,7 @@ typedef struct problem_item problem_item;
+ 
+ char *problem_item_format(struct problem_item *item);
+ 
++int problem_item_get_size(struct problem_item *item, unsigned long *size);
+ 
+ /* In-memory problem data structure and accessors */
+ 
+diff --git a/src/lib/make_descr.c b/src/lib/make_descr.c
+index 2bcbebd..f8da893 100644
+--- a/src/lib/make_descr.c
++++ b/src/lib/make_descr.c
+@@ -216,12 +216,8 @@ char *make_description(problem_data_t *problem_data, char **names_to_skip,
+                     strbuf_append_char(buf_dsc, '\n');
+                 append_empty_line = false;
+ 
+-                struct stat statbuf;
+-                int stat_err = 0;
+-                if (item->flags & CD_FLAG_BIN)
+-                    stat_err = stat(item->content, &statbuf);
+-                else
+-                    statbuf.st_size = strlen(item->content);
++                unsigned long size = 0;
++                int stat_err = problem_item_get_size(item, &size);
+ 
+                 /* We don't print item->content for CD_FLAG_BIN, as it is
+                  * always "/path/to/dump/dir/KEY" - not informative.
+@@ -229,11 +225,11 @@ char *make_description(problem_data_t *problem_data, char **names_to_skip,
+                 int pad = 16 - (strlen(key) + 2);
+                 if (pad < 0) pad = 0;
+                 strbuf_append_strf(buf_dsc,
+-                        (!stat_err ? "%s: %*s%s file, %llu bytes\n" : "%s: %*s%s file\n"),
++                        (!stat_err ? "%s: %*s%s file, %lu bytes\n" : "%s: %*s%s file\n"),
+                         key,
+                         pad, "",
+                         ((item->flags & CD_FLAG_BIN) ? "Binary" : "Text"),
+-                        (long long)statbuf.st_size
++                        size
+                 );
+                 empty = false;
+             }
+diff --git a/src/lib/problem_data.c b/src/lib/problem_data.c
+index ebddd3c..9a2b566 100644
+--- a/src/lib/problem_data.c
++++ b/src/lib/problem_data.c
+@@ -52,6 +52,25 @@ char *problem_item_format(struct problem_item *item)
+     return NULL;
+ }
+ 
++int problem_item_get_size(struct problem_item *item, unsigned long *size)
++{
++    if (item->flags & CD_FLAG_TXT)
++    {
++        *size = strlen(item->content);
++        return 0;
++    }
++
++    /* else if (item->flags & CD_FLAG_BIN) */
++    struct stat statbuf;
++    statbuf.st_size = 0;
++
++    if (stat(item->content, &statbuf) != 0)
++        return -errno;
++
++    *size = statbuf.st_size;
++    return 0;
++}
++
+ /* problem_data["name"] = { "content", CD_FLAG_foo_bits } */
+ 
+ problem_data_t *problem_data_new(void)
+-- 
+2.4.3
+

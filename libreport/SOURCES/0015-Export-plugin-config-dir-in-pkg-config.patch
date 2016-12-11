@@ -1,0 +1,29 @@
+From 09421cc80d7e783c8194043ac61f76285e3e6bd9 Mon Sep 17 00:00:00 2001
+From: Martin Milata <mmilata@redhat.com>
+Date: Mon, 20 Jan 2014 14:43:51 +0100
+Subject: [LIBREPORT PATCH 15/15] Export plugin config dir in pkg-config
+
+Related to rhbz#1053042.
+
+Signed-off-by: Martin Milata <mmilata@redhat.com>
+---
+ libreport.pc.in | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/libreport.pc.in b/libreport.pc.in
+index 277b46a..70cef9f 100755
+--- a/libreport.pc.in
++++ b/libreport.pc.in
+@@ -2,7 +2,9 @@ prefix=@prefix@
+ exec_prefix=@exec_prefix@
+ libdir=@libdir@
+ includedir=@includedir@
++sysconfdir=@sysconfdir@
+ dd_mode=@DEFAULT_DUMP_DIR_MODE@
++plugins_conf_dir=@REPORT_PLUGINS_CONF_DIR@
+ 
+ Name: libreport
+ Description: Generic library for reporting various problems
+-- 
+1.8.3.1
+

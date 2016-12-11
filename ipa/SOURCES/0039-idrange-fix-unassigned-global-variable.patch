@@ -1,0 +1,33 @@
+From 89bfc7c0a4b08c873e5c8b8dfad54cf895b742cd Mon Sep 17 00:00:00 2001
+From: Martin Basti <mbasti@redhat.com>
+Date: Fri, 29 Jul 2016 16:46:09 +0200
+Subject: [PATCH] idrange: fix unassigned global variable
+
+Global variable '_dcerpc_bindings_installed' is in some cases used
+before assigment. This patch ensures that _dcerpc_bindings_installed is
+always initialized.
+
+https://fedorahosted.org/freeipa/ticket/6082
+
+Reviewed-By: Alexander Bokovoy <abokovoy@redhat.com>
+---
+ ipaserver/plugins/idrange.py | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/ipaserver/plugins/idrange.py b/ipaserver/plugins/idrange.py
+index ccd67995e5b42634387e1064e7c819b711f3ef99..3e9db0b6b734513547423901a8b3212b3cee9147 100644
+--- a/ipaserver/plugins/idrange.py
++++ b/ipaserver/plugins/idrange.py
+@@ -35,6 +35,9 @@ if api.env.in_server and api.env.context in ['lite', 'server']:
+         _dcerpc_bindings_installed = True
+     except ImportError:
+         _dcerpc_bindings_installed = False
++else:
++    _dcerpc_bindings_installed = False
++
+ 
+ ID_RANGE_VS_DNA_WARNING = """=======
+ WARNING:
+-- 
+2.7.4
+

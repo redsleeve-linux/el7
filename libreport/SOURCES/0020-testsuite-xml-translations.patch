@@ -1,0 +1,168 @@
+From 819abbfc939d7a2e5f674fd6b77c3fef655d24da Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Fri, 7 Feb 2014 16:19:20 +0100
+Subject: [LIBREPORT PATCH 20/24] testsuite: xml translations
+
+Related to rhbz#1063320
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ tests/Makefile.am                       |  3 +-
+ tests/conf/event_test_definition.xml    | 32 ++++++++++++++++++
+ tests/conf/workflow_test_definition.xml | 13 +++++++
+ tests/testsuite.at                      |  1 +
+ tests/xml_definition.at                 | 60 +++++++++++++++++++++++++++++++++
+ 5 files changed, 108 insertions(+), 1 deletion(-)
+ create mode 100644 tests/conf/event_test_definition.xml
+ create mode 100644 tests/conf/workflow_test_definition.xml
+ create mode 100644 tests/xml_definition.at
+
+diff --git a/tests/Makefile.am b/tests/Makefile.am
+index e8af4de..8ec40e1 100644
+--- a/tests/Makefile.am
++++ b/tests/Makefile.am
+@@ -37,7 +37,8 @@ TESTSUITE_AT = \
+   configuration_files.at \
+   reported_to.at \
+   make_description.at \
+-  libreport_types.at
++  libreport_types.at \
++  xml_definition.at
+ 
+ EXTRA_DIST += $(TESTSUITE_AT)
+ TESTSUITE = $(srcdir)/testsuite
+diff --git a/tests/conf/event_test_definition.xml b/tests/conf/event_test_definition.xml
+new file mode 100644
+index 0000000..e12648a
+--- /dev/null
++++ b/tests/conf/event_test_definition.xml
+@@ -0,0 +1,32 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<event>
++    <name>Bugzilla</name>
++    <name xml:lang="zh_CN">screen name</name>
++    <name xml:lang="zh_TW">bad screen name</name>
++
++    <description>Report to Bugzilla bug tracker</description>
++    <description xml:lang="zh_CN">description</description>
++    <description xml:lang="zh_TW">bad description</description>
++
++    <long-description>Report to Bugzilla bug tracker in long description</long-description>
++    <long-description xml:lang="zh_CN">long description</long-description>
++    <long-description xml:lang="zh_TW">bad long description</long-description>
++
++    <options>
++        <option type="text" name="Bugzilla_BugzillaURL">
++            <label>Bugzilla URL</label>
++            <label xml:lang="zh_CN">label</label>
++            <label xml:lang="zh_TW">bad label</label>
++
++            <!-- Option description is not supported yet
++            <description>Address of Bugzilla server</description>
++            <description xml:lang="zh_CN">bad description</description>
++            <description xml:lang="zh_TW">description</description>
++            -->
++
++            <note-html>Bugzilla HTML note</note-html>
++            <note-html xml:lang="zh_CN">note_html</note-html>
++            <note-html xml:lang="zh_TW">bad note_html</note-html>
++        </option>
++    </options>
++</event>
+diff --git a/tests/conf/workflow_test_definition.xml b/tests/conf/workflow_test_definition.xml
+new file mode 100644
+index 0000000..1666c1c
+--- /dev/null
++++ b/tests/conf/workflow_test_definition.xml
+@@ -0,0 +1,13 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<workflow>
++    <name>Report to Red Hat Customer Portal</name>
++    <name xml:lang="zh_CN">screen name</name>
++    <name xml:lang="zh_TW">bad screen name</name>
++    <description>Process the C/C++ crash using the Red Hat infrastructure</description>
++    <description xml:lang="zh_CN">description</description>
++    <description xml:lang="zh_TW">bad description</description>
++
++    <events>
++        <event>collect_*</event>
++    </events>
++</workflow>
+diff --git a/tests/testsuite.at b/tests/testsuite.at
+index 1faccfb..97b2442 100644
+--- a/tests/testsuite.at
++++ b/tests/testsuite.at
+@@ -12,3 +12,4 @@ m4_include([configuration_files.at])
+ m4_include([reported_to.at])
+ m4_include([make_description.at])
+ m4_include([libreport_types.at])
++m4_include([xml_definition.at])
+diff --git a/tests/xml_definition.at b/tests/xml_definition.at
+new file mode 100644
+index 0000000..e9cef49
+--- /dev/null
++++ b/tests/xml_definition.at
+@@ -0,0 +1,60 @@
++# -*- Autotest -*-
++
++AT_BANNER([XML definitions])
++
++## ------------------------ ##
++## region_specific_language ##
++## ------------------------ ##
++
++AT_TESTFUN([region_specific_language],
++[[
++#include "internal_libreport.h"
++#include <locale.h>
++#include <stdlib.h>
++#include <stdio.h>
++#include <assert.h>
++
++int main(void)
++{
++    g_verbose = 3;
++
++    setlocale(LC_ALL, "zh_CN");
++
++    {
++        event_config_t *event_config = new_event_config("event_test_definition");
++        load_event_description_from_file(event_config, "../../conf/event_test_definition.xml");
++        assert(strcmp("screen name", ec_get_screen_name(event_config)) == 0);
++        assert(strcmp("description", ec_get_description(event_config)) == 0);
++        assert(strcmp("long description", ec_get_long_desc(event_config)) == 0);
++
++        assert(event_config->options != NULL || !"At least one event option was loaded");
++
++        /* typeof(event_config->options) == (GList *) */
++        event_option_t *event_option = (event_option_t *)event_config->options->data;
++        assert(strcmp("label", event_option->eo_label) == 0);
++        assert(strcmp("note_html", event_option->eo_note_html) == 0);
++
++        /* Option description is not supported yet
++        assert(strcmp("description", event_option->eo_description) == 0);
++        */
++
++        free_event_config(event_config);
++    }
++
++    {
++        workflow_t *workflow = new_workflow("workflow_test_definition");
++        load_workflow_description_from_file(workflow, "../../conf/workflow_test_definition.xml");
++
++        assert(strcmp("screen name", wf_get_screen_name(workflow)) == 0);
++        assert(strcmp("description", wf_get_description(workflow)) == 0);
++
++        /* Long description is not supported yet
++        assert(strcmp("long description", wf_get_long_desc(workflow)) == 0);
++         */
++
++        free_workflow(workflow);
++    }
++
++    return EXIT_SUCCESS;
++}
++]])
+-- 
+1.8.3.1
+

@@ -1,0 +1,28 @@
+From ab264f895bfebe8dd2b25c754cac79e7d829e738 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Thu, 27 Nov 2014 09:14:46 +0100
+Subject: [LIBREPORT PATCH 119/119] ureport: uReport_ContactEmail setting can
+ be left empty
+
+Related: #1150388
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/plugins/report_uReport.xml.in | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/plugins/report_uReport.xml.in b/src/plugins/report_uReport.xml.in
+index e91b129..63dfc22 100644
+--- a/src/plugins/report_uReport.xml.in
++++ b/src/plugins/report_uReport.xml.in
+@@ -16,6 +16,7 @@
+         <option type="text" name="uReport_ContactEmail">
+             <_label>Contact email address</_label>
+             <_description>Email address that can be used by ABRT server to inform you about news and updates</_description>
++            <allow-empty>yes</allow-empty>
+         </option>
+         <option type="bool" name="uReport_SSLVerify">
+             <_label>Verify SSL</_label>
+-- 
+1.8.3.1
+

@@ -1,0 +1,48 @@
+From 1242b26266b5f1222924dc06479e19d0914a0703 Mon Sep 17 00:00:00 2001
+From: David Kupka <dkupka@redhat.com>
+Date: Wed, 27 Jul 2016 10:54:16 +0200
+Subject: [PATCH] schema: Introduce schema cache format
+
+Information about schema cache format is stored in every cache item.
+When schema cache format changes in incompatible way format will be
+increased. When format stored in cache doesn't match currently used
+format the entry in cache is ignored.
+
+https://fedorahosted.org/freeipa/ticket/6048
+
+Reviewed-By: Jan Cholasta <jcholast@redhat.com>
+---
+ ipaclient/remote_plugins/schema.py | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/ipaclient/remote_plugins/schema.py b/ipaclient/remote_plugins/schema.py
+index f165736cde6f08d6d22c17070d570da261799e4b..d7c018e3de1cc79ffc086e3576542ce993ebc87a 100644
+--- a/ipaclient/remote_plugins/schema.py
++++ b/ipaclient/remote_plugins/schema.py
+@@ -23,6 +23,8 @@ from ipapython.dn import DN
+ from ipapython.dnsutil import DNSName
+ from ipapython.ipa_log_manager import log_mgr
+ 
++FORMAT = '0'
++
+ if six.PY3:
+     unicode = str
+ 
+@@ -478,6 +480,14 @@ class Schema(object):
+         return _LockedZipFile(path, mode)
+ 
+     def _get_schema_fingerprint(self, schema):
++        try:
++            fmt = json.loads(schema.read('format'))
++        except KeyError:
++            fmt = '0'
++
++        if fmt != FORMAT:
++            raise RuntimeError('invalid format')
++
+         schema_info = json.loads(schema.read(self.schema_info_path))
+         return schema_info['fingerprint']
+ 
+-- 
+2.7.4
+

@@ -1,0 +1,15 @@
+--- current/find-requires.orig	2016-06-13 17:31:21.689322870 +0200
++++ current/find-requires	2016-06-13 17:42:04.779855644 +0200
+@@ -21,10 +21,10 @@
+ # --- Grab the file manifest and classify files.
+ #filelist=`sed "s/['\"]/\\\&/g"`
+ filelist=`sed "s/[]['\"*?{}]/\\\\\&/g"`
+-exelist=`echo $filelist | xargs -r file | egrep -v ":.* (commands|script) " | \
++exelist=`echo $filelist | xargs -r file | egrep -v ":.* (commands|script)[, ]" | \
+ 	grep ":.*executable" | cut -d: -f1`
+ scriptlist=`echo $filelist | xargs -r file | \
+-	egrep ":.* (commands|script) " | cut -d: -f1`
++	egrep ":.* (commands|script)[, ]" | cut -d: -f1`
+ liblist=`echo $filelist | xargs -r file | \
+ 	grep ":.*shared object" | cut -d : -f1`
+ 

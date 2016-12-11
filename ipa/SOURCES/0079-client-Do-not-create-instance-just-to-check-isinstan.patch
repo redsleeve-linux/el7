@@ -1,0 +1,97 @@
+From bac0d7c286768a67715ca1ac1e835a272e540721 Mon Sep 17 00:00:00 2001
+From: David Kupka <dkupka@redhat.com>
+Date: Thu, 11 Aug 2016 14:30:00 +0200
+Subject: [PATCH] client: Do not create instance just to check isinstance
+
+Checking that classes are idenical gives the same result and
+avoids unnecessary instantiation.
+
+https://fedorahosted.org/freeipa/ticket/6048
+
+Reviewed-By: Jan Cholasta <jcholast@redhat.com>
+---
+ ipaclient/plugins/automount.py        |  4 ++--
+ ipaclient/plugins/otptoken_yubikey.py |  3 +--
+ ipaclient/plugins/vault.py            | 16 ++++++++--------
+ 3 files changed, 11 insertions(+), 12 deletions(-)
+
+diff --git a/ipaclient/plugins/automount.py b/ipaclient/plugins/automount.py
+index 925b635ff27411fc7e2f8c3dae17c747216d7fb6..3742705face49d02370e845e3d6e6599a34809eb 100644
+--- a/ipaclient/plugins/automount.py
++++ b/ipaclient/plugins/automount.py
+@@ -55,8 +55,8 @@ class _fake_automountlocation_show(Method):
+ class automountlocation_tofiles(MethodOverride):
+     @classmethod
+     def __NO_CLI_getter(cls):
+-        return isinstance(api.Command.automountlocation_show,
+-                          _fake_automountlocation_show)
++        return (api.Command.get_plugin('automountlocation_show') is
++                _fake_automountlocation_show)
+ 
+     NO_CLI = classproperty(__NO_CLI_getter)
+ 
+diff --git a/ipaclient/plugins/otptoken_yubikey.py b/ipaclient/plugins/otptoken_yubikey.py
+index 549376a0ff65d44c5698666a84608849152368b2..1075b6d839c785b44f035050ed5c9773c66d57b7 100644
+--- a/ipaclient/plugins/otptoken_yubikey.py
++++ b/ipaclient/plugins/otptoken_yubikey.py
+@@ -77,8 +77,7 @@ class otptoken_add_yubikey(Command):
+ 
+     @classmethod
+     def __NO_CLI_getter(cls):
+-        return isinstance(api.Command.otptoken_add,
+-                          _fake_otptoken_add)
++        return api.Command.get_plugin('otptoken_add') is _fake_otptoken_add
+ 
+     NO_CLI = classproperty(__NO_CLI_getter)
+ 
+diff --git a/ipaclient/plugins/vault.py b/ipaclient/plugins/vault.py
+index c0ded21d515fe41bde5fb0e547087cb7789aa6a3..08bbeb50f3bdc756321df9e45496e5388edd92c5 100644
+--- a/ipaclient/plugins/vault.py
++++ b/ipaclient/plugins/vault.py
+@@ -205,8 +205,8 @@ class vault_add(Local):
+ 
+     @classmethod
+     def __NO_CLI_getter(cls):
+-        return isinstance(api.Command.vault_add_internal,
+-                          _fake_vault_add_internal)
++        return (api.Command.get_plugin('vault_add_internal') is
++                _fake_vault_add_internal)
+ 
+     NO_CLI = classproperty(__NO_CLI_getter)
+ 
+@@ -411,8 +411,8 @@ class vault_mod(Local):
+ 
+     @classmethod
+     def __NO_CLI_getter(cls):
+-        return isinstance(api.Command.vault_mod_internal,
+-                          _fake_vault_mod_internal)
++        return (api.Command.get_plugin('vault_mod_internal') is
++                _fake_vault_mod_internal)
+ 
+     NO_CLI = classproperty(__NO_CLI_getter)
+ 
+@@ -598,8 +598,8 @@ class vault_archive(Local):
+ 
+     @classmethod
+     def __NO_CLI_getter(cls):
+-        return isinstance(api.Command.vault_archive_internal,
+-                          _fake_vault_archive_internal)
++        return (api.Command.get_plugin('vault_archive_internal') is
++                _fake_vault_archive_internal)
+ 
+     NO_CLI = classproperty(__NO_CLI_getter)
+ 
+@@ -855,8 +855,8 @@ class vault_retrieve(Local):
+ 
+     @classmethod
+     def __NO_CLI_getter(cls):
+-        return isinstance(api.Command.vault_retrieve_internal,
+-                          _fake_vault_retrieve_internal)
++        return (api.Command.get_plugin('vault_retrieve_internal') is
++                _fake_vault_retrieve_internal)
+ 
+     NO_CLI = classproperty(__NO_CLI_getter)
+ 
+-- 
+2.7.4
+

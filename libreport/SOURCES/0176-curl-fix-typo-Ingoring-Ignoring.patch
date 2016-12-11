@@ -1,0 +1,26 @@
+From d0e73f6e757afa9dfd870ab5869808c5b922013e Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Thu, 10 Mar 2016 15:31:25 +0100
+Subject: [PATCH] curl: fix typo Ingoring -> Ignoring
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/lib/curl.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib/curl.c b/src/lib/curl.c
+index a64c464..b736dd2 100644
+--- a/src/lib/curl.c
++++ b/src/lib/curl.c
+@@ -627,7 +627,7 @@ char *upload_file_ext(post_state_t *state, const char *url, const char *filename
+ 
+     if (scheme == NULL || hostname == NULL)
+     {
+-        log_warning(_("Ingoring URL without scheme and hostname"));
++        log_warning(_("Ignoring URL without scheme and hostname"));
+         goto finito;
+     }
+ 
+-- 
+1.8.3.1
+

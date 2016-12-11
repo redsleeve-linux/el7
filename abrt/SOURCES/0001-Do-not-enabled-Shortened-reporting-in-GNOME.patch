@@ -1,0 +1,32 @@
+From 815de5d1c1c230600fdf63ee1c95fae9fe7d49a2 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Wed, 8 Jan 2014 20:32:40 +0100
+Subject: [ABRT PATCH 1/6] Do not enabled Shortened reporting in GNOME
+
+Related to #918041
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/lib/abrt_conf.c | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/lib/abrt_conf.c b/src/lib/abrt_conf.c
+index f7fdc6d..5eb69e2 100644
+--- a/src/lib/abrt_conf.c
++++ b/src/lib/abrt_conf.c
+@@ -100,11 +100,7 @@ static void ParseCommon(map_string_t *settings, const char *conf_filename)
+         remove_map_string_item(settings, "ShortenedReporting");
+     }
+     else
+-    {
+-        /* Default: enabled for GNOME desktop, else disabled */
+-        const char *desktop_env = getenv("DESKTOP_SESSION");
+-        g_settings_shortenedreporting = (desktop_env && strcasestr(desktop_env, "gnome") != NULL);
+-    }
++        g_settings_shortenedreporting = 0;
+ 
+     GHashTableIter iter;
+     const char *name;
+-- 
+1.8.3.1
+

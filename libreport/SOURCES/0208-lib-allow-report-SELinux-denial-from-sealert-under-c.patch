@@ -1,0 +1,83 @@
+From 215926614e59d509a2ab01e74706daaeffee3e49 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Tue, 5 Apr 2016 14:17:56 +0200
+Subject: [PATCH] lib: allow report SELinux denial from sealert under common
+ user
+
+The main purpose of the removed lines in this commit were preventing from
+creating non-root dump dir's sub-directrories in the case an uid element
+doesn't exist in time of creating the dump dir.
+
+The removed lines are moved to the function problem_data_save() in abrt
+src/lib/hooklib.c.
+
+Related to rhbz#1264921
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/lib/create_dump_dir.c |  3 ---
+ tests/report_python.at    | 37 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+), 3 deletions(-)
+
+diff --git a/src/lib/create_dump_dir.c b/src/lib/create_dump_dir.c
+index 45c248d..d683b8e 100644
+--- a/src/lib/create_dump_dir.c
++++ b/src/lib/create_dump_dir.c
+@@ -48,9 +48,6 @@ struct dump_dir *create_dump_dir_from_problem_data_ext(problem_data_t *problem_d
+         return NULL;
+     }
+ 
+-    if (uid == (uid_t)-1L)
+-        uid = 0;
+-
+     struct timeval tv;
+     if (gettimeofday(&tv, NULL) < 0)
+     {
+diff --git a/tests/report_python.at b/tests/report_python.at
+index a05498c..7886e9d 100644
+--- a/tests/report_python.at
++++ b/tests/report_python.at
+@@ -100,3 +100,40 @@ if report.getVersion_fromOSRELEASE() != report.getVersion():
+ 
+ sys.exit(exit_code)
+ ]])
++
++## ---------------------------------- ##
++## create_dump_dir_uid_does_not_exist ##
++## ---------------------------------- ##
++
++AT_PYTESTFUN([create_dump_dir_uid_does_not_exist],
++[[import sys
++
++sys.path.insert(0, "../../../src/report-python")
++sys.path.insert(0, "../../../src/report-python/.libs")
++
++report = __import__("report-python", globals(), locals(), [], -1)
++sys.modules["report"] = report
++
++import os
++
++cd = report.problem_data()
++cd.add_basics()
++dd = cd.create_dump_dir("/tmp/")
++print "dumpdir name:", dd.name
++
++stat_info = os.stat(dd.name)
++uid = stat_info.st_uid
++gid = stat_info.st_gid
++print "user uid", os.getuid()
++print "user gid", os.getgid()
++print "dumpdir uid: ", uid," gid: ",  gid
++
++exit_code = 0
++if os.getuid() != uid:
++    exit_code += 1
++
++if os.getgid() != gid:
++    exit_code += 1
++
++sys.exit(exit_code)
++]])
+-- 
+1.8.3.1
+

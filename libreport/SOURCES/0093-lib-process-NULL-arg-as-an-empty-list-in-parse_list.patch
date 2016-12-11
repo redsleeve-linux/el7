@@ -1,0 +1,32 @@
+From 3fbf503887d6f81b8e05bd9ff09f3f205c6f4eae Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Thu, 2 Oct 2014 10:36:25 +0200
+Subject: [LIBREPORT PATCH 93/93] lib: process NULL arg as an empty list in
+ parse_list()
+
+NULL CSV string means empty list
+
+Related to rhbz#1139987
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/lib/glib_support.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/lib/glib_support.c b/src/lib/glib_support.c
+index d98c690..6276e9d 100644
+--- a/src/lib/glib_support.c
++++ b/src/lib/glib_support.c
+@@ -60,6 +60,9 @@ void glib_init(void)
+  */
+ GList *parse_list(const char* list)
+ {
++    if (list == NULL)
++        return NULL;
++
+     GList *l = NULL;
+ 
+     char *saved_ptr = NULL;
+-- 
+1.8.3.1
+

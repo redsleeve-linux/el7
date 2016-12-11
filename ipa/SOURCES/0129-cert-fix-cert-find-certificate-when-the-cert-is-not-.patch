@@ -1,0 +1,46 @@
+From 95a8519afa82707c8d3b2e60f65cbc4d79d144e2 Mon Sep 17 00:00:00 2001
+From: Jan Cholasta <jcholast@redhat.com>
+Date: Wed, 7 Sep 2016 08:06:10 +0200
+Subject: [PATCH] cert: fix cert-find --certificate when the cert is not in
+ LDAP
+
+Always return the cert specified in --certificate in cert-find result, even
+when the cert is not found in LDAP.
+
+https://fedorahosted.org/freeipa/ticket/6304
+
+Reviewed-By: David Kupka <dkupka@redhat.com>
+---
+ ipaserver/plugins/cert.py | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/ipaserver/plugins/cert.py b/ipaserver/plugins/cert.py
+index 6495bf1491f939a032fad03fe4ef86839c0575ef..00bae4560d601e28e0b983786bff9144bcc1b065 100644
+--- a/ipaserver/plugins/cert.py
++++ b/ipaserver/plugins/cert.py
+@@ -1142,17 +1142,15 @@ class cert_find(Search, CertMethod):
+                     rule)
+                 filters.append(filter)
+ 
+-        cert = options.get('certificate')
+-        if cert is not None:
+-            filter = ldap.make_filter_from_attr('usercertificate', cert)
+-            filters.append(filter)
+-
+         result = collections.OrderedDict()
+         complete = bool(filters)
+ 
+-        if cert is None:
++        cert = options.get('certificate')
++        if cert is not None:
++            filter = ldap.make_filter_from_attr('usercertificate', cert)
++        else:
+             filter = '(usercertificate=*)'
+-            filters.append(filter)
++        filters.append(filter)
+ 
+         filter = ldap.combine_filters(filters, ldap.MATCH_ALL)
+         try:
+-- 
+2.7.4
+

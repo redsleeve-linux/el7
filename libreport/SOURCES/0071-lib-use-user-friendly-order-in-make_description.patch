@@ -1,0 +1,66 @@
+From 15b4d3e8b516009bab878b7279f549fa61824c74 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Tue, 16 Sep 2014 05:11:40 +0200
+Subject: [LIBREPORT PATCH 71/93] lib: use user-friendly order in
+ make_description()
+
+The reason, time, cmd_line, package, uid, count are always sorted in this
+order. The other items are sorted alphabetically and added to the the end of
+the list.
+
+Related to rhbz#1067440
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/lib/make_descr.c | 28 +++++++++++++++++++++++++++-
+ 1 file changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/src/lib/make_descr.c b/src/lib/make_descr.c
+index 7f5c10b..dcf517e 100644
+--- a/src/lib/make_descr.c
++++ b/src/lib/make_descr.c
+@@ -48,6 +48,32 @@ char *make_description_item_multiline(const char *name, const char *content)
+     return strbuf_free_nobuf(buf);
+ }
+ 
++static int list_cmp(const char *s1, const char *s2)
++{
++    static const char *const list_order[] = {
++            FILENAME_REASON    ,
++            FILENAME_TIME      ,
++            FILENAME_CMDLINE   ,
++            FILENAME_PACKAGE   ,
++            FILENAME_UID       ,
++            FILENAME_COUNT     ,
++            NULL
++    };
++    int s1_index = index_of_string_in_list(s1, (char**) list_order);
++    int s2_index = index_of_string_in_list(s2, (char**) list_order);
++
++    if(s1_index < 0 && s2_index < 0)
++        return strcmp(s1, s2);
++
++    if(s1_index < 0)
++        return 1;
++
++    if(s2_index < 0)
++        return -1;
++
++    return s1_index - s2_index;
++}
++
+ char *make_description(problem_data_t *problem_data, char **names_to_skip,
+                        unsigned max_text_size, unsigned desc_flags)
+ {
+@@ -59,7 +85,7 @@ char *make_description(problem_data_t *problem_data, char **names_to_skip,
+                                                             FILENAME_ANALYZER);
+ 
+     GList *list = g_hash_table_get_keys(problem_data);
+-    list = g_list_sort(list, (GCompareFunc)strcmp);
++    list = g_list_sort(list, (GCompareFunc)list_cmp);
+     GList *l;
+ 
+     /* Print one-liners. Format:
+-- 
+1.8.3.1
+

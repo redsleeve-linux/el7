@@ -1,0 +1,50 @@
+From 3578adb47a0de78dc5698c256a8d103857d22c33 Mon Sep 17 00:00:00 2001
+From: Denys Vlasenko <dvlasenk@redhat.com>
+Date: Wed, 27 Nov 2013 13:14:24 +0100
+Subject: [LIBREPORT PATCH 17/17] workflow_RHELvmcore: run analyze_VMcore too
+
+analyze_VMcore does the following:
+
+* extracts oops from vmcore-dmesg.txt
+  (or from vmcore, if vmcore-dmesg.txt is missing);
+  creates "kernel" element.
+* generates dedup hashes.
+* generates pkg_* elements.
+
+These steps probably aren't necessary if we take the usual step
+of running report_RHTSupport: RHTSupport people don't absolutely
+need that data. (However, I did not test whether report_RHTSupport
+actually works w/o analyze_VMcore).
+
+But for Machine Check Exceptions, oops extraction is crucial:
+without seeing "backtrace" element, which in this case shows
+MCE message, user won't realize he has a hardware issue,
+and will still contact RHTSupport, only to be told by them,
+after analysis, "look at your CPU/RAM, they seem to be faulty"
+- exactly the scenario we want to avoid (we want user
+to not waste his and RHTSupport's time - the problem is known).
+
+Signed-off-by: Denys Vlasenko <dvlasenk@redhat.com>
+
+Resolves rhbz#1059651
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/workflows/workflow_RHELvmcore.xml.in | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/workflows/workflow_RHELvmcore.xml.in b/src/workflows/workflow_RHELvmcore.xml.in
+index 20b6989..f2a775d 100644
+--- a/src/workflows/workflow_RHELvmcore.xml.in
++++ b/src/workflows/workflow_RHELvmcore.xml.in
+@@ -5,6 +5,7 @@
+ 
+     <events>
+         <event>collect_*</event>
++        <event>analyze_VMcore</event>
+         <event>report_RHTSupport</event>
+     </events>
+ </workflow>
+-- 
+1.8.3.1
+

@@ -1,0 +1,81 @@
+From 3d38bbb09383a634c78722c7bf18a3e1a3f36647 Mon Sep 17 00:00:00 2001
+From: Frederic Crozat <fcrozat@suse.com>
+Date: Thu, 19 Jun 2014 17:58:50 +0200
+Subject: [PATCH] libply-splash-core: also monitor for file removal in udev
+ directory
+
+Ensure plymouth detects coldplug completion with recent udev (>= 213).
+---
+ src/libply-splash-core/ply-device-manager.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/libply-splash-core/ply-device-manager.c b/src/libply-splash-core/ply-device-manager.c
+index a7890d0..5766bcb 100644
+--- a/src/libply-splash-core/ply-device-manager.c
++++ b/src/libply-splash-core/ply-device-manager.c
+@@ -780,61 +780,61 @@ on_udev_queue_changed (ply_device_manager_t *manager)
+ 
+   ply_trace ("udev coldplug complete");
+   ply_event_loop_stop_watching_fd (manager->loop, manager->udev_queue_fd_watch);
+   manager->udev_queue_fd_watch = NULL;
+   udev_queue_unref (manager->udev_queue);
+ 
+   close (manager->udev_queue_fd);
+   manager->udev_queue_fd = -1;
+ 
+   manager->udev_queue = NULL;
+ 
+   create_seats_from_udev (manager);
+ }
+ 
+ static void
+ watch_for_coldplug_completion (ply_device_manager_t *manager)
+ {
+   int fd;
+   int result;
+ 
+   manager->udev_queue = udev_queue_new (manager->udev_context);
+ 
+   if (udev_queue_get_queue_is_empty (manager->udev_queue))
+     {
+       ply_trace ("udev coldplug completed already ");
+       create_seats_from_udev (manager);
+       return;
+     }
+ 
+   fd = inotify_init1 (IN_CLOEXEC);
+-  result = inotify_add_watch (fd, "/run/udev", IN_MOVED_TO);
++  result = inotify_add_watch (fd, "/run/udev", IN_MOVED_TO| IN_DELETE);
+ 
+   if (result < 0)
+     {
+       ply_trace ("could not watch for udev to show up: %m");
+       close (fd);
+ 
+       create_fallback_seat (manager);
+       return;
+     }
+ 
+   manager->udev_queue_fd = fd;
+ 
+   manager->udev_queue_fd_watch = ply_event_loop_watch_fd (manager->loop,
+                                                           fd,
+                                                           PLY_EVENT_LOOP_FD_STATUS_HAS_DATA,
+                                                           (ply_event_handler_t)
+                                                           on_udev_queue_changed,
+                                                           NULL,
+                                                           manager);
+ 
+ }
+ 
+ void
+ ply_device_manager_watch_seats (ply_device_manager_t       *manager,
+                                 ply_seat_added_handler_t    seat_added_handler,
+                                 ply_seat_removed_handler_t  seat_removed_handler,
+                                 void                       *data)
+ {
+   bool done_with_initial_seat_setup;
+ 
+-- 
+2.3.7
+

@@ -1,0 +1,30 @@
+From 7f945ffc1eb5b3c69a4d3632455b75e7fce88534 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Thu, 7 Apr 2016 15:53:34 +0200
+Subject: [PATCH] mailx: mail formatting: add comment right after %oneline
+
+Related to rhbz#1281312
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/plugins/reporter-mailx.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/plugins/reporter-mailx.c b/src/plugins/reporter-mailx.c
+index a062abd..c531541 100644
+--- a/src/plugins/reporter-mailx.c
++++ b/src/plugins/reporter-mailx.c
+@@ -33,8 +33,8 @@
+     FILENAME_HOSTNAME","FILENAME_COUNT", %%oneline\n" \
+     "\n" \
+     "::" \
+-    FILENAME_REPORTED_TO","FILENAME_BACKTRACE","FILENAME_CORE_BACKTRACE \
+-    ", %%multiline"
++    FILENAME_COMMENT","FILENAME_REPORTED_TO","FILENAME_BACKTRACE"," \
++    FILENAME_CORE_BACKTRACE", %%multiline"
+ 
+ #define PR_ATTACH_BINARY "\n%attach:: %binary"
+ 
+-- 
+1.8.3.1
+

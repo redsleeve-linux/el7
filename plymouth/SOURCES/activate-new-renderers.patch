@@ -1,0 +1,2176 @@
+From 14bdb7cadcfb2d3aac54b89b91217ef58abd8377 Mon Sep 17 00:00:00 2001
+From: Ray Strode <rstrode@redhat.com>
+Date: Thu, 24 Sep 2015 09:21:18 -0400
+Subject: [PATCH 1/6] device-manager: activate new renderers after adding to
+ renderers list
+
+When a new renderer gets created, we should activate it, if the device
+manager is already active.
+
+At the moment we call create_pixel_displays_for_renderer which would
+implicitly activate it (from a callback), except we call it one line
+too early, so the renderer isn't in the list of known renderers yet.
+
+This commit swaps the two lines and also adds an explicit renderer
+activation for clarity.  For symmetry it makes the same change to
+keyboards that it makes to renderers.
+---
+ src/libply-splash-core/ply-device-manager.c | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/libply-splash-core/ply-device-manager.c b/src/libply-splash-core/ply-device-manager.c
+index f09448a..14d7616 100644
+--- a/src/libply-splash-core/ply-device-manager.c
++++ b/src/libply-splash-core/ply-device-manager.c
+@@ -45,60 +45,62 @@ static void create_devices_for_terminal_and_renderer_type (ply_device_manager_t
+                                                            const char           *device_path,
+                                                            ply_terminal_t       *terminal,
+                                                            ply_renderer_type_t   renderer_type);
+ struct _ply_device_manager
+ {
+   ply_device_manager_flags_t  flags;
+   ply_event_loop_t           *loop;
+   ply_hashtable_t            *terminals;
+   ply_hashtable_t            *renderers;
+   ply_terminal_t             *local_console_terminal;
+   ply_list_t                 *keyboards;
+   ply_list_t                 *text_displays;
+   ply_list_t                 *pixel_displays;
+   struct udev                *udev_context;
+   struct udev_queue          *udev_queue;
+   int                         udev_queue_fd;
+   ply_fd_watch_t             *udev_queue_fd_watch;
+   struct udev_monitor        *udev_monitor;
+ 
+   ply_keyboard_added_handler_t         keyboard_added_handler;
+   ply_keyboard_removed_handler_t       keyboard_removed_handler;
+   ply_pixel_display_added_handler_t    pixel_display_added_handler;
+   ply_pixel_display_removed_handler_t  pixel_display_removed_handler;
+   ply_text_display_added_handler_t     text_display_added_handler;
+   ply_text_display_removed_handler_t   text_display_removed_handler;
+   void                                *event_handler_data;
+ 
+   uint32_t                    local_console_managed : 1;
+   uint32_t                    local_console_is_text : 1;
+   uint32_t                    serial_consoles_detected : 1;
++  uint32_t                    renderers_activated : 1;
++  uint32_t                    keyboards_activated : 1;
+ };
+ 
+ static void
+ detach_from_event_loop (ply_device_manager_t *manager)
+ {
+   assert (manager != NULL);
+ 
+   manager->loop = NULL;
+ }
+ 
+ static void
+ attach_to_event_loop (ply_device_manager_t *manager,
+                       ply_event_loop_t     *loop)
+ {
+   assert (manager != NULL);
+   assert (loop != NULL);
+   assert (manager->loop == NULL);
+ 
+   manager->loop = loop;
+ 
+   ply_event_loop_watch_for_exit (loop, (ply_event_loop_exit_handler_t)
+                                  detach_from_event_loop,
+                                  manager);
+ }
+ 
+ static bool
+ drm_device_in_use (ply_device_manager_t *manager,
+                    const char           *device_path)
+ {
+   ply_renderer_t *renderer;
+@@ -696,85 +698,92 @@ create_devices_for_terminal_and_renderer_type (ply_device_manager_t *manager,
+       ply_trace ("ignoring device %s since it's already managed",
+                  device_path);
+       return;
+     }
+ 
+   ply_trace ("creating devices for %s (renderer type: %u) (terminal: %s)",
+              device_path? : "", renderer_type, terminal? ply_terminal_get_name (terminal): "none");
+ 
+   if (renderer_type != PLY_RENDERER_TYPE_NONE)
+     {
+       renderer = ply_renderer_new (renderer_type, device_path, terminal);
+ 
+       if (!ply_renderer_open (renderer))
+         {
+           ply_trace ("could not open renderer for %s", device_path);
+           ply_renderer_free (renderer);
+           renderer = NULL;
+           if (renderer_type != PLY_RENDERER_TYPE_AUTO)
+             return;
+         }
+     }
+ 
+   if (renderer != NULL)
+     {
+       keyboard = ply_keyboard_new_for_renderer (renderer);
+       ply_list_append_data (manager->keyboards, keyboard);
+ 
+       if (manager->keyboard_added_handler != NULL)
+         manager->keyboard_added_handler (manager->event_handler_data, keyboard);
+ 
+-      create_pixel_displays_for_renderer (manager, renderer);
+       ply_hashtable_insert (manager->renderers, strdup (device_path), renderer);
++      create_pixel_displays_for_renderer (manager, renderer);
++
++      if (manager->renderers_activated)
++        {
++          ply_trace ("activating renderer");
++          ply_renderer_activate (renderer);
++        }
+     }
+   else if (terminal != NULL)
+     {
+       keyboard = ply_keyboard_new_for_terminal (terminal);
+       ply_list_append_data (manager->keyboards, keyboard);
+ 
+       if (manager->keyboard_added_handler != NULL)
+         manager->keyboard_added_handler (manager->event_handler_data, keyboard);
+     }
+ 
+   if (terminal != NULL)
+     {
+       create_text_displays_for_terminal (manager, terminal);
+ 
+       if (terminal == manager->local_console_terminal)
+         {
+           manager->local_console_is_text = renderer == NULL;
+           manager->local_console_managed = true;
+         }
+     }
+ 
+-  if (keyboard != NULL)
++  if (keyboard != NULL && manager->keyboards_activated)
+     {
++      ply_trace ("activating keyboards");
+       ply_keyboard_watch_for_input (keyboard);
+     }
+ }
+ 
+ static void
+ create_devices_for_terminal (const char           *device_path,
+                              ply_terminal_t       *terminal,
+                              ply_device_manager_t *manager)
+ {
+   create_devices_for_terminal_and_renderer_type (manager,
+                                                  device_path,
+                                                  terminal,
+                                                  PLY_RENDERER_TYPE_NONE);
+ }
+ static bool
+ create_devices_from_terminals (ply_device_manager_t *manager)
+ {
+   bool has_serial_consoles;
+ 
+   ply_trace ("checking for consoles");
+ 
+   if (manager->flags & PLY_DEVICE_MANAGER_FLAGS_IGNORE_SERIAL_CONSOLES)
+     {
+       has_serial_consoles = false;
+       ply_trace ("ignoring all consoles but default console because explicitly told to.");
+     }
+   else
+     {
+       has_serial_consoles = add_consoles_from_file (manager, "/sys/class/tty/console/active");
+     }
+@@ -946,91 +955,98 @@ ply_device_manager_get_text_displays (ply_device_manager_t *manager)
+ }
+ 
+ ply_terminal_t *
+ ply_device_manager_get_default_terminal (ply_device_manager_t *manager)
+ {
+   return manager->local_console_terminal;
+ }
+ 
+ bool
+ ply_device_manager_has_serial_consoles (ply_device_manager_t *manager)
+ {
+   return manager->serial_consoles_detected;
+ }
+ 
+ static void
+ activate_renderer (char                 *device_path,
+                    ply_renderer_t       *renderer,
+                    ply_device_manager_t *manager)
+ {
+   ply_renderer_activate (renderer);
+ }
+ 
+ void
+ ply_device_manager_activate_renderers (ply_device_manager_t *manager)
+ {
+   ply_trace ("activating renderers");
+   ply_hashtable_foreach (manager->renderers,
+                          (ply_hashtable_foreach_func_t *)
+                          activate_renderer,
+                          manager);
++
++  manager->renderers_activated = true;
+ }
+ 
+ static void
+ deactivate_renderer (char                 *device_path,
+                      ply_renderer_t       *renderer,
+                      ply_device_manager_t *manager)
+ {
+   ply_renderer_deactivate (renderer);
+ }
+ 
+ void
+ ply_device_manager_deactivate_renderers (ply_device_manager_t *manager)
+ {
+   ply_trace ("deactivating renderers");
+   ply_hashtable_foreach (manager->renderers,
+                          (ply_hashtable_foreach_func_t *)
+                          deactivate_renderer,
+                          manager);
++  manager->renderers_activated = false;
+ }
+ 
+ void
+ ply_device_manager_activate_keyboards (ply_device_manager_t *manager)
+ {
+   ply_list_node_t *node;
+ 
+   ply_trace ("activating keyboards");
+   node = ply_list_get_first_node (manager->keyboards);
+   while (node != NULL)
+     {
+       ply_keyboard_t *keyboard;
+       ply_list_node_t *next_node;
+ 
+       keyboard = ply_list_node_get_data (node);
+       next_node = ply_list_get_next_node (manager->keyboards, node);
+ 
+       ply_keyboard_watch_for_input (keyboard);
+ 
+       node = next_node;
+     }
++
++  manager->keyboards_activated = true;
+ }
+ 
+ void
+ ply_device_manager_deactivate_keyboards (ply_device_manager_t *manager)
+ {
+   ply_list_node_t *node;
+ 
+   ply_trace ("deactivating keyboards");
+   node = ply_list_get_first_node (manager->keyboards);
+   while (node != NULL)
+     {
+       ply_keyboard_t *keyboard;
+       ply_list_node_t *next_node;
+ 
+       keyboard = ply_list_node_get_data (node);
+       next_node = ply_list_get_next_node (manager->keyboards, node);
+ 
+       ply_keyboard_stop_watching_for_input (keyboard);
+ 
+       node = next_node;
+     }
++
++  manager->keyboards_activated = false;
+ }
+-- 
+2.5.0
+
+
+From 61ca85cd95de1e467e4996a5563c5f77221e569f Mon Sep 17 00:00:00 2001
+From: Ray Strode <rstrode@redhat.com>
+Date: Thu, 24 Sep 2015 15:53:01 -0400
+Subject: [PATCH 2/6] plugins: unset draw handler when freeing view
+
+If the view is freed, we definitely shouldn't draw
+the view's display anymore.
+---
+ src/plugins/splash/fade-throbber/plugin.c | 4 ++--
+ src/plugins/splash/space-flares/plugin.c  | 4 ++--
+ src/plugins/splash/throbgress/plugin.c    | 4 ++--
+ src/plugins/splash/two-step/plugin.c      | 3 ++-
+ 4 files changed, 8 insertions(+), 7 deletions(-)
+
+diff --git a/src/plugins/splash/fade-throbber/plugin.c b/src/plugins/splash/fade-throbber/plugin.c
+index 4af6cae..7b097c0 100644
+--- a/src/plugins/splash/fade-throbber/plugin.c
++++ b/src/plugins/splash/fade-throbber/plugin.c
+@@ -240,60 +240,62 @@ free_stars (view_t *view)
+ 
+ static void detach_from_event_loop (ply_boot_splash_plugin_t *plugin);
+ 
+ static view_t *
+ view_new (ply_boot_splash_plugin_t *plugin,
+           ply_pixel_display_t      *display)
+ {
+   view_t *view;
+ 
+   view = calloc (1, sizeof (view_t));
+   view->plugin = plugin;
+   view->display = display;
+ 
+   view->entry = ply_entry_new (plugin->image_dir);
+   view->stars = ply_list_new ();
+   view->label = ply_label_new ();
+ 
+   view->message_label = ply_label_new ();
+ 
+   return view;
+ }
+ 
+ static void
+ view_free (view_t *view)
+ {
+ 
+   ply_entry_free (view->entry);
+   ply_label_free (view->message_label);
+   free_stars (view);
+ 
++  ply_pixel_display_set_draw_handler (view->display, NULL, NULL);
++
+   free (view);
+ }
+ 
+ static bool
+ view_load (view_t *view)
+ {
+   ply_trace ("loading entry");
+   if (!ply_entry_load (view->entry))
+     return false;
+ 
+   return true;
+ }
+ 
+ static bool
+ load_views (ply_boot_splash_plugin_t *plugin)
+ {
+   ply_list_node_t *node;
+   bool view_loaded;
+ 
+   view_loaded = false;
+   node = ply_list_get_first_node (plugin->views);
+ 
+   while (node != NULL)
+     {
+       ply_list_node_t *next_node;
+       view_t *view;
+ 
+       view = ply_list_node_get_data (node);
+       next_node = ply_list_get_next_node (plugin->views, node);
+ 
+@@ -753,62 +755,60 @@ add_pixel_display (ply_boot_splash_plugin_t *plugin,
+                    ply_pixel_display_t      *display)
+ {
+   view_t *view;
+ 
+   view = view_new (plugin, display);
+ 
+   ply_pixel_display_set_draw_handler (view->display,
+                                       (ply_pixel_display_draw_handler_t)
+                                       on_draw, view);
+ 
+   ply_list_append_data (plugin->views, view);
+ }
+ 
+ static void
+ remove_pixel_display (ply_boot_splash_plugin_t *plugin,
+                       ply_pixel_display_t      *display)
+ {
+   ply_list_node_t *node;
+ 
+   node = ply_list_get_first_node (plugin->views);
+   while (node != NULL)
+     {
+       view_t *view;
+       ply_list_node_t *next_node;
+ 
+       view = ply_list_node_get_data (node);
+       next_node = ply_list_get_next_node (plugin->views, node);
+ 
+       if (view->display == display)
+         {
+-
+-          ply_pixel_display_set_draw_handler (view->display, NULL, NULL);
+           view_free (view);
+           ply_list_remove_node (plugin->views, node);
+           return;
+         }
+ 
+       node = next_node;
+     }
+ }
+ 
+ static bool
+ show_splash_screen (ply_boot_splash_plugin_t *plugin,
+                     ply_event_loop_t         *loop,
+                     ply_buffer_t             *boot_buffer,
+                     ply_boot_splash_mode_t    mode)
+ {
+   assert (plugin != NULL);
+   assert (plugin->logo_image != NULL);
+ 
+   plugin->loop = loop;
+   plugin->mode = mode;
+ 
+   ply_trace ("loading logo image");
+   if (!ply_image_load (plugin->logo_image))
+     return false;
+ 
+   ply_trace ("loading star image");
+   if (!ply_image_load (plugin->star_image))
+     return false;
+ 
+   ply_trace ("loading lock image");
+diff --git a/src/plugins/splash/space-flares/plugin.c b/src/plugins/splash/space-flares/plugin.c
+index e31dce8..45863ff 100644
+--- a/src/plugins/splash/space-flares/plugin.c
++++ b/src/plugins/splash/space-flares/plugin.c
+@@ -210,60 +210,62 @@ static view_t *
+ view_new (ply_boot_splash_plugin_t *plugin,
+           ply_pixel_display_t      *display)
+ {
+   view_t *view;
+ 
+   view = calloc (1, sizeof (view_t));
+   view->plugin = plugin;
+   view->display = display;
+ 
+   view->entry = ply_entry_new (plugin->image_dir);
+   view->label = ply_label_new ();
+   view->message_label = ply_label_new ();
+ 
+   view->sprites = ply_list_new ();
+ 
+   return view;
+ }
+ 
+ static void view_free_sprites (view_t *view);
+ 
+ static void
+ view_free (view_t *view)
+ {
+ 
+   ply_entry_free (view->entry);
+   ply_label_free (view->label);
+   ply_label_free (view->message_label);
+   view_free_sprites (view);
+   ply_list_free (view->sprites);
+ 
++  ply_pixel_display_set_draw_handler (view->display, NULL, NULL);
++
+   ply_image_free (view->scaled_background_image);
+ 
+   free (view);
+ }
+ 
+ static void
+ free_views (ply_boot_splash_plugin_t *plugin)
+ {
+   ply_list_node_t *node;
+ 
+   node = ply_list_get_first_node (plugin->views);
+   while (node != NULL)
+     {
+       ply_list_node_t *next_node;
+       view_t *view;
+ 
+       view = ply_list_node_get_data (node);
+       next_node = ply_list_get_next_node (plugin->views, node);
+ 
+       view_free (view);
+ 
+       node = next_node;
+     }
+ 
+   ply_list_free (plugin->views);
+   plugin->views = NULL;
+ }
+ 
+ static bool
+ view_load (view_t *view)
+@@ -1428,62 +1430,60 @@ add_pixel_display (ply_boot_splash_plugin_t *plugin,
+                    ply_pixel_display_t      *display)
+ {
+   view_t *view;
+ 
+   view = view_new (plugin, display);
+ 
+   ply_pixel_display_set_draw_handler (view->display,
+                                       (ply_pixel_display_draw_handler_t)
+                                       on_draw, view);
+ 
+   ply_list_append_data (plugin->views, view);
+ }
+ 
+ static void
+ remove_pixel_display (ply_boot_splash_plugin_t *plugin,
+                       ply_pixel_display_t      *display)
+ {
+   ply_list_node_t *node;
+ 
+   node = ply_list_get_first_node (plugin->views);
+   while (node != NULL)
+     {
+       view_t *view;
+       ply_list_node_t *next_node;
+ 
+       view = ply_list_node_get_data (node);
+       next_node = ply_list_get_next_node (plugin->views, node);
+ 
+       if (view->display == display)
+         {
+-
+-          ply_pixel_display_set_draw_handler (view->display, NULL, NULL);
+           view_free (view);
+           ply_list_remove_node (plugin->views, node);
+           return;
+         }
+ 
+       node = next_node;
+     }
+ }
+ 
+ static void
+ view_setup_scene (view_t *view)
+ {
+   ply_boot_splash_plugin_t *plugin;
+   sprite_t *sprite;
+   int i;
+   int x, y;
+   int width = 360;
+   int height = 460;
+   unsigned long screen_width, screen_height;
+ 
+   plugin = view->plugin;
+ 
+   screen_width = ply_pixel_display_get_width (view->display);
+   screen_height = ply_pixel_display_get_height (view->display);
+ 
+     {
+       star_bg_t* star_bg;
+       if (view->scaled_background_image)
+         ply_image_free (view->scaled_background_image);
+       view->scaled_background_image = ply_image_resize (plugin->logo_image, screen_width, screen_height);
+diff --git a/src/plugins/splash/throbgress/plugin.c b/src/plugins/splash/throbgress/plugin.c
+index fba809b..d669a74 100644
+--- a/src/plugins/splash/throbgress/plugin.c
++++ b/src/plugins/splash/throbgress/plugin.c
+@@ -115,60 +115,62 @@ static void become_idle (ply_boot_splash_plugin_t *plugin,
+ static view_t *
+ view_new (ply_boot_splash_plugin_t *plugin,
+           ply_pixel_display_t      *display)
+ {
+   view_t *view;
+ 
+   view = calloc (1, sizeof (view_t));
+   view->plugin = plugin;
+   view->display = display;
+ 
+   view->entry = ply_entry_new (plugin->image_dir);
+   view->throbber = ply_throbber_new (plugin->image_dir,
+                                      "throbber-");
+   view->progress_bar = ply_progress_bar_new ();
+   view->label = ply_label_new ();
+   view->message_label = ply_label_new ();
+ 
+   return view;
+ }
+ 
+ static void
+ view_free (view_t *view)
+ {
+ 
+   ply_entry_free (view->entry);
+   ply_throbber_free (view->throbber);
+   ply_progress_bar_free (view->progress_bar);
+   ply_label_free (view->label);
+   ply_label_free (view->message_label);
+ 
++  ply_pixel_display_set_draw_handler (view->display, NULL, NULL);
++
+   free (view);
+ }
+ 
+ static void
+ free_views (ply_boot_splash_plugin_t *plugin)
+ {
+   ply_list_node_t *node;
+ 
+   node = ply_list_get_first_node (plugin->views);
+ 
+   while (node != NULL)
+     {
+       ply_list_node_t *next_node;
+       view_t *view;
+ 
+       view = ply_list_node_get_data (node);
+       next_node = ply_list_get_next_node (plugin->views, node);
+ 
+       view_free (view);
+       ply_list_remove_node (plugin->views, node);
+ 
+       node = next_node;
+     }
+ 
+   ply_list_free (plugin->views);
+   plugin->views = NULL;
+ }
+ 
+ static bool
+ view_load (view_t *view)
+@@ -631,62 +633,60 @@ add_pixel_display (ply_boot_splash_plugin_t *plugin,
+   view_t *view;
+ 
+   ply_trace ("adding pixel display to plugin");
+   view = view_new (plugin, display);
+ 
+   ply_pixel_display_set_draw_handler (view->display,
+                                       (ply_pixel_display_draw_handler_t)
+                                       on_draw, view);
+ 
+   ply_list_append_data (plugin->views, view);
+ }
+ 
+ static void
+ remove_pixel_display (ply_boot_splash_plugin_t *plugin,
+                       ply_pixel_display_t      *display)
+ {
+   ply_list_node_t *node;
+ 
+   ply_trace ("removing pixel display from plugin");
+   node = ply_list_get_first_node (plugin->views);
+   while (node != NULL)
+     {
+       view_t *view;
+       ply_list_node_t *next_node;
+ 
+       view = ply_list_node_get_data (node);
+       next_node = ply_list_get_next_node (plugin->views, node);
+ 
+       if (view->display == display)
+         {
+-
+-          ply_pixel_display_set_draw_handler (view->display, NULL, NULL);
+           view_free (view);
+           ply_list_remove_node (plugin->views, node);
+           return;
+         }
+ 
+       node = next_node;
+     }
+ }
+ 
+ static bool
+ show_splash_screen (ply_boot_splash_plugin_t *plugin,
+                     ply_event_loop_t         *loop,
+                     ply_buffer_t             *boot_buffer,
+                     ply_boot_splash_mode_t    mode)
+ {
+   assert (plugin != NULL);
+   assert (plugin->logo_image != NULL);
+ 
+   plugin->loop = loop;
+   plugin->mode = mode;
+ 
+   ply_trace ("loading logo image");
+   if (!ply_image_load (plugin->logo_image))
+     return false;
+ 
+   ply_trace ("loading lock image");
+   if (!ply_image_load (plugin->lock_image))
+     return false;
+ 
+   ply_trace ("loading box image");
+diff --git a/src/plugins/splash/two-step/plugin.c b/src/plugins/splash/two-step/plugin.c
+index f48b41e..0253aac 100644
+--- a/src/plugins/splash/two-step/plugin.c
++++ b/src/plugins/splash/two-step/plugin.c
+@@ -155,60 +155,62 @@ view_new (ply_boot_splash_plugin_t *plugin,
+ 
+   view->entry = ply_entry_new (plugin->animation_dir);
+   view->end_animation = ply_animation_new (plugin->animation_dir,
+                                            "animation-");
+   view->progress_animation = ply_progress_animation_new (plugin->animation_dir,
+                                                          "progress-");
+ 
+   view->throbber = ply_throbber_new (plugin->animation_dir,
+                                      "throbber-");
+   ply_progress_animation_set_transition (view->progress_animation,
+                                          plugin->transition,
+                                          plugin->transition_duration);
+ 
+   view->label = ply_label_new ();
+   view->message_label = ply_label_new ();
+ 
+   return view;
+ }
+ 
+ static void
+ view_free (view_t *view)
+ {
+ 
+   ply_entry_free (view->entry);
+   ply_animation_free (view->end_animation);
+   ply_progress_animation_free (view->progress_animation);
+   ply_throbber_free (view->throbber);
+   ply_label_free (view->label);
+   ply_label_free (view->message_label);
+ 
++  ply_pixel_display_set_draw_handler (view->display, NULL, NULL);
++
+   if (view->background_image != NULL)
+     ply_image_free (view->background_image);
+ 
+   free (view);
+ }
+ 
+ static bool
+ view_load (view_t *view)
+ {
+   unsigned long screen_width, screen_height;
+   ply_boot_splash_plugin_t *plugin;
+ 
+   plugin = view->plugin;
+ 
+   screen_width = ply_pixel_display_get_width (view->display);
+   screen_height = ply_pixel_display_get_height (view->display);
+ 
+   if (plugin->background_tile_image != NULL)
+     {
+       ply_trace ("tiling background to %lux%lu", screen_width, screen_height);
+       view->background_image = ply_image_tile (plugin->background_tile_image, screen_width, screen_height);
+     }
+ 
+   if (plugin->watermark_image != NULL)
+     {
+       view->watermark_area.width = ply_image_get_width (plugin->watermark_image);
+       view->watermark_area.height = ply_image_get_height (plugin->watermark_image);
+       view->watermark_area.x = screen_width * plugin->watermark_horizontal_alignment - ply_image_get_width (plugin->watermark_image) * plugin->watermark_horizontal_alignment;
+       view->watermark_area.y = screen_height * plugin->watermark_vertical_alignment - ply_image_get_height (plugin->watermark_image) * plugin->watermark_vertical_alignment;
+     }
+@@ -993,61 +995,60 @@ add_pixel_display (ply_boot_splash_plugin_t *plugin,
+   view_t *view;
+ 
+   ply_trace ("adding pixel display to plugin");
+   view = view_new (plugin, display);
+ 
+   ply_pixel_display_set_draw_handler (view->display,
+                                       (ply_pixel_display_draw_handler_t)
+                                       on_draw, view);
+   ply_list_append_data (plugin->views, view);
+ }
+ 
+ static void
+ remove_pixel_display (ply_boot_splash_plugin_t *plugin,
+                       ply_pixel_display_t      *display)
+ {
+   ply_list_node_t *node;
+ 
+   ply_trace ("removing pixel display from plugin");
+   node = ply_list_get_first_node (plugin->views);
+   while (node != NULL)
+     {
+       view_t *view;
+       ply_list_node_t *next_node;
+ 
+       view = ply_list_node_get_data (node);
+       next_node = ply_list_get_next_node (plugin->views, node);
+ 
+       if (view->display == display)
+         {
+ 
+-          ply_pixel_display_set_draw_handler (view->display, NULL, NULL);
+           view_free (view);
+           ply_list_remove_node (plugin->views, node);
+           return;
+         }
+ 
+       node = next_node;
+     }
+ }
+ 
+ static bool
+ show_splash_screen (ply_boot_splash_plugin_t *plugin,
+                     ply_event_loop_t         *loop,
+                     ply_buffer_t             *boot_buffer,
+                     ply_boot_splash_mode_t    mode)
+ {
+   assert (plugin != NULL);
+ 
+   plugin->loop = loop;
+   plugin->mode = mode;
+ 
+   ply_trace ("loading lock image");
+   if (!ply_image_load (plugin->lock_image))
+     return false;
+ 
+   ply_trace ("loading box image");
+   if (!ply_image_load (plugin->box_image))
+     return false;
+ 
+   if (plugin->corner_image != NULL)
+     {
+-- 
+2.5.0
+
+
+From b849b3edc60cac8d1c1f7a66d103768abdb71666 Mon Sep 17 00:00:00 2001
+From: Ray Strode <rstrode@redhat.com>
+Date: Thu, 24 Sep 2015 15:55:08 -0400
+Subject: [PATCH 3/6] plugins: free views that can't load
+
+Trying to use an unloaded view can lead to crashes.
+If a view can't be loaded, free it right away.
+---
+ src/plugins/splash/fade-throbber/plugin.c | 9 ++++++++-
+ src/plugins/splash/space-flares/plugin.c  | 9 ++++++++-
+ src/plugins/splash/throbgress/plugin.c    | 9 ++++++++-
+ src/plugins/splash/two-step/plugin.c      | 9 ++++++++-
+ 4 files changed, 32 insertions(+), 4 deletions(-)
+
+diff --git a/src/plugins/splash/fade-throbber/plugin.c b/src/plugins/splash/fade-throbber/plugin.c
+index 7b097c0..953186d 100644
+--- a/src/plugins/splash/fade-throbber/plugin.c
++++ b/src/plugins/splash/fade-throbber/plugin.c
+@@ -273,61 +273,68 @@ view_free (view_t *view)
+ }
+ 
+ static bool
+ view_load (view_t *view)
+ {
+   ply_trace ("loading entry");
+   if (!ply_entry_load (view->entry))
+     return false;
+ 
+   return true;
+ }
+ 
+ static bool
+ load_views (ply_boot_splash_plugin_t *plugin)
+ {
+   ply_list_node_t *node;
+   bool view_loaded;
+ 
+   view_loaded = false;
+   node = ply_list_get_first_node (plugin->views);
+ 
+   while (node != NULL)
+     {
+       ply_list_node_t *next_node;
+       view_t *view;
+ 
+       view = ply_list_node_get_data (node);
+       next_node = ply_list_get_next_node (plugin->views, node);
+ 
+       if (view_load (view))
+-        view_loaded = true;
++        {
++          view_loaded = true;
++        }
++      else
++        {
++          ply_list_remove_node (plugin->views, node);
++          view_free (view);
++        }
+ 
+       node = next_node;
+     }
+ 
+   return view_loaded;
+ }
+ 
+ static void
+ view_redraw (view_t *view)
+ {
+   unsigned long screen_width, screen_height;
+ 
+   screen_width = ply_pixel_display_get_width (view->display);
+   screen_height = ply_pixel_display_get_height (view->display);
+ 
+   ply_pixel_display_draw_area (view->display, 0, 0,
+                                screen_width, screen_height);
+ }
+ 
+ static void
+ redraw_views (ply_boot_splash_plugin_t *plugin)
+ {
+   ply_list_node_t *node;
+ 
+   node = ply_list_get_first_node (plugin->views);
+   while (node != NULL)
+     {
+       ply_list_node_t *next_node;
+       view_t *view;
+ 
+diff --git a/src/plugins/splash/space-flares/plugin.c b/src/plugins/splash/space-flares/plugin.c
+index 45863ff..b18f39f 100644
+--- a/src/plugins/splash/space-flares/plugin.c
++++ b/src/plugins/splash/space-flares/plugin.c
+@@ -268,61 +268,68 @@ free_views (ply_boot_splash_plugin_t *plugin)
+ }
+ 
+ static bool
+ view_load (view_t *view)
+ {
+   ply_trace ("loading entry");
+   if (!ply_entry_load (view->entry))
+     return false;
+ 
+   return true;
+ }
+ 
+ static bool
+ load_views (ply_boot_splash_plugin_t *plugin)
+ {
+   ply_list_node_t *node;
+   bool view_loaded;
+ 
+   view_loaded = false;
+   node = ply_list_get_first_node (plugin->views);
+ 
+   while (node != NULL)
+     {
+       ply_list_node_t *next_node;
+       view_t *view;
+ 
+       view = ply_list_node_get_data (node);
+       next_node = ply_list_get_next_node (plugin->views, node);
+ 
+       if (view_load (view))
+-        view_loaded = true;
++        {
++          view_loaded = true;
++        }
++      else
++        {
++          ply_list_remove_node (plugin->views, node);
++          view_free (view);
++        }
+ 
+       node = next_node;
+     }
+ 
+   return view_loaded;
+ }
+ 
+ static void
+ view_redraw (view_t *view)
+ {
+   unsigned long screen_width, screen_height;
+ 
+   screen_width = ply_pixel_display_get_width (view->display);
+   screen_height = ply_pixel_display_get_height (view->display);
+ 
+   ply_pixel_display_draw_area (view->display, 0, 0,
+                                screen_width, screen_height);
+ }
+ 
+ static void
+ redraw_views (ply_boot_splash_plugin_t *plugin)
+ {
+   ply_list_node_t *node;
+ 
+   node = ply_list_get_first_node (plugin->views);
+   while (node != NULL)
+     {
+       ply_list_node_t *next_node;
+       view_t *view;
+ 
+diff --git a/src/plugins/splash/throbgress/plugin.c b/src/plugins/splash/throbgress/plugin.c
+index d669a74..e3ce91b 100644
+--- a/src/plugins/splash/throbgress/plugin.c
++++ b/src/plugins/splash/throbgress/plugin.c
+@@ -177,61 +177,68 @@ view_load (view_t *view)
+ {
+   ply_trace ("loading entry");
+   if (!ply_entry_load (view->entry))
+     return false;
+ 
+   ply_trace ("loading throbber");
+   if (!ply_throbber_load (view->throbber))
+     return false;
+ 
+   return true;
+ }
+ 
+ static bool
+ load_views (ply_boot_splash_plugin_t *plugin)
+ {
+   ply_list_node_t *node;
+   bool view_loaded;
+ 
+   view_loaded = false;
+   node = ply_list_get_first_node (plugin->views);
+ 
+   while (node != NULL)
+     {
+       ply_list_node_t *next_node;
+       view_t *view;
+ 
+       view = ply_list_node_get_data (node);
+       next_node = ply_list_get_next_node (plugin->views, node);
+ 
+       if (view_load (view))
+-        view_loaded = true;
++        {
++          view_loaded = true;
++        }
++      else
++        {
++          ply_list_remove_node (plugin->views, node);
++          view_free (view);
++        }
+ 
+       node = next_node;
+     }
+ 
+   return view_loaded;
+ }
+ 
+ static void
+ view_redraw (view_t *view)
+ {
+   unsigned long screen_width, screen_height;
+ 
+   screen_width = ply_pixel_display_get_width (view->display);
+   screen_height = ply_pixel_display_get_height (view->display);
+ 
+   ply_pixel_display_draw_area (view->display, 0, 0,
+                                screen_width, screen_height);
+ }
+ 
+ static void
+ redraw_views (ply_boot_splash_plugin_t *plugin)
+ {
+   ply_list_node_t *node;
+ 
+   node = ply_list_get_first_node (plugin->views);
+   while (node != NULL)
+     {
+       ply_list_node_t *next_node;
+       view_t *view;
+ 
+diff --git a/src/plugins/splash/two-step/plugin.c b/src/plugins/splash/two-step/plugin.c
+index 0253aac..4612e3f 100644
+--- a/src/plugins/splash/two-step/plugin.c
++++ b/src/plugins/splash/two-step/plugin.c
+@@ -257,61 +257,68 @@ view_load (view_t *view)
+           ply_throbber_free (view->throbber);
+           view->throbber = NULL;
+         }
+     }
+   else
+     {
+       ply_trace ("this theme has no throbber\n");
+     }
+ 
+   return true;
+ }
+ 
+ static bool
+ load_views (ply_boot_splash_plugin_t *plugin)
+ {
+   ply_list_node_t *node;
+   bool view_loaded;
+ 
+   view_loaded = false;
+   node = ply_list_get_first_node (plugin->views);
+ 
+   while (node != NULL)
+     {
+       ply_list_node_t *next_node;
+       view_t *view;
+ 
+       view = ply_list_node_get_data (node);
+       next_node = ply_list_get_next_node (plugin->views, node);
+ 
+       if (view_load (view))
+-        view_loaded = true;
++        {
++          view_loaded = true;
++        }
++      else
++        {
++          ply_list_remove_node (plugin->views, node);
++          view_free (view);
++        }
+ 
+       node = next_node;
+     }
+ 
+   return view_loaded;
+ }
+ 
+ static void
+ view_redraw (view_t *view)
+ {
+   unsigned long screen_width, screen_height;
+ 
+   screen_width = ply_pixel_display_get_width (view->display);
+   screen_height = ply_pixel_display_get_height (view->display);
+ 
+   ply_pixel_display_draw_area (view->display, 0, 0,
+                                screen_width, screen_height);
+ }
+ 
+ static void
+ redraw_views (ply_boot_splash_plugin_t *plugin)
+ {
+   ply_list_node_t *node;
+ 
+   node = ply_list_get_first_node (plugin->views);
+   while (node != NULL)
+     {
+       ply_list_node_t *next_node;
+       view_t *view;
+ 
+-- 
+2.5.0
+
+
+From a790e8d26d81b978ed2d90a5730c717af9dc673b Mon Sep 17 00:00:00 2001
+From: Ray Strode <rstrode@redhat.com>
+Date: Thu, 24 Sep 2015 15:57:59 -0400
+Subject: [PATCH 4/6] plugins: load view of hot plugged displays immediately
+
+If we're already chugging along, and a new display
+gets added make sure to load the view associated with
+that display right away.
+
+Using an unloaded view can lead to crashes.
+---
+ src/plugins/splash/fade-throbber/plugin.c | 18 ++++++++++++++++--
+ src/plugins/splash/space-flares/plugin.c  | 13 +++++++++++--
+ src/plugins/splash/text/plugin.c          |  3 +++
+ src/plugins/splash/throbgress/plugin.c    | 13 +++++++++++--
+ src/plugins/splash/tribar/plugin.c        |  7 ++++++-
+ src/plugins/splash/two-step/plugin.c      | 12 +++++++++++-
+ 6 files changed, 58 insertions(+), 8 deletions(-)
+
+diff --git a/src/plugins/splash/fade-throbber/plugin.c b/src/plugins/splash/fade-throbber/plugin.c
+index 953186d..946a732 100644
+--- a/src/plugins/splash/fade-throbber/plugin.c
++++ b/src/plugins/splash/fade-throbber/plugin.c
+@@ -76,60 +76,61 @@ typedef struct
+ } star_t;
+ 
+ typedef struct
+ {
+   ply_boot_splash_plugin_t *plugin;
+   ply_pixel_display_t *display;
+   ply_list_t *stars;
+   ply_entry_t *entry;
+   ply_label_t *label;
+   ply_label_t *message_label;
+   ply_rectangle_t lock_area;
+   double logo_opacity;
+ } view_t;
+ 
+ struct _ply_boot_splash_plugin
+ {
+   ply_event_loop_t *loop;
+   ply_boot_splash_mode_t mode;
+   ply_image_t *logo_image;
+   ply_image_t *star_image;
+   ply_image_t *lock_image;
+   char *image_dir;
+   ply_list_t *views;
+ 
+   ply_boot_splash_display_type_t state;
+ 
+   double start_time;
+   double now;
+ 
+   uint32_t is_animating : 1;
++  uint32_t is_visible : 1;
+ };
+ 
+ ply_boot_splash_plugin_interface_t *ply_boot_splash_plugin_get_interface (void);
+ 
+ static void
+ view_show_prompt (view_t     *view,
+                   const char *prompt)
+ {
+   ply_boot_splash_plugin_t *plugin;
+   int x, y;
+   int entry_width, entry_height;
+ 
+   assert (view != NULL);
+ 
+   plugin = view->plugin;
+ 
+   if (ply_entry_is_hidden (view->entry))
+     {
+       unsigned long screen_width, screen_height;
+ 
+       screen_width = ply_pixel_display_get_width (view->display);
+       screen_height = ply_pixel_display_get_height (view->display);
+ 
+       view->lock_area.width = ply_image_get_width (plugin->lock_image);
+       view->lock_area.height = ply_image_get_height (plugin->lock_image);
+ 
+       entry_width = ply_entry_get_width (view->entry);
+       entry_height = ply_entry_get_height (view->entry);
+ 
+       x = screen_width / 2.0 - (view->lock_area.width + entry_width) / 2.0 + view->lock_area.width;
+@@ -741,62 +742,71 @@ on_draw (view_t                   *view,
+          int                       width,
+          int                       height)
+ {
+   ply_boot_splash_plugin_t *plugin;
+ 
+   plugin = view->plugin;
+ 
+   draw_background (view, pixel_buffer, x, y, width, height);
+ 
+   if (plugin->state == PLY_BOOT_SPLASH_DISPLAY_NORMAL)
+     draw_normal_view (view, pixel_buffer, x, y, width, height);
+   else
+     draw_prompt_view (view, pixel_buffer, x, y, width, height);
+ 
+   ply_label_draw_area (view->message_label,
+                        pixel_buffer,
+                        x, y, width, height);
+ }
+ 
+ static void
+ add_pixel_display (ply_boot_splash_plugin_t *plugin,
+                    ply_pixel_display_t      *display)
+ {
+   view_t *view;
+ 
+   view = view_new (plugin, display);
+ 
+   ply_pixel_display_set_draw_handler (view->display,
+                                       (ply_pixel_display_draw_handler_t)
+                                       on_draw, view);
+-
+-  ply_list_append_data (plugin->views, view);
++  if (plugin->is_visible)
++    {
++      if (view_load (view))
++        ply_list_append_data (plugin->views, view);
++      else
++        view_free (view);
++    }
++  else
++    {
++      ply_list_append_data (plugin->views, view);
++    }
+ }
+ 
+ static void
+ remove_pixel_display (ply_boot_splash_plugin_t *plugin,
+                       ply_pixel_display_t      *display)
+ {
+   ply_list_node_t *node;
+ 
+   node = ply_list_get_first_node (plugin->views);
+   while (node != NULL)
+     {
+       view_t *view;
+       ply_list_node_t *next_node;
+ 
+       view = ply_list_node_get_data (node);
+       next_node = ply_list_get_next_node (plugin->views, node);
+ 
+       if (view->display == display)
+         {
+           view_free (view);
+           ply_list_remove_node (plugin->views, node);
+           return;
+         }
+ 
+       node = next_node;
+     }
+ }
+ 
+ static bool
+ show_splash_screen (ply_boot_splash_plugin_t *plugin,
+@@ -805,60 +815,62 @@ show_splash_screen (ply_boot_splash_plugin_t *plugin,
+                     ply_boot_splash_mode_t    mode)
+ {
+   assert (plugin != NULL);
+   assert (plugin->logo_image != NULL);
+ 
+   plugin->loop = loop;
+   plugin->mode = mode;
+ 
+   ply_trace ("loading logo image");
+   if (!ply_image_load (plugin->logo_image))
+     return false;
+ 
+   ply_trace ("loading star image");
+   if (!ply_image_load (plugin->star_image))
+     return false;
+ 
+   ply_trace ("loading lock image");
+   if (!ply_image_load (plugin->lock_image))
+     return false;
+ 
+   ply_event_loop_watch_for_exit (loop, (ply_event_loop_exit_handler_t)
+                                  detach_from_event_loop,
+                                  plugin);
+ 
+   if (!load_views (plugin))
+     {
+       ply_trace ("couldn't load views");
+       return false;
+     }
+ 
++  plugin->is_visible = true;
++
+   ply_trace ("starting boot animation");
+   start_animation (plugin);
+ 
+   return true;
+ }
+ 
+ static void
+ view_add_star (view_t *view)
+ {
+   ply_boot_splash_plugin_t *plugin;
+   ply_rectangle_t logo_area;
+   star_t *star;
+   unsigned int x, y;
+   unsigned int width, height;
+   unsigned long screen_width, screen_height;
+   ply_list_node_t *node;
+ 
+   assert (view != NULL);
+ 
+   plugin = view->plugin;
+ 
+   screen_width = ply_pixel_display_get_width (view->display);
+   screen_height = ply_pixel_display_get_height (view->display);
+   width = ply_image_get_width (plugin->logo_image);
+   height = ply_image_get_height (plugin->logo_image);
+   logo_area.x = (screen_width / 2) - (width / 2);
+   logo_area.y = (screen_height / 2) - (height / 2);
+   logo_area.width = width;
+   logo_area.height = height;
+ 
+@@ -944,60 +956,62 @@ update_status (ply_boot_splash_plugin_t *plugin,
+ static void
+ show_message (ply_boot_splash_plugin_t *plugin,
+               const char               *message)
+ {
+   ply_trace ("Showing message '%s'", message);
+   ply_list_node_t *node;
+   node = ply_list_get_first_node (plugin->views);
+   while (node != NULL)
+     {
+       ply_list_node_t *next_node;
+       view_t *view;
+ 
+       view = ply_list_node_get_data (node);
+       next_node = ply_list_get_next_node (plugin->views, node);
+       ply_label_set_text (view->message_label, message);
+       ply_label_show (view->message_label, view->display, 10, 10);
+ 
+       ply_pixel_display_draw_area (view->display, 10, 10,
+                                    ply_label_get_width (view->message_label),
+                                    ply_label_get_height(view->message_label));
+       node = next_node;
+     }
+ }
+ 
+ static void
+ hide_splash_screen (ply_boot_splash_plugin_t *plugin,
+                     ply_event_loop_t         *loop)
+ {
+   assert (plugin != NULL);
+ 
++  plugin->is_visible = false;
++
+   if (plugin->loop != NULL)
+     {
+       stop_animation (plugin);
+ 
+       ply_event_loop_stop_watching_for_exit (plugin->loop, (ply_event_loop_exit_handler_t)
+                                              detach_from_event_loop,
+                                              plugin);
+       detach_from_event_loop (plugin);
+     }
+ }
+ 
+ static void
+ show_password_prompt (ply_boot_splash_plugin_t *plugin,
+                       const char               *text,
+                       int                       number_of_bullets)
+ {
+   ply_list_node_t *node;
+ 
+   node = ply_list_get_first_node (plugin->views);
+   while (node != NULL)
+     {
+       ply_list_node_t *next_node;
+       view_t *view;
+ 
+       view = ply_list_node_get_data (node);
+       next_node = ply_list_get_next_node (plugin->views, node);
+ 
+       view_show_prompt (view, text);
+       ply_entry_set_bullet_count (view->entry, number_of_bullets);
+ 
+diff --git a/src/plugins/splash/space-flares/plugin.c b/src/plugins/splash/space-flares/plugin.c
+index b18f39f..9e53617 100644
+--- a/src/plugins/splash/space-flares/plugin.c
++++ b/src/plugins/splash/space-flares/plugin.c
+@@ -1416,62 +1416,71 @@ draw_background (view_t             *view,
+   image_area.width = ply_image_get_width(plugin->star_image);
+   image_area.height = ply_image_get_height(plugin->star_image);
+   
+   
+   ply_pixel_buffer_fill_with_argb32_data_with_clip (pixel_buffer,
+                                                      &image_area, &area,
+                                                      ply_image_get_data (plugin->star_image));
+                                                      
+   image_area.x = 20;
+   image_area.y = 20;
+   image_area.width = ply_image_get_width(plugin->logo_image);
+   image_area.height = ply_image_get_height(plugin->logo_image);
+   
+   
+   ply_pixel_buffer_fill_with_argb32_data_with_clip (pixel_buffer,
+                                                      &image_area, &area,
+                                                      ply_image_get_data (plugin->logo_image));
+ }
+ 
+ static void
+ add_pixel_display (ply_boot_splash_plugin_t *plugin,
+                    ply_pixel_display_t      *display)
+ {
+   view_t *view;
+ 
+   view = view_new (plugin, display);
+ 
+   ply_pixel_display_set_draw_handler (view->display,
+                                       (ply_pixel_display_draw_handler_t)
+                                       on_draw, view);
+-
+-  ply_list_append_data (plugin->views, view);
++  if (plugin->is_visible)
++    {
++      if (view_load (view))
++        ply_list_append_data (plugin->views, view);
++      else
++        view_free (view);
++    }
++  else
++    {
++      ply_list_append_data (plugin->views, view);
++    }
+ }
+ 
+ static void
+ remove_pixel_display (ply_boot_splash_plugin_t *plugin,
+                       ply_pixel_display_t      *display)
+ {
+   ply_list_node_t *node;
+ 
+   node = ply_list_get_first_node (plugin->views);
+   while (node != NULL)
+     {
+       view_t *view;
+       ply_list_node_t *next_node;
+ 
+       view = ply_list_node_get_data (node);
+       next_node = ply_list_get_next_node (plugin->views, node);
+ 
+       if (view->display == display)
+         {
+           view_free (view);
+           ply_list_remove_node (plugin->views, node);
+           return;
+         }
+ 
+       node = next_node;
+     }
+ }
+ 
+ static void
+ view_setup_scene (view_t *view)
+diff --git a/src/plugins/splash/text/plugin.c b/src/plugins/splash/text/plugin.c
+index fb97c14..69125a2 100644
+--- a/src/plugins/splash/text/plugin.c
++++ b/src/plugins/splash/text/plugin.c
+@@ -458,60 +458,63 @@ stop_animation (ply_boot_splash_plugin_t *plugin)
+ 
+ static void
+ on_draw (view_t                   *view,
+          ply_terminal_t           *terminal,
+          int                       x,
+          int                       y,
+          int                       width,
+          int                       height)
+ {
+   ply_text_display_clear_screen (view->display);
+ }
+ 
+ static void
+ add_text_display (ply_boot_splash_plugin_t *plugin,
+                   ply_text_display_t       *display)
+ {
+   view_t *view;
+   ply_terminal_t *terminal;
+ 
+   view = view_new (plugin, display);
+ 
+   terminal = ply_text_display_get_terminal (view->display);
+   if (ply_terminal_open (terminal))
+     ply_terminal_activate_vt (terminal);
+ 
+   ply_text_display_set_draw_handler (view->display,
+                                      (ply_text_display_draw_handler_t)
+                                      on_draw, view);
+ 
+   ply_list_append_data (plugin->views, view);
++
++  if (plugin->is_animating)
++    view_start_animation (view);
+ }
+ 
+ static void
+ remove_text_display (ply_boot_splash_plugin_t *plugin,
+                      ply_text_display_t       *display)
+ {
+   ply_list_node_t *node;
+ 
+   node = ply_list_get_first_node (plugin->views);
+   while (node != NULL)
+     {
+       view_t *view;
+       ply_list_node_t *next_node;
+ 
+       view = ply_list_node_get_data (node);
+       next_node = ply_list_get_next_node (plugin->views, node);
+ 
+       if (view->display == display)
+         {
+           ply_text_display_set_draw_handler (view->display,
+                                              NULL, NULL);
+           view_free (view);
+           ply_list_remove_node (plugin->views, node);
+           return;
+         }
+ 
+       node = next_node;
+     }
+ }
+ 
+diff --git a/src/plugins/splash/throbgress/plugin.c b/src/plugins/splash/throbgress/plugin.c
+index e3ce91b..c4d0555 100644
+--- a/src/plugins/splash/throbgress/plugin.c
++++ b/src/plugins/splash/throbgress/plugin.c
+@@ -618,62 +618,71 @@ on_draw (view_t                   *view,
+       lock_data = ply_image_get_data (plugin->lock_image);
+       ply_pixel_buffer_fill_with_argb32_data (pixel_buffer,
+                                               &view->lock_area,
+                                               lock_data);
+     }
+   else
+     {
+       draw_logo (view, pixel_buffer);
+       ply_throbber_draw_area (view->throbber,
+                               pixel_buffer, x, y, width, height);
+       ply_progress_bar_draw_area (view->progress_bar,
+                                   pixel_buffer, x, y, width, height);
+     }
+   ply_label_draw_area (view->message_label,
+                        pixel_buffer,
+                        x, y, width, height);
+ }
+ 
+ static void
+ add_pixel_display (ply_boot_splash_plugin_t *plugin,
+                    ply_pixel_display_t      *display)
+ {
+   view_t *view;
+ 
+   ply_trace ("adding pixel display to plugin");
+   view = view_new (plugin, display);
+ 
+   ply_pixel_display_set_draw_handler (view->display,
+                                       (ply_pixel_display_draw_handler_t)
+                                       on_draw, view);
+-
+-  ply_list_append_data (plugin->views, view);
++  if (plugin->is_visible)
++    {
++      if (view_load (view))
++        ply_list_append_data (plugin->views, view);
++      else
++        view_free (view);
++    }
++  else
++    {
++      ply_list_append_data (plugin->views, view);
++    }
+ }
+ 
+ static void
+ remove_pixel_display (ply_boot_splash_plugin_t *plugin,
+                       ply_pixel_display_t      *display)
+ {
+   ply_list_node_t *node;
+ 
+   ply_trace ("removing pixel display from plugin");
+   node = ply_list_get_first_node (plugin->views);
+   while (node != NULL)
+     {
+       view_t *view;
+       ply_list_node_t *next_node;
+ 
+       view = ply_list_node_get_data (node);
+       next_node = ply_list_get_next_node (plugin->views, node);
+ 
+       if (view->display == display)
+         {
+           view_free (view);
+           ply_list_remove_node (plugin->views, node);
+           return;
+         }
+ 
+       node = next_node;
+     }
+ }
+ 
+ static bool
+diff --git a/src/plugins/splash/tribar/plugin.c b/src/plugins/splash/tribar/plugin.c
+index 4458bad..5b89cc3 100644
+--- a/src/plugins/splash/tribar/plugin.c
++++ b/src/plugins/splash/tribar/plugin.c
+@@ -461,60 +461,63 @@ stop_animation (ply_boot_splash_plugin_t *plugin)
+ 
+ static void
+ on_draw (view_t                   *view,
+          ply_terminal_t           *terminal,
+          int                       x,
+          int                       y,
+          int                       width,
+          int                       height)
+ {
+   ply_text_display_clear_screen (view->display);
+ }
+ 
+ static void
+ add_text_display (ply_boot_splash_plugin_t *plugin,
+                   ply_text_display_t       *display)
+ {
+   view_t *view;
+   ply_terminal_t *terminal;
+ 
+   view = view_new (plugin, display);
+ 
+   terminal = ply_text_display_get_terminal (view->display);
+   if (ply_terminal_open (terminal))
+     ply_terminal_activate_vt (terminal);
+ 
+   ply_text_display_set_draw_handler (view->display,
+                                      (ply_text_display_draw_handler_t)
+                                      on_draw, view);
+ 
+   ply_list_append_data (plugin->views, view);
++
++  if (plugin->is_animating)
++    view_start_animation (view);
+ }
+ 
+ static void
+ remove_text_display (ply_boot_splash_plugin_t *plugin,
+                      ply_text_display_t       *display)
+ {
+   ply_list_node_t *node;
+ 
+   node = ply_list_get_first_node (plugin->views);
+   while (node != NULL)
+     {
+       view_t *view;
+       ply_list_node_t *next_node;
+ 
+       view = ply_list_node_get_data (node);
+       next_node = ply_list_get_next_node (plugin->views, node);
+ 
+       if (view->display == display)
+         {
+           ply_text_display_set_draw_handler (view->display,
+                                              NULL, NULL);
+           view_free (view);
+           ply_list_remove_node (plugin->views, node);
+           return;
+         }
+ 
+       node = next_node;
+     }
+ }
+ 
+@@ -545,61 +548,63 @@ update_status (ply_boot_splash_plugin_t *plugin,
+   assert (plugin != NULL);
+ 
+   ply_trace ("status update");
+ }
+ 
+ static void
+ on_boot_progress (ply_boot_splash_plugin_t *plugin,
+                   double                    duration,
+                   double                    percent_done)
+ {
+   ply_list_node_t *node;
+   double total_duration;
+ 
+   total_duration = duration / percent_done;
+ 
+   /* Fun made-up smoothing function to make the growth asymptotic:
+    * fraction(time,estimate)=1-2^(-(time^1.45)/estimate) */
+   percent_done = 1.0 - pow (2.0, -pow (duration, 1.45) / total_duration) * (1.0 - percent_done);
+ 
+   node = ply_list_get_first_node (plugin->views);
+ 
+   while (node != NULL)
+     {
+       ply_list_node_t *next_node;
+       view_t *view;
+ 
+       view = ply_list_node_get_data (node);
+       next_node = ply_list_get_next_node (plugin->views, node);
+ 
+       ply_text_progress_bar_set_percent_done (view->progress_bar, percent_done);
+-      ply_text_progress_bar_draw (view->progress_bar);
++
++      if (plugin->is_animating)
++        ply_text_progress_bar_draw (view->progress_bar);
+ 
+       node = next_node;
+     }
+ }
+ 
+ static void
+ hide_splash_screen (ply_boot_splash_plugin_t *plugin,
+                     ply_event_loop_t         *loop)
+ {
+   assert (plugin != NULL);
+ 
+   ply_trace ("hiding splash screen");
+ 
+   if (plugin->loop != NULL)
+     {
+       stop_animation (plugin);
+ 
+       ply_event_loop_stop_watching_for_exit (plugin->loop,
+                                              (ply_event_loop_exit_handler_t)
+                                              detach_from_event_loop,
+                                              plugin);
+       detach_from_event_loop (plugin);
+     }
+ 
+   hide_views (plugin);
+   ply_show_new_kernel_messages (true);
+ }
+ 
+ static void
+ display_normal (ply_boot_splash_plugin_t *plugin)
+diff --git a/src/plugins/splash/two-step/plugin.c b/src/plugins/splash/two-step/plugin.c
+index 4612e3f..a1d1f00 100644
+--- a/src/plugins/splash/two-step/plugin.c
++++ b/src/plugins/splash/two-step/plugin.c
+@@ -980,61 +980,71 @@ on_draw (view_t                   *view,
+ 
+           if (view->throbber != NULL)
+             sprite_height = MAX (ply_throbber_get_height (view->throbber),
+                                  sprite_height);
+ 
+           image_area.width = ply_image_get_width (plugin->header_image);
+           image_area.height = ply_image_get_height (plugin->header_image);
+           image_area.x = screen_area.width / 2.0 - image_area.width / 2.0;
+           image_area.y = plugin->animation_vertical_alignment * screen_area.height - sprite_height / 2.0 - image_area.height;
+ 
+           ply_pixel_buffer_fill_with_argb32_data (pixel_buffer, &image_area, ply_image_get_data (plugin->header_image));
+         }
+     }
+   ply_label_draw_area (view->message_label,
+                        pixel_buffer,
+                        x, y, width, height);
+ }
+ 
+ static void
+ add_pixel_display (ply_boot_splash_plugin_t *plugin,
+                    ply_pixel_display_t      *display)
+ {
+   view_t *view;
+ 
+   ply_trace ("adding pixel display to plugin");
+   view = view_new (plugin, display);
+ 
+   ply_pixel_display_set_draw_handler (view->display,
+                                       (ply_pixel_display_draw_handler_t)
+                                       on_draw, view);
+-  ply_list_append_data (plugin->views, view);
++  if (plugin->is_visible)
++    {
++      if (view_load (view))
++        ply_list_append_data (plugin->views, view);
++      else
++        view_free (view);
++    }
++  else
++    {
++      ply_list_append_data (plugin->views, view);
++    }
+ }
+ 
+ static void
+ remove_pixel_display (ply_boot_splash_plugin_t *plugin,
+                       ply_pixel_display_t      *display)
+ {
+   ply_list_node_t *node;
+ 
+   ply_trace ("removing pixel display from plugin");
+   node = ply_list_get_first_node (plugin->views);
+   while (node != NULL)
+     {
+       view_t *view;
+       ply_list_node_t *next_node;
+ 
+       view = ply_list_node_get_data (node);
+       next_node = ply_list_get_next_node (plugin->views, node);
+ 
+       if (view->display == display)
+         {
+ 
+           view_free (view);
+           ply_list_remove_node (plugin->views, node);
+           return;
+         }
+ 
+       node = next_node;
+     }
+ }
+ 
+-- 
+2.5.0
+
+
+From 3dc6d04a80329bb97e574c2785f79a684bfdc41b Mon Sep 17 00:00:00 2001
+From: Ray Strode <rstrode@redhat.com>
+Date: Fri, 9 Oct 2015 12:46:49 -0400
+Subject: [PATCH 5/6] details: update new views with current boot buffer
+
+if a view is added after the splash is shown, make sure
+to update the view with the current contents of the boot
+buffer.
+---
+ src/plugins/splash/details/plugin.c | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/src/plugins/splash/details/plugin.c b/src/plugins/splash/details/plugin.c
+index aff2f1c..6ddd654 100644
+--- a/src/plugins/splash/details/plugin.c
++++ b/src/plugins/splash/details/plugin.c
+@@ -49,61 +49,61 @@
+ #include "ply-text-display.h"
+ #include "ply-trigger.h"
+ #include "ply-utils.h"
+ 
+ #include <linux/kd.h>
+ 
+ #define CLEAR_LINE_SEQUENCE "\033[2K\r"
+ 
+ typedef enum {
+    PLY_BOOT_SPLASH_DISPLAY_NORMAL,
+    PLY_BOOT_SPLASH_DISPLAY_QUESTION_ENTRY,
+    PLY_BOOT_SPLASH_DISPLAY_PASSWORD_ENTRY
+ } ply_boot_splash_display_type_t;
+ 
+ typedef struct
+ {
+   ply_boot_splash_plugin_t *plugin;
+   ply_text_display_t *display;
+ } view_t;
+ 
+ ply_boot_splash_plugin_interface_t *ply_boot_splash_plugin_get_interface (void);
+ static void detach_from_event_loop (ply_boot_splash_plugin_t *plugin);
+ 
+ struct _ply_boot_splash_plugin
+ {
+   ply_event_loop_t *loop;
+   ply_boot_splash_mode_t mode;
+   ply_list_t *views;
+   ply_boot_splash_display_type_t state;
+   ply_list_t *messages;
+-
++  ply_buffer_t *boot_buffer;
+ };
+ 
+ static view_t *
+ view_new (ply_boot_splash_plugin_t *plugin,
+           ply_text_display_t      *display)
+ {
+   view_t *view;
+ 
+   view = calloc (1, sizeof (view_t));
+   view->plugin = plugin;
+   view->display = display;
+ 
+   return view;
+ }
+ 
+ static void
+ view_free (view_t *view)
+ {
+   free (view);
+ }
+ 
+ static void
+ free_views (ply_boot_splash_plugin_t *plugin)
+ {
+   ply_list_node_t *node;
+ 
+   node = ply_list_get_first_node (plugin->views);
+ 
+   while (node != NULL)
+     {
+@@ -217,108 +217,119 @@ write_on_views (ply_boot_splash_plugin_t *plugin,
+ 
+   while (node != NULL)
+     {
+       ply_list_node_t *next_node;
+       view_t *view;
+ 
+       view = ply_list_node_get_data (node);
+       next_node = ply_list_get_next_node (plugin->views, node);
+ 
+       view_write (view, text, number_of_bytes);
+ 
+       node = next_node;
+     }
+ 
+ }
+ 
+ static void
+ add_text_display (ply_boot_splash_plugin_t *plugin,
+                   ply_text_display_t       *display)
+ {
+   view_t *view;
+   ply_terminal_t *terminal;
+ 
+   view = view_new (plugin, display);
+ 
+   terminal = ply_text_display_get_terminal (view->display);
+   if (ply_terminal_open (terminal))
+     ply_terminal_activate_vt (terminal);
+ 
+   ply_list_append_data (plugin->views, view);
++
++  if (plugin->boot_buffer != NULL)
++    {
++      size_t size;
++      const char *bytes;
++
++      size = ply_buffer_get_size (plugin->boot_buffer);
++      bytes = ply_buffer_get_bytes (plugin->boot_buffer);
++      view_write (view, bytes, size);
++    }
+ }
+ 
+ static void
+ remove_text_display (ply_boot_splash_plugin_t *plugin,
+                      ply_text_display_t       *display)
+ {
+   ply_list_node_t *node;
+ 
+   node = ply_list_get_first_node (plugin->views);
+   while (node != NULL)
+     {
+       view_t *view;
+       ply_list_node_t *next_node;
+ 
+       view = ply_list_node_get_data (node);
+       next_node = ply_list_get_next_node (plugin->views, node);
+ 
+       if (view->display == display)
+         {
+           ply_list_remove_node (plugin->views, node);
+           return;
+         }
+ 
+       node = next_node;
+     }
+ }
+ 
+ static bool
+ show_splash_screen (ply_boot_splash_plugin_t *plugin,
+                     ply_event_loop_t         *loop,
+                     ply_buffer_t             *boot_buffer,
+                     ply_boot_splash_mode_t    mode)
+ {
+   size_t size;
+ 
+   assert (plugin != NULL);
+ 
+   plugin->loop = loop;
+   plugin->mode = mode;
+ 
+   ply_event_loop_watch_for_exit (loop, (ply_event_loop_exit_handler_t)
+                                  detach_from_event_loop,
+                                  plugin);
+ 
+   if (boot_buffer)
+     {
+-      size = ply_buffer_get_size (boot_buffer);
++      plugin->boot_buffer = boot_buffer;
+ 
++      size = ply_buffer_get_size (boot_buffer);
+       write_on_views (plugin, ply_buffer_get_bytes (boot_buffer), size);
+     }
+ 
+   return true;
+ }
+ 
+ static void
+ update_status (ply_boot_splash_plugin_t *plugin,
+                const char               *status)
+ {
+   assert (plugin != NULL);
+ 
+   ply_trace ("status update");
+ }
+ 
+ static void
+ on_boot_output (ply_boot_splash_plugin_t *plugin,
+                 const char               *output,
+                 size_t                    size)
+ {
+   ply_trace ("writing '%s' to all views (%d bytes)",
+              output, (int) size);
+   write_on_views (plugin, output, size);
+ }
+ 
+ static void
+ hide_splash_screen (ply_boot_splash_plugin_t *plugin,
+                     ply_event_loop_t         *loop)
+ {
+   assert (plugin != NULL);
+-- 
+2.5.0
+
+
+From 07864d66b30aa37908df83495d3bffc681fb34d3 Mon Sep 17 00:00:00 2001
+From: Ray Strode <rstrode@redhat.com>
+Date: Fri, 9 Oct 2015 12:48:17 -0400
+Subject: [PATCH 6/6] main: make sure to reshow prompts when new display is
+ added
+
+When a display is added, we need to tell the splash plugin
+to redisplay any pending questions, so those questions show
+up on the new display.
+---
+ src/main.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/main.c b/src/main.c
+index 875dd1a..7c4ea3c 100644
+--- a/src/main.c
++++ b/src/main.c
+@@ -1022,89 +1022,92 @@ on_keyboard_removed (state_t        *state,
+                                       (ply_keyboard_escape_handler_t)
+                                       on_escape_pressed);
+   ply_trace ("no longer listening for backspace");
+   ply_keyboard_remove_backspace_handler (keyboard,
+                                          (ply_keyboard_backspace_handler_t)
+                                          on_backspace);
+   ply_trace ("no longer listening for enter");
+   ply_keyboard_remove_enter_handler (keyboard,
+                                      (ply_keyboard_enter_handler_t)
+                                      on_enter);
+ 
+   if (state->boot_splash != NULL)
+     ply_boot_splash_unset_keyboard (state->boot_splash);
+ }
+ 
+ static void
+ on_pixel_display_added (state_t                    *state,
+                         ply_pixel_display_t *display)
+ {
+   if (state->is_shown)
+     {
+       if (state->boot_splash == NULL)
+         {
+           ply_trace ("pixel display added before splash loaded, so loading splash now");
+           show_splash (state);
+         }
+       else
+         {
+           ply_trace ("pixel display added after splash loaded, so attaching to splash");
+           ply_boot_splash_add_pixel_display (state->boot_splash, display);
++          update_display (state);
+         }
+     }
+ }
+ 
+ static void
+ on_pixel_display_removed (state_t                    *state,
+                           ply_pixel_display_t *display)
+ {
+   if (state->boot_splash == NULL)
+     return;
+ 
+   ply_boot_splash_remove_pixel_display (state->boot_splash, display);
+ }
+ 
+ static void
+ on_text_display_added (state_t                   *state,
+                        ply_text_display_t *display)
+ {
+   if (state->is_shown)
+     {
+       if (state->boot_splash == NULL)
+         {
+           ply_trace ("text display added before splash loaded, so loading splash now");
+           show_splash (state);
+         }
+       else
+         {
+           ply_trace ("text display added after splash loaded, so attaching to splash");
+           ply_boot_splash_add_text_display (state->boot_splash, display);
++
++          update_display (state);
+         }
+     }
+ }
+ 
+ static void
+ on_text_display_removed (state_t                   *state,
+                          ply_text_display_t *display)
+ {
+   if (state->boot_splash == NULL)
+     return;
+ 
+   ply_boot_splash_remove_text_display (state->boot_splash, display);
+ }
+ 
+ static void
+ load_devices (state_t                    *state,
+               ply_device_manager_flags_t  flags)
+ {
+   state->device_manager = ply_device_manager_new (state->default_tty, flags);
+   state->local_console_terminal = ply_device_manager_get_default_terminal (state->device_manager);
+ 
+   ply_device_manager_watch_devices (state->device_manager,
+                                     (ply_keyboard_added_handler_t)
+                                     on_keyboard_added,
+                                     (ply_keyboard_removed_handler_t)
+                                     on_keyboard_removed,
+                                     (ply_pixel_display_added_handler_t)
+                                     on_pixel_display_added,
+                                     (ply_pixel_display_removed_handler_t)
+                                     on_pixel_display_removed,
+-- 
+2.5.0
+

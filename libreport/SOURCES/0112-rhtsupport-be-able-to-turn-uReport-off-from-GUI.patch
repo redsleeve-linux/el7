@@ -1,0 +1,35 @@
+From 7b16eb5fa155b7214d9839cb73c7629849611904 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Mon, 3 Nov 2014 16:07:28 +0100
+Subject: [LIBREPORT PATCH 112/113] rhtsupport: be able to turn uReport off
+ from GUI
+
+Expose SubmitUReport configuration option in the GUI configuration.
+Users should be able to configure entire reporting process from GUI.
+
+Related to rhbz#1139987
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/plugins/report_RHTSupport.xml.in | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/plugins/report_RHTSupport.xml.in b/src/plugins/report_RHTSupport.xml.in
+index a69d31e..05e7ae8 100644
+--- a/src/plugins/report_RHTSupport.xml.in
++++ b/src/plugins/report_RHTSupport.xml.in
+@@ -36,6 +36,11 @@
+             <default-value>yes</default-value>
+         </option>
+         <advanced-options>
++            <option type="bool" name="RHTSupport_SubmitUReport">
++                <_label>Submit uReport</_label>
++                <_note-html>Submit &lt;a href="https://access.redhat.com/articles/642323"&gt;micro-report&lt;/a&gt; when creating a new case. </_note-html>
++                <default-value>yes</default-value>
++            </option>
+             <option type="text" name="http_proxy">
+                 <_label>HTTP Proxy</_label>
+                 <allow-empty>yes</allow-empty>
+-- 
+1.8.3.1
+

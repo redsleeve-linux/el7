@@ -1,0 +1,163 @@
+diff -up ntp-4.2.6p5/html/miscopt.html.dscp ntp-4.2.6p5/html/miscopt.html
+--- ntp-4.2.6p5/html/miscopt.html.dscp	2015-06-04 15:50:44.726240345 +0200
++++ ntp-4.2.6p5/html/miscopt.html	2015-06-04 15:50:44.734240368 +0200
+@@ -132,6 +132,8 @@
+ 				<dd>The trap receiver will generally log event messages and other information from the server in a log file. While such monitor programs may also request their own trap dynamically, configuring a trap receiver will ensure that no messages are lost when the server is started.</dd>
+ 			<dt id="ttl"><tt>ttl <i>hop</i> ...</tt></dt>
+ 			<dd>This command specifies a list of TTL values in increasing order. up to 8 values can be specified. In manycast mode these values are used in turn in an expanding-ring search. The default is eight multiples of 32 starting at 31.</dd>
++			<dt id="dscp"><tt>dscp <i>dscp</i></tt></dt>
++			<dd>This command specifies the Differentiated Services Code Point (DSCP) value that is used in sent NTP packets.  The default value is 48 for Class Selector 6 (CS6).</dd>
+ 		</dl>
+ 		<hr>
+ 		<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+diff -up ntp-4.2.6p5/include/ntp_io.h.dscp ntp-4.2.6p5/include/ntp_io.h
+--- ntp-4.2.6p5/include/ntp_io.h.dscp	2010-12-25 10:40:34.000000000 +0100
++++ ntp-4.2.6p5/include/ntp_io.h	2015-06-04 15:50:44.734240368 +0200
+@@ -80,6 +80,7 @@ typedef enum {
+ } nic_rule_action;
+ 
+ 
++extern int	qos;
+ isc_boolean_t	get_broadcastclient_flag(void);
+ extern int	is_ip_address(const char *, sockaddr_u *);
+ extern void	sau_from_netaddr(sockaddr_u *, const isc_netaddr_t *);
+diff -up ntp-4.2.6p5/ntpd/keyword-gen.c.dscp ntp-4.2.6p5/ntpd/keyword-gen.c
+--- ntp-4.2.6p5/ntpd/keyword-gen.c.dscp	2015-06-04 15:50:44.727240348 +0200
++++ ntp-4.2.6p5/ntpd/keyword-gen.c	2015-06-04 15:50:44.734240368 +0200
+@@ -38,6 +38,7 @@ struct key_tok ntp_keywords[] = {
+ { "calldelay",		T_Calldelay,		FOLLBY_TOKEN },
+ { "disable",		T_Disable,		FOLLBY_TOKEN },
+ { "driftfile",		T_Driftfile,		FOLLBY_STRING },
++{ "dscp",		T_Dscp,			FOLLBY_TOKEN },
+ { "enable",		T_Enable,		FOLLBY_TOKEN },
+ { "end",		T_End,			FOLLBY_TOKEN },
+ { "filegen",		T_Filegen,		FOLLBY_TOKEN },
+diff -up ntp-4.2.6p5/ntpd/ntp_config.c.dscp ntp-4.2.6p5/ntpd/ntp_config.c
+--- ntp-4.2.6p5/ntpd/ntp_config.c.dscp	2015-06-04 15:50:44.728240351 +0200
++++ ntp-4.2.6p5/ntpd/ntp_config.c	2015-06-04 15:50:44.735240371 +0200
+@@ -204,9 +204,6 @@ int	cryptosw;		/* crypto command called
+ extern int sys_maxclock;
+ extern char *stats_drift_file;	/* name of the driftfile */
+ extern char *leapseconds_file_name; /*name of the leapseconds file */
+-#ifdef HAVE_IPTOS_SUPPORT
+-extern unsigned int qos;				/* QoS setting */
+-#endif /* HAVE_IPTOS_SUPPORT */
+ 
+ #ifdef BC_LIST_FRAMEWORK_NOT_YET_USED
+ /*
+@@ -3201,6 +3198,10 @@ config_vars(
+ 			} else
+ 				stats_config(STATS_FREQ_FILE, curr_var->value.s);
+ 			break;
++		case T_Dscp:
++			/* DSCP is in the upper 6 bits of the IP TOS/DS field */
++			qos = curr_var->value.i << 2;
++			break;
+ 		case T_WanderThreshold:
+ 			wander_threshold = curr_var->value.d;
+ 			break;
+@@ -3737,7 +3738,6 @@ config_ntpd(
+ 	)
+ {
+ 	config_nic_rules(ptree);
+-	io_open_sockets();
+ 	config_monitor(ptree);
+ 	config_auth(ptree);
+ 	config_tos(ptree);
+@@ -3750,6 +3750,9 @@ config_ntpd(
+ 	config_ttl(ptree);
+ 	config_trap(ptree);
+ 	config_vars(ptree);
++
++	io_open_sockets();
++
+ 	config_other_modes(ptree);
+ 	config_peers(ptree);
+ 	config_unpeers(ptree);
+diff -up ntp-4.2.6p5/ntpd/ntp_io.c.dscp ntp-4.2.6p5/ntpd/ntp_io.c
+--- ntp-4.2.6p5/ntpd/ntp_io.c.dscp	2015-06-04 15:50:44.725240342 +0200
++++ ntp-4.2.6p5/ntpd/ntp_io.c	2015-06-04 15:57:54.209359075 +0200
+@@ -66,6 +66,9 @@
+ 
+ extern int listen_to_virtual_ips;
+ 
++/* set IP_TOS/IPV6_TCLASS to minimize packet delay */
++int qos = IPTOS_PREC_INTERNETCONTROL;
++
+ /*
+  * NIC rule entry
+  */
+@@ -161,15 +164,6 @@ static int pktinfo_status = 0;		/* is IP
+ static	struct refclockio *refio;
+ #endif /* REFCLOCK */
+ 
+-#if defined(HAVE_IPTOS_SUPPORT)
+-/* set IP_TOS to minimize packet delay */
+-# if defined(IPTOS_PREC_INTERNETCONTROL)
+-	unsigned int qos = IPTOS_PREC_INTERNETCONTROL;
+-# else
+-	 unsigned int qos = IPTOS_LOWDELAY;
+-# endif
+-#endif
+-
+ /*
+  * File descriptor masks etc. for call to select
+  * Not needed for I/O Completion Ports
+@@ -3034,6 +3028,13 @@ open_socket(
+ 	 * IPv6 specific options go here
+ 	 */
+ 	if (IS_IPV6(addr)) {
++#if defined(IPPROTO_IPV6) && defined(IPV6_TCLASS)
++		if (setsockopt(fd, IPPROTO_IPV6, IPV6_TCLASS, (char*)&qos,
++			       sizeof(qos)))
++			msyslog(LOG_ERR,
++				"setsockopt IPV6_TCLASS (%02x) fails on address %s: %m",
++				qos, stoa(addr));
++#endif /* IPPROTO_IPV6 && IPV6_TCLASS */
+ #ifdef IPV6_V6ONLY
+ 		if (isc_net_probe_ipv6only() == ISC_R_SUCCESS
+ 		    && setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY,
+diff -up ntp-4.2.6p5/ntpd/ntp_parser.y.dscp ntp-4.2.6p5/ntpd/ntp_parser.y
+--- ntp-4.2.6p5/ntpd/ntp_parser.y.dscp	2015-06-04 15:50:44.728240351 +0200
++++ ntp-4.2.6p5/ntpd/ntp_parser.y	2015-06-04 15:50:44.736240374 +0200
+@@ -94,6 +94,7 @@
+ %token	<Double>	T_Double
+ %token	<Integer>	T_Driftfile
+ %token	<Integer>	T_Drop
++%token	<Integer>	T_Dscp
+ %token	<Integer>	T_Ellipsis	/* "..." not "ellipsis" */
+ %token	<Integer>	T_Enable
+ %token	<Integer>	T_End
+@@ -268,6 +269,7 @@
+ %type	<Attr_val>	log_config_command
+ %type	<Queue>		log_config_list
+ %type	<Integer>	misc_cmd_dbl_keyword
++%type	<Integer>	misc_cmd_int_keyword
+ %type	<Integer>	misc_cmd_str_keyword
+ %type	<Integer>	misc_cmd_str_lcl_keyword
+ %type	<Integer>	nic_rule_class
+@@ -920,6 +922,13 @@ miscellaneous_command
+ 			av = create_attr_dval($1, $2);
+ 			enqueue(cfgt.vars, av);
+ 		}
++	|	misc_cmd_int_keyword T_Integer
++		{
++			struct attr_val *av;
++
++			av = create_attr_ival($1, $2);
++			enqueue(cfgt.vars, av);
++		}
+ 	|	misc_cmd_str_keyword T_String
+ 		{
+ 			struct attr_val *av;
+@@ -990,6 +999,10 @@ misc_cmd_dbl_keyword
+ 	|	T_Tick
+ 	;
+ 
++misc_cmd_int_keyword
++	:	T_Dscp
++	;
++
+ misc_cmd_str_keyword
+ 	:	T_Leapfile
+ 	|	T_Pidfile

@@ -1,0 +1,128 @@
+From fc56c987058558d47d6bfe64ec11d2819b7886fe Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Thu, 3 Sep 2015 13:55:07 +0200
+Subject: [PATCH] ureport: use Red Hat Certificate Authority to make rhsm cert
+ trusted
+
+In the case we use authenticated auto reporting by rhsm the cert is not trusted
+and it breaks Auto-reporting feature. This commit feeds curl with the
+cert-api.access.redhat.com.pem file which make the cert trusted.
+
+Related to rhbz#1223805
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/include/ureport.h |  1 +
+ src/lib/ureport.c     | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+)
+
+diff --git a/src/include/ureport.h b/src/include/ureport.h
+index 780b898..a1d03f6 100644
+--- a/src/include/ureport.h
++++ b/src/include/ureport.h
+@@ -52,6 +52,7 @@ struct ureport_server_config
+     char *ur_client_cert; ///< Path to certificate used for client
+                           ///< authentication (or NULL)
+     char *ur_client_key;  ///< Private key for the certificate
++    char *ur_cert_authority_cert; ///< Certificate authority certificate
+     char *ur_username;    ///< username for basic HTTP auth
+     char *ur_password;    ///< password for basic HTTP auth
+     map_string_t *ur_http_headers; ///< Additional HTTP headers
+diff --git a/src/lib/ureport.c b/src/lib/ureport.c
+index 990ace6..76bcc95 100644
+--- a/src/lib/ureport.c
++++ b/src/lib/ureport.c
+@@ -37,6 +37,12 @@
+ #define RHSMCON_CERT_NAME "cert.pem"
+ #define RHSMCON_KEY_NAME "key.pem"
+ 
++/* Using the same template as for RHSM certificate, macro for cert dir path and
++ * macro for cert name. Cert path can be easily modified for example by reading
++ * an environment variable LIBREPORT_DEBUG_AUTHORITY_CERT_DIR_PATH
++ */
++#define CERT_AUTHORITY_CERT_PATH "/etc/redhat-access-insights"
++#define CERT_AUTHORITY_CERT_NAME "cert-api.access.redhat.com.pem"
+ 
+ static char *
+ puppet_config_print(const char *key)
+@@ -106,6 +112,17 @@ certificate_exist(char *cert_name)
+     return true;
+ }
+ 
++static bool
++cert_authority_cert_exist(char *cert_name)
++{
++    if (access(cert_name, F_OK) != 0)
++    {
++        log_notice("Certs validating the server '%s' does not exist.", cert_name);
++        return false;
++    }
++    return true;
++}
++
+ void
+ ureport_server_config_set_client_auth(struct ureport_server_config *config,
+                                       const char *client_auth)
+@@ -134,6 +151,16 @@ ureport_server_config_set_client_auth(struct ureport_server_config *config,
+         char *cert_full_name = concat_path_file(rhsm_dir, RHSMCON_CERT_NAME);
+         char *key_full_name = concat_path_file(rhsm_dir, RHSMCON_KEY_NAME);
+ 
++        /* get authority certificate dir path from environment variable, if it
++         * is not set, use CERT_AUTHORITY_CERT_PATH
++         */
++        const char *authority_cert_dir_path = getenv("LIBREPORT_DEBUG_AUTHORITY_CERT_DIR_PATH");
++        if (authority_cert_dir_path == NULL)
++           authority_cert_dir_path = CERT_AUTHORITY_CERT_PATH;
++
++        char *cert_authority_cert_full_name = concat_path_file(authority_cert_dir_path,
++                                                                 CERT_AUTHORITY_CERT_NAME);
++
+         if (certificate_exist(cert_full_name) && certificate_exist(key_full_name))
+         {
+             config->ur_client_cert = cert_full_name;
+@@ -147,6 +174,16 @@ ureport_server_config_set_client_auth(struct ureport_server_config *config,
+             log_notice("Using the default configuration for uReports.");
+         }
+ 
++        if (cert_authority_cert_exist(cert_authority_cert_full_name))
++        {
++            config->ur_cert_authority_cert = cert_authority_cert_full_name;
++            log_debug("Using validating server cert: '%s'", config->ur_cert_authority_cert);
++        }
++        else
++        {
++            free(cert_authority_cert_full_name);
++        }
++
+         free(rhsm_dir);
+ 
+     }
+@@ -286,6 +323,7 @@ ureport_server_config_init(struct ureport_server_config *config)
+     config->ur_ssl_verify = true;
+     config->ur_client_cert = NULL;
+     config->ur_client_key = NULL;
++    config->ur_cert_authority_cert = NULL;
+     config->ur_username = NULL;
+     config->ur_password = NULL;
+     config->ur_http_headers = new_map_string();
+@@ -304,6 +342,9 @@ ureport_server_config_destroy(struct ureport_server_config *config)
+     free(config->ur_client_key);
+     config->ur_client_key = DESTROYED_POINTER;
+ 
++    free(config->ur_cert_authority_cert);
++    config->ur_cert_authority_cert = DESTROYED_POINTER;
++
+     free(config->ur_username);
+     config->ur_username = DESTROYED_POINTER;
+ 
+@@ -701,6 +742,7 @@ ureport_do_post(const char *json, struct ureport_server_config *config,
+     {
+         post_state->client_cert_path = config->ur_client_cert;
+         post_state->client_key_path = config->ur_client_key;
++        post_state->cert_authority_cert_path = config->ur_cert_authority_cert;
+     }
+     else if (config->ur_username && config->ur_password)
+     {
+-- 
+2.4.3
+

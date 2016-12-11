@@ -1,0 +1,90 @@
+From 10bc280ed5fe1de3cca8dc9d61cd364de4a93807 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Tue, 24 Mar 2015 19:03:52 +0100
+Subject: [PATCH] libabrt: add new function fetching full problem data over
+ DBus
+
+This function is required because users may not have direct file system
+access to the problem data.
+
+Related: #1224984
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/include/libabrt.h      |  7 +++++++
+ src/lib/problem_api_dbus.c | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+)
+
+diff --git a/src/include/libabrt.h b/src/include/libabrt.h
+index 3749a31..6a51c80 100644
+--- a/src/include/libabrt.h
++++ b/src/include/libabrt.h
+@@ -156,6 +156,13 @@ int delete_problem_dirs_over_dbus(const GList *problem_dir_paths);
+ problem_data_t *get_problem_data_dbus(const char *problem_dir_path);
+ 
+ /**
++  @brief Fetches full problem data for specified problem id
++
++  @return problem_data_t or ERR_PTR on failure
++*/
++problem_data_t *get_full_problem_data_over_dbus(const char *problem_dir_path);
++
++/**
+   @brief Fetches all problems from problem database
+ 
+   @param authorize If set to true will try to fetch even problems owned by other users (will require root authorization over policy kit)
+diff --git a/src/lib/problem_api_dbus.c b/src/lib/problem_api_dbus.c
+index 2d77898..549175c 100644
+--- a/src/lib/problem_api_dbus.c
++++ b/src/lib/problem_api_dbus.c
+@@ -183,3 +183,47 @@ GList *get_problems_over_dbus(bool authorize)
+ 
+     return list;
+ }
++
++problem_data_t *get_full_problem_data_over_dbus(const char *problem_dir_path)
++{
++    INITIALIZE_LIBABRT();
++
++    GDBusProxy *proxy = get_dbus_proxy();
++    if (!proxy)
++        return ERR_PTR;
++
++    GError *error = NULL;
++    GVariant *result = g_dbus_proxy_call_sync(proxy,
++                                    "GetProblemData",
++                                    g_variant_new("(s)", problem_dir_path),
++                                    G_DBUS_CALL_FLAGS_NONE,
++                                    -1,
++                                    NULL,
++                                    &error);
++
++    if (error)
++    {
++        error_msg(_("Can't get problem data from abrt-dbus: %s"), error->message);
++        g_error_free(error);
++        return ERR_PTR;
++    }
++
++    GVariantIter *iter = NULL;
++    g_variant_get(result, "(a{s(its)})", &iter);
++
++    gchar *name = NULL;
++    gint flags;
++    gulong size;
++    gchar *value = NULL;
++
++    problem_data_t *pd = problem_data_new();
++    while (g_variant_iter_loop(iter, "{&s(it&s)}", &name, &flags, &size, &value))
++        problem_data_add_ext(pd, name, value, flags, size);
++
++    problem_data_add(pd, CD_DUMPDIR, problem_dir_path,
++            CD_FLAG_TXT + CD_FLAG_ISNOTEDITABLE + CD_FLAG_LIST);
++
++    g_variant_unref(result);
++
++    return pd;
++}
+-- 
+2.4.3
+

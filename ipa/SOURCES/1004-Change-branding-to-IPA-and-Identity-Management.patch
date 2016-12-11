@@ -1,0 +1,753 @@
+From d9499d8d1a40b96e40c956dca25464fc129a9dec Mon Sep 17 00:00:00 2001
+From: Martin Kosek <mkosek@redhat.com>
+Date: Fri, 5 Sep 2014 11:46:59 +0200
+Subject: [PATCH] Change branding to IPA and Identity Management
+
+---
+ client/man/default.conf.5                  | 2 +-
+ client/man/ipa-certupdate.1                | 2 +-
+ client/man/ipa-client-automount.1          | 2 +-
+ client/man/ipa-client-install.1            | 2 +-
+ client/man/ipa-getkeytab.1                 | 4 ++--
+ client/man/ipa-join.1                      | 2 +-
+ client/man/ipa-rmkeytab.1                  | 2 +-
+ install/html/browserconfig.html            | 4 ++--
+ install/html/ssbrowser.html                | 4 ++--
+ install/html/unauthorized.html             | 4 ++--
+ install/migration/error.html               | 4 ++--
+ install/migration/index.html               | 2 +-
+ install/migration/invalid.html             | 2 +-
+ install/tools/ipa-adtrust-install          | 4 ++--
+ install/tools/ipa-replica-conncheck        | 2 +-
+ install/tools/man/ipa-adtrust-install.1    | 2 +-
+ install/tools/man/ipa-advise.1             | 4 ++--
+ install/tools/man/ipa-backup.1             | 2 +-
+ install/tools/man/ipa-ca-install.1         | 2 +-
+ install/tools/man/ipa-cacert-manage.1      | 2 +-
+ install/tools/man/ipa-compat-manage.1      | 2 +-
+ install/tools/man/ipa-csreplica-manage.1   | 2 +-
+ install/tools/man/ipa-dns-install.1        | 2 +-
+ install/tools/man/ipa-kra-install.1        | 2 +-
+ install/tools/man/ipa-ldap-updater.1       | 2 +-
+ install/tools/man/ipa-managed-entries.1    | 2 +-
+ install/tools/man/ipa-nis-manage.1         | 2 +-
+ install/tools/man/ipa-otptoken-import.1    | 2 +-
+ install/tools/man/ipa-replica-conncheck.1  | 2 +-
+ install/tools/man/ipa-replica-install.1    | 2 +-
+ install/tools/man/ipa-replica-manage.1     | 2 +-
+ install/tools/man/ipa-replica-prepare.1    | 2 +-
+ install/tools/man/ipa-restore.1            | 2 +-
+ install/tools/man/ipa-server-certinstall.1 | 2 +-
+ install/tools/man/ipa-server-install.1     | 2 +-
+ install/tools/man/ipa-server-upgrade.1     | 2 +-
+ install/tools/man/ipactl.8                 | 2 +-
+ install/ui/index.html                      | 2 +-
+ install/ui/reset_password.html             | 2 +-
+ install/ui/src/freeipa/widgets/App.js      | 2 +-
+ install/ui/sync_otp.html                   | 2 +-
+ ipa.1                                      | 2 +-
+ ipaserver/advise/plugins/legacy_clients.py | 8 ++++----
+ ipaserver/install/dns.py                   | 2 +-
+ ipaserver/install/ipa_kra_install.py       | 2 +-
+ ipaserver/install/server/install.py        | 2 +-
+ ipaserver/install/server/replicainstall.py | 2 +-
+ 47 files changed, 57 insertions(+), 57 deletions(-)
+
+diff --git a/client/man/default.conf.5 b/client/man/default.conf.5
+index 35ce6bb9f871365ffbc74b66be46d49fdcb3f7ad..b519d15bca9b7ddf8d22a776fa4f4a8c7fac0ca8 100644
+--- a/client/man/default.conf.5
++++ b/client/man/default.conf.5
+@@ -16,7 +16,7 @@
+ .\"
+ .\" Author: Rob Crittenden <rcritten@@redhat.com>
+ .\"
+-.TH "default.conf" "5" "Feb 21 2011" "FreeIPA" "FreeIPA Manual Pages"
++.TH "default.conf" "5" "Feb 21 2011" "IPA" "IPA Manual Pages"
+ .SH "NAME"
+ default.conf \- IPA configuration file
+ .SH "SYNOPSIS"
+diff --git a/client/man/ipa-certupdate.1 b/client/man/ipa-certupdate.1
+index d95790a366aac4635e32bbc6bc81773bb9a52e68..431b395a907b6978d9e0dba9870ed0bd0c54f07b 100644
+--- a/client/man/ipa-certupdate.1
++++ b/client/man/ipa-certupdate.1
+@@ -16,7 +16,7 @@
+ .\"
+ .\" Author: Jan Cholasta <jcholast@redhat.com>
+ .\"
+-.TH "ipa-certupdate" "1" "Jul 2 2014" "FreeIPA" "FreeIPA Manual Pages"
++.TH "ipa-certupdate" "1" "Jul 2 2014" "IPA" "IPA Manual Pages"
+ .SH "NAME"
+ ipa\-certupdate \- Update local IPA certificate databases with certificates from the server
+ .SH "SYNOPSIS"
+diff --git a/client/man/ipa-client-automount.1 b/client/man/ipa-client-automount.1
+index 5b60503f1304d0a0b03a8862708ba126c50c7eff..2e6f78aa659e90f879f66431c4e52e303a4c9b15 100644
+--- a/client/man/ipa-client-automount.1
++++ b/client/man/ipa-client-automount.1
+@@ -16,7 +16,7 @@
+ .\"
+ .\" Author: Rob Crittenden <rcritten@redhat.com>
+ .\"
+-.TH "ipa-client-automount" "1" "May 25 2012" "FreeIPA" "FreeIPA Manual Pages"
++.TH "ipa-client-automount" "1" "May 25 2012" "IPA" "IPA Manual Pages"
+ .SH "NAME"
+ ipa\-client\-automount \- Configure automount and NFS for IPA
+ .SH "SYNOPSIS"
+diff --git a/client/man/ipa-client-install.1 b/client/man/ipa-client-install.1
+index 7f490d153b12d714e7bda7a6abe72fb0756d520c..438dbe440626763ce1dd9c1a3d36d8d67599e6ff 100644
+--- a/client/man/ipa-client-install.1
++++ b/client/man/ipa-client-install.1
+@@ -16,7 +16,7 @@
+ .\"
+ .\" Author: Rob Crittenden <rcritten@redhat.com>
+ .\"
+-.TH "ipa-client-install" "1" "Jan 31 2013" "FreeIPA" "FreeIPA Manual Pages"
++.TH "ipa-client-install" "1" "Jan 31 2013" "IPA" "IPA Manual Pages"
+ .SH "NAME"
+ ipa\-client\-install \- Configure an IPA client
+ .SH "SYNOPSIS"
+diff --git a/client/man/ipa-getkeytab.1 b/client/man/ipa-getkeytab.1
+index 1c270729e1ea224fb74271ad03dfb51c62d70465..11bc5154b2990aac8a4bf2c81fe2b70897b0d839 100644
+--- a/client/man/ipa-getkeytab.1
++++ b/client/man/ipa-getkeytab.1
+@@ -17,7 +17,7 @@
+ .\" Author: Karl MacMillan <kmacmill@redhat.com>
+ .\" Author: Simo Sorce <ssorce@redhat.com>
+ .\"
+-.TH "ipa-getkeytab" "1" "Oct 10 2007" "FreeIPA" "FreeIPA Manual Pages"
++.TH "ipa-getkeytab" "1" "Oct 10 2007" "IPA" "IPA Manual Pages"
+ .SH "NAME"
+ ipa\-getkeytab \- Get a keytab for a Kerberos principal
+ .SH "SYNOPSIS"
+@@ -101,7 +101,7 @@ The LDAP password to use when not binding with Kerberos.
+ \fB\-r\fR
+ Retrieve mode. Retrieve an existing key from the server instead of generating a
+ new one. This is incompatibile with the \-\-password option, and will work only
+-against a FreeIPA server more recent than version 3.3. The user requesting the
++against a IPA server more recent than version 3.3. The user requesting the
+ keytab must have access to the keys for this operation to succeed.
+ .SH "EXAMPLES"
+ Add and retrieve a keytab for the NFS service principal on
+diff --git a/client/man/ipa-join.1 b/client/man/ipa-join.1
+index d881607842bb0227c2da863bd1674db01530e910..30b667558ba3105cf320896ef40b0661a18066f5 100644
+--- a/client/man/ipa-join.1
++++ b/client/man/ipa-join.1
+@@ -16,7 +16,7 @@
+ .\"
+ .\" Author: Rob Crittenden <rcritten@redhat.com>
+ .\"
+-.TH "ipa-join" "1" "Oct 8 2009" "FreeIPA" "FreeIPA Manual Pages"
++.TH "ipa-join" "1" "Oct 8 2009" "IPA" "IPA Manual Pages"
+ .SH "NAME"
+ ipa\-join \- Join a machine to an IPA realm and get a keytab for the host service principal
+ .SH "SYNOPSIS"
+diff --git a/client/man/ipa-rmkeytab.1 b/client/man/ipa-rmkeytab.1
+index 53f775439dbdb5a4b9dfee7fe6c7277fce10893c..2c8218c94996b1411637a7c53f2f5bc5612f3ea3 100644
+--- a/client/man/ipa-rmkeytab.1
++++ b/client/man/ipa-rmkeytab.1
+@@ -17,7 +17,7 @@
+ .\" Author: Rob Crittenden <rcritten@redhat.com>
+ .\"
+ .\"
+-.TH "ipa-rmkeytab" "1" "Oct 30 2009" "FreeIPA" "FreeIPA Manual Pages"
++.TH "ipa-rmkeytab" "1" "Oct 30 2009" "IPA" "IPA Manual Pages"
+ .SH "NAME"
+ ipa\-rmkeytab \- Remove a kerberos principal from a keytab
+ .SH "SYNOPSIS"
+diff --git a/install/html/browserconfig.html b/install/html/browserconfig.html
+index 9c5cf68211281723e12b518f346aac43c1541cdc..14c4ca1f98a60cd8dfe486f8b942fcf9ae9de4c0 100644
+--- a/install/html/browserconfig.html
++++ b/install/html/browserconfig.html
+@@ -2,7 +2,7 @@
+ <html>
+ <head>
+     <meta charset="utf-8">
+-    <title>IPA: Identity Policy Audit</title>
++    <title>Identity Management</title>
+     <script type="text/javascript" src="../ui/js/libs/loader.js"></script>
+     <script type="text/javascript">
+         (function() {
+@@ -26,7 +26,7 @@
+ 
+     <nav class="navbar navbar-default navbar-pf" role="navigation">
+     <div class="navbar-header">
+-        <a class="brand" href="../ui/index.html"><img src="../ui/images/header-logo.png" alt="FreeIPA"></a>
++        <a class="brand" href="../ui/index.html"><img src="../ui/images/header-logo.png" alt="Identity Management"></a>
+     </div>
+     </nav>
+ 
+diff --git a/install/html/ssbrowser.html b/install/html/ssbrowser.html
+index 49d8c5be1a5c07fca0593b6c7d0252a2faf15abf..3c67c484162ad9f1897fc1707a89869ff2dbfa2b 100644
+--- a/install/html/ssbrowser.html
++++ b/install/html/ssbrowser.html
+@@ -2,7 +2,7 @@
+ <html>
+ <head>
+ <meta charset="utf-8">
+-    <title>IPA: Identity Policy Audit</title>
++    <title>Identity Management</title>
+     <script type="text/javascript" src="../ui/js/libs/loader.js"></script>
+     <script type="text/javascript">
+         (function() {
+@@ -33,7 +33,7 @@
+ 
+     <nav class="navbar navbar-default navbar-pf" role="navigation">
+     <div class="navbar-header">
+-        <a class="brand" href="../ui/index.html"><img src="../ui/images/header-logo.png" alt="FreeIPA"></a>
++        <a class="brand" href="../ui/index.html"><img src="../ui/images/header-logo.png" alt="Identity Management"></a>
+     </div>
+     </nav>
+ 
+diff --git a/install/html/unauthorized.html b/install/html/unauthorized.html
+index 0b4414f55e7e2ab242e782b6824c2af7ae9eae59..37f2548591f691c79c0ac29afb9f4213ec5dc31a 100644
+--- a/install/html/unauthorized.html
++++ b/install/html/unauthorized.html
+@@ -2,7 +2,7 @@
+ <html>
+ <head>
+     <meta charset="utf-8">
+-    <title>IPA: Identity Policy Audit</title>
++    <title>Identity Management</title>
+     <script type="text/javascript" src="../ui/js/libs/loader.js"></script>
+     <script type="text/javascript">
+         (function() {
+@@ -19,7 +19,7 @@
+ 
+     <nav class="navbar navbar-default navbar-pf" role="navigation">
+     <div class="navbar-header">
+-        <a class="brand" href="../ui/index.html"><img src="../ui/images/header-logo.png" alt="FreeIPA"></a>
++        <a class="brand" href="../ui/index.html"><img src="../ui/images/header-logo.png" alt="Identity Management"></a>
+     </div>
+     </nav>
+ 
+diff --git a/install/migration/error.html b/install/migration/error.html
+index 896e56ec63c6eee62cb0b93f4e7fe97d668e703d..c7a4cb41961e181633ddd4f0d41064d8b696782f 100644
+--- a/install/migration/error.html
++++ b/install/migration/error.html
+@@ -2,7 +2,7 @@
+ <html>
+ <head>
+ <meta charset="utf-8">
+-    <title>IPA: Identity Policy Audit</title>
++    <title>Identity Management</title>
+ 
+     <link rel="stylesheet" type="text/css" href="../ui/css/patternfly.css" />
+     <link rel="stylesheet" type="text/css" href="../ui/css/ipa.css" />
+@@ -11,7 +11,7 @@
+ <body class="info-page">
+     <nav class="navbar navbar-default navbar-pf" role="navigation">
+     <div class="navbar-header">
+-        <a class="brand" href="../ui/index.html"><img src="../ui/images/header-logo.png" alt="FreeIPA"></a>
++        <a class="brand" href="../ui/index.html"><img src="../ui/images/header-logo.png" alt="Identity Management"></a>
+     </div>
+     </nav>
+ 
+diff --git a/install/migration/index.html b/install/migration/index.html
+index 302eca263fa62c92d39ad9ccc678cf251a0afc8c..189aa71943ae1a5acfae977c0f74400d7ac4d23b 100644
+--- a/install/migration/index.html
++++ b/install/migration/index.html
+@@ -2,7 +2,7 @@
+ <html class="login-pf">
+ <head>
+ <meta charset="utf-8">
+-    <title>IPA: Identity Policy Audit</title>
++    <title>Identity Management</title>
+ 
+     <link rel="stylesheet" type="text/css" href="../ui/css/patternfly.css" />
+     <link rel="stylesheet" type="text/css" href="../ui/css/ipa.css" />
+diff --git a/install/migration/invalid.html b/install/migration/invalid.html
+index f75b0bdc7d00d54d801ef66f373a09e89ead3251..16c455ca12e922ece1ea49813071fc2db0a22970 100644
+--- a/install/migration/invalid.html
++++ b/install/migration/invalid.html
+@@ -2,7 +2,7 @@
+ <html class="login-pf">
+ <head>
+ <meta charset="utf-8">
+-    <title>IPA: Identity Policy Audit</title>
++    <title>Identity Management</title>
+ 
+     <link rel="stylesheet" type="text/css" href="../ui/css/patternfly.css" />
+     <link rel="stylesheet" type="text/css" href="../ui/css/ipa.css" />
+diff --git a/install/tools/ipa-adtrust-install b/install/tools/ipa-adtrust-install
+index 5ba72a65d00ca683239a4ff3c5e7cfdc62c0bb6c..8ae68f7baa0e1489604bf2bf66354858642cf838 100755
+--- a/install/tools/ipa-adtrust-install
++++ b/install/tools/ipa-adtrust-install
+@@ -246,11 +246,11 @@ def main():
+ 
+     print("==============================================================================")
+     print("This program will setup components needed to establish trust to AD domains for")
+-    print("the FreeIPA Server.")
++    print("the IPA Server.")
+     print("")
+     print("This includes:")
+     print("  * Configure Samba")
+-    print("  * Add trust related objects to FreeIPA LDAP server")
++    print("  * Add trust related objects to IPA LDAP server")
+     #TODO:
+     #print "  * Add a SID to all users and Posix groups"
+     print("")
+diff --git a/install/tools/ipa-replica-conncheck b/install/tools/ipa-replica-conncheck
+index 6f69cc81517299f8cf8decef7c79f7de682d0c80..24ccccea4d3cc6655a273e631d7753da7ac3d534 100755
+--- a/install/tools/ipa-replica-conncheck
++++ b/install/tools/ipa-replica-conncheck
+@@ -298,7 +298,7 @@ class PortResponder(threading.Thread):
+                 ipautil.bind_port_responder(self.port,
+                         self.port_type,
+                         socket_timeout=self.socket_timeout,
+-                        responder_data="FreeIPA")
++                        responder_data="IPA")
+             except socket.timeout:
+                 pass
+             except socket.error as e:
+diff --git a/install/tools/man/ipa-adtrust-install.1 b/install/tools/man/ipa-adtrust-install.1
+index 36c468336909c705c68a2794dec699f3f05579d9..8ffb3bfca768e47f2e275153be39257b6baae86b 100644
+--- a/install/tools/man/ipa-adtrust-install.1
++++ b/install/tools/man/ipa-adtrust-install.1
+@@ -16,7 +16,7 @@
+ .\"
+ .\" Author: Sumit Bose <sbose@redhat.com>
+ .\"
+-.TH "ipa-adtrust-install" "1" "Aug 23 2011" "FreeIPA" "FreeIPA Manual Pages"
++.TH "ipa-adtrust-install" "1" "Aug 23 2011" "IPA" "IPA Manual Pages"
+ .SH "NAME"
+ ipa\-adtrust\-install \- Prepare an IPA server to be able to establish trust relationships with AD domains
+ .SH "SYNOPSIS"
+diff --git a/install/tools/man/ipa-advise.1 b/install/tools/man/ipa-advise.1
+index 4c494aab90fe307bf0a2bf82677efda4b5e67e3e..515bbddbe4de8a38a2797d6aa5e95c1ae76fb718 100644
+--- a/install/tools/man/ipa-advise.1
++++ b/install/tools/man/ipa-advise.1
+@@ -16,7 +16,7 @@
+ .\"
+ .\" Author: Tomas Babej <tbabej@redhat.com>
+ .\"
+-.TH "ipa-advise" "1" "Jun 10 2013" "FreeIPA" "FreeIPA Manual Pages"
++.TH "ipa-advise" "1" "Jun 10 2013" "IPA" "IPA Manual Pages"
+ .SH "NAME"
+ ipa\-advise \- Provide configurations advice for various use cases.
+ .SH "SYNOPSIS"
+@@ -41,4 +41,4 @@ Log to the given file
+ .SH "EXIT STATUS"
+ 0 if the command was successful
+ 
+-1 if an error occurred
+\ No newline at end of file
++1 if an error occurred
+diff --git a/install/tools/man/ipa-backup.1 b/install/tools/man/ipa-backup.1
+index ff9759ec77d54f32532c4ececfa5081daab9ec15..476f9b534d514b03200369212807fc6d001c70b8 100644
+--- a/install/tools/man/ipa-backup.1
++++ b/install/tools/man/ipa-backup.1
+@@ -16,7 +16,7 @@
+ .\"
+ .\" Author: Rob Crittenden <rcritten@redhat.com>
+ .\"
+-.TH "ipa-backup" "1" "Mar 22 2013" "FreeIPA" "FreeIPA Manual Pages"
++.TH "ipa-backup" "1" "Mar 22 2013" "IPA" "IPA Manual Pages"
+ .SH "NAME"
+ ipa\-backup \- Back up an IPA master
+ .SH "SYNOPSIS"
+diff --git a/install/tools/man/ipa-ca-install.1 b/install/tools/man/ipa-ca-install.1
+index aa186987a15b5203607ac76e63751f01811c4bd7..c110db03ff48fd80b4dc70cf9d1c32d53d58b57b 100644
+--- a/install/tools/man/ipa-ca-install.1
++++ b/install/tools/man/ipa-ca-install.1
+@@ -16,7 +16,7 @@
+ .\"
+ .\" Author: Rob Crittenden <rcritten@redhat.com>
+ .\"
+-.TH "ipa-ca-install" "1" "Jun 17 2011" "FreeIPA" "FreeIPA Manual Pages"
++.TH "ipa-ca-install" "1" "Jun 17 2011" "IPA" "IPA Manual Pages"
+ .SH "NAME"
+ ipa\-ca\-install \- Install a CA on a server
+ .SH "SYNOPSIS"
+diff --git a/install/tools/man/ipa-cacert-manage.1 b/install/tools/man/ipa-cacert-manage.1
+index f0a1033ab372c2f923a883b385c0e3304b98f56f..57abf437ab4b80d220640ab338f81e8cfbe90f50 100644
+--- a/install/tools/man/ipa-cacert-manage.1
++++ b/install/tools/man/ipa-cacert-manage.1
+@@ -16,7 +16,7 @@
+ .\"
+ .\" Author: Jan Cholasta <jcholast@redhat.com>
+ .\"
+-.TH "ipa-cacert-manage" "1" "Aug 12 2013" "FreeIPA" "FreeIPA Manual Pages"
++.TH "ipa-cacert-manage" "1" "Aug 12 2013" "IPA" "IPA Manual Pages"
+ .SH "NAME"
+ ipa\-cacert\-manage \- Manage CA certificates in IPA
+ .SH "SYNOPSIS"
+diff --git a/install/tools/man/ipa-compat-manage.1 b/install/tools/man/ipa-compat-manage.1
+index f22b1743e31c3b07132acfcfdd8600544f9ace6c..26470331a127af9445c4473525434c237e23dbcf 100644
+--- a/install/tools/man/ipa-compat-manage.1
++++ b/install/tools/man/ipa-compat-manage.1
+@@ -16,7 +16,7 @@
+ .\"
+ .\" Author: Simo Sorce <ssorce@redhat.com>
+ .\"
+-.TH "ipa-compat-manage" "1" "Dec 2 2008" "FreeIPA" "FreeIPA Manual Pages"
++.TH "ipa-compat-manage" "1" "Dec 2 2008" "IPA" "IPA Manual Pages"
+ .SH "NAME"
+ ipa\-compat\-manage \- Enables or disables the schema compatibility plugin
+ .SH "SYNOPSIS"
+diff --git a/install/tools/man/ipa-csreplica-manage.1 b/install/tools/man/ipa-csreplica-manage.1
+index ab5bfddd884f65b6806c4e69f212324dc5b67c5f..6d039751ea4925b67240cb06fea1e678900b075e 100644
+--- a/install/tools/man/ipa-csreplica-manage.1
++++ b/install/tools/man/ipa-csreplica-manage.1
+@@ -16,7 +16,7 @@
+ .\"
+ .\" Author: Rob Crittenden <rcritten@redhat.com>
+ .\"
+-.TH "ipa-csreplica-manage" "1" "Jul 14 2011" "FreeIPA" "FreeIPA Manual Pages"
++.TH "ipa-csreplica-manage" "1" "Jul 14 2011" "IPA" "IPA Manual Pages"
+ .SH "NAME"
+ ipa\-csreplica\-manage \- Manage an IPA CS replica
+ .SH "SYNOPSIS"
+diff --git a/install/tools/man/ipa-dns-install.1 b/install/tools/man/ipa-dns-install.1
+index ad937cc59bc0b1cff2dd73faa494a8121b6eb45d..971053b0f69487e8a29687984b5ad551efa8858c 100644
+--- a/install/tools/man/ipa-dns-install.1
++++ b/install/tools/man/ipa-dns-install.1
+@@ -16,7 +16,7 @@
+ .\"
+ .\" Author: Rob Crittenden <rcritten@redhat.com>
+ .\"
+-.TH "ipa-dns-install" "1" "Jun 28, 2012" "FreeIPA" "FreeIPA Manual Pages"
++.TH "ipa-dns-install" "1" "Jun 28, 2012" "IPA" "IPA Manual Pages"
+ .SH "NAME"
+ ipa\-dns\-install \- Add DNS as a service to an IPA server
+ .SH "SYNOPSIS"
+diff --git a/install/tools/man/ipa-kra-install.1 b/install/tools/man/ipa-kra-install.1
+index e3133eee188af0b613fca76b51d2f5b4f8d1ba7d..4a34e46fa7e5c7bf65e7cb41c011dc19e751434d 100644
+--- a/install/tools/man/ipa-kra-install.1
++++ b/install/tools/man/ipa-kra-install.1
+@@ -16,7 +16,7 @@
+ .\"
+ .\" Author: Ade Lee <alee@redhat.com>
+ .\"
+-.TH "ipa-kra-install" "1" "Aug 24 2014" "FreeIPA" "FreeIPA Manual Pages"
++.TH "ipa-kra-install" "1" "Aug 24 2014" "IPA" "IPA Manual Pages"
+ .SH "NAME"
+ ipa\-kra\-install \- Install a KRA on a server
+ .SH "SYNOPSIS"
+diff --git a/install/tools/man/ipa-ldap-updater.1 b/install/tools/man/ipa-ldap-updater.1
+index 4893802c2f73af177857e61135626753289ce35f..7ead55bd9708ed322083abd6c3cb9e7694850c27 100644
+--- a/install/tools/man/ipa-ldap-updater.1
++++ b/install/tools/man/ipa-ldap-updater.1
+@@ -16,7 +16,7 @@
+ .\"
+ .\" Author: Rob Crittenden <rcritten@redhat.com>
+ .\"
+-.TH "ipa-ldap-updater" "1" "Sep 12 2008" "FreeIPA" "FreeIPA Manual Pages"
++.TH "ipa-ldap-updater" "1" "Sep 12 2008" "IPA" "IPA Manual Pages"
+ .SH "NAME"
+ ipa\-ldap\-updater \- Update the IPA LDAP configuration
+ .SH "SYNOPSIS"
+diff --git a/install/tools/man/ipa-managed-entries.1 b/install/tools/man/ipa-managed-entries.1
+index 3d5ca22b87846d2b46122c7171016019aa07028e..edaa0a90d1a6b123d32cbbdceb30b68c736fe8cb 100644
+--- a/install/tools/man/ipa-managed-entries.1
++++ b/install/tools/man/ipa-managed-entries.1
+@@ -16,7 +16,7 @@
+ .\"
+ .\" Author: Jr Aquino <jr.aquino@citrix.com>
+ .\"
+-.TH "ipa-managed-entries" "1" "Feb 06 2012" "FreeIPA" "FreeIPA Manual Pages"
++.TH "ipa-managed-entries" "1" "Feb 06 2012" "IPA" "IPA Manual Pages"
+ .SH "NAME"
+ ipa\-managed\-entries \- Enables or disables the schema Managed Entry plugins
+ .SH "SYNOPSIS"
+diff --git a/install/tools/man/ipa-nis-manage.1 b/install/tools/man/ipa-nis-manage.1
+index 93278487c1adb50f4ae49804d0214841e2bef30c..1107b7790531aa695defd660040734143c02474d 100644
+--- a/install/tools/man/ipa-nis-manage.1
++++ b/install/tools/man/ipa-nis-manage.1
+@@ -16,7 +16,7 @@
+ .\"
+ .\" Author: Rob Crittenden <rcritten@redhat.com>
+ .\"
+-.TH "ipa-nis-manage" "1" "April 25 2016" "FreeIPA" "FreeIPA Manual Pages"
++.TH "ipa-nis-manage" "1" "April 25 2016" "IPA" "IPA Manual Pages"
+ .SH "NAME"
+ ipa\-nis\-manage \- Enables or disables the NIS listener plugin
+ .SH "SYNOPSIS"
+diff --git a/install/tools/man/ipa-otptoken-import.1 b/install/tools/man/ipa-otptoken-import.1
+index 920a08ca2c2f996d6281483f5c65bac6b412d6d5..fe91040fabd1cad7c395aafd6afc68ed816a1951 100644
+--- a/install/tools/man/ipa-otptoken-import.1
++++ b/install/tools/man/ipa-otptoken-import.1
+@@ -16,7 +16,7 @@
+ .\"
+ .\" Author: Nathaniel McCallum <npmccallum@redhat.com>
+ .\"
+-.TH "ipa-otptoken-import" "1" "Jun 12 2014" "FreeIPA" "FreeIPA Manual Pages"
++.TH "ipa-otptoken-import" "1" "Jun 12 2014" "IPA" "IPA Manual Pages"
+ .SH "NAME"
+ ipa\-otptoken\-import \- Imports OTP tokens from RFC 6030 XML file
+ .SH "SYNOPSIS"
+diff --git a/install/tools/man/ipa-replica-conncheck.1 b/install/tools/man/ipa-replica-conncheck.1
+index e948d7919c772305ef2f0b5b7b50de2b908ff9e0..2840d7c7014991364911f657e19cd46b77f2b595 100644
+--- a/install/tools/man/ipa-replica-conncheck.1
++++ b/install/tools/man/ipa-replica-conncheck.1
+@@ -16,7 +16,7 @@
+ .\"
+ .\" Author: Martin Kosek <mkosek@redhat.com>
+ .\"
+-.TH "ipa-replica-conncheck" "1" "Jun 2 2011" "FreeIPA" "FreeIPA Manual Pages"
++.TH "ipa-replica-conncheck" "1" "Jun 2 2011" "IPA" "IPA Manual Pages"
+ .SH "NAME"
+ ipa\-replica\-conncheck \- Check a replica\-master network connection before installation
+ .SH "SYNOPSIS"
+diff --git a/install/tools/man/ipa-replica-install.1 b/install/tools/man/ipa-replica-install.1
+index c1a9db0994a457cc8121cb0c46a8edc592430adb..cbc8fbbe652e4d07bb304d087c2d9faadf1e4b13 100644
+--- a/install/tools/man/ipa-replica-install.1
++++ b/install/tools/man/ipa-replica-install.1
+@@ -16,7 +16,7 @@
+ .\"
+ .\" Author: Rob Crittenden <rcritten@redhat.com>
+ .\"
+-.TH "ipa-replica-install" "1" "May 16 2012" "FreeIPA" "FreeIPA Manual Pages"
++.TH "ipa-replica-install" "1" "May 16 2012" "IPA" "IPA Manual Pages"
+ .SH "NAME"
+ ipa\-replica\-install \- Create an IPA replica
+ .SH "SYNOPSIS"
+diff --git a/install/tools/man/ipa-replica-manage.1 b/install/tools/man/ipa-replica-manage.1
+index ed975c92c4453798e6536a75318d5e5065c876a4..f75fcceb8949c050a11cb9c1d28a70d06aaec832 100644
+--- a/install/tools/man/ipa-replica-manage.1
++++ b/install/tools/man/ipa-replica-manage.1
+@@ -16,7 +16,7 @@
+ .\"
+ .\" Author: Rob Crittenden <rcritten@redhat.com>
+ .\"
+-.TH "ipa-replica-manage" "1" "Jul 12 2016" "FreeIPA" "FreeIPA Manual Pages"
++.TH "ipa-replica-manage" "1" "Jul 12 2016" "IPA" "IPA Manual Pages"
+ .SH "NAME"
+ ipa\-replica\-manage \- Manage an IPA replica
+ .SH "SYNOPSIS"
+diff --git a/install/tools/man/ipa-replica-prepare.1 b/install/tools/man/ipa-replica-prepare.1
+index afc5408ef87ec5cf967d00dd21aa848584c7eb1e..fb68af5e1dc311ec7a6aa1e53b616bd3b4273e3f 100644
+--- a/install/tools/man/ipa-replica-prepare.1
++++ b/install/tools/man/ipa-replica-prepare.1
+@@ -16,7 +16,7 @@
+ .\"
+ .\" Author: Rob Crittenden <rcritten@redhat.com>
+ .\"
+-.TH "ipa-replica-prepare" "1" "Mar 14 2008" "FreeIPA" "FreeIPA Manual Pages"
++.TH "ipa-replica-prepare" "1" "Mar 14 2008" "IPA" "IPA Manual Pages"
+ .SH "NAME"
+ ipa\-replica\-prepare \- Create an IPA replica file
+ .SH "SYNOPSIS"
+diff --git a/install/tools/man/ipa-restore.1 b/install/tools/man/ipa-restore.1
+index 5f401818a47b64854c2f25fcab4ebb8f96cd3b9e..80a1e70bff1871678259c8436915420c70d475b1 100644
+--- a/install/tools/man/ipa-restore.1
++++ b/install/tools/man/ipa-restore.1
+@@ -16,7 +16,7 @@
+ .\"
+ .\" Author: Rob Crittenden <rcritten@redhat.com>
+ .\"
+-.TH "ipa-restore" "1" "Mar 22 2013" "FreeIPA" "FreeIPA Manual Pages"
++.TH "ipa-restore" "1" "Mar 22 2013" "IPA" "IPA Manual Pages"
+ .SH "NAME"
+ ipa\-restore \- Restore an IPA master
+ .SH "SYNOPSIS"
+diff --git a/install/tools/man/ipa-server-certinstall.1 b/install/tools/man/ipa-server-certinstall.1
+index d23bbd490e2b0454b8fb908e22f33c7a611c8874..d87b6bc16cfbea8f260d2767bf20eaac3562b050 100644
+--- a/install/tools/man/ipa-server-certinstall.1
++++ b/install/tools/man/ipa-server-certinstall.1
+@@ -16,7 +16,7 @@
+ .\" 
+ .\" Author: Rob Crittenden <rcritten@redhat.com>
+ .\" 
+-.TH "ipa-server-certinstall" "1" "Mar 14 2008" "FreeIPA" "FreeIPA Manual Pages"
++.TH "ipa-server-certinstall" "1" "Mar 14 2008" "IPA" "IPA Manual Pages"
+ .SH "NAME"
+ ipa\-server\-certinstall \- Install new SSL server certificates
+ .SH "SYNOPSIS"
+diff --git a/install/tools/man/ipa-server-install.1 b/install/tools/man/ipa-server-install.1
+index 697ee92f5d0b5b9ff9306e659aabe19295fc9fb9..2d9a57ad2a3fc1426c562f881b2504e3d5414035 100644
+--- a/install/tools/man/ipa-server-install.1
++++ b/install/tools/man/ipa-server-install.1
+@@ -16,7 +16,7 @@
+ .\"
+ .\" Author: Rob Crittenden <rcritten@redhat.com>
+ .\"
+-.TH "ipa-server-install" "1" "Jun 28 2012" "FreeIPA" "FreeIPA Manual Pages"
++.TH "ipa-server-install" "1" "Jun 28 2012" "IPA" "IPA Manual Pages"
+ .SH "NAME"
+ ipa\-server\-install \- Configure an IPA server
+ .SH "SYNOPSIS"
+diff --git a/install/tools/man/ipa-server-upgrade.1 b/install/tools/man/ipa-server-upgrade.1
+index cbbdc590171bff0a88b67bcf1de961fd783ac35c..3db19b0f13da1f5a36bd6e8df23fc916d0401a6d 100644
+--- a/install/tools/man/ipa-server-upgrade.1
++++ b/install/tools/man/ipa-server-upgrade.1
+@@ -2,7 +2,7 @@
+ .\" Copyright (C) 2015  FreeIPA Contributors see COPYING for license
+ .\"
+ 
+-.TH "ipa-server-upgrade" "1" "April 02 2015" "FreeIPA" "FreeIPA Manual Pages"
++.TH "ipa-server-upgrade" "1" "April 02 2015" "IPA" "IPA Manual Pages"
+ .SH "NAME"
+ ipa\-server\-upgrade \- upgrade IPA server
+ .SH "SYNOPSIS"
+diff --git a/install/tools/man/ipactl.8 b/install/tools/man/ipactl.8
+index fb533aae2009628473654a85e3a9b006e4f17b1f..d7aaaf8edab49b3e763fb3d73f69b97bc75a2202 100644
+--- a/install/tools/man/ipactl.8
++++ b/install/tools/man/ipactl.8
+@@ -16,7 +16,7 @@
+ .\" 
+ .\" Author: Rob Crittenden <rcritten@redhat.com>
+ .\" 
+-.TH "ipactl" "8" "Mar 14 2008" "FreeIPA" "FreeIPA Manual Pages"
++.TH "ipactl" "8" "Mar 14 2008" "IPA" "IPA Manual Pages"
+ .SH "NAME"
+ ipactl \- IPA Server Control Interface
+ .SH "SYNOPSIS"
+diff --git a/install/ui/index.html b/install/ui/index.html
+index bc0f0cd1e8ab2f426ded17938aaca58bcaf5af64..d1eacaf5340336ff968c30978d3cd70b559ac9ef 100644
+--- a/install/ui/index.html
++++ b/install/ui/index.html
+@@ -2,7 +2,7 @@
+ <html>
+ <head>
+     <meta charset="utf-8">
+-    <title>IPA: Identity Policy Audit</title>
++    <title>Identity Management</title>
+ 
+     <!--[if IE]>
+     <meta id="ie-detector">
+diff --git a/install/ui/reset_password.html b/install/ui/reset_password.html
+index ec09bbfafc1670df4bdb082c4f337be1ea81213f..998d796b7c1e6b8d3eb2e5273a897e99f1f56ca7 100644
+--- a/install/ui/reset_password.html
++++ b/install/ui/reset_password.html
+@@ -2,7 +2,7 @@
+ <html class="login-pf">
+ <head>
+     <meta charset="utf-8">
+-    <title>IPA: Identity Policy Audit</title>
++    <title>Identity Management</title>
+     <script type="text/javascript" src="js/libs/loader.js"></script>
+     <script type="text/javascript">
+         (function() {
+diff --git a/install/ui/src/freeipa/widgets/App.js b/install/ui/src/freeipa/widgets/App.js
+index 21e51a70512bd6d8bbf6074cedc3e9d55cda1131..c1b456880c096afe2ce707223ab377b976e9e241 100644
+--- a/install/ui/src/freeipa/widgets/App.js
++++ b/install/ui/src/freeipa/widgets/App.js
+@@ -187,7 +187,7 @@ define(['dojo/_base/declare',
+ 
+             construct.create('img', {
+                 src: 'images/header-logo.png',
+-                alt: 'FreeIPA' // TODO: replace with configuration value
++                alt: 'Identity Management' // TODO: replace with configuration value
+             }, this.brand_node);
+ 
+             return this.brand_node;
+diff --git a/install/ui/sync_otp.html b/install/ui/sync_otp.html
+index 5814b6c578c250d253c8eabeff7a787f1b24f10b..36a51ca62899790da3b8788fcd8a32ffc7407375 100644
+--- a/install/ui/sync_otp.html
++++ b/install/ui/sync_otp.html
+@@ -2,7 +2,7 @@
+ <html>
+ <head>
+     <meta charset="utf-8">
+-    <title>IPA: Identity Policy Audit</title>
++    <title>Identity Management</title>
+ 
+     <!--[if IE]>
+     <meta id="ie-detector">
+diff --git a/ipa.1 b/ipa.1
+index 9194ca0717cb4895b825fdc2783834a9749624a9..5dbef251453ea7a3809421486e811e8722955813 100644
+--- a/ipa.1
++++ b/ipa.1
+@@ -16,7 +16,7 @@
+ .\"
+ .\" Author: Pavel Zuna <pzuna@redhat.com>
+ .\"
+-.TH "ipa" "1" "Apr 29 2016" "FreeIPA" "FreeIPA Manual Pages"
++.TH "ipa" "1" "Apr 29 2016" "IPA" "IPA Manual Pages"
+ .SH "NAME"
+ ipa \- IPA command\-line interface
+ .SH "SYNOPSIS"
+diff --git a/ipaserver/advise/plugins/legacy_clients.py b/ipaserver/advise/plugins/legacy_clients.py
+index 9e381f12a4f60e970a08de34b79a6ad5028de449..193791028b08d69aa2cc0d2deaeaa4500121b60c 100644
+--- a/ipaserver/advise/plugins/legacy_clients.py
++++ b/ipaserver/advise/plugins/legacy_clients.py
+@@ -89,7 +89,7 @@ class config_redhat_sssd_before_1_9(config_base_legacy_client):
+     Legacy client configuration for Red Hat based systems, using SSSD.
+     """
+     description = ('Instructions for configuring a system with an old version '
+-                   'of SSSD (1.5-1.8) as a FreeIPA client. This set of '
++                   'of SSSD (1.5-1.8) as a IPA client. This set of '
+                    'instructions is targeted for platforms that include '
+                    'the authconfig utility, which are all Red Hat based '
+                    'platforms.')
+@@ -124,7 +124,7 @@ class config_generic_linux_sssd_before_1_9(config_base_legacy_client):
+     using SSSD.
+     """
+     description = ('Instructions for configuring a system with an old version '
+-                   'of SSSD (1.5-1.8) as a FreeIPA client. This set of '
++                   'of SSSD (1.5-1.8) as a IPA client. This set of '
+                    'instructions is targeted for linux systems that do not '
+                    'include the authconfig utility.')
+ 
+@@ -179,7 +179,7 @@ class config_redhat_nss_pam_ldapd(config_base_legacy_client):
+     using nss-pam-ldapd.
+     """
+     description = ('Instructions for configuring a system with nss-pam-ldapd '
+-                   'as a FreeIPA client. This set of instructions is targeted '
++                   'as a IPA client. This set of instructions is targeted '
+                    'for platforms that include the authconfig utility, which '
+                    'are all Red Hat based platforms.')
+ 
+@@ -347,7 +347,7 @@ class config_redhat_nss_ldap(config_base_legacy_client):
+     using nss-ldap.
+     """
+     description = ('Instructions for configuring a system with nss-ldap '
+-                   'as a FreeIPA client. This set of instructions is targeted '
++                   'as a IPA client. This set of instructions is targeted '
+                    'for platforms that include the authconfig utility, which '
+                    'are all Red Hat based platforms.')
+ 
+diff --git a/ipaserver/install/dns.py b/ipaserver/install/dns.py
+index 44ebd39dfa7f1d947061c3b4c0347242f8502be0..f3582cf37b2b7800db5fc666d9539adb44651bd6 100644
+--- a/ipaserver/install/dns.py
++++ b/ipaserver/install/dns.py
+@@ -138,7 +138,7 @@ def install_check(standalone, api, replica, options, hostname):
+ 
+     if standalone:
+         print("==============================================================================")
+-        print("This program will setup DNS for the FreeIPA Server.")
++        print("This program will setup DNS for the IPA Server.")
+         print("")
+         print("This includes:")
+         print("  * Configure DNS (bind)")
+diff --git a/ipaserver/install/ipa_kra_install.py b/ipaserver/install/ipa_kra_install.py
+index 9cb5f0fcc45d0c6ddb68456ee0b6d9a1fb2a2de1..19982c5a8421b4819d44a3ef0eb9f6a44bbeb4ea 100644
+--- a/ipaserver/install/ipa_kra_install.py
++++ b/ipaserver/install/ipa_kra_install.py
+@@ -114,7 +114,7 @@ class KRAInstaller(KRAInstall):
+ 
+     INSTALLER_START_MESSAGE = '''
+         ===================================================================
+-        This program will setup Dogtag KRA for the FreeIPA Server.
++        This program will setup Dogtag KRA for the IPA Server.
+ 
+     '''
+ 
+diff --git a/ipaserver/install/server/install.py b/ipaserver/install/server/install.py
+index c292c4d24bfde1484769698ee2a7ef59a6fcc52c..101af640d2a990d4f4f99ad2c0bb08264d921ea0 100644
+--- a/ipaserver/install/server/install.py
++++ b/ipaserver/install/server/install.py
+@@ -386,7 +386,7 @@ def install_check(installer):
+ 
+     print("======================================="
+           "=======================================")
+-    print("This program will set up the FreeIPA Server.")
++    print("This program will set up the IPA Server.")
+     print("")
+     print("This includes:")
+     if setup_ca:
+diff --git a/ipaserver/install/server/replicainstall.py b/ipaserver/install/server/replicainstall.py
+index 7695adf0d537237b24660e8871011f04f242e744..582df08094335554edffaed21bcaf4ab5a74e899 100644
+--- a/ipaserver/install/server/replicainstall.py
++++ b/ipaserver/install/server/replicainstall.py
+@@ -673,7 +673,7 @@ def install_check(installer):
+         above_upper_bound = current > constants.MAX_DOMAIN_LEVEL
+ 
+         if under_lower_bound or above_upper_bound:
+-            message = ("This version of FreeIPA does not support "
++            message = ("This version of IPA does not support "
+                        "the Domain Level which is currently set for "
+                        "this domain. The Domain Level needs to be "
+                        "raised before installing a replica with "
+-- 
+2.9.3
+

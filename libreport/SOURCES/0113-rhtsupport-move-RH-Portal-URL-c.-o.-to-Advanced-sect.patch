@@ -1,0 +1,49 @@
+From aa04804534886ca1b2f2773a3de5eaa0f8077df6 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Mon, 3 Nov 2014 16:15:45 +0100
+Subject: [LIBREPORT PATCH 113/113] rhtsupport: move RH Portal URL c. o. to
+ Advanced section
+
+It is unlikely that a regular user will ever want to edit that
+configuration option.
+
+Related to rhbz#1139987
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/plugins/report_RHTSupport.xml.in | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/plugins/report_RHTSupport.xml.in b/src/plugins/report_RHTSupport.xml.in
+index 05e7ae8..a612a1e 100644
+--- a/src/plugins/report_RHTSupport.xml.in
++++ b/src/plugins/report_RHTSupport.xml.in
+@@ -14,12 +14,6 @@
+     <options>
+         <import-event-options event="report_uReport"/>
+ 
+-        <option type="text" name="RHTSupport_URL">
+-            <_label>RH Portal URL</_label>
+-            <allow-empty>no</allow-empty>
+-            <_description>Address of the Red Hat support portal</_description>
+-            <default-value>https://api.access.redhat.com/rs</default-value>
+-        </option>
+         <option type="text" name="RHTSupport_Login">
+             <_label>Username</_label>
+             <_description>Red Hat customer user name</_description>
+@@ -41,6 +35,12 @@
+                 <_note-html>Submit &lt;a href="https://access.redhat.com/articles/642323"&gt;micro-report&lt;/a&gt; when creating a new case. </_note-html>
+                 <default-value>yes</default-value>
+             </option>
++            <option type="text" name="RHTSupport_URL">
++                <_label>RH Portal URL</_label>
++                <allow-empty>no</allow-empty>
++                <_description>Address of the Red Hat support portal</_description>
++                <default-value>https://api.access.redhat.com/rs</default-value>
++            </option>
+             <option type="text" name="http_proxy">
+                 <_label>HTTP Proxy</_label>
+                 <allow-empty>yes</allow-empty>
+-- 
+1.8.3.1
+

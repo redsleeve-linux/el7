@@ -1,0 +1,146 @@
+From 68f14b8a0163d688ca36541bc1e28173b0b62317 Mon Sep 17 00:00:00 2001
+From: Ray Strode <rstrode@redhat.com>
+Date: Mon, 20 Jul 2015 09:24:27 -0400
+Subject: [PATCH] populate-initrd: ship label plugin / font in initrd
+
+Some customers require showing text in the initrd, so
+this commit goes ahead and ships label.so (and all its
+dependencies) and one font in the initrd.
+---
+ scripts/plymouth-populate-initrd.in | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)
+
+diff --git a/scripts/plymouth-populate-initrd.in b/scripts/plymouth-populate-initrd.in
+index d25ab07..da55318 100755
+--- a/scripts/plymouth-populate-initrd.in
++++ b/scripts/plymouth-populate-initrd.in
+@@ -1,47 +1,48 @@
+ #!/bin/bash
+ #
+ # inst bits ruthlessly and viciously stolen from dracut
+ 
+ [ -z "$DESTDIR" ] || exit 0
+ 
+ [ -z "$PLYMOUTH_LIBEXECDIR" ] && PLYMOUTH_LIBEXECDIR="@PLYMOUTH_LIBEXECDIR@"
+ [ -z "$PLYMOUTH_DATADIR" ] && PLYMOUTH_DATADIR="@PLYMOUTH_DATADIR@"
+ [ -z "$PLYMOUTH_PLUGIN_PATH" ] && PLYMOUTH_PLUGIN_PATH="$(plymouth --get-splash-plugin-path)"
+ [ -z "$PLYMOUTH_LOGO_FILE" ] && PLYMOUTH_LOGO_FILE="@PLYMOUTH_LOGO_FILE@"
+ [ -n "$PLYMOUTH_THEME_NAME" ] && THEME_OVERRIDE=1
+ [ -z "$PLYMOUTH_THEME_NAME" ] && PLYMOUTH_THEME_NAME=$(plymouth-set-default-theme)
+ [ -z "$PLYMOUTH_CONFDIR" ] && PLYMOUTH_CONFDIR="@PLYMOUTH_CONF_DIR@"
+ [ -z "$PLYMOUTH_POLICYDIR" ] && PLYMOUTH_POLICYDIR="@PLYMOUTH_POLICY_DIR@"
+ [ -z "$PLYMOUTH_DAEMON_PATH" ] && PLYMOUTH_DAEMON_PATH="@PLYMOUTH_DAEMON_DIR@/plymouthd"
+ [ -z "$PLYMOUTH_CLIENT_PATH" ] && PLYMOUTH_CLIENT_PATH="@PLYMOUTH_CLIENT_DIR@/plymouth"
+ [ -z "$SYSTEMD_UNIT_DIR" ] && SYSTEMD_UNIT_DIR="@SYSTEMD_UNIT_DIR@"
++[ -z "$SUPPORTED_LANGUAGES" ] && SUPPORTED_LANGUAGES="pt fr de it ru es en zh ja ko zh as bn gu hi kn ml mr or pa ta te"
+ 
+ # Generic substring function.  If $2 is in $1, return 0.
+ strstr() { [ "${1#*$2*}" != "$1" ]; }
+ 
+ ddebug() {
+     [ "$verbose" = "true" ] && echo "$@"
+ }
+ 
+ # normalize_path <path>
+ # Prints the normalized path, where it removes any duplicated
+ # and trailing slashes.
+ # Example:
+ # $ normalize_path ///test/test//
+ # /test/test
+ normalize_path() {
+     shopt -q -s extglob
+     set -- "${1//+(\/)//}"
+     shopt -q -u extglob
+     echo "${1%/}"
+ }
+ 
+ # convert_abs_rel <from> <to>
+ # Prints the relative path, when creating a symlink to <to> from <from>.
+ # Example:
+ # $ convert_abs_rel /usr/bin/test /bin/test-2
+ # ../../bin/test-2
+ # $ ln -s $(convert_abs_rel /usr/bin/test /bin/test-2) /usr/bin/test
+ convert_abs_rel() {
+     local __current __absolute __abssize __cursize __newpath
+     local -i __i __level
+@@ -387,59 +388,77 @@ inst ${PLYMOUTH_CONFDIR}/plymouthd.conf $INITRDDIR
+ if [ -z "$PLYMOUTH_THEME_NAME" ]; then
+     echo "No default plymouth plugin is set" > /dev/stderr
+     exit 1
+ fi
+ 
+ if [ $THEME_OVERRIDE ]; then
+     conf=$INITRDDIR/${PLYMOUTH_CONFDIR}/plymouthd.conf
+     echo "modifying plymouthd.conf: Theme=$PLYMOUTH_THEME_NAME" > /dev/stderr
+     sed -i "s/^ *Theme *=.*/# theme modified by plymouth-populate-initrd\nTheme=$PLYMOUTH_THEME_NAME/" $conf
+ fi
+ 
+ PLYMOUTH_MODULE_NAME=$(grep "ModuleName *= *" ${PLYMOUTH_DATADIR}/plymouth/themes/${PLYMOUTH_THEME_NAME}/${PLYMOUTH_THEME_NAME}.plymouth | sed 's/ModuleName *= *//')
+ 
+ if [ ! -f ${PLYMOUTH_PLUGIN_PATH}/${PLYMOUTH_MODULE_NAME}.so ]; then
+     echo "The default plymouth plugin (${PLYMOUTH_MODULE_NAME}) doesn't exist" > /dev/stderr
+     exit 1
+ fi
+ 
+ inst ${PLYMOUTH_PLUGIN_PATH}/${PLYMOUTH_MODULE_NAME}.so $INITRDDIR
+ 
+ [ -f "${PLYMOUTH_PLUGIN_PATH}/renderers/drm.so" ] && inst ${PLYMOUTH_PLUGIN_PATH}/renderers/drm.so $INITRDDIR
+ inst ${PLYMOUTH_PLUGIN_PATH}/renderers/frame-buffer.so $INITRDDIR
+ 
+ if [ -d ${PLYMOUTH_DATADIR}/plymouth/themes/${PLYMOUTH_THEME_NAME} ]; then
+     for x in ${PLYMOUTH_DATADIR}/plymouth/themes/${PLYMOUTH_THEME_NAME}/* ; do
+         [ ! -f "$x" ] && continue
+         inst $x $INITRDDIR
+     done
+ fi
+ 
++fonts=""
++needs_graphics="$(find ${INITRDDIR} -name 'libply-splash-graphics.so*' -print -quit | grep -q libply-splash-graphics.so && echo -n 1)"
++
++if [ -n "$needs_graphics" ]; then
++    for lang in $SUPPORTED_LANGUAGES; do
++        font=$(fc-match "":lang="$lang" file | awk -F= '{ print $2}')
++        echo $fonts | grep -q "$font" && continue
++        fonts="$fonts $font"
++    done
++
++    if [ -n "$fonts" ]; then
++        inst ${PLYMOUTH_PLUGIN_PATH}/label.so $INITRDDIR
++        for font in $fonts; do
++            inst $font $INITRDDIR
++        done
++    fi
++fi
++
+ if [ -L ${PLYMOUTH_DATADIR}/plymouth/themes/default.plymouth ]; then
+     cp -a ${PLYMOUTH_DATADIR}/plymouth/themes/default.plymouth $INITRDDIR${PLYMOUTH_DATADIR}/plymouth/themes
+ fi
+ 
+ if [ -n "$SYSTEMD_UNIT_DIR" -a -d "$SYSTEMD_UNIT_DIR" ]; then
+     inst $SYSTEMD_UNIT_DIR/systemd-ask-password-plymouth.path $INITRDDIR
+     inst $SYSTEMD_UNIT_DIR/systemd-ask-password-plymouth.service $INITRDDIR
+ 
+     inst $SYSTEMD_UNIT_DIR/plymouth-switch-root.service $INITRDDIR
+     inst $SYSTEMD_UNIT_DIR/plymouth-start.service $INITRDDIR
+     inst $SYSTEMD_UNIT_DIR/plymouth-quit.service $INITRDDIR
+     inst $SYSTEMD_UNIT_DIR/plymouth-quit-wait.service $INITRDDIR
+     inst $SYSTEMD_UNIT_DIR/plymouth-reboot.service $INITRDDIR
+     inst $SYSTEMD_UNIT_DIR/plymouth-kexec.service $INITRDDIR
+     inst $SYSTEMD_UNIT_DIR/plymouth-poweroff.service $INITRDDIR
+     inst $SYSTEMD_UNIT_DIR/plymouth-halt.service $INITRDDIR
+ 
+     inst $SYSTEMD_UNIT_DIR/initrd-switch-root.target.wants/plymouth-switch-root.service $INITRDDIR
+     inst $SYSTEMD_UNIT_DIR/initrd-switch-root.target.wants/plymouth-start.service $INITRDDIR
+     inst $SYSTEMD_UNIT_DIR/sysinit.target.wants/plymouth-start.service $INITRDDIR
+     inst $SYSTEMD_UNIT_DIR/multi-user.target.wants/plymouth-quit.service $INITRDDIR
+     inst $SYSTEMD_UNIT_DIR/multi-user.target.wants/plymouth-quit-wait.service $INITRDDIR
+     inst $SYSTEMD_UNIT_DIR/reboot.target.wants/plymouth-reboot.service $INITRDDIR
+     inst $SYSTEMD_UNIT_DIR/kexec.target.wants/plymouth-kexec.service $INITRDDIR
+     inst $SYSTEMD_UNIT_DIR/poweroff.target.wants/plymouth-poweroff.service $INITRDDIR
+     inst $SYSTEMD_UNIT_DIR/halt.target.wants/plymouth-halt.service $INITRDDIR
+ fi
+ 
+ # vim:ts=8:sw=4:sts=4:et
+-- 
+2.3.7
+

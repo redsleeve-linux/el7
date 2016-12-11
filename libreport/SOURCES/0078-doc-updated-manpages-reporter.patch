@@ -1,0 +1,161 @@
+From 230a615a13012876f820e47f6be583bf32bca95b Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Thu, 18 Sep 2014 23:12:45 +0200
+Subject: [LIBREPORT PATCH 78/93] doc: updated manpages reporter-*
+
+Added section FILES to reporter-* manpages and updated section SEE ALSO.
+
+Resolves rhbz#1067143
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+
+reporter-upload does not have configuration file on rhel7
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ doc/reporter-bugzilla.txt   | 13 ++++++++++++-
+ doc/reporter-kerneloops.txt |  4 ++++
+ doc/reporter-mailx.txt      | 12 ++++++++++++
+ doc/reporter-print.txt      |  4 ++++
+ doc/reporter-rhtsupport.txt | 10 +++++++++-
+ doc/reporter-upload.txt     |  5 +++++
+ doc/reporter-ureport.txt    |  8 ++++++++
+ 7 files changed, 54 insertions(+), 2 deletions(-)
+
+diff --git a/doc/reporter-bugzilla.txt b/doc/reporter-bugzilla.txt
+index 2feb922..48afb03 100644
+--- a/doc/reporter-bugzilla.txt
++++ b/doc/reporter-bugzilla.txt
+@@ -191,9 +191,20 @@ the configuration file.
+ 'HTTPS_PROXY'::
+ 	the proxy server to use for HTTPS
+ 
++FILES
++-----
++/usr/share/libreport/conf.d/plugins/bugzilla.conf::
++    Readonly default configuration files.
++
++/etc/libreport/plugins/bugzilla.conf::
++    Configuration file.
++
++/etc/libreport/plugins/bugzilla_format.conf::
++    Configure formating for reporting.
++
+ SEE ALSO
+ --------
+-report_event.conf, bugzilla_format.conf
++report_event.conf(5), bugzilla_format.conf(5)
+ 
+ AUTHORS
+ -------
+diff --git a/doc/reporter-kerneloops.txt b/doc/reporter-kerneloops.txt
+index 57b0983..b23d517 100644
+--- a/doc/reporter-kerneloops.txt
++++ b/doc/reporter-kerneloops.txt
+@@ -63,6 +63,10 @@ the configuration file.
+ 'KerneloopsReporter_SubmitURL'::
+         The URL of the kerneloops tracker.
+ 
++SEE ALSO
++--------
++koops_event.conf(5)
++
+ AUTHORS
+ -------
+ * ABRT team
+diff --git a/doc/reporter-mailx.txt b/doc/reporter-mailx.txt
+index f946653..bd0c63e 100644
+--- a/doc/reporter-mailx.txt
++++ b/doc/reporter-mailx.txt
+@@ -86,6 +86,18 @@ the configuration file.
+        Use yes/true/on/1 to attach all binary files from the problem
+        directory to the email.
+ 
++FILES
++-----
++/usr/share/libreport/conf.d/plugins/mailx.conf::
++    Readonly default configuration files.
++
++/etc/libreport/plugins/mailx.conf::
++     Configuration files.
++
++SEE ALSO
++--------
++mailx_event.conf(5), mailx.conf(5), report_mailx.conf(5)
++
+ AUTHORS
+ -------
+ * ABRT team
+diff --git a/doc/reporter-print.txt b/doc/reporter-print.txt
+index 5a39673..6e35000 100644
+--- a/doc/reporter-print.txt
++++ b/doc/reporter-print.txt
+@@ -59,6 +59,10 @@ Elements which have more than one line are printed in the form
+ 
+ Output may contain empty lines for better readability.
+ 
++SEE ALSO
++--------
++print_event.conf(5)
++
+ AUTHORS
+ -------
+ * ABRT team
+diff --git a/doc/reporter-rhtsupport.txt b/doc/reporter-rhtsupport.txt
+index 6ac8eff..b018906 100644
+--- a/doc/reporter-rhtsupport.txt
++++ b/doc/reporter-rhtsupport.txt
+@@ -71,6 +71,14 @@ OPTIONS
+ -t[ID]::
+    Upload FILEs to the already created case on RHTSupport site.
+ 
++FILES
++-----
++/usr/share/libreport/conf.d/plugins/rhtsupport.conf::
++    Readonly default configuration files.
++
++/etc/libreport/plugins/rhtsupport.conf::
++    Configuration file.
++
+ SEE ALSO
+ --------
+-abrt_event.conf
++abrt_event.conf(5), rhtsupport.conf(5), rhtsupport_event.conf(5)
+diff --git a/doc/reporter-upload.txt b/doc/reporter-upload.txt
+index 1464054..8df7ea2 100644
+--- a/doc/reporter-upload.txt
++++ b/doc/reporter-upload.txt
+@@ -68,6 +68,11 @@ the configuration file.
+ 'Upload_URL'::
+    The URL where should be the tarball uploaded.
+ 
++
++SEE ALSO
++--------
++uploader_event.conf(5)
++
+ AUTHORS
+ -------
+ * ABRT team
+diff --git a/doc/reporter-ureport.txt b/doc/reporter-ureport.txt
+index 9264cda..fbdb6e9 100644
+--- a/doc/reporter-ureport.txt
++++ b/doc/reporter-ureport.txt
+@@ -116,6 +116,14 @@ the configuration file.
+ 'uReport_AuthDataItems'::
+    See AuthDataItems configuration option for details.
+ 
++FILES
++-----
++/usr/share/libreport/conf.d/plugins/ureport.conf::
++    Readonly default configuration files.
++
++/etc/libreport/plugins/ureport.conf::
++    Configuration file.
++
+ SEE ALSO
+ --------
+ ureport.conf(5)
+-- 
+1.8.3.1
+

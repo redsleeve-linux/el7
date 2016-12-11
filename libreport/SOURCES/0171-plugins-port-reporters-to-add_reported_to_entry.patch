@@ -1,0 +1,151 @@
+From eeae29b92017d42b7be967b0a67a4db24bafa80e Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Mon, 19 Oct 2015 14:24:52 +0200
+Subject: [PATCH] plugins: port reporters to add_reported_to_entry
+
+This commit should make the code less fragile. There is no need for this
+commit, however I plan to make the '.label' member configurable through
+environment variables.
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+
+Conflicts:
+	src/plugins/reporter-mantisbt.c
+---
+ src/lib/ureport.c                 | 21 ++++++++++++---------
+ src/plugins/reporter-bugzilla.c   |  7 ++++---
+ src/plugins/reporter-kerneloops.c |  6 +++---
+ src/plugins/reporter-mailx.c      |  7 ++++---
+ src/plugins/reporter-print.c      |  7 ++++---
+ src/plugins/reporter-rhtsupport.c | 12 +++++-------
+ 6 files changed, 32 insertions(+), 28 deletions(-)
+
+diff --git a/src/lib/ureport.c b/src/lib/ureport.c
+index ebeaa8b..f89fe62 100644
+--- a/src/lib/ureport.c
++++ b/src/lib/ureport.c
+@@ -644,15 +644,18 @@ ureport_server_response_save_in_dump_dir(struct ureport_server_response *resp,
+ 
+     if (resp->urr_bthash)
+     {
+-        char *msg = xasprintf("uReport: BTHASH=%s", resp->urr_bthash);
+-        add_reported_to(dd, msg);
+-        free(msg);
+-
+-        char *report_url = ureport_server_response_get_report_url(resp, config);
+-        msg = xasprintf("ABRT Server: URL=%s", report_url);
+-        add_reported_to(dd, msg);
+-        free(msg);
+-        free(report_url);
++        {
++            report_result_t rr = { .label = (char *)"uReport" };
++            rr.bthash = resp->urr_bthash;
++            add_reported_to_entry(dd, &rr);
++        }
++
++        {
++            report_result_t rr = { .label = (char *)"ABRT Server" };
++            rr.url = ureport_server_response_get_report_url(resp, config);
++            add_reported_to_entry(dd, &rr);
++            free(rr.url);
++        }
+     }
+ 
+     if (resp->urr_reported_to_list)
+diff --git a/src/plugins/reporter-bugzilla.c b/src/plugins/reporter-bugzilla.c
+index 097924e..d11fadf 100644
+--- a/src/plugins/reporter-bugzilla.c
++++ b/src/plugins/reporter-bugzilla.c
+@@ -1351,9 +1351,10 @@ int main(int argc, char **argv)
+     struct dump_dir *dd = dd_opendir(dump_dir_name, /*flags:*/ 0);
+     if (dd)
+     {
+-        char *msg = xasprintf("Bugzilla: URL=%s/show_bug.cgi?id=%u", rhbz.b_bugzilla_url, bz->bi_id);
+-        add_reported_to(dd, msg);
+-        free(msg);
++        report_result_t rr = { .label = (char *)"Bugzilla" };
++        rr.url = xasprintf("%s/show_bug.cgi?id=%u", rhbz.b_bugzilla_url, bz->bi_id);
++        add_reported_to_entry(dd, &rr);
++        free(rr.url);
+         dd_close(dd);
+     }
+ 
+diff --git a/src/plugins/reporter-kerneloops.c b/src/plugins/reporter-kerneloops.c
+index d312459..895f755 100644
+--- a/src/plugins/reporter-kerneloops.c
++++ b/src/plugins/reporter-kerneloops.c
+@@ -118,9 +118,9 @@ static void report_to_kerneloops(
+     struct dump_dir *dd = dd_opendir(dump_dir_name, /*flags:*/ 0);
+     if (dd)
+     {
+-        char *msg = xasprintf("kerneloops: URL=%s", submitURL);
+-        add_reported_to(dd, msg);
+-        free(msg);
++        report_result_t rr = { .label = (char *)"kerneloops" };
++        rr.url = (char *)submitURL;
++        add_reported_to_entry(dd, &rr);
+         dd_close(dd);
+     }
+ 
+diff --git a/src/plugins/reporter-mailx.c b/src/plugins/reporter-mailx.c
+index 92e78a4..54dc82e 100644
+--- a/src/plugins/reporter-mailx.c
++++ b/src/plugins/reporter-mailx.c
+@@ -149,9 +149,10 @@ static void create_and_send_email(
+         struct dump_dir *dd = dd_opendir(dump_dir_name, /*flags:*/ 0);
+         if (dd)
+         {
+-            char *msg = xasprintf("email: URL=mailto:%s", email_to);
+-            add_reported_to(dd, msg);
+-            free(msg);
++            report_result_t rr = { .label = (char *)"email" };
++            rr.url = xasprintf("mailto:%s", email_to);
++            add_reported_to_entry(dd, &rr);
++            free(rr.url);
+             dd_close(dd);
+         }
+     }
+diff --git a/src/plugins/reporter-print.c b/src/plugins/reporter-print.c
+index 0c67a3c..90ed4c3 100644
+--- a/src/plugins/reporter-print.c
++++ b/src/plugins/reporter-print.c
+@@ -134,9 +134,10 @@ int main(int argc, char **argv)
+             struct dump_dir *dd = dd_opendir(dump_dir_name, /*flags:*/ 0);
+             if (dd)
+             {
+-                char *msg = xasprintf("file: URL=file://%s", output_file);
+-                add_reported_to(dd, msg);
+-                free(msg);
++                report_result_t rr = { .label = (char *)"file" };
++                rr.url = xasprintf("file://%s", output_file);
++                add_reported_to_entry(dd, &rr);
++                free(rr.url);
+                 dd_close(dd);
+             }
+         }
+diff --git a/src/plugins/reporter-rhtsupport.c b/src/plugins/reporter-rhtsupport.c
+index add0d6b..90988fc 100644
+--- a/src/plugins/reporter-rhtsupport.c
++++ b/src/plugins/reporter-rhtsupport.c
+@@ -734,13 +734,11 @@ int main(int argc, char **argv)
+         struct dump_dir *dd = dd_opendir(dump_dir_name, /*flags:*/ 0);
+         if (dd)
+         {
+-            char *msg = xasprintf("RHTSupport: TIME=%s URL=%s%s%s",
+-                    iso_date_string(NULL),
+-                    result->url,
+-                    result->msg ? " MSG=" : "", result->msg ? result->msg : ""
+-            );
+-            add_reported_to(dd, msg);
+-            free(msg);
++            struct report_result rr = { .label = (char *)"RHTSupport" };
++            rr.url = result->url;
++            rr.msg = result->msg;
++            time(&rr.timestamp);
++            add_reported_to_entry(dd, &rr);
+             dd_close(dd);
+             if (result->msg)
+                 log("%s", result->msg);
+-- 
+1.8.3.1
+

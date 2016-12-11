@@ -1,0 +1,106 @@
+From ed3b5cebd6b78da4f52d0c417f03550109262f5c Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Tue, 23 Sep 2014 20:55:48 +0200
+Subject: [LIBREPORT PATCH 86/93] ureport: include AuthDataItems if
+ SSLClientAuth is configured
+
+Forcing users to configure more than one configuration option to enable
+Authenticated uReporting isn't good idea. So for sake of simplicity
+reporter-ureport will add the AuthDataItems in to an uReport by default
+if the SSLClientAuth is set to some value. Putting 'no' to
+the IncludeAuthData configuration option, stops reporter-ureport from
+including the AuthDataItems in uReports.
+
+Related to rhbz#1139557
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ doc/reporter-ureport.txt |  9 +++++++--
+ src/lib/ureport.c        | 11 ++++++-----
+ src/plugins/ureport.conf |  8 ++++++--
+ 3 files changed, 19 insertions(+), 9 deletions(-)
+
+diff --git a/doc/reporter-ureport.txt b/doc/reporter-ureport.txt
+index fbdb6e9..551bbda 100644
+--- a/doc/reporter-ureport.txt
++++ b/doc/reporter-ureport.txt
+@@ -29,8 +29,10 @@ Configuration file lines should have 'PARAM = VALUE' format. The parameters are:
+ 
+ 'SSLClientAuth'::
+    If this option is set, client-side SSL certificate is used to authenticate
+-   to the server so that it knows which machine it came from. Possible values
+-   are:
++   to the server so that it knows which machine it came from. Assigning any value to
++   this option changes the default value of IncludeAuthData to yes.
++
++   Possible values are:
+ 
+    'rhsm';;
+       Uses the system certificate that is used for Red Hat subscription management.
+@@ -49,6 +51,9 @@ Configuration file lines should have 'PARAM = VALUE' format. The parameters are:
+    consisting from key value pairs made from CSV list stored in 'AuthDataItems'
+    option. Keys are file names and values are bites of these files.
+ 
++   The default value is no, unless you set SSLClientAuth to some value. In that
++   case, the default value is yes.
++
+ 'AuthDataItems'::
+    CSV list of files included in the 'auth' uReport object.
+ 
+diff --git a/src/lib/ureport.c b/src/lib/ureport.c
+index 1a1520a..f906f3e 100644
+--- a/src/lib/ureport.c
++++ b/src/lib/ureport.c
+@@ -231,7 +231,12 @@ ureport_server_config_load(struct ureport_server_config *config,
+     UREPORT_OPTION_VALUE_FROM_CONF(settings, "URL", config->ur_url, xstrdup);
+     UREPORT_OPTION_VALUE_FROM_CONF(settings, "SSLVerify", config->ur_ssl_verify, string_to_bool);
+ 
+-    bool include_auth = false;
++    const char *client_auth = NULL;
++    UREPORT_OPTION_VALUE_FROM_CONF(settings, "SSLClientAuth", client_auth, (const char *));
++    ureport_server_config_set_client_auth(config, client_auth);
++
++    /* If SSLClientAuth is configured, include the auth items by default. */
++    bool include_auth = !!config->ur_client_cert;
+     UREPORT_OPTION_VALUE_FROM_CONF(settings, "IncludeAuthData", include_auth, string_to_bool);
+ 
+     if (include_auth)
+@@ -243,10 +248,6 @@ ureport_server_config_load(struct ureport_server_config *config,
+         if (config->ur_prefs.urp_auth_items == NULL)
+             log_warning("IncludeAuthData set to 'yes' but AuthDataItems is empty.");
+     }
+-
+-    const char *client_auth = NULL;
+-    UREPORT_OPTION_VALUE_FROM_CONF(settings, "SSLClientAuth", client_auth, (const char *));
+-    ureport_server_config_set_client_auth(config, client_auth);
+ }
+ 
+ void
+diff --git a/src/plugins/ureport.conf b/src/plugins/ureport.conf
+index a20695d..e7bd66b 100644
+--- a/src/plugins/ureport.conf
++++ b/src/plugins/ureport.conf
+@@ -8,14 +8,18 @@
+ # ContactEmail = foo@example.com
+ 
+ # yes means that uReport will contain 'auth' object consisting
+-# from key value pairs made from AuthDataItems
++# from key value pairs made from AuthDataItems.
++# The default value is 'no', unless you set 'SSLClientAuth' to some value.
++# In that case, the default value is 'yes'.
+ # IncludeAuthData = yes
+ 
+ # If IncludeAuthData is set to yes, these fields will be included
+ # in 'auth' object
+ AuthDataItems = hostname, machineid
+ 
+-# Client-side authentication
++# Client-side authentication.
++# Assingning any value to 'SSLClientAuth' changes the default value of
++# 'IncludeAuthData' to 'yes'.
+ # None (default):
+ # SSLClientAuth =
+ # Using RH subscription management certificate:
+-- 
+1.8.3.1
+

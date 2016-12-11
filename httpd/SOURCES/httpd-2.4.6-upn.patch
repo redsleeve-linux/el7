@@ -1,0 +1,381 @@
+diff --git a/modules/ssl/mod_ssl.c b/modules/ssl/mod_ssl.c
+index 926e05e..bbe1d20 100644
+--- a/modules/ssl/mod_ssl.c
++++ b/modules/ssl/mod_ssl.c
+@@ -333,6 +333,11 @@ static int ssl_hook_pre_config(apr_pool_t *pconf,
+     OpenSSL_add_all_algorithms();
+     OPENSSL_load_builtin_modules();
+ 
++    if (OBJ_txt2nid("id-on-dnsSRV") == NID_undef) {
++        (void)OBJ_create("1.3.6.1.5.5.7.8.7", "id-on-dnsSRV",
++                         "SRVName otherName form");
++    }
++
+     /*
+      * Let us cleanup the ssl library when the module is unloaded
+      */
+diff --git a/modules/ssl/ssl_engine_kernel.c b/modules/ssl/ssl_engine_kernel.c
+index eb11a38..27eaa5a 100644
+--- a/modules/ssl/ssl_engine_kernel.c
++++ b/modules/ssl/ssl_engine_kernel.c
+@@ -1156,6 +1156,7 @@ int ssl_hook_Fixup(request_rec *r)
+     /* standard SSL environment variables */
+     if (dc->nOptions & SSL_OPT_STDENVVARS) {
+         modssl_var_extract_dns(env, sslconn->ssl, r->pool);
++        modssl_var_extract_san_entries(env, sslconn->ssl, r->pool);
+ 
+         for (i = 0; ssl_hook_Fixup_vars[i]; i++) {
+             var = (char *)ssl_hook_Fixup_vars[i];
+diff --git a/modules/ssl/ssl_engine_vars.c b/modules/ssl/ssl_engine_vars.c
+index c508fff..2b7c9ba 100644
+--- a/modules/ssl/ssl_engine_vars.c
++++ b/modules/ssl/ssl_engine_vars.c
+@@ -42,6 +42,7 @@
+ static char *ssl_var_lookup_ssl(apr_pool_t *p, conn_rec *c, request_rec *r, char *var);
+ static char *ssl_var_lookup_ssl_cert(apr_pool_t *p, request_rec *r, X509 *xs, char *var);
+ static char *ssl_var_lookup_ssl_cert_dn(apr_pool_t *p, X509_NAME *xsname, char *var);
++static char *ssl_var_lookup_ssl_cert_san(apr_pool_t *p, X509 *xs, char *var);
+ static char *ssl_var_lookup_ssl_cert_valid(apr_pool_t *p, ASN1_TIME *tm);
+ static char *ssl_var_lookup_ssl_cert_remain(apr_pool_t *p, ASN1_TIME *tm);
+ static char *ssl_var_lookup_ssl_cert_serial(apr_pool_t *p, X509 *xs);
+@@ -509,6 +510,10 @@ static char *ssl_var_lookup_ssl_cert(apr_pool_t *p, request_rec *r, X509 *xs,
+         result = ssl_var_lookup_ssl_cert_dn(p, xsname, var+5);
+         resdup = FALSE;
+     }
++    else if (strlen(var) > 4 && strcEQn(var, "SAN_", 4)) {
++        result = ssl_var_lookup_ssl_cert_san(p, xs, var+4);
++        resdup = FALSE;
++    }
+     else if (strcEQ(var, "A_SIG")) {
+         nid = OBJ_obj2nid((ASN1_OBJECT *)(xs->cert_info->signature->algorithm));
+         result = apr_pstrdup(p,
+@@ -597,6 +602,49 @@ static char *ssl_var_lookup_ssl_cert_dn(apr_pool_t *p, X509_NAME *xsname, char *
+     return result;
+ }
+ 
++static char *ssl_var_lookup_ssl_cert_san(apr_pool_t *p, X509 *xs, char *var)
++{
++    int type, numlen;
++    const char *onf = NULL;
++    apr_array_header_t *entries;
++
++    if (strcEQn(var, "Email_", 6)) {
++        type = GEN_EMAIL;
++        var += 6;
++    }
++    else if (strcEQn(var, "DNS_", 4)) {
++        type = GEN_DNS;
++        var += 4;
++    }
++    else if (strcEQn(var, "OTHER_", 6)) {
++        type = GEN_OTHERNAME;
++        var += 6;
++        if (strEQn(var, "msUPN_", 6)) {
++            var += 6;
++            onf = "msUPN";
++        }
++        else if (strEQn(var, "dnsSRV_", 7)) {
++            var += 7;
++            onf = "id-on-dnsSRV";
++        }
++        else
++           return NULL;
++    }
++    else
++        return NULL;
++
++    /* sanity check: number must be between 1 and 4 digits */
++    numlen = strspn(var, "0123456789");
++    if ((numlen < 1) || (numlen > 4) || (numlen != strlen(var)))
++        return NULL;
++
++    if (SSL_X509_getSAN(p, xs, type, onf, atoi(var), &entries))
++        /* return the first entry from this 1-element array */
++        return APR_ARRAY_IDX(entries, 0, char *);
++    else
++        return NULL;
++}
++
+ static char *ssl_var_lookup_ssl_cert_valid(apr_pool_t *p, ASN1_TIME *tm)
+ {
+     char *result;
+@@ -890,6 +938,54 @@ void modssl_var_extract_dns(apr_table_t *t, SSL *ssl, apr_pool_t *p)
+     }
+ }
+ 
++static void extract_san_array(apr_table_t *t, const char *pfx,
++                              apr_array_header_t *entries, apr_pool_t *p)
++{
++    int i;
++
++    for (i = 0; i < entries->nelts; i++) {
++        const char *key = apr_psprintf(p, "%s_%d", pfx, i);
++        apr_table_setn(t, key, APR_ARRAY_IDX(entries, i, const char *));
++    }
++}
++
++void modssl_var_extract_san_entries(apr_table_t *t, SSL *ssl, apr_pool_t *p)
++{
++    X509 *xs;
++    apr_array_header_t *entries;
++
++    /* subjectAltName entries of the server certificate */
++    xs = SSL_get_certificate(ssl);
++    if (xs) {
++        if (SSL_X509_getSAN(p, xs, GEN_EMAIL, NULL, -1, &entries)) {
++            extract_san_array(t, "SSL_SERVER_SAN_Email", entries, p);
++        }
++        if (SSL_X509_getSAN(p, xs, GEN_DNS, NULL, -1, &entries)) {
++            extract_san_array(t, "SSL_SERVER_SAN_DNS", entries, p);
++        }
++        if (SSL_X509_getSAN(p, xs, GEN_OTHERNAME, "id-on-dnsSRV", -1,
++                               &entries)) {
++            extract_san_array(t, "SSL_SERVER_SAN_OTHER_dnsSRV", entries, p);
++        }
++        /* no need to free xs (refcount does not increase) */
++    }
++
++    /* subjectAltName entries of the client certificate */
++    xs = SSL_get_peer_certificate(ssl);
++    if (xs) {
++        if (SSL_X509_getSAN(p, xs, GEN_EMAIL, NULL, -1, &entries)) {
++            extract_san_array(t, "SSL_CLIENT_SAN_Email", entries, p);
++        }
++        if (SSL_X509_getSAN(p, xs, GEN_DNS, NULL, -1, &entries)) {
++            extract_san_array(t, "SSL_CLIENT_SAN_DNS", entries, p);
++        }
++        if (SSL_X509_getSAN(p, xs, GEN_OTHERNAME, "msUPN", -1, &entries)) {
++            extract_san_array(t, "SSL_CLIENT_SAN_OTHER_msUPN", entries, p);
++        }
++        X509_free(xs);
++    }
++}
++
+ /* For an extension type which OpenSSL does not recognize, attempt to
+  * parse the extension type as a primitive string.  This will fail for
+  * any structured extension type per the docs.  Returns non-zero on
+diff --git a/modules/ssl/ssl_private.h b/modules/ssl/ssl_private.h
+index a5ede6e..80e1e8e 100644
+--- a/modules/ssl/ssl_private.h
++++ b/modules/ssl/ssl_private.h
+@@ -974,6 +974,10 @@ void         ssl_var_log_config_register(apr_pool_t *p);
+  * allocating from 'p': */
+ void modssl_var_extract_dns(apr_table_t *t, SSL *ssl, apr_pool_t *p);
+ 
++/* Extract SSL_*_SAN_* variables (subjectAltName entries) into table 't'
++ * from SSL object 'ssl', allocating from 'p'. */
++void modssl_var_extract_san_entries(apr_table_t *t, SSL *ssl, apr_pool_t *p);
++
+ #ifndef OPENSSL_NO_OCSP
+ /* Perform OCSP validation of the current cert in the given context.
+  * Returns non-zero on success or zero on failure.  On failure, the
+diff --git a/modules/ssl/ssl_util_ssl.c b/modules/ssl/ssl_util_ssl.c
+index 588ceba..09a9877 100644
+--- a/modules/ssl/ssl_util_ssl.c
++++ b/modules/ssl/ssl_util_ssl.c
+@@ -236,22 +236,32 @@ BOOL SSL_X509_getBC(X509 *cert, int *ca, int *pathlen)
+     return TRUE;
+ }
+ 
+-/* convert a NAME_ENTRY to UTF8 string */
+-char *SSL_X509_NAME_ENTRY_to_string(apr_pool_t *p, X509_NAME_ENTRY *xsne)
++/* convert an ASN.1 string to a UTF-8 string (escaping control characters) */
++char *SSL_ASN1_STRING_to_utf8(apr_pool_t *p, ASN1_STRING *asn1str)
+ {
+     char *result = NULL;
+-    BIO* bio;
++    BIO *bio;
+     int len;
+ 
+     if ((bio = BIO_new(BIO_s_mem())) == NULL)
+         return NULL;
+-    ASN1_STRING_print_ex(bio, X509_NAME_ENTRY_get_data(xsne),
+-                         ASN1_STRFLGS_ESC_CTRL|ASN1_STRFLGS_UTF8_CONVERT);
++
++    ASN1_STRING_print_ex(bio, asn1str, ASN1_STRFLGS_ESC_CTRL|
++                                       ASN1_STRFLGS_UTF8_CONVERT);
+     len = BIO_pending(bio);
+-    result = apr_palloc(p, len+1);
+-    len = BIO_read(bio, result, len);
+-    result[len] = NUL;
++    if (len > 0) {
++        result = apr_palloc(p, len+1);
++        len = BIO_read(bio, result, len);
++        result[len] = NUL;
++    }
+     BIO_free(bio);
++    return result;
++}
++
++/* convert a NAME_ENTRY to UTF8 string */
++char *SSL_X509_NAME_ENTRY_to_string(apr_pool_t *p, X509_NAME_ENTRY *xsne)
++{
++    char *result = SSL_ASN1_STRING_to_utf8(p, X509_NAME_ENTRY_get_data(xsne));
+     ap_xlate_proto_from_ascii(result, len);
+     return result;
+ }
+@@ -288,51 +298,123 @@ char *SSL_X509_NAME_to_string(apr_pool_t *p, X509_NAME *dn, int maxlen)
+     return result;
+ }
+ 
+-/* return an array of (RFC 6125 coined) DNS-IDs and CN-IDs in a certificate */
+-BOOL SSL_X509_getIDs(apr_pool_t *p, X509 *x509, apr_array_header_t **ids)
++static void parse_otherName_value(apr_pool_t *p, ASN1_TYPE *value,
++                                  const char *onf, apr_array_header_t **entries)
++{
++    const char *str;
++    int nid = onf ? OBJ_txt2nid(onf) : NID_undef;
++
++    if (!value || (nid == NID_undef) || !*entries)
++       return;
++
++    /* 
++     * Currently supported otherName forms (values for "onf"):
++     * "msUPN" (1.3.6.1.4.1.311.20.2.3): Microsoft User Principal Name
++     * "id-on-dnsSRV" (1.3.6.1.5.5.7.8.7): SRVName, as specified in RFC 4985
++     */
++    if ((nid == NID_ms_upn) && (value->type == V_ASN1_UTF8STRING) &&
++        (str = SSL_ASN1_STRING_to_utf8(p, value->value.utf8string))) {
++        APR_ARRAY_PUSH(*entries, const char *) = str;
++    } else if (strEQ(onf, "id-on-dnsSRV") &&
++               (value->type == V_ASN1_IA5STRING) &&
++               (str = SSL_ASN1_STRING_to_utf8(p, value->value.ia5string))) {
++        APR_ARRAY_PUSH(*entries, const char *) = str;
++    }
++}
++
++/* 
++ * Return an array of subjectAltName entries of type "type". If idx is -1,
++ * return all entries of the given type, otherwise return an array consisting
++ * of the n-th occurrence of that type only. Currently supported types:
++ * GEN_EMAIL (rfc822Name)
++ * GEN_DNS (dNSName)
++ * GEN_OTHERNAME (requires the otherName form ["onf"] argument to be supplied,
++ *                see parse_otherName_value for the currently supported forms)
++ */
++BOOL SSL_X509_getSAN(apr_pool_t *p, X509 *x509, int type, const char *onf,
++                     int idx, apr_array_header_t **entries)
+ {
+     STACK_OF(GENERAL_NAME) *names;
+-    BIO *bio;
+-    X509_NAME *subj;
+-    char **cpp;
+-    int i, n;
++    int nid = onf ? OBJ_txt2nid(onf) : NID_undef;
+ 
+-    if (!x509 || !(*ids = apr_array_make(p, 0, sizeof(char *)))) {
+-        *ids = NULL;
++    if (!x509 || (type < GEN_OTHERNAME) ||
++        ((type == GEN_OTHERNAME) && (nid == NID_undef)) ||
++        (type > GEN_RID) || (idx < -1) ||
++        !(*entries = apr_array_make(p, 0, sizeof(char *)))) {
++        *entries = NULL;
+         return FALSE;
+     }
+ 
+-    /* First, the DNS-IDs (dNSName entries in the subjectAltName extension) */
+-    if ((names = X509_get_ext_d2i(x509, NID_subject_alt_name, NULL, NULL)) &&
+-        (bio = BIO_new(BIO_s_mem()))) {
++    if ((names = X509_get_ext_d2i(x509, NID_subject_alt_name, NULL, NULL))) {
++        int i, n = 0;
+         GENERAL_NAME *name;
++        const char *utf8str;
+ 
+         for (i = 0; i < sk_GENERAL_NAME_num(names); i++) {
+             name = sk_GENERAL_NAME_value(names, i);
+-            if (name->type == GEN_DNS) {
+-                ASN1_STRING_print_ex(bio, name->d.ia5, ASN1_STRFLGS_ESC_CTRL|
+-                                     ASN1_STRFLGS_UTF8_CONVERT);
+-                n = BIO_pending(bio);
+-                if (n > 0) {
+-                    cpp = (char **)apr_array_push(*ids);
+-                    *cpp = apr_palloc(p, n+1);
+-                    n = BIO_read(bio, *cpp, n);
+-                    (*cpp)[n] = NUL;
++
++            if (name->type != type)
++                continue;
++
++            switch (type) {
++            case GEN_EMAIL:
++            case GEN_DNS:
++                if (((idx == -1) || (n == idx)) &&
++                    (utf8str = SSL_ASN1_STRING_to_utf8(p, name->d.ia5))) {
++                    APR_ARRAY_PUSH(*entries, const char *) = utf8str;
++                }
++                n++;
++                break;
++            case GEN_OTHERNAME:
++                if (OBJ_obj2nid(name->d.otherName->type_id) == nid) {
++                    if (((idx == -1) || (n == idx))) {
++                        parse_otherName_value(p, name->d.otherName->value,
++                                              onf, entries);
++                    }
++                    n++;
+                 }
++                break;
++            default:
++                /*
++                 * Not implemented right now:
++                 * GEN_X400 (x400Address)
++                 * GEN_DIRNAME (directoryName)
++                 * GEN_EDIPARTY (ediPartyName)
++                 * GEN_URI (uniformResourceIdentifier)
++                 * GEN_IPADD (iPAddress)
++                 * GEN_RID (registeredID)
++                 */
++                break;
+             }
++
++            if ((idx != -1) && (n > idx))
++               break;
+         }
+-        BIO_free(bio);
+-    }
+ 
+-    if (names)
+         sk_GENERAL_NAME_pop_free(names, GENERAL_NAME_free);
++    }
++
++    return apr_is_empty_array(*entries) ? FALSE : TRUE;
++}
++
++/* return an array of (RFC 6125 coined) DNS-IDs and CN-IDs in a certificate */
++BOOL SSL_X509_getIDs(apr_pool_t *p, X509 *x509, apr_array_header_t **ids)
++{
++    X509_NAME *subj;
++    int i = -1;
++
++    /* First, the DNS-IDs (dNSName entries in the subjectAltName extension) */
++    if (!x509 ||
++        (SSL_X509_getSAN(p, x509, GEN_DNS, NULL, -1, ids) == FALSE && !*ids)) {
++        *ids = NULL;
++        return FALSE;
++    }
+ 
+     /* Second, the CN-IDs (commonName attributes in the subject DN) */
+     subj = X509_get_subject_name(x509);
+-    i = -1;
+     while ((i = X509_NAME_get_index_by_NID(subj, NID_commonName, i)) != -1) {
+-        cpp = (char **)apr_array_push(*ids);
+-        *cpp = SSL_X509_NAME_ENTRY_to_string(p, X509_NAME_get_entry(subj, i));
++        APR_ARRAY_PUSH(*ids, const char *) = 
++            SSL_X509_NAME_ENTRY_to_string(p, X509_NAME_get_entry(subj, i));
+     }
+ 
+     return apr_is_empty_array(*ids) ? FALSE : TRUE;
+diff --git a/modules/ssl/ssl_util_ssl.h b/modules/ssl/ssl_util_ssl.h
+index 4b882db..be07ab7 100644
+--- a/modules/ssl/ssl_util_ssl.h
++++ b/modules/ssl/ssl_util_ssl.h
+@@ -65,8 +65,10 @@ EVP_PKEY   *SSL_read_PrivateKey(char *, EVP_PKEY **, pem_password_cb *, void *);
+ int         SSL_smart_shutdown(SSL *ssl);
+ BOOL        SSL_X509_isSGC(X509 *);
+ BOOL        SSL_X509_getBC(X509 *, int *, int *);
++char       *SSL_ASN1_STRING_to_utf8(apr_pool_t *, ASN1_STRING *);
+ char       *SSL_X509_NAME_ENTRY_to_string(apr_pool_t *p, X509_NAME_ENTRY *xsne);
+ char       *SSL_X509_NAME_to_string(apr_pool_t *, X509_NAME *, int);
++BOOL        SSL_X509_getSAN(apr_pool_t *, X509 *, int, const char *, int, apr_array_header_t **);
+ BOOL        SSL_X509_getIDs(apr_pool_t *, X509 *, apr_array_header_t **);
+ BOOL        SSL_X509_match_name(apr_pool_t *, X509 *, const char *, BOOL, server_rec *);
+ BOOL        SSL_X509_INFO_load_file(apr_pool_t *, STACK_OF(X509_INFO) *, const char *);

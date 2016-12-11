@@ -1,0 +1,30 @@
+From c8973dcbf5048369f8e69bed23f4417cc0aba8cf Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Wed, 8 Jul 2015 15:52:42 +0200
+Subject: [PATCH] cli: do not notify root about Private Reports
+
+The root user already sees all detected problems.
+
+Related: #1224984
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/cli/abrt-cli.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cli/abrt-cli.c b/src/cli/abrt-cli.c
+index 2e9e155..360e475 100644
+--- a/src/cli/abrt-cli.c
++++ b/src/cli/abrt-cli.c
+@@ -149,7 +149,7 @@ int main(int argc, const char **argv)
+     {
+         if (g_cli_authenticate)
+             initialize_polkit_agent();
+-        else if (g_settings_privatereports)
++        else if (geteuid() != 0 && g_settings_privatereports)
+             log(_("Private Reports is enabled, use 'abrt-cli -a COMMAND' to get the detected problems."));
+ 
+         handle_internal_command(argc, argv, commands);
+-- 
+2.4.3
+

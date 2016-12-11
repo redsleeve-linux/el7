@@ -1,0 +1,74 @@
+From e62408838d08a962f1e1d6d8970b34ce1883a10c Mon Sep 17 00:00:00 2001
+From: Pavel Moravec <pmoravec@redhat.com>
+Date: Fri, 9 Sep 2016 09:21:23 +0200
+Subject: [PATCH 1/2] [reporting] replace six.PY2 to six.PY3 test
+
+Older versions of python-six package dont have six.PY2 variable.
+
+Replace it by six.PY3
+
+Resolves: #875.
+
+Signed-off-by: Pavel Moravec <pmoravec@redhat.com>
+---
+ sos/reporting.py | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/sos/reporting.py b/sos/reporting.py
+index 23a5005..679284e 100644
+--- a/sos/reporting.py
++++ b/sos/reporting.py
+@@ -149,10 +149,10 @@ class PlainTextReport(object):
+                                         header, format_)
+         output = u'\n'.join(map(lambda i: (i if isinstance(i, six.text_type)
+                                            else six.u(i)), buf))
+-        if six.PY2:
+-            return output.encode('utf8')
+-        else:
++        if six.PY3:
+             return output
++        else:
++            return output.encode('utf8')
+ 
+     def process_subsection(self, section, key, header, format_):
+         if key in section:
+-- 
+2.4.11
+
+From 04435b412f14f6d7eaf0d2138d9f8c84414a8e9a Mon Sep 17 00:00:00 2001
+From: Pavel Moravec <pmoravec@redhat.com>
+Date: Fri, 9 Sep 2016 09:23:14 +0200
+Subject: [PATCH 2/2] [networking] plugin tracebacks when net-tools not
+ installed
+
+Move netstat_pkg assignment grepping for net-tools version into try
+block.
+
+It can be put to the existing block that will catch the exception -
+since if net-tools isn't present, we fallback to the default option
+of netstat command (if the command is ever present).
+
+Resolves: #876.
+
+Signed-off-by: Pavel Moravec <pmoravec@redhat.com>
+---
+ sos/plugins/networking.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sos/plugins/networking.py b/sos/plugins/networking.py
+index 93b8860..1c98b75 100644
+--- a/sos/plugins/networking.py
++++ b/sos/plugins/networking.py
+@@ -322,8 +322,8 @@ class RedHatNetworking(Networking, RedHatPlugin):
+ 
+     def setup(self):
+         # Handle change from -T to -W in Red Hat netstat 2.0 and greater.
+-        netstat_pkg = self.policy().package_manager.all_pkgs()['net-tools']
+         try:
++            netstat_pkg = self.policy().package_manager.all_pkgs()['net-tools']
+             # major version
+             if int(netstat_pkg['version'][0]) < 2:
+                 self.ns_wide = "-T"
+-- 
+2.4.11
+

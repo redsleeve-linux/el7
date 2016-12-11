@@ -1,0 +1,57 @@
+From 92f6776a2d4d2c4a7239e3721acd2df46f6dd7da Mon Sep 17 00:00:00 2001
+From: Denys Vlasenko <dvlasenk@redhat.com>
+Date: Tue, 3 Dec 2013 12:19:27 +0100
+Subject: [ABRT PATCH 22/27] Add a manpage for
+ abrt-action-check-oops-for-hw-error
+
+Signed-off-by: Denys Vlasenko <dvlasenk@redhat.com>
+
+Related to rhbz#1032077
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ doc/abrt-action-check-oops-for-hw-error.txt | 32 +++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)
+ create mode 100644 doc/abrt-action-check-oops-for-hw-error.txt
+
+diff --git a/doc/abrt-action-check-oops-for-hw-error.txt b/doc/abrt-action-check-oops-for-hw-error.txt
+new file mode 100644
+index 0000000..c488e6f
+--- /dev/null
++++ b/doc/abrt-action-check-oops-for-hw-error.txt
+@@ -0,0 +1,32 @@
++abrt-action-check-oops-for-hw-error(1)
++======================================
++
++NAME
++----
++abrt-action-check-oops-for-hw-error - Checks dmesg element, marks problem as not-reportable
++if hardware error is detected
++
++SYNOPSIS
++--------
++'abrt-action-check-oops-for-hw-error'
++
++DESCRIPTION
++-----------
++The tool reads 'dmesg' element, and if it has a message which indicates hardware
++error, it creates 'not-reportable' and 'comment' elements which explain
++what this error is and how it can be diagnosed further.
++
++Integration with ABRT events
++~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++This tool can be used in event handling for kernel oopses. Example
++fragment for /etc/libreport/report_event.conf:
++
++------------
++# Determine in which package/component the crash happened (if not yet done):
++EVENT=post-create analyzer=Kerneloops
++        abrt-action-check-oops-for-hw-error
++------------
++
++AUTHORS
++-------
++* ABRT team
+-- 
+1.8.3.1
+

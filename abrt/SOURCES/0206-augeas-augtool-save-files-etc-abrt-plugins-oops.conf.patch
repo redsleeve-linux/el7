@@ -1,0 +1,36 @@
+From 6ddbf69d4b9e1e79f404b1e9ef6ade5511b0f758 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Thu, 24 Mar 2016 10:44:20 +0100
+Subject: [PATCH] augeas: augtool save
+ /files/etc/abrt/plugins/oops.conf/DropNotReportableOopses
+
+Without this commit it was not possible to seve
+/files/etc/abrt/plugins/oops.conf/DropNotReportableOopses.
+
+Related to rhbz#1175679
+
+- thanks to Dominic Cleal for the patch
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ augeas/abrt.aug | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/augeas/abrt.aug b/augeas/abrt.aug
+index 1f95b7f..6eadd3e 100644
+--- a/augeas/abrt.aug
++++ b/augeas/abrt.aug
+@@ -4,8 +4,10 @@ module Abrt =
+     let lns = Libreport.lns
+ 
+     let filter = (incl "/etc/abrt/*" )
++               . (excl "/etc/abrt/plugins")
+                . (incl "/etc/abrt/plugins/*")
+                . (incl "/usr/share/abrt/conf.d/*")
++               . (excl "/usr/share/abrt/conf.d/plugins")
+                . (incl "/usr/share/abrt/conf.d/plugins/*")
+                . Util.stdexcl
+ 
+-- 
+1.8.3.1
+

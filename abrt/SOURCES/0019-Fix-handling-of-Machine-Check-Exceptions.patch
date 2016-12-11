@@ -1,0 +1,198 @@
+From 744e4c6a6cbbb9ba0569bf8e3ab50171e974b2e3 Mon Sep 17 00:00:00 2001
+From: Denys Vlasenko <dvlasenk@redhat.com>
+Date: Mon, 6 Jan 2014 17:18:31 +0100
+Subject: [ABRT PATCH 19/27] Fix handling of Machine Check Exceptions.
+
+Closes #764.
+
+If non-fatal MCE is seen, abrt will detect it as an oops
+and alert user in a usual manner. When user opens this
+abrt problem for reporting, he will see that "comment"
+field is pre-filled with a text.
+What it says depends on whether mcelog tool is installed.
+If mcelog is installed, the text will say that hardware errors
+were detected, and will show the tail of either /var/log/mcelog
+or syslog.
+Otherwise the text will say that hardware errors
+were detected, but they can't be usefully diagnosed,
+and user is strongly advised to install mcelog tool.
+
+If fatal MCE is encountered, kernel always panics,
+(abrt has no chance of catching the oops),
+kdump kicks in, and then after reboot abrt says that new vmcore
+is found. When user generates backtrace, he will see oops text
+which starts with
+"Machine Check Exception: BANK nnn ..." and (hopefully)
+is already explanatory enough.
+
+(Yes, it's weird that kernel shows human-readable error messages
+on fatal MCEs but doesn't do that for non-fatal ones.
+This makes fetching MCE info significantly different...
+I wish kernel would show human-readable MCEs in both cases,
+we wouldn't need mcelog then... oh well.)
+
+In order to generate meaningful hash for MCE's,
+oops hashing was extended for oopses without backtraces.
+
+Since MCEs, unlike regular oopses, don't contain kernel version,
+additional magic is added to extract kernel version
+in vmcore event handling.
+
+Signed-off-by: Denys Vlasenko <dvlasenk@redhat.com>
+
+Related to rhbz#1032077
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/lib/kernel.c              | 31 +++++++++++++++++++++++++
+ src/plugins/koops_event.conf  | 54 +++++++++++++++++++++++++++++++++++++++++++
+ src/plugins/vmcore_event.conf | 18 ++++++++++++++-
+ 3 files changed, 102 insertions(+), 1 deletion(-)
+
+diff --git a/src/lib/kernel.c b/src/lib/kernel.c
+index ce8815b..340ec39 100644
+--- a/src/lib/kernel.c
++++ b/src/lib/kernel.c
+@@ -115,8 +115,29 @@ static const char *const s_koops_suspicious_strings[] = {
+      * arch/x86/kernel/cpu/mcheck/p5.c:		"CPU#%d: Machine Check Exception:  0x%8X (type 0x%8X).\n",
+      * arch/x86/kernel/cpu/mcheck/mce.c:	pr_emerg(HW_ERR "CPU %d: Machine Check Exception: %Lx Bank %d: %016Lx\n",
+      * drivers/edac/sb_edac.c:			printk("CPU %d: Machine Check Exception: %Lx Bank %d: %016Lx\n",
++     *
++     * MCEs can be fatal (they panic kernel) or not.
++     * Fatal MCE are delivered as exception#18 to the CPU.
++     * Non-fatal ones sometimes are delivered as exception#18;
++     * other times they are silently recorded in magic MSRs, CPU is not alerted.
++     * Linux kernel periodically (up to 5 mins interval) reads those MSRs
++     * and if MCE is seen there, it is piped in binary form through
++     * /dev/mcelog to whoever listens on it. (Such as mcelog tool in --daemon
++     * mode; but cat </dev/mcelog would do too).
++     *
++     * "Machine Check Exception:" message is printed *only*
++     * by fatal MCEs (so far, future kernels may be different).
++     * It will be caught as vmcore if kdump is configured.
++     *
++     * Non-fatal MCEs have "[Hardware Error]: Machine check events logged"
++     * message in kernel log.
++     * When /dev/mcelog is read, *no additional kernel log messages appear*:
++     * if we want more readable data, we must rely on other tools
++     * (such as mcelog daemon consuming binary /dev/mcelog and writing
++     * human-readable /var/log/mcelog).
+      */
+     "Machine Check Exception:",
++    "Machine check events logged",
+ 
+     /* X86 TRAPs */
+     "divide error:",
+@@ -299,6 +320,16 @@ next_line:
+             if (strcasestr(curline, "Call Trace:")) /* yes, it must be case-insensitive */
+                 inbacktrace = 1;
+             else
++            /* Fatal MCE's have a few lines of useful information between
++             * first "Machine check exception:" line and the final "Kernel panic"
++             * line. Such oops, of course, is only detectable in kdumps (tested)
++             * or possibly pstore-saved logs (I did not try this yet).
++             * In order to capture all these lines, we treat final line
++             * as "backtrace" (which is admittedly a hack):
++             */
++            if (strstr(curline, "Kernel panic - not syncing"))
++                inbacktrace = 1;
++            else
+             if (strnlen(curline, 9) > 8
+              && (  (curline[0] == '(' && curline[1] == '[' && curline[2] == '<')
+                 || (curline[0] == '[' && curline[1] == '<'))
+diff --git a/src/plugins/koops_event.conf b/src/plugins/koops_event.conf
+index c0277c8..7dfbe36 100644
+--- a/src/plugins/koops_event.conf
++++ b/src/plugins/koops_event.conf
+@@ -4,6 +4,60 @@ EVENT=post-create analyzer=Kerneloops
+         abrt-action-analyze-oops &&
+         dmesg >>dmesg &&
+         abrt-action-save-kernel-data
++        abrt-action-save-kernel-data || exit $?
++        #
++        # If it exists, we can save a copy of MCE log here:
++        #test -f /var/log/mcelog && cp /var/log/mcelog .
++        # but in current config, sosreport already does that.
++        #
++        # See if MCEs were seen but mcelog isn't installed or running
++        grep -qFi 'Machine check events logged' dmesg || exit 0
++        #
++        # There was an MCE. IOW: it's not a bug, it's a HW error.
++        # Did mcelog logged it to /var/log/mcelog
++        # (RHEL6 by default does this)?
++        test -f /var/log/mcelog &&
++        {
++                # (Ab)use user comment field to inform user about it.
++                echo "The kernel log indicates that hardware errors were detected."
++                echo "/var/log/mcelog file may have more information."
++                echo "The last 20 lines of /var/log/mcelog are:"
++                echo "========================================="
++                # Redirecting sterr in case selinux makes it unreadable
++                # (annoying anyway, but at least user knows what's going on):
++                tail -n20 /var/log/mcelog 2>&1
++                exit 0
++        } >comment
++        #
++        # On RHEL7, mcelog is run so that its output ends up in syslog.
++        # Do we see that?
++        grep -qFi 'mcelog: Hardware event' /var/log/messages &&
++        {
++                echo "The kernel log indicates that hardware errors were detected."
++                echo "System log may have more information."
++                echo "The last 20 mcelog lines of system log are:"
++                echo "========================================="
++                # Redirecting sterr in case selinux makes it unreadable
++                # (annoying anyway, but at least user knows what's going on):
++                grep -Fi 'mcelog:' /var/log/messages | tail -n20 2>&1
++                exit 0
++        } >comment
++        #
++        # Apparently, there is no running mcelog daemon!
++        # Let user know that he needs one.
++        {
++        echo "The kernel log indicates that hardware errors were detected."
++        echo "The data was saved by kernel for processing by the mcelog tool."
++        echo "However, neither /var/log/mcelog nor system log contain mcelog messages."
++        echo "Most likely reason is that mcelog is not installed or not configured"
++        echo "to be started during boot."
++        echo "Without this tool running, the binary data saved by kernel"
++        echo "is of limited usefulness."
++        echo "(You can save this data anyway by running 'cat </dev/mcelog >FILE')."
++        echo "The recommended course of action is to install mcelog."
++        echo "If another hardware error would occur, a user-readable description"
++        echo "of it will be saved in system log or /var/log/mcelog."
++        } >comment
+ 
+ # If you want behavior similar to one provided by kerneloops daemon
+ # distributed by kerneloops.org - that is, if you want
+diff --git a/src/plugins/vmcore_event.conf b/src/plugins/vmcore_event.conf
+index f8de3c5..655d842 100644
+--- a/src/plugins/vmcore_event.conf
++++ b/src/plugins/vmcore_event.conf
+@@ -1,6 +1,22 @@
+ # analyze
+ EVENT=analyze_VMcore analyzer=vmcore
+-        abrt-action-analyze-vmcore &&
++        # If kdump machinery already extracted dmesg...
++        if test -f vmcore-dmesg.txt; then
++            # ...use that
++            abrt-dump-oops -o vmcore-dmesg.txt >backtrace || exit $?
++            #
++            # Does "kernel" element exist?
++            test -f kernel && exit 0
++            #
++            # Try creating it from vmcore-dmesg.txt:
++            # MCE oopses don't have kernel version in them,
++            # but it should be specified earlier in the log.
++            k=`sed -n '/Linux version/ s/.*Linux version \([^ ]*\) .*/\1/p' vmcore-dmesg.txt | tail -n1`
++            test "$k" != "" && printf "%s" "$k" >kernel
++        else
++            # No vmcore-dmesg.txt, do it the hard way:
++            abrt-action-analyze-vmcore
++        fi &&
+         abrt-action-analyze-oops &&
+         abrt-action-save-kernel-data
+ 
+-- 
+1.8.3.1
+

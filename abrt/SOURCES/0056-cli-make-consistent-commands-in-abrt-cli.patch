@@ -1,0 +1,118 @@
+From fbcbd0e922e2c7efe62a584fbd76b36fbe0e2952 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Mon, 8 Sep 2014 13:27:56 +0200
+Subject: [ABRT PATCH 56/66] cli: make consistent commands in abrt-cli
+
+Add abbreviations to the client's parametres.
+
+Related to rhbz#1066501
+
+Conflicts:
+	src/cli/abrt-cli.c
+---
+ doc/abrt-cli.txt      |  2 +-
+ src/cli/abrt-cli.c    | 20 +++++++++++---------
+ src/cli/builtin-cmd.h |  2 +-
+ src/cli/rm.c          |  2 +-
+ 4 files changed, 14 insertions(+), 12 deletions(-)
+
+diff --git a/doc/abrt-cli.txt b/doc/abrt-cli.txt
+index 792e781..1c95655 100644
+--- a/doc/abrt-cli.txt
++++ b/doc/abrt-cli.txt
+@@ -9,7 +9,7 @@ SYNOPSIS
+ --------
+ 'abrt-cli' list   [-vdf] [DIR]...
+ 
+-'abrt-cli' rm     [-v]   DIR...
++'abrt-cli' remove [-v]   DIR...
+ 
+ 'abrt-cli' report [-v]   DIR...
+ 
+diff --git a/src/cli/abrt-cli.c b/src/cli/abrt-cli.c
+index a1ab7ec..c04c132 100644
+--- a/src/cli/abrt-cli.c
++++ b/src/cli/abrt-cli.c
+@@ -20,14 +20,15 @@
+ #include "libabrt.h"
+ #include "builtin-cmd.h"
+ 
+-#define USAGE_OPTS_WIDTH 12
++#define USAGE_OPTS_WIDTH 16
+ #define USAGE_GAP         2
+ 
+ /* TODO: add --pager(default) and --no-pager */
+ 
+-#define CMD(NAME, help) { #NAME, cmd_##NAME , (help) }
++#define CMD(NAME, ABBREV, help) { #NAME, ABBREV, cmd_##NAME , (help) }
+ struct cmd_struct {
+     const char *cmd;
++    const char *abbrev;
+     int (*fn)(int, const char **);
+     const char *help;
+ };
+@@ -41,6 +42,7 @@ static void list_cmds_help(const struct cmd_struct *commands)
+ 
+         pos = fprintf(stderr, "    ");
+         pos += fprintf(stderr, "%s", p->cmd);
++        pos += fprintf(stderr, ", %s", p->abbrev);
+ 
+         if (pos <= USAGE_OPTS_WIDTH)
+             pad = USAGE_OPTS_WIDTH - pos;
+@@ -110,7 +112,7 @@ static void handle_internal_command(int argc, const char **argv,
+ 
+     for (const struct cmd_struct *p = commands; p->cmd; ++p)
+     {
+-        if (strcmp(p->cmd, cmd) != 0)
++        if (strcmp(p->cmd, cmd) != 0 && strcmp(p->abbrev, cmd) != 0)
+             continue;
+ 
+         exit(p->fn(argc, argv));
+@@ -143,12 +145,12 @@ int main(int argc, const char **argv)
+         );
+ 
+     const struct cmd_struct commands[] = {
+-        CMD(list, _("List not yet reported problems [in DIRs]")),
+-        CMD(rm, _("Remove problem directory DIR")),
+-        CMD(report, _("Analyze and report problem data in DIR")),
+-        CMD(info, _("Print information about DIR")),
+-        CMD(status, _("Print the count of the recent crashes")),
+-        {NULL, NULL, NULL}
++        CMD(list, "ls", _("List problems [in DIRs]")),
++        CMD(remove, "rm", _("Remove problem directory DIR")),
++        CMD(report, "e",_("Analyze and report problem data in DIR")),
++        CMD(info, "i", _("Print information about DIR")),
++        CMD(status, "st",_("Print the count of the recent crashes")),
++        {NULL, NULL, NULL, NULL}
+     };
+ 
+     migrate_to_xdg_dirs();
+diff --git a/src/cli/builtin-cmd.h b/src/cli/builtin-cmd.h
+index 491760b..18588e1 100644
+--- a/src/cli/builtin-cmd.h
++++ b/src/cli/builtin-cmd.h
+@@ -21,7 +21,7 @@
+ #define _BUILTIN_CMD_H_
+ 
+ extern int cmd_list(int argc, const char **argv);
+-extern int cmd_rm(int argc, const char **argv);
++extern int cmd_remove(int argc, const char **argv);
+ extern int cmd_report(int argc, const char **argv);
+ extern int cmd_info(int argc, const char **argv);
+ extern int cmd_status(int argc, const char **argv);
+diff --git a/src/cli/rm.c b/src/cli/rm.c
+index 8f185a4..fe458ff 100644
+--- a/src/cli/rm.c
++++ b/src/cli/rm.c
+@@ -25,7 +25,7 @@
+  *   add -q, --quite
+  */
+ 
+-int cmd_rm(int argc, const char **argv)
++int cmd_remove(int argc, const char **argv)
+ {
+     const char *program_usage_string = _(
+         "& rm [options] DIR..."
+-- 
+1.8.3.1
+

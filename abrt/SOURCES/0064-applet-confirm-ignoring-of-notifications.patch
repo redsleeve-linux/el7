@@ -1,0 +1,58 @@
+From ba356330db1c797ac050b6229f75474aed39faa7 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Wed, 1 Oct 2014 17:14:50 +0200
+Subject: [ABRT PATCH 64/66] applet: confirm ignoring of notifications
+
+and fix a bug in abrt-action-notify
+
+Resolves #1084031
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/applet/applet.c            | 16 +++++++++++++---
+ src/plugins/abrt-action-notify |  2 +-
+ 2 files changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/src/applet/applet.c b/src/applet/applet.c
+index b1ce400..a40f877 100644
+--- a/src/applet/applet.c
++++ b/src/applet/applet.c
+@@ -666,9 +666,19 @@ static void action_ignore(NotifyNotification *notification, gchar *action, gpoin
+ {
+     problem_info_t *pi = (problem_info_t *)user_data;
+ 
+-    log_debug("Ignoring problem '%s'", problem_info_get_dir(pi));
+-
+-    ignored_problems_add_problem_data(g_ignore_set, pi->problem_data);
++    const char *const message = _(
++            "You are going to mute notifications of a particular problem. " \
++            "You will never see a notification bubble for this problem again, " \
++            "however, ABRT will be detecting it and you will be able " \
++            "to report it from ABRT GUI." \
++            "\n\n" \
++            "Do you want to continue?");
++
++    if (run_ask_yes_no_yesforever_dialog("AskIgnoreForever", message, NULL))
++    {
++        log_debug("Ignoring problem '%s'", problem_info_get_dir(pi));
++        ignored_problems_add_problem_data(g_ignore_set, pi->problem_data);
++    }
+ 
+     GError *err = NULL;
+     notify_notification_close(notification, &err);
+diff --git a/src/plugins/abrt-action-notify b/src/plugins/abrt-action-notify
+index cbabf74..8b8f38e 100644
+--- a/src/plugins/abrt-action-notify
++++ b/src/plugins/abrt-action-notify
+@@ -99,7 +99,7 @@ def emit_crash_dbus_signal(problem_data):
+         # member is a Boolean flag which is True if the element is required
+         arguments = ((FILENAME_PACKAGE, True), (CD_DUMPDIR, True),
+                 (FILENAME_UID, False), (FILENAME_UUID, False),
+-                (FILENAME_PACKAGE, False))
++                (FILENAME_DUPHASH, False))
+ 
+         for elem in arguments:
+             itm = problem_data.get(elem[0])
+-- 
+1.8.3.1
+

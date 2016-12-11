@@ -1,0 +1,55 @@
+From 66abae485c6028345f21e80803e093a4dda292b3 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Wed, 30 Jul 2014 13:46:57 +0200
+Subject: [LIBREPORT PATCH 50/93] gui: don't remove already removed
+ GTimeoutSource
+
+Was causing a GLib warning
+
+Related to rhbz#1069917
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/gui-wizard-gtk/wizard.c | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/gui-wizard-gtk/wizard.c b/src/gui-wizard-gtk/wizard.c
+index 3dcc756..492feed 100644
+--- a/src/gui-wizard-gtk/wizard.c
++++ b/src/gui-wizard-gtk/wizard.c
+@@ -2911,17 +2911,20 @@ static void on_sensitive_word_selection_changed(GtkTreeSelection *sel, gpointer
+     gtk_text_view_scroll_to_iter(new_word->tev, &(new_word->start), 0.0, false, 0, 0);
+ }
+ 
+-static gboolean highlight_search(gpointer user_data)
++static void highlight_search(GtkEntry *entry)
+ {
+-    GtkEntry *entry = GTK_ENTRY(user_data);
+-
+     g_search_text = gtk_entry_get_text(entry);
+ 
+     log_notice("searching: '%s'", g_search_text);
+     GList *words = g_list_append(NULL, (gpointer)g_search_text);
+     highligh_words_in_tabs(words, NULL);
+     g_list_free(words);
++}
+ 
++static gboolean highlight_search_on_timeout(gpointer user_data)
++{
++    g_timeout = 0;
++    highlight_search(GTK_ENTRY(user_data));
+     /* returning false will make glib to remove this event */
+     return false;
+ }
+@@ -2935,7 +2938,7 @@ static void search_timeout(GtkEntry *entry)
+      */
+     if (g_timeout != 0)
+         g_source_remove(g_timeout);
+-    g_timeout = g_timeout_add(500, &highlight_search, (gpointer)entry);
++    g_timeout = g_timeout_add(500, &highlight_search_on_timeout, (gpointer)entry);
+ }
+ 
+ static void on_forbidden_words_toggled(GtkToggleButton *btn, gpointer user_data)
+-- 
+1.8.3.1
+

@@ -1,0 +1,26 @@
+From 90583212efbb3655c021be1c8be29c00c20603fc Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Thu, 9 Jan 2014 15:53:11 +0100
+Subject: [LIBREPORT PATCH 6/6] make: add libreport workflow fedora to dist
+ files
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/workflows/Makefile.am | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/workflows/Makefile.am b/src/workflows/Makefile.am
+index 54a504e..4a8fb82 100644
+--- a/src/workflows/Makefile.am
++++ b/src/workflows/Makefile.am
+@@ -6,6 +6,7 @@ dist_workflows_DATA = \
+     workflow_FedoraPython.xml \
+     workflow_FedoraVmcore.xml \
+     workflow_FedoraXorg.xml \
++    workflow_FedoraLibreport.xml \
+     workflow_Upload.xml \
+     workflow_RHELCCpp.xml \
+     workflow_RHELKerneloops.xml \
+-- 
+1.8.3.1
+

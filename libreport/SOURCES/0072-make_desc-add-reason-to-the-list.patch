@@ -1,0 +1,66 @@
+From 602457c6b4de8d4147bea2ab2264b360f7807636 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Tue, 16 Sep 2014 05:30:28 +0200
+Subject: [LIBREPORT PATCH 72/93] make_desc: add reason to the list
+
+Add reason in format "crash-function: reason". Add hostname to the uid line and
+add cmdline. Remove executable line.
+
+Related to rhbz#1067440
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/lib/make_descr.c   | 20 +++++++++++++++++++-
+ src/lib/problem_data.c |  3 ++-
+ 2 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib/make_descr.c b/src/lib/make_descr.c
+index dcf517e..2bcbebd 100644
+--- a/src/lib/make_descr.c
++++ b/src/lib/make_descr.c
+@@ -119,7 +119,25 @@ char *make_description(problem_data_t *problem_data, char **names_to_skip,
+             char *output = formatted ? formatted : item->content;
+             int pad = 16 - (strlen(key) + 2);
+             if (pad < 0) pad = 0;
+-            strbuf_append_strf(buf_dsc, "%s: %*s%s\n", key, pad, "", output);
++            bool done = false;
++            if (strcmp(FILENAME_REASON, key) == 0)
++            {
++                const char *crash_func = problem_data_get_content_or_NULL(problem_data,
++                                                                          FILENAME_CRASH_FUNCTION);
++                if((done = (bool)crash_func))
++                    strbuf_append_strf(buf_dsc, "%s: %*s%s(): %s\n", key, pad, "", crash_func, output);
++            }
++            else if (strcmp(FILENAME_UID, key) == 0)
++            {
++                const char *username = problem_data_get_content_or_NULL(problem_data,
++                                                                          FILENAME_USERNAME);
++                if((done = (bool)username))
++                    strbuf_append_strf(buf_dsc, "%s: %*s%s (%s)\n", key, pad, "", output, username);
++            }
++
++            if (!done)
++                strbuf_append_strf(buf_dsc, "%s: %*s%s\n", key, pad, "", output);
++
+             empty = false;
+             free(formatted);
+         }
+diff --git a/src/lib/problem_data.c b/src/lib/problem_data.c
+index 18d9541..fc07288 100644
+--- a/src/lib/problem_data.c
++++ b/src/lib/problem_data.c
+@@ -450,9 +450,10 @@ void problem_data_load_from_dump_dir(problem_data_t *problem_data, struct dump_d
+         static const char *const list_files[] = {
+             FILENAME_UID       ,
+             FILENAME_PACKAGE   ,
+-            FILENAME_EXECUTABLE,
++            FILENAME_CMDLINE   ,
+             FILENAME_TIME      ,
+             FILENAME_COUNT     ,
++            FILENAME_REASON    ,
+             NULL
+         };
+         if (is_in_string_list(short_name, (char**)list_files))
+-- 
+1.8.3.1
+

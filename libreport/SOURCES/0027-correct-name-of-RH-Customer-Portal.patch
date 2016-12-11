@@ -1,0 +1,27 @@
+From 5d0bec1382b450d6fbdc2eea10635ae3ddbd8934 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Fri, 21 Feb 2014 13:42:15 +0100
+Subject: [LIBREPORT PATCH 27/33] correct name of RH Customer Portal
+
+Closes rhbz#1064961
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/workflows/workflow_AnacondaRHEL.xml.in | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/workflows/workflow_AnacondaRHEL.xml.in b/src/workflows/workflow_AnacondaRHEL.xml.in
+index 6d401ff..4400546 100644
+--- a/src/workflows/workflow_AnacondaRHEL.xml.in
++++ b/src/workflows/workflow_AnacondaRHEL.xml.in
+@@ -1,6 +1,6 @@
+ <?xml version="1.0" encoding="UTF-8" ?>
+ <workflow>
+-    <_name>Report a bug to Red Hat Support Tool</_name>
++    <_name>Report a bug to Red Hat Customer Portal</_name>
+     <_description>Process the report using the Red Hat infrastructure</_description>
+ 
+     <events>
+-- 
+1.8.3.1
+

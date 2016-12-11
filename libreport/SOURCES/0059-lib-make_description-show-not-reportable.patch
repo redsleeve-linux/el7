@@ -1,0 +1,79 @@
+From 2c4f3128fe66634f0239e307ed686f87340f0655 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <matejhabrnal@gmail.com>
+Date: Thu, 4 Sep 2014 05:27:42 -0400
+Subject: [LIBREPORT PATCH 59/93] lib: make_description show not-reportable
+
+When the flag from desc_flags is set to MAKEDESC_SHOW_URLS and problem is
+not-reportable. The abrt-cli shows not-reportable in listing.
+
+Resolves: rhbz#1066520
+---
+ src/lib/make_descr.c | 45 +++++++++++++++++++++++++--------------------
+ 1 file changed, 25 insertions(+), 20 deletions(-)
+
+diff --git a/src/lib/make_descr.c b/src/lib/make_descr.c
+index d183ac1..7f5c10b 100644
+--- a/src/lib/make_descr.c
++++ b/src/lib/make_descr.c
+@@ -101,33 +101,38 @@ char *make_description(problem_data_t *problem_data, char **names_to_skip,
+ 
+     if (desc_flags & MAKEDESC_SHOW_URLS)
+     {
+-        const char *reported_to = problem_data_get_content_or_NULL(problem_data, FILENAME_REPORTED_TO);
+-        if (reported_to != NULL)
++        if (problem_data_get_content_or_NULL(problem_data, FILENAME_NOT_REPORTABLE) != NULL)
++            strbuf_append_strf(buf_dsc, "%s%*s%s\n", _("Reported:"), 16 - strlen(_("Reported:")), "" , _("cannot be reported"));
++        else
+         {
+-            GList *reports = read_entire_reported_to_data(reported_to);
+-
+-            /* The value part begins on 17th column */
+-            /*                        0123456789ABCDEF*/
+-            const char *pad_prefix = "                ";
+-            char *first_prefix = xasprintf("%s%*s", _("Reported:"), 16 - strlen(_("Reported:")), "");
+-            const char *prefix     = first_prefix;
+-            for (GList *iter = reports; iter != NULL; iter = g_list_next(iter))
++            const char *reported_to = problem_data_get_content_or_NULL(problem_data, FILENAME_REPORTED_TO);
++            if (reported_to != NULL)
+             {
+-                const report_result_t *const report = (report_result_t *)iter->data;
++                GList *reports = read_entire_reported_to_data(reported_to);
++
++                /* The value part begins on 17th column */
++                /*                        0123456789ABCDEF*/
++                const char *pad_prefix = "                ";
++                char *first_prefix = xasprintf("%s%*s", _("Reported:"), 16 - strlen(_("Reported:")), "");
++                const char *prefix     = first_prefix;
++                for (GList *iter = reports; iter != NULL; iter = g_list_next(iter))
++                {
++                    const report_result_t *const report = (report_result_t *)iter->data;
+ 
+-                if (report->url == NULL)
+-                    continue;
++                    if (report->url == NULL)
++                        continue;
+ 
+-                strbuf_append_strf(buf_dsc, "%s%s\n", prefix, report->url);
++                    strbuf_append_strf(buf_dsc, "%s%s\n", prefix, report->url);
+ 
+-                if (prefix == first_prefix)
+-                {   /* Only the first URL is prefixed by 'Reported:' */
+-                    empty = false;
+-                    prefix = pad_prefix;
++                    if (prefix == first_prefix)
++                    {   /* Only the first URL is prefixed by 'Reported:' */
++                        empty = false;
++                        prefix = pad_prefix;
++                    }
+                 }
++                free(first_prefix);
++                g_list_free_full(reports, (GDestroyNotify)free_report_result);
+             }
+-            free(first_prefix);
+-            g_list_free_full(reports, (GDestroyNotify)free_report_result);
+         }
+     }
+ 
+-- 
+1.8.3.1
+

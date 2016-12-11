@@ -1,0 +1,47 @@
+From f99278d0e37174039047120347c66069baaa46cb Mon Sep 17 00:00:00 2001
+From: Richard Marko <rmarko@fedoraproject.org>
+Date: Thu, 16 Jul 2015 16:14:37 +0200
+Subject: [PATCH] disable CreateCoreBacktrace by default
+
+---
+ doc/abrt-CCpp.conf.txt | 6 ++----
+ src/hooks/CCpp.conf    | 6 ++----
+ 2 files changed, 4 insertions(+), 8 deletions(-)
+
+diff --git a/doc/abrt-CCpp.conf.txt b/doc/abrt-CCpp.conf.txt
+index 498d53d..f8085d6 100644
+--- a/doc/abrt-CCpp.conf.txt
++++ b/doc/abrt-CCpp.conf.txt
+@@ -22,10 +22,8 @@ SaveBinaryImage = 'yes' / 'no' ...::
+ CreateCoreBacktrace = 'yes' / 'no' ...::
+    When this option is set to 'yes', core backtrace is generated
+    from the memory image of the crashing process. Only the crash
+-   thread is present in the backtrace. This feature requires
+-   kernel 3.18 or newer, otherwise the core backtrace is not
+-   created.
+-   Default is 'yes'.
++   thread is present in the backtrace.
++   Default is 'no'.
+ 
+ SaveFullCore = 'yes' / 'no' ...::
+    Save full coredump? If set to 'no', coredump won't be saved
+diff --git a/src/hooks/CCpp.conf b/src/hooks/CCpp.conf
+index b1a0a22..d2f8adb 100644
+--- a/src/hooks/CCpp.conf
++++ b/src/hooks/CCpp.conf
+@@ -10,10 +10,8 @@ SaveBinaryImage = no
+ 
+ # When this option is set to 'yes', core backtrace is generated
+ # from the memory image of the crashing process. Only the crash
+-# thread is present in the backtrace. This feature requires
+-# kernel 3.18 or newer, otherwise the core backtrace is not
+-# created.
+-CreateCoreBacktrace = yes
++# thread is present in the backtrace.
++CreateCoreBacktrace = no
+ 
+ # Save full coredump? If set to 'no', coredump won't be saved
+ # and you won't be able to report the crash to Bugzilla. Only
+-- 
+2.4.3
+

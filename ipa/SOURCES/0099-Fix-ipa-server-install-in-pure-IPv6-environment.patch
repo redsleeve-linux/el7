@@ -1,0 +1,34 @@
+From 2dab553e06ce7b01a285c9d80866a6efa80d254d Mon Sep 17 00:00:00 2001
+From: Tomas Krizek <tkrizek@redhat.com>
+Date: Fri, 19 Aug 2016 12:16:54 +0200
+Subject: [PATCH] Fix ipa-server-install in pure IPv6 environment
+
+Installation in pure IPv6 environment failed because pki-tomcat tried to use
+IPv4 loopback. Configuring tomcat to use IPv6 loopback instead of IPv4 fixes
+this issue.
+
+https://fedorahosted.org/freeipa/ticket/4291
+
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+---
+ ipaserver/install/cainstance.py | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/ipaserver/install/cainstance.py b/ipaserver/install/cainstance.py
+index 070498fe8a394802ea55f848a268e2b6563ec472..e94fec5f6fd898b66dc12407be6e3f671ac3f4de 100644
+--- a/ipaserver/install/cainstance.py
++++ b/ipaserver/install/cainstance.py
+@@ -577,6 +577,10 @@ class CAInstance(DogtagInstance):
+             config.set("CA", "pki_external_ca_cert_chain_path", cert_chain_file.name)
+             config.set("CA", "pki_external_step_two", "True")
+ 
++        # PKI IPv6 Configuration
++        config.add_section("Tomcat")
++        config.set("Tomcat", "pki_ajp_host", "::1")
++
+         # Generate configuration file
+         with open(cfg_file, "wb") as f:
+             config.write(f)
+-- 
+2.7.4
+

@@ -1,0 +1,44 @@
+From b257656e599e785164bbc5e72706a02f925ff942 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Wed, 8 Jan 2014 20:39:09 +0100
+Subject: [ABRT PATCH 2/6] remove abrt-bodhi from configuration
+
+Related to rhbz#1038923
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/plugins/ccpp_event.conf         | 2 +-
+ src/plugins/ccpp_retrace_event.conf | 8 +-------
+ 2 files changed, 2 insertions(+), 8 deletions(-)
+
+diff --git a/src/plugins/ccpp_event.conf b/src/plugins/ccpp_event.conf
+index 9fbe760..79b9a8a 100644
+--- a/src/plugins/ccpp_event.conf
++++ b/src/plugins/ccpp_event.conf
+@@ -70,7 +70,7 @@ EVENT=collect_xsession_errors analyzer=CCpp dso_list~=.*/libX11.*
+ # TODO: can we still specify additional directories to search for debuginfos,
+ # or was this ability lost with move to python installer?
+ EVENT=analyze_LocalGDB analyzer=CCpp
+-        abrt-action-analyze-ccpp-local
++        abrt-action-analyze-ccpp-local --without-bodhi
+ 
+ 
+ # Bugzilla requires nonempty duphash
+diff --git a/src/plugins/ccpp_retrace_event.conf b/src/plugins/ccpp_retrace_event.conf
+index 60e53d7..893502f 100644
+--- a/src/plugins/ccpp_retrace_event.conf
++++ b/src/plugins/ccpp_retrace_event.conf
+@@ -1,9 +1,3 @@
+ EVENT=analyze_RetraceServer analyzer=CCpp
+         abrt-retrace-client batch --dir "$DUMP_DIR" --status-delay 10 &&
+-        abrt-action-analyze-backtrace &&
+-        (
+-            bug_id=$(reporter-bugzilla -h `cat duphash`) &&
+-            if test -n "$bug_id"; then
+-                abrt-bodhi -r -b $bug_id
+-            fi
+-        )
++        abrt-action-analyze-backtrace
+-- 
+1.8.3.1
+

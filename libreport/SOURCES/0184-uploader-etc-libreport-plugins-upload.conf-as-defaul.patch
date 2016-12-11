@@ -1,0 +1,46 @@
+From 8d19dea8d110d52f3df475b37fac5c26f3c7387d Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Mon, 21 Mar 2016 13:55:42 +0100
+Subject: [PATCH] uploader: /etc/libreport/plugins/upload.conf as default conf
+ file
+
+Due to the possibility to configure SSH keys we added a default configuration
+file as well. Users can define SSH keys as well as URL where dump dirs are
+going to be uploaded.
+
+Related to rhbz#1289513
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/plugins/Makefile.am       | 1 +
+ src/plugins/reporter-upload.c | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/plugins/Makefile.am b/src/plugins/Makefile.am
+index 59fc440..01eec3a 100644
+--- a/src/plugins/Makefile.am
++++ b/src/plugins/Makefile.am
+@@ -160,6 +160,7 @@ reporter_upload_CPPFLAGS = \
+     -I$(srcdir)/../lib \
+     -DBIN_DIR=\"$(bindir)\" \
+     -DLOCALSTATEDIR='"$(localstatedir)"' \
++    -DCONF_DIR=\"$(CONF_DIR)\" \
+     -DDEBUG_DUMPS_DIR=\"$(DEBUG_DUMPS_DIR)\" \
+     -DDEBUG_INFO_DIR=\"$(DEBUG_INFO_DIR)\" \
+     -DPLUGINS_LIB_DIR=\"$(PLUGINS_LIB_DIR)\" \
+diff --git a/src/plugins/reporter-upload.c b/src/plugins/reporter-upload.c
+index 36509fb..7b925c8 100644
+--- a/src/plugins/reporter-upload.c
++++ b/src/plugins/reporter-upload.c
+@@ -149,7 +149,7 @@ int main(int argc, char **argv)
+ #endif
+ 
+     const char *dump_dir_name = ".";
+-    const char *conf_file = NULL;
++    const char *conf_file = CONF_DIR"/plugins/upload.conf";
+     const char *url = NULL;
+     const char *ssh_public_key = NULL;
+     const char *ssh_private_key = NULL;
+-- 
+1.8.3.1
+

@@ -1,0 +1,16 @@
+# ./pullrev.sh 1560093
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1331341
+
+http://svn.apache.org/viewvc?view=revision&revision=1560093
+
+--- httpd-2.4.6/modules/cache/mod_cache.c
++++ httpd-2.4.6/modules/cache/mod_cache.c
+@@ -1130,7 +1130,6 @@
+                         "Content-Range")))
+                 || ((reason = cache_header_cmp(r->pool, left, right,
+                         "Content-Type")))
+-                || ((reason = cache_header_cmp(r->pool, left, right, "Expires")))
+                 || ((reason = cache_header_cmp(r->pool, left, right, "ETag")))
+                 || ((reason = cache_header_cmp(r->pool, left, right,
+                         "Last-Modified")))) {

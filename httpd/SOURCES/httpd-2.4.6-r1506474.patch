@@ -1,0 +1,13 @@
+--- a/server/core.c	2013/07/24 09:49:38	1506473
++++ b/server/core.c	2013/07/24 09:51:14	1506474
+@@ -1481,7 +1481,9 @@
+             conf->ap_document_root = arg;
+         }
+         else {
+-            return "DocumentRoot must be a directory";
++            return apr_psprintf(cmd->pool, 
++                                "DocumentRoot '%s' is not a directory, or is not readable",
++                                arg);
+         }
+     }
+     return NULL;

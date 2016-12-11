@@ -1,0 +1,61 @@
+From 19a0816a032b7fdc5243a358ee77376d988b2dfd Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Fri, 27 Jun 2014 14:46:39 +0200
+Subject: [ABRT PATCH 62/66] applet: chown each notified problem before
+ reporting it
+
+Not chowing all directories leads to stealing of koops problems and dump
+dir stealing is obsolete because:
+  - stolen directories are omitted in local duplicates search
+  - root cannot seen those directories
+
+Kernel oops problems are not problems of another user, they are rather
+system problems. Koops problems are readable by all users but are not
+writable. Fortunately koops directories can be chowned by all users
+without providing any credentials.
+
+Resolves #1084027
+
+Chowing problem directories runs in abrt-dbus which shows an
+authorization dialogue.
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/applet/applet.c | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/src/applet/applet.c b/src/applet/applet.c
+index 6ce400f..b1ce400 100644
+--- a/src/applet/applet.c
++++ b/src/applet/applet.c
+@@ -1164,17 +1164,18 @@ static void export_event_configuration(const char *event_name)
+ 
+ static void run_event_async(problem_info_t *pi, const char *event_name, int flags)
+ {
+-    if (pi->foreign)
++    /* chown the directory in any case, because kernel oopses are not foreign */
++    /* but their dump directories are not writable without chowning them or */
++    /* stealing them. The stealing is deprecated as it breaks the local */
++    /* duplicate search and root cannot see them */
++    const int res = chown_dir_over_dbus(problem_info_get_dir(pi));
++    if (pi->foreign && res != 0)
+     {
+-        int res = chown_dir_over_dbus(problem_info_get_dir(pi));
+-        if (res != 0)
+-        {
+-            error_msg(_("Can't take ownership of '%s'"), problem_info_get_dir(pi));
+-            problem_info_free(pi);
+-            return;
+-        }
+-        pi->foreign = false;
++        error_msg(_("Can't take ownership of '%s'"), problem_info_get_dir(pi));
++        problem_info_free(pi);
++        return;
+     }
++    pi->foreign = false;
+ 
+     struct dump_dir *dd = open_directory_for_writing(problem_info_get_dir(pi), /* don't ask */ NULL);
+     if (!dd)
+-- 
+1.8.3.1
+

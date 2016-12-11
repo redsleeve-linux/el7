@@ -1,0 +1,69 @@
+From f7d3a49f3cf88b5950b11a19785794348d072c20 Mon Sep 17 00:00:00 2001
+From: Christian Heimes <cheimes@redhat.com>
+Date: Mon, 8 Aug 2016 15:05:52 +0200
+Subject: [PATCH] Secure permissions of Custodia server.keys
+
+Custodia's server.keys file contain the private RSA keys for encrypting
+and signing Custodia messages. The file was created with permission 644
+and is only secured by permission 700 of the directory
+/etc/ipa/custodia. The installer and upgrader ensure that the file
+has 600.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1353936
+https://fedorahosted.org/freeipa/ticket/6056
+
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+---
+ ipapython/secrets/kem.py              | 5 ++++-
+ ipaserver/install/custodiainstance.py | 5 +++++
+ 2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/ipapython/secrets/kem.py b/ipapython/secrets/kem.py
+index d45efe8cc4fb63ae9d8c0b2c920fd1f9e5331a9d..fb51e64a678bbdec45d690a5223bd61f84ef770e 100644
+--- a/ipapython/secrets/kem.py
++++ b/ipapython/secrets/kem.py
+@@ -1,6 +1,7 @@
+ # Copyright (C) 2015  IPA Project Contributors, see COPYING for license
+ 
+ from __future__ import print_function
++import os
+ from ipaplatform.paths import paths
+ from six.moves.configparser import ConfigParser
+ from ipapython.dn import DN
+@@ -143,7 +144,9 @@ class KEMLdap(iSecLdap):
+ def newServerKeys(path, keyid):
+     skey = JWK(generate='RSA', use='sig', kid=keyid)
+     ekey = JWK(generate='RSA', use='enc', kid=keyid)
+-    with open(path, 'w+') as f:
++    with open(path, 'w') as f:
++        os.fchmod(f.fileno(), 0o600)
++        os.fchown(f.fileno(), 0, 0)
+         f.write('[%s,%s]' % (skey.export(), ekey.export()))
+     return [skey.get_op_key('verify'), ekey.get_op_key('encrypt')]
+ 
+diff --git a/ipaserver/install/custodiainstance.py b/ipaserver/install/custodiainstance.py
+index fd30430bbf9c39e7153986999199474cfca60d09..785f86fc159f2d73184ea5bb3c0303cecde153df 100644
+--- a/ipaserver/install/custodiainstance.py
++++ b/ipaserver/install/custodiainstance.py
+@@ -15,6 +15,7 @@ from jwcrypto.common import json_decode
+ import functools
+ import shutil
+ import os
++import stat
+ import tempfile
+ import pwd
+ 
+@@ -73,6 +74,10 @@ class CustodiaInstance(SimpleServiceInstance):
+         if not sysupgrade.get_upgrade_state("custodia", "installed"):
+             root_logger.info("Custodia service is being configured")
+             self.create_instance()
++        mode = os.stat(self.server_keys).st_mode
++        if stat.S_IMODE(mode) != 0o600:
++            root_logger.info("Secure server.keys mode")
++            os.chmod(self.server_keys, 0o600)
+ 
+     def create_replica(self, master_host_name):
+         suffix = ipautil.realm_to_suffix(self.realm)
+-- 
+2.7.4
+

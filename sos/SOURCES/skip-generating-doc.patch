@@ -1,0 +1,25 @@
+diff -rup a/Makefile b/Makefile
+--- a/Makefile	2016-06-29 20:24:47.000000000 +0200
++++ b/Makefile	2016-06-30 11:10:15.471685702 +0200
+@@ -9,7 +9,7 @@ MINOR   := $(shell echo $(VERSION) | cut
+ RELEASE := $(shell echo `awk '/^Release:/ {gsub(/\%.*/,""); print $2}' sos.spec`)
+ REPO = https://github.com/sosreport/sos
+ 
+-SUBDIRS = po sos sos/plugins sos/policies docs
++SUBDIRS = po sos sos/plugins sos/policies #docs
+ PYFILES = $(wildcard *.py)
+ # OS X via brew
+ # MSGCAT = /usr/local/Cellar/gettext/0.18.1.1/bin/msgcat
+@@ -30,9 +30,9 @@ DEB_ARCHIVE_DIR = $(DIST_BUILD_DIR)/$(NA
+ SRC_BUILD = $(DIST_BUILD_DIR)/sdist
+ PO_DIR = $(SRC_BUILD)/sos/po
+ 
+-.PHONY: docs
+-docs:
+-	make -C docs html man
++#.PHONY: docs
++#docs:
++#	make -C docs html man
+ 
+ build:
+ 	for d in $(SUBDIRS); do make -C $$d; [ $$? = 0 ] || exit 1 ; done

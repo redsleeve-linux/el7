@@ -1,0 +1,15 @@
+[Plymouth Theme]
+Name=Charge
+Description=A theme that features a spinner and subtle watermark.  The Red Hat Enterprise Linux default theme.
+ModuleName=two-step
+
+[two-step]
+ImageDir=/usr/share/plymouth/themes/charge
+HorizontalAlignment=.5
+VerticalAlignment=.75
+WatermarkHorizontalAlignment=1.0
+WatermarkVerticalAlignment=0.0
+Transition=none
+TransitionDuration=0.0
+BackgroundStartColor=0x2e3436
+BackgroundEndColor=0x2e3436

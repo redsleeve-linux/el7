@@ -1,0 +1,415 @@
+From 1e38476046ca0dde7d91ac07462871820cfd55ca Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Tue, 22 Mar 2016 14:16:40 +0100
+Subject: [PATCH] bugzilla: make the event configurable
+
+Allow downstream to choose whether they want to open Bugzilla bugs
+private by default.
+
+Related to rhbz#1279453
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ configure.ac                          |  15 +++++
+ po/POTFILES.skip                      |   1 +
+ src/plugins/Makefile.am               |   2 +-
+ src/plugins/bugzilla.conf             |   4 +-
+ src/plugins/report_Bugzilla.xml.in    |  71 ---------------------
+ src/plugins/report_Bugzilla.xml.in.in |  72 +++++++++++++++++++++
+ tests/Makefile.am                     |   8 ++-
+ tests/bugzilla_plugin.at.in           | 114 ++++++++++++++++++++++++++++++++++
+ tests/testsuite.at                    |   1 +
+ 10 files changed, 214 insertions(+), 76 deletions(-)
+ delete mode 100644 src/plugins/report_Bugzilla.xml.in
+ create mode 100644 src/plugins/report_Bugzilla.xml.in.in
+ create mode 100644 tests/bugzilla_plugin.at.in
+
+diff --git a/configure.ac b/configure.ac
+index 8aea410..a7f67c9 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -95,6 +95,19 @@ AC_PATH_PROG([XMLRPC], [xmlrpc-c-config], [no])
+     [exit 1]
+ [fi]
+ 
++AC_ARG_WITH([redhatbugzillacreateprivate],
++            AS_HELP_STRING([--with-redhatbugzillacreateprivate="yes/no"],
++                           [Whether the Red Hat Bugzilla plugin should open
++                            bugs private by default ("yes")]),
++            [], [with_redhatbugzillacreateprivate="yes"])
++AC_SUBST([RED_HAT_BUGZILLA_CREATE_PRIVATE], [$with_redhatbugzillacreateprivate])
++
++AC_ARG_WITH([redhatbugzillaprivategroups],
++            AS_HELP_STRING([--with-redhatbugzillaprivategroups="CSV"],
++                           [Name of groups separated by comma]),
++            [], [with_redhatbugzillaprivategroups="redhat"])
++AC_SUBST([RED_HAT_BUGZILLA_PRIVATE_GROUPS], [$with_redhatbugzillaprivategroups])
++
+ XMLRPC_CFLAGS=`xmlrpc-c-config --cflags 2> /dev/null`
+ XMLRPC_LIBS=`xmlrpc-c-config --libs 2> /dev/null`
+ AC_SUBST(XMLRPC_CFLAGS)
+@@ -337,11 +350,13 @@ AC_CONFIG_FILES([
+ 	src/cli/Makefile
+ 	src/report-newt/Makefile
+ 	src/plugins/Makefile
++	src/plugins/report_Bugzilla.xml.in
+ 	src/client-python/Makefile
+ 	po/Makefile.in
+ 	doc/Makefile
+ 	doc/plugins-dbus/Makefile
+ 	src/workflows/Makefile
++	tests/bugzilla_plugin.at
+ ])
+ 
+ #	src/plugins/Makefile
+diff --git a/po/POTFILES.skip b/po/POTFILES.skip
+index 2048914..5268b71 100644
+--- a/po/POTFILES.skip
++++ b/po/POTFILES.skip
+@@ -1,2 +1,3 @@
+ contrib/command-not-found/pk-tools-common.c
+ build/
++src/plugins/report_Bugzilla.xml.in.in
+diff --git a/src/plugins/Makefile.am b/src/plugins/Makefile.am
+index d5d75b6..397cc72 100644
+--- a/src/plugins/Makefile.am
++++ b/src/plugins/Makefile.am
+@@ -82,7 +82,7 @@ dist_eventsdef_DATA = \
+ reporters_extra_dist =
+ if BUILD_BUGZILLA
+ dist_eventsdef_DATA += bugzilla_event.conf bugzilla_anaconda_event.conf
+-reporters_extra_dist += report_Bugzilla.xml.in report_Bugzilla.conf
++reporters_extra_dist += report_Bugzilla.xml.in.in report_Bugzilla.conf
+ endif
+ 
+ if BUILD_UREPORT
+diff --git a/src/plugins/bugzilla.conf b/src/plugins/bugzilla.conf
+index 29c44b3..51648de 100644
+--- a/src/plugins/bugzilla.conf
++++ b/src/plugins/bugzilla.conf
+@@ -17,5 +17,5 @@ Password =
+ DontMatchComponents = selinux-policy
+ 
+ # for more info about these settings see: https://github.com/abrt/abrt/wiki/FAQ#creating-private-bugzilla-tickets
+-# CreatePrivate = no
+-# PrivateGroups = private
++# CreatePrivate = yes
++# PrivateGroups = redhat
+diff --git a/src/plugins/report_Bugzilla.xml.in b/src/plugins/report_Bugzilla.xml.in
+deleted file mode 100644
+index 9ffe90f..0000000
+--- a/src/plugins/report_Bugzilla.xml.in
++++ /dev/null
+@@ -1,71 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8" ?>
+-<event>
+-    <_name>Bugzilla</_name>
+-    <_description>Report to Bugzilla bug tracker</_description>
+-
+-    <requires-items>component,duphash,os_release</requires-items>
+-    <exclude-items-by-default>coredump,count,event_log,reported_to,vmcore</exclude-items-by-default>
+-    <exclude-items-always></exclude-items-always>
+-    <exclude-binary-items>no</exclude-binary-items>
+-    <include-items-by-default></include-items-by-default>
+-    <minimal-rating>3</minimal-rating>
+-    <gui-review-elements>yes</gui-review-elements>
+-
+-    <options>
+-        <option type="text" name="Bugzilla_BugzillaURL">
+-            <_label>Bugzilla URL</_label>
+-            <allow-empty>no</allow-empty>
+-            <_description>Address of Bugzilla server</_description>
+-            <default-value>https://bugzilla.redhat.com</default-value>
+-            <_note-html>You can create bugzilla.redhat.com account &lt;a href="https://bugzilla.redhat.com/createaccount.cgi"&gt;here&lt;/a&gt;</_note-html>
+-        </option>
+-        <option type="text" name="Bugzilla_Login">
+-            <_label>User name</_label>
+-            <allow-empty>no</allow-empty>
+-            <_description>Bugzilla account user name</_description>
+-        </option>
+-        <option type="password" name="Bugzilla_Password">
+-            <_label>Password</_label>
+-            <allow-empty>no</allow-empty>
+-            <_description>Bugzilla account password</_description>
+-        </option>
+-        <option type="bool" name="Bugzilla_SSLVerify">
+-            <_label>Verify SSL</_label>
+-            <_description>Check SSL key validity</_description>
+-            <default-value>yes</default-value>
+-        </option>
+-        <option type="bool" name="Bugzilla_CreatePrivate">
+-            <_label>Restrict access</_label>
+-            <_description>Restrict access to the created bugzilla ticket allowing only users from specified groups to view it (see advanced settings for more details)</_description>
+-            <default-value>no</default-value>
+-        </option>
+-        <advanced-options>
+-            <option type="text" name="Bugzilla_Product">
+-                <_label>Bugzilla product</_label>
+-                <allow-empty>yes</allow-empty>
+-                <_note-html>Specify this only if you needed different product than specified in /etc/os-release</_note-html>
+-            </option>
+-            <option type="text" name="Bugzilla_ProductVersion">
+-                <_label>Bugzilla product version</_label>
+-                <allow-empty>yes</allow-empty>
+-                <_note-html>Specify this only if you needed different product version than specified in /etc/os-release</_note-html>
+-            </option>
+-            <option type="text" name="http_proxy">
+-                <_label>HTTP Proxy</_label>
+-                <allow-empty>yes</allow-empty>
+-                <_note-html>Sets the proxy server to use for HTTP</_note-html>
+-            </option>
+-            <option type="text" name="HTTPS_PROXY">
+-                <_label>HTTPS Proxy</_label>
+-                <allow-empty>yes</allow-empty>
+-                <_note-html>Sets the proxy server to use for HTTPS</_note-html>
+-            </option>
+-            <option type="text" name="Bugzilla_PrivateGroups">
+-                <_label>Groups</_label>
+-                <allow-empty>yes</allow-empty>
+-                <default-value>private</default-value>
+-                <_note-html>Restrict the access to specified groups &lt;a href="https://github.com/abrt/abrt/wiki/FAQ#creating-private-bugzilla-tickets"&gt;?&lt;/a&gt;</_note-html>
+-            </option>
+-        </advanced-options>
+-    </options>
+-</event>
+diff --git a/src/plugins/report_Bugzilla.xml.in.in b/src/plugins/report_Bugzilla.xml.in.in
+new file mode 100644
+index 0000000..5ef3925
+--- /dev/null
++++ b/src/plugins/report_Bugzilla.xml.in.in
+@@ -0,0 +1,72 @@
++<?xml version="1.0" encoding="UTF-8" ?>
++<event>
++    <_name>Bugzilla</_name>
++    <_description>Report to Bugzilla bug tracker</_description>
++
++    <requires-items>component,duphash,os_release</requires-items>
++    <exclude-items-by-default>coredump,count,event_log,reported_to,vmcore</exclude-items-by-default>
++    <exclude-items-always></exclude-items-always>
++    <exclude-binary-items>no</exclude-binary-items>
++    <include-items-by-default></include-items-by-default>
++    <minimal-rating>3</minimal-rating>
++    <gui-review-elements>yes</gui-review-elements>
++    <support-restricted-access optionname="Bugzilla_CreatePrivate">yes</support-restricted-access>
++
++    <options>
++        <option type="text" name="Bugzilla_Login">
++            <_label>User name</_label>
++            <allow-empty>no</allow-empty>
++            <_description>Bugzilla account user name</_description>
++            <_note-html>You can create bugzilla.redhat.com account &lt;a href="https://bugzilla.redhat.com/createaccount.cgi"&gt;here&lt;/a&gt;</_note-html>
++        </option>
++        <option type="password" name="Bugzilla_Password">
++            <_label>Password</_label>
++            <allow-empty>no</allow-empty>
++            <_description>Bugzilla account password</_description>
++        </option>
++        <option type="bool" name="Bugzilla_CreatePrivate">
++            <_label>Restrict access</_label>
++            <_note-html>Restrict access to the created bugzilla ticket allowing only users from specified groups to view it (see advanced settings for more details)</_note-html>
++            <default-value>@RED_HAT_BUGZILLA_CREATE_PRIVATE@</default-value>
++        </option>
++        <advanced-options>
++            <option type="text" name="Bugzilla_PrivateGroups">
++                <_label>Groups</_label>
++                <allow-empty>yes</allow-empty>
++                <default-value>@RED_HAT_BUGZILLA_PRIVATE_GROUPS@</default-value>
++                <_note-html>Restrict the access to specified groups &lt;a href="https://github.com/abrt/abrt/wiki/FAQ#creating-private-bugzilla-tickets"&gt;?&lt;/a&gt;</_note-html>
++            </option>
++            <option type="text" name="Bugzilla_BugzillaURL">
++                <_label>Bugzilla URL</_label>
++                <allow-empty>no</allow-empty>
++                <default-value>https://bugzilla.redhat.com</default-value>
++                <_note-html>Address of Bugzilla server</_note-html>
++            </option>
++            <option type="bool" name="Bugzilla_SSLVerify">
++                <_label>Verify SSL</_label>
++                <_note-html>Check SSL key validity</_note-html>
++                <default-value>yes</default-value>
++            </option>
++            <option type="text" name="Bugzilla_Product">
++                <_label>Bugzilla product</_label>
++                <allow-empty>yes</allow-empty>
++                <_note-html>Specify this only if you needed different product than specified in /etc/os-release</_note-html>
++            </option>
++            <option type="text" name="Bugzilla_ProductVersion">
++                <_label>Bugzilla product version</_label>
++                <allow-empty>yes</allow-empty>
++                <_note-html>Specify this only if you needed different product version than specified in /etc/os-release</_note-html>
++            </option>
++            <option type="text" name="http_proxy">
++                <_label>HTTP Proxy</_label>
++                <allow-empty>yes</allow-empty>
++                <_note-html>Sets the proxy server to use for HTTP</_note-html>
++            </option>
++            <option type="text" name="HTTPS_PROXY">
++                <_label>HTTPS Proxy</_label>
++                <allow-empty>yes</allow-empty>
++                <_note-html>Sets the proxy server to use for HTTPS</_note-html>
++            </option>
++        </advanced-options>
++    </options>
++</event>
+diff --git a/tests/Makefile.am b/tests/Makefile.am
+index c22958b..825a870 100644
+--- a/tests/Makefile.am
++++ b/tests/Makefile.am
+@@ -48,12 +48,16 @@ TESTSUITE_AT = \
+   iso_date.at \
+   uriparser.at
+ 
++TESTSUITE_AT_IN = \
++  bugzilla_plugin.at
++
+ EXTRA_DIST += $(TESTSUITE_AT)
+ TESTSUITE = $(srcdir)/testsuite
+ MAINTAINERCLEANFILES = Makefile.in $(TESTSUITE)
+ check_DATA = atconfig atlocal $(TESTSUITE)
+ DISTCLEANFILES = atconfig
+-EXTRA_DIST += atlocal.in conf ureport ureport-rhts-credentials
++EXTRA_DIST += atlocal.in conf ureport ureport-rhts-credentials \
++              bugzilla_plugin.at.in
+ 
+ atconfig: $(top_builddir)/config.status
+ 	(cd ${top_builddir} && ./config.status ${subdir}/atconfig)
+@@ -69,6 +73,6 @@ clean-local:
+ 	test ! -f '$(TESTSUITE)' || $(SHELL) '$(TESTSUITE)' --clean
+ 
+ AUTOTEST = $(AUTOM4TE) --language=autotest
+-$(TESTSUITE): $(TESTSUITE_AT) $(srcdir)/package.m4
++$(TESTSUITE): $(TESTSUITE_AT) $(TESTSUITE_AT_IN) $(srcdir)/package.m4
+ 	$(AUTOTEST) -I '$(srcdir)' -o $@.tmp $@.at
+ 	mv $@.tmp $@
+diff --git a/tests/bugzilla_plugin.at.in b/tests/bugzilla_plugin.at.in
+new file mode 100644
+index 0000000..a06b9d3
+--- /dev/null
++++ b/tests/bugzilla_plugin.at.in
+@@ -0,0 +1,114 @@
++# -*- Autotest -*-
++
++AT_BANNER([Bugzilla])
++
++## ------------------- ##
++## report_Bugzilla_xml ##
++## ------------------- ##
++
++AT_TESTFUN([report_Bugzilla_xml],
++[[
++#include "testsuite.h"
++
++TS_MAIN
++{
++    event_config_t *conf = new_event_config("report_Bugzilla");
++    load_event_description_from_file(conf, "../../../src/plugins/report_Bugzilla.xml");
++
++    TS_ASSERT_STRING_EQ(ec_get_screen_name(conf), "Bugzilla", "Screen name");
++    TS_ASSERT_STRING_EQ(ec_get_description(conf), "Report to Bugzilla bug tracker", "Description");
++
++    TS_ASSERT_STRING_EQ(conf->ec_creates_items, NULL, "Not-defined create items");
++
++    TS_ASSERT_STRING_EQ(conf->ec_requires_items, "component,duphash,os_release", "Correct required items");
++
++    TS_ASSERT_STRING_EQ(conf->ec_exclude_items_by_default, "coredump,count,event_log,reported_to,vmcore", "Correct excluded items by default");
++
++    TS_ASSERT_STRING_EQ(conf->ec_exclude_items_always, NULL, "Not-defined excluded items always");
++
++    TS_ASSERT_FALSE(conf->ec_exclude_binary_items);
++
++    TS_ASSERT_STRING_EQ(conf->ec_include_items_by_default, NULL, "Not-defined included items by default");
++
++    TS_ASSERT_SIGNED_EQ(conf->ec_minimal_rating, 3);
++
++    TS_ASSERT_FALSE(conf->ec_skip_review);
++
++    TS_ASSERT_FALSE(conf->ec_sending_sensitive_data);
++
++    TS_ASSERT_TRUE(conf->ec_supports_restricted_access);
++
++    event_option_t options[10] = {
++        { .eo_value = NULL, .eo_label = (char *)"User name",
++          .eo_note_html = (char *)"You can create bugzilla.redhat.com account <a href=\"https://bugzilla.redhat.com/createaccount.cgi\">here</a>",
++          .eo_type = OPTION_TYPE_TEXT, .eo_allow_empty = 0, .is_advanced = 0,
++        },
++        { .eo_value = NULL, .eo_label = (char *)"Password", .eo_note_html = NULL,
++          .eo_type = OPTION_TYPE_PASSWORD, .eo_allow_empty = 0, .is_advanced = 0,
++        },
++        { .eo_value = (char *)"@RED_HAT_BUGZILLA_CREATE_PRIVATE@", .eo_label = (char *)"Restrict access",
++          .eo_note_html = (char *)"Restrict access to the created bugzilla ticket allowing only users from specified groups to view it (see advanced settings for more details)",
++          .eo_type = OPTION_TYPE_BOOL, .eo_allow_empty = 0, .is_advanced = 0,
++        },
++        { .eo_value = (char *)"@RED_HAT_BUGZILLA_PRIVATE_GROUPS@", .eo_label = (char *)"Groups",
++          .eo_note_html = (char *)"Restrict the access to specified groups <a href=\"https://github.com/abrt/abrt/wiki/FAQ#creating-private-bugzilla-tickets\">?</a>",
++          .eo_type = OPTION_TYPE_TEXT, .eo_allow_empty = 1, .is_advanced = 1,
++        },
++        { .eo_value = (char *)"https://bugzilla.redhat.com", .eo_label = (char *)"Bugzilla URL",
++          .eo_note_html = (char *)"Address of Bugzilla server",
++          .eo_type = OPTION_TYPE_TEXT, .eo_allow_empty = 0, .is_advanced = 1,
++        },
++        { .eo_value = (char *)"yes", .eo_label = (char *)"Verify SSL",
++          .eo_note_html = (char *)"Check SSL key validity",
++          .eo_type = OPTION_TYPE_BOOL, .eo_allow_empty = 0, .is_advanced = 1,
++        },
++        { .eo_value = NULL, .eo_label = (char *)"Bugzilla product",
++          .eo_note_html = (char *)"Specify this only if you needed different product than specified in /etc/os-release",
++          .eo_type = OPTION_TYPE_TEXT, .eo_allow_empty = 1, .is_advanced = 1,
++        },
++        { .eo_value = NULL, .eo_label = (char *)"Bugzilla product version",
++          .eo_note_html = (char *)"Specify this only if you needed different product version than specified in /etc/os-release",
++          .eo_type = OPTION_TYPE_TEXT, .eo_allow_empty = 1, .is_advanced = 1,
++        },
++        { .eo_value = NULL, .eo_label = (char *)"HTTP Proxy",
++          .eo_note_html = (char *)"Sets the proxy server to use for HTTP",
++          .eo_type = OPTION_TYPE_TEXT, .eo_allow_empty = 1, .is_advanced = 1,
++        },
++        { .eo_value = NULL, .eo_label = (char *)"HTTPS Proxy",
++          .eo_note_html = (char *)"Sets the proxy server to use for HTTPS",
++          .eo_type = OPTION_TYPE_TEXT, .eo_allow_empty = 1, .is_advanced = 1,
++        },
++    };
++
++    const char *option_names[] = {
++        "Bugzilla_Login",
++        "Bugzilla_Password",
++        "Bugzilla_CreatePrivate",
++        "Bugzilla_PrivateGroups",
++        "Bugzilla_BugzillaURL",
++        "Bugzilla_SSLVerify",
++        "Bugzilla_Product",
++        "Bugzilla_ProductVersion",
++        "http_proxy",
++        "HTTPS_PROXY"
++    };
++
++    for (unsigned i = 0; i < ARRAY_SIZE(option_names); ++i) {
++        event_option_t *eo = get_event_option_from_list(option_names[i], conf->options);
++        TS_ASSERT_PTR_IS_NOT_NULL_MESSAGE(eo, option_names[i]);
++
++        if (eo == NULL)
++            continue;
++
++        TS_ASSERT_STRING_EQ(eo->eo_value, options[i].eo_value, option_names[i]);
++        TS_ASSERT_STRING_EQ(eo->eo_label, options[i].eo_label, option_names[i]);
++        TS_ASSERT_STRING_EQ(eo->eo_note_html, options[i].eo_note_html, option_names[i]);
++        TS_ASSERT_SIGNED_OP_MESSAGE(eo->eo_type, ==, options[i].eo_type, option_names[i]);
++        TS_ASSERT_SIGNED_OP_MESSAGE(eo->eo_allow_empty, ==, options[i].eo_allow_empty, option_names[i]);
++        TS_ASSERT_SIGNED_OP_MESSAGE(eo->is_advanced, ==, options[i].is_advanced, option_names[i]);
++    }
++
++    free_event_config(conf);
++}
++TS_RETURN_MAIN
++]])
+diff --git a/tests/testsuite.at b/tests/testsuite.at
+index 72e0715..c8269b1 100644
+--- a/tests/testsuite.at
++++ b/tests/testsuite.at
+@@ -21,3 +21,4 @@ m4_include([dump_dir.at])
+ m4_include([global_config.at])
+ m4_include([iso_date.at])
+ m4_include([uriparser.at])
++m4_include([bugzilla_plugin.at])
+-- 
+1.8.3.1
+

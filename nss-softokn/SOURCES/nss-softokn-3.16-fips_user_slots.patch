@@ -1,0 +1,29 @@
+diff -up ./nss/lib/softoken/fipstokn.c.fips_user_slots ./nss/lib/softoken/fipstokn.c
+--- ./nss/lib/softoken/fipstokn.c.fips_user_slots	2014-11-04 15:34:07.524248232 -0800
++++ ./nss/lib/softoken/fipstokn.c	2014-11-04 15:37:22.774525906 -0800
+@@ -546,8 +546,10 @@ CK_RV FC_GetSlotInfo(CK_SLOT_ID slotID,
+      CHECK_FORK();
+ 
+     SFTK_FIPSFATALCHECK();
+-    if (slotID == FIPS_SLOT_ID) slotID = NETSCAPE_SLOT_ID;
+-    /* FIPS Slot supports all functions */
++    if ((slotID == FIPS_SLOT_ID) || (slotID >=SFTK_MIN_FIPS_USER_SLOT_ID)) {
++	slotID = NETSCAPE_SLOT_ID;
++    }
++    /* FIPS Slots support all functions */
+     return NSC_GetMechanismList(slotID,pMechanismList,pusCount);
+ }
+ 
+@@ -559,8 +561,10 @@ CK_RV FC_GetSlotInfo(CK_SLOT_ID slotID,
+     CHECK_FORK();
+ 
+     SFTK_FIPSFATALCHECK();
+-    if (slotID == FIPS_SLOT_ID) slotID = NETSCAPE_SLOT_ID;
+-    /* FIPS Slot supports all functions */
++    if ((slotID == FIPS_SLOT_ID) || (slotID >=SFTK_MIN_FIPS_USER_SLOT_ID)) {
++	slotID = NETSCAPE_SLOT_ID;
++    }
++    /* FIPS Slots support all functions */
+     return NSC_GetMechanismInfo(slotID,type,pInfo);
+ }
+ 

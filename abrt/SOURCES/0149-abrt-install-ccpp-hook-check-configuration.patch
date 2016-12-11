@@ -1,0 +1,124 @@
+From fb05144fada665ac319b0d9fa1af7bc9f42e8c26 Mon Sep 17 00:00:00 2001
+From: Martin Milata <mmilata@redhat.com>
+Date: Thu, 16 Jul 2015 16:10:49 +0200
+Subject: [PATCH] abrt-install-ccpp-hook check configuration
+
+Check that either full coredump or core backtrace are configured to be
+saved, fail init script if neither is.
+
+Related to #829.
+
+Signed-off-by: Martin Milata <mmilata@redhat.com>
+---
+ src/hooks/abrt-hook-ccpp.c          | 63 +++++++++++++++++++++++--------------
+ src/hooks/abrt-install-ccpp-hook.in |  5 +++
+ 2 files changed, 44 insertions(+), 24 deletions(-)
+
+diff --git a/src/hooks/abrt-hook-ccpp.c b/src/hooks/abrt-hook-ccpp.c
+index b5f00f6..d95228f 100644
+--- a/src/hooks/abrt-hook-ccpp.c
++++ b/src/hooks/abrt-hook-ccpp.c
+@@ -626,6 +626,18 @@ finito:
+     return err;
+ }
+ 
++static int test_configuration(bool setting_SaveFullCore, bool setting_CreateCoreBacktrace)
++{
++    if (!setting_SaveFullCore && !setting_CreateCoreBacktrace)
++    {
++        fprintf(stderr, "Both SaveFullCore and CreateCoreBacktrace are disabled - "
++                        "at least one of them is needed for useful report.\n");
++        return 1;
++    }
++
++    return 0;
++}
++
+ int main(int argc, char** argv)
+ {
+     int err = 1;
+@@ -636,31 +648,9 @@ int main(int argc, char** argv)
+      */
+     int fd = xopen("/dev/null", O_RDWR);
+     while (fd < 2)
+-	fd = xdup(fd);
++        fd = xdup(fd);
+     if (fd > 2)
+-	close(fd);
+-
+-    if (argc < 8)
+-    {
+-        /* percent specifier:         %s   %c              %p  %u  %g  %t   %e          %i */
+-        /* argv:                  [0] [1]  [2]             [3] [4] [5] [6]  [7]         [8]*/
+-        error_msg_and_die("Usage: %s SIGNO CORE_SIZE_LIMIT PID UID GID TIME BINARY_NAME [TID]", argv[0]);
+-    }
+-
+-    /* Not needed on 2.6.30.
+-     * At least 2.6.18 has a bug where
+-     * argv[1] = "SIGNO CORE_SIZE_LIMIT PID ..."
+-     * argv[2] = "CORE_SIZE_LIMIT PID ..."
+-     * and so on. Fixing it:
+-     */
+-    if (strchr(argv[1], ' '))
+-    {
+-        int i;
+-        for (i = 1; argv[i]; i++)
+-        {
+-            strchrnul(argv[i], ' ')[0] = '\0';
+-        }
+-    }
++        close(fd);
+ 
+     logmode = LOGMODE_JOURNAL;
+ 
+@@ -689,6 +679,31 @@ int main(int argc, char** argv)
+         free_map_string(settings);
+     }
+ 
++    if (argc == 2 && strcmp(argv[1], "--config-test"))
++        return test_configuration(setting_SaveFullCore, setting_CreateCoreBacktrace);
++
++    if (argc < 8)
++    {
++        /* percent specifier:         %s   %c              %p  %u  %g  %t   %e          %i */
++        /* argv:                  [0] [1]  [2]             [3] [4] [5] [6]  [7]         [8]*/
++        error_msg_and_die("Usage: %s SIGNO CORE_SIZE_LIMIT PID UID GID TIME BINARY_NAME [TID]", argv[0]);
++    }
++
++    /* Not needed on 2.6.30.
++     * At least 2.6.18 has a bug where
++     * argv[1] = "SIGNO CORE_SIZE_LIMIT PID ..."
++     * argv[2] = "CORE_SIZE_LIMIT PID ..."
++     * and so on. Fixing it:
++     */
++    if (strchr(argv[1], ' '))
++    {
++        int i;
++        for (i = 1; argv[i]; i++)
++        {
++            strchrnul(argv[i], ' ')[0] = '\0';
++        }
++    }
++
+     errno = 0;
+     const char* signal_str = argv[1];
+     int signal_no = xatoi_positive(signal_str);
+diff --git a/src/hooks/abrt-install-ccpp-hook.in b/src/hooks/abrt-install-ccpp-hook.in
+index d4ed4a5..fff0a33 100755
+--- a/src/hooks/abrt-install-ccpp-hook.in
++++ b/src/hooks/abrt-install-ccpp-hook.in
+@@ -31,6 +31,11 @@ CORE_PIPE_LIMIT_FILE="/proc/sys/kernel/core_pipe_limit"
+ CORE_PIPE_LIMIT="4"
+ 
+ start() {
++	if ! $HOOK_BIN --test-config; then
++		echo "Invalid configuration."
++		exit 1
++	fi
++
+ 	cur=`cat "$PATTERN_FILE"`
+ 	cur_first=`printf "%s" "$cur" | sed 's/ .*//'`
+ 
+-- 
+2.4.3
+

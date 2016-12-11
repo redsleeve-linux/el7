@@ -1,0 +1,53 @@
+From 485e70f9ca0e7352b17839b2375092f7a886bc81 Mon Sep 17 00:00:00 2001
+From: Alexander Bokovoy <abokovoy@redhat.com>
+Date: Thu, 4 Aug 2016 09:58:50 +0300
+Subject: [PATCH] support multiple uid values in schema compatibility tree
+
+https://fedorahosted.org/freeipa/ticket/6138
+
+Reviewed-By: Thierry Bordaz <tbordaz@redhat.com>
+---
+ freeipa.spec.in                         | 4 +++-
+ install/updates/10-schema_compat.update | 4 ++++
+ 2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/freeipa.spec.in b/freeipa.spec.in
+index 08343d9f2049680185ddd32428b040824d882d66..7456a9ea77ec289312eb11c05709018b3d6d0c90 100644
+--- a/freeipa.spec.in
++++ b/freeipa.spec.in
+@@ -12,9 +12,11 @@
+ %if 0%{?rhel}
+ %global samba_version 4.0.5-1
+ %global selinux_policy_version 3.12.1-153
++%global slapi_nis_version 0.56.0-4
+ %else
+ %global samba_version 2:4.0.5-1
+ %global selinux_policy_version 3.13.1-158.4
++%global slapi_nis_version 0.56.1
+ %endif
+ 
+ %define krb5_base_version %(LC_ALL=C rpm -q --qf '%%{VERSION}' krb5-devel | grep -Eo '^[^.]+\.[^.]+')
+@@ -156,7 +158,7 @@ Requires(pre): systemd-units
+ Requires(post): systemd-units
+ Requires: selinux-policy >= %{selinux_policy_version}
+ Requires(post): selinux-policy-base >= %{selinux_policy_version}
+-Requires: slapi-nis >= 0.56.0
++Requires: slapi-nis >= %{slapi_nis_version}
+ Requires: pki-ca >= 10.3.4
+ Requires: pki-kra >= 10.3.4
+ Requires(preun): python systemd-units
+diff --git a/install/updates/10-schema_compat.update b/install/updates/10-schema_compat.update
+index e4c257d323644a93757e01027d3b8ed62c2ca98c..fbe8703407aacd75baf160630c20835a1b4ddc65 100644
+--- a/install/updates/10-schema_compat.update
++++ b/install/updates/10-schema_compat.update
+@@ -87,3 +87,7 @@ add:schema-compat-entry-attribute: %ifeq("ipauniqueid","%{ipauniqueid}","objectc
+ add:schema-compat-entry-attribute: %ifeq("ipauniqueid","%{ipauniqueid}","ipaanchoruuid=:IPA:$DOMAIN:%{ipauniqueid}","")
+ add:schema-compat-entry-attribute: ipaanchoruuid=%{ipaanchoruuid}
+ add:schema-compat-entry-attribute: %ifeq("ipaanchoruuid","%{ipaanchoruuid}","objectclass=ipaOverrideTarget","")
++
++dn: cn=users,cn=Schema Compatibility,cn=plugins,cn=config
++add:schema-compat-entry-attribute: uid=%{uid}
++replace:schema-compat-entry-rdn: uid=%{uid}::uid=%first("%{uid}")
+-- 
+2.7.4
+

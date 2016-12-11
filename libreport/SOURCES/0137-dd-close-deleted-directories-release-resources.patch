@@ -1,0 +1,27 @@
+From 1b13c18d79e55fe1012be8044e2f77f3c4025c99 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Tue, 5 May 2015 16:25:25 +0200
+Subject: [LIBREPORT PATCH] dd: close deleted directories (release resources)
+
+Uncovered by coverity.
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/lib/dump_dir.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/lib/dump_dir.c b/src/lib/dump_dir.c
+index d9b8603..32f498b 100644
+--- a/src/lib/dump_dir.c
++++ b/src/lib/dump_dir.c
+@@ -917,6 +917,7 @@ static int delete_file_dir(int dir_fd, bool skip_lock_file)
+     if (unlink_lock_file)
+         xunlinkat(dir_fd, ".lock", /*only files*/0);
+ 
++    closedir(d);
+     return 0;
+ }
+ 
+-- 
+1.8.3.1
+

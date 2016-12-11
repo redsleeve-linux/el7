@@ -1,0 +1,84 @@
+Index: modules/aaa/mod_authz_dbd.c
+===================================================================
+--- a/modules/aaa/mod_authz_dbd.c	(revision 1681106)
++++ b/modules/aaa/mod_authz_dbd.c	(revision 1681107)
+@@ -174,7 +174,9 @@
+                           action, r->user, message?message:noerror);
+                 }
+                 else if (newuri == NULL) {
+-                    newuri = apr_dbd_get_entry(dbd->driver, row, 0);
++                    newuri =
++                        apr_pstrdup(r->pool,
++                                    apr_dbd_get_entry(dbd->driver, row, 0));
+                 }
+                 /* we can't break out here or row won't get cleaned up */
+             }
+@@ -204,7 +206,6 @@
+     apr_dbd_prepared_t *query;
+     apr_dbd_results_t *res = NULL;
+     apr_dbd_row_t *row = NULL;
+-    const char **group;
+ 
+     if (cfg->query == NULL) {
+         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(01649)
+@@ -224,8 +225,9 @@
+              rv != -1;
+              rv = apr_dbd_get_row(dbd->driver, r->pool, res, &row, -1)) {
+             if (rv == 0) {
+-                group = apr_array_push(groups);
+-                *group = apr_dbd_get_entry(dbd->driver, row, 0);
++                APR_ARRAY_PUSH(groups, const char *) =
++                    apr_pstrdup(r->pool,
++                                apr_dbd_get_entry(dbd->driver, row, 0));
+             }
+             else {
+                 message = apr_dbd_error(dbd->driver, dbd->handle, rv);
+Index: modules/session/mod_session_dbd.c
+===================================================================
+--- a/modules/session/mod_session_dbd.c	(revision 1681106)
++++ b/modules/session/mod_session_dbd.c	(revision 1681107)
+@@ -138,7 +138,8 @@
+             return APR_EGENERAL;
+         }
+         if (*val == NULL) {
+-            *val = apr_dbd_get_entry(dbd->driver, row, 0);
++            *val = apr_pstrdup(r->pool,
++                               apr_dbd_get_entry(dbd->driver, row, 0));
+         }
+         /* we can't break out here or row won't get cleaned up */
+     }
+Index: modules/mappers/mod_rewrite.c
+===================================================================
+--- a/modules/mappers/mod_rewrite.c	(revision 1681106)
++++ b/modules/mappers/mod_rewrite.c	(revision 1681107)
+@@ -1352,12 +1352,14 @@
+     while ((rv = apr_dbd_get_row(db->driver, r->pool, res, &row, -1)) == 0) {
+         ++n;
+         if (ret == NULL) {
+-            ret = apr_dbd_get_entry(db->driver, row, 0);
++            ret = apr_pstrdup(r->pool,
++                              apr_dbd_get_entry(db->driver, row, 0));
+         }
+         else {
+             /* randomise crudely amongst multiple results */
+             if ((double)rand() < (double)RAND_MAX/(double)n) {
+-                ret = apr_dbd_get_entry(db->driver, row, 0);
++                ret = apr_pstrdup(r->pool,
++                                  apr_dbd_get_entry(db->driver, row, 0));
+             }
+         }
+     }
+@@ -1370,11 +1372,11 @@
+     case 0:
+         return NULL;
+     case 1:
+-        return apr_pstrdup(r->pool, ret);
++        return ret;
+     default:
+         /* what's a fair rewritelog level for this? */
+         rewritelog((r, 3, NULL, "Multiple values found for %s", key));
+-        return apr_pstrdup(r->pool, ret);
++        return ret;
+     }
+ }
+ 

@@ -1,0 +1,30 @@
+From 8ceb10a5fdc9dc0156abe6cad6d66b6e5e18bc92 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Fri, 27 Feb 2015 15:14:33 +0100
+Subject: [PATCH] RHTSupport: include reported_to in Support cases
+
+We want to provide GSS with an URL to ABRT server.
+
+Related to rhbz#1197108
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/plugins/report_RHTSupport.xml.in | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/plugins/report_RHTSupport.xml.in b/src/plugins/report_RHTSupport.xml.in
+index a612a1e..b7a7872 100644
+--- a/src/plugins/report_RHTSupport.xml.in
++++ b/src/plugins/report_RHTSupport.xml.in
+@@ -4,7 +4,7 @@
+     <_description>Report to Red Hat support</_description>
+ 
+     <requires-items>package</requires-items>
+-    <exclude-items-by-default>count,event_log,reported_to,vmcore</exclude-items-by-default>
++    <exclude-items-by-default>count,event_log,vmcore</exclude-items-by-default>
+     <exclude-items-always></exclude-items-always>
+     <exclude-binary-items>no</exclude-binary-items>
+     <include-items-by-default></include-items-by-default>
+-- 
+2.4.3
+

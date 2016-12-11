@@ -1,0 +1,80 @@
+From e705c7ff8b6907422753b44ad2bd9d8293578098 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Wed, 15 Apr 2015 15:17:47 +0200
+Subject: [LIBREPORT PATCH] lib: introduce a new function copy_file_ext
+
+The new function allows to specify UID, GID and open() flags for both
+source and destination files.
+
+This function is need to avoid race conditions and symbolic link issues.
+
+Related: #1211835
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/include/internal_libreport.h |  2 ++
+ src/lib/copyfd.c                 | 21 ++++++++++++++++++---
+ 2 files changed, 20 insertions(+), 3 deletions(-)
+
+diff --git a/src/include/internal_libreport.h b/src/include/internal_libreport.h
+index 967324b..4c5c72a 100644
+--- a/src/include/internal_libreport.h
++++ b/src/include/internal_libreport.h
+@@ -153,6 +153,8 @@ off_t copyfd_eof(int src_fd, int dst_fd, int flags);
+ off_t copyfd_size(int src_fd, int dst_fd, off_t size, int flags);
+ #define copyfd_exact_size libreport_copyfd_exact_size
+ void copyfd_exact_size(int src_fd, int dst_fd, off_t size);
++#define copy_file_ext libreport_copy_file_ext
++off_t copy_file_ext(const char *src_name, const char *dst_name, int mode, uid_t uid, gid_t gid, int src_flags, int dst_flags);
+ #define copy_file libreport_copy_file
+ off_t copy_file(const char *src_name, const char *dst_name, int mode);
+ #define copy_file_recursive libreport_copy_file_recursive
+diff --git a/src/lib/copyfd.c b/src/lib/copyfd.c
+index e9f429d..64fece7 100644
+--- a/src/lib/copyfd.c
++++ b/src/lib/copyfd.c
+@@ -149,16 +149,16 @@ off_t copyfd_eof(int fd1, int fd2, int flags)
+ 	return full_fd_action(fd1, fd2, 0, flags);
+ }
+ 
+-off_t copy_file(const char *src_name, const char *dst_name, int mode)
++off_t copy_file_ext(const char *src_name, const char *dst_name, int mode, uid_t uid, gid_t gid, int src_flags, int dst_flags)
+ {
+     off_t r;
+-    int src = open(src_name, O_RDONLY);
++    int src = open(src_name, src_flags);
+     if (src < 0)
+     {
+         perror_msg("Can't open '%s'", src_name);
+         return -1;
+     }
+-    int dst = open(dst_name, O_WRONLY | O_TRUNC | O_CREAT, mode);
++    int dst = open(dst_name, dst_flags, mode);
+     if (dst < 0)
+     {
+         close(src);
+@@ -167,6 +167,21 @@ off_t copy_file(const char *src_name, const char *dst_name, int mode)
+     }
+     r = copyfd_eof(src, dst, /*flags:*/ 0);
+     close(src);
++    if (uid != (uid_t)-1L)
++    {
++        if (fchown(dst, uid, gid) == -1)
++        {
++            perror_msg("Can't change '%s' ownership to %lu:%lu", dst_name, (long)uid, (long)gid);
++            close(dst);
++            unlink(dst_name);
++            return -1;
++        }
++    }
+     close(dst);
+     return r;
+ }
++
++off_t copy_file(const char *src_name, const char *dst_name, int mode)
++{
++    return copy_file_ext(src_name, dst_name, mode, -1, -1, O_RDONLY, O_WRONLY | O_TRUNC | O_CREAT);
++}
+-- 
+1.8.3.1
+

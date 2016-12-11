@@ -1,0 +1,431 @@
+From 23116ec906199af1106edcc70fa8280730416d0f Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Wed, 17 Sep 2014 05:54:30 +0200
+Subject: [LIBREPORT PATCH 76/93] workflow: add new workflows
+
+Add workflow for logger, mailx and reportuploader. These workflows are disabled
+because the plugins that ships these workflows are installed by default but we
+don't want to offer users these workflows in report-cli/report-gtk by default.
+
+Resolves rhbz#1094203
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ doc/Makefile.am                          |  3 ++
+ doc/report_logger.conf.txt               | 47 ++++++++++++++++++++++++++++++++
+ doc/report_mailx.conf.txt                | 46 +++++++++++++++++++++++++++++++
+ doc/report_uploader.conf.txt             | 46 +++++++++++++++++++++++++++++++
+ po/POTFILES.in                           |  5 ++++
+ src/workflows/Makefile.am                | 24 ++++++++++++----
+ src/workflows/report_logger.conf         |  6 ++++
+ src/workflows/report_mailx.conf          |  6 ++++
+ src/workflows/report_uploader.conf       |  6 ++++
+ src/workflows/workflow_Logger.xml.in     | 11 ++++++++
+ src/workflows/workflow_LoggerCCpp.xml.in | 12 ++++++++
+ src/workflows/workflow_Mailx.xml.in      | 11 ++++++++
+ src/workflows/workflow_MailxCCpp.xml.in  | 12 ++++++++
+ src/workflows/workflow_Upload.xml.in     |  3 +-
+ src/workflows/workflow_UploadCCpp.xml.in | 12 ++++++++
+ 15 files changed, 243 insertions(+), 7 deletions(-)
+ create mode 100644 doc/report_logger.conf.txt
+ create mode 100644 doc/report_mailx.conf.txt
+ create mode 100644 doc/report_uploader.conf.txt
+ create mode 100644 src/workflows/report_logger.conf
+ create mode 100644 src/workflows/report_mailx.conf
+ create mode 100644 src/workflows/report_uploader.conf
+ create mode 100644 src/workflows/workflow_Logger.xml.in
+ create mode 100644 src/workflows/workflow_LoggerCCpp.xml.in
+ create mode 100644 src/workflows/workflow_Mailx.xml.in
+ create mode 100644 src/workflows/workflow_MailxCCpp.xml.in
+ create mode 100644 src/workflows/workflow_UploadCCpp.xml.in
+
+diff --git a/doc/Makefile.am b/doc/Makefile.am
+index 7eb3065..da4785e 100644
+--- a/doc/Makefile.am
++++ b/doc/Makefile.am
+@@ -48,6 +48,9 @@ MAN5_TXT += report_fedora.conf.txt
+ MAN5_TXT += report_Logger.conf.txt
+ MAN5_TXT += report_rhel.conf.txt
+ MAN5_TXT += report_rhel_bugzilla.conf.txt
++MAN5_TXT += report_logger.conf.txt
++MAN5_TXT += report_mailx.conf.txt
++MAN5_TXT += report_uploader.conf.txt
+ MAN5_TXT += rhtsupport.conf.txt
+ MAN5_TXT += rhtsupport_event.conf.txt
+ MAN5_TXT += uploader_event.conf.txt
+diff --git a/doc/report_logger.conf.txt b/doc/report_logger.conf.txt
+new file mode 100644
+index 0000000..7912e2c
+--- /dev/null
++++ b/doc/report_logger.conf.txt
+@@ -0,0 +1,47 @@
++report_logger.conf(5)
++=====================
++
++NAME
++----
++report_logger.conf - configuration file for libreport.
++
++DESCRIPTION
++-----------
++This configuration file specifies which of the work flow definitions
++are applicable to analyzing problems and export the problem data information to
++a text file.
++
++All applicable work flows are presented to users in User Interface as
++possibilities for processing of any problems. A particular work flow becomes
++applicable if its conditions are satisfied.
++
++This configuration file consists from condition lines. Each condition line must
++start with EVENT=workflow_NAME where "workflow_" is constant prefix and
++"workflow_NAME" is base name of path to reporting work flow configuration file.
++
++The rest of condition line has form VAR=VAL, VAR!=VAL or VAL~=REGEX, where VAR
++is a name of problem directory element to be checked (for example,
++"executable", "package", hostname" etc). The condition may consists from as
++many element checks as it is necessary.
++
++All condition lines in this configuration file are commented out by default.
++Therefore all applicable work flows from this file are not presented to users in
++User Interface. For enable this extension uncomment all condition line in this
++configuration file.
++
++EXAMPLES
++--------
++Condition line::
++    EVENT=workflow_LoggerCCpp analyzer=CCpp
++
++The condition line above expects existence of
++/usr/share/libreport/workflows/workflow_LoggerCCpp.xml
++
++SEE ALSO
++--------
++report-gtk(1)
++
++AUTHOR
++------
++* ABRT team
++
+diff --git a/doc/report_mailx.conf.txt b/doc/report_mailx.conf.txt
+new file mode 100644
+index 0000000..9a5e8cb
+--- /dev/null
++++ b/doc/report_mailx.conf.txt
+@@ -0,0 +1,46 @@
++report_mailx.conf(5)
++====================
++
++NAME
++----
++report_mailx.conf - configuration file for libreport.
++
++DESCRIPTION
++-----------
++This configuration file specifies which of the work flow definitions
++are applicable to analyzing problems and send information via email.
++
++All applicable work flows are presented to users in User Interface as
++possibilities for processing of any problems. A particular work flow becomes
++applicable if its conditions are satisfied.
++
++This configuration file consists from condition lines. Each condition line must
++start with EVENT=workflow_NAME where "workflow_" is constant prefix and
++"workflow_NAME" is base name of path to reporting work flow configuration file.
++
++The rest of condition line has form VAR=VAL, VAR!=VAL or VAL~=REGEX, where VAR
++is a name of problem directory element to be checked (for example,
++"executable", "package", hostname" etc). The condition may consists
++from as many element checks as it is necessary.
++
++All condition lines in this configuration file are commented out by default.
++Therefore all applicable work flows from this file are not presented to users in
++User Interface. For enable this extension uncomment all condition line in this
++configuration file.
++
++EXAMPLES
++--------
++Condition line::
++    EVENT=workflow_MailxCCpp analyzer=CCpp
++
++The condition line above expects existence of
++/usr/share/libreport/workflows/workflow_MailxCCpp.xml
++
++SEE ALSO
++--------
++report-gtk(1)
++
++AUTHOR
++------
++* ABRT team
++
+diff --git a/doc/report_uploader.conf.txt b/doc/report_uploader.conf.txt
+new file mode 100644
+index 0000000..975ea02
+--- /dev/null
++++ b/doc/report_uploader.conf.txt
+@@ -0,0 +1,46 @@
++report_uploader.conf(5)
++=======================
++
++NAME
++----
++report_uploader.conf - configuration file for libreport.
++
++DESCRIPTION
++-----------
++This configuration file specifies which of the work flow definitions
++are applicable to analyzing problems and upload the data via scp or ftp.
++
++All applicable work flows are presented to users in User Interface as
++possibilities for processing of any problems. A particular work flow becomes
++applicable if its conditions are satisfied.
++
++This configuration file consists from condition lines. Each condition line must
++start with EVENT=workflow_NAME where "workflow_" is constant prefix and
++"workflow_NAME" is base name of path to reporting work flow configuration file.
++
++The rest of condition line has form VAR=VAL, VAR!=VAL or VAL~=REGEX, where VAR
++is a name of problem directory element to be checked (for example,
++"executable", "package", hostname" etc). The condition may consists
++from as many element checks as it is necessary.
++
++All condition lines in this configuration file are commented out by default.
++Therefore all applicable work flows from this file are not presented to users in
++User Interface. For enable this extension uncomment all condition line in this
++configuration file.
++
++EXAMPLES
++--------
++Condition line::
++    EVENT=workflow_UploadCCpp analyzer=CCpp
++
++The condition line above expects existence of
++/usr/share/libreport/workflows/workflow_UploadCCpp.xml
++
++SEE ALSO
++--------
++report-gtk(1)
++
++AUTHOR
++------
++* ABRT team
++
+diff --git a/po/POTFILES.in b/po/POTFILES.in
+index 26acba1..7ba080c 100644
+--- a/po/POTFILES.in
++++ b/po/POTFILES.in
+@@ -55,6 +55,11 @@ src/workflows/workflow_FedoraVmcore.xml.in
+ src/workflows/workflow_FedoraXorg.xml.in
+ src/workflows/workflow_FedoraLibreport.xml.in
+ src/workflows/workflow_FedoraJava.xml.in
++src/workflows/workflow_LoggerCCpp.xml.in
++src/workflows/workflow_Logger.xml.in
++src/workflows/workflow_MailxCCpp.xml.in
++src/workflows/workflow_Mailx.xml.in
++src/workflows/workflow_UploadCCpp.xml.in
+ src/workflows/workflow_Upload.xml.in
+ src/workflows/workflow_RHELCCpp.xml.in
+ src/workflows/workflow_RHELKerneloops.xml.in
+diff --git a/src/workflows/Makefile.am b/src/workflows/Makefile.am
+index 54a6f31..0fc1019 100644
+--- a/src/workflows/Makefile.am
++++ b/src/workflows/Makefile.am
+@@ -8,14 +8,19 @@ dist_workflows_DATA = \
+     workflow_FedoraXorg.xml \
+     workflow_FedoraLibreport.xml \
+     workflow_FedoraJava.xml \
+-    workflow_Upload.xml \
+     workflow_RHELCCpp.xml \
+     workflow_RHELKerneloops.xml \
+     workflow_RHELPython.xml \
+     workflow_RHELvmcore.xml \
+     workflow_RHELxorg.xml \
+     workflow_RHELLibreport.xml \
+-    workflow_RHELJava.xml
++    workflow_RHELJava.xml \
++    workflow_Mailx.xml \
++    workflow_MailxCCpp.xml \
++    workflow_Upload.xml \
++    workflow_UploadCCpp.xml \
++    workflow_Logger.xml \
++    workflow_LoggerCCpp.xml
+ 
+ if BUILD_BUGZILLA
+ dist_workflows_DATA += \
+@@ -36,7 +41,10 @@ workflowsdefdir = $(WORKFLOWS_DEFINITION_DIR)
+ 
+ dist_workflowsdef_DATA =\
+     report_fedora.conf \
+-    report_rhel.conf
++    report_rhel.conf \
++    report_mailx.conf \
++    report_logger.conf \
++    report_uploader.conf
+ 
+ if BUILD_BUGZILLA
+ dist_workflowsdef_DATA += \
+@@ -54,14 +62,20 @@ EXTRA_DIST = \
+     workflow_FedoraXorg.xml.in \
+     workflow_FedoraLibreport.xml.in \
+     workflow_FedoraJava.xml.in \
+-    workflow_Upload.xml.in \
+     workflow_RHELCCpp.xml.in \
+     workflow_RHELKerneloops.xml.in \
+     workflow_RHELPython.xml.in \
+     workflow_RHELvmcore.xml.in \
+     workflow_RHELxorg.xml.in \
+     workflow_RHELLibreport.xml.in \
+-    workflow_RHELJava.xml.in
++    workflow_RHELJava.xml.in \
++    workflow_Mailx.xml.in \
++    workflow_MailxCCpp.xml.in \
++    workflow_Upload.xml.in \
++    workflow_UploadCCpp.xml.in \
++    workflow_Logger.xml.in \
++    workflow_LoggerCCpp.xml.in
++
+ 
+ if BUILD_BUGZILLA
+ EXTRA_DIST += \
+diff --git a/src/workflows/report_logger.conf b/src/workflows/report_logger.conf
+new file mode 100644
+index 0000000..15b9e65
+--- /dev/null
++++ b/src/workflows/report_logger.conf
+@@ -0,0 +1,6 @@
++# EVENT=workflow_LoggerCCpp analyzer=CCpp
++# this is just a meta event which consists of other events
++# the list is defined in the xml file
++
++# EVENT=workflow_Logger analyzer!=CCpp
++# this must be changed with new workflow
+diff --git a/src/workflows/report_mailx.conf b/src/workflows/report_mailx.conf
+new file mode 100644
+index 0000000..fef2192
+--- /dev/null
++++ b/src/workflows/report_mailx.conf
+@@ -0,0 +1,6 @@
++# EVENT=workflow_MailxCCpp analyzer=CCpp
++# this is just a meta event which consists of other events
++# the list is defined in the xml file
++
++# EVENT=workflow_Mailx analyzer!=CCpp
++# this must be changed with new workflow
+diff --git a/src/workflows/report_uploader.conf b/src/workflows/report_uploader.conf
+new file mode 100644
+index 0000000..7f17f52
+--- /dev/null
++++ b/src/workflows/report_uploader.conf
+@@ -0,0 +1,6 @@
++# EVENT=workflow_UploadCCpp analyzer=CCpp
++# this is just a meta event which consists of other events
++# the list is defined in the xml file
++
++# EVENT=workflow_Upload analyzer!=CCpp
++# this must be changed with new workflow
+diff --git a/src/workflows/workflow_Logger.xml.in b/src/workflows/workflow_Logger.xml.in
+new file mode 100644
+index 0000000..3ffe878
+--- /dev/null
++++ b/src/workflows/workflow_Logger.xml.in
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<workflow>
++    <_name>Export the problem data information to a text file</_name>
++    <_description>Analyze the problem locally and export the problem data information to a text file</_description>
++    <priority>-99</priority>
++
++    <events>
++        <event>collect_*</event>
++        <event>report_Logger</event>
++    </events>
++</workflow>
+diff --git a/src/workflows/workflow_LoggerCCpp.xml.in b/src/workflows/workflow_LoggerCCpp.xml.in
+new file mode 100644
+index 0000000..5dce9f0
+--- /dev/null
++++ b/src/workflows/workflow_LoggerCCpp.xml.in
+@@ -0,0 +1,12 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<workflow>
++    <_name>Export the problem data information to a text file</_name>
++    <_description>Analyze the problem locally and export the problem data information to a text file</_description>
++    <priority>-99</priority>
++
++    <events>
++        <event>collect_*</event>
++        <event>analyze_CCpp</event>
++        <event>report_Logger</event>
++    </events>
++</workflow>
+diff --git a/src/workflows/workflow_Mailx.xml.in b/src/workflows/workflow_Mailx.xml.in
+new file mode 100644
+index 0000000..63bd576
+--- /dev/null
++++ b/src/workflows/workflow_Mailx.xml.in
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<workflow>
++    <_name>Send the problem data via email</_name>
++    <_description>Analyze the problem locally and send information via email</_description>
++    <priority>-99</priority>
++
++    <events>
++        <event>collect_*</event>
++        <event>report_Mailx</event>
++    </events>
++</workflow>
+diff --git a/src/workflows/workflow_MailxCCpp.xml.in b/src/workflows/workflow_MailxCCpp.xml.in
+new file mode 100644
+index 0000000..3dd3bba
+--- /dev/null
++++ b/src/workflows/workflow_MailxCCpp.xml.in
+@@ -0,0 +1,12 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<workflow>
++    <_name>Send the problem data via email</_name>
++    <_description>Analyze the problem locally and send information via email</_description>
++    <priority>-99</priority>
++
++    <events>
++        <event>collect_*</event>
++        <event>analyze_CCpp</event>
++        <event>report_Mailx</event>
++    </events>
++</workflow>
+diff --git a/src/workflows/workflow_Upload.xml.in b/src/workflows/workflow_Upload.xml.in
+index 3965f99..a0bc658 100644
+--- a/src/workflows/workflow_Upload.xml.in
++++ b/src/workflows/workflow_Upload.xml.in
+@@ -5,7 +5,6 @@
+ 
+     <events>
+         <event>collect_*</event>
+-        <event>analyze_CCpp</event>
+         <event>report_Uploader</event>
+     </events>
+-</workflow>
+\ No newline at end of file
++</workflow>
+diff --git a/src/workflows/workflow_UploadCCpp.xml.in b/src/workflows/workflow_UploadCCpp.xml.in
+new file mode 100644
+index 0000000..7f22cb8
+--- /dev/null
++++ b/src/workflows/workflow_UploadCCpp.xml.in
+@@ -0,0 +1,12 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<workflow>
++    <_name>Upload the problem data to a server</_name>
++    <_description>Analyze the problem locally and upload the data via scp or ftp</_description>
++    <priority>-99</priority>
++
++    <events>
++        <event>collect_*</event>
++        <event>analyze_CCpp</event>
++        <event>report_Uploader</event>
++    </events>
++</workflow>
+-- 
+1.8.3.1
+

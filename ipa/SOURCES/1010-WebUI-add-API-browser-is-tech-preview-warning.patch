@@ -1,0 +1,41 @@
+From 476cf3fda5d75c9f1acede6709fd693c4e6a4279 Mon Sep 17 00:00:00 2001
+From: Martin Basti <mbasti@redhat.com>
+Date: Tue, 22 Sep 2015 14:01:43 +0200
+Subject: [PATCH] WebUI: add API browser is tech preview warning
+
+---
+ install/ui/src/freeipa/widgets/APIBrowserWidget.js | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/install/ui/src/freeipa/widgets/APIBrowserWidget.js b/install/ui/src/freeipa/widgets/APIBrowserWidget.js
+index 149a22fff4902a0f3ffb57d2b0e1aa904c973174..14876f463c843e21b87fe76a3677fc7549e00941 100644
+--- a/install/ui/src/freeipa/widgets/APIBrowserWidget.js
++++ b/install/ui/src/freeipa/widgets/APIBrowserWidget.js
+@@ -159,6 +159,15 @@ widgets.APIBrowserWidget = declare([Stateful, Evented], {
+         }
+     },
+ 
++    _render_techprev_warning: function() {
++        var el = $('<div/>', {
++            'class': 'alert alert-warning',
++            'style': 'margin-top: 20px; display: inline-block;',
++            text: "Be aware that the IdM API Browser and the API itself are Technology Preview features and might therefore change."
++        }).append($('<span/>', {'class': 'fa fa-warning'}));
++        return el;
++    },
++
+     /**
+      * Search metadata for object of given type and name. Display it if found.
+      * Display default view otherwise.
+@@ -255,6 +264,8 @@ widgets.APIBrowserWidget = declare([Stateful, Evented], {
+         if (!widget.el) widget.render();
+         if (this.current_details_w !== widget) {
+             this.details_el.empty();
++            // show warning that API and API browser are tech preview
++            this.details_el.append(this._render_techprev_warning())
+             this.details_el.append(widget.el);
+         }
+ 
+-- 
+2.8.2
+

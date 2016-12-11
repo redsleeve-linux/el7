@@ -1,0 +1,118 @@
+diff -up ntp-4.2.6p5/ntpd/ntp_loopfilter.c.clockstate ntp-4.2.6p5/ntpd/ntp_loopfilter.c
+--- ntp-4.2.6p5/ntpd/ntp_loopfilter.c.clockstate	2015-12-04 13:42:45.807689201 +0100
++++ ntp-4.2.6p5/ntpd/ntp_loopfilter.c	2015-12-04 15:21:34.252296997 +0100
+@@ -189,6 +189,51 @@ init_loopfilter(void)
+ 	clock_jitter = LOGTOD(sys_precision);
+ }
+ 
++#ifdef KERNEL_PLL
++/*
++ * ntp_adjtime_wrapper - call ntp_adjtime() and print errors and clock state
++ *                       changes related to leap seconds
++ */
++static int
++ntp_adjtime_wrapper(struct timex *timex)
++{
++	static int last_ret = TIME_OK;
++	int ret;
++
++	ret = ntp_adjtime(timex);
++
++	if (ret < 0) {
++		msyslog(LOG_ERR, "ntp_adjtime() failed: %s", strerror(errno));
++		return ret;
++	}
++
++	if (ret == last_ret || ret == TIME_ERROR)
++		return ret;
++
++	switch (ret) {
++	case TIME_OK:
++		if (last_ret != TIME_INS && last_ret != TIME_DEL)
++			break;
++		msyslog(LOG_INFO, "kernel leap second %s cancelled",
++			last_ret == TIME_INS ? "insertion" : "deletion");
++		break;
++	case TIME_INS:
++		msyslog(LOG_INFO, "kernel reports leap second insertion scheduled");
++		break;
++	case TIME_DEL:
++		msyslog(LOG_INFO, "kernel reports leap second deletion scheduled");
++		break;
++	case TIME_WAIT:
++		msyslog(LOG_INFO, "kernel reports leap second has occurred");
++		break;
++	}
++
++	last_ret = ret;
++
++	return ret;
++}
++#endif
++
+ /*
+  * local_clock - the NTP logical clock loop filter.
+  *
+@@ -566,7 +611,7 @@ local_clock(
+ 		 * the pps. In any case, fetch the kernel offset,
+ 		 * frequency and jitter.
+ 		 */
+-		if (ntp_adjtime(&ntv) == TIME_ERROR) {
++		if (ntp_adjtime_wrapper(&ntv) == TIME_ERROR) {
+ 			if (!(ntv.status & STA_PPSSIGNAL))
+ 				report_event(EVNT_KERN, NULL,
+ 				    "PPS no signal");
+@@ -598,7 +643,7 @@ local_clock(
+ 			loop_tai = sys_tai;
+ 			ntv.modes = MOD_TAI;
+ 			ntv.constant = sys_tai;
+-			ntp_adjtime(&ntv);
++			ntp_adjtime_wrapper(&ntv);
+ 		}
+ #endif /* STA_NANO */
+ 	}
+@@ -775,7 +820,7 @@ direct_freq(
+ 	 */
+ 	if (pll_control && kern_enable) {
+ 		memset(&ntv,  0, sizeof(ntv));
+-		ntp_adjtime(&ntv);
++		ntp_adjtime_wrapper(&ntv);
+ #ifdef STA_NANO
+ 		clock_offset = ntv.offset / 1e9;
+ #else /* STA_NANO */
+@@ -811,7 +856,7 @@ set_freq(
+ 		memset(&ntv,  0, sizeof(ntv));
+ 		ntv.modes = MOD_FREQUENCY;
+ 		ntv.freq = DTOFREQ(drift_comp);
+-		ntp_adjtime(&ntv);
++		ntp_adjtime_wrapper(&ntv);
+ 		snprintf(tbuf, sizeof(tbuf), "kernel %.3f PPM",
+ 		    drift_comp * 1e6);
+ 		report_event(EVNT_FSET, NULL, tbuf);
+@@ -905,7 +950,7 @@ loop_config(
+ 			pll_control = 0;
+ 		}
+ 		if (sigsetjmp(env, 1) == 0)
+-			ntp_adjtime(&ntv);
++			ntp_adjtime_wrapper(&ntv);
+ 		if ((sigaction(SIGSYS, &sigsys,
+ 		    (struct sigaction *)NULL))) {
+ 			msyslog(LOG_ERR,
+@@ -913,7 +958,7 @@ loop_config(
+ 			pll_control = 0;
+ 		}
+ #else /* SIGSYS */
+-		ntp_adjtime(&ntv);
++		ntp_adjtime_wrapper(&ntv);
+ #endif /* SIGSYS */
+ 
+ 		/*
+@@ -964,7 +1009,7 @@ loop_config(
+ 			memset((char *)&ntv, 0, sizeof(ntv));
+ 			ntv.modes = MOD_STATUS;
+ 			ntv.status = STA_UNSYNC;
+-			ntp_adjtime(&ntv);
++			ntp_adjtime_wrapper(&ntv);
+ 			report_event(EVNT_KERN, NULL,
+  		  	    "kernel time sync disabledx");
+ 		   }

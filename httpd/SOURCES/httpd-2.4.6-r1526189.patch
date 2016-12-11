@@ -1,0 +1,62 @@
+diff --git a/modules/proxy/mod_proxy.h b/modules/proxy/mod_proxy.h
+index 81fd14c..cd1710f 100644
+--- a/modules/proxy/mod_proxy.h
++++ b/modules/proxy/mod_proxy.h
+@@ -856,6 +856,17 @@ PROXY_DECLARE(int) ap_proxy_connect_backend(const char *proxy_function,
+ PROXY_DECLARE(int) ap_proxy_connection_create(const char *proxy_function,
+                                               proxy_conn_rec *conn,
+                                               conn_rec *c, server_rec *s);
++
++/**
++ * Determine if proxy connection can potentially be reused at the
++ * end of this request.
++ * @param conn proxy connection
++ * @return non-zero if reusable, 0 otherwise
++ * @note Even if this function returns non-zero, the connection may
++ * be subsequently marked for closure.
++ */
++PROXY_DECLARE(int) ap_proxy_connection_reusable(proxy_conn_rec *conn);
++
+ /**
+  * Signal the upstream chain that the connection to the backend broke in the
+  * middle of the response. This is done by sending an error bucket with
+diff --git a/modules/proxy/mod_proxy_fcgi.c b/modules/proxy/mod_proxy_fcgi.c
+index 0f84416..c57696a 100644
+--- a/modules/proxy/mod_proxy_fcgi.c
++++ b/modules/proxy/mod_proxy_fcgi.c
+@@ -247,7 +247,7 @@ static apr_status_t send_begin_request(proxy_conn_rec *conn, int request_id)
+ 
+     brb.roleB1 = ((FCGI_RESPONDER >> 8) & 0xff);
+     brb.roleB0 = ((FCGI_RESPONDER) & 0xff);
+-    brb.flags = FCGI_KEEP_CONN;
++    brb.flags = ap_proxy_connection_reusable(conn) ? FCGI_KEEP_CONN : 0;
+     brb.reserved[0] = 0;
+     brb.reserved[1] = 0;
+     brb.reserved[2] = 0;
+diff --git a/modules/proxy/proxy_util.c b/modules/proxy/proxy_util.c
+index 8bc9fab..ca70ae4 100644
+--- a/modules/proxy/proxy_util.c
++++ b/modules/proxy/proxy_util.c
+@@ -1333,6 +1333,13 @@ static void init_conn_pool(apr_pool_t *p, proxy_worker *worker)
+     worker->cp = cp;
+ }
+ 
++PROXY_DECLARE(int) ap_proxy_connection_reusable(proxy_conn_rec *conn)
++{
++    proxy_worker *worker = conn->worker;
++
++    return ! (conn->close || !worker->s->is_address_reusable || worker->s->disablereuse);
++}
++
+ static apr_status_t connection_cleanup(void *theconn)
+ {
+     proxy_conn_rec *conn = (proxy_conn_rec *)theconn;
+@@ -1361,7 +1368,7 @@ static apr_status_t connection_cleanup(void *theconn)
+     }
+ 
+     /* determine if the connection need to be closed */
+-    if (conn->close || !worker->s->is_address_reusable || worker->s->disablereuse) {
++    if (!ap_proxy_connection_reusable(conn)) {
+         apr_pool_t *p = conn->pool;
+         apr_pool_clear(p);
+         conn = apr_pcalloc(p, sizeof(proxy_conn_rec));

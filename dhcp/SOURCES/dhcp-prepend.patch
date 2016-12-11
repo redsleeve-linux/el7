@@ -1,0 +1,65 @@
+diff -up dhcp-4.2.5/client/dhc6.c.prepend dhcp-4.2.5/client/dhc6.c
+--- dhcp-4.2.5/client/dhc6.c.prepend	2016-04-18 14:21:41.062502036 +0200
++++ dhcp-4.2.5/client/dhc6.c	2016-04-18 14:25:11.683732506 +0200
+@@ -595,7 +595,7 @@ dhc6_dup_addr(struct dhc6_addr *addr, co
+  * Parsed options are deleted in order to not save them in the lease file.
+  */
+ static struct dhc6_lease *
+-dhc6_leaseify(struct packet *packet)
++dhc6_leaseify(struct packet *packet, struct client_state* client)
+ {
+ 	struct data_string ds;
+ 	struct dhc6_lease *lease;
+@@ -687,6 +687,11 @@ dhc6_leaseify(struct packet *packet)
+ 				      lease->server_id.data, 52));
+ 	}
+ 
++	execute_statements_in_scope(NULL, (struct packet *)packet, NULL,
++				    client, lease->options, lease->options,
++				    &global_scope, client->config->on_receipt,
++				    NULL);
++
+ 	return lease;
+ }
+ 
+@@ -2892,7 +2897,7 @@ init_handler(struct packet *packet, stru
+ 		return;
+ 	}
+ 
+-	lease = dhc6_leaseify(packet);
++	lease = dhc6_leaseify(packet, client);
+ 
+ 	if (dhc6_check_advertise(lease) != ISC_R_SUCCESS) {
+ 		log_debug("PRC: Lease failed to satisfy.");
+@@ -2975,6 +2980,12 @@ info_request_handler(struct packet *pack
+ 	option_state_reference(&client->active_lease->options,
+ 			       packet->options, MDL);
+ 
++	execute_statements_in_scope(NULL, (struct packet *)packet, NULL, client,
++				    client->active_lease->options,
++				    client->active_lease->options,
++				    &global_scope, client->config->on_receipt,
++				    NULL);
++
+ 	start_informed(client);
+ }
+ 
+@@ -3009,7 +3020,7 @@ rapid_commit_handler(struct packet *pack
+ 		return;
+ 	}
+ 
+-	lease = dhc6_leaseify(packet);
++	lease = dhc6_leaseify(packet, client);
+ 
+ 	/* This is an out of memory condition...hopefully a temporary
+ 	 * problem.  Returning now makes us try to retransmit later.
+@@ -3823,7 +3834,7 @@ reply_handler(struct packet *packet, str
+ 		return;
+ 	}
+ 
+-	lease = dhc6_leaseify(packet);
++	lease = dhc6_leaseify(packet, client);
+ 
+ 	/* This is an out of memory condition...hopefully a temporary
+ 	 * problem.  Returning now makes us try to retransmit later.
+diff -up dhcp-4.2.5/RELNOTES.prepend dhcp-4.2.5/RELNOTES

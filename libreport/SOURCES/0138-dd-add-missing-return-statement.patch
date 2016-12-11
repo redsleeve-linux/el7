@@ -1,0 +1,36 @@
+From 82bea520c7c037f861cf27859a194bb64559f835 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Sat, 23 May 2015 01:10:16 +0200
+Subject: [LIBREPORT PATCH] dd: add missing return statement
+
+The missing return allows abrt-dbus to read any file on system
+(absolute paths do not work because of an assert but relative paths
+ allow an attacker to read everything).
+
+Related: #1217484
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/lib/dump_dir.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib/dump_dir.c b/src/lib/dump_dir.c
+index 32f498b..796f947 100644
+--- a/src/lib/dump_dir.c
++++ b/src/lib/dump_dir.c
+@@ -1153,8 +1153,10 @@ char* dd_load_text_ext(const struct dump_dir *dd, const char *name, unsigned fla
+     if (!str_is_correct_filename(name))
+     {
+         error_msg("Cannot load text. '%s' is not a valid file name", name);
+-        if (!(flags & DD_LOAD_TEXT_RETURN_NULL_ON_FAILURE))
+-            xfunc_die();
++        if ((flags & DD_LOAD_TEXT_RETURN_NULL_ON_FAILURE))
++            return NULL;
++
++        xfunc_die();
+     }
+ 
+     /* Compat with old abrt dumps. Remove in abrt-2.1 */
+-- 
+1.8.3.1
+

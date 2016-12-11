@@ -1,0 +1,47 @@
+commit ba94f4b4d4bc86cbf99f3ff66b899a1a582a38a3
+Author: Daniel Kobras <d.kobras@science-computing.de>
+Date:   Mon Jun 16 14:23:22 2014 -0400
+
+    nfs4_setfacl.c: Fix fd leak in edit_ACL()
+    
+    nfs4_editfacl (aka. nfs4_setfacl -e) creates temporary files for ACL
+    editing, but doesn't close the associated file descriptors at runtime.
+    Therefore, the amount of files that can be adjusted with a single
+    invocation of nfs4_editfacl (nfs4_setfacl -e) is limited by the
+    process's RLIMIT_NOFILE setting.
+    
+    This becomes a problem when you try to -R/--recursive on a tree with
+    more than RLIMIT_NOFILE objects; for example:
+    
+    	$ mkdir TMP; cd TMP
+    	$ for i in $(seq 1 100); do mkdir $i; done
+    	$ ulimit -n 99
+    	$ EDITOR=/bin/true nfs4_editfacl -R -P .
+    	Unable to make tempfile "/tmp/.nfs4_setfacl-tmp-R2jd85" for editing.
+    	An error occurred during recursive file tree walk.
+    
+    Signed-off-by: J. Bruce Fields <bfields@redhat.com>
+
+diff --git a/nfs4_setfacl/nfs4_setfacl.c b/nfs4_setfacl/nfs4_setfacl.c
+index b4cb9f5..a958ac1 100644
+--- a/nfs4_setfacl/nfs4_setfacl.c
++++ b/nfs4_setfacl/nfs4_setfacl.c
+@@ -457,7 +457,8 @@ static struct nfs4_acl* edit_ACL(struct nfs4_acl *acl, const char *path, const s
+ 	}
+ 	if ((tmp_fp = fdopen(tmp_fd, "w+")) == NULL) {
+ 		fprintf(stderr, "Unable to fdopen tempfile \"%s\" for editing.\n", tmp_name);
+-		goto out;
++		close(tmp_fd);
++		goto out_unlink;
+ 	}
+ 
+ 	if (stat->st_mode & S_IFDIR)
+@@ -478,6 +479,8 @@ static struct nfs4_acl* edit_ACL(struct nfs4_acl *acl, const char *path, const s
+ 		goto failed;
+ 	}
+ out:
++	fclose(tmp_fp);
++out_unlink:
+ 	unlink(tmp_name);
+ 	return newacl;
+ failed:

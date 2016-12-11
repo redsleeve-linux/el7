@@ -1,0 +1,73 @@
+From 5c1cd1425d358d70bdd00a1b9efcac60f8189bd1 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Thu, 21 May 2015 11:52:35 +0200
+Subject: [PATCH] doc: update abrt-cli man page
+
+Related to rhbz#1179752
+
+Related: #1224984
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ doc/abrt-cli.txt | 28 +++++++++++++++++++++-------
+ 1 file changed, 21 insertions(+), 7 deletions(-)
+
+diff --git a/doc/abrt-cli.txt b/doc/abrt-cli.txt
+index cd14bc9..399b5fd 100644
+--- a/doc/abrt-cli.txt
++++ b/doc/abrt-cli.txt
+@@ -7,30 +7,44 @@ abrt-cli - List, remove, print, analyze, report problems
+ 
+ SYNOPSIS
+ --------
+-'abrt-cli' list   [-vdf] [DIR]...
++'abrt-cli' list    [-vn] [--detailed] [--since NUM] [--until NUM] [DIR]...
+ 
+-'abrt-cli' remove [-v]   DIR...
++'abrt-cli' remove  [-v]  DIR...
+ 
+-'abrt-cli' report [-v]   DIR...
++'abrt-cli' report  [-v]  [--delete]  DIR...
+ 
+-'abrt-cli' info   [-vd] [-s SIZE] DIR...
++'abrt-cli' info    [-v]  [--detailed] [-s SIZE] DIR...
+ 
+-'abrt-cli' process [-v] DIR...
++'abrt-cli' status  [-vb] [--since NUM]
++
++'abrt-cli' process [-v]  [--since NUM] DIR...
+ 
+ OPTIONS
+ -------
+ -v,--verbose::
+    Be more verbose. Can be given multiple times.
+ 
+--d,--detailed::
++-b, --bare::
++    Print only the problem count without any message
++
++--detailed::
+    Show detailed report
+ 
++--delete::
++    Remove PROBLEM_DIR after reporting
++
+ -n,--not-reported::
+    List only not-reported problems
+ 
+--s,--size SIZE:
++--size SIZE::
+    Text larger than SIZE bytes will be shown abridged
+ 
++--since NUM::
++    Selects only problems detected after timestamp
++
++--until NUM::
++    Selects only the problems older than specified timestamp
++
+ AUTHORS
+ -------
+ * ABRT team
+-- 
+2.4.3
+

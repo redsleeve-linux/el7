@@ -1,0 +1,130 @@
+From e30c24a5572c33f9ca5157bfb4e504897b1bb7c9 Mon Sep 17 00:00:00 2001
+From: Denys Vlasenko <dvlasenk@redhat.com>
+Date: Mon, 6 Jan 2014 16:04:37 +0100
+Subject: [ABRT PATCH 26/27] MCE: cover cases where kernel version isn't
+ detected on Fedora 20.
+
+With this change, both fata and non-fatal MCEs are caught on default
+Fedora 20 installation.
+
+Signed-off-by: Denys Vlasenko <dvlasenk@redhat.com>
+
+Related to rhbz#1032077
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ doc/MCE_readme.txt            |  9 ++++++++-
+ src/lib/kernel.c              |  2 +-
+ src/plugins/abrt-dump-oops.c  |  3 ++-
+ src/plugins/koops_event.conf  | 11 +++++++++++
+ src/plugins/vmcore_event.conf | 14 ++++++++++++--
+ 5 files changed, 34 insertions(+), 5 deletions(-)
+
+diff --git a/doc/MCE_readme.txt b/doc/MCE_readme.txt
+index ed5b627..5dff636 100644
+--- a/doc/MCE_readme.txt
++++ b/doc/MCE_readme.txt
+@@ -70,7 +70,7 @@ echo "Exitcode:$?"
+ 
+ It requires files which describe MCE to simulate. I grabbed a few examples
+ from mce-test.tar.gz (source tarball of mce-test project).
+-I used this this file to cause a non-fatal MCE:
++I used this file to cause a non-fatal MCE:
+ 
+ CPU 0 BANK 2
+ STATUS VAL OVER EN
+@@ -84,3 +84,10 @@ RIP 12343434
+ MISC 11
+ 
+ (Not sure what failures exactly they imitate, maybe there are better examples).
++
++
++For testing fatal MCEs you need to set up kdump. Mini-recipe:
++(1) yum install --enablerepo='*debuginfo*' kexec-tools crash kernel-debuginfo
++(2) add "crashkernel=128M" to the kernel's command line, reboot
++(3) before injecting fatal MCE, start kdump service:
++    systemctl start kdump.service
+diff --git a/src/lib/kernel.c b/src/lib/kernel.c
+index 340ec39..ad20c65 100644
+--- a/src/lib/kernel.c
++++ b/src/lib/kernel.c
+@@ -66,7 +66,7 @@ static void record_oops(GList **oops_list, struct line_info* lines_info, int oop
+         {
+             *oops_list = g_list_append(
+                         *oops_list,
+-                        xasprintf("%s\n%s", (version ? version : "undefined"), oops)
++                        xasprintf("%s\n%s", (version ? version : ""), oops)
+             );
+         }
+         else
+diff --git a/src/plugins/abrt-dump-oops.c b/src/plugins/abrt-dump-oops.c
+index 5e33f0a..12291be 100644
+--- a/src/plugins/abrt-dump-oops.c
++++ b/src/plugins/abrt-dump-oops.c
+@@ -115,7 +115,8 @@ static void save_oops_data_in_dump_dir(struct dump_dir *dd, char *oops, const ch
+     char *second_line = (char*)strchr(first_line, '\n'); /* never NULL */
+     *second_line++ = '\0';
+ 
+-    dd_save_text(dd, FILENAME_KERNEL, first_line);
++    if (first_line[0])
++        dd_save_text(dd, FILENAME_KERNEL, first_line);
+     dd_save_text(dd, FILENAME_BACKTRACE, second_line);
+ 
+     /* check if trace doesn't have line: 'Your BIOS is broken' */
+diff --git a/src/plugins/koops_event.conf b/src/plugins/koops_event.conf
+index 37a79a9..b1472ce 100644
+--- a/src/plugins/koops_event.conf
++++ b/src/plugins/koops_event.conf
+@@ -3,6 +3,17 @@ EVENT=post-create analyzer=Kerneloops
+         # >> instead of > is due to bugzilla.redhat.com/show_bug.cgi?id=854266
+         abrt-action-analyze-oops &&
+         dmesg >>dmesg &&
++        {
++        # action-analyze-oops tries to save kernel version,
++        # but for some oopses it can't do that (e.g. MCEs).
++        # If it failed, try to extract version from dmesg:
++        test -f kernel ||
++            {
++            k=`sed -n '/Linux version/ s/.*Linux version \([^ ]*\) .*/\1/p' dmesg | tail -n1`
++            test "$k" != "" && printf "%s" "$k" >kernel
++            true   # ignore possible failures in previous command
++            }
++        } &&
+         abrt-action-save-kernel-data &&
+         # Do not fail the event (->do not delete problem dir)
+         # if check-oops-for-hw-error exits nonzero:
+diff --git a/src/plugins/vmcore_event.conf b/src/plugins/vmcore_event.conf
+index 655d842..a525ec7 100644
+--- a/src/plugins/vmcore_event.conf
++++ b/src/plugins/vmcore_event.conf
+@@ -1,6 +1,7 @@
+ # analyze
+ EVENT=analyze_VMcore analyzer=vmcore
+         # If kdump machinery already extracted dmesg...
++        (
+         if test -f vmcore-dmesg.txt; then
+             # ...use that
+             abrt-dump-oops -o vmcore-dmesg.txt >backtrace || exit $?
+@@ -15,8 +16,17 @@ EVENT=analyze_VMcore analyzer=vmcore
+             test "$k" != "" && printf "%s" "$k" >kernel
+         else
+             # No vmcore-dmesg.txt, do it the hard way:
+-            abrt-action-analyze-vmcore
+-        fi &&
++            abrt-action-analyze-vmcore || exit $?
++            #
++            # Does "kernel" element exist?
++            test -f kernel && exit 0
++            #
++            # Try creating it from dmesg_log (created by abrt-action-analyze-vmcore):
++            test -f dmesg_log || exit 0
++            k=`sed -n '/Linux version/ s/.*Linux version \([^ ]*\) .*/\1/p' dmesg_log | tail -n1`
++            test "$k" != "" && printf "%s" "$k" >kernel
++        fi
++        ) &&
+         abrt-action-analyze-oops &&
+         abrt-action-save-kernel-data
+ 
+-- 
+1.8.3.1
+

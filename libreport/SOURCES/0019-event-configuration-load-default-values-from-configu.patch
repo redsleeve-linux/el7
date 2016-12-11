@@ -1,0 +1,70 @@
+From 70a804d6988a99ff85e4ca6e33ccc3de362cb74d Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Thu, 6 Feb 2014 10:38:51 +0100
+Subject: [LIBREPORT PATCH 19/24] event configuration: load default values from
+ configuration directory
+
+Load event configuration files from EVENT_CONF_DIR, where the files are
+actually placed, instead of EVENT_DIR, which contains on XML event
+definition files.
+
+Closes rhbz#1062135
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ augeas/libreport.aug   |  3 +++
+ src/lib/Makefile.am    |  1 +
+ src/lib/event_config.c | 10 +++++++++-
+ 3 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/augeas/libreport.aug b/augeas/libreport.aug
+index 431d3d2..3eba157 100644
+--- a/augeas/libreport.aug
++++ b/augeas/libreport.aug
+@@ -20,7 +20,10 @@ module Libreport =
+     let lns = ( comment | empty | option )*
+ 
+     let filter = (incl "/etc/libreport/plugins/*")
++               . (incl "/etc/libreport/events/*")
+                . (incl (Sys.getenv("HOME") . "/.config/abrt/settings/*"))
++               . (incl (Sys.getenv("XDG_CACHE_HOME") . "/abrt/events/*"))
++               . (incl (Sys.getenv("HOME") . "/.cache/abrt/events/*"))
+                . Util.stdexcl
+ 
+     let xfm = transform lns filter
+diff --git a/src/lib/Makefile.am b/src/lib/Makefile.am
+index a8ae75c..ac173f6 100644
+--- a/src/lib/Makefile.am
++++ b/src/lib/Makefile.am
+@@ -64,6 +64,7 @@ libreport_la_CPPFLAGS = \
+     -DPLUGINS_CONF_DIR=\"$(PLUGINS_CONF_DIR)\" \
+     -DCONF_DIR=\"$(CONF_DIR)\" \
+     -DEVENTS_DIR=\"$(EVENTS_DIR)\" \
++    -DEVENTS_CONF_DIR=\"$(EVENTS_CONF_DIR)\" \
+     -DWORKFLOWS_DIR=\"$(WORKFLOWS_DIR)\" \
+     -DBIN_DIR=\"$(bindir)\" \
+     -DDEFAULT_DUMP_DIR_MODE=$(DEFAULT_DUMP_DIR_MODE) \
+diff --git a/src/lib/event_config.c b/src/lib/event_config.c
+index 169dd78..6d12695 100644
+--- a/src/lib/event_config.c
++++ b/src/lib/event_config.c
+@@ -229,7 +229,15 @@ GHashTable *load_event_config_data(void)
+         event_files = g_list_delete_link(event_files, event_files);
+     }
+ 
+-    load_config_files(EVENTS_DIR);
++    /* EVENTS_DIR      -> /usr/share/libreport/events/$EVENT_NAME.xml
++     *   - event xml definition files
++     *
++     * EVENTS_CONF_DIR -> /etc/libreport/events/$EVENT_NAME.conf
++     *   - default values for xml definitions
++     *
++     * https://fedorahosted.org/abrt/wiki/AbrtConfiguration#Adjustingpluginconfiguration
++     */
++    load_config_files(EVENTS_CONF_DIR);
+ 
+     char *cachedir;
+     cachedir = concat_path_file(g_get_user_cache_dir(), "abrt/events");
+-- 
+1.8.3.1
+

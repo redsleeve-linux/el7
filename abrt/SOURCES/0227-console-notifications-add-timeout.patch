@@ -1,0 +1,26 @@
+From 83831bb2af42219682e3e1d4adbd350e634bd07e Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Tue, 20 Jan 2015 15:12:05 +0100
+Subject: [PATCH] console-notifications: add timeout
+
+Related to #898
+Resolves rhbz#1249101
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/cli/abrt-console-notification.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cli/abrt-console-notification.sh b/src/cli/abrt-console-notification.sh
+index 976dfc3..a98f164 100755
+--- a/src/cli/abrt-console-notification.sh
++++ b/src/cli/abrt-console-notification.sh
+@@ -39,4 +39,4 @@ if [ -f "$TMPPATH" ]; then
+     mv -f "$TMPPATH" "$SINCEFILE" >"$ABRT_DEBUG_LOG" 2>&1
+ fi
+ 
+-abrt-cli status --since="$SINCE" 2>"$ABRT_DEBUG_LOG"
++timeout 10s abrt-cli status --since="$SINCE" 2>"$ABRT_DEBUG_LOG" || echo "'abrt-cli status' timed out"
+-- 
+1.8.3.1
+

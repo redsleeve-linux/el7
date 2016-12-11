@@ -1,0 +1,62 @@
+From 78ef6581483190fc60fc928fb2263f5520a5edfa Mon Sep 17 00:00:00 2001
+From: Petr Spacek <pspacek@redhat.com>
+Date: Thu, 11 Aug 2016 13:44:29 +0200
+Subject: [PATCH] DNS server upgrade: do not fail when DNS server did not
+ respond
+
+Previously, update_dnsforward_emptyzones failed with an exeception if
+DNS query failed for some reason. Now the error is logged and upgrade
+continues.
+
+I assume that this is okay because the DNS query is used as heuristics
+of last resort in the upgrade logic and failure to do so should not have
+catastrophics consequences: In the worst case, the admin needs to
+manually change forwarding policy from 'first' to 'only'.
+
+In the end I have decided not to auto-start BIND because BIND depends on
+GSSAPI for authentication, which in turn depends on KDC ... Alternative
+like reconfiguring BIND to use LDAPI+EXTERNAL and reconfiguring DS to
+accept LDAP external bind from named user are too complicated.
+
+https://fedorahosted.org/freeipa/ticket/6205
+
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+---
+ ipaserver/install/plugins/dns.py | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/ipaserver/install/plugins/dns.py b/ipaserver/install/plugins/dns.py
+index 32247eedbac7fc7e00c7277ef0bc593a74cd22e4..7b06a5c0d3a59e5825af75fae87c9739a53d9913 100644
+--- a/ipaserver/install/plugins/dns.py
++++ b/ipaserver/install/plugins/dns.py
+@@ -17,6 +17,9 @@
+ # You should have received a copy of the GNU General Public License
+ # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ 
++from __future__ import absolute_import
++
++import dns.exception
+ import re
+ import traceback
+ import time
+@@ -489,8 +492,15 @@ class update_dnsforward_emptyzones(DNSUpdater):
+         self.api.Command['dnsconfig_mod'](ipadnsversion=2)
+ 
+         self.update_zones()
+-        if dnsutil.has_empty_zone_addresses(self.api.env.host):
+-            self.update_global_ldap_forwarder()
++        try:
++            if dnsutil.has_empty_zone_addresses(self.api.env.host):
++                self.update_global_ldap_forwarder()
++        except dns.exception.DNSException as ex:
++            self.log.error('Skipping update of global DNS forwarder in LDAP: '
++                           'Unable to determine if local server is using an '
++                           'IP address belonging to an automatic empty zone. '
++                           'Consider changing forwarding policy to "only". '
++                           'DNS exception: %s', ex)
+ 
+         return False, []
+ 
+-- 
+2.7.4
+

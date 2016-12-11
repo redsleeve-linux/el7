@@ -1,0 +1,77 @@
+From c362b6a9c4abb2f4185f5c88b90aecfebd6c67cb Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Thu, 24 Jul 2014 13:34:50 +0200
+Subject: [LIBREPORT PATCH 73/93] logging: test log level at first step
+
+Return from the logger immediately if message's log level is not
+sufficient to write it to the log.
+
+This patch is a workaround for rhbz#1122690 where we try to log a
+'post'ed string which has 18MB of size. It is not worth to try to fix it
+properly. We do not log such a big amount of data in non-debug mode, we
+need to have the logging extremely fast and we can live with crashes in
+debug mode.
+
+Resolves: #1142380
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/lib/logging.c | 26 +++++++++++---------------
+ 1 file changed, 11 insertions(+), 15 deletions(-)
+
+diff --git a/src/lib/logging.c b/src/lib/logging.c
+index 259a634..4b9dd87 100644
+--- a/src/lib/logging.c
++++ b/src/lib/logging.c
+@@ -66,7 +66,7 @@ static void log_handler(int level,
+                         int line,
+                         const char *func)
+ {
+-    if (!logmode)
++    if (!logmode || !should_log(level))
+         return;
+ 
+     /* This is ugly and costs +60 bytes compared to multiple
+@@ -122,29 +122,25 @@ static void log_handler(int level,
+     strcpy(&msg[used], msg_eol);
+ 
+     if (flags & LOGMODE_STDIO) {
+-        if(should_log(level))
+-            full_write(STDERR_FILENO, msg, used + msgeol_len);
++        full_write(STDERR_FILENO, msg, used + msgeol_len);
+     }
+     msg[used] = '\0'; /* remove msg_eol (usually "\n") */
+     if (flags & LOGMODE_SYSLOG) {
+-        if(should_log(level))
+-            syslog(level, "%s", msg + prefix_len);
++        syslog(level, "%s", msg + prefix_len);
+     }
+ 
+     if ((flags & LOGMODE_CUSTOM) && g_custom_logger) {
+-        if(should_log(level))
+-            g_custom_logger(msg + prefix_len);
++        g_custom_logger(msg + prefix_len);
+     }
+ 
+     if (flags & LOGMODE_JOURNAL) {
+-        if(should_log(level))
+-            sd_journal_send("MESSAGE=%s", msg + prefix_len,
+-                            "PRIORITY=%d", level,
+-                            "CODE_FILE=%s", file,
+-                            "CODE_LINE=%d", line,
+-                            "CODE_FUNC=%s", func,
+-                            "SYSLOG_FACILITY=1",
+-                            NULL);
++        sd_journal_send("MESSAGE=%s", msg + prefix_len,
++                        "PRIORITY=%d", level,
++                        "CODE_FILE=%s", file,
++                        "CODE_LINE=%d", line,
++                        "CODE_FUNC=%s", func,
++                        "SYSLOG_FACILITY=1",
++                        NULL);
+     }
+ }
+ 
+-- 
+1.8.3.1
+

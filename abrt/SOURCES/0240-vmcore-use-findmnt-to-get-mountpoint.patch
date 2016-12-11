@@ -1,0 +1,133 @@
+From 79108d97e3b3d031c34c432634b305ce0becf716 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Thu, 16 Jun 2016 14:21:28 +0200
+Subject: [PATCH] vmcore: use findmnt to get mountpoint
+
+findmnt solves both problems:
+* UUID=/LABEL=
+* different device links
+
+Related: rhbz#1147053
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+
+Conflicts:
+	src/hooks/abrt_harvest_vmcore.py.in
+---
+ configure.ac                        |  2 +-
+ src/hooks/Makefile.am               |  2 +-
+ src/hooks/abrt_harvest_vmcore.py.in | 59 ++++++++++++++-----------------------
+ 3 files changed, 24 insertions(+), 39 deletions(-)
+
+diff --git a/configure.ac b/configure.ac
+index 20a7f27..02d7e0e 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -173,7 +173,7 @@ AC_ARG_ENABLE(doxygen-docs,
+     [enable_doxygen_docs=no]
+ )
+ 
+-AC_PATH_PROG([BLKID], [BLKID], [/usr/sbin/blkid], [$PATH:/usr/sbin:/sbin])
++AC_PATH_PROG([FINDMNT], [findmnt], [/usr/bin/findmnt], [$PATH:/usr/sbin:/sbin])
+ 
+ # Doxygen Documentation
+ 
+diff --git a/src/hooks/Makefile.am b/src/hooks/Makefile.am
+index 216cfc1..650a771 100644
+--- a/src/hooks/Makefile.am
++++ b/src/hooks/Makefile.am
+@@ -92,7 +92,7 @@ abrt-install-ccpp-hook: abrt-install-ccpp-hook.in
+ abrt-harvest-vmcore: abrt_harvest_vmcore.py.in
+ 	sed -e s,\@CONF_DIR\@,\$(CONF_DIR)\,g \
+ 	    -e s,\@DEFAULT_DUMP_LOCATION\@,$(DEFAULT_DUMP_LOCATION),g \
+-	    -e s,\@BLKID\@,$(BLKID),g \
++	    -e s,\@FINDMNT\@,$(FINDMNT),g \
+ 		$< >$@
+ 
+ abrt-harvest-pstoreoops: abrt-harvest-pstoreoops.in
+diff --git a/src/hooks/abrt_harvest_vmcore.py.in b/src/hooks/abrt_harvest_vmcore.py.in
+index e71e5c9..6b2719e 100644
+--- a/src/hooks/abrt_harvest_vmcore.py.in
++++ b/src/hooks/abrt_harvest_vmcore.py.in
+@@ -18,6 +18,12 @@ from subprocess import Popen, PIPE
+ import problem
+ 
+ 
++def errx(message, code=1):
++    sys.stderr.write(message)
++    sys.stderr.write("\n")
++    sys.stderr.flush()
++    sys.exit(code)
++
+ def get_augeas(module, file_path):
+     """
+     A function for efficient configuration of Augeas.
+@@ -32,49 +38,28 @@ def get_augeas(module, file_path):
+ 
+ def get_mount_point(part_id):
+     """
+-    A function used to look up a mount point in mtab using
+-    the provided identifier.
++    A function used to look up a mount point of the provided identifier
++    using 'findmnt' system utility.
+ 
+     part_id - device node, label or uuid
+     """
+ 
+-    idtypes = {"UUID=":"-U", "PARTUUID=":"-U", "LABEL=":"-L", "PARTLABEL=":"-L"}
+-
+-    for typ, switch in idtypes.items():
+-        if not part_id.startswith(typ):
+-            continue
+-
+-        idf = part_id[len(typ):]
+-        try:
+-            proc = Popen(["@BLKID@", switch, idf], stdout=PIPE, stderr=PIPE)
+-            out, err = proc.communicate()
+-            if err:
+-                sys.stderr.write("Failed 'blkid {0} {1}': {2}\n"
+-                                 .format(switch, idf, err))
+-                sys.exit(1)
+-            if not out:
+-                sys.stderr.write("No results from 'blkid {0} {1}'\n"
+-                                 .format(switch, idf))
+-                sys.exit(1)
+-
+-            part_id = out.strip()
+-            break
+-        except OSError as ex:
+-            sys.stderr.write("Cannot run 'blkid {0} {1}': {2}\n"
+-                              .format(switch, idf, str(ex)))
+-            sys.exit(1)
++    try:
++        proc = Popen(["@FINDMNT@", "--noheadings", "--first-only", "--raw",
++                     "--evaluate", "--output", "TARGET", part_id],
++                     stdout=PIPE, stderr=PIPE)
++        out, err = proc.communicate()
++        if err:
++            errx("Error finding mountpoint of '{0}': {1}"
++                 .format(devpath, err))
++
++        result = out.strip()
++        if proc.returncode != 0 or not result:
++            errx("Cannot find mountpoint of '{0}'".format(part_id))
+ 
+-    # look up the identifier in /etc/mtab
+-    result = get_augeas("Fstab", "/etc/mtab").get("/files/etc/mtab/*"
+-                                 "[spec=\"" + part_id + "\"]/file")
+-    if result:
+         return result
+-    else:
+-        # identifier not in the table
+-        sys.stderr.write("Error: Cannot access partition '" + part_id +
+-                         "', mount point not found in /etc/mtab!\n")
+-        sys.exit(1)
+-
++    except OSError as ex:
++        errx("Cannot run 'findmnt': {1}".format(str(ex)))
+ 
+ def parse_kdump():
+     """
+-- 
+1.8.3.1
+

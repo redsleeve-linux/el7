@@ -1,0 +1,99 @@
+From: Jiri Benc <jbenc@redhat.com>
+Subject: Build correctly with z-stream kernels
+
+In brew, there's usually a newer kernel installed than the one used for
+installation. Handle this situation correctly by allowing the spec file to
+define kernel_version to be used in rpm dependencies, while building against
+a compatible newer (z-stream) kernel.
+
+Signed-off-by: Jiri Benc <jbenc@redhat.com>
+
+---
+ kmodtool |   31 ++++++++++++++++++++++++++++---
+ macros   |    2 +-
+ 2 files changed, 29 insertions(+), 4 deletions(-)
+
+--- a/kmodtool
++++ b/kmodtool
+@@ -9,6 +9,7 @@
+ # Copyright (c) 2003-2010 Ville Skyttä <ville.skytta@iki.fi>,
+ #                         Thorsten Leemhuis <fedora@leemhuis.info>
+ #                         Jon Masters <jcm@redhat.com>
++# Copyright (c) 2012-2013 Jiri Benc <jbenc@redhat.com>
+ #
+ # Permission is hereby granted, free of charge, to any person obtaining
+ # a copy of this software and associated documentation files (the
+@@ -49,9 +50,25 @@ kver=
+ verrel=
+ variant=
+ 
++get_kernel_release ()
++{
++  if [[ -z $1 ]]; then
++    uname -r
++    return
++  fi
++  local arch=$(arch)
++  local verrel=${1%.$arch}
++  local verprefix=${verrel%.*}
++  local versuffix=${verrel#$verprefix}
++  verrel=$(ls -Ud /usr/src/kernels/$verprefix*$versuffix.$arch | sort -V | tail -n 1)
++  verrel=${verrel##*/}
++  [[ -z $verrel ]] && verrel=$1.$arch
++  echo "$verrel"
++}
++
+ get_verrel ()
+ {
+-  verrel=${1:-$(uname -r)}
++  verrel=$(get_kernel_release "$1")
+   verrel=${verrel/%.$knownvariants/}
+ }
+ 
+@@ -61,10 +78,16 @@ print_verrel ()
+   echo "${verrel}"
+ }
+ 
++get_verrel_for_deps ()
++{
++  verrel_dep=${1:-$(uname -r)}
++  verrel_dep=${verrel_dep/%.$knownvariants/}
++}
++
+ get_variant ()
+ {
+   get_verrel $@
+-  variant=${1:-$(uname -r)}
++  variant=$(get_kernel_release "$1")
+   variant=${variant/#$verrel?(.)/}
+   variant=${variant:-'""'}
+ }
+@@ -129,7 +152,7 @@ get_rpmtemplate ()
+     echo "%global _use_internal_dependency_generator 0"
+ 
+     cat <<EOF
+-Provides:         kernel-modules >= ${verrel}${dotvariant}
++Provides:         kernel-modules >= ${verrel_dep}${dotvariant}
+ Provides:         ${kmod_name}-kmod = %{?epoch:%{epoch}:}%{version}-%{release}
+ Requires(post):   /sbin/depmod
+ Requires(postun): /sbin/depmod
+@@ -206,6 +229,8 @@ print_rpmtemplate ()
+   shift
+   kver="${1}"
+   get_verrel "${1}"
++  get_verrel_for_deps "${1}"
++  [[ -z $kver ]] && kver=$verrel
+   shift
+   if [ -z "${kmod_name}" ] ; then
+     echo "Please provide the kmodule-name as first parameter." >&2
+--- a/macros
++++ b/macros
+@@ -218,7 +218,7 @@ package or when debugging this package.\
+ 	then \
+ 		nobuildreqs="yes" \
+ 	fi \
+-	override_filelist="$filelist" override_preamble="$preamble" nobuildreqs="$nobuildreqs" kmod_version=%kmod_version kmod_release=%kmod_release %{kmodtool} rpmtemplate %{-n*}%{!-n:%name} %{kverrel} $flavors_to_build 2>/dev/null \
++	override_filelist="$filelist" override_preamble="$preamble" nobuildreqs="$nobuildreqs" kmod_version=%kmod_version kmod_release=%kmod_release %{kmodtool} rpmtemplate %{-n*}%{!-n:%name} %{kernel_version} $flavors_to_build 2>/dev/null \
+ )}
+ 
+ #==============================================================================

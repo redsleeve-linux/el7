@@ -1,0 +1,107 @@
+From ae62b6013c3fd562659e59b517237d64bb0a12c6 Mon Sep 17 00:00:00 2001
+From: Ray Strode <rstrode@redhat.com>
+Date: Wed, 25 May 2016 14:57:43 -0400
+Subject: [PATCH] text-progress-bar: munge os-release output
+
+RHEL uses the same /etc/os-release file in the installer for all
+variants.  This means we need to trim the variant out from the
+string, since it's not accurate.
+
+dracut adds its own mark to the os-release file in the initramfs,
+we need to trim that out, too.
+---
+ src/libply-splash-core/ply-text-progress-bar.c | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)
+
+diff --git a/src/libply-splash-core/ply-text-progress-bar.c b/src/libply-splash-core/ply-text-progress-bar.c
+index 8c4e759..a5a6aff 100644
+--- a/src/libply-splash-core/ply-text-progress-bar.c
++++ b/src/libply-splash-core/ply-text-progress-bar.c
+@@ -121,60 +121,84 @@ get_os_string (void)
+     {
+       char key[] = "PRETTY_NAME=";
+ 
+       for (pos = strstr (buf, key);
+            pos != NULL;
+            pos = strstr (pos, key))
+         {
+           if (pos == buf || pos[-1] == '\n')
+             break;
+         }
+ 
+       if (pos != NULL)
+         {
+           pos += strlen (key);
+           pos2 = strstr (pos, "\n");
+ 
+           if (pos2 != NULL)
+             *pos2 = '\0';
+           else
+             pos2 = pos + strlen(pos) - 1;
+ 
+           if ((*pos == '\"' && pos2[-1] == '\"') ||
+               (*pos == '\'' && pos2[-1] == '\''))
+             {
+               pos++;
+               pos2--;
+ 
+               *pos2 = '\0';
+             }
+           asprintf (&os_string, " %s", pos);
++
++          /* For RHEL, overwrite variant because it's not reliable, see
++           * bug 911553
++           */
++          pos = strstr (os_string, "Red Hat Enterprise Linux ");
++
++          if (pos != NULL)
++            {
++              pos += strlen ("Red Hat Enterprise Linux ");
++
++              pos2 = strstr (pos, " ");
++
++              if (pos2 != NULL)
++                {
++                  pos2++;
++                  memmove (pos, pos2, strlen (pos2));
++                }
++            }
++
++          /* Trim out code names and dracut gook
++           */
++          pos = strstr (os_string, " (");
++          if (pos != NULL)
++            *pos = '\0';
+         }
+       goto out;
+     }
+ 
+   pos = strstr (buf, " release ");
+ 
+   if (pos == NULL)
+     goto out;
+ 
+   pos2 = strstr (pos, " (");
+ 
+   if (pos2 == NULL)
+     goto out;
+ 
+   *pos = '\0';
+   pos += strlen (" release ");
+ 
+   *pos2 = '\0';
+   asprintf (&os_string, " %s %s", buf, pos);
+ 
+ out:
+   free (buf);
+ 
+   if (os_string == NULL)
+     os_string = strdup ("");
+ }
+ 
+ void
+ ply_text_progress_bar_draw (ply_text_progress_bar_t *progress_bar)
+ {
+-- 
+2.8.1
+

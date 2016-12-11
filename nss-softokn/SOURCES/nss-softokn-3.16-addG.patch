@@ -1,0 +1,194 @@
+diff -up ./nss/lib/freebl/pqg.c.addG ./nss/lib/freebl/pqg.c
+--- ./nss/lib/freebl/pqg.c.addG	2014-09-22 14:29:55.360361453 -0700
++++ ./nss/lib/freebl/pqg.c	2014-09-22 14:29:55.386361892 -0700
+@@ -1259,6 +1259,42 @@ pqg_ParamGen(unsigned int L, unsigned in
+ 	PORT_SetError(SEC_ERROR_INVALID_ARGS);
+ 	return SECFailure;
+     }
++
++    /* Initialize bignums */
++    MP_DIGITS(&P) = 0;
++    MP_DIGITS(&Q) = 0;
++    MP_DIGITS(&G) = 0;
++    MP_DIGITS(&H) = 0;
++    MP_DIGITS(&l) = 0;
++    MP_DIGITS(&p0) = 0;
++    CHECK_MPI_OK( mp_init(&P) );
++    CHECK_MPI_OK( mp_init(&Q) );
++    CHECK_MPI_OK( mp_init(&G) );
++    CHECK_MPI_OK( mp_init(&H) );
++    CHECK_MPI_OK( mp_init(&l) );
++    CHECK_MPI_OK( mp_init(&p0) );
++
++    /* parameters have been passed in, only generate G */
++    if (*pParams != NULL) {
++	/* we only support G index generation if generating separate from PQ */
++	if ((*pVfy != NULL) || (type == FIPS186_1_TYPE) || 
++	    ((*pVfy)->h.len != 1) || ((*pVfy)->h.data == NULL) || 
++	    ((*pVfy)->seed.data == NULL) || ((*pVfy)->seed.len == 0)) {
++	    PORT_SetError(SEC_ERROR_INVALID_ARGS);
++	    return SECFailure;
++	}
++	params = *pParams;
++	verify = *pVfy;
++
++	/* fill in P Q,  */
++	SECITEM_TO_MPINT((*pParams)->prime,    &P);
++	SECITEM_TO_MPINT((*pParams)->subPrime, &Q);
++    	hashtype = getFirstHash(L,N);
++	CHECK_SEC_OK(makeGfromIndex(hashtype, &P, &Q, &(*pVfy)->seed, 
++						(*pVfy)->h.data[0], &G) );
++	MPINT_TO_SECITEM(&G, &(*pParams)->base,     (*pParams)->arena);
++	goto cleanup;
++    }
+     /* Initialize an arena for the params. */
+     arena = PORT_NewArena(NSS_FREEBL_DEFAULT_CHUNKSIZE);
+     if (!arena) {
+@@ -1517,8 +1553,12 @@ cleanup:
+ 	rv = SECFailure;
+     }
+     if (rv) {
+-	PORT_FreeArena(params->arena, PR_TRUE);
+-	PORT_FreeArena(verify->arena, PR_TRUE);
++	if (params) {
++	    PORT_FreeArena(params->arena, PR_TRUE);
++	}
++	if (verify) {
++	    PORT_FreeArena(verify->arena, PR_TRUE);
++	}
+     }
+     if (hit.data) {
+         SECITEM_FreeItem(&hit, PR_FALSE);
+diff -up ./nss/lib/softoken/pkcs11c.c.addG ./nss/lib/softoken/pkcs11c.c
+--- ./nss/lib/softoken/pkcs11c.c.addG	2014-06-24 13:45:27.000000000 -0700
++++ ./nss/lib/softoken/pkcs11c.c	2014-09-22 14:31:07.813585255 -0700
+@@ -1055,10 +1055,10 @@ finish_des:
+ 	context->destroy = (SFTKDestroy) AES_DestroyContext;
+ 	break;
+ 
+-    case CKM_NETSCAPE_AES_KEY_WRAP_PAD:
++    case CKM_NSS_AES_KEY_WRAP_PAD:
+     	context->doPad = PR_TRUE;
+ 	/* fall thru */
+-    case CKM_NETSCAPE_AES_KEY_WRAP:
++    case CKM_NSS_AES_KEY_WRAP:
+ 	context->multi = PR_FALSE;
+ 	context->blockSize = 8;
+ 	if (key_type != CKK_AES) {
+@@ -3497,10 +3497,17 @@ nsc_parameter_gen(CK_KEY_TYPE key_type,
+ 
+     attribute = sftk_FindAttribute(key, CKA_PRIME_BITS);
+     if (attribute == NULL) {
+-	return CKR_TEMPLATE_INCOMPLETE;
++	attribute =sftk_FindAttribute(key, CKA_PRIME);
++	if (attribute == NULL) {
++	    return CKR_TEMPLATE_INCOMPLETE;
++	} else {
++	    primeBits = attribute->attrib.ulValueLen;
++	    sftk_FreeAttribute(attribute);
++	}
++    } else {
++	primeBits = (unsigned int) *(CK_ULONG *)attribute->attrib.pValue;
++	sftk_FreeAttribute(attribute);
+     }
+-    primeBits = (unsigned int) *(CK_ULONG *)attribute->attrib.pValue;
+-    sftk_FreeAttribute(attribute);
+     if (primeBits < 1024) {
+ 	j = PQG_PBITS_TO_INDEX(primeBits);
+ 	if (j == (unsigned int)-1) {
+@@ -3508,7 +3515,7 @@ nsc_parameter_gen(CK_KEY_TYPE key_type,
+ 	}
+     }
+ 
+-    attribute = sftk_FindAttribute(key, CKA_NETSCAPE_PQG_SEED_BITS);
++    attribute = sftk_FindAttribute(key, CKA_NSS_PQG_SEED_BITS);
+     if (attribute != NULL) {
+ 	seedBits = (unsigned int) *(CK_ULONG *)attribute->attrib.pValue;
+ 	sftk_FreeAttribute(attribute);
+@@ -3520,9 +3527,61 @@ nsc_parameter_gen(CK_KEY_TYPE key_type,
+ 	sftk_FreeAttribute(attribute);
+     }
+ 
++    /* if P and Q are supplied, we want to generate a new G */
++    attribute = sftk_FindAttribute(key, CKA_PRIME);
++    if (attribute != NULL) {
++	PLArenaPool *arena;
++
++	sftk_FreeAttribute(attribute);
++	arena = PORT_NewArena(1024);
++	if (arena == NULL) {
++	    crv = CKR_HOST_MEMORY;
++	    goto loser;
++	}
++	params = PORT_ArenaAlloc(arena, sizeof(*params));
++	if (params == NULL) {
++	    crv = CKR_HOST_MEMORY;
++	    goto loser;
++	}
++	params->arena = arena;
++	crv = sftk_Attribute2SSecItem(arena, &params->prime, key, CKA_PRIME);
++	if (rv != SECSuccess) {
++	    goto loser;
++	}
++	crv = sftk_Attribute2SSecItem(arena, &params->subPrime, 
++							key, CKA_SUBPRIME);
++	if (crv != SECSuccess) {
++	    goto loser;
++	}
++
++	arena = PORT_NewArena(1024);
++	if (arena == NULL) {
++	    crv = CKR_HOST_MEMORY;
++	    goto loser;
++	}
++	vfy = PORT_ArenaAlloc(arena, sizeof(*vfy));
++	if (vfy == NULL) {
++	    crv = CKR_HOST_MEMORY;
++	    goto loser;
++	}
++	vfy->arena = arena;
++	crv = sftk_Attribute2SSecItem(arena, &vfy->seed, key, CKA_NSS_PQG_SEED);
++	if (rv != SECSuccess) {
++	    goto loser;
++	}
++	crv = sftk_Attribute2SSecItem(arena, &vfy->h, key, CKA_NSS_PQG_H);
++	if (crv != SECSuccess) {
++	    goto loser;
++	}
++    	sftk_DeleteAttributeType(key,CKA_PRIME);
++    	sftk_DeleteAttributeType(key,CKA_SUBPRIME);
++    	sftk_DeleteAttributeType(key,CKA_NSS_PQG_SEED);
++    	sftk_DeleteAttributeType(key,CKA_NSS_PQG_H);
++    }
++
+     sftk_DeleteAttributeType(key,CKA_PRIME_BITS);
+     sftk_DeleteAttributeType(key,CKA_SUBPRIME_BITS);
+-    sftk_DeleteAttributeType(key,CKA_NETSCAPE_PQG_SEED_BITS);
++    sftk_DeleteAttributeType(key,CKA_NSS_PQG_SEED_BITS);
+ 
+     /* use the old PQG interface if we have old input data */
+     if ((primeBits < 1024) || ((primeBits == 1024) && (subprimeBits == 0))) {
+@@ -3559,17 +3618,19 @@ nsc_parameter_gen(CK_KEY_TYPE key_type,
+ 				 params->base.data, params->base.len);
+     if (crv != CKR_OK) goto loser;
+     counter = vfy->counter;
+-    crv = sftk_AddAttributeType(key,CKA_NETSCAPE_PQG_COUNTER,
++    crv = sftk_AddAttributeType(key,CKA_NSS_PQG_COUNTER,
+ 				 &counter, sizeof(counter));
+-    crv = sftk_AddAttributeType(key,CKA_NETSCAPE_PQG_SEED,
++    crv = sftk_AddAttributeType(key,CKA_NSS_PQG_SEED,
+ 				 vfy->seed.data, vfy->seed.len);
+     if (crv != CKR_OK) goto loser;
+-    crv = sftk_AddAttributeType(key,CKA_NETSCAPE_PQG_H,
++    crv = sftk_AddAttributeType(key,CKA_NSS_PQG_H,
+ 				 vfy->h.data, vfy->h.len);
+     if (crv != CKR_OK) goto loser;
+ 
+ loser:
+-    PQG_DestroyParams(params);
++    if (params) {
++         PQG_DestroyParams(params);
++    }
+ 
+     if (vfy) {
+ 	PQG_DestroyVerify(vfy);

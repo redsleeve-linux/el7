@@ -1,0 +1,42 @@
+From eddc43e5973cb81d88fe2e88bab5eed72d7d3cff Mon Sep 17 00:00:00 2001
+From: Abhijeet Kasurde <akasurde@redhat.com>
+Date: Tue, 23 Aug 2016 17:34:51 +0530
+Subject: [PATCH] Handled empty hostname in server-del command
+
+Fixes: https://fedorahosted.org/freeipa/ticket/6248
+
+Signed-off-by: Abhijeet Kasurde <akasurde@redhat.com>
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+Reviewed-By: Stanislav Laznicka <slaznick@redhat.com>
+---
+ ipaclient/plugins/server.py | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/ipaclient/plugins/server.py b/ipaclient/plugins/server.py
+index 725a2ce95708529bd4e1de7fc364c2aba0d805de..5356dbbf58373eebeab1c8c59ff0e23b374a15f3 100644
+--- a/ipaclient/plugins/server.py
++++ b/ipaclient/plugins/server.py
+@@ -3,7 +3,7 @@
+ #
+ 
+ from ipaclient.frontend import MethodOverride
+-from ipalib import _
++from ipalib import _, errors
+ from ipalib.plugable import Registry
+ 
+ register = Registry()
+@@ -12,6 +12,10 @@ register = Registry()
+ @register(override=True, no_fail=True)
+ class server_del(MethodOverride):
+     def interactive_prompt_callback(self, kw):
++        server_list = kw.get('cn')
++        if not server_list:
++            raise errors.RequirementError(name='cn')
++
+         self.api.Backend.textui.print_plain(
+             _("Removing %(servers)s from replication topology, "
+-              "please wait...") % {'servers': ', '.join(kw['cn'])})
++              "please wait...") % {'servers': ', '.join(server_list)})
+-- 
+2.7.4
+

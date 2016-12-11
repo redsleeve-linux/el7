@@ -1,0 +1,33 @@
+From 74489c9ce932b756cd95383eaa0f528fbfc477ee Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Tue, 25 Feb 2014 17:40:57 +0100
+Subject: [LIBREPORT PATCH 32/33] rhtsupport: import event options from uReport
+
+"report_RHTSupport" event sends an ureport before creating a case.
+"report_uReport" event configuration might have be modified option
+values, therefore "report_RHTSupport" needs to import this configuration
+too.
+
+Related to rhbz#1069111
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/plugins/report_RHTSupport.xml.in | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/plugins/report_RHTSupport.xml.in b/src/plugins/report_RHTSupport.xml.in
+index e040d8f..a69d31e 100644
+--- a/src/plugins/report_RHTSupport.xml.in
++++ b/src/plugins/report_RHTSupport.xml.in
+@@ -12,6 +12,8 @@
+     <gui-review-elements>yes</gui-review-elements>
+ 
+     <options>
++        <import-event-options event="report_uReport"/>
++
+         <option type="text" name="RHTSupport_URL">
+             <_label>RH Portal URL</_label>
+             <allow-empty>no</allow-empty>
+-- 
+1.8.3.1
+

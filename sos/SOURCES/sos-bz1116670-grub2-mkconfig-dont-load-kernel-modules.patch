@@ -1,0 +1,191 @@
+From 27f5e7152444df82eb7a560b1ccef78d40f16296 Mon Sep 17 00:00:00 2001
+From: Pavel Moravec <pmoravec@redhat.com>
+Date: Fri, 19 Aug 2016 11:19:45 +0200
+Subject: [PATCH 1/2] [general] call a command with specified environment
+
+Enable calling commands via add_cmd_output with the possibility to
+update environmental variables.
+
+New option 'env' added (None or a dict). When set, it appends to or
+overrides os.environ used when calling the command from add_cmd_output.
+
+Signed-off-by: Pavel Moravec <pmoravec@redhat.com>
+---
+ sos/plugins/__init__.py | 31 ++++++++++++++++++-------------
+ sos/utilities.py        |  6 +++++-
+ 2 files changed, 23 insertions(+), 14 deletions(-)
+
+diff --git a/sos/plugins/__init__.py b/sos/plugins/__init__.py
+index 6f86553..c6f1fd7 100644
+--- a/sos/plugins/__init__.py
++++ b/sos/plugins/__init__.py
+@@ -561,14 +561,15 @@ class Plugin(object):
+             self._log_info("added copyspec '%s'" % copy_paths)
+ 
+     def get_command_output(self, prog, timeout=300, stderr=True,
+-                           chroot=True, runat=None):
++                           chroot=True, runat=None, env=None):
+         if chroot or self.commons['cmdlineopts'].chroot == 'always':
+             root = self.sysroot
+         else:
+             root = None
+ 
+         result = sos_get_command_output(prog, timeout=timeout, stderr=stderr,
+-                                        chroot=root, chdir=runat)
++                                        chroot=root, chdir=runat,
++                                        env=env)
+ 
+         if result['status'] == 124:
+             self._log_warn("command '%s' timed out after %ds"
+@@ -582,7 +583,8 @@ class Plugin(object):
+                                "re-trying in host root"
+                                % (prog.split()[0], root))
+                 return self.get_command_output(prog, timeout=timeout,
+-                                               chroot=False, runat=runat)
++                                               chroot=False, runat=runat,
++                                               env=env)
+             self._log_debug("could not run '%s': command not found" % prog)
+         return result
+ 
+@@ -603,14 +605,14 @@ class Plugin(object):
+ 
+     def _add_cmd_output(self, cmd, suggest_filename=None,
+                         root_symlink=None, timeout=300, stderr=True,
+-                        chroot=True, runat=None):
++                        chroot=True, runat=None, env=None):
+         """Internal helper to add a single command to the collection list."""
+         cmdt = (
+             cmd, suggest_filename,
+             root_symlink, timeout, stderr,
+-            chroot, runat
++            chroot, runat, env
+         )
+-        _tuplefmt = "('%s', '%s', '%s', %s, '%s', '%s', '%s')"
++        _tuplefmt = "('%s', '%s', '%s', %s, '%s', '%s', '%s', '%s')"
+         _logstr = "packed command tuple: " + _tuplefmt
+         self._log_debug(_logstr % cmdt)
+         self.collect_cmds.append(cmdt)
+@@ -618,7 +620,7 @@ class Plugin(object):
+ 
+     def add_cmd_output(self, cmds, suggest_filename=None,
+                        root_symlink=None, timeout=300, stderr=True,
+-                       chroot=True, runat=None):
++                       chroot=True, runat=None, env=None):
+         """Run a program or a list of programs and collect the output"""
+         if isinstance(cmds, six.string_types):
+             cmds = [cmds]
+@@ -627,7 +629,7 @@ class Plugin(object):
+         for cmd in cmds:
+             self._add_cmd_output(cmd, suggest_filename,
+                                  root_symlink, timeout, stderr,
+-                                 chroot, runat)
++                                 chroot, runat, env)
+ 
+     def get_cmd_output_path(self, name=None, make=True):
+         """Return a path into which this module should store collected
+@@ -679,13 +681,14 @@ class Plugin(object):
+ 
+     def get_cmd_output_now(self, exe, suggest_filename=None,
+                            root_symlink=False, timeout=300, stderr=True,
+-                           chroot=True, runat=None):
++                           chroot=True, runat=None, env=None):
+         """Execute a command and save the output to a file for inclusion in the
+         report.
+         """
+         start = time()
+         result = self.get_command_output(exe, timeout=timeout, stderr=stderr,
+-                                         chroot=chroot, runat=runat)
++                                         chroot=chroot, runat=runat,
++                                         env=env)
+         # 126 means 'found but not executable'
+         if result['status'] == 126 or result['status'] == 127:
+             return None
+@@ -807,15 +810,17 @@ class Plugin(object):
+                 suggest_filename, root_symlink,
+                 timeout,
+                 stderr,
+-                chroot, runat
++                chroot, runat,
++                env
+             ) = progs[0]
+             self._log_debug("unpacked command tuple: " +
+-                            "('%s', '%s', '%s', %s, '%s', '%s', '%s')" %
++                            "('%s', '%s', '%s', %s, '%s', '%s', '%s', '%s')" %
+                             progs[0])
+             self._log_info("collecting output of '%s'" % prog)
+             self.get_cmd_output_now(prog, suggest_filename=suggest_filename,
+                                     root_symlink=root_symlink, timeout=timeout,
+-                                    stderr=stderr, chroot=chroot, runat=runat)
++                                    stderr=stderr, chroot=chroot, runat=runat,
++                                    env=env)
+ 
+     def _collect_strings(self):
+         for string, file_name in self.copy_strings:
+diff --git a/sos/utilities.py b/sos/utilities.py
+index 588cb3f..bc998fa 100644
+--- a/sos/utilities.py
++++ b/sos/utilities.py
+@@ -110,7 +110,7 @@ def is_executable(command):
+ 
+ 
+ def sos_get_command_output(command, timeout=300, stderr=False,
+-                           chroot=None, chdir=None):
++                           chroot=None, chdir=None, env=None):
+     """Execute a command and return a dictionary of status and output,
+     optionally changing root or current working directory before
+     executing command.
+@@ -127,6 +127,10 @@ def sos_get_command_output(command, timeout=300, stderr=False,
+     cmd_env = os.environ
+     # ensure consistent locale for collected command output
+     cmd_env['LC_ALL'] = 'C'
++    # optionally add an environment change for the command
++    if env:
++        for key, value in env.iteritems():
++            cmd_env[key] = value
+     # use /usr/bin/timeout to implement a timeout
+     if timeout and is_executable("timeout"):
+         command = "timeout %ds %s" % (timeout, command)
+-- 
+2.4.11
+
+From 57fdeaaad3436f374f4a68dbfef686c5dd8b4d5b Mon Sep 17 00:00:00 2001
+From: Pavel Moravec <pmoravec@redhat.com>
+Date: Fri, 19 Aug 2016 11:20:55 +0200
+Subject: [PATCH 2/2] [grub2] grub2-mkconfig loads ext4 and brctl kernel
+ modules
+
+Call grub2-mkconfig with GRUB_DISABLE_OS_PROBER=true to prevent
+explicit loading of the kernel modules.
+
+Resolves: #822
+
+Signed-off-by: Pavel Moravec <pmoravec@redhat.com>
+---
+ sos/plugins/grub2.py | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/sos/plugins/grub2.py b/sos/plugins/grub2.py
+index d321494..a98d3d0 100644
+--- a/sos/plugins/grub2.py
++++ b/sos/plugins/grub2.py
+@@ -33,10 +33,13 @@ class Grub2(Plugin, RedHatPlugin, DebianPlugin, UbuntuPlugin):
+             "/etc/grub2.cfg",
+             "/etc/grub.d"
+         ])
+-        self.add_cmd_output([
+-            "ls -lanR /boot",
+-            "grub2-mkconfig"
+-        ])
++
++        self.add_cmd_output("ls -lanR /boot")
++        # call grub2-mkconfig with GRUB_DISABLE_OS_PROBER=true to prevent
++        # possible unwanted loading of some kernel modules
++        env = {}
++        env['GRUB_DISABLE_OS_PROBER'] = 'true'
++        self.add_cmd_output("grub2-mkconfig", env=env)
+ 
+     def postproc(self):
+         # the trailing space is required; python treats '_' as whitespace
+-- 
+2.4.11
+

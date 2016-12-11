@@ -1,0 +1,380 @@
+From c0e4f8f27f0becd93c7abd9f20224232d5f1a5cf Mon Sep 17 00:00:00 2001
+From: Martin Milata <mmilata@redhat.com>
+Date: Thu, 16 Jan 2014 20:02:05 +0100
+Subject: [LIBREPORT PATCH 12/14] ureport: add support for client-side
+ authentication
+
+Please note that the libreport_curl api is changed and since we're not
+bumping sonames ABRT has to explicitly depend on this version in spec.
+
+Related to rhbz#1053042.
+
+Signed-off-by: Martin Milata <mmilata@redhat.com>
+---
+ doc/reporter-ureport.txt     | 18 ++++++++++
+ src/include/libreport_curl.h |  2 ++
+ src/lib/curl.c               |  7 ++++
+ src/lib/json.c               | 48 ++++++++++++-------------
+ src/lib/ureport.h            |  7 ++--
+ src/plugins/ureport.c        | 85 ++++++++++++++++++++++++++++++++++++++++++--
+ src/plugins/ureport.conf     | 10 ++++++
+ 7 files changed, 149 insertions(+), 28 deletions(-)
+
+diff --git a/doc/reporter-ureport.txt b/doc/reporter-ureport.txt
+index b739b6d..54823ae 100644
+--- a/doc/reporter-ureport.txt
++++ b/doc/reporter-ureport.txt
+@@ -27,6 +27,20 @@ Configuration file lines should have 'PARAM = VALUE' format. The parameters are:
+ 'SSLVerify'::
+    Use no/false/off/0 to disable verification of server's SSL certificate. (default: yes)
+ 
++'SSLClientAuth'::
++   If this option is set, client-side SSL certificate is used to authenticate
++   to the server so that it knows which machine it came from. Possible values
++   are:
++
++   'rhsm';;
++      Uses the system certificate that is used for Red Hat subscription management.
++
++   'puppet';;
++      Uses the certificate that is used by the Puppet configuration management tool.
++
++   '<cert_path>:<key_path>';;
++      Manually supply paths to certificate and the corresponding key in PEM format.
++
+ 'ContactEmail'::
+    Email address attached to a bthash on the server.
+ 
+@@ -61,6 +75,10 @@ OPTIONS
+ -k, --insecure::
+    Allow insecure connection to ureport server
+ 
++-t, --auth SOURCE::
++   Enables client authentication. See 'SSLClientAuth' configuration file
++   option for list of possible values.
++
+ -v::
+    Be more verbose. Can be given multiple times.
+ 
+diff --git a/src/include/libreport_curl.h b/src/include/libreport_curl.h
+index 4cd855f..7d6fa02 100644
+--- a/src/include/libreport_curl.h
++++ b/src/include/libreport_curl.h
+@@ -35,6 +35,8 @@ typedef struct post_state {
+     int         flags;
+     const char  *username;
+     const char  *password;
++    const char  *client_cert_path;
++    const char  *client_key_path;
+     /* Results of POST transaction: */
+     int         http_resp_code;
+     /* cast from CURLcode enum.
+diff --git a/src/lib/curl.c b/src/lib/curl.c
+index 6722b4a..662a2cf 100644
+--- a/src/lib/curl.c
++++ b/src/lib/curl.c
+@@ -532,6 +532,13 @@ post(post_state_t *state,
+         xcurl_easy_setopt_long(handle, CURLOPT_SSL_VERIFYPEER, 0);
+         xcurl_easy_setopt_long(handle, CURLOPT_SSL_VERIFYHOST, 0);
+     }
++    if (state->client_cert_path && state->client_key_path)
++    {
++        xcurl_easy_setopt_ptr(handle, CURLOPT_SSLCERTTYPE, "PEM");
++        xcurl_easy_setopt_ptr(handle, CURLOPT_SSLKEYTYPE, "PEM");
++        xcurl_easy_setopt_ptr(handle, CURLOPT_SSLCERT, state->client_cert_path);
++        xcurl_easy_setopt_ptr(handle, CURLOPT_SSLKEY, state->client_key_path);
++    }
+ 
+     // This is the place where everything happens.
+     // Here errors are not limited to "out of memory", can't just die.
+diff --git a/src/lib/json.c b/src/lib/json.c
+index eb8e5ed..66db537 100644
+--- a/src/lib/json.c
++++ b/src/lib/json.c
+@@ -68,7 +68,7 @@ char *new_json_attachment(const char *bthash, const char *type, const char *data
+     return result;
+ }
+ 
+-struct post_state *post_ureport(const char *json_ureport, struct ureport_server_config *config)
++struct post_state *post_ureport(const char *json, struct ureport_server_config *config)
+ {
+     int flags = POST_WANT_BODY | POST_WANT_ERROR_MSG;
+ 
+@@ -77,6 +77,12 @@ struct post_state *post_ureport(const char *json_ureport, struct ureport_server_
+ 
+     struct post_state *post_state = new_post_state(flags);
+ 
++    if (config->ur_client_cert && config->ur_client_key)
++    {
++        post_state->client_cert_path = config->ur_client_cert;
++        post_state->client_key_path = config->ur_client_key;
++    }
++
+     static const char *headers[] = {
+         "Accept: application/json",
+         "Connection: close",
+@@ -84,30 +90,24 @@ struct post_state *post_ureport(const char *json_ureport, struct ureport_server_
+     };
+ 
+     post_string_as_form_data(post_state, config->ur_url, "application/json",
+-                     headers, json_ureport);
++                     headers, json);
+ 
+-    return post_state;
+-}
++    /* Client authentication failed. Try again without client auth.
++     * CURLE_SSL_CONNECT_ERROR - cert not found/server doesnt trust the CA
++     * CURLE_SSL_CERTPROBLEM - malformed certificate/no permission
++     */
++    if ((post_state->curl_result == CURLE_SSL_CONNECT_ERROR
++         || post_state->curl_result == CURLE_SSL_CERTPROBLEM)
++            && config->ur_client_cert && config->ur_client_key)
++    {
++        warn_msg("Authentication failed. Retrying unauthenticated.");
++        free_post_state(post_state);
++        post_state = new_post_state(flags);
+ 
+-static
+-struct post_state *ureport_attach(const char *json_attachment,
+-                                  struct ureport_server_config *config)
+-{
+-    int flags = POST_WANT_BODY | POST_WANT_ERROR_MSG;
++        post_string_as_form_data(post_state, config->ur_url, "application/json",
++                         headers, json);
+ 
+-    if (config->ur_ssl_verify)
+-        flags |= POST_WANT_SSL_VERIFY;
+-
+-    struct post_state *post_state = new_post_state(flags);
+-
+-    static const char *headers[] = {
+-        "Accept: application/json",
+-        "Connection: close",
+-        NULL,
+-    };
+-
+-    post_string_as_form_data(post_state, config->ur_url, "application/json",
+-                             headers, json_attachment);
++    }
+ 
+     return post_state;
+ }
+@@ -117,7 +117,7 @@ struct post_state *ureport_attach_rhbz(const char *bthash, int rhbz_bug_id,
+ {
+     char *str_bug_id = xasprintf("%d", rhbz_bug_id);
+     char *json_attachment = new_json_attachment(bthash, "RHBZ", str_bug_id);
+-    struct post_state *post_state = ureport_attach(json_attachment, config);
++    struct post_state *post_state = post_ureport(json_attachment, config);
+     free(str_bug_id);
+     free(json_attachment);
+ 
+@@ -128,7 +128,7 @@ struct post_state *ureport_attach_email(const char *bthash, const char *email,
+                                        struct ureport_server_config *config)
+ {
+     char *json_attachment = new_json_attachment(bthash, "email", email);
+-    struct post_state *post_state = ureport_attach(json_attachment, config);
++    struct post_state *post_state = post_ureport(json_attachment, config);
+     free(json_attachment);
+ 
+     return post_state;
+diff --git a/src/lib/ureport.h b/src/lib/ureport.h
+index 4cc4e10..16f40f1 100644
+--- a/src/lib/ureport.h
++++ b/src/lib/ureport.h
+@@ -30,8 +30,11 @@ extern "C" {
+  */
+ struct ureport_server_config
+ {
+-    const char *ur_url; ///< Web service URL
+-    bool ur_ssl_verify; ///< Verify HOST and PEER certificates
++    const char *ur_url;   ///< Web service URL
++    bool ur_ssl_verify;   ///< Verify HOST and PEER certificates
++    char *ur_client_cert; ///< Path to certificate used for client
++                          ///< authentication (or NULL)
++    char *ur_client_key;  ///< Private key for the certificate
+ };
+ 
+ struct abrt_post_state;
+diff --git a/src/plugins/ureport.c b/src/plugins/ureport.c
+index 0168744..b57eada 100644
+--- a/src/plugins/ureport.c
++++ b/src/plugins/ureport.c
+@@ -28,10 +28,73 @@
+ #define ATTACH_URL_SFX "reports/attach/"
+ #define BTHASH_URL_SFX "reports/bthash/"
+ 
++#define RHSM_CERT_PATH "/etc/pki/consumer/cert.pem"
++#define RHSM_KEY_PATH "/etc/pki/consumer/key.pem"
++
+ #define VALUE_FROM_CONF(opt, var, tr) do { const char *value = getenv("uReport_"opt); \
+         if (!value) { value = get_map_string_item_or_NULL(settings, opt); } if (value) { var = tr(value); } \
+     } while(0)
+ 
++static char *puppet_config_print(const char *key)
++{
++    char *command = xasprintf("puppet config print %s", key);
++    char *result = run_in_shell_and_save_output(0, command, NULL, NULL);
++    free(command);
++
++    /* run_in_shell_and_save_output always returns non-NULL */
++    if (result[0] != '/')
++        goto error;
++
++    char *newline = strchrnul(result, '\n');
++    if (!newline)
++        goto error;
++
++    *newline = '\0';
++    return result;
++error:
++    free(result);
++    error_msg_and_die("Unable to determine puppet %s path (puppet not installed?)", key);
++}
++
++static void parse_client_auth_paths(struct ureport_server_config *config, const char *client_auth)
++{
++    if (client_auth == NULL)
++        return;
++
++    if (strcmp(client_auth, "") == 0)
++    {
++        config->ur_client_cert = NULL;
++        config->ur_client_key = NULL;
++        log_notice("Not using client authentication");
++    }
++    else if (strcmp(client_auth, "rhsm") == 0)
++    {
++        config->ur_client_cert = xstrdup(RHSM_CERT_PATH);
++        config->ur_client_key = xstrdup(RHSM_KEY_PATH);
++    }
++    else if (strcmp(client_auth, "puppet") == 0)
++    {
++        config->ur_client_cert = puppet_config_print("hostcert");
++        config->ur_client_key = puppet_config_print("hostprivkey");
++    }
++    else
++    {
++        char *scratch = xstrdup(client_auth);
++        config->ur_client_cert = xstrdup(strtok(scratch, ":"));
++        config->ur_client_key = xstrdup(strtok(NULL, ":"));
++        free(scratch);
++
++        if (config->ur_client_cert == NULL || config->ur_client_key == NULL)
++            error_msg_and_die("Invalid client authentication specification");
++    }
++
++    if (config->ur_client_cert && config->ur_client_key)
++    {
++        log_notice("Using client certificate: %s", config->ur_client_cert);
++        log_notice("Using client private key: %s", config->ur_client_key);
++    }
++}
++
+ /*
+  * Loads uReport configuration from various sources.
+  *
+@@ -44,6 +107,10 @@ static void load_ureport_server_config(struct ureport_server_config *config, map
+ {
+     VALUE_FROM_CONF("URL", config->ur_url, (const char *));
+     VALUE_FROM_CONF("SSLVerify", config->ur_ssl_verify, string_to_bool);
++
++    const char *client_auth = NULL;
++    VALUE_FROM_CONF("SSLClientAuth", client_auth, (const char *));
++    parse_client_auth_paths(config, client_auth);
+ }
+ 
+ struct ureport_server_response {
+@@ -243,7 +310,12 @@ static struct ureport_server_response *ureport_server_parse_json(json_object *js
+ 
+ static struct ureport_server_response *get_server_response(post_state_t *post_state, struct ureport_server_config *config)
+ {
+-    if (post_state->errmsg[0] != '\0')
++    /* Previously, the condition here was (post_state->errmsg[0] != '\0')
++     * however when the server asks for optional client authentication and we do not have the certificates,
++     * then post_state->errmsg contains "NSS: client certificate not found (nickname not specified)" even though
++     * the request succeeded.
++     */
++    if (post_state->curl_result != CURLE_OK)
+     {
+         error_msg(_("Failed to upload uReport to the server '%s' with curl: %s"), config->ur_url, post_state->errmsg);
+         return NULL;
+@@ -349,6 +421,8 @@ int main(int argc, char **argv)
+     struct ureport_server_config config = {
+         .ur_url = NULL,
+         .ur_ssl_verify = true,
++        .ur_client_cert = NULL,
++        .ur_client_key = NULL,
+     };
+ 
+     enum {
+@@ -356,12 +430,14 @@ int main(int argc, char **argv)
+         OPT_d = 1 << 1,
+         OPT_u = 1 << 2,
+         OPT_k = 1 << 3,
++        OPT_t = 1 << 4,
+     };
+ 
+     int ret = 1; /* "failure" (for now) */
+     bool insecure = !config.ur_ssl_verify;
+     const char *conf_file = CONF_FILE_PATH;
+     const char *arg_server_url = NULL;
++    const char *client_auth = NULL;
+     const char *dump_dir_path = ".";
+     const char *ureport_hash = NULL;
+     bool ureport_hash_from_rt = false;
+@@ -376,6 +452,7 @@ int main(int argc, char **argv)
+         OPT_STRING('u', "url", &arg_server_url, "URL", _("Specify server URL")),
+         OPT_BOOL('k', "insecure", &insecure,
+                           _("Allow insecure connection to ureport server")),
++        OPT_STRING('t', "auth", &client_auth, "SOURCE", _("Use client authentication")),
+         OPT_STRING('c', NULL, &conf_file, "FILE", _("Configuration file")),
+         OPT_STRING('a', "attach", &ureport_hash, "BTHASH",
+                           _("bthash of uReport to attach (conflicts with -A)")),
+@@ -393,7 +470,7 @@ int main(int argc, char **argv)
+     };
+ 
+     const char *program_usage_string = _(
+-        "& [-v] [-c FILE] [-u URL] [-k] [-A -a bthash -B -b bug-id -E -e email] [-d DIR]\n"
++        "& [-v] [-c FILE] [-u URL] [-k] [-t SOURCE] [-A -a bthash -B -b bug-id -E -e email] [-d DIR]\n"
+         "\n"
+         "Upload micro report or add an attachment to a micro report\n"
+         "\n"
+@@ -411,6 +488,8 @@ int main(int argc, char **argv)
+         config.ur_url = arg_server_url;
+     if (opts & OPT_k)
+         config.ur_ssl_verify = !insecure;
++    if (opts & OPT_t)
++        parse_client_auth_paths(&config, client_auth);
+ 
+     if (!config.ur_url)
+         error_msg_and_die("You need to specify server URL");
+@@ -580,6 +659,8 @@ format_err:
+ 
+ finalize:
+     free_map_string(settings);
++    free(config.ur_client_cert);
++    free(config.ur_client_key);
+ 
+     return ret;
+ }
+diff --git a/src/plugins/ureport.conf b/src/plugins/ureport.conf
+index 1f3b33a..13b6386 100644
+--- a/src/plugins/ureport.conf
++++ b/src/plugins/ureport.conf
+@@ -6,3 +6,13 @@ URL = http://bug-report.itos.redhat.com
+ 
+ # Contact email attached to an uploaded uReport if required
+ # ContactEmail = foo@example.com
++
++# Client-side authentication
++# None (default):
++# SSLClientAuth =
++# Using RH subscription management certificate:
++# SSLClientAuth = rhsm
++# Using Puppet certificate:
++# SSLClientAuth = puppet
++# Using custom certificate:
++# SSLClientAuth = /path/to/cert.pem:/path/to/key.pem
+-- 
+1.8.3.1
+

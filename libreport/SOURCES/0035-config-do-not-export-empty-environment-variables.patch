@@ -1,0 +1,40 @@
+From cff60f93d563afdfab2025b4822410c99688d445 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Thu, 6 Mar 2014 21:51:11 +0100
+Subject: [LIBREPORT PATCH 35/36] config: do not export empty environment
+ variables
+
+Save action of the configuration dialog converts unset environment
+variables to environment variables holding empty values.
+
+This commit adds an additional condition which prevents the
+configuration dialogue from using empty string for unset environment
+variables.
+
+Closes rhbz#1073610
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/gtk-helpers/config_dialog.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/gtk-helpers/config_dialog.c b/src/gtk-helpers/config_dialog.c
+index 8276130..fb22561 100644
+--- a/src/gtk-helpers/config_dialog.c
++++ b/src/gtk-helpers/config_dialog.c
+@@ -125,7 +125,11 @@ static void save_value_from_widget(gpointer data, gpointer user_data)
+         default:
+             log("unsupported option type");
+     }
+-    if (val)
++
++    /* gtk_entry_get_text() returns empty string for empty text value */
++    /* so if value is empty and the old value is NULL then nothing has */
++    /* changed and we must not set option's value */
++    if (val && (val[0] != '\0' || ow->option->eo_value != NULL))
+     {
+         free(ow->option->eo_value);
+         ow->option->eo_value = xstrdup(val);
+-- 
+1.8.3.1
+

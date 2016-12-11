@@ -1,0 +1,31 @@
+From d90593f43f30a291337e2ad1eb2790e981d8028a Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Fri, 29 May 2015 13:37:11 +0200
+Subject: [PATCH] doc: fix in Makefile
+
+There was forgotten '+' when the list of manpages (related to
+'abrt-auto-reporting') was created.
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ doc/Makefile.am | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/Makefile.am b/doc/Makefile.am
+index 309a330..8aac85e 100644
+--- a/doc/Makefile.am
++++ b/doc/Makefile.am
+@@ -72,8 +72,8 @@ man5_MANS = ${MAN5_TXT:%.txt=%.5} ${MAN5_PREFORMATTED}
+ man8_MANS = ${MAN8_TXT:%.txt=%.8}
+ 
+ MAN_SOURCE =
+-MAN_SOURCE = abrt-auto-reporting-authenticated.txt
+-MAN_SOURCE = abrt-auto-reporting-unauthenticated.txt
++MAN_SOURCE += abrt-auto-reporting-authenticated.txt
++MAN_SOURCE += abrt-auto-reporting-unauthenticated.txt
+ 
+ if AUTHENTICATED_AUTOREPORTING
+ abrt-auto-reporting.txt: abrt-auto-reporting-authenticated.txt
+-- 
+2.4.3
+

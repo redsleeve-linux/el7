@@ -1,0 +1,69 @@
+From 9492af5e0e09dd66e179ccd8a505ce0b79978c83 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Mon, 15 Sep 2014 08:40:05 +0200
+Subject: [ABRT PATCH 58/66] cli: robustize abrt-console-notification.sh
+
+- don't show any notifications without a terminal connected to stdout
+- don't continue without writable $HOME directory
+- forward all error messages to /dev/null
+
+Resolves rhbz#1139001
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/cli/abrt-console-notification.sh | 30 ++++++++++++++++++++++++------
+ 1 file changed, 24 insertions(+), 6 deletions(-)
+
+diff --git a/src/cli/abrt-console-notification.sh b/src/cli/abrt-console-notification.sh
+index 937abb0..849273c 100755
+--- a/src/cli/abrt-console-notification.sh
++++ b/src/cli/abrt-console-notification.sh
+@@ -1,21 +1,39 @@
++# If shell is not connect to a terminal, exit immediately, because this script
++# should print out ABRT's status and it is senseless to continue without
++# terminal.
++tty -s || exit 0
++
++# If $HOME is not set, a non human user is logging in to shell but this script
++# should provide information to human users, therefore exiting immediately
++# without showing the notification.
++if [ -z "$HOME" ]; then
++    exit 0
++fi
++
++if [ -z "$ABRT_DEBUG_LOG" ]; then
++    ABRT_DEBUG_LOG="/dev/null"
++fi
++
+ LPATHDIR="$HOME/.cache/abrt"
+ SINCEFILE="$LPATHDIR/lastnotification"
+ 
+ if [ ! -f "$LPATHDIR" ]; then
+-    mkdir -p "$LPATHDIR"
++    # It might happen that user doesn't have write access on his home.
++    mkdir -p "$LPATHDIR" >"$ABRT_DEBUG_LOG" 2>&1 || exit 0
+ fi
+ 
+-TMPPATH=`mktemp --tmpdir="$LPATHDIR" lastnotification.XXXXXXXX 2> /dev/null`
++TMPPATH=`mktemp --tmpdir="$LPATHDIR" lastnotification.XXXXXXXX 2> "$ABRT_DEBUG_LOG"`
+ 
+ SINCE=0
+ if [ -f "$SINCEFILE" ]; then
+-    SINCE=`cat $SINCEFILE 2> /dev/null`
++    SINCE=`cat $SINCEFILE 2>"$ABRT_DEBUG_LOG"`
+ fi
+ 
+ # always update the lastnotification
+ if [ -f "$TMPPATH" ]; then
+-    date +%s > "$TMPPATH"
+-    mv -f "$TMPPATH" "$SINCEFILE"
++    # Be quite in case of errors and don't scare users by strange error messages.
++    date +%s > "$TMPPATH" 2>"$ABRT_DEBUG_LOG"
++    mv -f "$TMPPATH" "$SINCEFILE" >"$ABRT_DEBUG_LOG" 2>&1
+ fi
+ 
+-abrt-cli status --since="$SINCE" 2> /dev/null
++abrt-cli status --since="$SINCE" 2>"$ABRT_DEBUG_LOG"
+-- 
+1.8.3.1
+

@@ -1,0 +1,120 @@
+From 4d5571e60769e08efc7dcbbe4cd69b68cd7e5a4e Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Fri, 12 Feb 2016 14:32:29 +0100
+Subject: [PATCH] utils: make arguments of a list func const
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/include/internal_libreport.h | 4 ++--
+ src/lib/is_in_string_list.c      | 4 ++--
+ src/lib/make_descr.c             | 6 +++---
+ src/lib/problem_data.c           | 8 ++++----
+ 4 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/include/internal_libreport.h b/src/include/internal_libreport.h
+index 38d75a1..108f4f1 100644
+--- a/src/include/internal_libreport.h
++++ b/src/include/internal_libreport.h
+@@ -293,10 +293,10 @@ char *run_in_shell_and_save_output(int flags,
+ /* Random utility functions */
+ 
+ #define is_in_string_list libreport_is_in_string_list
+-bool is_in_string_list(const char *name, char **v);
++bool is_in_string_list(const char *name, const char *const *v);
+ 
+ #define index_of_string_in_list libreport_index_of_string_in_list
+-int index_of_string_in_list(const char *name, char **v);
++int index_of_string_in_list(const char *name, const char *const *v);
+ 
+ #define is_in_comma_separated_list libreport_is_in_comma_separated_list
+ bool is_in_comma_separated_list(const char *value, const char *list);
+diff --git a/src/lib/is_in_string_list.c b/src/lib/is_in_string_list.c
+index e0ee26b..b75abe4 100644
+--- a/src/lib/is_in_string_list.c
++++ b/src/lib/is_in_string_list.c
+@@ -18,7 +18,7 @@
+ */
+ #include "internal_libreport.h"
+ 
+-bool is_in_string_list(const char *name, char **v)
++bool is_in_string_list(const char *name, const char *const *v)
+ {
+     while (*v)
+     {
+@@ -29,7 +29,7 @@ bool is_in_string_list(const char *name, char **v)
+     return false;
+ }
+ 
+-int index_of_string_in_list(const char *name, char **v)
++int index_of_string_in_list(const char *name, const char *const *v)
+ {
+     for(int i = 0; v[i]; ++i)
+     {
+diff --git a/src/lib/make_descr.c b/src/lib/make_descr.c
+index f8da893..fd180a9 100644
+--- a/src/lib/make_descr.c
++++ b/src/lib/make_descr.c
+@@ -20,7 +20,7 @@
+ 
+ static bool rejected_name(const char *name, char **v, int flags)
+ {
+-    bool r = is_in_string_list(name, v);
++    bool r = is_in_string_list(name, (const char *const *)v);
+     if (flags & MAKEDESC_WHITELIST)
+          r = !r;
+     return r;
+@@ -59,8 +59,8 @@ static int list_cmp(const char *s1, const char *s2)
+             FILENAME_COUNT     ,
+             NULL
+     };
+-    int s1_index = index_of_string_in_list(s1, (char**) list_order);
+-    int s2_index = index_of_string_in_list(s2, (char**) list_order);
++    int s1_index = index_of_string_in_list(s1, list_order);
++    int s2_index = index_of_string_in_list(s2, list_order);
+ 
+     if(s1_index < 0 && s2_index < 0)
+         return strcmp(s1, s2);
+diff --git a/src/lib/problem_data.c b/src/lib/problem_data.c
+index 212f337..9e625bd 100644
+--- a/src/lib/problem_data.c
++++ b/src/lib/problem_data.c
+@@ -303,7 +303,7 @@ static const char *const editable_files[] = {
+ };
+ static bool is_editable_file(const char *file_name)
+ {
+-    return is_in_string_list(file_name, (char**)editable_files);
++    return is_in_string_list(file_name, editable_files);
+ }
+ 
+ /* When is_text_file() returns this special pointer value,
+@@ -353,7 +353,7 @@ static char* is_text_file_at(int dir_fd, const char *name, ssize_t *sz)
+     if (base)
+     {
+         base++;
+-        if (is_in_string_list(base, (char**)always_text_files))
++        if (is_in_string_list(base, always_text_files))
+             goto text;
+     }
+ 
+@@ -423,7 +423,7 @@ void problem_data_load_from_dump_dir(problem_data_t *problem_data, struct dump_d
+     dd_init_next_file(dd);
+     while (dd_get_next_file(dd, &short_name, &full_name))
+     {
+-        if (excluding && is_in_string_list(short_name, excluding))
++        if (excluding && is_in_string_list(short_name, (const char *const *)excluding))
+         {
+             //log("Excluded:'%s'", short_name);
+             goto next;
+@@ -494,7 +494,7 @@ void problem_data_load_from_dump_dir(problem_data_t *problem_data, struct dump_d
+             FILENAME_REASON    ,
+             NULL
+         };
+-        if (is_in_string_list(short_name, (char**)list_files))
++        if (is_in_string_list(short_name, list_files))
+             flags |= CD_FLAG_LIST;
+ 
+         if (strcmp(short_name, FILENAME_TIME) == 0)
+-- 
+1.8.3.1
+

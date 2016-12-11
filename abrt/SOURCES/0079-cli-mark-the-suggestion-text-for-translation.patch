@@ -1,0 +1,28 @@
+From 187530c4df6971927d1e099584be5b418ab2725b Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Fri, 12 Dec 2014 14:19:49 +0100
+Subject: [ABRT PATCH 79/82] cli: mark the suggestion text for translation
+
+Related: #1087880
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/cli/list.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cli/list.c b/src/cli/list.c
+index b6b4790..ccb5f3b 100644
+--- a/src/cli/list.c
++++ b/src/cli/list.c
+@@ -124,7 +124,7 @@ static void print_crash(problem_data_t *problem_data, int detailed, int text_siz
+ 
+             if (event_found)
+             {
+-                char *tmp = xasprintf("%sRun 'abrt-cli report %s' for creating a case in Red Hat Customer Portal\n", desc, dump_dir_name);
++                char *tmp = xasprintf(_("%sRun 'abrt-cli report %s' for creating a case in Red Hat Customer Portal\n"), desc, dump_dir_name);
+                 free(desc);
+                 desc = tmp;
+             }
+-- 
+1.8.3.1
+

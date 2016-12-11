@@ -1,0 +1,70 @@
+From 0d3f6f147382625fc326a6f84bb6a950dd4386b1 Mon Sep 17 00:00:00 2001
+From: Martin Basti <mbasti@redhat.com>
+Date: Fri, 8 Jul 2016 15:53:25 +0200
+Subject: [PATCH] Enable vault-* commands on client
+
+Client plugins fot vault commands were disabled by NO_CLI=True,
+inherited from vault_add_interal, that is always NO_CLI=True.
+Introduced by this commit 8278da6967dbe425b4e0c6cf37dc1c53052525b2
+
+Removed NO_CLI=True from client side plugins for vault.
+
+https://fedorahosted.org/freeipa/ticket/6035
+
+Reviewed-By: Martin Babinsky <mbabinsk@redhat.com>
+Reviewed-By: Alexander Bokovoy <abokovoy@redhat.com>
+---
+ ipaclient/plugins/vault.py | 16 ----------------
+ 1 file changed, 16 deletions(-)
+
+diff --git a/ipaclient/plugins/vault.py b/ipaclient/plugins/vault.py
+index 11210d6e1339f42598b39bcf599d3e6eacb5b9d8..bf0242fc4290bb94f29faf9c787dd7454a8921bf 100644
+--- a/ipaclient/plugins/vault.py
++++ b/ipaclient/plugins/vault.py
+@@ -202,10 +202,6 @@ class vault_add(Local):
+         ),
+     )
+ 
+-    @property
+-    def NO_CLI(self):
+-        return self.api.Command.vault_add_internal.NO_CLI
+-
+     def get_args(self):
+         for arg in self.api.Command.vault_add_internal.args():
+             yield arg
+@@ -394,10 +390,6 @@ class vault_mod(Local):
+         ),
+     )
+ 
+-    @property
+-    def NO_CLI(self):
+-        return self.api.Command.vault_mod_internal.NO_CLI
+-
+     def get_args(self):
+         for arg in self.api.Command.vault_mod_internal.args():
+             yield arg
+@@ -572,10 +564,6 @@ class vault_archive(Local):
+         ),
+     )
+ 
+-    @property
+-    def NO_CLI(self):
+-        return self.api.Command.vault_archive_internal.NO_CLI
+-
+     def get_args(self):
+         for arg in self.api.Command.vault_archive_internal.args():
+             yield arg
+@@ -820,10 +808,6 @@ class vault_retrieve(Local):
+         ),
+     )
+ 
+-    @property
+-    def NO_CLI(self):
+-        return self.api.Command.vault_retrieve_internal.NO_CLI
+-
+     def get_args(self):
+         for arg in self.api.Command.vault_retrieve_internal.args():
+             yield arg
+-- 
+2.4.3
+

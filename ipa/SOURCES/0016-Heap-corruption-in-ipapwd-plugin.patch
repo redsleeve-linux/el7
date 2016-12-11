@@ -1,0 +1,41 @@
+From 98bdf4755d5c0256d26ba6a6aed6b9e649adf941 Mon Sep 17 00:00:00 2001
+From: Thierry Bordaz <tbordaz@redhat.com>
+Date: Mon, 18 Jul 2016 15:00:02 +0200
+Subject: [PATCH] Heap corruption in ipapwd plugin
+
+ipapwd_encrypt_encode_key allocates 'kset' on the heap but
+with num_keys and keys not being initialized.
+Then ipa_krb5_generate_key_data initializes them with the
+generated keys.
+If ipa_krb5_generate_key_data fails (here EINVAL meaning no
+principal->realm.data), num_keys and keys are left uninitialized.
+Upon failure, ipapwd_keyset_free is called to free 'kset'
+that contains random num_keys and keys.
+
+allocates kset with calloc so that kset->num_keys==0 and
+kset->keys==NULL
+
+https://fedorahosted.org/freeipa/ticket/6030
+
+Reviewed-By: Simo Sorce <ssorce@redhat.com>
+Reviewed-By: Lukas Slebodnik <lslebodn@redhat.com>
+---
+ daemons/ipa-slapi-plugins/ipa-pwd-extop/encoding.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/daemons/ipa-slapi-plugins/ipa-pwd-extop/encoding.c b/daemons/ipa-slapi-plugins/ipa-pwd-extop/encoding.c
+index 9c62f0560aa999b2179a7767040047dfa89288e0..7b2f341229b4f3bf48105c3856c0d6778da154a5 100644
+--- a/daemons/ipa-slapi-plugins/ipa-pwd-extop/encoding.c
++++ b/daemons/ipa-slapi-plugins/ipa-pwd-extop/encoding.c
+@@ -157,7 +157,7 @@ Slapi_Value **ipapwd_encrypt_encode_key(struct ipapwd_krbcfg *krbcfg,
+         pwd.length = strlen(data->password);
+     }
+ 
+-    kset = malloc(sizeof(struct ipapwd_keyset));
++    kset = (struct ipapwd_keyset *) calloc(1, sizeof(struct ipapwd_keyset));
+     if (!kset) {
+         LOG_OOM();
+         goto enc_error;
+-- 
+2.7.4
+

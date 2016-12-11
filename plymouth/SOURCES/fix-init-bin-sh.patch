@@ -1,0 +1,231 @@
+From be52bd06949cb2a386fda147d24155581708ef1a Mon Sep 17 00:00:00 2001
+From: Ray Strode <rstrode@redhat.com>
+Date: Fri, 10 Oct 2014 13:30:56 -0400
+Subject: [PATCH] main: show splash when init=/bin/sh
+
+but quit after switch root.  The keeps luks
+working.
+---
+ src/main.c | 23 ++++++++++++++++++++---
+ 1 file changed, 20 insertions(+), 3 deletions(-)
+
+diff --git a/src/main.c b/src/main.c
+index fb91bf2..4101550 100644
+--- a/src/main.c
++++ b/src/main.c
+@@ -135,60 +135,64 @@ static ply_boot_splash_t *load_theme (state_t    *state,
+ static ply_boot_splash_t *show_theme (state_t    *state,
+                                       const char *theme_path);
+ 
+ static void attach_splash_to_seats (state_t           *state,
+                                     ply_boot_splash_t *splash);
+ static bool attach_to_running_session (state_t *state);
+ static void detach_from_running_session (state_t *state);
+ static void on_escape_pressed (state_t *state);
+ static void dump_details_and_quit_splash (state_t *state);
+ static void update_display (state_t *state);
+ 
+ static void on_error_message (ply_buffer_t *debug_buffer,
+                               const void   *bytes,
+                               size_t        number_of_bytes);
+ static ply_buffer_t *debug_buffer;
+ static char *debug_buffer_path = NULL;
+ static char *pid_file = NULL;
+ static void toggle_between_splash_and_details (state_t *state);
+ #ifdef PLY_ENABLE_SYSTEMD_INTEGRATION
+ static void tell_systemd_to_print_details (state_t *state);
+ static void tell_systemd_to_stop_printing_details (state_t *state);
+ #endif
+ static const char * get_cache_file_for_mode (ply_mode_t mode);
+ static void on_escape_pressed (state_t *state);
+ static void on_enter (state_t    *state,
+                       const char *line);
+ static void on_keyboard_input (state_t    *state,
+                                const char *keyboard_input,
+                                size_t      character_size);
+ static void on_backspace (state_t *state);
++static void on_quit (state_t       *state,
++                     bool           retain_splash,
++                     ply_trigger_t *quit_trigger);
++static bool sh_is_init (state_t *state);
+ 
+ static void
+ on_session_output (state_t    *state,
+                    const char *output,
+                    size_t      size)
+ {
+   ply_buffer_append_bytes (state->boot_buffer, output, size);
+   if (state->boot_splash != NULL)
+     ply_boot_splash_update_output (state->boot_splash,
+                                    output, size);
+ }
+ 
+ static void
+ on_session_hangup (state_t *state)
+ {
+   ply_trace ("got hang up on terminal session fd");
+ }
+ 
+ static void
+ on_update (state_t     *state,
+            const char  *status)
+ {
+   ply_trace ("updating status to '%s'", status);
+   ply_progress_status_update (state->progress,
+                                status);
+   if (state->boot_splash != NULL)
+     ply_boot_splash_update_status (state->boot_splash,
+                                    status);
+ }
+ 
+@@ -626,60 +630,67 @@ on_ignore_keystroke (state_t      *state,
+     {
+       ply_keystroke_watch_t* keystroke_trigger = ply_list_node_get_data (node);
+       if ((!keystroke_trigger->keys && !keys) ||
+           (keystroke_trigger->keys && keys && strcmp(keystroke_trigger->keys, keys)==0))
+         {
+           ply_trigger_pull (keystroke_trigger->trigger, NULL);
+           ply_list_remove_node (state->keystroke_triggers, node);
+           return;
+         }
+     }
+ }
+ 
+ static void
+ on_progress_pause (state_t *state)
+ {
+   ply_trace ("pausing progress");
+   ply_progress_pause (state->progress);
+ }
+ 
+ static void
+ on_progress_unpause (state_t *state)
+ {
+   ply_trace ("unpausing progress");
+   ply_progress_unpause (state->progress);
+ }
+ 
+ static void
+ on_newroot (state_t    *state,
+             const char *root_dir)
+ {
++  if (sh_is_init (state))
++    {
++      ply_trace ("new root mounted at \"%s\", exiting since init= a shell", root_dir);
++      on_quit (state, false, ply_trigger_new (NULL));
++      return;
++    }
++
+   ply_trace ("new root mounted at \"%s\", switching to it", root_dir);
+   chdir(root_dir);
+   chroot(".");
+   chdir("/");
+   ply_progress_load_cache (state->progress, get_cache_file_for_mode (state->mode));
+   if (state->boot_splash != NULL)
+     ply_boot_splash_root_mounted (state->boot_splash);
+ }
+ 
+ static const char *
+ get_cache_file_for_mode (ply_mode_t mode)
+ {
+   const char *filename;
+ 
+   switch ((int)mode)
+     {
+     case PLY_MODE_BOOT:
+       filename = BOOT_DURATION_FILE;
+       break;
+     case PLY_MODE_SHUTDOWN:
+       filename = SHUTDOWN_DURATION_FILE;
+       break;
+     case PLY_MODE_UPDATES:
+       filename = NULL;
+       break;
+     default:
+       ply_error ("Unhandled case in %s line %d\n", __FILE__, __LINE__);
+       abort ();
+       break;
+     }
+@@ -781,70 +792,76 @@ prepare_logging (state_t *state)
+       if (state->number_of_errors > 0)
+         spool_error (state);
+     }
+ }
+ 
+ static void
+ on_system_initialized (state_t *state)
+ {
+   ply_trace ("system now initialized, opening log");
+   state->system_initialized = true;
+ 
+   prepare_logging (state);
+ }
+ 
+ static void
+ on_error (state_t *state)
+ {
+   ply_trace ("encountered error during boot up");
+ 
+   if (state->system_initialized && state->number_of_errors == 0)
+     spool_error (state);
+   else
+     ply_trace ("not spooling because number of errors %d", state->number_of_errors);
+ 
+   state->number_of_errors++;
+ }
+ 
+ static bool
+ plymouth_should_ignore_show_splash_calls (state_t *state)
+ {
+-  const char *init_string;
+-  size_t length;
+-
+   ply_trace ("checking if plymouth should be running");
+   if (state->mode != PLY_MODE_BOOT || command_line_has_argument (state->kernel_command_line, "plymouth.force-splash"))
+       return false;
+ 
+   if (command_line_has_argument (state->kernel_command_line, "plymouth.ignore-show-splash"))
+       return true;
+ 
++  return false;
++}
++
++static bool
++sh_is_init (state_t *state)
++{
++  const char *init_string;
++  size_t length;
++
+   init_string = command_line_get_string_after_prefix (state->kernel_command_line, "init=");
+ 
+   if (init_string)
+     {
+       length = strcspn (init_string, " \n");
+       if (length > 2 && ply_string_has_prefix (init_string + length - 2, "sh"))
+         return true;
+     }
+ 
+   return false;
+ }
+ 
+ static bool
+ plymouth_should_show_default_splash (state_t *state)
+ {
+   ply_trace ("checking if plymouth should show default splash");
+ 
+   const char const *strings[] = {
+       "single", "1", "s", "S", "-S", NULL
+   };
+   int i;
+ 
+   if (state->should_force_details)
+     return false;
+ 
+   for (i = 0; strings[i] != NULL; i++)
+     {
+       if (command_line_has_argument (state->kernel_command_line, strings[i]))
+         {
+           ply_trace ("no default splash because kernel command line has option \"%s\"", strings[i]);
+-- 
+1.8.3.1
+

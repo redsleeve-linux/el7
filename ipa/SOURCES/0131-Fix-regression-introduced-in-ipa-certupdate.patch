@@ -1,0 +1,33 @@
+From 29933c3f480344b7066554f3e66874c2aa4625a8 Mon Sep 17 00:00:00 2001
+From: Florence Blanc-Renaud <flo@redhat.com>
+Date: Fri, 9 Sep 2016 15:04:35 +0200
+Subject: [PATCH] Fix regression introduced in ipa-certupdate
+
+The fix for 6288 was overwritten by commit 08b768313020c45bfa82d67cd214afabf605f4b3.
+
+https://fedorahosted.org/freeipa/ticket/6288
+
+Reviewed-By: Martin Babinsky <mbabinsk@redhat.com>
+---
+ ipaclient/ipa_certupdate.py | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/ipaclient/ipa_certupdate.py b/ipaclient/ipa_certupdate.py
+index 4b97b85b83c8b1a130d6db9cdcc7a76fc569af9e..52f73e196c8f18c9f944dd7eeaa442780e17cb7d 100644
+--- a/ipaclient/ipa_certupdate.py
++++ b/ipaclient/ipa_certupdate.py
+@@ -83,7 +83,10 @@ class CertUpdate(admintool.AdminTool):
+             certs = certstore.get_ca_certs(ldap, api.env.basedn,
+                                            api.env.realm, ca_enabled)
+ 
+-            lwcas = api.Command.ca_find()['result']
++            if ca_enabled:
++                lwcas = api.Command.ca_find()['result']
++            else:
++                lwcas = []
+ 
+             api.Backend.rpcclient.disconnect()
+         finally:
+-- 
+2.9.3
+

@@ -1,0 +1,193 @@
+From 5fbeff7b002d0ac0b0fedfd380e3c72ac09be66e Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Fri, 17 Jan 2014 12:00:56 +0100
+Subject: [LIBREPORT PATCH 09/11] add Java reporting workflows
+
+Related to rhbz#1054713
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ po/POTFILES.in                                 |  3 +++
+ src/workflows/Makefile.am                      | 14 ++++++++++----
+ src/workflows/report_fedora.conf               |  4 ++++
+ src/workflows/report_rhel.conf                 |  4 ++++
+ src/workflows/report_rhel_bugzilla.conf        |  4 ++++
+ src/workflows/workflow_FedoraJava.xml.in       | 12 ++++++++++++
+ src/workflows/workflow_RHELBugzillaJava.xml.in | 12 ++++++++++++
+ src/workflows/workflow_RHELJava.xml.in         | 10 ++++++++++
+ 8 files changed, 59 insertions(+), 4 deletions(-)
+ create mode 100644 src/workflows/workflow_FedoraJava.xml.in
+ create mode 100644 src/workflows/workflow_RHELBugzillaJava.xml.in
+ create mode 100644 src/workflows/workflow_RHELJava.xml.in
+
+diff --git a/po/POTFILES.in b/po/POTFILES.in
+index 426cfcf..26acba1 100644
+--- a/po/POTFILES.in
++++ b/po/POTFILES.in
+@@ -54,6 +54,7 @@ src/workflows/workflow_FedoraPython.xml.in
+ src/workflows/workflow_FedoraVmcore.xml.in
+ src/workflows/workflow_FedoraXorg.xml.in
+ src/workflows/workflow_FedoraLibreport.xml.in
++src/workflows/workflow_FedoraJava.xml.in
+ src/workflows/workflow_Upload.xml.in
+ src/workflows/workflow_RHELCCpp.xml.in
+ src/workflows/workflow_RHELKerneloops.xml.in
+@@ -61,9 +62,11 @@ src/workflows/workflow_RHELPython.xml.in
+ src/workflows/workflow_RHELvmcore.xml.in
+ src/workflows/workflow_RHELxorg.xml.in
+ src/workflows/workflow_RHELLibreport.xml.in
++src/workflows/workflow_RHELJava.xml.in
+ src/workflows/workflow_RHELBugzillaCCpp.xml.in
+ src/workflows/workflow_RHELBugzillaKerneloops.xml.in
+ src/workflows/workflow_RHELBugzillaPython.xml.in
+ src/workflows/workflow_RHELBugzillaVmcore.xml.in
+ src/workflows/workflow_RHELBugzillaXorg.xml.in
+ src/workflows/workflow_RHELBugzillaLibreport.xml.in
++src/workflows/workflow_RHELBugzillaJava.xml.in
+diff --git a/src/workflows/Makefile.am b/src/workflows/Makefile.am
+index 4a8fb82..54a6f31 100644
+--- a/src/workflows/Makefile.am
++++ b/src/workflows/Makefile.am
+@@ -7,13 +7,15 @@ dist_workflows_DATA = \
+     workflow_FedoraVmcore.xml \
+     workflow_FedoraXorg.xml \
+     workflow_FedoraLibreport.xml \
++    workflow_FedoraJava.xml \
+     workflow_Upload.xml \
+     workflow_RHELCCpp.xml \
+     workflow_RHELKerneloops.xml \
+     workflow_RHELPython.xml \
+     workflow_RHELvmcore.xml \
+     workflow_RHELxorg.xml \
+-    workflow_RHELLibreport.xml
++    workflow_RHELLibreport.xml \
++    workflow_RHELJava.xml
+ 
+ if BUILD_BUGZILLA
+ dist_workflows_DATA += \
+@@ -26,7 +28,8 @@ dist_workflows_DATA += \
+     workflow_RHELBugzillaPython.xml \
+     workflow_RHELBugzillaVmcore.xml \
+     workflow_RHELBugzillaXorg.xml \
+-    workflow_RHELBugzillaLibreport.xml
++    workflow_RHELBugzillaLibreport.xml \
++    workflow_RHELBugzillaJava.xml
+ endif
+ 
+ workflowsdefdir = $(WORKFLOWS_DEFINITION_DIR)
+@@ -50,13 +53,15 @@ EXTRA_DIST = \
+     workflow_FedoraVmcore.xml.in \
+     workflow_FedoraXorg.xml.in \
+     workflow_FedoraLibreport.xml.in \
++    workflow_FedoraJava.xml.in \
+     workflow_Upload.xml.in \
+     workflow_RHELCCpp.xml.in \
+     workflow_RHELKerneloops.xml.in \
+     workflow_RHELPython.xml.in \
+     workflow_RHELvmcore.xml.in \
+     workflow_RHELxorg.xml.in \
+-    workflow_RHELLibreport.xml.in
++    workflow_RHELLibreport.xml.in \
++    workflow_RHELJava.xml.in
+ 
+ if BUILD_BUGZILLA
+ EXTRA_DIST += \
+@@ -69,5 +74,6 @@ EXTRA_DIST += \
+     workflow_RHELBugzillaPython.xml.in \
+     workflow_RHELBugzillaVmcore.xml.in \
+     workflow_RHELBugzillaXorg.xml.in \
+-    workflow_RHELBugzillaLibreport.xml.in
++    workflow_RHELBugzillaLibreport.xml.in \
++    workflow_RHELBugzillaJava.xml.in
+ endif
+diff --git a/src/workflows/report_fedora.conf b/src/workflows/report_fedora.conf
+index e935b16..8494661 100644
+--- a/src/workflows/report_fedora.conf
++++ b/src/workflows/report_fedora.conf
+@@ -21,3 +21,7 @@ EVENT=workflow_FedoraVmcore analyzer=vmcore
+ EVENT=workflow_FedoraXorg analyzer=xorg
+ # this is just a meta event which consists of other events
+ # the list is defined in the xml file
++
++EVENT=workflow_FedoraJava analyzer=Java
++# this is just a meta event which consists of other events
++# the list is defined in the xml file
+diff --git a/src/workflows/report_rhel.conf b/src/workflows/report_rhel.conf
+index 870db3f..38ee231 100644
+--- a/src/workflows/report_rhel.conf
++++ b/src/workflows/report_rhel.conf
+@@ -21,3 +21,7 @@ EVENT=workflow_RHELvmcore analyzer=vmcore
+ EVENT=workflow_RHELxorg analyzer=xorg
+ # this is just a meta event which consists of other events
+ # the list is defined in the xml file
++
++EVENT=workflow_RHELJava analyzer=Java
++# this is just a meta event which consists of other events
++# the list is defined in the xml file
+diff --git a/src/workflows/report_rhel_bugzilla.conf b/src/workflows/report_rhel_bugzilla.conf
+index b986959..08f307b 100644
+--- a/src/workflows/report_rhel_bugzilla.conf
++++ b/src/workflows/report_rhel_bugzilla.conf
+@@ -21,3 +21,7 @@ EVENT=workflow_RHELBugzillaVmcore analyzer=vmcore
+ EVENT=workflow_RHELBugzillaXorg analyzer=xorg
+ # this is just a meta event which consists of other events
+ # the list is defined in the xml file
++
++EVENT=workflow_RHELBugzillaJava analyzer=Java
++# this is just a meta event which consists of other events
++# the list is defined in the xml file
+diff --git a/src/workflows/workflow_FedoraJava.xml.in b/src/workflows/workflow_FedoraJava.xml.in
+new file mode 100644
+index 0000000..650197e
+--- /dev/null
++++ b/src/workflows/workflow_FedoraJava.xml.in
+@@ -0,0 +1,12 @@
++<?xml version="1.0" encoding="UTF-8" ?>
++<workflow>
++    <_name>Report to Fedora</_name>
++    <_description>Process the Java exception using the Fedora infrastructure</_description>
++
++    <events>
++        <event>report_uReport</event>
++        <event>collect_*</event>
++        <event>report_Bugzilla</event>
++        <event>post-report</event>
++    </events>
++</workflow>
+diff --git a/src/workflows/workflow_RHELBugzillaJava.xml.in b/src/workflows/workflow_RHELBugzillaJava.xml.in
+new file mode 100644
+index 0000000..3ef7619
+--- /dev/null
++++ b/src/workflows/workflow_RHELBugzillaJava.xml.in
+@@ -0,0 +1,12 @@
++<?xml version="1.0" encoding="UTF-8" ?>
++<workflow>
++    <_name>Report to Red Hat Bugzilla</_name>
++    <_description>Process the Java exception using the Red Hat infrastructure</_description>
++
++    <events>
++        <event>report_uReport</event>
++        <event>collect_*</event>
++        <event>report_Bugzilla</event>
++        <event>post-report</event>
++    </events>
++</workflow>
+diff --git a/src/workflows/workflow_RHELJava.xml.in b/src/workflows/workflow_RHELJava.xml.in
+new file mode 100644
+index 0000000..23ef0cb
+--- /dev/null
++++ b/src/workflows/workflow_RHELJava.xml.in
+@@ -0,0 +1,10 @@
++<?xml version="1.0" encoding="UTF-8" ?>
++<workflow>
++    <_name>Report to Red Hat Customer Portal</_name>
++    <_description>Process the Java exception using the Red Hat infrastructure</_description>
++
++    <events>
++        <event>collect_*</event>
++        <event>report_RHTSupport</event>
++    </events>
++</workflow>
+-- 
+1.8.3.1
+

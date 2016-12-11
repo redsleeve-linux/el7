@@ -1,0 +1,48 @@
+From 82ffbefb88013e125e8377fe525fdef1de0c7ad4 Mon Sep 17 00:00:00 2001
+From: Martin Basti <mbasti@redhat.com>
+Date: Tue, 13 Sep 2016 18:37:43 +0200
+Subject: [PATCH] Start named during configuration upgrade.
+
+Some upgrade steps require bind running, to be succesfull. Upgrader
+makes sure that bind starts.
+
+https://fedorahosted.org/freeipa/ticket/6205
+
+Reviewed-By: Martin Babinsky <mbabinsk@redhat.com>
+---
+ ipaserver/install/server/upgrade.py | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/ipaserver/install/server/upgrade.py b/ipaserver/install/server/upgrade.py
+index 43427178b11f63797a9537eadee836d7cf224311..e1343f423cec21f02e3d9581012496baa7b30cc6 100644
+--- a/ipaserver/install/server/upgrade.py
++++ b/ipaserver/install/server/upgrade.py
+@@ -1706,6 +1706,15 @@ def upgrade_configuration():
+     cleanup_kdc(fstore)
+     cleanup_adtrust(fstore)
+     setup_firefox_extension(fstore)
++
++    bind = bindinstance.BindInstance(fstore)
++    if bind.is_configured() and not bind.is_running():
++        # some upgrade steps may require bind running
++        bind_started = True
++        bind.start()
++    else:
++        bind_started = False
++
+     add_ca_dns_records()
+ 
+     # Any of the following functions returns True iff the named.conf file
+@@ -1736,6 +1745,9 @@ def upgrade_configuration():
+         except ipautil.CalledProcessError as e:
+             root_logger.error("Failed to restart %s: %s", bind.service_name, e)
+ 
++    if bind_started:
++        bind.stop()
++
+     custodia = custodiainstance.CustodiaInstance(api.env.host, api.env.realm)
+     custodia.upgrade_instance()
+ 
+-- 
+2.7.4
+

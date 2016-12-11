@@ -1,0 +1,180 @@
+diff -up ntp-4.2.6p5/html/miscopt.html.backfwdstep ntp-4.2.6p5/html/miscopt.html
+--- ntp-4.2.6p5/html/miscopt.html.backfwdstep	2015-05-13 17:07:13.553206904 +0200
++++ ntp-4.2.6p5/html/miscopt.html	2015-05-13 17:55:59.226133427 +0200
+@@ -70,7 +70,7 @@
+ 			<dd>Specify the directory in which to write configuration snapshots requested with <tt>ntpq</tt>'s <a href="ntpq.html#saveconfig">saveconfig</a> command.  If <tt>saveconfigdir</tt> does not appear in the configuration file, saveconfig requests are rejected by ntpd.</dd>
+ 			<dt id="setvar"><tt>setvar <i>variable</i> [default]</tt></dt>
+ 			<dd>This command adds an additional system variable. These variables can be used to distribute additional information such as the access policy. If the variable of the form <tt><i>name</i> = <i>value</i></tt> is followed by the <tt>default</tt> keyword, the variable will be listed as part of the default system variables (<tt>ntpq rv</tt> command). These additional variables serve informational purposes only. They are not related to the protocol other that they can be listed. The known protocol variables will always override any variables defined via the <tt>setvar</tt> mechanism. There are three special variables that contain the names of all variable of the same group. The <tt>sys_var_list</tt> holds the names of all system variables. The <tt>peer_var_list</tt> holds the names of all peer variables and the <tt>clock_var_list</tt> holds the names of the reference clock variables.</dd>
+-			<dt id="tinker"><tt>tinker [ allan <i>allan</i> | dispersion <i>dispersion</i> | freq <i>freq</i> | huffpuff <i>huffpuff</i> | panic <i>panic</i> | step <i>step</i> | stepout <i>stepout</i> ]</tt></dt>
++			<dt id="tinker"><tt>tinker [ allan <i>allan</i> | dispersion <i>dispersion</i> | freq <i>freq</i> | huffpuff <i>huffpuff</i> | panic <i>panic</i> | step <i>step</i> | stepback <i>step</i> | stepfwd <i>step</i> | stepout <i>stepout</i> ]</tt></dt>
+ 			<dd>This command alters certain system variables used by the clock discipline algorithm. The default values of these variables have been carefully optimized for a wide range of network speeds and reliability expectations. Very rarely is it necessary to change the default values; but, some folks can't resist twisting the knobs. The options are as follows:</dd>
+ 				<dd><dl>
+ 					<dt><tt>allan <i>allan</i></tt></dt>
+@@ -89,6 +89,10 @@
+ 						occur. Note: The kernel time discipline is disabled if
+ 						the step threshold is set to zero or greater than 0.5
+ 						s and the threshold is applied also to leap second corrections.</dd>
++					<dt><tt>stepback <i>step</i></tt></dt>
++					<dd>Specifies the step threshold, but only in the backward direction.</dd>
++					<dt><tt>stepfwd <i>step</i></tt></dt>
++					<dd>Specifies the step threshold, but only in the forward direction. To avoid problems with frequency stabilization after large slews it's not recommended to set one direction to a value greater than 0.5 s without setting also the other direction to at least 0.5 s.</dd>
+ 					<dt><tt>stepout <i>stepout</i></tt></dt>
+ 					<dd>Specifies the stepout threshold in seconds. The default without this
+ 						command is 900 s.  If set to zero, popcorn spikes will
+diff -up ntp-4.2.6p5/include/ntp.h.backfwdstep ntp-4.2.6p5/include/ntp.h
+--- ntp-4.2.6p5/include/ntp.h.backfwdstep	2011-12-01 03:55:17.000000000 +0100
++++ ntp-4.2.6p5/include/ntp.h	2015-05-13 17:23:19.953372541 +0200
+@@ -725,6 +725,8 @@ struct pkt {
+ #define LOOP_KERN_CLEAR		11	/* reset kernel pll parameters */
+ #define LOOP_CODEC		12	/* set audio codec frequency */
+ #define	LOOP_LEAP		13	/* insert leap after second 23:59 */
++#define LOOP_MAX_BACK		14	/* set bacward-step offset */
++#define LOOP_MAX_FWD		15	/* set forward-step offset */
+ 
+ /*
+  * Configuration items for the stats printer
+diff -up ntp-4.2.6p5/include/ntpd.h.backfwdstep ntp-4.2.6p5/include/ntpd.h
+--- ntp-4.2.6p5/include/ntpd.h.backfwdstep	2015-05-13 17:07:13.498212244 +0200
++++ ntp-4.2.6p5/include/ntpd.h	2015-05-13 17:28:42.516052737 +0200
+@@ -345,7 +345,8 @@ extern int	maxactivefd;
+ /* ntp_loopfilter.c */
+ extern double	drift_comp;		/* clock frequency (s/s) */
+ extern double	clock_stability;	/* clock stability (s/s) */
+-extern double	clock_max;		/* max offset before step (s) */
++extern double	clock_max_back;		/* max backward offset before step (s) */
++extern double	clock_max_fwd;		/* max forward offset before step (s) */
+ extern double	clock_panic;		/* max offset before panic (s) */
+ extern double	clock_phi;		/* dispersion rate (s/s) */
+ extern double	clock_minstep;		/* step timeout (s) */
+diff -up ntp-4.2.6p5/ntpd/cmd_args.c.backfwdstep ntp-4.2.6p5/ntpd/cmd_args.c
+--- ntp-4.2.6p5/ntpd/cmd_args.c.backfwdstep	2009-12-25 10:03:41.000000000 +0100
++++ ntp-4.2.6p5/ntpd/cmd_args.c	2015-05-13 17:25:05.726102347 +0200
+@@ -161,8 +161,7 @@ getCmdOpts(
+ 	}
+ 
+ 	if (HAVE_OPT( SLEW )) {
+-		clock_max = 600;
+-		kern_enable = 0;
++		loop_config(LOOP_MAX, 600);
+ 	}
+ 	if (HAVE_OPT( UPDATEINTERVAL )) {
+ 		long val = OPT_VALUE_UPDATEINTERVAL;
+diff -up ntp-4.2.6p5/ntpd/keyword-gen.c.backfwdstep ntp-4.2.6p5/ntpd/keyword-gen.c
+--- ntp-4.2.6p5/ntpd/keyword-gen.c.backfwdstep	2010-04-18 10:05:39.000000000 +0200
++++ ntp-4.2.6p5/ntpd/keyword-gen.c	2015-05-13 17:39:08.889233906 +0200
+@@ -173,6 +173,8 @@ struct key_tok ntp_keywords[] = {
+ { "stats",		T_Stats,		FOLLBY_TOKEN },
+ /* tinker_option */
+ { "step",		T_Step,			FOLLBY_TOKEN },
++{ "stepback",		T_Stepback,		FOLLBY_TOKEN },
++{ "stepfwd",		T_Stepfwd,		FOLLBY_TOKEN },
+ { "panic",		T_Panic,		FOLLBY_TOKEN },
+ { "dispersion",		T_Dispersion,		FOLLBY_TOKEN },
+ { "stepout",		T_Stepout,		FOLLBY_TOKEN },
+diff -up ntp-4.2.6p5/ntpd/ntp_config.c.backfwdstep ntp-4.2.6p5/ntpd/ntp_config.c
+--- ntp-4.2.6p5/ntpd/ntp_config.c.backfwdstep	2015-05-13 17:07:13.534208748 +0200
++++ ntp-4.2.6p5/ntpd/ntp_config.c	2015-05-13 17:36:12.929319050 +0200
+@@ -2407,6 +2407,14 @@ config_tinker(
+ 			item = LOOP_MAX;
+ 			break;
+ 
++		case T_Stepback:
++			item = LOOP_MAX_BACK;
++			break;
++
++		case T_Stepfwd:
++			item = LOOP_MAX_FWD;
++			break;
++
+ 		case T_Stepout:
+ 			item = LOOP_MINSTEP;
+ 			break;
+diff -up ntp-4.2.6p5/ntpd/ntp_loopfilter.c.backfwdstep ntp-4.2.6p5/ntpd/ntp_loopfilter.c
+--- ntp-4.2.6p5/ntpd/ntp_loopfilter.c.backfwdstep	2015-05-13 17:07:13.499212146 +0200
++++ ntp-4.2.6p5/ntpd/ntp_loopfilter.c	2015-05-13 17:20:42.362674093 +0200
+@@ -107,7 +107,8 @@
+ /*
+  * Program variables that can be tinkered.
+  */
+-double	clock_max = CLOCK_MAX;	/* step threshold */
++double	clock_max_back = CLOCK_MAX;	/* step threshold */
++double	clock_max_fwd =  CLOCK_MAX;	/* step threshold */
+ double	clock_minstep = CLOCK_MINSTEP; /* stepout threshold */
+ double	clock_panic = CLOCK_PANIC; /* panic threshold */
+ double	clock_phi = CLOCK_PHI;	/* dispersion rate (s/s) */
+@@ -257,7 +258,8 @@ local_clock(
+ 	 * directly to the terminal.
+ 	 */
+ 	if (mode_ntpdate) {
+-		if (fabs(fp_offset) > clock_max && clock_max > 0) {
++		if (  ( fp_offset > clock_max_fwd  && clock_max_fwd  > 0)
++		   || (-fp_offset > clock_max_back && clock_max_back > 0)) {
+ 			step_systime(fp_offset);
+ 			msyslog(LOG_NOTICE, "ntpd: time set %+.6f s",
+ 	   		    fp_offset);
+@@ -319,7 +321,8 @@ local_clock(
+ 	mu = current_time - clock_epoch;
+ 	clock_frequency = drift_comp;
+ 	rval = 1;
+-	if (fabs(fp_offset) > clock_max && clock_max > 0) {
++	if (  ( fp_offset > clock_max_fwd  && clock_max_fwd  > 0)
++	   || (-fp_offset > clock_max_back && clock_max_back > 0)) {
+ 		switch (state) {
+ 
+ 		/*
+@@ -1007,8 +1010,20 @@ loop_config(
+ 		break;
+ 
+ 	case LOOP_MAX:		/* step threshold (step) */
+-		clock_max = freq;
+-		if (clock_max == 0 || clock_max > 0.5)
++		clock_max_fwd = clock_max_back = freq;
++		if (freq == 0 || freq > 0.5)
++			kern_enable = 0;
++		break;
++
++	case LOOP_MAX_BACK:	/* step threshold (step) */
++		clock_max_back = freq;
++		if (freq == 0 || freq > 0.5)
++			kern_enable = 0;
++		break;
++
++	case LOOP_MAX_FWD:	/* step threshold (step) */
++		clock_max_fwd = freq;
++		if (freq == 0 || freq > 0.5)
+ 			kern_enable = 0;
+ 		break;
+ 
+diff -up ntp-4.2.6p5/ntpd/ntp_parser.y.backfwdstep ntp-4.2.6p5/ntpd/ntp_parser.y
+--- ntp-4.2.6p5/ntpd/ntp_parser.y.backfwdstep	2010-10-24 08:29:35.000000000 +0200
++++ ntp-4.2.6p5/ntpd/ntp_parser.y	2015-05-13 17:40:45.207881673 +0200
+@@ -190,6 +190,8 @@
+ %token	<Integer>	T_Stats
+ %token	<Integer>	T_Statsdir
+ %token	<Integer>	T_Step
++%token	<Integer>	T_Stepback
++%token	<Integer>	T_Stepfwd
+ %token	<Integer>	T_Stepout
+ %token	<Integer>	T_Stratum
+ %token	<String>	T_String
+@@ -899,6 +901,8 @@ tinker_option_keyword
+ 	|	T_Huffpuff
+ 	|	T_Panic
+ 	|	T_Step
++	|	T_Stepback
++	|	T_Stepfwd
+ 	|	T_Stepout
+ 	;
+ 
+diff -up ntp-4.2.6p5/ntpd/ntp_timer.c.backfwdstep ntp-4.2.6p5/ntpd/ntp_timer.c
+--- ntp-4.2.6p5/ntpd/ntp_timer.c.backfwdstep	2015-05-13 17:07:13.554206806 +0200
++++ ntp-4.2.6p5/ntpd/ntp_timer.c	2015-05-13 17:27:45.659573319 +0200
+@@ -450,7 +450,7 @@ timer(void)
+ 			sys_tai = leap_tai;
+ #ifdef KERNEL_PLL
+ 			if (!pll_control || !kern_enable) {
+-				if (clock_max < 1.0 && clock_max > 0.0) {
++				if (clock_max_back < 1.0 && clock_max_back > 0.0) {
+ 					step_systime(-1.0);
+ 					msyslog(LOG_NOTICE, "Inserting positive leap second");
+ 				} else {

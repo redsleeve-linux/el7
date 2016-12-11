@@ -1,0 +1,13 @@
+diff --git a/docs/manual/mod/mod_log_debug.html.en b/docs/manual/mod/mod_log_debug.html.en
+index d3d4bd7..1ffd37f 100644
+--- a/docs/manual/mod/mod_log_debug.html.en
++++ b/docs/manual/mod/mod_log_debug.html.en
+@@ -61,7 +61,7 @@
+         Log message if request to /foo/* is processed in a sub-request:
+         <pre class="prettyprint lang-config">
+ &lt;Location /foo/&gt;
+-&nbsp;&nbsp;LogMessage "subrequest to /foo/" hook=type_checker expr=%{IS_SUBREQ}
++&nbsp;&nbsp;LogMessage "subrequest to /foo/" hook=type_checker "expr=-T %{IS_SUBREQ}"
+ &lt;/Location&gt;
+         </pre>
+ 

@@ -1,0 +1,25 @@
+Index: modules/proxy/mod_proxy_wstunnel.c
+===================================================================
+--- a/modules/proxy/mod_proxy_wstunnel.c	(revision 1593857)
++++ b/modules/proxy/mod_proxy_wstunnel.c	(revision 1594625)
+@@ -477,9 +477,11 @@
+     conn_rec *c = r->connection;
+     apr_pool_t *p = r->pool;
+     apr_uri_t *uri;
++    int is_ssl = 0;
+ 
+     if (strncasecmp(url, "wss:", 4) == 0) {
+         scheme = "WSS";
++        is_ssl = 1;
+     }
+     else if (strncasecmp(url, "ws:", 3) == 0) {
+         scheme = "WS";
+@@ -503,7 +505,7 @@
+         return status;
+     }
+ 
+-    backend->is_ssl = 0;
++    backend->is_ssl = is_ssl;
+     backend->close = 0;
+ 
+     retry = 0;

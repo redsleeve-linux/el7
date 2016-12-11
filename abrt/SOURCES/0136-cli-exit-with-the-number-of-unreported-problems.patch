@@ -1,0 +1,52 @@
+From 7cd921326a2cdba7fa268cd373477149b7118bff Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Thu, 4 Jun 2015 10:22:33 +0200
+Subject: [PATCH] cli: exit with the number of unreported problems
+
+This patch fixes the broken cli-sanity.
+
+Related: #1224984
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/cli/report.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cli/report.c b/src/cli/report.c
+index 6af9769..194f7c9 100644
+--- a/src/cli/report.c
++++ b/src/cli/report.c
+@@ -50,6 +50,7 @@ int cmd_report(int argc, const char **argv)
+     load_abrt_conf();
+     free_abrt_conf_data();
+ 
++    int ret = 0;
+     while (*argv)
+     {
+         const char *dir_name = *argv++;
+@@ -57,6 +58,7 @@ int cmd_report(int argc, const char **argv)
+         if (real_problem_id == NULL)
+         {
+             error_msg(_("Can't find problem '%s'"), dir_name);
++            ++ret;
+             continue;
+         }
+ 
+@@ -65,6 +67,7 @@ int cmd_report(int argc, const char **argv)
+         {
+             error_msg(_("Can't take ownership of '%s'"), real_problem_id);
+             free(real_problem_id);
++            ++ret;
+             continue;
+         }
+         int status = report_problem_in_dir(real_problem_id,
+@@ -84,5 +87,5 @@ int cmd_report(int argc, const char **argv)
+             exit(status);
+     }
+ 
+-    return 0;
++    return ret;
+ }
+-- 
+2.4.3
+

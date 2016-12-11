@@ -1,0 +1,25 @@
+From 7a25410b60a3b4789316aae331e1f5a800704f3a Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Thu, 17 Sep 2015 13:49:50 +0200
+Subject: [PATCH] testsuite: ureport: initialize post_state
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ tests/ureport.at | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/tests/ureport.at b/tests/ureport.at
+index b5f79df..2e844b7 100644
+--- a/tests/ureport.at
++++ b/tests/ureport.at
+@@ -704,6 +704,7 @@ int main(void)
+ 
+     /* curl_resul is not CURL_OK */
+     struct post_state ps;
++    memset((void *)&ps, 0, sizeof(ps));
+ 
+     ps.curl_result = 1;
+     strcpy(ps.errmsg, "err");
+-- 
+2.4.3
+

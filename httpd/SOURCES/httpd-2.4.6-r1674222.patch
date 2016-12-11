@@ -1,0 +1,81 @@
+Index: acinclude.m4
+===================================================================
+--- a/acinclude.m4	(revision 1667671)
++++ b/acinclude.m4	(working copy)
+@@ -43,6 +43,7 @@
+   APACHE_SUBST(installbuilddir)
+   APACHE_SUBST(runtimedir)
+   APACHE_SUBST(proxycachedir)
++  APACHE_SUBST(davlockdb)
+   APACHE_SUBST(other_targets)
+   APACHE_SUBST(progname)
+   APACHE_SUBST(prefix)
+@@ -710,6 +711,7 @@
+   APACHE_SUBST_EXPANDED_ARG(runtimedir)
+   APACHE_SUBST_EXPANDED_ARG(logfiledir)
+   APACHE_SUBST_EXPANDED_ARG(proxycachedir)
++  APACHE_SUBST_EXPANDED_ARG(davlockdb)
+ ])
+ 
+ dnl 
+Index: build/mkconfNW.awk
+===================================================================
+--- a/build/mkconfNW.awk	(revision 1667671)
++++ b/build/mkconfNW.awk	(working copy)
+@@ -26,6 +26,7 @@
+     A["runtimedir"] = "logs"
+     A["errordir"] = "error"
+     A["proxycachedir"] = "proxy"
++    A["davlockdb"] = "davlockdb"
+ 
+     B["htdocsdir"] = A["ServerRoot"]"/"A["htdocsdir"]
+     B["iconsdir"] = A["ServerRoot"]"/"A["iconsdir"]
+@@ -32,6 +33,7 @@
+     B["manualdir"] = A["ServerRoot"]"/"A["manualdir"]
+     B["errordir"] = A["ServerRoot"]"/"A["errordir"]
+     B["proxycachedir"] = A["ServerRoot"]"/"A["proxycachedir"]
++    B["davlockdb"] = A["ServerRoot"]"/"A["davlockdb"]
+     B["cgidir"] = A["ServerRoot"]"/"A["cgidir"]
+     B["logfiledir"] = A["logfiledir"]
+     B["sysconfdir"] = A["sysconfdir"]
+Index: include/ap_config_layout.h.in
+===================================================================
+--- a/include/ap_config_layout.h.in	(revision 1667671)
++++ b/include/ap_config_layout.h.in	(working copy)
+@@ -60,5 +60,7 @@
+ #define DEFAULT_REL_LOGFILEDIR "@rel_logfiledir@"
+ #define DEFAULT_EXP_PROXYCACHEDIR "@exp_proxycachedir@"
+ #define DEFAULT_REL_PROXYCACHEDIR "@rel_proxycachedir@"
++#define DEFAULT_EXP_DAVLOCKDB "@exp_davlockdb@"
++#define DEFAULT_REL_DAVLOCKDB "@rel_davlockdb@"
+ 
+ #endif /* AP_CONFIG_LAYOUT_H */
+Index: modules/dav/fs/mod_dav_fs.c
+===================================================================
+--- a/modules/dav/fs/mod_dav_fs.c	(revision 1667671)
++++ b/modules/dav/fs/mod_dav_fs.c	(working copy)
+@@ -17,6 +17,7 @@
+ #include "httpd.h"
+ #include "http_config.h"
+ #include "apr_strings.h"
++#include "ap_config_auto.h"
+ 
+ #include "mod_dav.h"
+ #include "repos.h"
+@@ -39,7 +40,15 @@
+ 
+ static void *dav_fs_create_server_config(apr_pool_t *p, server_rec *s)
+ {
+-    return apr_pcalloc(p, sizeof(dav_fs_server_conf));
++    dav_fs_server_conf *conf = apr_pcalloc(p, sizeof(dav_fs_server_conf));
++#ifdef DEFAULT_EXP_DAVLOCKDB
++    conf->lockdb_path = DEFAULT_EXP_DAVLOCKDB;
++    if (*conf->lockdb_path == '\0') {
++        conf->lockdb_path = NULL;
++    }
++#endif
++
++    return conf;
+ }
+ 
+ static void *dav_fs_merge_server_config(apr_pool_t *p,

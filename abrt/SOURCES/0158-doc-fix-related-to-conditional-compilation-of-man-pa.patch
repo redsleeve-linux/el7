@@ -1,0 +1,44 @@
+From 6e4de5e17a8ac9739b55d9d2e3c34599c6af06db Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Tue, 28 Jul 2015 16:20:47 +0200
+Subject: [PATCH] doc: fix related to conditional compilation of man page
+
+abrt-auto-reporting.txt is a copy of either
+abrt-auto-reporting-authenticated.txt or
+abrt-auto-reporting-unauthenticated.txt. abrt-auto-reporting.txt file always
+exists because MAN1_TXT variable contains it and is distributed (the file is listed
+in the EXTRA_DIST variable). It would be difficult to ensure
+to have abrt-auto-reporting.txt in the MAN1_TXT and exclude it
+from the EXTRA_DIST. So enforce copy, to get the right version of man page, seems
+like the easiest way.
+
+Related to rhbz#1191572
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ doc/Makefile.am | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/doc/Makefile.am b/doc/Makefile.am
+index 8aac85e..d95d9fb 100644
+--- a/doc/Makefile.am
++++ b/doc/Makefile.am
+@@ -75,6 +75,15 @@ MAN_SOURCE =
+ MAN_SOURCE += abrt-auto-reporting-authenticated.txt
+ MAN_SOURCE += abrt-auto-reporting-unauthenticated.txt
+ 
++# abrt-auto-reporting.txt is a copy of either
++# abrt-auto-reporting-authenticated.txt or
++# abrt-auto-reporting-unauthenticated.txt. abrt-auto-reporting.txt file always
++# exists because MAN1_TXT variable contains it and is distributed (the file is listed
++# in the EXTRA_DIST variable). It would be difficult to ensure
++# to have abrt-auto-reporting.txt in the MAN1_TXT and exclude it
++# from the EXTRA_DIST. So enforce copy, to get the right version of man page, seems
++# like the easiest way.
++.PHONY: abrt-auto-reporting.txt
+ if AUTHENTICATED_AUTOREPORTING
+ abrt-auto-reporting.txt: abrt-auto-reporting-authenticated.txt
+ else
+-- 
+2.4.3
+

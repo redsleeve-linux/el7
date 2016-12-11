@@ -1,0 +1,791 @@
+From 88eebe6a15a640001795da35704e2a4cff9ddbc0 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Tue, 15 Apr 2014 09:18:47 +0200
+Subject: [ABRT PATCH 43/66] configu UI: use glade file extension instead of ui
+
+intltool recognizes translatable strings in XML UI files only if the
+file has "glade" extension.
+
+Resolves rhbz#1087777
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ po/POTFILES.in                                 |   2 +-
+ src/configuration-gui/Makefile.am              |   2 +-
+ src/configuration-gui/abrt-config-widget.c     |   2 +-
+ src/configuration-gui/abrt-config-widget.glade | 358 +++++++++++++++++++++++++
+ src/configuration-gui/abrt-config-widget.ui    | 358 -------------------------
+ 5 files changed, 361 insertions(+), 361 deletions(-)
+ create mode 100644 src/configuration-gui/abrt-config-widget.glade
+ delete mode 100644 src/configuration-gui/abrt-config-widget.ui
+
+diff --git a/po/POTFILES.in b/po/POTFILES.in
+index 6d90162..2c36802 100644
+--- a/po/POTFILES.in
++++ b/po/POTFILES.in
+@@ -3,7 +3,7 @@
+ # Please keep this file sorted alphabetically.
+ src/applet/abrt-applet.desktop.in
+ src/applet/applet.c
+-src/configuration-gui/abrt-config-widget.ui
++src/configuration-gui/abrt-config-widget.glade
+ src/configuration-gui/system-config-abrt.c
+ src/configuration-gui/main.c
+ src/daemon/abrt-action-save-package-data.c
+diff --git a/src/configuration-gui/Makefile.am b/src/configuration-gui/Makefile.am
+index 67b010d..4d20318 100644
+--- a/src/configuration-gui/Makefile.am
++++ b/src/configuration-gui/Makefile.am
+@@ -56,7 +56,7 @@ system_config_abrt_LDADD = \
+ 	$(GTK_LIBS) \
+ 	$(LIBREPORT_LIBS)
+ 
+-dist_ui_DATA = abrt-config-widget.ui
++dist_ui_DATA = abrt-config-widget.glade
+ uidir = $(pkgdatadir)/ui
+ 
+ EXTRA_DIST = abrt_gui.pc.in
+diff --git a/src/configuration-gui/abrt-config-widget.c b/src/configuration-gui/abrt-config-widget.c
+index 2c0ba9b..45eac95 100644
+--- a/src/configuration-gui/abrt-config-widget.c
++++ b/src/configuration-gui/abrt-config-widget.c
+@@ -30,7 +30,7 @@
+ 
+ #define WID(s) GTK_WIDGET(gtk_builder_get_object(self->priv->builder, s))
+ 
+-#define UI_FILE_NAME "abrt-config-widget.ui"
++#define UI_FILE_NAME "abrt-config-widget.glade"
+ 
+ typedef struct {
+     char *app_name;
+diff --git a/src/configuration-gui/abrt-config-widget.glade b/src/configuration-gui/abrt-config-widget.glade
+new file mode 100644
+index 0000000..e470011
+--- /dev/null
++++ b/src/configuration-gui/abrt-config-widget.glade
+@@ -0,0 +1,358 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<interface>
++  <!-- interface-requires gtk+ 3.0 -->
++  <object class="GtkWindow" id="window1">
++    <property name="can_focus">False</property>
++    <child>
++      <object class="GtkGrid" id="grid">
++        <property name="visible">True</property>
++        <property name="can_focus">False</property>
++        <property name="margin_left">10</property>
++        <property name="margin_right">10</property>
++        <property name="margin_top">10</property>
++        <property name="margin_bottom">10</property>
++        <property name="row_homogeneous">True</property>
++        <child>
++          <object class="GtkLabel" id="label2">
++            <property name="visible">True</property>
++            <property name="can_focus">False</property>
++            <property name="halign">start</property>
++            <property name="hexpand">True</property>
++            <property name="ypad">10</property>
++            <property name="label" translatable="yes">Ask before stealing directory</property>
++            <signal name="enter-notify-event" handler="label_enter_notify_event_cb" swapped="no"/>
++            <signal name="leave-notify-event" handler="label_leave_notify_event_cb" swapped="no"/>
++          </object>
++          <packing>
++            <property name="left_attach">0</property>
++            <property name="top_attach">1</property>
++            <property name="width">1</property>
++            <property name="height">1</property>
++          </packing>
++        </child>
++        <child>
++          <object class="GtkLabel" id="label3">
++            <property name="visible">True</property>
++            <property name="can_focus">False</property>
++            <property name="halign">start</property>
++            <property name="hexpand">True</property>
++            <property name="ypad">10</property>
++            <property name="label" translatable="yes">Automatically send uReport</property>
++            <signal name="enter-notify-event" handler="label_enter_notify_event_cb" swapped="no"/>
++            <signal name="leave-notify-event" handler="label_leave_notify_event_cb" swapped="no"/>
++          </object>
++          <packing>
++            <property name="left_attach">0</property>
++            <property name="top_attach">3</property>
++            <property name="width">1</property>
++            <property name="height">1</property>
++          </packing>
++        </child>
++        <child>
++          <object class="GtkSwitch" id="switch_upload_coredump">
++            <property name="visible">True</property>
++            <property name="can_focus">True</property>
++            <property name="halign">end</property>
++            <property name="valign">center</property>
++            <property name="margin_left">10</property>
++          </object>
++          <packing>
++            <property name="left_attach">1</property>
++            <property name="top_attach">0</property>
++            <property name="width">1</property>
++            <property name="height">1</property>
++          </packing>
++        </child>
++        <child>
++          <object class="GtkSwitch" id="switch_steal_directory">
++            <property name="visible">True</property>
++            <property name="can_focus">True</property>
++            <property name="halign">end</property>
++            <property name="valign">center</property>
++            <property name="margin_left">10</property>
++          </object>
++          <packing>
++            <property name="left_attach">1</property>
++            <property name="top_attach">1</property>
++            <property name="width">1</property>
++            <property name="height">1</property>
++          </packing>
++        </child>
++        <child>
++          <object class="GtkSwitch" id="switch_send_ureport">
++            <property name="visible">True</property>
++            <property name="can_focus">True</property>
++            <property name="halign">end</property>
++            <property name="valign">center</property>
++            <property name="margin_left">10</property>
++          </object>
++          <packing>
++            <property name="left_attach">1</property>
++            <property name="top_attach">3</property>
++            <property name="width">1</property>
++            <property name="height">1</property>
++          </packing>
++        </child>
++        <child>
++          <object class="GtkLabel" id="label4">
++            <property name="visible">True</property>
++            <property name="can_focus">False</property>
++            <property name="halign">start</property>
++            <property name="hexpand">True</property>
++            <property name="ypad">10</property>
++            <property name="label" translatable="yes">Shortened reporting</property>
++            <signal name="enter-notify-event" handler="label_enter_notify_event_cb" swapped="no"/>
++            <signal name="leave-notify-event" handler="label_leave_notify_event_cb" swapped="no"/>
++          </object>
++          <packing>
++            <property name="left_attach">0</property>
++            <property name="top_attach">4</property>
++            <property name="width">1</property>
++            <property name="height">1</property>
++          </packing>
++        </child>
++        <child>
++          <object class="GtkSwitch" id="switch_shortened_reporting">
++            <property name="visible">True</property>
++            <property name="can_focus">True</property>
++            <property name="halign">end</property>
++            <property name="valign">center</property>
++            <property name="margin_left">10</property>
++          </object>
++          <packing>
++            <property name="left_attach">1</property>
++            <property name="top_attach">4</property>
++            <property name="width">1</property>
++            <property name="height">1</property>
++          </packing>
++        </child>
++        <child>
++          <object class="GtkSwitch" id="switch_silent_shortened_reporting">
++            <property name="visible">True</property>
++            <property name="can_focus">True</property>
++            <property name="halign">end</property>
++            <property name="valign">center</property>
++            <property name="margin_left">10</property>
++          </object>
++          <packing>
++            <property name="left_attach">1</property>
++            <property name="top_attach">5</property>
++            <property name="width">1</property>
++            <property name="height">1</property>
++          </packing>
++        </child>
++        <child>
++          <object class="GtkLabel" id="label9">
++            <property name="visible">True</property>
++            <property name="can_focus">False</property>
++            <property name="halign">start</property>
++            <property name="hexpand">True</property>
++            <property name="ypad">10</property>
++            <property name="label" translatable="yes">Silent shortened reporting</property>
++            <signal name="enter-notify-event" handler="label_enter_notify_event_cb" swapped="no"/>
++            <signal name="leave-notify-event" handler="label_leave_notify_event_cb" swapped="no"/>
++          </object>
++          <packing>
++            <property name="left_attach">0</property>
++            <property name="top_attach">5</property>
++            <property name="width">1</property>
++            <property name="height">1</property>
++          </packing>
++        </child>
++        <child>
++          <object class="GtkImage" id="image1">
++            <property name="visible">True</property>
++            <property name="can_focus">False</property>
++            <property name="tooltip_text" translatable="yes">The coredump file is necessary for generating stack trace which is time and space consuming operation. ABRT provides a service which generates the stack trace from the coredump but you have to upload the coredump to this service. With this option disabled ABRT will upload the coredump without asking.</property>
++            <property name="halign">end</property>
++            <property name="margin_left">5</property>
++            <property name="margin_right">1</property>
++            <property name="stock">gtk-dialog-question</property>
++          </object>
++          <packing>
++            <property name="left_attach">2</property>
++            <property name="top_attach">0</property>
++            <property name="width">1</property>
++            <property name="height">1</property>
++          </packing>
++        </child>
++        <child>
++          <object class="GtkImage" id="image2">
++            <property name="visible">True</property>
++            <property name="can_focus">False</property>
++            <property name="tooltip_text" translatable="yes">ABRT stores problem data in directories. Whenever ABRT needs writable directory, the directory is moved from the system location to your home directory. With this option disabled ABRT will move the problem directory without asking.</property>
++            <property name="halign">end</property>
++            <property name="margin_left">5</property>
++            <property name="stock">gtk-dialog-question</property>
++          </object>
++          <packing>
++            <property name="left_attach">2</property>
++            <property name="top_attach">1</property>
++            <property name="width">1</property>
++            <property name="height">1</property>
++          </packing>
++        </child>
++        <child>
++          <object class="GtkImage" id="image3">
++            <property name="visible">True</property>
++            <property name="can_focus">False</property>
++            <property name="tooltip_text" translatable="yes">uReport is short and completely anonymous description of a problem. ABRT uses uReports  for fast global duplicate detection. In default configuration uReport is sent at beginning of reporting process. With this option enabled uReports are sent automatically immediately after problem detection.</property>
++            <property name="halign">end</property>
++            <property name="margin_left">5</property>
++            <property name="stock">gtk-dialog-question</property>
++          </object>
++          <packing>
++            <property name="left_attach">2</property>
++            <property name="top_attach">3</property>
++            <property name="width">1</property>
++            <property name="height">1</property>
++          </packing>
++        </child>
++        <child>
++          <object class="GtkImage" id="image4">
++            <property name="visible">True</property>
++            <property name="can_focus">False</property>
++            <property name="tooltip_text" translatable="yes">With this option enabled reporting process started by click on Report button in problem notification bubble will be interrupted after uReport is sent. You can always use the default problem browser to make complete report.</property>
++            <property name="halign">end</property>
++            <property name="margin_left">5</property>
++            <property name="stock">gtk-dialog-question</property>
++          </object>
++          <packing>
++            <property name="left_attach">2</property>
++            <property name="top_attach">4</property>
++            <property name="width">1</property>
++            <property name="height">1</property>
++          </packing>
++        </child>
++        <child>
++          <object class="GtkImage" id="image5">
++            <property name="visible">True</property>
++            <property name="can_focus">False</property>
++            <property name="tooltip_text" translatable="yes"> With this option enabled ABRT never shows notifications of reported problems. Takes effect only if Shortened reporting is enabled.</property>
++            <property name="halign">end</property>
++            <property name="margin_left">5</property>
++            <property name="stock">gtk-dialog-question</property>
++          </object>
++          <packing>
++            <property name="left_attach">2</property>
++            <property name="top_attach">5</property>
++            <property name="width">1</property>
++            <property name="height">1</property>
++          </packing>
++        </child>
++        <child>
++          <object class="GtkLabel" id="label1">
++            <property name="visible">True</property>
++            <property name="can_focus">False</property>
++            <property name="halign">start</property>
++            <property name="hexpand">True</property>
++            <property name="ypad">10</property>
++            <property name="label" translatable="yes">Ask before uploading coredump</property>
++            <signal name="enter-notify-event" handler="label_enter_notify_event_cb" swapped="no"/>
++            <signal name="leave-notify-event" handler="label_leave_notify_event_cb" swapped="no"/>
++          </object>
++          <packing>
++            <property name="left_attach">0</property>
++            <property name="top_attach">0</property>
++            <property name="width">1</property>
++            <property name="height">1</property>
++          </packing>
++        </child>
++        <child>
++          <object class="GtkImage" id="image6">
++            <property name="visible">True</property>
++            <property name="can_focus">False</property>
++            <property name="tooltip_text" translatable="yes"> With this option enabled ABRT always create bug ticket with restricted access if possibly sensitive data are dected.</property>
++            <property name="halign">end</property>
++            <property name="margin_left">5</property>
++            <property name="stock">gtk-dialog-question</property>
++          </object>
++          <packing>
++            <property name="left_attach">2</property>
++            <property name="top_attach">2</property>
++            <property name="width">1</property>
++            <property name="height">1</property>
++          </packing>
++        </child>
++        <child>
++          <object class="GtkLabel" id="label5">
++            <property name="visible">True</property>
++            <property name="can_focus">False</property>
++            <property name="halign">start</property>
++            <property name="hexpand">True</property>
++            <property name="ypad">10</property>
++            <property name="label" translatable="yes">Request private ticket for sensitive information</property>
++          </object>
++          <packing>
++            <property name="left_attach">0</property>
++            <property name="top_attach">2</property>
++            <property name="width">1</property>
++            <property name="height">1</property>
++          </packing>
++        </child>
++        <child>
++          <object class="GtkSwitch" id="switch_private_ticket">
++            <property name="visible">True</property>
++            <property name="can_focus">True</property>
++            <property name="halign">end</property>
++            <property name="valign">center</property>
++            <property name="margin_left">10</property>
++          </object>
++          <packing>
++            <property name="left_attach">1</property>
++            <property name="top_attach">2</property>
++            <property name="width">1</property>
++            <property name="height">1</property>
++          </packing>
++        </child>
++        <child>
++          <object class="GtkLabel" id="label6">
++            <property name="visible">True</property>
++            <property name="can_focus">False</property>
++            <property name="halign">start</property>
++            <property name="hexpand">True</property>
++            <property name="ypad">10</property>
++            <property name="label" translatable="yes">Notify incomplete problems</property>
++          </object>
++          <packing>
++            <property name="left_attach">0</property>
++            <property name="top_attach">6</property>
++            <property name="width">1</property>
++            <property name="height">1</property>
++          </packing>
++        </child>
++        <child>
++          <object class="GtkSwitch" id="switch_notify_incomplete_problems">
++            <property name="visible">True</property>
++            <property name="can_focus">True</property>
++            <property name="halign">end</property>
++            <property name="valign">center</property>
++            <property name="margin_left">10</property>
++          </object>
++          <packing>
++            <property name="left_attach">1</property>
++            <property name="top_attach">6</property>
++            <property name="width">1</property>
++            <property name="height">1</property>
++          </packing>
++        </child>
++        <child>
++          <object class="GtkImage" id="image7">
++            <property name="visible">True</property>
++            <property name="can_focus">False</property>
++            <property name="tooltip_text" translatable="yes">Incomplete problems are detected while computer is shutting down or user is logging out. In order to provide valuable problem reports, ABRT will not allow you to submit these problems.</property>
++            <property name="halign">end</property>
++            <property name="margin_left">5</property>
++            <property name="stock">gtk-dialog-question</property>
++          </object>
++          <packing>
++            <property name="left_attach">2</property>
++            <property name="top_attach">6</property>
++            <property name="width">1</property>
++            <property name="height">1</property>
++          </packing>
++        </child>
++      </object>
++    </child>
++  </object>
++</interface>
+diff --git a/src/configuration-gui/abrt-config-widget.ui b/src/configuration-gui/abrt-config-widget.ui
+deleted file mode 100644
+index e470011..0000000
+--- a/src/configuration-gui/abrt-config-widget.ui
++++ /dev/null
+@@ -1,358 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<interface>
+-  <!-- interface-requires gtk+ 3.0 -->
+-  <object class="GtkWindow" id="window1">
+-    <property name="can_focus">False</property>
+-    <child>
+-      <object class="GtkGrid" id="grid">
+-        <property name="visible">True</property>
+-        <property name="can_focus">False</property>
+-        <property name="margin_left">10</property>
+-        <property name="margin_right">10</property>
+-        <property name="margin_top">10</property>
+-        <property name="margin_bottom">10</property>
+-        <property name="row_homogeneous">True</property>
+-        <child>
+-          <object class="GtkLabel" id="label2">
+-            <property name="visible">True</property>
+-            <property name="can_focus">False</property>
+-            <property name="halign">start</property>
+-            <property name="hexpand">True</property>
+-            <property name="ypad">10</property>
+-            <property name="label" translatable="yes">Ask before stealing directory</property>
+-            <signal name="enter-notify-event" handler="label_enter_notify_event_cb" swapped="no"/>
+-            <signal name="leave-notify-event" handler="label_leave_notify_event_cb" swapped="no"/>
+-          </object>
+-          <packing>
+-            <property name="left_attach">0</property>
+-            <property name="top_attach">1</property>
+-            <property name="width">1</property>
+-            <property name="height">1</property>
+-          </packing>
+-        </child>
+-        <child>
+-          <object class="GtkLabel" id="label3">
+-            <property name="visible">True</property>
+-            <property name="can_focus">False</property>
+-            <property name="halign">start</property>
+-            <property name="hexpand">True</property>
+-            <property name="ypad">10</property>
+-            <property name="label" translatable="yes">Automatically send uReport</property>
+-            <signal name="enter-notify-event" handler="label_enter_notify_event_cb" swapped="no"/>
+-            <signal name="leave-notify-event" handler="label_leave_notify_event_cb" swapped="no"/>
+-          </object>
+-          <packing>
+-            <property name="left_attach">0</property>
+-            <property name="top_attach">3</property>
+-            <property name="width">1</property>
+-            <property name="height">1</property>
+-          </packing>
+-        </child>
+-        <child>
+-          <object class="GtkSwitch" id="switch_upload_coredump">
+-            <property name="visible">True</property>
+-            <property name="can_focus">True</property>
+-            <property name="halign">end</property>
+-            <property name="valign">center</property>
+-            <property name="margin_left">10</property>
+-          </object>
+-          <packing>
+-            <property name="left_attach">1</property>
+-            <property name="top_attach">0</property>
+-            <property name="width">1</property>
+-            <property name="height">1</property>
+-          </packing>
+-        </child>
+-        <child>
+-          <object class="GtkSwitch" id="switch_steal_directory">
+-            <property name="visible">True</property>
+-            <property name="can_focus">True</property>
+-            <property name="halign">end</property>
+-            <property name="valign">center</property>
+-            <property name="margin_left">10</property>
+-          </object>
+-          <packing>
+-            <property name="left_attach">1</property>
+-            <property name="top_attach">1</property>
+-            <property name="width">1</property>
+-            <property name="height">1</property>
+-          </packing>
+-        </child>
+-        <child>
+-          <object class="GtkSwitch" id="switch_send_ureport">
+-            <property name="visible">True</property>
+-            <property name="can_focus">True</property>
+-            <property name="halign">end</property>
+-            <property name="valign">center</property>
+-            <property name="margin_left">10</property>
+-          </object>
+-          <packing>
+-            <property name="left_attach">1</property>
+-            <property name="top_attach">3</property>
+-            <property name="width">1</property>
+-            <property name="height">1</property>
+-          </packing>
+-        </child>
+-        <child>
+-          <object class="GtkLabel" id="label4">
+-            <property name="visible">True</property>
+-            <property name="can_focus">False</property>
+-            <property name="halign">start</property>
+-            <property name="hexpand">True</property>
+-            <property name="ypad">10</property>
+-            <property name="label" translatable="yes">Shortened reporting</property>
+-            <signal name="enter-notify-event" handler="label_enter_notify_event_cb" swapped="no"/>
+-            <signal name="leave-notify-event" handler="label_leave_notify_event_cb" swapped="no"/>
+-          </object>
+-          <packing>
+-            <property name="left_attach">0</property>
+-            <property name="top_attach">4</property>
+-            <property name="width">1</property>
+-            <property name="height">1</property>
+-          </packing>
+-        </child>
+-        <child>
+-          <object class="GtkSwitch" id="switch_shortened_reporting">
+-            <property name="visible">True</property>
+-            <property name="can_focus">True</property>
+-            <property name="halign">end</property>
+-            <property name="valign">center</property>
+-            <property name="margin_left">10</property>
+-          </object>
+-          <packing>
+-            <property name="left_attach">1</property>
+-            <property name="top_attach">4</property>
+-            <property name="width">1</property>
+-            <property name="height">1</property>
+-          </packing>
+-        </child>
+-        <child>
+-          <object class="GtkSwitch" id="switch_silent_shortened_reporting">
+-            <property name="visible">True</property>
+-            <property name="can_focus">True</property>
+-            <property name="halign">end</property>
+-            <property name="valign">center</property>
+-            <property name="margin_left">10</property>
+-          </object>
+-          <packing>
+-            <property name="left_attach">1</property>
+-            <property name="top_attach">5</property>
+-            <property name="width">1</property>
+-            <property name="height">1</property>
+-          </packing>
+-        </child>
+-        <child>
+-          <object class="GtkLabel" id="label9">
+-            <property name="visible">True</property>
+-            <property name="can_focus">False</property>
+-            <property name="halign">start</property>
+-            <property name="hexpand">True</property>
+-            <property name="ypad">10</property>
+-            <property name="label" translatable="yes">Silent shortened reporting</property>
+-            <signal name="enter-notify-event" handler="label_enter_notify_event_cb" swapped="no"/>
+-            <signal name="leave-notify-event" handler="label_leave_notify_event_cb" swapped="no"/>
+-          </object>
+-          <packing>
+-            <property name="left_attach">0</property>
+-            <property name="top_attach">5</property>
+-            <property name="width">1</property>
+-            <property name="height">1</property>
+-          </packing>
+-        </child>
+-        <child>
+-          <object class="GtkImage" id="image1">
+-            <property name="visible">True</property>
+-            <property name="can_focus">False</property>
+-            <property name="tooltip_text" translatable="yes">The coredump file is necessary for generating stack trace which is time and space consuming operation. ABRT provides a service which generates the stack trace from the coredump but you have to upload the coredump to this service. With this option disabled ABRT will upload the coredump without asking.</property>
+-            <property name="halign">end</property>
+-            <property name="margin_left">5</property>
+-            <property name="margin_right">1</property>
+-            <property name="stock">gtk-dialog-question</property>
+-          </object>
+-          <packing>
+-            <property name="left_attach">2</property>
+-            <property name="top_attach">0</property>
+-            <property name="width">1</property>
+-            <property name="height">1</property>
+-          </packing>
+-        </child>
+-        <child>
+-          <object class="GtkImage" id="image2">
+-            <property name="visible">True</property>
+-            <property name="can_focus">False</property>
+-            <property name="tooltip_text" translatable="yes">ABRT stores problem data in directories. Whenever ABRT needs writable directory, the directory is moved from the system location to your home directory. With this option disabled ABRT will move the problem directory without asking.</property>
+-            <property name="halign">end</property>
+-            <property name="margin_left">5</property>
+-            <property name="stock">gtk-dialog-question</property>
+-          </object>
+-          <packing>
+-            <property name="left_attach">2</property>
+-            <property name="top_attach">1</property>
+-            <property name="width">1</property>
+-            <property name="height">1</property>
+-          </packing>
+-        </child>
+-        <child>
+-          <object class="GtkImage" id="image3">
+-            <property name="visible">True</property>
+-            <property name="can_focus">False</property>
+-            <property name="tooltip_text" translatable="yes">uReport is short and completely anonymous description of a problem. ABRT uses uReports  for fast global duplicate detection. In default configuration uReport is sent at beginning of reporting process. With this option enabled uReports are sent automatically immediately after problem detection.</property>
+-            <property name="halign">end</property>
+-            <property name="margin_left">5</property>
+-            <property name="stock">gtk-dialog-question</property>
+-          </object>
+-          <packing>
+-            <property name="left_attach">2</property>
+-            <property name="top_attach">3</property>
+-            <property name="width">1</property>
+-            <property name="height">1</property>
+-          </packing>
+-        </child>
+-        <child>
+-          <object class="GtkImage" id="image4">
+-            <property name="visible">True</property>
+-            <property name="can_focus">False</property>
+-            <property name="tooltip_text" translatable="yes">With this option enabled reporting process started by click on Report button in problem notification bubble will be interrupted after uReport is sent. You can always use the default problem browser to make complete report.</property>
+-            <property name="halign">end</property>
+-            <property name="margin_left">5</property>
+-            <property name="stock">gtk-dialog-question</property>
+-          </object>
+-          <packing>
+-            <property name="left_attach">2</property>
+-            <property name="top_attach">4</property>
+-            <property name="width">1</property>
+-            <property name="height">1</property>
+-          </packing>
+-        </child>
+-        <child>
+-          <object class="GtkImage" id="image5">
+-            <property name="visible">True</property>
+-            <property name="can_focus">False</property>
+-            <property name="tooltip_text" translatable="yes"> With this option enabled ABRT never shows notifications of reported problems. Takes effect only if Shortened reporting is enabled.</property>
+-            <property name="halign">end</property>
+-            <property name="margin_left">5</property>
+-            <property name="stock">gtk-dialog-question</property>
+-          </object>
+-          <packing>
+-            <property name="left_attach">2</property>
+-            <property name="top_attach">5</property>
+-            <property name="width">1</property>
+-            <property name="height">1</property>
+-          </packing>
+-        </child>
+-        <child>
+-          <object class="GtkLabel" id="label1">
+-            <property name="visible">True</property>
+-            <property name="can_focus">False</property>
+-            <property name="halign">start</property>
+-            <property name="hexpand">True</property>
+-            <property name="ypad">10</property>
+-            <property name="label" translatable="yes">Ask before uploading coredump</property>
+-            <signal name="enter-notify-event" handler="label_enter_notify_event_cb" swapped="no"/>
+-            <signal name="leave-notify-event" handler="label_leave_notify_event_cb" swapped="no"/>
+-          </object>
+-          <packing>
+-            <property name="left_attach">0</property>
+-            <property name="top_attach">0</property>
+-            <property name="width">1</property>
+-            <property name="height">1</property>
+-          </packing>
+-        </child>
+-        <child>
+-          <object class="GtkImage" id="image6">
+-            <property name="visible">True</property>
+-            <property name="can_focus">False</property>
+-            <property name="tooltip_text" translatable="yes"> With this option enabled ABRT always create bug ticket with restricted access if possibly sensitive data are dected.</property>
+-            <property name="halign">end</property>
+-            <property name="margin_left">5</property>
+-            <property name="stock">gtk-dialog-question</property>
+-          </object>
+-          <packing>
+-            <property name="left_attach">2</property>
+-            <property name="top_attach">2</property>
+-            <property name="width">1</property>
+-            <property name="height">1</property>
+-          </packing>
+-        </child>
+-        <child>
+-          <object class="GtkLabel" id="label5">
+-            <property name="visible">True</property>
+-            <property name="can_focus">False</property>
+-            <property name="halign">start</property>
+-            <property name="hexpand">True</property>
+-            <property name="ypad">10</property>
+-            <property name="label" translatable="yes">Request private ticket for sensitive information</property>
+-          </object>
+-          <packing>
+-            <property name="left_attach">0</property>
+-            <property name="top_attach">2</property>
+-            <property name="width">1</property>
+-            <property name="height">1</property>
+-          </packing>
+-        </child>
+-        <child>
+-          <object class="GtkSwitch" id="switch_private_ticket">
+-            <property name="visible">True</property>
+-            <property name="can_focus">True</property>
+-            <property name="halign">end</property>
+-            <property name="valign">center</property>
+-            <property name="margin_left">10</property>
+-          </object>
+-          <packing>
+-            <property name="left_attach">1</property>
+-            <property name="top_attach">2</property>
+-            <property name="width">1</property>
+-            <property name="height">1</property>
+-          </packing>
+-        </child>
+-        <child>
+-          <object class="GtkLabel" id="label6">
+-            <property name="visible">True</property>
+-            <property name="can_focus">False</property>
+-            <property name="halign">start</property>
+-            <property name="hexpand">True</property>
+-            <property name="ypad">10</property>
+-            <property name="label" translatable="yes">Notify incomplete problems</property>
+-          </object>
+-          <packing>
+-            <property name="left_attach">0</property>
+-            <property name="top_attach">6</property>
+-            <property name="width">1</property>
+-            <property name="height">1</property>
+-          </packing>
+-        </child>
+-        <child>
+-          <object class="GtkSwitch" id="switch_notify_incomplete_problems">
+-            <property name="visible">True</property>
+-            <property name="can_focus">True</property>
+-            <property name="halign">end</property>
+-            <property name="valign">center</property>
+-            <property name="margin_left">10</property>
+-          </object>
+-          <packing>
+-            <property name="left_attach">1</property>
+-            <property name="top_attach">6</property>
+-            <property name="width">1</property>
+-            <property name="height">1</property>
+-          </packing>
+-        </child>
+-        <child>
+-          <object class="GtkImage" id="image7">
+-            <property name="visible">True</property>
+-            <property name="can_focus">False</property>
+-            <property name="tooltip_text" translatable="yes">Incomplete problems are detected while computer is shutting down or user is logging out. In order to provide valuable problem reports, ABRT will not allow you to submit these problems.</property>
+-            <property name="halign">end</property>
+-            <property name="margin_left">5</property>
+-            <property name="stock">gtk-dialog-question</property>
+-          </object>
+-          <packing>
+-            <property name="left_attach">2</property>
+-            <property name="top_attach">6</property>
+-            <property name="width">1</property>
+-            <property name="height">1</property>
+-          </packing>
+-        </child>
+-      </object>
+-    </child>
+-  </object>
+-</interface>
+-- 
+1.8.3.1
+

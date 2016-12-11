@@ -1,0 +1,50 @@
+From 6cfe559cb537c2f34837c5d9a40c80b2cda37d4c Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Mon, 9 Nov 2015 13:23:55 +0100
+Subject: [PATCH] curl: add possibility to configure SSH keys
+
+Related to rhbz#1289513
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+
+Conflicts:
+	src/lib/curl.c
+---
+ src/include/libreport_curl.h | 3 +++
+ src/lib/curl.c               | 6 ++++++
+ 2 files changed, 9 insertions(+)
+
+diff --git a/src/include/libreport_curl.h b/src/include/libreport_curl.h
+index b9277ad..ec2e0b3 100644
+--- a/src/include/libreport_curl.h
++++ b/src/include/libreport_curl.h
+@@ -38,6 +38,9 @@ typedef struct post_state {
+     const char  *client_cert_path;
+     const char  *client_key_path;
+     const char  *cert_authority_cert_path;
++    /* SSH key files */
++    const char  *client_ssh_public_keyfile;
++    const char  *client_ssh_private_keyfile;
+     /* Results of POST transaction: */
+     int         http_resp_code;
+     /* cast from CURLcode enum.
+diff --git a/src/lib/curl.c b/src/lib/curl.c
+index a64c464..2cc1058 100644
+--- a/src/lib/curl.c
++++ b/src/lib/curl.c
+@@ -351,6 +351,12 @@ post(post_state_t *state,
+         xcurl_easy_setopt_ptr(handle, CURLOPT_PASSWORD, (state->password ? state->password : ""));
+     }
+ 
++    /* set SSH public and private keyfile if configured */
++    if (state->client_ssh_public_keyfile)
++        xcurl_easy_setopt_ptr(handle, CURLOPT_SSH_PUBLIC_KEYFILE, state->client_ssh_public_keyfile);
++    if (state->client_ssh_private_keyfile)
++        xcurl_easy_setopt_ptr(handle, CURLOPT_SSH_PRIVATE_KEYFILE, state->client_ssh_private_keyfile);
++
+     if (data_size != POST_DATA_FROMFILE_PUT)
+     {
+         // Do a HTTP POST. This also makes curl use
+-- 
+1.8.3.1
+

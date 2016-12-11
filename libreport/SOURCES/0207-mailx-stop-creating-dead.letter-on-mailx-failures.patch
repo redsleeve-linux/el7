@@ -1,0 +1,39 @@
+From 438579dd448f220aea0f9d99cabf01a253b999ba Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Mon, 11 Apr 2016 11:05:57 +0200
+Subject: [PATCH] mailx: stop creating dead.letter on mailx failures
+
+SELinux does not like mailx creating the file and I do not see any
+reason to create the file in a problem directory because the file
+contains a copy of the email that could not be send.
+
+Failures of EVENT=notify are discoverable in system logs and if you run
+the reporter manually, you will see that mailx failed.
+
+Resolves #1309317
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/plugins/reporter-mailx.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/src/plugins/reporter-mailx.c b/src/plugins/reporter-mailx.c
+index feeb900..19013a5 100644
+--- a/src/plugins/reporter-mailx.c
++++ b/src/plugins/reporter-mailx.c
+@@ -197,6 +197,12 @@ static void create_and_send_email(
+      */
+     putenv((char*)"sendwait=1");
+ 
++    /* Prevent mailx from creating dead.letter if sending fails. The file is
++     * useless in our case and if the reporter is called from abrtd, SELinux
++     * complains a lot about mailx touching ABRT data.
++     */
++    putenv((char*)"DEAD=/dev/null");
++
+     log(_("Sending an email..."));
+ 
+     if (flag & RM_FLAG_NOTIFY)
+-- 
+1.8.3.1
+

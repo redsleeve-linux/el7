@@ -1,0 +1,59 @@
+Index: modules/mappers/mod_rewrite.h
+===================================================================
+--- a/modules/mappers/mod_rewrite.h	(revision 1560696)
++++ b/modules/mappers/mod_rewrite.h	(revision 1560697)
+@@ -29,6 +29,8 @@
+ #include "apr_optional.h"
+ #include "httpd.h"
+ 
++#define REWRITE_REDIRECT_HANDLER_NAME "redirect-handler"
++
+ /* rewrite map function prototype */
+ typedef char *(rewrite_mapfunc_t)(request_rec *r, char *key);
+ 
+Index: modules/mappers/mod_dir.c
+===================================================================
+--- a/modules/mappers/mod_dir.c	(revision 1560696)
++++ b/modules/mappers/mod_dir.c	(revision 1560697)
+@@ -29,6 +29,7 @@
+ #include "http_log.h"
+ #include "http_main.h"
+ #include "util_script.h"
++#include "mod_rewrite.h"
+ 
+ module AP_MODULE_DECLARE_DATA dir_module;
+ 
+@@ -260,6 +261,11 @@
+         return HTTP_MOVED_PERMANENTLY;
+     }
+ 
++    /* we're running between mod_rewrites fixup and its internal redirect handler, step aside */
++    if (!strcmp(r->handler, REWRITE_REDIRECT_HANDLER_NAME)) { 
++        return DECLINED;
++    }
++
+     if (d->index_names) {
+         names_ptr = (char **)d->index_names->elts;
+         num_names = d->index_names->nelts;
+Index: modules/mappers/mod_rewrite.c
+===================================================================
+--- a/modules/mappers/mod_rewrite.c	(revision 1560696)
++++ b/modules/mappers/mod_rewrite.c	(revision 1560697)
+@@ -5004,7 +5004,7 @@
+             rewritelog((r, 1, dconf->directory, "internal redirect with %s "
+                         "[INTERNAL REDIRECT]", r->filename));
+             r->filename = apr_pstrcat(r->pool, "redirect:", r->filename, NULL);
+-            r->handler = "redirect-handler";
++            r->handler = REWRITE_REDIRECT_HANDLER_NAME;
+             return OK;
+         }
+     }
+@@ -5050,7 +5050,7 @@
+  */
+ static int handler_redirect(request_rec *r)
+ {
+-    if (strcmp(r->handler, "redirect-handler")) {
++    if (strcmp(r->handler, REWRITE_REDIRECT_HANDLER_NAME)) {
+         return DECLINED;
+     }
+ 

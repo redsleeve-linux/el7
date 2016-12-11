@@ -1,0 +1,14 @@
+--- a/modules/mappers/mod_rewrite.c	2014/01/28 19:40:17	1562174
++++ b/modules/mappers/mod_rewrite.c	2014/02/10 18:54:23	1566702
+@@ -2139,7 +2139,10 @@
+             break;
+ 
+         case 16:
+-            if (!strcmp(var, "REQUEST_FILENAME")) {
++            if (*var == 'C' && !strcmp(var, "CONN_REMOTE_ADDR")) {
++                result = r->connection->client_ip;
++            }
++            else if (!strcmp(var, "REQUEST_FILENAME")) {
+                 result = r->filename; /* same as script_filename (15) */
+             }
+             break;

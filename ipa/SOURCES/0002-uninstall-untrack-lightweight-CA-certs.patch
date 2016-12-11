@@ -1,0 +1,31 @@
+From 8235b85d6960356fd49affca40b1b609f3cae827 Mon Sep 17 00:00:00 2001
+From: Fraser Tweedale <ftweedal@redhat.com>
+Date: Mon, 4 Jul 2016 13:05:28 +1000
+Subject: [PATCH] uninstall: untrack lightweight CA certs
+
+Fixes: https://fedorahosted.org/freeipa/ticket/6020
+Reviewed-By: Martin Babinsky <mbabinsk@redhat.com>
+---
+ ipaserver/install/cainstance.py | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/ipaserver/install/cainstance.py b/ipaserver/install/cainstance.py
+index 5e3e8c7f9a1845b82d23de589f804aa065387b38..070498fe8a394802ea55f848a268e2b6563ec472 100644
+--- a/ipaserver/install/cainstance.py
++++ b/ipaserver/install/cainstance.py
+@@ -1127,6 +1127,12 @@ class CAInstance(DogtagInstance):
+         """
+         super(CAInstance, self).stop_tracking_certificates(False)
+ 
++        # stop tracking lightweight CA signing certs
++        for request_id in certmonger.get_requests_for_dir(self.nss_db):
++            nickname = certmonger.get_request_value(request_id, 'key-nickname')
++            if nickname.startswith('caSigningCert cert-pki-ca '):
++                certmonger.stop_tracking(self.nss_db, nickname=nickname)
++
+         try:
+             certmonger.stop_tracking(paths.HTTPD_ALIAS_DIR, nickname='ipaCert')
+         except RuntimeError as e:
+-- 
+2.4.3
+

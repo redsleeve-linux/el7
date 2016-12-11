@@ -1,0 +1,70 @@
+# ./pullrev.sh 1748212
+http://svn.apache.org/viewvc?view=revision&revision=1748212
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1343582
+
+diff -uap httpd-2.4.6/include/httpd.h.r1748212 httpd-2.4.6/include/httpd.h
+--- httpd-2.4.6/include/httpd.h.r1748212
++++ httpd-2.4.6/include/httpd.h
+@@ -477,7 +477,7 @@ AP_DECLARE(const char *) ap_get_server_b
+  * When adding a new code here add it to status_lines as well.
+  * A future version should dynamically generate the apr_table_t at startup.
+  */
+-#define RESPONSE_CODES 83
++#define RESPONSE_CODES 103
+ 
+ #define HTTP_CONTINUE                        100
+ #define HTTP_SWITCHING_PROTOCOLS             101
+@@ -525,6 +525,7 @@ AP_DECLARE(const char *) ap_get_server_b
+ #define HTTP_PRECONDITION_REQUIRED           428
+ #define HTTP_TOO_MANY_REQUESTS               429
+ #define HTTP_REQUEST_HEADER_FIELDS_TOO_LARGE 431
++#define HTTP_UNAVAILABLE_FOR_LEGAL_REASONS   451
+ #define HTTP_INTERNAL_SERVER_ERROR           500
+ #define HTTP_NOT_IMPLEMENTED                 501
+ #define HTTP_BAD_GATEWAY                     502
+diff -uap httpd-2.4.6/modules/http/http_protocol.c.r1748212 httpd-2.4.6/modules/http/http_protocol.c
+--- httpd-2.4.6/modules/http/http_protocol.c.r1748212
++++ httpd-2.4.6/modules/http/http_protocol.c
+@@ -146,7 +146,27 @@ static const char * const status_lines[R
+     "429 Too Many Requests",
+     NULL, /* 430 */
+     "431 Request Header Fields Too Large",
+-#define LEVEL_500 71
++    NULL, /* 432 */
++    NULL, /* 433 */
++    NULL, /* 434 */
++    NULL, /* 435 */
++    NULL, /* 436 */
++    NULL, /* 437 */
++    NULL, /* 438 */
++    NULL, /* 439 */
++    NULL, /* 440 */
++    NULL, /* 441 */
++    NULL, /* 442 */
++    NULL, /* 443 */
++    NULL, /* 444 */
++    NULL, /* 445 */
++    NULL, /* 446 */
++    NULL, /* 447 */
++    NULL, /* 448 */
++    NULL, /* 449 */
++    NULL, /* 450 */
++    "451 Unavailable For Legal Reasons",
++#define LEVEL_500 91
+     "500 Internal Server Error",
+     "501 Not Implemented",
+     "502 Bad Gateway",
+@@ -1295,6 +1315,12 @@ static const char *get_canned_error_stri
+     case HTTP_NETWORK_AUTHENTICATION_REQUIRED:
+         return("<p>The client needs to authenticate to gain\n"
+                "network access.</p>\n");
++    case HTTP_UNAVAILABLE_FOR_LEGAL_REASONS:
++        s1 = apr_pstrcat(p,
++                         "<p>Access to ", ap_escape_html(r->pool, r->uri),
++                         "\nhas been denied for legal reasons.<br />\n",
++                         NULL);
++        return(add_optional_notes(r, s1, "error-notes", "</p>\n"));
+     default:                    /* HTTP_INTERNAL_SERVER_ERROR */
+         /*
+          * This comparison to expose error-notes could be modified to

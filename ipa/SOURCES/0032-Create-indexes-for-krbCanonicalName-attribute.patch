@@ -1,0 +1,54 @@
+From 1eed28c173336da828ac60b64b09a8b01d79fab4 Mon Sep 17 00:00:00 2001
+From: Martin Babinsky <mbabinsk@redhat.com>
+Date: Fri, 22 Jul 2016 13:02:38 +0200
+Subject: [PATCH] Create indexes for krbCanonicalName attribute
+
+krbCanonicalName is for a long time among the attributes guarded by uniqueness
+plugins, but there was never an index for it. Now that the attribute is really
+used to store canonical principal names we need to add index for it to avoid
+performance regressions.
+
+https://fedorahosted.org/freeipa/ticket/6100
+
+Reviewed-By: Thierry Bordaz <tbordaz@redhat.com>
+---
+ install/share/indices.ldif        | 9 +++++++++
+ install/updates/20-indices.update | 8 ++++++++
+ 2 files changed, 17 insertions(+)
+
+diff --git a/install/share/indices.ldif b/install/share/indices.ldif
+index 642c2f7aee78b684b3e451c2595e4f18950e449e..d853266025ae350dd7de83e11e463c6bb1ab9429 100644
+--- a/install/share/indices.ldif
++++ b/install/share/indices.ldif
+@@ -269,3 +269,12 @@ ObjectClass: nsIndex
+ nsSystemIndex: false
+ nsIndexType: eq
+ nsIndexType: pres
++
++dn: cn=krbCanonicalName,cn=index,cn=userRoot,cn=ldbm database,cn=plugins,cn=config
++changetype: add
++cn: krbCanonicalName
++objectClass: top
++objectClass: nsIndex
++nsSystemIndex: false
++nsIndexType: eq
++nsIndexType: sub
+diff --git a/install/updates/20-indices.update b/install/updates/20-indices.update
+index 445eda5ab6939f21654335ea4dd50d7b2cab008f..74961d77875515d680f34af739c984a6533eb252 100644
+--- a/install/updates/20-indices.update
++++ b/install/updates/20-indices.update
+@@ -251,3 +251,11 @@ only: nsMatchingRule: caseIgnoreIA5Match
+ only: nsMatchingRule: caseExactIA5Match
+ only:nsIndexType: eq
+ only:nsIndexType: sub
++
++dn: cn=krbCanonicalName,cn=index,cn=userRoot,cn=ldbm database,cn=plugins,cn=config
++default: cn: krbCanonicalName
++default: objectClass: top
++default: objectClass: nsIndex
++only: nsSystemIndex: false
++only: nsIndexType: eq
++only: nsIndexType: sub
+-- 
+2.7.4
+

@@ -1,0 +1,142 @@
+commit 63b405a67040ad6545abb102bf0714ccb5a50558
+Author:  <murray@pogo.udel.edu>   
+Date:   Thu Dec 27 20:09:00 2012 -0500
+
+    ntp_util.c, ntpd.h, ChangeLog, ntp_proto.c:
+      Fix for bug 2081
+
+diff -up ntp-4.2.6p5/include/ntpd.h.rawstats ntp-4.2.6p5/include/ntpd.h
+--- ntp-4.2.6p5/include/ntpd.h.rawstats	2015-07-22 14:19:37.220167860 +0200
++++ ntp-4.2.6p5/include/ntpd.h	2015-07-22 14:20:52.819392212 +0200
+@@ -244,7 +244,7 @@ extern	void	record_peer_stats (sockaddr_
+ extern	void	record_proto_stats (char *);
+ extern	void	record_loop_stats (double, double, double, double, int);
+ extern	void	record_clock_stats (sockaddr_u *, const char *);
+-extern	void	record_raw_stats (sockaddr_u *, sockaddr_u *, l_fp *, l_fp *, l_fp *, l_fp *);
++extern	void	record_raw_stats (sockaddr_u *srcadr, sockaddr_u *dstadr, l_fp *t1, l_fp *t2, l_fp *t3, l_fp *t4, int leap, int version, int mode, int stratum, int poll, int precision, double root_delay, double root_dispersion, u_int32 refid);
+ extern	u_long	leap_month(u_long);
+ extern	void	record_crypto_stats (sockaddr_u *, const char *);
+ #ifdef DEBUG
+diff -up ntp-4.2.6p5/ntpd/ntp_proto.c.rawstats ntp-4.2.6p5/ntpd/ntp_proto.c
+--- ntp-4.2.6p5/ntpd/ntp_proto.c.rawstats	2015-07-22 14:19:37.218167854 +0200
++++ ntp-4.2.6p5/ntpd/ntp_proto.c	2015-07-22 14:19:37.221167862 +0200
+@@ -1341,7 +1341,7 @@ process_packet(
+ 	double	t34, t21;
+ 	double	p_offset, p_del, p_disp;
+ 	l_fp	p_rec, p_xmt, p_org, p_reftime, ci;
+-	u_char	pmode, pleap, pstratum;
++	u_char	pmode, pleap, pversion, pstratum;
+ 	char	statstr[NTP_MAXSTRLEN];
+ #ifdef ASSYM
+ 	int	itemp;
+@@ -1359,14 +1359,17 @@ process_packet(
+ 	NTOHL_FP(&pkt->xmt, &p_xmt);
+ 	pmode = PKT_MODE(pkt->li_vn_mode);
+ 	pleap = PKT_LEAP(pkt->li_vn_mode);
++	pversion = PKT_VERSION(pkt->li_vn_mode);
+ 	pstratum = PKT_TO_STRATUM(pkt->stratum);
+ 
+ 	/*
+ 	 * Capture the header values in the client/peer association..
+ 	 */
+ 	record_raw_stats(&peer->srcadr, peer->dstadr ?
+-	    &peer->dstadr->sin : NULL, &p_org, &p_rec, &p_xmt,
+-	    &peer->dst);
++	    &peer->dstadr->sin : NULL,
++	    &p_org, &p_rec, &p_xmt, &peer->dst,
++	    pleap, pversion, pmode, pstratum, pkt->ppoll, pkt->precision,
++	    p_del, p_disp, pkt->refid);
+ 	peer->leap = pleap;
+ 	peer->stratum = min(pstratum, STRATUM_UNSPEC);
+ 	peer->pmode = pmode;
+diff -up ntp-4.2.6p5/ntpd/ntp_util.c.rawstats ntp-4.2.6p5/ntpd/ntp_util.c
+--- ntp-4.2.6p5/ntpd/ntp_util.c.rawstats	2010-10-22 09:37:31.000000000 +0200
++++ ntp-4.2.6p5/ntpd/ntp_util.c	2015-07-22 14:19:37.221167862 +0200
+@@ -707,7 +707,16 @@ record_raw_stats(
+ 	l_fp	*t1,		/* originate timestamp */
+ 	l_fp	*t2,		/* receive timestamp */
+ 	l_fp	*t3,		/* transmit timestamp */
+-	l_fp	*t4		/* destination timestamp */
++	l_fp	*t4,		/* destination timestamp */
++	int	leap,
++	int	version,
++	int	mode,
++	int	stratum,
++	int	poll,
++	int	precision,
++	double	root_delay,	/* seconds */
++	double	root_dispersion,/* seconds */
++	u_int32	refid
+ 	)
+ {
+ 	l_fp	now;
+@@ -721,10 +730,13 @@ record_raw_stats(
+ 	day = now.l_ui / 86400 + MJD_1900;
+ 	now.l_ui %= 86400;
+ 	if (rawstats.fp != NULL) {
+-		fprintf(rawstats.fp, "%lu %s %s %s %s %s %s %s\n", day,
+-		    ulfptoa(&now, 3), stoa(srcadr), dstadr ? 
+-		    stoa(dstadr) : "-",	ulfptoa(t1, 9), ulfptoa(t2, 9),
+-		    ulfptoa(t3, 9), ulfptoa(t4, 9));
++		fprintf(rawstats.fp, "%lu %s %s %s %s %s %s %s %d %d %d %d %d %d %.6f %.6f %s\n",
++		    day, ulfptoa(&now, 3),
++		    stoa(srcadr), dstadr ?  stoa(dstadr) : "-",
++		    ulfptoa(t1, 9), ulfptoa(t2, 9),
++		    ulfptoa(t3, 9), ulfptoa(t4, 9),
++		    leap, version, mode, stratum, poll, precision,
++		    root_delay, root_dispersion, refid_str(refid, stratum));
+ 		fflush(rawstats.fp);
+ 	}
+ }
+
+commit f626c563dbf6c00c40f9d12e8200b427759ed0bf
+Author:  <davehart@shiny.ad.hartbrothers.com>
+Date:   Sat Dec 25 06:12:51 2010 +0000
+
+    Add ntpq sysinfo command, similar to ntpdc's sysinfo.
+
+diff --git a/libntp/numtoa.c b/libntp/numtoa.c
+index 36a7c58..0fbbab7 100644
+--- a/libntp/numtoa.c
++++ b/libntp/numtoa.c
+@@ -31,3 +31,29 @@ numtoa(
+ 		 (u_long)netnum & 0xff);
+ 	return buf;
+ }
++
++
++/* Convert a refid & stratum to a string */
++const char *
++refid_str(
++	u_int32	refid,
++	int	stratum
++	)
++{
++	char *	text;
++	size_t	tlen;
++
++	if (stratum > 1)
++		return numtoa(refid);
++
++	LIB_GETBUF(text);
++	text[0] = '.';
++	strncpy(&text[1], (void *)&refid, sizeof(refid));
++	text[1 + sizeof(refid)] = '\0';
++	tlen = strlen(text);
++	text[tlen] = '.';
++	text[tlen + 1] = '\0';
++
++	return text;
++}
++
+diff -up ntp-4.2.6p5/include/ntp_stdlib.h.rawstats ntp-4.2.6p5/include/ntp_stdlib.h
+--- ntp-4.2.6p5/include/ntp_stdlib.h.rawstats	2015-07-22 15:13:16.870503486 +0200
++++ ntp-4.2.6p5/include/ntp_stdlib.h	2015-07-22 15:14:21.893714802 +0200
+@@ -134,6 +134,7 @@ extern	char *	socktohost	(const sockaddr
+ extern	int	octtoint	(const char *, u_long *);
+ extern	u_long	ranp2		(int);
+ extern	char *	refnumtoa	(sockaddr_u *);
++extern	const char *refid_str	(u_int32, int);
+ extern	int	tsftomsu	(u_long, int);
+ extern	char *	uinttoa		(u_long);
+ 

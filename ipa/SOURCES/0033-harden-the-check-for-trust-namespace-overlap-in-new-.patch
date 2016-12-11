@@ -1,0 +1,43 @@
+From 843d21620c118f283f53db77b1114d15d26dc176 Mon Sep 17 00:00:00 2001
+From: Martin Babinsky <mbabinsk@redhat.com>
+Date: Wed, 20 Jul 2016 15:46:22 +0200
+Subject: [PATCH] harden the check for trust namespace overlap in new
+ principals
+
+This check must handle the possibility of optional attributes
+(ipantadditionalsuffixes and ipantflatname) missing in the trusted domain
+entry.
+
+https://fedorahosted.org/freeipa/ticket/6099
+
+Reviewed-By: David Kupka <dkupka@redhat.com>
+---
+ ipalib/util.py | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/ipalib/util.py b/ipalib/util.py
+index d101514cad4f35fd9a09d84b549ffa86de432f70..e0fc178c4af2056d04ad88a3923daa7d127fe307 100644
+--- a/ipalib/util.py
++++ b/ipalib/util.py
+@@ -968,11 +968,15 @@ def check_principal_realm_in_trust_namespace(api_instance, *keys):
+     trust_suffix_namespace = set()
+ 
+     for obj in trust_objects:
+-        trust_suffix_namespace.update(
+-            set(upn.lower() for upn in obj['ipantadditionalsuffixes']))
++        nt_suffixes = obj.get('ipantadditionalsuffixes', [])
+ 
+         trust_suffix_namespace.update(
+-            set((obj['cn'][0].lower(), obj['ipantflatname'][0].lower())))
++            set(upn.lower() for upn in nt_suffixes))
++
++        if 'ipantflatname' in obj:
++            trust_suffix_namespace.add(obj['ipantflatname'][0].lower())
++
++        trust_suffix_namespace.add(obj['cn'][0].lower())
+ 
+     for principal in keys[-1]:
+         realm = principal.realm
+-- 
+2.7.4
+

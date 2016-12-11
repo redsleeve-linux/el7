@@ -1,0 +1,78 @@
+From dd108a1fd1088f6a4f382cccec2aec69c7d9f0fe Mon Sep 17 00:00:00 2001
+From: Christian Heimes <cheimes@redhat.com>
+Date: Mon, 8 Aug 2016 16:06:08 +0200
+Subject: [PATCH] Remove Custodia server keys from LDAP
+
+The server-del plugin now removes the Custodia keys for encryption and
+key signing from LDAP.
+
+https://fedorahosted.org/freeipa/ticket/6015
+
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+---
+ ipalib/constants.py         |  1 +
+ ipaserver/plugins/server.py | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+)
+
+diff --git a/ipalib/constants.py b/ipalib/constants.py
+index 0574bb3aa457dd79a6d64f6b8a6b57161d32da92..9b351e260f15211330521453b3ffcd41433a04bb 100644
+--- a/ipalib/constants.py
++++ b/ipalib/constants.py
+@@ -124,6 +124,7 @@ DEFAULT_CONFIG = (
+     ('container_locations', DN(('cn', 'locations'), ('cn', 'etc'))),
+     ('container_ca', DN(('cn', 'cas'), ('cn', 'ca'))),
+     ('container_dnsservers', DN(('cn', 'servers'), ('cn', 'dns'))),
++    ('container_custodia', DN(('cn', 'custodia'), ('cn', 'ipa'), ('cn', 'etc'))),
+ 
+     # Ports, hosts, and URIs:
+     ('xmlrpc_uri', 'http://localhost:8888/ipa/xml'),
+diff --git a/ipaserver/plugins/server.py b/ipaserver/plugins/server.py
+index b245dcf72a2f9f32f52ec9acf68d96c69d6169c5..d62c0232c5e33642e44a088dbfd9f10675d733f4 100644
+--- a/ipaserver/plugins/server.py
++++ b/ipaserver/plugins/server.py
+@@ -609,6 +609,32 @@ class server_del(LDAPDelete):
+                     message=_("Failed to remove server %(master)s from server "
+                               "list: %(err)s") % dict(master=master, err=e)))
+ 
++    def _remove_server_custodia_keys(self, ldap, master):
++        """
++        Delete all Custodia encryption and signing keys
++        """
++        conn = self.Backend.ldap2
++        env = self.api.env
++        # search for memberPrincipal=*/fqdn@realm
++        member_filter = ldap.make_filter_from_attr(
++            'memberPrincipal', "/{}@{}".format(master, env.realm),
++            exact=False, leading_wildcard=True, trailing_wildcard=False)
++        custodia_subtree = DN(env.container_custodia, env.basedn)
++        try:
++            entries = conn.get_entries(custodia_subtree,
++                                       ldap.SCOPE_SUBTREE,
++                                       filter=member_filter)
++            for entry in entries:
++                conn.delete_entry(entry)
++        except errors.NotFound:
++            pass
++        except Exception as e:
++            self.add_message(
++                messages.ServerRemovalWarning(
++                    message=_(
++                        "Failed to clean up Custodia keys for "
++                        "%(master)s: %(err)s") % dict(master=master, err=e)))
++
+     def _remove_server_host_services(self, ldap, master):
+         """
+         delete server kerberos key and all its svc principals
+@@ -682,6 +708,9 @@ class server_del(LDAPDelete):
+         # remove the references to master's ldap/http principals
+         self._remove_server_principal_references(pkey)
+ 
++        # remove Custodia encryption and signing keys
++        self._remove_server_custodia_keys(ldap, pkey)
++
+         # finally destroy all Kerberos principals
+         self._remove_server_host_services(ldap, pkey)
+ 
+-- 
+2.7.4
+

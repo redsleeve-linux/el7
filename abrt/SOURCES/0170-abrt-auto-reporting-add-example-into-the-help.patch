@@ -1,0 +1,33 @@
+From bb20db4b9a9e4fd49b3b50de8bd50d2973babf38 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Fri, 4 Sep 2015 09:56:26 +0200
+Subject: [PATCH] abrt-auto-reporting: add example into the help
+
+Add example how to turn on the authentication using rhsm consumer certificate.
+
+Related to rhbz#1223805
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/daemon/abrt-auto-reporting.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/daemon/abrt-auto-reporting.c b/src/daemon/abrt-auto-reporting.c
+index 46f8923..c82b504 100644
+--- a/src/daemon/abrt-auto-reporting.c
++++ b/src/daemon/abrt-auto-reporting.c
+@@ -200,6 +200,11 @@ int main(int argc, char *argv[])
+             "& [ "STATE_MANUAL" | "STATE_AUTO" | yes | no | 1 | 0 ] \\\n"
+             "  [[--anonymous] | [--username USERNAME [--password PASSWORD]] | [--certificate SOURCE]]\n"
+             PROGRAM_USAGE_MIDDLE_PART
++            "Example:\n"
++            "Turn on the authentication using rhsm consumer certificate.\n"
++            "\n"
++            "\t# abrt-auto-reporting "STATE_AUTO" --certificate rhsm\n"
++            "\n"
+             "See abrt-auto-reporting(1), reporter-ureport(1) and reporter-rhtsupport(1)\n"
+             "for more details.\n"
+     );
+-- 
+2.4.3
+

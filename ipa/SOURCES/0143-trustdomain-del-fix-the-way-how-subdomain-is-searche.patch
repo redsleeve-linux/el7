@@ -1,0 +1,46 @@
+From 99c93ce55d740fd8c6901dc3cfa3ecbf71edbff8 Mon Sep 17 00:00:00 2001
+From: Alexander Bokovoy <abokovoy@redhat.com>
+Date: Mon, 31 Oct 2016 18:17:35 +0200
+Subject: [PATCH] trustdomain-del: fix the way how subdomain is searched
+
+With FreeIPA 4.4 we moved child domains behind the 'trustdomain' topic.
+Update 'ipa trustdomain-del' command to properly calculate DN to the
+actual child domain and handle the case when it is missing correctly.
+
+Fixes https://fedorahosted.org/freeipa/ticket/6445
+
+Reviewed-By: Martin Babinsky <mbabinsk@redhat.com>
+---
+ ipaserver/plugins/trust.py | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/ipaserver/plugins/trust.py b/ipaserver/plugins/trust.py
+index 720a45a4d12d59f00e3e63f2b4f62edd45646065..723dba6a26311752ecde8589d22e2911b72e8044 100644
+--- a/ipaserver/plugins/trust.py
++++ b/ipaserver/plugins/trust.py
+@@ -1614,13 +1614,16 @@ class trustdomain_del(LDAPDelete):
+         # to always receive empty keys. We need to catch the case when root domain is being deleted
+ 
+         for domain in keys[1]:
+-            # Fetch the trust to verify that the entered domain is trusted
+-            self.api.Command.trust_show(domain)
++            try:
++                self.obj.get_dn_if_exists(keys[0], domain, trust_type=u'ad')
++            except errors.NotFound:
++                if keys[0].lower() == domain:
++                    raise errors.ValidationError(
++                        name='domain',
++                        error=_("cannot delete root domain of the trust, "
++                                "use trust-del to delete the trust itself"))
++                self.obj.handle_not_found(keys[0], domain)
+ 
+-            if keys[0].lower() == domain:
+-                raise errors.ValidationError(name='domain',
+-                    error=_("cannot delete root domain of the trust, "
+-                            "use trust-del to delete the trust itself"))
+             try:
+                 res = self.api.Command.trustdomain_enable(keys[0], domain)
+             except errors.AlreadyActive:
+-- 
+2.7.4
+

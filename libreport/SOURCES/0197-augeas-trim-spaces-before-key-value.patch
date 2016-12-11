@@ -1,0 +1,52 @@
+From 53d414c56dde740926aa536899cf62ec34598845 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Fri, 1 Apr 2016 13:11:46 +0200
+Subject: [PATCH] augeas: trim spaces before key value
+
+Resolves: rhbz#1236613
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ augeas/libreport.aug      | 2 +-
+ augeas/test_libreport.aug | 8 ++++++++
+ 2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/augeas/libreport.aug b/augeas/libreport.aug
+index 0e1e5e5..7125be2 100644
+--- a/augeas/libreport.aug
++++ b/augeas/libreport.aug
+@@ -14,7 +14,7 @@ module Libreport =
+     let empty = [ del /[ \t]*\n/ "\n" ]
+ 
+     (* Define option *)
+-    let option = [ key ident . value_sep . value_to_eol . eol ]
++    let option = [ del /[ \t]*/ "" . key ident . value_sep . value_to_eol . eol ]
+ 
+     (* Define lens *)
+     let lns = ( comment | empty | option )*
+diff --git a/augeas/test_libreport.aug b/augeas/test_libreport.aug
+index b6d319e..116e97c 100644
+--- a/augeas/test_libreport.aug
++++ b/augeas/test_libreport.aug
+@@ -21,6 +21,10 @@ DontMatchComponents = selinux-policy
+ # for more info about these settings see: https://github.com/abrt/abrt/wiki/FAQ#creating-private-bugzilla-tickets
+ CreatePrivate= no
+ PrivateGroups=private
++ Whitespace = start
++  Whitespace_two=start
++	Whitespace_three =start
++	 Whitespace_four= start
+ "
+ 
+     test Libreport.lns get conf =
+@@ -45,3 +49,7 @@ PrivateGroups=private
+         { "#comment" = "for more info about these settings see: https://github.com/abrt/abrt/wiki/FAQ#creating-private-bugzilla-tickets" }
+         { "CreatePrivate" = "no" }
+         { "PrivateGroups" = "private" }
++        { "Whitespace" = "start" }
++        { "Whitespace_two" = "start" }
++        { "Whitespace_three" = "start" }
++        { "Whitespace_four" = "start" }
+-- 
+1.8.3.1
+

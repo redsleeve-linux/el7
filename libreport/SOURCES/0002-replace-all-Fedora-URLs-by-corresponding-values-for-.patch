@@ -1,0 +1,53 @@
+From 9f62c707df03b371890ad139f0633c8457b146f6 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Wed, 8 Jan 2014 17:09:00 +0100
+Subject: [LIBREPORT PATCH 2/6] replace all Fedora URLs by corresponding values
+ for RHEL
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/plugins/report_EmergencyAnalysis.xml.in | 2 +-
+ src/plugins/report_uReport.xml.in           | 2 +-
+ src/plugins/ureport.conf                    | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/plugins/report_EmergencyAnalysis.xml.in b/src/plugins/report_EmergencyAnalysis.xml.in
+index 3fb2bd2..c00a734 100644
+--- a/src/plugins/report_EmergencyAnalysis.xml.in
++++ b/src/plugins/report_EmergencyAnalysis.xml.in
+@@ -15,7 +15,7 @@
+         <option type="text" name="Upload_URL">
+             <_label>URL</_label>
+             <allow-empty>no</allow-empty>
+-            <default-value>https://retrace.fedoraproject.org/faf/dumpdirs/new/</default-value>
++            <default-value>https://localhost/faf/dumpdirs/new/</default-value>
+         </option>
+         <advanced-options>
+             <option type="text" name="http_proxy">
+diff --git a/src/plugins/report_uReport.xml.in b/src/plugins/report_uReport.xml.in
+index 3a38971..c8bb858 100644
+--- a/src/plugins/report_uReport.xml.in
++++ b/src/plugins/report_uReport.xml.in
+@@ -11,7 +11,7 @@
+             <_label>uReport Server URL</_label>
+             <allow-empty>no</allow-empty>
+             <_description>Address of uReport webservice</_description>
+-            <default-value>https://retrace.fedoraproject.org/faf</default-value>
++            <default-value>http://bug-report.itos.redhat.com</default-value>
+         </option>
+         <option type="bool" name="uReport_SSLVerify">
+             <_label>Verify SSL</_label>
+diff --git a/src/plugins/ureport.conf b/src/plugins/ureport.conf
+index a75ad19..1f3b33a 100644
+--- a/src/plugins/ureport.conf
++++ b/src/plugins/ureport.conf
+@@ -1,5 +1,5 @@
+ # Base URL to uReport server
+-URL = https://retrace.fedoraproject.org/faf
++URL = http://bug-report.itos.redhat.com
+ 
+ # no means that ssl certificates will not be checked
+ # SSLVerify = no
+-- 
+1.8.3.1
+

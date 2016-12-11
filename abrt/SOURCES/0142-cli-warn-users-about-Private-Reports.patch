@@ -1,0 +1,31 @@
+From 287977c966225108008effbe7eeae1d454836386 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Thu, 2 Jul 2015 15:34:38 +0200
+Subject: [PATCH] cli: warn users about Private Reports
+
+We should not make '--authenticate' default but we must inform users
+about it.
+
+Related: #1224984
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/cli/abrt-cli.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/cli/abrt-cli.c b/src/cli/abrt-cli.c
+index f45523e..2e9e155 100644
+--- a/src/cli/abrt-cli.c
++++ b/src/cli/abrt-cli.c
+@@ -149,6 +149,8 @@ int main(int argc, const char **argv)
+     {
+         if (g_cli_authenticate)
+             initialize_polkit_agent();
++        else if (g_settings_privatereports)
++            log(_("Private Reports is enabled, use 'abrt-cli -a COMMAND' to get the detected problems."));
+ 
+         handle_internal_command(argc, argv, commands);
+ 
+-- 
+2.4.3
+

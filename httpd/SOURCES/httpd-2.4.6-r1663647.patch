@@ -1,0 +1,22 @@
+--- a/modules/aaa/mod_authn_dbd.c	2015/03/03 11:11:33	1663646
++++ b/modules/aaa/mod_authn_dbd.c	2015/03/03 11:12:18	1663647
+@@ -174,7 +174,8 @@
+                 i++;
+             }
+ #endif
+-            dbd_password = apr_dbd_get_entry(dbd->driver, row, 0);
++            dbd_password = apr_pstrdup(r->pool,
++                                       apr_dbd_get_entry(dbd->driver, row, 0));
+         }
+         /* we can't break out here or row won't get cleaned up */
+     }
+@@ -269,7 +270,8 @@
+                 i++;
+             }
+ #endif
+-            dbd_hash = apr_dbd_get_entry(dbd->driver, row, 0);
++            dbd_hash = apr_pstrdup(r->pool,
++                                   apr_dbd_get_entry(dbd->driver, row, 0));
+         }
+         /* we can't break out here or row won't get cleaned up */
+     }

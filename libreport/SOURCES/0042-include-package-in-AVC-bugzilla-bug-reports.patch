@@ -1,0 +1,37 @@
+From d5a089e10c0af7b362689a113000c38341667e29 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Fri, 4 Apr 2014 15:35:22 +0200
+Subject: [LIBREPORT PATCH 42/93] include 'package' in AVC bugzilla bug reports
+
+Resolves rhbz#1075452
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/report-python/__init__.py | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/report-python/__init__.py b/src/report-python/__init__.py
+index 2c58736..c11b000 100644
+--- a/src/report-python/__init__.py
++++ b/src/report-python/__init__.py
+@@ -147,7 +147,7 @@ def getVersion():
+ 
+     return _hardcoded_default_version
+ 
+-def createAlertSignature(component, hashmarkername, hashvalue, summary, alertSignature, executable=None):
++def createAlertSignature(component, hashmarkername, hashvalue, summary, alertSignature, executable=None, package=None):
+     pd = problem_data()
+     pd.add("component", component)
+     pd.add("hashmarkername", hashmarkername)
+@@ -156,6 +156,8 @@ def createAlertSignature(component, hashmarkername, hashvalue, summary, alertSig
+     pd.add("description", alertSignature)
+     if executable:
+         pd.add("executable", executable)
++    if package:
++        pd.add("package", package)
+     pd.add_basics()
+ 
+     return pd
+-- 
+1.8.3.1
+

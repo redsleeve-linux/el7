@@ -1,0 +1,34 @@
+From 6d22940abaeed562e3415fbad905243817a62c21 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Wed, 12 Feb 2014 17:51:40 +0100
+Subject: [ABRT PATCH 36/36] never search for MCE strings in dmesg
+
+'dmesg' element contains complete output of dmesg, therefore once kernel
+log MCE all consecutive oopses has the MCE messages in 'dmesg' element.
+
+'backtrace' element contains either oops's backtrace or the MCE message
+whose scope is limited to a single oops.
+
+Closes rhbz#1064458
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/plugins/abrt-action-check-oops-for-hw-error.in | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/plugins/abrt-action-check-oops-for-hw-error.in b/src/plugins/abrt-action-check-oops-for-hw-error.in
+index 2333fa1..d74f89d 100644
+--- a/src/plugins/abrt-action-check-oops-for-hw-error.in
++++ b/src/plugins/abrt-action-check-oops-for-hw-error.in
+@@ -70,7 +70,7 @@ if __name__ == "__main__":
+     #
+ 
+     # See if MCEs were seen
+-    oops_mce = file_has_string("dmesg", "Machine check events logged");
++    oops_mce = file_has_string("backtrace", "Machine check events logged");
+     vmcore_mce = file_has_string("backtrace", "Machine Check Exception:");
+     if not oops_mce and not vmcore_mce:
+         sys.exit(0)
+-- 
+1.8.3.1
+

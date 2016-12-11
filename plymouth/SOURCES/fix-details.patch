@@ -1,0 +1,271 @@
+From 785a0050c01567e3e9eaaf0534e7e52045fc4a9d Mon Sep 17 00:00:00 2001
+From: Ray Strode <rstrode@redhat.com>
+Date: Fri, 24 Jan 2014 14:08:16 -0500
+Subject: [PATCH 1/3] plymouthd: build with -rdynamic so built-in module works
+
+The details plugin is "built in" to the plymouthd binary, so
+it's always available even if the details module isn't installed
+(say /usr isn't mounted yet or something)
+
+Unfortunately, this feature isn't working because plymouthd isn't
+built with -rdynamic (except for in my local CFLAGS).
+
+This commit fixes the makefile goo accordingly.
+---
+ src/Makefile.am | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/Makefile.am b/src/Makefile.am
+index 152cd43..fc2f5da 100644
+--- a/src/Makefile.am
++++ b/src/Makefile.am
+@@ -1,47 +1,48 @@
+ SUBDIRS = libply libply-splash-core libply-splash-graphics . plugins client viewer
+ if ENABLE_UPSTART_MONITORING
+ SUBDIRS += upstart-bridge
+ endif
+ AM_CPPFLAGS = -I$(top_srcdir)                                                 \
+            -I$(srcdir)/libply                                                 \
+            -I$(srcdir)/libply-splash-core                                     \
+            -I$(srcdir)                                                        \
+            -DPLYMOUTH_LOG_DIRECTORY=\"$(localstatedir)/log\"                  \
+            -DPLYMOUTH_SPOOL_DIRECTORY=\"$(localstatedir)/spool/plymouth\"     \
+            -DPLYMOUTH_TIME_DIRECTORY=\"$(localstatedir)/lib/plymouth/\"       \
+            -DPLYMOUTH_LOGO_FILE=\"$(logofile)\"
+ 
+ plymouthdbindir = $(plymouthdaemondir)
+ plymouthdbin_PROGRAMS = plymouthd
+ 
+ plymouthd_CFLAGS = $(PLYMOUTH_CFLAGS)                                         \
++		   -rdynamic                                                  \
+ 		   -DPLYMOUTH_PLUGIN_PATH=\"$(PLYMOUTH_PLUGIN_PATH)\"         \
+ 		   -DPLYMOUTH_THEME_PATH=\"$(PLYMOUTH_THEME_PATH)/\"          \
+ 		   -DPLYMOUTH_POLICY_DIR=\"$(PLYMOUTH_POLICY_DIR)/\"          \
+ 		   -DPLYMOUTH_RUNTIME_DIR=\"$(PLYMOUTH_RUNTIME_DIR)\"         \
+ 		   -DPLYMOUTH_CONF_DIR=\"$(PLYMOUTH_CONF_DIR)/\"
+ plymouthd_LDADD = $(PLYMOUTH_LIBS) libply/libply.la libply-splash-core/libply-splash-core.la
+ plymouthd_SOURCES =                                                            \
+                    ply-boot-protocol.h                                        \
+                    ply-boot-server.h                                          \
+                    ply-boot-server.c                                          \
+                    plugins/splash/details/plugin.c                  \
+                    main.c
+ 
+ plymouthdrundir = $(localstatedir)/run/plymouth
+ plymouthdspooldir = $(localstatedir)/spool/plymouth
+ plymouthdtimedir = $(localstatedir)/lib/plymouth
+ 
+ pkgconfigdir = $(libdir)/pkgconfig
+ pkgconfig_DATA = ply-splash-core.pc ply-splash-graphics.pc
+ 
+ plymouthd_defaultsdir = $(PLYMOUTH_POLICY_DIR)
+ dist_plymouthd_defaults_DATA = plymouthd.defaults
+ 
+ plymouthd_confdir = $(PLYMOUTH_CONF_DIR)
+ dist_plymouthd_conf_DATA = plymouthd.conf
+ 
+ install-data-hook:
+ 	-mkdir -p $(DESTDIR)$(plymouthdrundir)
+ 	-mkdir -p $(DESTDIR)$(plymouthdspooldir)
+ 	-mkdir -p $(DESTDIR)$(plymouthdtimedir)
+-- 
+1.8.3.1
+
+
+From 382305e4a9f7b4c221968fcba7394b1cc03b454e Mon Sep 17 00:00:00 2001
+From: Ray Strode <rstrode@redhat.com>
+Date: Fri, 24 Jan 2014 14:29:31 -0500
+Subject: [PATCH 2/3] main: disable hotplug events and splash delay if details
+ forced
+
+There's no point in waiting for a graphics device if details are
+forced, and we shouldn't ever delay showing details.  If details
+are requested, we shouldn't be hiding them.
+---
+ src/main.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/src/main.c b/src/main.c
+index 2ccb8ec..43e3a0a 100644
+--- a/src/main.c
++++ b/src/main.c
+@@ -2279,60 +2279,69 @@ main (int    argc,
+         }
+     }
+ 
+   state.progress = ply_progress_new ();
+   state.splash_delay = NAN;
+ 
+   ply_progress_load_cache (state.progress,
+                            get_cache_file_for_mode (state.mode));
+ 
+   if (pid_file != NULL)
+     write_pid_file (pid_file);
+ 
+   if (daemon_handle != NULL
+       && !ply_detach_daemon (daemon_handle, 0))
+     {
+       ply_error ("plymouthd: could not tell parent to exit: %m");
+       return EX_UNAVAILABLE;
+     }
+ 
+   find_override_splash (&state);
+   find_system_default_splash (&state);
+   find_distribution_default_splash (&state);
+ 
+   if (command_line_has_argument (state.kernel_command_line, "plymouth.ignore-serial-consoles"))
+     device_manager_flags |= PLY_DEVICE_MANAGER_FLAGS_IGNORE_SERIAL_CONSOLES;
+ 
+   if (command_line_has_argument (state.kernel_command_line, "plymouth.ignore-udev") ||
+       (getenv ("DISPLAY") != NULL))
+     device_manager_flags |= PLY_DEVICE_MANAGER_FLAGS_IGNORE_UDEV;
+ 
++  if (!plymouth_should_show_default_splash (&state))
++    {
++      /* don't bother listening for udev events if we're forcing details */
++      device_manager_flags |= PLY_DEVICE_MANAGER_FLAGS_IGNORE_UDEV;
++
++      /* don't ever delay showing the detailed splash */
++      state.splash_delay = NAN;
++    }
++
+   load_devices (&state, device_manager_flags);
+ 
+   ply_trace ("entering event loop");
+   exit_code = ply_event_loop_run (state.loop);
+   ply_trace ("exited event loop");
+ 
+   ply_boot_splash_free (state.boot_splash);
+   state.boot_splash = NULL;
+ 
+   ply_command_parser_free (state.command_parser);
+ 
+   ply_boot_server_free (state.boot_server);
+   state.boot_server = NULL;
+ 
+   ply_trace ("freeing terminal session");
+   ply_terminal_session_free (state.session);
+ 
+   ply_buffer_free (state.boot_buffer);
+   ply_progress_free (state.progress);
+ 
+   ply_trace ("exiting with code %d", exit_code);
+   
+   if (debug_buffer != NULL)
+     {
+       dump_debug_buffer_to_file ();
+       ply_buffer_free (debug_buffer);
+     }
+ 
+   ply_free_error_log();
+ 
+-- 
+1.8.3.1
+
+
+From 9255a442e93a4fce835ca6e7e9dc9023be6eaf30 Mon Sep 17 00:00:00 2001
+From: Ray Strode <rstrode@redhat.com>
+Date: Fri, 24 Jan 2014 15:08:10 -0500
+Subject: [PATCH 3/3] seat: proceed without renderer if type is AUTO and
+ renderer fails
+
+If a seat gets opened with a renderer type of AUTO, and the renderer
+fails to open, then it's okay and expected to proceed without a
+renderer (and just use the terminal). The code attempted to do this
+but failed to nullify the seat->renderer object, so it ended up
+going down the renderer-active code path.
+
+This commit fixes that.
+---
+ src/libply-splash-core/ply-seat.c | 17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/src/libply-splash-core/ply-seat.c b/src/libply-splash-core/ply-seat.c
+index d9c7a2b..541b29e 100644
+--- a/src/libply-splash-core/ply-seat.c
++++ b/src/libply-splash-core/ply-seat.c
+@@ -90,69 +90,76 @@ add_pixel_displays (ply_seat_t *seat)
+       next_node = ply_list_get_next_node (heads, node);
+ 
+       display = ply_pixel_display_new (seat->renderer, head);
+ 
+       ply_list_append_data (seat->pixel_displays, display);
+ 
+       node = next_node;
+     }
+ }
+ 
+ static void
+ add_text_displays (ply_seat_t *seat)
+ {
+   ply_text_display_t *display;
+ 
+   display = ply_text_display_new (seat->terminal);
+   ply_list_append_data (seat->text_displays, display);
+ }
+ 
+ bool
+ ply_seat_open (ply_seat_t          *seat,
+                ply_renderer_type_t  renderer_type,
+                const char          *device)
+ {
+   if (renderer_type != PLY_RENDERER_TYPE_NONE)
+     {
+       ply_renderer_t *renderer;
+ 
+       renderer = ply_renderer_new (renderer_type, device, seat->terminal);
+ 
+-      if (!ply_renderer_open (renderer) && renderer_type != PLY_RENDERER_TYPE_AUTO)
++      if (!ply_renderer_open (renderer))
+         {
+           ply_trace ("could not open renderer for %s", device);
+           ply_renderer_free (renderer);
+-          return false;
+-        }
+ 
+-      seat->renderer = renderer;
+-      seat->renderer_active = true;
++          seat->renderer = NULL;
++          seat->renderer_active = false;
++
++          if (renderer_type != PLY_RENDERER_TYPE_AUTO)
++            return false;
++        }
++      else
++        {
++          seat->renderer = renderer;
++          seat->renderer_active = true;
++        }
+     }
+ 
+   if (seat->renderer != NULL)
+     {
+       seat->keyboard = ply_keyboard_new_for_renderer (seat->renderer);
+       add_pixel_displays (seat);
+ 
+     }
+   else
+     {
+       seat->keyboard = ply_keyboard_new_for_terminal (seat->terminal);
+     }
+   add_text_displays (seat);
+ 
+   ply_keyboard_watch_for_input (seat->keyboard);
+   seat->keyboard_active = true;
+ 
+   return true;
+ }
+ 
+ bool
+ ply_seat_is_open (ply_seat_t *seat)
+ {
+   return ply_list_get_length (seat->pixel_displays) > 0 ||
+          ply_list_get_length (seat->text_displays) > 0;
+ }
+ 
+ void
+ ply_seat_deactivate_keyboard (ply_seat_t *seat)
+ {
+-- 
+1.8.3.1
+

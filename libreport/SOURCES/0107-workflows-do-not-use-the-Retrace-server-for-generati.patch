@@ -1,0 +1,59 @@
+From 9006942dcaf55da71ffab9245e317395a4cca2f0 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Fri, 24 Oct 2014 16:23:55 +0200
+Subject: [LIBREPORT PATCH 107/109] workflows: do not use the Retrace server
+ for generating backtrace
+
+The Retrace server is not available for RHEL.
+
+Related to rhbz#1094203
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/workflows/workflow_LoggerCCpp.xml.in | 2 +-
+ src/workflows/workflow_MailxCCpp.xml.in  | 2 +-
+ src/workflows/workflow_UploadCCpp.xml.in | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/workflows/workflow_LoggerCCpp.xml.in b/src/workflows/workflow_LoggerCCpp.xml.in
+index 5dce9f0..9a67e7e 100644
+--- a/src/workflows/workflow_LoggerCCpp.xml.in
++++ b/src/workflows/workflow_LoggerCCpp.xml.in
+@@ -6,7 +6,7 @@
+ 
+     <events>
+         <event>collect_*</event>
+-        <event>analyze_CCpp</event>
++        <event>analyze_LocalGDB</event>
+         <event>report_Logger</event>
+     </events>
+ </workflow>
+diff --git a/src/workflows/workflow_MailxCCpp.xml.in b/src/workflows/workflow_MailxCCpp.xml.in
+index 3dd3bba..7b5c9fc 100644
+--- a/src/workflows/workflow_MailxCCpp.xml.in
++++ b/src/workflows/workflow_MailxCCpp.xml.in
+@@ -6,7 +6,7 @@
+ 
+     <events>
+         <event>collect_*</event>
+-        <event>analyze_CCpp</event>
++        <event>analyze_LocalGDB</event>
+         <event>report_Mailx</event>
+     </events>
+ </workflow>
+diff --git a/src/workflows/workflow_UploadCCpp.xml.in b/src/workflows/workflow_UploadCCpp.xml.in
+index 7f22cb8..fbb9a23 100644
+--- a/src/workflows/workflow_UploadCCpp.xml.in
++++ b/src/workflows/workflow_UploadCCpp.xml.in
+@@ -6,7 +6,7 @@
+ 
+     <events>
+         <event>collect_*</event>
+-        <event>analyze_CCpp</event>
++        <event>analyze_LocalGDB</event>
+         <event>report_Uploader</event>
+     </events>
+ </workflow>
+-- 
+1.8.3.1
+

@@ -1,0 +1,2357 @@
+From 7d128880f67f1e80f6fcc703054583fb1a69d7fd Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Tue, 29 Mar 2016 15:15:28 +0200
+Subject: [PATCH] lib: add Problem Format API
+
+Related to #1261358
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ po/POTFILES.in               |    1 +
+ src/include/Makefile.am      |    1 +
+ src/include/problem_report.h |  334 ++++++++++++
+ src/lib/Makefile.am          |    5 +-
+ src/lib/problem_report.c     | 1209 ++++++++++++++++++++++++++++++++++++++++++
+ tests/Makefile.am            |    3 +-
+ tests/problem_report.at      |  690 ++++++++++++++++++++++++
+ tests/testsuite.at           |    1 +
+ 8 files changed, 2242 insertions(+), 2 deletions(-)
+ create mode 100644 src/include/problem_report.h
+ create mode 100644 src/lib/problem_report.c
+ create mode 100644 tests/problem_report.at
+
+diff --git a/po/POTFILES.in b/po/POTFILES.in
+index d843de1..4246e06 100644
+--- a/po/POTFILES.in
++++ b/po/POTFILES.in
+@@ -25,6 +25,7 @@ src/lib/ureport.c
+ src/lib/make_descr.c
+ src/lib/parse_options.c
+ src/lib/problem_data.c
++src/lib/problem_report.c
+ src/lib/reported_to.c
+ src/lib/run_event.c
+ src/plugins/abrt_rh_support.c
+diff --git a/src/include/Makefile.am b/src/include/Makefile.am
+index 062bffb..87e5e60 100644
+--- a/src/include/Makefile.am
++++ b/src/include/Makefile.am
+@@ -5,6 +5,7 @@ libreport_include_HEADERS = \
+     dump_dir.h \
+     event_config.h \
+     problem_data.h \
++    problem_report.h \
+     report.h \
+     run_event.h \
+     libreport_curl.h \
+diff --git a/src/include/problem_report.h b/src/include/problem_report.h
+new file mode 100644
+index 0000000..f2d41d8
+--- /dev/null
++++ b/src/include/problem_report.h
+@@ -0,0 +1,334 @@
++/*
++    Copyright (C) 2014  ABRT team
++    Copyright (C) 2014  RedHat Inc
++
++    This program is free software; you can redistribute it and/or modify
++    it under the terms of the GNU General Public License as published by
++    the Free Software Foundation; either version 2 of the License, or
++    (at your option) any later version.
++
++    This program is distributed in the hope that it will be useful,
++    but WITHOUT ANY WARRANTY; without even the implied warranty of
++    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++    GNU General Public License for more details.
++
++    You should have received a copy of the GNU General Public License along
++    with this program; if not, write to the Free Software Foundation, Inc.,
++    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
++
++    @brief API for formating of problem data
++
++    These functions can be used to convert a problem data to its string
++    representation.
++
++    The output format can be parsed from a string:
++
++        problem_formatter_t *formatter = problem_formatter_new();
++        problem_formatter_load_string(formatter, MY_FORMAT_STRING);
++
++    or loaded from a file:
++
++        problem_formatter_t *formatter = problem_formatter_new();
++        problem_formatter_load_file(formatter, MY_FORMAT_FILE);
++
++    Once you have configured your formatter you can convert problem_data to
++    problem_report by calling:
++
++        problem_report_t *report;
++        if (problem_formatter_generate_report(formatter, data, &report) != 0)
++            errx(EXIT_FAILURE, "Problem data cannot be converted to problem report.");
++
++    Now you can print the report:
++
++        printf("Problem: %s\n", problem_report_get_summary());
++        printf("%s\n",          problem_report_get_description());
++
++        puts("Problem attachments:");
++        for (GList *a = problem_report_get_attachments(pr); a != NULL; a = g_list_next(a))
++            printf(" %s\n", a->data);
++
++    Format description:
++
++         ----
++         %summary:: summary format
++         %attach:: elemnt1[,element2]...
++         section:: element1[,element2]...
++         The literal text line to be added to report.
++         ----
++
++         Summary format is a line of text, where %element% is replaced by
++         text element's content, and [[...%element%...]] block is used only if
++         %element% exists. [[...]] blocks can nest.
++
++         Sections can be:
++         - %summary: bug summary format string.
++
++         - %attach: a list of elements to attach.
++
++         - text, double colon (::) and the list of comma-separated elements.
++           Text can be empty (":: elem1, elem2, elem3" works),
++           in this case "Text:" header line will be omitted.
++
++         - %description: this section is implicit and contains all text
++           sections unless another section was specified (%summary and %attach
++           are ignored when determining text section's placement)
++
++         - every text element belongs to the last specified section (%summary
++           and %attach sections are ignored). If no section was specified,
++           the text element belogns to %description.
++
++         - If none of elements exists, the section will not be created.
++
++         - Empty lines are NOT ignored.
++
++         Elements can be:
++         - problem directory element names, which get formatted as
++           <element_name>: <contents>
++           or
++           <element_name>:
++           :<contents>
++           :<contents>
++           :<contents>
++
++         - problem directory element names prefixed by "%bare_",
++           which is formatted as-is, without "<element_name>:" and colons
++
++         - %oneline, %multiline, %text wildcards, which select all corresponding
++           elements for output or attachment
++
++         - %binary wildcard, valid only for %attach section, instructs to attach
++           binary elements
++
++         - problem directory element names prefixed by "-",
++           which excludes given element from all wildcards
++
++         - Nonexistent elements are silently ignored.
++
++    You can add your own section:
++
++        problem_formatter_t *formatter = problem_formatter_new();
++        problem_formatter_add_section(formatter, "additional_info", PFFF_REQUIRED);
++
++    and then you can use the section in the formatting string:
++
++        problem_formatter_load_string(formatter,
++                "::comment\n"
++                "%additional_info:: maps");
++        problem_formatter_generate_report(formatter, data, &report);
++
++        printf("Problem: %s\n",         problem_report_get_summary());
++        printf("%s\n",                  problem_report_get_description());
++        printf("Additional info: %s\n", problem_report_get_section(report, "additiona_info"));
++
++    The lines above are equivalent to the following lines:
++
++        printf("Problem: %s\n",         problem_data_get_content_or_NULL(data, "reason"));
++        printf("%s\n",                  problem_data_get_content_or_NULL(data, "comment"));
++        printf("Additional info: %s\n", problem_data_get_content_or_NULL(data, "maps"));
++*/
++#ifndef LIBREPORT_PROBLEM_REPORT_H
++#define LIBREPORT_PROBLEM_REPORT_H
++
++#include <glib.h>
++#include <stdio.h>
++#include "problem_data.h"
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++#define PR_SEC_SUMMARY "summary"
++#define PR_SEC_DESCRIPTION "description"
++
++/*
++ * The problem report structure represents a problem data formatted according
++ * to a format string.
++ *
++ * A problem report is composed of well-known sections:
++ *   - summary
++ *   - descritpion
++ *   - attach
++ *
++ * and custom sections accessed by:
++ *   problem_report_get_section();
++ */
++struct problem_report;
++typedef struct problem_report problem_report_t;
++
++/*
++ * Helpers for easily switching between FILE and struct strbuf
++ */
++
++/*
++ * Type of buffer used by Problem report
++ */
++typedef FILE problem_report_buffer;
++
++/*
++ * Wrapper for the proble buffer's formated output function.
++ */
++#define problem_report_buffer_printf(buf, fmt, ...)\
++    fprintf((buf), (fmt), ##__VA_ARGS__)
++
++
++/*
++ * Get a section buffer
++ *
++ * Use this function if you need to amend something to a formatted section.
++ *
++ * @param self Problem report
++ * @param section_name Name of required section
++ * @return Always valid pointer to a section buffer
++ */
++problem_report_buffer *problem_report_get_buffer(const problem_report_t *self,
++        const char *section_name);
++
++/*
++ * Get Summary string
++ *
++ * The returned pointer is valid as long as you perform no further output to
++ * the summary buffer.
++ *
++ * @param self Problem report
++ * @return Non-NULL pointer to summary data
++ */
++const char *problem_report_get_summary(const problem_report_t *self);
++
++/*
++ * Get Description string
++ *
++ * The returned pointer is valid as long as you perform no further output to
++ * the description buffer.
++ *
++ * @param self Problem report
++ * @return Non-NULL pointer to description data
++ */
++const char *problem_report_get_description(const problem_report_t *self);
++
++/*
++ * Get Section's string
++ *
++ * The returned pointer is valid as long as you perform no further output to
++ * the section's buffer.
++ *
++ * @param self Problem report
++ * @param section_name Name of the required section
++ * @return Non-NULL pointer to description data
++ */
++const char *problem_report_get_section(const problem_report_t *self,
++        const char *section_name);
++
++/*
++ * Get GList of the problem data items that are to be attached
++ *
++ * @param self Problem report
++ * @return A pointer to GList (NULL means empty list)
++ */
++GList *problem_report_get_attachments(const problem_report_t *self);
++
++/*
++ * Releases all resources allocated by a problem report
++ *
++ * @param self Problem report
++ */
++void problem_report_free(problem_report_t *self);
++
++
++/*
++ * An enum of Extra section flags
++ */
++enum problem_formatter_section_flags {
++    PFFF_REQUIRED = 1 << 0, ///< section must be present in the format spec
++};
++
++/*
++ * The problem formatter structure formats a problem data according to a format
++ * string and stores result a problem report.
++ *
++ * The problem formatter uses '%reason%' as %summary section format string, if
++ * %summary is not provided by a format string.
++ */
++struct problem_formatter;
++typedef struct problem_formatter problem_formatter_t;
++
++/*
++ * Constructs a new problem formatter.
++ *
++ * @return Non-NULL pointer to the new problem formatter
++ */
++problem_formatter_t *problem_formatter_new(void);
++
++/*
++ * Releases all resources allocated by a problem formatter
++ *
++ * @param self Problem formatter
++ */
++void problem_formatter_free(problem_formatter_t *self);
++
++/*
++ * Adds a new recognized section
++ *
++ * The problem formatter ignores a section in the format spec if the section is
++ * not one of the default nor added by this function.
++ *
++ * How the problem formatter handles these extra sections:
++ *
++ * A custom section is something like %description section. %description is the
++ * default section where all text (sub)sections are stored. If the formatter
++ * finds the custom section in format string, then starts storing text
++ * (sub)sections in the custom section.
++ *
++ * (%description)    |:: comment
++ * (%description)    |
++ * (%description)    |Package:: package
++ * (%description)    |
++ * (%additiona_info) |%additional_info::
++ * (%additiona_info) |%reporter%
++ * (%additiona_info) |User:: user_name,uid
++ * (%additiona_info) |
++ * (%additiona_info) |Directories:: root,cwd
++ *
++ *
++ * @param self Problem formatter
++ * @param name Name of the added section
++ * @param flags Info about the added section
++ * @return Zero on success. -EEXIST if the name is already known by the formatter
++ */
++int problem_formatter_add_section(problem_formatter_t *self, const char *name, int flags);
++
++/*
++ * Loads a problem format from a string.
++ *
++ * @param self Problem formatter
++ * @param fmt Format
++ * @return Zero on success or number of warnings (e.g. missing section,
++ * unrecognized section).
++ */
++int problem_formatter_load_string(problem_formatter_t* self, const char *fmt);
++
++/*
++ * Loads a problem format from a file.
++ *
++ * @param self Problem formatter
++ * @param pat Path to the format file
++ * @return Zero on success or number of warnings (e.g. missing section,
++ * unrecognized section).
++ */
++int problem_formatter_load_file(problem_formatter_t* self, const char *path);
++
++/*
++ * Creates a new problem report, formats the data according to the loaded
++ * format string and stores output in the report.
++ *
++ * @param self Problem formatter
++ * @param data Problem data to format
++ * @param report Pointer where the created problem report is to be stored
++ * @return Zero on success, otherwise non-zero value.
++ */
++int problem_formatter_generate_report(const problem_formatter_t *self, problem_data_t *data, problem_report_t **report);
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif // LIBREPORT_PROBLEM_REPORT_H
+diff --git a/src/lib/Makefile.am b/src/lib/Makefile.am
+index b7e4781..c11a42d 100644
+--- a/src/lib/Makefile.am
++++ b/src/lib/Makefile.am
+@@ -38,6 +38,7 @@ libreport_la_SOURCES = \
+     make_descr.c \
+     run_event.c \
+     problem_data.c \
++    problem_report.c \
+     create_dump_dir.c \
+     abrt_types.c \
+     parse_release.c \
+@@ -78,6 +79,7 @@ libreport_la_CPPFLAGS = \
+     $(GLIB_CFLAGS) \
+     $(GOBJECT_CFLAGS) \
+     $(AUGEAS_CFLAGS) \
++    $(SATYR_CFLAGS) \
+     -D_GNU_SOURCE
+ libreport_la_LDFLAGS = \
+     -ltar \
+@@ -87,7 +89,8 @@ libreport_la_LIBADD = \
+     $(GLIB_LIBS) \
+     $(JOURNAL_LIBS) \
+     $(GOBJECT_LIBS) \
+-    $(AUGEAS_LIBS)
++    $(AUGEAS_LIBS) \
++    $(SATYR_LIBS)
+ 
+ libreportconfdir = $(CONF_DIR)
+ dist_libreportconf_DATA = \
+diff --git a/src/lib/problem_report.c b/src/lib/problem_report.c
+new file mode 100644
+index 0000000..6598c15
+--- /dev/null
++++ b/src/lib/problem_report.c
+@@ -0,0 +1,1209 @@
++/*
++    Copyright (C) 2014  ABRT team
++    Copyright (C) 2014  RedHat Inc
++
++    This program is free software; you can redistribute it and/or modify
++    it under the terms of the GNU General Public License as published by
++    the Free Software Foundation; either version 2 of the License, or
++    (at your option) any later version.
++
++    This program is distributed in the hope that it will be useful,
++    but WITHOUT ANY WARRANTY; without even the implied warranty of
++    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++    GNU General Public License for more details.
++
++    You should have received a copy of the GNU General Public License along
++    with this program; if not, write to the Free Software Foundation, Inc.,
++    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
++*/
++
++#include "problem_report.h"
++#include "internal_libreport.h"
++
++#include <satyr/stacktrace.h>
++#include <satyr/abrt.h>
++
++#include <assert.h>
++
++#define DESTROYED_POINTER (void *)0xdeadbeef
++
++/* FORMAT:
++ * |%summary:: Hello, world
++ * |Problem description:: %bare_comment
++ * |
++ * |Package:: package
++ * |
++ * |%attach: %binary, backtrace
++ * |
++ * |%additional_info::
++ * |%reporter%
++ * |User:: user_name,uid
++ * |
++ * |Directories:: root,cwd
++ *
++ * PARSED DATA (list of struct section_t):
++ * {
++ *   section_t {
++ *      .name     = '%summary';
++ *      .items    = { 'Hello, world' };
++ *      .children = NULL;
++ *   },
++ *   section_t {
++ *      .name     = '%attach'
++ *      .items    = { '%binary', 'backtrace' };
++ *      .children = NULL;
++ *   },
++ *   section_t {
++ *      .name     = '%description'
++ *      .items    = NULL;
++ *      .children = {
++ *        section_t {
++ *          .name     = 'Problem description:';
++ *          .items    = { '%bare_comment' };
++ *          .children = NULL;
++ *        },
++ *        section_t {
++ *          .name     = '';
++ *          .items    = NULL;
++ *          .children = NULL;
++ *        },
++ *        section_t {
++ *          .name     = 'Package:';
++ *          .items    = { 'package' };
++ *          .children = NULL;
++ *        },
++ *      }
++ *   },
++ *   section_t {
++ *      .name     = '%additional_info'
++ *      .items    = { '%reporter%' };
++ *      .children = {
++ *        section_t {
++ *          .name     = 'User:';
++ *          .items    = { 'user_name', 'uid' };
++ *          .children = NULL;
++ *        },
++ *        section_t {
++ *          .name     = '';
++ *          .items    = NULL;
++ *          .children = NULL;
++ *        },
++ *        section_t {
++ *          .name     = 'Directories:';
++ *          .items    = { 'root', 'cwd' };
++ *          .children = NULL;
++ *        },
++ *      }
++ *   }
++ * }
++ */
++struct section_t {
++    char *name;      ///< name or output text (%summar, 'Package version:');
++    GList *items;    ///< list of file names and special items (%reporter, %binar, ...)
++    GList *children; ///< list of sub sections (struct section_t)
++};
++
++typedef struct section_t section_t;
++
++static section_t *
++section_new(const char *name)
++{
++    section_t *self = xmalloc(sizeof(*self));
++    self->name = xstrdup(name);
++    self->items = NULL;
++    self->children = NULL;
++
++    return self;
++}
++
++static void
++section_free(section_t *self)
++{
++    if (self == NULL)
++        return;
++
++    free(self->name);
++    g_list_free_full(self->items, free);
++    g_list_free_full(self->children, (GDestroyNotify)section_free);
++
++    free(self);
++}
++
++static int
++section_name_cmp(section_t *lhs, const char *rhs)
++{
++    return strcmp((lhs->name + 1), rhs);
++}
++
++/* Utility functions */
++
++static GList*
++split_string_on_char(const char *str, char ch)
++{
++    GList *list = NULL;
++    for (;;)
++    {
++        const char *delim = strchrnul(str, ch);
++        list = g_list_prepend(list, xstrndup(str, delim - str));
++        if (*delim == '\0')
++            break;
++        str = delim + 1;
++    }
++    return g_list_reverse(list);
++}
++
++static int
++compare_item_name(const char *lookup, const char *name)
++{
++    if (lookup[0] == '-')
++        lookup++;
++    else if (strncmp(lookup, "%bare_", 6) == 0)
++        lookup += 6;
++    return strcmp(lookup, name);
++}
++
++static int
++is_item_name_in_section(const section_t *lookup, const char *name)
++{
++    if (g_list_find_custom(lookup->items, name, (GCompareFunc)compare_item_name))
++        return 0; /* "found it!" */
++    return 1;
++}
++
++static bool is_explicit_or_forbidden(const char *name, GList *comment_fmt_spec);
++
++static int
++is_explicit_or_forbidden_child(const section_t *master_section, const char *name)
++{
++    if (is_explicit_or_forbidden(name, master_section->children))
++        return 0; /* "found it!" */
++    return 1;
++}
++
++/* For example: 'package' belongs to '%oneline', but 'package' is used in
++ * 'Version of component', so it is not very helpful to include that file once
++ * more in another section
++ */
++static bool
++is_explicit_or_forbidden(const char *name, GList *comment_fmt_spec)
++{
++    return    g_list_find_custom(comment_fmt_spec, name, (GCompareFunc)is_item_name_in_section)
++           || g_list_find_custom(comment_fmt_spec, name, (GCompareFunc)is_explicit_or_forbidden_child);
++}
++
++static GList*
++load_stream(FILE *fp)
++{
++    assert(fp);
++
++    GList *sections = NULL;
++    section_t *master = section_new("%description");
++    section_t *sec = NULL;
++
++    sections = g_list_append(sections, master);
++
++    char *line;
++    while ((line = xmalloc_fgetline(fp)) != NULL)
++    {
++        /* Skip comments */
++        char first = *skip_whitespace(line);
++        if (first == '#')
++            goto free_line;
++
++        /* Handle trailing backslash continuation */
++ check_continuation: ;
++        unsigned len = strlen(line);
++        if (len && line[len-1] == '\\')
++        {
++            line[len-1] = '\0';
++            char *next_line = xmalloc_fgetline(fp);
++            if (next_line)
++            {
++                line = append_to_malloced_string(line, next_line);
++                free(next_line);
++                goto check_continuation;
++            }
++        }
++
++        /* We are reusing line buffer to form temporary
++         * "key\0values\0..." in its beginning
++         */
++        bool summary_line = false;
++        char *value = NULL;
++        char *src;
++        char *dst;
++        for (src = dst = line; *src; src++)
++        {
++            char c = *src;
++            /* did we reach the value list? */
++            if (!value && c == ':' && src[1] == ':')
++            {
++                *dst++ = '\0'; /* terminate key */
++                src += 1;
++                value = dst; /* remember where value starts */
++                summary_line = (strcmp(line, "%summary") == 0);
++                if (summary_line)
++                {
++                    value = (src + 1);
++                    break;
++                }
++                continue;
++            }
++            /* skip whitespace in value list */
++            if (value && isspace(c))
++                continue;
++            *dst++ = c; /* store next key or value char */
++        }
++
++        GList *item_list = NULL;
++        if (summary_line)
++        {
++            /* %summary is special */
++            item_list = g_list_append(NULL, xstrdup(skip_whitespace(value)));
++        }
++        else
++        {
++            *dst = '\0'; /* terminate value (or key) */
++            if (value)
++                item_list = split_string_on_char(value, ',');
++        }
++
++        sec = section_new(line);
++        sec->items = item_list;
++
++        if (sec->name[0] == '%')
++        {
++            if (!summary_line && strcmp(sec->name, "%attach") != 0)
++            {
++                master->children = g_list_reverse(master->children);
++                master = sec;
++            }
++
++            sections = g_list_prepend(sections, sec);
++        }
++        else
++            master->children = g_list_prepend(master->children, sec);
++
++ free_line:
++        free(line);
++    }
++
++    /* If master equals sec, then master's children list was not yet reversed.
++     *
++     * %description is the default section (i.e is not explicitly mentioned)
++     * and %summary nor %attach cause its children list to reverse.
++     */
++    if (master == sec || strcmp(master->name, "%description") == 0)
++        master->children = g_list_reverse(master->children);
++
++    return sections;
++}
++
++
++/* Summary generation */
++
++#define MAX_OPT_DEPTH 10
++static int
++format_percented_string(const char *str, problem_data_t *pd, FILE *result)
++{
++    long old_pos[MAX_OPT_DEPTH] = { 0 };
++    int okay[MAX_OPT_DEPTH] = { 1 };
++    long len = 0;
++    int opt_depth = 1;
++
++    while (*str) {
++        switch (*str) {
++        default:
++            putc(*str, result);
++            len++;
++            str++;
++            break;
++        case '\\':
++            if (str[1])
++                str++;
++            putc(*str, result);
++            len++;
++            str++;
++            break;
++        case '[':
++            if (str[1] == '[' && opt_depth < MAX_OPT_DEPTH)
++            {
++                old_pos[opt_depth] = len;
++                okay[opt_depth] = 1;
++                opt_depth++;
++                str += 2;
++            } else {
++                putc(*str, result);
++                len++;
++                str++;
++            }
++            break;
++        case ']':
++            if (str[1] == ']' && opt_depth > 1)
++            {
++                opt_depth--;
++                if (!okay[opt_depth])
++                {
++                    fseek(result, old_pos[opt_depth], SEEK_SET);
++                    len = old_pos[opt_depth];
++                }
++                str += 2;
++            } else {
++                putc(*str, result);
++                len++;
++                str++;
++            }
++            break;
++        case '%': ;
++            char *nextpercent = strchr(++str, '%');
++            if (!nextpercent)
++            {
++                error_msg_and_die("Unterminated %%element%%: '%s'", str - 1);
++            }
++
++            *nextpercent = '\0';
++            const problem_item *item = problem_data_get_item_or_NULL(pd, str);
++            *nextpercent = '%';
++
++            if (item && (item->flags & CD_FLAG_TXT))
++            {
++                fputs(item->content, result);
++                len += strlen(item->content);
++            }
++            else
++                okay[opt_depth - 1] = 0;
++            str = nextpercent + 1;
++            break;
++        }
++    }
++
++    if (opt_depth > 1)
++    {
++        error_msg_and_die("Unbalanced [[ ]] bracket");
++    }
++
++    if (!okay[0])
++    {
++        error_msg("Undefined variable outside of [[ ]] bracket");
++    }
++
++    return 0;
++}
++
++/* BZ comment generation */
++
++static int
++append_text(struct strbuf *result, const char *item_name, const char *content, bool print_item_name)
++{
++    char *eol = strchrnul(content, '\n');
++    if (eol[0] == '\0' || eol[1] == '\0')
++    {
++        /* one-liner */
++        int pad = 16 - (strlen(item_name) + 2);
++        if (pad < 0)
++            pad = 0;
++        if (print_item_name)
++            strbuf_append_strf(result,
++                    eol[0] == '\0' ? "%s: %*s%s\n" : "%s: %*s%s",
++                    item_name, pad, "", content
++            );
++        else
++            strbuf_append_strf(result,
++                    eol[0] == '\0' ? "%s\n" : "%s",
++                    content
++            );
++    }
++    else
++    {
++        /* multi-line item */
++        if (print_item_name)
++            strbuf_append_strf(result, "%s:\n", item_name);
++        for (;;)
++        {
++            eol = strchrnul(content, '\n');
++            strbuf_append_strf(result,
++                    /* For %bare_multiline_item, we don't want to print colons */
++                    (print_item_name ? ":%.*s\n" : "%.*s\n"),
++                    (int)(eol - content), content
++            );
++            if (eol[0] == '\0' || eol[1] == '\0')
++                break;
++            content = eol + 1;
++        }
++    }
++    return 1;
++}
++
++static int
++append_short_backtrace(struct strbuf *result, problem_data_t *problem_data, size_t max_text_size, bool print_item_name)
++{
++    const problem_item *item = problem_data_get_item_or_NULL(problem_data,
++                                                             FILENAME_BACKTRACE);
++    if (!item)
++        return 0; /* "I did not print anything" */
++    if (!(item->flags & CD_FLAG_TXT))
++        return 0; /* "I did not print anything" */
++
++    char *truncated = NULL;
++
++    if (strlen(item->content) >= max_text_size)
++    {
++        log_debug("'backtrace' exceeds the text file size, going to append its short version");
++
++        char *error_msg = NULL;
++        const char *type = problem_data_get_content_or_NULL(problem_data, FILENAME_TYPE);
++        if (!type)
++        {
++            log_debug("Problem data does not contain '"FILENAME_TYPE"' file");
++            return 0;
++        }
++
++        /* For CCpp crashes, use the GDB-produced backtrace which should be
++         * available by now. sr_abrt_type_from_analyzer returns SR_REPORT_CORE
++         * by default for CCpp crashes.
++         */
++        enum sr_report_type report_type = sr_abrt_type_from_analyzer(type);
++        if (strcmp(type, "CCpp") == 0)
++        {
++            log_debug("Successfully identified 'CCpp' abrt type");
++            report_type = SR_REPORT_GDB;
++        }
++
++        struct sr_stacktrace *backtrace = sr_stacktrace_parse(report_type,
++                item->content, &error_msg);
++
++        if (!backtrace)
++        {
++            log(_("Can't parse backtrace: %s"), error_msg);
++            free(error_msg);
++            return 0;
++        }
++
++        /* Get optimized thread stack trace for 10 top most frames */
++        truncated = sr_stacktrace_to_short_text(backtrace, 10);
++        sr_stacktrace_free(backtrace);
++
++        if (!truncated)
++        {
++            log(_("Can't generate stacktrace description (no crash thread?)"));
++            return 0;
++        }
++    }
++    else
++    {
++        log_debug("'backtrace' is small enough to be included as is");
++    }
++
++    append_text(result,
++                /*item_name:*/ truncated ? "truncated_backtrace" : FILENAME_BACKTRACE,
++                /*content:*/   truncated ? truncated             : item->content,
++                print_item_name
++    );
++    free(truncated);
++    return 1;
++}
++
++static int
++append_item(struct strbuf *result, const char *item_name, problem_data_t *pd, GList *comment_fmt_spec)
++{
++    bool print_item_name = (strncmp(item_name, "%bare_", strlen("%bare_")) != 0);
++    if (!print_item_name)
++        item_name += strlen("%bare_");
++
++    if (item_name[0] != '%')
++    {
++        struct problem_item *item = problem_data_get_item_or_NULL(pd, item_name);
++        if (!item)
++            return 0; /* "I did not print anything" */
++        if (!(item->flags & CD_FLAG_TXT))
++            return 0; /* "I did not print anything" */
++
++        char *formatted = problem_item_format(item);
++        char *content = formatted ? formatted : item->content;
++        append_text(result, item_name, content, print_item_name);
++        free(formatted);
++        return 1; /* "I printed something" */
++    }
++
++    /* Special item name */
++
++    /* Compat with previously-existed ad-hockery: %short_backtrace */
++    if (strcmp(item_name, "%short_backtrace") == 0)
++        return append_short_backtrace(result, pd, CD_TEXT_ATT_SIZE_BZ, print_item_name);
++
++    /* Compat with previously-existed ad-hockery: %reporter */
++    if (strcmp(item_name, "%reporter") == 0)
++        return append_text(result, "reporter", PACKAGE"-"VERSION, print_item_name);
++
++    /* %oneline,%multiline,%text */
++    bool oneline   = (strcmp(item_name+1, "oneline"  ) == 0);
++    bool multiline = (strcmp(item_name+1, "multiline") == 0);
++    bool text      = (strcmp(item_name+1, "text"     ) == 0);
++    if (!oneline && !multiline && !text)
++    {
++        log("Unknown or unsupported element specifier '%s'", item_name);
++        return 0; /* "I did not print anything" */
++    }
++
++    int printed = 0;
++
++    /* Iterate over _sorted_ items */
++    GList *sorted_names = g_hash_table_get_keys(pd);
++    sorted_names = g_list_sort(sorted_names, (GCompareFunc)strcmp);
++
++    /* %text => do as if %oneline, then repeat as if %multiline */
++    if (text)
++        oneline = 1;
++
++ again: ;
++    GList *l = sorted_names;
++    while (l)
++    {
++        const char *name = l->data;
++        l = l->next;
++        struct problem_item *item = g_hash_table_lookup(pd, name);
++        if (!item)
++            continue; /* paranoia, won't happen */
++
++        if (!(item->flags & CD_FLAG_TXT))
++            continue;
++
++        if (is_explicit_or_forbidden(name, comment_fmt_spec))
++            continue;
++
++        char *formatted = problem_item_format(item);
++        char *content = formatted ? formatted : item->content;
++        char *eol = strchrnul(content, '\n');
++        bool is_oneline = (eol[0] == '\0' || eol[1] == '\0');
++        if (oneline == is_oneline)
++            printed |= append_text(result, name, content, print_item_name);
++        free(formatted);
++    }
++    if (text && oneline)
++    {
++        /* %text, and we just did %oneline. Repeat as if %multiline */
++        oneline = 0;
++        /*multiline = 1; - not checked in fact, so why bother setting? */
++        goto again;
++    }
++
++    g_list_free(sorted_names); /* names themselves are not freed */
++
++    return printed;
++}
++
++#define add_to_section_output(format, ...) \
++    do { \
++    for (; empty_lines > 0; --empty_lines) fputc('\n', result); \
++    empty_lines = 0; \
++    fprintf(result, format, __VA_ARGS__); \
++    } while (0)
++
++static void
++format_section(section_t *section, problem_data_t *pd, GList *comment_fmt_spec, FILE *result)
++{
++    int empty_lines = -1;
++
++    for (GList *iter = section->children; iter; iter = g_list_next(iter))
++    {
++        section_t *child = (section_t *)iter->data;
++        if (child->items)
++        {
++            /* "Text: item[,item]..." */
++            struct strbuf *output = strbuf_new();
++            GList *item = child->items;
++            while (item)
++            {
++                const char *str = item->data;
++                item = item->next;
++                if (str[0] == '-') /* "-name", ignore it */
++                    continue;
++                append_item(output, str, pd, comment_fmt_spec);
++            }
++
++            if (output->len != 0)
++                add_to_section_output((child->name[0] ? "%s:\n%s" : "%s%s"),
++                                      child->name, output->buf);
++
++            strbuf_free(output);
++        }
++        else
++        {
++            /* Just "Text" (can be "") */
++
++            /* Filter out trailint empty lines */
++            if (child->name[0] != '\0')
++                add_to_section_output("%s\n", child->name);
++            /* Do not count empty lines, if output wasn't yet produced */
++            else if (empty_lines >= 0)
++                ++empty_lines;
++        }
++    }
++}
++
++static GList *
++get_special_items(const char *item_name, problem_data_t *pd, GList *comment_fmt_spec)
++{
++    /* %oneline,%multiline,%text,%binary */
++    bool oneline   = (strcmp(item_name+1, "oneline"  ) == 0);
++    bool multiline = (strcmp(item_name+1, "multiline") == 0);
++    bool text      = (strcmp(item_name+1, "text"     ) == 0);
++    bool binary    = (strcmp(item_name+1, "binary"   ) == 0);
++    if (!oneline && !multiline && !text && !binary)
++    {
++        log("Unknown or unsupported element specifier '%s'", item_name);
++        return NULL;
++    }
++
++    log_debug("Special item_name '%s', iterating for attach...", item_name);
++    GList *result = 0;
++
++    /* Iterate over _sorted_ items */
++    GList *sorted_names = g_hash_table_get_keys(pd);
++    sorted_names = g_list_sort(sorted_names, (GCompareFunc)strcmp);
++
++    GList *l = sorted_names;
++    while (l)
++    {
++        const char *name = l->data;
++        l = l->next;
++        struct problem_item *item = g_hash_table_lookup(pd, name);
++        if (!item)
++            continue; /* paranoia, won't happen */
++
++        if (is_explicit_or_forbidden(name, comment_fmt_spec))
++            continue;
++
++        if ((item->flags & CD_FLAG_TXT) && !binary)
++        {
++            char *content = item->content;
++            char *eol = strchrnul(content, '\n');
++            bool is_oneline = (eol[0] == '\0' || eol[1] == '\0');
++            if (text || oneline == is_oneline)
++                result = g_list_append(result, xstrdup(name));
++        }
++        else if ((item->flags & CD_FLAG_BIN) && binary)
++            result = g_list_append(result, xstrdup(name));
++    }
++
++    g_list_free(sorted_names); /* names themselves are not freed */
++
++
++    log_debug("...Done iterating over '%s' for attach", item_name);
++
++    return result;
++}
++
++static GList *
++get_attached_files(problem_data_t *pd, GList *items, GList *comment_fmt_spec)
++{
++    GList *result = NULL;
++    GList *item = items;
++    while (item != NULL)
++    {
++        const char *item_name = item->data;
++        item = item->next;
++        if (item_name[0] == '-') /* "-name", ignore it */
++            continue;
++
++        if (item_name[0] != '%')
++        {
++            result = g_list_append(result, xstrdup(item_name));
++            continue;
++        }
++
++        GList *special = get_special_items(item_name, pd, comment_fmt_spec);
++        if (special == NULL)
++        {
++            log_notice("No attachment found for '%s'", item_name);
++            continue;
++        }
++
++        result = g_list_concat(result, special);
++    }
++
++    return result;
++}
++
++/*
++ * Problem Report - memor stream
++ *
++ * A wrapper for POSIX memory stream.
++ *
++ * A memory stream is presented as FILE *.
++ *
++ * A memory stream is associated with a pointer to written data and a pointer
++ * to size of the written data.
++ *
++ * This structure holds all of the used pointers.
++ */
++struct memstream_buffer
++{
++    char *msb_buffer;
++    size_t msb_size;
++    FILE *msb_stream;
++};
++
++static struct memstream_buffer *
++memstream_buffer_new()
++{
++    struct memstream_buffer *self = xmalloc(sizeof(*self));
++
++    self->msb_buffer = NULL;
++    self->msb_stream = open_memstream(&(self->msb_buffer), &(self->msb_size));
++
++    return self;
++}
++
++static void
++memstream_buffer_free(struct memstream_buffer *self)
++{
++    if (self == NULL)
++        return;
++
++    fclose(self->msb_stream);
++    self->msb_stream = DESTROYED_POINTER;
++
++    free(self->msb_buffer);
++    self->msb_buffer = DESTROYED_POINTER;
++
++    free(self);
++}
++
++static FILE *
++memstream_get_stream(struct memstream_buffer *self)
++{
++    assert(self != NULL);
++
++    return self->msb_stream;
++}
++
++static const char *
++memstream_get_string(struct memstream_buffer *self)
++{
++    assert(self != NULL);
++    assert(self->msb_stream != NULL);
++
++    fflush(self->msb_stream);
++
++    return self->msb_buffer;
++}
++
++
++/*
++ * Problem Report
++ *
++ * The formated strings are internaly stored in "buffer"s. If a programer wants
++ * to get a formated section data, a getter function extracts those data from
++ * the apropriate buffer and returns them in form of null-terminated string.
++ *
++ * Each section has own buffer.
++ *
++ * There are three common sections that are always present:
++ * 1. summary
++ * 2. description
++ * 3. attach
++ * Buffers of these sections has own structure member for the sake of
++ * efficiency.
++ *
++ * The custom sections hash their buffers stored in a map where key is a
++ * section's name and value is a section's buffer.
++ *
++ * Problem report provides the programers with the possibility to ammend
++ * formated output to any section buffer.
++ */
++struct problem_report
++{
++    struct memstream_buffer *pr_sec_summ; ///< %summary buffer
++    struct memstream_buffer *pr_sec_desc; ///< %description buffer
++    GList            *pr_attachments;     ///< %attach - list of file names
++    GHashTable       *pr_sec_custom;      ///< map : %(custom section) -> buffer
++};
++
++static problem_report_t *
++problem_report_new()
++{
++    problem_report_t *self = xmalloc(sizeof(*self));
++
++    self->pr_sec_summ = memstream_buffer_new();
++    self->pr_sec_desc = memstream_buffer_new();
++    self->pr_attachments = NULL;
++    self->pr_sec_custom = NULL;
++
++    return self;
++}
++
++static void
++problem_report_initialize_custom_sections(problem_report_t *self)
++{
++    assert(self != NULL);
++    assert(self->pr_sec_custom == NULL);
++
++    self->pr_sec_custom = g_hash_table_new_full(g_str_hash, g_str_equal, free,
++                                                (GDestroyNotify)memstream_buffer_free);
++}
++
++static void
++problem_report_destroy_custom_sections(problem_report_t *self)
++{
++    assert(self != NULL);
++    assert(self->pr_sec_custom != NULL);
++
++    g_hash_table_destroy(self->pr_sec_custom);
++}
++
++static int
++problem_report_add_custom_section(problem_report_t *self, const char *name)
++{
++    assert(self != NULL);
++
++    if (self->pr_sec_custom == NULL)
++    {
++        problem_report_initialize_custom_sections(self);
++    }
++
++    if (problem_report_get_buffer(self, name))
++    {
++        log_warning("Custom section already exists : '%s'", name);
++        return -EEXIST;
++    }
++
++    log_debug("Problem report enriched with section : '%s'", name);
++    g_hash_table_insert(self->pr_sec_custom, xstrdup(name), memstream_buffer_new());
++    return 0;
++}
++
++static struct memstream_buffer *
++problem_report_get_section_buffer(const problem_report_t *self, const char *section_name)
++{
++    if (self->pr_sec_custom == NULL)
++    {
++        log_debug("Couldn't find section '%s': no custom section added", section_name);
++        return NULL;
++    }
++
++    return (struct memstream_buffer *)g_hash_table_lookup(self->pr_sec_custom, section_name);
++}
++
++problem_report_buffer *
++problem_report_get_buffer(const problem_report_t *self, const char *section_name)
++{
++    assert(self != NULL);
++    assert(section_name != NULL);
++
++    if (strcmp(PR_SEC_SUMMARY, section_name) == 0)
++        return memstream_get_stream(self->pr_sec_summ);
++
++    if (strcmp(PR_SEC_DESCRIPTION, section_name) == 0)
++        return memstream_get_stream(self->pr_sec_desc);
++
++    struct memstream_buffer *buf = problem_report_get_section_buffer(self, section_name);
++    return buf == NULL ? NULL : memstream_get_stream(buf);
++}
++
++const char *
++problem_report_get_summary(const problem_report_t *self)
++{
++    assert(self != NULL);
++
++    return memstream_get_string(self->pr_sec_summ);
++}
++
++const char *
++problem_report_get_description(const problem_report_t *self)
++{
++    assert(self != NULL);
++
++    return memstream_get_string(self->pr_sec_desc);
++}
++
++const char *
++problem_report_get_section(const problem_report_t *self, const char *section_name)
++{
++    assert(self != NULL);
++    assert(section_name);
++
++    struct memstream_buffer *buf = problem_report_get_section_buffer(self, section_name);
++
++    if (buf == NULL)
++        return NULL;
++
++    return memstream_get_string(buf);
++}
++
++static void
++problem_report_set_attachments(problem_report_t *self, GList *attachments)
++{
++    assert(self != NULL);
++    assert(self->pr_attachments == NULL);
++
++    self->pr_attachments = attachments;
++}
++
++GList *
++problem_report_get_attachments(const problem_report_t *self)
++{
++    assert(self != NULL);
++
++    return self->pr_attachments;
++}
++
++void
++problem_report_free(problem_report_t *self)
++{
++    if (self == NULL)
++        return;
++
++    memstream_buffer_free(self->pr_sec_summ);
++    self->pr_sec_summ = DESTROYED_POINTER;
++
++    memstream_buffer_free(self->pr_sec_desc);
++    self->pr_sec_desc = DESTROYED_POINTER;
++
++    g_list_free_full(self->pr_attachments, free);
++    self->pr_attachments = DESTROYED_POINTER;
++
++    if (self->pr_sec_custom)
++    {
++        problem_report_destroy_custom_sections(self);
++        self->pr_sec_custom = DESTROYED_POINTER;
++    }
++
++    free(self);
++}
++
++/*
++ * Problem Formatter - extra section
++ */
++struct extra_section
++{
++    char *pfes_name;    ///< name with % prefix
++    int   pfes_flags;   ///< whether is required or not
++};
++
++static struct extra_section *
++extra_section_new(const char *name, int flags)
++{
++    struct extra_section *self = xmalloc(sizeof(*self));
++
++    self->pfes_name = xstrdup(name);
++    self->pfes_flags = flags;
++
++    return self;
++}
++
++static void
++extra_section_free(struct extra_section *self)
++{
++    if (self == NULL)
++        return;
++
++    free(self->pfes_name);
++    self->pfes_name = DESTROYED_POINTER;
++
++    free(self);
++}
++
++static int
++extra_section_name_cmp(struct extra_section *lhs, const char *rhs)
++{
++    return strcmp(lhs->pfes_name, rhs);
++}
++
++/*
++ * Problem Formatter
++ *
++ * Holds parsed sections lists.
++ */
++struct problem_formatter
++{
++    GList *pf_sections;         ///< parsed sections (struct section_t)
++    GList *pf_extra_sections;   ///< user configured sections (struct extra_section)
++    char  *pf_default_summary;  ///< default summary format
++};
++
++problem_formatter_t *
++problem_formatter_new(void)
++{
++    problem_formatter_t *self = xzalloc(sizeof(*self));
++
++    self->pf_default_summary = xstrdup("%reason%");
++
++    return self;
++}
++
++void
++problem_formatter_free(problem_formatter_t *self)
++{
++    if (self == NULL)
++        return;
++
++    g_list_free_full(self->pf_sections, (GDestroyNotify)section_free);
++    self->pf_sections = DESTROYED_POINTER;
++
++    g_list_free_full(self->pf_extra_sections, (GDestroyNotify)extra_section_free);
++    self->pf_extra_sections = DESTROYED_POINTER;
++
++    free(self->pf_default_summary);
++    self->pf_default_summary = DESTROYED_POINTER;
++
++    free(self);
++}
++
++static int
++problem_formatter_is_section_known(problem_formatter_t *self, const char *name)
++{
++  return    strcmp(name, "summary")     == 0
++         || strcmp(name, "attach")      == 0
++         || strcmp(name, "description") == 0
++         || NULL != g_list_find_custom(self->pf_extra_sections, name, (GCompareFunc)extra_section_name_cmp);
++}
++
++// i.e additional_info -> no flags
++int
++problem_formatter_add_section(problem_formatter_t *self, const char *name, int flags)
++{
++    /* Do not add already added sections */
++    if (problem_formatter_is_section_known(self, name))
++    {
++        log_debug("Extra section already exists : '%s' ", name);
++        return -EEXIST;
++    }
++
++    self->pf_extra_sections = g_list_prepend(self->pf_extra_sections,
++                                             extra_section_new(name, flags));
++
++    return 0;
++}
++
++// check format validity and produce warnings
++static int
++problem_formatter_validate(problem_formatter_t *self)
++{
++    int retval = 0;
++
++    /* Go through all (struct extra_section)s and check whete those having flag
++     * PFFF_REQUIRED are present in the parsed (struct section_t)s.
++     */
++    for (GList *iter = self->pf_extra_sections; iter; iter = g_list_next(iter))
++    {
++        struct extra_section *section = (struct extra_section *)iter->data;
++
++        log_debug("Validating extra section : '%s'", section->pfes_name);
++
++        if (   (PFFF_REQUIRED & section->pfes_flags)
++            && NULL == g_list_find_custom(self->pf_sections, section->pfes_name, (GCompareFunc)section_name_cmp))
++        {
++            log_warning("Problem format misses required section : '%s'", section->pfes_name);
++            ++retval;
++        }
++    }
++
++    /* Go through all the parsed (struct section_t)s check whether are all
++     * known, i.e. each section is either one of the common sections (summary,
++     * description, attach) or is present in the (struct extra_section)s.
++     */
++    for (GList *iter = self->pf_sections; iter; iter = g_list_next(iter))
++    {
++        section_t *section = (section_t *)iter->data;
++
++        if (!problem_formatter_is_section_known(self, (section->name + 1)))
++        {
++            log_warning("Problem format contains unrecognized section : '%s'", section->name);
++            ++retval;
++        }
++    }
++
++    return retval;
++}
++
++int
++problem_formatter_load_string(problem_formatter_t *self, const char *fmt)
++{
++    const size_t len = strlen(fmt);
++    if (len != 0)
++    {
++        FILE *fp = fmemopen((void *)fmt, len, "r");
++        if (fp == NULL)
++        {
++            error_msg("Not enough memory to open a stream for reading format string.");
++            return -ENOMEM;
++        }
++
++        self->pf_sections = load_stream(fp);
++        fclose(fp);
++    }
++
++    return problem_formatter_validate(self);
++}
++
++int
++problem_formatter_load_file(problem_formatter_t *self, const char *path)
++{
++    FILE *fp = stdin;
++    if (strcmp(path, "-") != 0)
++    {
++        fp = fopen(path, "r");
++        if (!fp)
++            return -ENOENT;
++    }
++
++    self->pf_sections = load_stream(fp);
++
++    if (fp != stdin)
++        fclose(fp);
++
++    return problem_formatter_validate(self);
++}
++
++// generates report
++int
++problem_formatter_generate_report(const problem_formatter_t *self, problem_data_t *data, problem_report_t **report)
++{
++    problem_report_t *pr = problem_report_new();
++
++    for (GList *iter = self->pf_extra_sections; iter; iter = g_list_next(iter))
++        problem_report_add_custom_section(pr, ((struct extra_section *)iter->data)->pfes_name);
++
++    bool has_summary = false;
++    for (GList *iter = self->pf_sections; iter; iter = g_list_next(iter))
++    {
++        section_t *section = (section_t *)iter->data;
++
++        /* %summary is something special */
++        if (strcmp(section->name, "%summary") == 0)
++        {
++            has_summary = true;
++            format_percented_string((const char *)section->items->data, data,
++                                    problem_report_get_buffer(pr, PR_SEC_SUMMARY));
++        }
++        /* %attach as well */
++        else if (strcmp(section->name, "%attach") == 0)
++        {
++            problem_report_set_attachments(pr, get_attached_files(data, section->items, self->pf_sections));
++        }
++        else /* %description or a custom section (e.g. %additional_info) */
++        {
++            FILE *buffer = problem_report_get_buffer(pr, section->name + 1);
++
++            if (buffer != NULL)
++            {
++                log_debug("Formatting section : '%s'", section->name);
++                format_section(section, data, self->pf_sections, buffer);
++            }
++            else
++                log_warning("Unsupported section '%s'", section->name);
++        }
++    }
++
++    if (!has_summary) {
++        log_debug("Problem format misses section '%%summary'. Using the default one : '%s'.",
++                    self->pf_default_summary);
++
++        format_percented_string(self->pf_default_summary,
++                   data, problem_report_get_buffer(pr, PR_SEC_SUMMARY));
++    }
++
++    *report = pr;
++    return 0;
++}
+diff --git a/tests/Makefile.am b/tests/Makefile.am
+index 9bfc2b6..b45f2d9 100644
+--- a/tests/Makefile.am
++++ b/tests/Makefile.am
+@@ -47,7 +47,8 @@ TESTSUITE_AT = \
+   global_config.at \
+   iso_date.at \
+   uriparser.at \
+-  event_config.at
++  event_config.at \
++  problem_report.at
+ 
+ TESTSUITE_AT_IN = \
+   bugzilla_plugin.at
+diff --git a/tests/problem_report.at b/tests/problem_report.at
+new file mode 100644
+index 0000000..8bc469f
+--- /dev/null
++++ b/tests/problem_report.at
+@@ -0,0 +1,690 @@
++# -*- Autotest -*-
++
++AT_BANNER([problem report])
++
++## ------- ##
++## summary ##
++## ------- ##
++
++AT_TESTFUN([summary],
++[[
++#include "problem_report.h"
++#include "internal_libreport.h"
++#include <assert.h>
++
++int main(int argc, char **argv)
++{
++    const char *const test_format_result[][2] = {
++        {
++            "%summary:: [abrt] trivial string",
++            "[abrt] trivial string"
++        },
++
++        {
++            "%summary:: [abrt] %package%",
++            "[abrt] libreport"
++        },
++
++        {
++            "%summary:: [abrt] %package%[[ : %crash_function%()]][[ : %does_not_exist%]][[ : %reason%]][[ TAINTED: %taint_flags%]]",
++            "[abrt] libreport : run_event() : Killed by SIGSEGV"
++        },
++
++        {
++            "%summary:: [abrt] %package%[[ : %crash_function%[[ : %does_not_exist%]]()]][[ : %reason%]]",
++            "[abrt] libreport : run_event() : Killed by SIGSEGV"
++        },
++
++        {
++            "%summary:: [abrt] %package%[[ : %does_not_exist%[[ : %crash_function%()]]]][[ : %reason%]]",
++            "[abrt] libreport : Killed by SIGSEGV"
++        },
++
++        {
++            "%summary:: [[%does_not_exist%]][[%once_more%]][abrt] %package%",
++            "[abrt] libreport"
++        },
++
++        {
++            "",
++            "Killed by SIGSEGV"
++        },
++    };
++
++    g_verbose = 3;
++
++    problem_data_t *data = problem_data_new();
++    problem_data_add_text_noteditable(data, "package", "libreport");
++    problem_data_add_text_noteditable(data, "crash_function", "run_event");
++    problem_data_add_text_noteditable(data, "reason", "Killed by SIGSEGV");
++
++    for (size_t i = 0; i < sizeof(test_format_result)/sizeof(*test_format_result); ++i) {
++        problem_formatter_t *pf = problem_formatter_new();
++        assert(!problem_formatter_load_string(pf, test_format_result[i][0]));
++
++        problem_report_t *pr = NULL;
++        assert(!problem_formatter_generate_report(pf, data, &pr));
++        assert(pr != NULL);
++
++        const char *summary = problem_report_get_summary(pr);
++        assert(summary != NULL);
++
++        fprintf(stderr, "expected: '%s'\n", test_format_result[i][1]);
++        fprintf(stderr, "result  : '%s'\n", summary);
++
++        assert(strcmp(test_format_result[i][1], summary) == 0);
++
++        problem_report_free(pr);
++        problem_formatter_free(pf);
++    }
++
++    problem_data_free(data);
++
++    return 0;
++}
++]])
++
++## ---------- ##
++## desciption ##
++## ---------- ##
++
++AT_TESTFUN([description],
++[[
++#include "problem_report.h"
++#include "internal_libreport.h"
++#include <assert.h>
++
++int main(int argc, char **argv)
++{
++    const char *const test_format_result[][2] = {
++        {
++            "\n"\
++            "\n"\
++            "\n"\
++            "Single line\n"
++            "\n"\
++            "\n"\
++            "\n",
++
++            "Single line\n"
++        },
++
++        {
++            "\n"\
++            "\n"\
++            "\n"\
++            "Comment:: %bare_comment"
++            "\n"\
++            "\n"\
++            "\n"\
++            "Ad-hoc line\n"
++            "\n"\
++            "\n"\
++            "\n"\
++            "Additional:: package,\\\n"
++            "uuid,cwd\\\\"
++            ",user_name"
++            "\n"\
++            "\n",
++
++            "Comment:\n" \
++            "Hello, world!\n"
++            "\n"\
++            "\n"\
++            "Ad-hoc line\n"
++            "\n"\
++            "\n"\
++            "\n"\
++            "Additional:\n"\
++            "package:        libreport\n"\
++            "uuid:           123456789ABCDEF\n"\
++            "user_name:      abrt\n",
++        },
++
++        {
++            ":: %bare_description",
++
++            "I run will_segfault and\n"\
++            "it crashed as expected\n"
++        },
++
++        {
++            "User:: %bare_user_name,uid\n"\
++            "Additional info:: -uuid,%oneline,-comment,-package",
++
++            "User:\n"\
++            "abrt\n"\
++            "uid:            69\n"\
++            "Additional info:\n"\
++            "analyzer:       CCpp\n"\
++            "root:           /var/run/mock/abrt\n"\
++            "type:           CCpp\n"
++        },
++
++        {
++            ":: %reporter",
++            NULL /* do no check results*/
++        },
++
++        {
++            "Truncated backtrace:: %bare_%short_backtrace",
++
++            "Truncated backtrace:\n"
++            "Thread no. 0 (7 frames)\n"
++            " #1 crash at will_segfault.c:19\n"
++            " #2 varargs at will_segfault.c:31\n"
++            " #3 inlined at will_segfault.c:40\n"
++            " #4 f at will_segfault.c:45\n"
++            " #5 callback at will_segfault.c:50\n"
++            " #6 call_me_back at libwillcrash.c:8\n"
++            " #7 recursive at will_segfault.c:59\n"
++        },
++    };
++
++    g_verbose = 3;
++
++    problem_data_t *data = problem_data_new();
++    problem_data_add_text_noteditable(data, "package", "libreport");
++    problem_data_add_text_noteditable(data, "analyzer", "CCpp");
++    problem_data_add_text_noteditable(data, "type", "CCpp");
++    problem_data_add_text_noteditable(data, "comment", "Hello, world!");
++    problem_data_add_text_noteditable(data, "uuid", "123456789ABCDEF");
++    problem_data_add_text_noteditable(data, "uid", "69");
++    problem_data_add_text_noteditable(data, "user_name", "abrt");
++    problem_data_add_text_noteditable(data, "root", "/var/run/mock/abrt");
++    problem_data_add_text_noteditable(data, "description", "I run will_segfault and\nit crashed as expected\n");
++    problem_data_add_text_noteditable(data, "backtrace",
++"Thread 1 (LWP 11865):\n"\
++"#0  printf (__fmt=0x400acf \"Result: %d\\n\") at /usr/include/bits/stdio2.h:104\n"\
++"No locals.\n"\
++"#1  crash (p=p@entry=0x0) at will_segfault.c:19\n"\
++"i = <error reading variable i (Cannot access memory at address 0x0)>\n"\
++"#2  0x0000000000400964 in varargs (num_args=1, num_args@entry=2) at will_segfault.c:31\n"\
++"p = <optimized out>\n"\
++"ap = {{gp_offset = 24, fp_offset = 32767, overflow_arg_area = 0x7fff4fc8a0c0, reg_save_area = 0x7fff4fc8a080}}\n"\
++"#3  0x00000000004009be in inlined (p=0x0) at will_segfault.c:40\n"\
++"num = 42\n"\
++"#4  f (p=p@entry=0x0) at will_segfault.c:45\n"\
++"No locals.\n"\
++"#5  0x00000000004009e9 in callback (data=data@entry=0x0) at will_segfault.c:50\n"\
++"No locals.\n"\
++"#6  0x00000032f76006f9 in call_me_back (cb=cb@entry=0x4009e0 <callback>, data=data@entry=0x0) at libwillcrash.c:8\n"\
++"res = <optimized out>\n"\
++"#7  0x0000000000400a14 in recursive (i=i@entry=0) at will_segfault.c:59\n"\
++"p = <optimized out>\n"\
++"#8  0x0000000000400a00 in recursive (i=i@entry=1) at will_segfault.c:66\n"\
++"No locals.\n"\
++"#9  0x0000000000400a00 in recursive (i=i@entry=2) at will_segfault.c:66\n"\
++"No locals.\n"\
++"#10 0x0000000000400775 in main (argc=<optimized out>, argv=<optimized out>) at will_segfault.c:83\n"\
++"No locals.\n"\
++"From                To                  Syms Read   Shared Object Library\n"\
++"0x00000032f76005f0  0x00000032f7600712  Yes         /lib64/libwillcrash.so.0\n"\
++"0x0000003245c1f4f0  0x0000003245d6aca4  Yes         /lib64/libc.so.6\n"\
++"0x0000003245800b10  0x000000324581b6d0  Yes         /lib64/ld-linux-x86-64.so.2\n"\
++"$1 = 0x0\n"
++"No symbol \"__glib_assert_msg\" in current context.\n"\
++"rax            0xf      15\n"\
++"rbx            0x0      0\n"\
++"rcx            0x7ff96f752000   140709293531136\n"\
++"rdx            0x3245fb9a40     215922481728\n"\
++"rsi            0x7ff96f752000   140709293531136\n"\
++"rdi            0x1      1\n"\
++"rbp            0x400a30 0x400a30 <__libc_csu_init>\n"\
++"rsp            0x7fff4fc8a050   0x7fff4fc8a050\n"\
++"r8             0xffffffff       4294967295\n"\
++"r9             0x0      0\n"\
++"r10            0x22     34\n"\
++"r11            0x246    582\n"\
++"r12            0x40079f 4196255\n"\
++"r13            0x7fff4fc8a210   140734531936784\n"\
++"r14            0x0      0\n"\
++"r15            0x0      0\n"\
++"rip            0x4008ae 0x4008ae <crash+14>\n"\
++"eflags         0x10246  [ PF ZF IF RF ]\n"\
++"cs             0x33     51\n"\
++"ss             0x2b     43\n"\
++"ds             0x0      0\n"\
++"es             0x0      0\n"\
++"fs             0x0      0\n"\
++"gs             0x0      0\n"\
++"st0            0        (raw 0x00000000000000000000)\n"\
++"st1            0        (raw 0x00000000000000000000)\n"\
++"st2            0        (raw 0x00000000000000000000)\n"\
++"st3            0        (raw 0x00000000000000000000)\n"\
++"st4            0        (raw 0x00000000000000000000)\n"\
++"st5            0        (raw 0x00000000000000000000)\n"\
++"st6            0        (raw 0x00000000000000000000)\n"\
++"st7            0        (raw 0x00000000000000000000)\n"\
++"fctrl          0x37f    895\n"\
++"fstat          0x0      0\n"\
++"ftag           0xffff   65535\n"\
++"fiseg          0x0      0\n"\
++"fioff          0x0      0\n"\
++"foseg          0x0      0\n"\
++"fooff          0x0      0\n"\
++"fop            0x0      0\n"\
++"xmm0           {v4_float = {0x0, 0x0, 0x0, 0x0}, v2_double = {0x0, 0x0}, v16_int8 = {0x0 <repeats 16 times>}, v8_int16 = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, v4_int32 = {0x0, 0x0, 0x0, 0x0}, v2_int64 = {0x0, 0x0}, uint128 = 0x00000000000000000000000000000000}\n"\
++"xmm1           {v4_float = {0x0, 0x0, 0x0, 0x0}, v2_double = {0x0, 0x0}, v16_int8 = {0x2f <repeats 16 times>}, v8_int16 = {0x2f2f, 0x2f2f, 0x2f2f, 0x2f2f, 0x2f2f, 0x2f2f, 0x2f2f, 0x2f2f}, v4_int32 = {0x2f2f2f2f, 0x2f2f2f2f, 0x2f2f2f2f, 0x2f2f2f2f}, v2_int64 = {0x2f2f2f2f2f2f2f2f, 0x2f2f2f2f2f2f2f2f}, uint128 = 0x2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f}\n"\
++"xmm2           {v4_float = {0x0, 0x0, 0x0, 0x0}, v2_double = {0x0, 0x0}, v16_int8 = {0x0 <repeats 16 times>}, v8_int16 = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, v4_int32 = {0x0, 0x0, 0x0, 0x0}, v2_int64 = {0x0, 0x0}, uint128 = 0x00000000000000000000000000000000}\n"\
++"xmm3           {v4_float = {0x0, 0x0, 0x0, 0x0}, v2_double = {0x0, 0x0}, v16_int8 = {0x0 <repeats 13 times>, 0xff, 0x0, 0x0}, v8_int16 = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xff00, 0x0}, v4_int32 = {0x0, 0x0, 0x0, 0xff00}, v2_int64 = {0x0, 0xff0000000000}, uint128 = 0x0000ff00000000000000000000000000}\n"\
++"xmm4           {v4_float = {0x0, 0x0, 0x0, 0x0}, v2_double = {0x0, 0x0}, v16_int8 = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xff, 0x0, 0x0, 0x0, 0x0, 0x0}, v8_int16 = {0x0, 0x0, 0x0, 0x0, 0x0, 0xff, 0x0, 0x0}, v4_int32 = {0x0, 0x0, 0xff0000, 0x0}, v2_int64 = {0x0, 0xff0000}, uint128 = 0x0000000000ff00000000000000000000}\n"\
++"xmm5           {v4_float = {0x0, 0x0, 0x0, 0x0}, v2_double = {0x0, 0x0}, v16_int8 = {0x0 <repeats 16 times>}, v8_int16 = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, v4_int32 = {0x0, 0x0, 0x0, 0x0}, v2_int64 = {0x0, 0x0}, uint128 = 0x00000000000000000000000000000000}\n"\
++"xmm6           {v4_float = {0x0, 0x0, 0x0, 0x0}, v2_double = {0x0, 0x0}, v16_int8 = {0x0 <repeats 16 times>}, v8_int16 = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, v4_int32 = {0x0, 0x0, 0x0, 0x0}, v2_int64 = {0x0, 0x0}, uint128 = 0x00000000000000000000000000000000}\n"\
++"xmm7           {v4_float = {0x0, 0x0, 0x0, 0x0}, v2_double = {0x0, 0x0}, v16_int8 = {0x0 <repeats 16 times>}, v8_int16 = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, v4_int32 = {0x0, 0x0, 0x0, 0x0}, v2_int64 = {0x0, 0x0}, uint128 = 0x00000000000000000000000000000000}\n"\
++"xmm8           {v4_float = {0x0, 0x0, 0x0, 0x0}, v2_double = {0x0, 0x0}, v16_int8 = {0x0 <repeats 16 times>}, v8_int16 = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, v4_int32 = {0x0, 0x0, 0x0, 0x0}, v2_int64 = {0x0, 0x0}, uint128 = 0x00000000000000000000000000000000}\n"\
++"xmm9           {v4_float = {0x0, 0x0, 0x0, 0x0}, v2_double = {0x0, 0x0}, v16_int8 = {0x0 <repeats 16 times>}, v8_int16 = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, v4_int32 = {0x0, 0x0, 0x0, 0x0}, v2_int64 = {0x0, 0x0}, uint128 = 0x00000000000000000000000000000000}\n"\
++"xmm10          {v4_float = {0x0, 0x0, 0x0, 0x0}, v2_double = {0x0, 0x0}, v16_int8 = {0x0 <repeats 16 times>}, v8_int16 = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, v4_int32 = {0x0, 0x0, 0x0, 0x0}, v2_int64 = {0x0, 0x0}, uint128 = 0x00000000000000000000000000000000}\n"\
++"xmm11          {v4_float = {0x0, 0x0, 0x0, 0x0}, v2_double = {0x0, 0x0}, v16_int8 = {0x0 <repeats 16 times>}, v8_int16 = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, v4_int32 = {0x0, 0x0, 0x0, 0x0}, v2_int64 = {0x0, 0x0}, uint128 = 0x00000000000000000000000000000000}\n"\
++"xmm12          {v4_float = {0x0, 0x0, 0x0, 0x0}, v2_double = {0x0, 0x0}, v16_int8 = {0x0 <repeats 14 times>, 0xff, 0x0}, v8_int16 = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xff}, v4_int32 = {0x0, 0x0, 0x0, 0xff0000}, v2_int64 = {0x0, 0xff000000000000}, uint128 = 0x00ff0000000000000000000000000000}\n"\
++"xmm13          {v4_float = {0x0, 0x0, 0x0, 0x0}, v2_double = {0x0, 0x0}, v16_int8 = {0x0 <repeats 16 times>}, v8_int16 = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, v4_int32 = {0x0, 0x0, 0x0, 0x0}, v2_int64 = {0x0, 0x0}, uint128 = 0x00000000000000000000000000000000}\n"\
++"xmm14          {v4_float = {0x0, 0x0, 0x0, 0x0}, v2_double = {0x0, 0x0}, v16_int8 = {0x0 <repeats 16 times>}, v8_int16 = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, v4_int32 = {0x0, 0x0, 0x0, 0x0}, v2_int64 = {0x0, 0x0}, uint128 = 0x00000000000000000000000000000000}\n"\
++"xmm15          {v4_float = {0x0, 0x0, 0x0, 0x0}, v2_double = {0x0, 0x0}, v16_int8 = {0x0 <repeats 16 times>}, v8_int16 = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, v4_int32 = {0x0, 0x0, 0x0, 0x0}, v2_int64 = {0x0, 0x0}, uint128 = 0x00000000000000000000000000000000}\n"\
++"mxcsr          0x1f80   [ IM DM ZM OM UM PM ]\n"\
++"Dump of assembler code for function crash:\n"\
++"   0x00000000004008a0 <+0>:     push   %rbx\n"\
++"   0x00000000004008a1 <+1>:     mov    %rdi,%rbx\n"\
++"   0x00000000004008a4 <+4>:     mov    $0x400ac0,%edi\n"\
++"   0x00000000004008a9 <+9>:     callq  0x4006f0 <puts@plt>\n"\
++"   => 0x00000000004008ae <+14>:    mov    (%rbx),%edx\n"\
++"   0x00000000004008b0 <+16>:    mov    $0x400acf,%esi\n"\
++"   0x00000000004008b5 <+21>:    mov    $0x1,%edi\n"\
++"   0x00000000004008ba <+26>:    xor    %eax,%eax\n"\
++"   0x00000000004008bc <+28>:    callq  0x400740 <__printf_chk@plt>\n"\
++"   0x00000000004008c1 <+33>:    pop    %rbx\n"\
++"   0x00000000004008c2 <+34>:    retq\n"\
++"End of assembler dump.\n"
++            );
++
++    for (size_t i = 0; i < sizeof(test_format_result)/sizeof(*test_format_result); ++i) {
++        problem_formatter_t *pf = problem_formatter_new();
++        assert(!problem_formatter_load_string(pf, test_format_result[i][0]));
++
++        problem_report_t *pr = NULL;
++        assert(!problem_formatter_generate_report(pf, data, &pr));
++        assert(pr != NULL);
++
++        const char *summary = problem_report_get_description(pr);
++        assert(summary != NULL);
++
++        if (test_format_result[i][1] != NULL) {
++            fprintf(stderr, "####\n");
++            fprintf(stderr, "expected: '%s'\n", test_format_result[i][1]);
++            fprintf(stderr, "====\n");
++            fprintf(stderr, "result  : '%s'\n", summary);
++            fprintf(stderr, "####\n");
++
++            assert(strcmp(test_format_result[i][1], summary) == 0);
++        }
++
++        problem_report_free(pr);
++        problem_formatter_free(pf);
++    }
++
++    problem_data_free(data);
++
++    return 0;
++}
++]])
++
++## ------ ##
++## attach ##
++## ------ ##
++
++AT_TESTFUN([attach],
++[[
++#include "problem_report.h"
++#include "internal_libreport.h"
++#include <assert.h>
++
++int main(int argc, char **argv)
++{
++    g_verbose = 3;
++
++    const char *fst[] = { "backtrace", "screenshot", "description", NULL };
++
++    struct test_case {
++        const char *format;
++        const char *const *files;
++    } cases [] = {
++        {
++            .format = "%attach:: %multiline,%binary,-coredump",
++            .files = fst,
++        }
++    };
++
++    problem_data_t *data = problem_data_new();
++    problem_data_add_text_noteditable(data, "package", "libreport");
++    problem_data_add_text_noteditable(data, "analyzer", "CCpp");
++    problem_data_add_text_noteditable(data, "type", "CCpp");
++    problem_data_add_text_noteditable(data, "comment", "Hello, world!");
++    problem_data_add_text_noteditable(data, "uuid", "123456789ABCDEF");
++    problem_data_add_text_noteditable(data, "uid", "69");
++    problem_data_add_text_noteditable(data, "user_name", "abrt");
++    problem_data_add_text_noteditable(data, "root", "/var/run/mock/abrt");
++    problem_data_add_text_noteditable(data, "description", "I run will_segfault and\nit crashed as expected\n");
++    problem_data_add_file(data, "coredump", "/what/ever/path/to/coredump");
++    problem_data_add_file(data, "screenshot", "/what/ever/path/to/screenshot");
++    problem_data_add_text_noteditable(data, "backtrace",
++"Thread 1 (LWP 11865):\n"\
++"#0  printf (__fmt=0x400acf \"Result: %d\\n\") at /usr/include/bits/stdio2.h:104\n"\
++"No locals.\n"\
++"#1  crash (p=p@entry=0x0) at will_segfault.c:19\n"\
++"i = <error reading variable i (Cannot access memory at address 0x0)>\n"\
++"#2  0x0000000000400964 in varargs (num_args=1, num_args@entry=2) at will_segfault.c:31\n"\
++"p = <optimized out>\n"\
++"ap = {{gp_offset = 24, fp_offset = 32767, overflow_arg_area = 0x7fff4fc8a0c0, reg_save_area = 0x7fff4fc8a080}}\n"\
++"#3  0x00000000004009be in inlined (p=0x0) at will_segfault.c:40\n"\
++"num = 42\n"\
++"#4  f (p=p@entry=0x0) at will_segfault.c:45\n"\
++"No locals.\n"\
++"#5  0x00000000004009e9 in callback (data=data@entry=0x0) at will_segfault.c:50\n"\
++"No locals.\n"\
++"#6  0x00000032f76006f9 in call_me_back (cb=cb@entry=0x4009e0 <callback>, data=data@entry=0x0) at libwillcrash.c:8\n"\
++"res = <optimized out>\n"\
++"#7  0x0000000000400a14 in recursive (i=i@entry=0) at will_segfault.c:59\n"\
++"p = <optimized out>\n"\
++"#8  0x0000000000400a00 in recursive (i=i@entry=1) at will_segfault.c:66\n"\
++"No locals.\n"\
++"#9  0x0000000000400a00 in recursive (i=i@entry=2) at will_segfault.c:66\n"\
++"No locals.\n"\
++"#10 0x0000000000400775 in main (argc=<optimized out>, argv=<optimized out>) at will_segfault.c:83\n"\
++"No locals.\n");
++
++    for (size_t i = 0; i < sizeof(cases)/sizeof(*cases); ++i) {
++        fprintf(stderr, "%s", cases[i].format);
++
++        problem_formatter_t *pf = problem_formatter_new();
++        assert(!problem_formatter_load_string(pf, cases[i].format));
++
++        problem_report_t *pr = NULL;
++        assert(!problem_formatter_generate_report(pf, data, &pr));
++        assert(pr != NULL);
++
++        const char *const *iter = cases[i].files;
++
++        if (*iter != NULL) {
++            assert(problem_report_get_attachments(pr));
++        }
++
++        GList *clone = g_list_copy_deep(problem_report_get_attachments(pr), (GCopyFunc)xstrdup, NULL);
++
++        while (*iter) {
++            GList *item = g_list_find_custom(clone, *iter, (GCompareFunc)strcmp);
++
++            if (item == NULL) {
++                fprintf(stderr, "format:       '%s'\n", cases[i].format);
++                fprintf(stderr, "missing file: '%s'\n", *iter);
++                abort();
++            }
++            else {
++                free(item->data);
++                clone = g_list_delete_link(clone, item);
++            }
++
++            ++iter;
++        }
++
++        if (clone != NULL) {
++            for (GList *iter = clone; iter; iter = g_list_next(iter)) {
++                fprintf(stderr, "extra : '%s'\n", (const char *)iter->data);
++            }
++            abort();
++        }
++
++        problem_report_free(pr);
++        problem_formatter_free(pf);
++    }
++
++    problem_data_free(data);
++
++    return 0;
++}
++]])
++
++
++## -------------- ##
++## custom_section ##
++## -------------- ##
++
++AT_TESTFUN([custom_section],
++[[
++#include "problem_report.h"
++#include "internal_libreport.h"
++#include <assert.h>
++
++int main(int argc, char **argv)
++{
++    g_verbose = 3;
++
++    struct test_case;
++    struct test_case {
++        const char *section_name;
++        int section_flags;
++        int retval_load;
++        int retval_generate;
++        const char *format;
++        const char *output;
++    } cases [] = {
++        {   .section_name = NULL,
++            .section_flags = 0,
++            .retval_load = 1,
++            .retval_generate = 0,
++            .format =
++                "%additional_info::\n"
++                ":: package,\\\n"
++                "uuid,cwd\\\\"
++                ",user_name"
++                ,
++            .output = NULL,
++        },
++
++        {   .section_name = "additional_info",
++            .section_flags = 0,
++            .retval_load = 0,
++            .retval_generate = 0,
++            .format =
++                "%additional_info::\n"
++                ":: package,\\\n"
++                "uuid,cwd\\\\"
++                ",user_name"
++                ,
++            .output =
++                "package:        libreport\n"
++                "uuid:           0123456789ABCDEF\n"
++                "user_name:      abrt\n"
++                ,
++        },
++
++        {   .section_name = "additional_info",
++            .section_flags = PFFF_REQUIRED,
++            .retval_load = 1,
++            .retval_generate = 0,
++            .format = "%summary:: [abrt] %package%\n:: %reporter\n",
++            .output = NULL,
++        },
++
++        {   .section_name = "additional_info",
++            .section_flags = 0,
++            .retval_load = 0,
++            .retval_generate = 0,
++            .format = "%summary:: [abrt] %package%\n:: %reporter\n",
++            .output = "",
++        },
++
++        {   .section_name = "additional_info",
++            .section_flags = 0,
++            .retval_load = 0,
++            .retval_generate = 0,
++            .format =
++                "%additional_info:: root\n"
++                "Info:: package,\\\n"
++                "uuid,cwd\\\\"
++                ",user_name"
++                ,
++            .output =
++                "Info:\n"
++                "package:        libreport\n"
++                "uuid:           0123456789ABCDEF\n"
++                "user_name:      abrt\n"
++                ,
++        },
++    };
++
++    problem_data_t *data = problem_data_new();
++    problem_data_add_text_noteditable(data, "package", "libreport");
++    problem_data_add_text_noteditable(data, "crash_function", "run_event");
++    problem_data_add_text_noteditable(data, "reason", "Killed by SIGSEGV");
++    problem_data_add_text_noteditable(data, "uuid", "0123456789ABCDEF");
++    problem_data_add_text_noteditable(data, "user_name", "abrt");
++
++    for (size_t i = 0; i < sizeof(cases)/sizeof(*cases); ++i) {
++        fprintf(stderr, "#### Test case %zd ####\n", i + 1);
++
++        struct test_case *tcase = cases + i;
++        problem_formatter_t *pf = problem_formatter_new();
++
++        if (tcase->section_name != NULL) {
++            problem_formatter_add_section(pf, tcase->section_name, tcase->section_flags);
++        }
++
++        int r = problem_formatter_load_string(pf, tcase->format);
++        if (r != tcase->retval_load) {
++            fprintf(stderr, "Load : expected : %d , got : %d\n", tcase->retval_load, r);
++            abort();
++        }
++
++        if (tcase->retval_load != 0) {
++            goto next_test_case;
++        }
++
++        problem_report_t *pr = NULL;
++        r = problem_formatter_generate_report(pf, data, &pr);
++        if (r != tcase->retval_generate) {
++            fprintf(stderr, "Generaet : expected : %d , got : %d\n", tcase->retval_generate, r);
++            abort();
++        }
++
++        if (tcase->retval_generate != 0) {
++            goto next_test_case;
++        }
++
++        const char *output = problem_report_get_section(pr, tcase->section_name);
++        assert(output);
++
++        if (strcmp(output, tcase->output) != 0) {
++            fprintf(stderr, "expected:\n'%s'\n", tcase->output);
++            fprintf(stderr, "result  :\n'%s'\n", output);
++            abort();
++        }
++
++        problem_report_free(pr);
++
++next_test_case:
++        problem_formatter_free(pf);
++        fprintf(stderr, "#### Finished - Test case %zd ####\n", i + 1);
++    }
++
++    problem_data_free(data);
++
++    return 0;
++}
++]])
++
++## ------ ##
++## sanity ##
++## ------ ##
++
++AT_TESTFUN([sanity],
++[[
++#include "problem_report.h"
++#include "internal_libreport.h"
++#include <errno.h>
++#include <assert.h>
++
++void assert_equal_strings(const char *res, const char *exp)
++{
++    if (    (res == NULL && exp != NULL)
++        ||  (res != NULL && exp == NULL)
++        || ((res != NULL && exp != NULL) && strcmp(res, exp) != 0)
++        ) {
++        fprintf(stderr, "expected : '%s'\n", exp);
++        fprintf(stderr, "result   : '%s'\n", res);
++        abort();
++    }
++}
++
++int main(int argc, char **argv)
++{
++    g_verbose = 3;
++
++    problem_formatter_t *pf = problem_formatter_new();
++
++    assert(problem_formatter_add_section(pf, "summary", 0) == -EEXIST);
++    assert(problem_formatter_add_section(pf, "description", 0) == -EEXIST);
++    assert(problem_formatter_add_section(pf, "attach", 0) == -EEXIST);
++
++    assert(problem_formatter_add_section(pf, "additional_info", 0) == 0);
++    assert(problem_formatter_add_section(pf, "additional_info", 0) == -EEXIST);
++
++    problem_data_t *data = problem_data_new();
++    problem_data_add_text_noteditable(data, "package", "libreport");
++    problem_data_add_text_noteditable(data, "crash_function", "run_event");
++    problem_data_add_text_noteditable(data, "reason", "Killed by SIGSEGV");
++    problem_data_add_text_noteditable(data, "comment", "Hello, world!");
++    problem_data_add_text_noteditable(data, "root", "/var/run/mock/abrt");
++    problem_data_add_text_noteditable(data, "user_name", "abrt");
++    problem_data_add_file(data, "screenshot", "/what/ever/path/to/screenshot");
++
++    problem_formatter_load_string(pf,
++            "%summary:: [abrt] %package% : %reason%\n\n"
++            "Description:: %bare_comment\n\n"
++            "%attach:: screenshot\n\n"
++            "%additional_info::\n\n"
++            "User:: root,user_name,uid\n\n\n"
++            );
++
++    problem_report_t *pr = NULL;
++    problem_formatter_generate_report(pf, data, &pr);
++
++    assert_equal_strings(problem_report_get_summary(pr),
++                         "[abrt] libreport : Killed by SIGSEGV");
++
++    problem_report_buffer_printf(problem_report_get_buffer(pr, PR_SEC_SUMMARY), " - test");
++
++    assert_equal_strings(problem_report_get_summary(pr),
++                         "[abrt] libreport : Killed by SIGSEGV - test");
++
++
++    assert_equal_strings(problem_report_get_description(pr),
++            "Description:\nHello, world!\n");
++
++    problem_report_buffer_printf(problem_report_get_buffer(pr, PR_SEC_DESCRIPTION), "Test line\n");
++
++    assert_equal_strings(problem_report_get_description(pr),
++            "Description:\nHello, world!\nTest line\n");
++
++
++    assert_equal_strings(problem_report_get_section(pr, "additional_info"),
++            "User:\n"
++            "root:           /var/run/mock/abrt\n"
++            "user_name:      abrt\n"
++            );
++
++    problem_report_buffer_printf(problem_report_get_buffer(pr, "additional_info"), "uid:            42\n");
++
++    assert_equal_strings(problem_report_get_section(pr, "additional_info"),
++            "User:\n"
++            "root:           /var/run/mock/abrt\n"
++            "user_name:      abrt\n"
++            "uid:            42\n"
++            );
++
++
++    problem_report_free(pr);
++    problem_data_free(data);
++    problem_formatter_free(pf);
++
++    return 0;
++}
++]])
+diff --git a/tests/testsuite.at b/tests/testsuite.at
+index 392c3db..ccb37d1 100644
+--- a/tests/testsuite.at
++++ b/tests/testsuite.at
+@@ -17,6 +17,7 @@ m4_include([xml_definition.at])
+ m4_include([report_python.at])
+ m4_include([string_list.at])
+ m4_include([ureport.at])
++m4_include([problem_report.at])
+ m4_include([dump_dir.at])
+ m4_include([global_config.at])
+ m4_include([iso_date.at])
+-- 
+1.8.3.1
+

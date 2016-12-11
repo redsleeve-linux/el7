@@ -1,0 +1,157 @@
+From 829e708bf22e80373f1af167fbfb3e6b6bf8655e Mon Sep 17 00:00:00 2001
+From: Martin Babinsky <mbabinsk@redhat.com>
+Date: Mon, 18 Jul 2016 13:18:44 +0200
+Subject: [PATCH] allow 'value' output param in commands without primary key
+
+`PrimaryKey` output param works only for API objects that have primary keys,
+otherwise it expects None (nothing is associated with this param). Since the
+validation of command output was tightened durng thin client effort, some
+commands not honoring this contract began to fail output validation.
+
+A custom output was implemented for them to restore their functionality. It
+should however be considered as a fix for broken commands and not used
+further.
+
+https://fedorahosted.org/freeipa/ticket/6037
+https://fedorahosted.org/freeipa/ticket/6061
+
+Reviewed-By: Alexander Bokovoy <abokovoy@redhat.com>
+Reviewed-By: Jan Cholasta <jcholast@redhat.com>
+---
+ API.txt                         | 10 +++++-----
+ VERSION                         |  4 ++--
+ ipalib/output.py                | 10 ++++++++++
+ ipaserver/plugins/automember.py |  3 +++
+ ipaserver/plugins/trust.py      |  2 ++
+ 5 files changed, 22 insertions(+), 7 deletions(-)
+
+diff --git a/API.txt b/API.txt
+index eb33c1fb7f94f5af45ec0b38fc7e45e484a1044e..535d8ec9a4990395207e2455a09a8c1bdef5529a 100644
+--- a/API.txt
++++ b/API.txt
+@@ -144,7 +144,7 @@ option: StrEnum('type', values=[u'group', u'hostgroup'])
+ option: Str('version?')
+ output: Entry('result')
+ output: Output('summary', type=[<type 'unicode'>, <type 'NoneType'>])
+-output: PrimaryKey('value')
++output: Output('value', type=[<type 'unicode'>])
+ command: automember_default_group_set/1
+ args: 0,6,3
+ option: Flag('all', autofill=True, cli_name='all', default=False)
+@@ -155,7 +155,7 @@ option: StrEnum('type', values=[u'group', u'hostgroup'])
+ option: Str('version?')
+ output: Entry('result')
+ output: Output('summary', type=[<type 'unicode'>, <type 'NoneType'>])
+-output: PrimaryKey('value')
++output: Output('value', type=[<type 'unicode'>])
+ command: automember_default_group_show/1
+ args: 0,4,3
+ option: Flag('all', autofill=True, cli_name='all', default=False)
+@@ -164,7 +164,7 @@ option: StrEnum('type', values=[u'group', u'hostgroup'])
+ option: Str('version?')
+ output: Entry('result')
+ output: Output('summary', type=[<type 'unicode'>, <type 'NoneType'>])
+-output: PrimaryKey('value')
++output: Output('value', type=[<type 'unicode'>])
+ command: automember_del/1
+ args: 1,2,3
+ arg: Str('cn+', cli_name='automember_rule')
+@@ -5574,7 +5574,7 @@ option: StrEnum('trust_type', autofill=True, cli_name='type', default=u'ad', val
+ option: Str('version?')
+ output: Entry('result')
+ output: Output('summary', type=[<type 'unicode'>, <type 'NoneType'>])
+-output: PrimaryKey('value')
++output: Output('value', type=[<type 'unicode'>])
+ command: trustconfig_show/1
+ args: 0,5,3
+ option: Flag('all', autofill=True, cli_name='all', default=False)
+@@ -5584,7 +5584,7 @@ option: StrEnum('trust_type', autofill=True, cli_name='type', default=u'ad', val
+ option: Str('version?')
+ output: Entry('result')
+ output: Output('summary', type=[<type 'unicode'>, <type 'NoneType'>])
+-output: PrimaryKey('value')
++output: Output('value', type=[<type 'unicode'>])
+ command: trustdomain_add/1
+ args: 2,8,3
+ arg: Str('trustcn', cli_name='trust')
+diff --git a/VERSION b/VERSION
+index 0559741451a858dd0adfa99a8bf653261d771601..ca489965050f32d2d8987dfd251ec2b2a0ba1768 100644
+--- a/VERSION
++++ b/VERSION
+@@ -90,5 +90,5 @@ IPA_DATA_VERSION=20100614120000
+ #                                                      #
+ ########################################################
+ IPA_API_VERSION_MAJOR=2
+-IPA_API_VERSION_MINOR=210
+-# Last change: Add --ca option to cert-status
++IPA_API_VERSION_MINOR=211
++# Last change: mbabinsk: allow 'value' output param in commands without primary key
+diff --git a/ipalib/output.py b/ipalib/output.py
+index 19dd9adadeb8521caf9f0dc52981ce57a7f0c8b6..b104584631629f33280164dd1d23922d21ddea49 100644
+--- a/ipalib/output.py
++++ b/ipalib/output.py
+@@ -217,3 +217,13 @@ simple_value = (
+     Output('result', bool, _('True means the operation was successful')),
+     Output('value', unicode, flags=['no_display']),
+ )
++
++# custom shim for commands like `trustconfig-show`,
++# `automember-default-group-*` which put stuff into output['value'] despite not
++# having primary key themselves. Designing commands like this is not a very
++# good practice, so please do not use this for new code.
++simple_entry = (
++    summary,
++    Entry('result'),
++    Output('value', unicode, flags=['no_display']),
++)
+diff --git a/ipaserver/plugins/automember.py b/ipaserver/plugins/automember.py
+index dfa8498a6bd44352d854bff7f8eedaba8f731eef..8e9356a9d30c98b7c72735ffb9ac05c672546a0d 100644
+--- a/ipaserver/plugins/automember.py
++++ b/ipaserver/plugins/automember.py
+@@ -586,6 +586,7 @@ class automember_default_group_set(LDAPUpdate):
+         ),
+     ) + group_type
+     msg_summary = _('Set default (fallback) group for automember "%(value)s"')
++    has_output = output.simple_entry
+ 
+     def pre_callback(self, ldap, dn, entry_attrs, attrs_list, *keys, **options):
+         dn = DN(('cn', options['type']), api.env.container_automember,
+@@ -609,6 +610,7 @@ class automember_default_group_remove(LDAPUpdate):
+ 
+     takes_options = group_type
+     msg_summary = _('Removed default (fallback) group for automember "%(value)s"')
++    has_output = output.simple_entry
+ 
+     def pre_callback(self, ldap, dn, entry_attrs, attrs_list, *keys, **options):
+         dn = DN(('cn', options['type']), api.env.container_automember,
+@@ -644,6 +646,7 @@ class automember_default_group_show(LDAPRetrieve):
+     obj_name = 'automember_default_group'
+ 
+     takes_options = group_type
++    has_output = output.simple_entry
+ 
+     def pre_callback(self, ldap, dn, attrs_list, *keys, **options):
+         dn = DN(('cn', options['type']), api.env.container_automember,
+diff --git a/ipaserver/plugins/trust.py b/ipaserver/plugins/trust.py
+index 8536202b9b785507bd27b3c7b1896b721f8c5927..d4676bd57054043edd07da5ec3321d755babf35c 100644
+--- a/ipaserver/plugins/trust.py
++++ b/ipaserver/plugins/trust.py
+@@ -1288,6 +1288,7 @@ class trustconfig_mod(LDAPUpdate):
+ 
+     takes_options = LDAPUpdate.takes_options + (_trust_type_option,)
+     msg_summary = _('Modified "%(value)s" trust configuration')
++    has_output = output.simple_entry
+ 
+     def pre_callback(self, ldap, dn, entry_attrs, attrs_list, *keys, **options):
+         self.obj._normalize_groupdn(entry_attrs)
+@@ -1310,6 +1311,7 @@ class trustconfig_show(LDAPRetrieve):
+     __doc__ = _('Show global trust configuration.')
+ 
+     takes_options = LDAPRetrieve.takes_options + (_trust_type_option,)
++    has_output = output.simple_entry
+ 
+     def execute(self, *keys, **options):
+         result = super(trustconfig_show, self).execute(*keys, **options)
+-- 
+2.7.4
+

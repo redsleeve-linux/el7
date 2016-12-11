@@ -1,0 +1,47 @@
+From c6e54a5eaacab21a56c41c4b138e800f6aa15faf Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Tue, 8 Dec 2015 16:33:31 +0100
+Subject: [PATCH] lib: check_recent_crash_file do not produce error_msg
+
+Regarding to the desire to unite log messages in abrt-hook-ccpp,
+we need to erase loging from check_recent_crash_file() function and let the
+loging on caller of the function.
+
+Related to rhbz#1337186
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/daemon/abrt-server.c          | 3 +++
+ src/lib/check_recent_crash_file.c | 1 -
+ 2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/daemon/abrt-server.c b/src/daemon/abrt-server.c
+index a0faef6..9a1361b 100644
+--- a/src/daemon/abrt-server.c
++++ b/src/daemon/abrt-server.c
+@@ -885,7 +885,10 @@ static int perform_http_xact(void)
+         int repeating_crash = check_recent_crash_file(last_file, executable);
+         free(last_file);
+         if (repeating_crash) /* Only pretend that we saved it */
++        {
++            error_msg("Not saving repeating crash in '%s'", executable);
+             goto out; /* ret is 0: "success" */
++        }
+     }
+ 
+ #if 0
+diff --git a/src/lib/check_recent_crash_file.c b/src/lib/check_recent_crash_file.c
+index 63db260..2df6aff 100644
+--- a/src/lib/check_recent_crash_file.c
++++ b/src/lib/check_recent_crash_file.c
+@@ -44,7 +44,6 @@ int check_recent_crash_file(const char *filename, const char *executable)
+             buf[sz] = '\0';
+             if (strcmp(executable, buf) == 0)
+             {
+-                error_msg("Not saving repeating crash in '%s'", executable);
+                 close(fd);
+                 return 1;
+             }
+-- 
+1.8.3.1
+

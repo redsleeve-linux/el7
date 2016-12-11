@@ -1,0 +1,51 @@
+From 90b827a6d23d864bfac96d2ff0f89f1a3ba1d245 Mon Sep 17 00:00:00 2001
+From: Stanislav Laznicka <slaznick@redhat.com>
+Date: Fri, 12 Aug 2016 11:59:41 +0200
+Subject: [PATCH] Fail on topology disconnect/last role removal
+
+Disconnecting topology/removing last-role-host during server
+uninstallation should raise error rather than just being logged
+if the appropriate ignore settings are not present.
+
+https://fedorahosted.org/freeipa/ticket/6168
+
+Reviewed-By: Martin Babinsky <mbabinsk@redhat.com>
+---
+ ipaserver/install/server/install.py | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/ipaserver/install/server/install.py b/ipaserver/install/server/install.py
+index 94698898934844350488d5fc52d6e1e567624502..86b8402750b503ea7dacd1f4c59c82d9bd4082e6 100644
+--- a/ipaserver/install/server/install.py
++++ b/ipaserver/install/server/install.py
+@@ -25,6 +25,7 @@ from ipapython.ipa_log_manager import root_logger
+ from ipapython.ipautil import (
+     decrypt_file, format_netloc, ipa_generate_password, run, user_input,
+     is_fips_enabled)
++from ipapython.admintool import ScriptError
+ from ipaplatform import services
+ from ipaplatform.paths import paths
+ from ipaplatform.tasks import tasks
+@@ -294,7 +295,6 @@ def common_cleanup(func):
+ def remove_master_from_managed_topology(api_instance, options):
+     try:
+         # we may force the removal
+-        # if the master was already deleted we will just get a warning
+         server_del_options = dict(
+             force=True,
+             ignore_topology_disconnect=options.ignore_topology_disconnect,
+@@ -303,8 +303,10 @@ def remove_master_from_managed_topology(api_instance, options):
+ 
+         replication.run_server_del_as_cli(
+             api_instance, api_instance.env.host, **server_del_options)
+-
++    except errors.ServerRemovalError as e:
++        raise ScriptError(str(e))
+     except Exception as e:
++        # if the master was already deleted we will just get a warning
+         root_logger.warning("Failed to delete master: {}".format(e))
+ 
+ 
+-- 
+2.9.3
+

@@ -1,0 +1,28 @@
+From 58beaa6926d739ab0219f9a1d9e967f8b56590ea Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Tue, 5 May 2015 14:50:22 +0200
+Subject: [LIBREPORT PATCH] dd: fix a warning in printf for st_nlink
+
+nlink_t cannot be automatically casted to unsigned long on s390
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/lib/dump_dir.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib/dump_dir.c b/src/lib/dump_dir.c
+index a0e96e4..04caa06 100644
+--- a/src/lib/dump_dir.c
++++ b/src/lib/dump_dir.c
+@@ -141,7 +141,7 @@ int secure_openat_read(int dir_fd, const char *pathname)
+ 
+     if (!S_ISREG(path_sb.st_mode) || path_sb.st_nlink > 1)
+     {
+-        log_notice("Path isn't a regular file or has more links (%lu)", path_sb.st_nlink);
++        log_notice("Path isn't a regular file or has more links (%lu)", (unsigned long)path_sb.st_nlink);
+         errno = EINVAL;
+         close(path_fd);
+         return -1;
+-- 
+1.8.3.1
+

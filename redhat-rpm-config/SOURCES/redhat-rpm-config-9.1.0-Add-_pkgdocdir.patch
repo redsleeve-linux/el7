@@ -1,0 +1,26 @@
+From e606f56f34f55900ef4d52fd273192425fe50ba5 Mon Sep 17 00:00:00 2001
+From: Kevin Fenzi <kevin@scrye.com>
+Date: Wed, 24 Jul 2013 16:20:05 -0600
+Subject: [PATCH] Make docdirs unversioned on Fedora 20+ (#986871)
+
+Add macros but keep it versioned for RHEL 7
+---
+ macros | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/macros b/macros
+index 6994751..3776e60 100644
+--- a/macros
++++ b/macros
+@@ -18,6 +18,8 @@
+ %_mandir		%{_prefix}/share/man
+ 
+ %_defaultdocdir		%{_prefix}/share/doc
++%_pkgdocdir             %{_docdir}/%{name}
++%_docdir_fmt            %%{NAME}-%%{VERSION}
+ 
+ %_fmoddir		%{_libdir}/gfortran/modules
+ 
+-- 
+2.5.5
+

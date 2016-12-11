@@ -1,0 +1,64 @@
+diff -up ./nss/lib/softoken/fipstokn.c.allow_level1_init ./nss/lib/softoken/fipstokn.c
+--- ./nss/lib/softoken/fipstokn.c.allow_level1_init	2014-11-04 13:49:38.110171007 -0800
++++ ./nss/lib/softoken/fipstokn.c	2014-11-04 14:22:55.241646058 -0800
+@@ -595,8 +595,14 @@ CK_RV FC_GetSlotInfo(CK_SLOT_ID slotID,
+     CHECK_FORK();
+ 
+     if (sftk_fatalError) return CKR_DEVICE_ERROR;
+-    if ((rv = sftk_newPinCheck(pPin,ulPinLen)) == CKR_OK) {
++    /* NSC_InitPIN will only work once per database. We can either initialize
++     * it to level1 (pin len == 0) or level2. If we initialize to level 2, then
++     * we need to make sure the pin meets FIPS requirements */
++    if ((ulPinLen== 0) || ((rv = sftk_newPinCheck(pPin,ulPinLen)) == CKR_OK)) {
+ 	rv = NSC_InitPIN(hSession,pPin,ulPinLen);
++	if (rv == CKR_OK) {
++	    isLevel2 = (ulPinLen > 0) ? PR_TRUE : PR_FALSE;
++	}
+     }
+     if (sftk_audit_enabled) {
+ 	char msg[128];
+@@ -622,6 +628,12 @@ CK_RV FC_GetSlotInfo(CK_SLOT_ID slotID,
+     if ((rv = sftk_fipsCheck()) == CKR_OK &&
+ 	(rv = sftk_newPinCheck(pNewPin,usNewLen)) == CKR_OK) {
+ 	rv = NSC_SetPIN(hSession,pOldPin,usOldLen,pNewPin,usNewLen);
++	if (rv == CKR_OK) {
++	    /* if we set the password in level1 we now go
++	     * to level2. NOTE: we don't allow the user to
++	     * go from level2 to level1 */
++	    isLevel2 = PR_TRUE; 
++	}
+     }
+     if (sftk_audit_enabled) {
+ 	char msg[128];
+diff -up ./nss/lib/softoken/pkcs11.c.allow_level1_init ./nss/lib/softoken/pkcs11.c
+--- ./nss/lib/softoken/pkcs11.c.allow_level1_init	2014-11-04 13:49:38.178172148 -0800
++++ ./nss/lib/softoken/pkcs11.c	2014-11-04 14:21:06.712827288 -0800
+@@ -2444,7 +2444,12 @@ SFTK_SlotReInit(SFTKSlot *slot, char *co
+ 	if ((slot->minimumPinLen == 0) && (params->pwRequired)) {
+ 	    slot->minimumPinLen = 1;
+ 	}
+-	if ((moduleIndex == NSC_FIPS_MODULE) &&
++	/* Make sure the pin len is set to the Minimum allowed value for fips
++  	 * when in FIPS mode. NOTE: we don't set it if the database has not
++  	 * been initialized yet so that we can init into level1 mode if needed
++  	 */
++	if ((sftkdb_HasPasswordSet(slot->keyDB) == SECSuccess) && 
++		(moduleIndex == NSC_FIPS_MODULE) &&
+ 		(slot->minimumPinLen < FIPS_MIN_PIN)) {
+ 	    slot->minimumPinLen = FIPS_MIN_PIN;
+ 	}
+@@ -3576,6 +3581,14 @@ CK_RV NSC_InitPIN(CK_SESSION_HANDLE hSes
+     /* Now update our local copy of the pin */
+     if (rv == SECSuccess) {
+ 	if (ulPinLen == 0) slot->needLogin = PR_FALSE;
++	/* database has been initialized, now force min password in FIPS
++  	 * mode. NOTE: if we are in level1, we may not have a password, but
++  	 * forcing it now will prevent an insufficient password from being set.
++  	 */
++	if ((sftk_GetModuleIndex(slot->slotID) == NSC_FIPS_MODULE) &&
++		(slot->minimumPinLen < FIPS_MIN_PIN)) {
++	    slot->minimumPinLen = FIPS_MIN_PIN;
++	}
+ 	return CKR_OK;
+     }
+     crv = CKR_PIN_INCORRECT;

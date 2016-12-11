@@ -1,0 +1,27 @@
+diff --git a/support/ab.c b/support/ab.c
+index bf76406..80c1b74 100644
+--- a/support/ab.c
++++ b/support/ab.c
+@@ -1346,11 +1346,21 @@ static void read_connection(struct connection * c)
+                      && good == 0) {
+                 return;
+             }
++            else if (scode == SSL_ERROR_SYSCALL
++                     && status == 0
++                     && c->read != 0) {
++                /* connection closed, but in violation of the protocol, after
++                 * some data has already been read; this commonly happens, so
++                 * let the length check catch any response errors
++                 */
++                good++;
++                close_connection(c);
++            }
+             else if (scode != SSL_ERROR_WANT_WRITE
+                      && scode != SSL_ERROR_WANT_READ) {
+                 /* some fatal error: */
+                 c->read = 0;
+-                BIO_printf(bio_err, "SSL read failed (%d) - closing connection\n", scode);
++                BIO_printf(bio_err, "SSL read failed (%d) - closing connection\n", scode);
+                 ERR_print_errors(bio_err);
+                 close_connection(c);
+             }

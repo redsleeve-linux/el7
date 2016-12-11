@@ -1,0 +1,14 @@
+diff -uNrp dhcp-4.1.1-P1.orig/omapip/errwarn.c dhcp-4.1.1-P1/omapip/errwarn.c
+--- dhcp-4.1.1-P1.orig/omapip/errwarn.c 2012-08-15 14:04:33.149141000 +0000
++++ dhcp-4.1.1-P1/omapip/errwarn.c      2012-08-15 14:13:05.582416057 +0000
+@@ -81,8 +81,8 @@ void log_fatal (const char * fmt, ... )
+   log_error ("have been made to the base software release in order to make");
+   log_error ("it work better with this distribution.");
+   log_error ("%s", "");
+-  log_error ("Please report for this software via the Red Hat Bugzilla site:");
+-  log_error ("    http://bugzilla.redhat.com");
++  log_error ("Please report for this software via the CentOS Bugs Database:");
++  log_error ("    http://bugs.centos.org/");
+   log_error ("%s", "");
+   log_error ("exiting.");
+ #endif

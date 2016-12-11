@@ -1,0 +1,108 @@
+From b4379865f019888e3e0c6480e7ba02711168b17a Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Tue, 23 Sep 2014 16:12:33 +0200
+Subject: [LIBREPORT PATCH 85/93] ureport: provide default URLs
+
+We have two general use cases:
+1. Completely anonymous uReporting
+2. Authenticated uReporting
+
+For good security reasons, we have to use a standalone server for each of
+these use cases and this requirement complicates the configuration.
+Users would have to change two options to switch between these two
+configurations.
+
+The configuration can be simplified by providing default URL for both of
+them and single out the URL according to state of the "SSLClientAuth"
+configuration option.
+
+1. Completely anonymous uReporting
+  - empty "SSLClientAuth"
+
+2. Authenticated uReporting
+  - "rhsm" or "rhsm-entitlement" in "SSLClientAuth"
+
+Related to rhbz#1140224
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/lib/ureport.c              | 9 +++++++++
+ src/plugins/reporter-ureport.c | 4 +++-
+ src/plugins/ureport.conf       | 2 +-
+ 3 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib/ureport.c b/src/lib/ureport.c
+index 26f3562..1a1520a 100644
+--- a/src/lib/ureport.c
++++ b/src/lib/ureport.c
+@@ -30,6 +30,8 @@
+ 
+ #define BTHASH_URL_SFX "reports/bthash/"
+ 
++#define RHSM_WEB_SERVICE_URL "https://api.access.redhat.com/rs/telemetry/abrt"
++
+ #define RHSM_CERT_PATH "/etc/pki/consumer/cert.pem"
+ #define RHSM_KEY_PATH "/etc/pki/consumer/key.pem"
+ 
+@@ -39,6 +41,7 @@
+ #define RHSMENT_SIG_DATA_BEGIN_TAG "-----BEGIN RSA SIGNATURE-----"
+ #define RHSMENT_SIG_DATA_END_TAG "-----END RSA SIGNATURE-----"
+ 
++
+ static char *
+ puppet_config_print(const char *key)
+ {
+@@ -88,11 +91,17 @@ ureport_server_config_set_client_auth(struct ureport_server_config *config,
+     }
+     else if (strcmp(client_auth, "rhsm") == 0)
+     {
++        if (config->ur_url == NULL)
++            ureport_server_config_set_url(config, xstrdup(RHSM_WEB_SERVICE_URL));
++
+         config->ur_client_cert = xstrdup(RHSM_CERT_PATH);
+         config->ur_client_key = xstrdup(RHSM_KEY_PATH);
+     }
+     else if (strcmp(client_auth, "rhsm-entitlement") == 0)
+     {
++        if (config->ur_url == NULL)
++            ureport_server_config_set_url(config, xstrdup(RHSM_WEB_SERVICE_URL));
++
+         GList *certs = get_file_list(RHSMENT_PEM_DIR_PATH, "pem");
+         if (g_list_length(certs) != 2)
+         {
+diff --git a/src/plugins/reporter-ureport.c b/src/plugins/reporter-ureport.c
+index 06b5341..f15d56d 100644
+--- a/src/plugins/reporter-ureport.c
++++ b/src/plugins/reporter-ureport.c
+@@ -22,6 +22,8 @@
+ #include "ureport.h"
+ #include "libreport_curl.h"
+ 
++#define DEFAULT_WEB_SERVICE_URL "http://bug-report.itos.redhat.com"
++
+ int main(int argc, char **argv)
+ {
+     setlocale(LC_ALL, "");
+@@ -112,7 +114,7 @@ int main(int argc, char **argv)
+     }
+ 
+     if (!config.ur_url)
+-        error_msg_and_die("You need to specify server URL");
++        ureport_server_config_set_url(&config, xstrdup(DEFAULT_WEB_SERVICE_URL));
+ 
+     if (ureport_hash && ureport_hash_from_rt)
+         error_msg_and_die("You need to pass either -a bthash or -A");
+diff --git a/src/plugins/ureport.conf b/src/plugins/ureport.conf
+index fc0dc21..a20695d 100644
+--- a/src/plugins/ureport.conf
++++ b/src/plugins/ureport.conf
+@@ -1,5 +1,5 @@
+ # Base URL to uReport server
+-URL = http://bug-report.itos.redhat.com
++# URL = http://bug-report.itos.redhat.com
+ 
+ # no means that ssl certificates will not be checked
+ # SSLVerify = no
+-- 
+1.8.3.1
+

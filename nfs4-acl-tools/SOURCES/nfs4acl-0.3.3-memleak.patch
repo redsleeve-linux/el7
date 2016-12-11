@@ -1,0 +1,20 @@
+the memory of nfs4_acl should be freed before exiting from 'nfs4_getfacl'.
+
+Signed-off-by: Yu Zhiguo <yuzg@cn.fujitsu.com>
+---
+ nfs4_getfacl/nfs4_getfacl.c |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+
+diff --git a/nfs4_getfacl/nfs4_getfacl.c b/nfs4_getfacl/nfs4_getfacl.c
+index c6ffe54..5363096 100644
+--- a/nfs4_getfacl/nfs4_getfacl.c
++++ b/nfs4_getfacl/nfs4_getfacl.c
+@@ -71,6 +71,7 @@ int main(int argc, char **argv)
+ 	acl = nfs4_acl_for_path(argv[1]);
+ 	if (acl != NULL) {
+ 		nfs4_print_acl(stdout, acl);
++		nfs4_free_acl(acl);
+ 		res = 0;
+ 	}
+ out:
+

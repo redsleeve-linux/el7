@@ -1,0 +1,43 @@
+From 70ec9193404463ad62ee6fe14a033425906e6b13 Mon Sep 17 00:00:00 2001
+From: Jan Cholasta <jcholast@redhat.com>
+Date: Tue, 23 Aug 2016 10:39:08 +0200
+Subject: [PATCH] custodia: include known CA certs in the PKCS#12 file for
+ Dogtag
+
+This fixes CA replica install in a topology upgraded from CA-less to
+CA-full.
+
+https://fedorahosted.org/freeipa/ticket/6207
+
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+---
+ ipaserver/install/custodiainstance.py | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/ipaserver/install/custodiainstance.py b/ipaserver/install/custodiainstance.py
+index 785f86fc159f2d73184ea5bb3c0303cecde153df..18bd51426cde09af6a34855a49db386a72cc6b9c 100644
+--- a/ipaserver/install/custodiainstance.py
++++ b/ipaserver/install/custodiainstance.py
+@@ -2,6 +2,7 @@
+ 
+ from ipapython.secrets.kem import IPAKEMKeys
+ from ipapython.secrets.client import CustodiaClient
++from ipaserver.install.certs import CertDB
+ from ipaplatform.paths import paths
+ from ipaplatform.constants import constants
+ from ipaserver.install.service import SimpleServiceInstance
+@@ -154,6 +155,11 @@ class CustodiaInstance(SimpleServiceInstance):
+                              '-i', pk12file,
+                              '-w', pk12pwfile])
+ 
++            # Add CA certificates
++            tmpdb = CertDB(self.realm, nssdir=tmpnssdir)
++            self.suffix = ipautil.realm_to_suffix(self.realm)
++            self.import_ca_certs(tmpdb, True)
++
+             # Now that we gathered all certs, re-export
+             ipautil.run([paths.PKCS12EXPORT,
+                          '-d', tmpnssdir,
+-- 
+2.7.4
+

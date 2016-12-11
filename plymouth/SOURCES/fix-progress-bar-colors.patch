@@ -1,0 +1,88 @@
+From 167e74e56df055f419c960657eb66d73802a54f1 Mon Sep 17 00:00:00 2001
+From: Ray Strode <rstrode@redhat.com>
+Date: Mon, 20 Jun 2016 11:06:49 -0400
+Subject: [PATCH] drm: don't pick up drm master implicitly
+
+If a client opens the drm device, they're given drm master
+implicitly. We already explicitly take DRM master when we need it,
+so that featuer is unneeded.
+
+Furthermore, it's actively harmful, since fbdev won't let you change
+the color palette of the terminal if drm master is held.
+
+This commit makes sure to drop master as soon as we get it from
+open().
+---
+ src/plugins/renderers/drm/plugin.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/plugins/renderers/drm/plugin.c b/src/plugins/renderers/drm/plugin.c
+index 6677279..ebfe864 100644
+--- a/src/plugins/renderers/drm/plugin.c
++++ b/src/plugins/renderers/drm/plugin.c
+@@ -462,60 +462,62 @@ load_driver (ply_renderer_backend_t *backend)
+   int device_fd;
+ 
+   ply_trace ("Opening '%s'", backend->device_name);
+   device_fd = open (backend->device_name, O_RDWR);
+ 
+   if (device_fd < 0)
+     {
+       ply_trace ("open failed: %m");
+       return false;
+     }
+ 
+   backend->driver_interface = ply_renderer_generic_driver_get_interface (device_fd);
+   backend->driver_supports_mapping_console = false;
+ 
+   if (backend->driver_interface == NULL)
+     {
+       close (device_fd);
+       return false;
+     }
+ 
+   backend->driver = backend->driver_interface->create_driver (device_fd);
+ 
+   if (backend->driver == NULL)
+     {
+       close (device_fd);
+       return false;
+     }
+ 
+   backend->device_fd = device_fd;
+ 
++  drmDropMaster (device_fd);
++
+   return true;
+ }
+ 
+ static void
+ unload_driver (ply_renderer_backend_t *backend)
+ {
+   if (backend->driver == NULL)
+     return;
+ 
+   ply_trace ("unloading driver");
+   assert (backend->driver_interface != NULL);
+ 
+   backend->driver_interface->destroy_driver (backend->driver);
+   backend->driver = NULL;
+ 
+   backend->driver_interface = NULL;
+ 
+   if (backend->device_fd >= 0)
+     {
+       drmClose (backend->device_fd);
+       backend->device_fd = -1;
+     }
+ }
+ 
+ static bool
+ open_device (ply_renderer_backend_t *backend)
+ {
+   assert (backend != NULL);
+   assert (backend->device_name != NULL);
+ 
+-- 
+2.7.4
+

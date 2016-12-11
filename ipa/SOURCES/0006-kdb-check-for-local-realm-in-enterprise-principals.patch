@@ -1,0 +1,89 @@
+From ed178aad6751ea7673d8e730bd5a6709921a1ff0 Mon Sep 17 00:00:00 2001
+From: Sumit Bose <sbose@redhat.com>
+Date: Wed, 6 Jul 2016 17:29:37 +0200
+Subject: [PATCH] kdb: check for local realm in enterprise principals
+
+Reviewed-By: Martin Babinsky <mbabinsk@redhat.com>
+Reviewed-By: Jakub Hrozek <jhrozek@redhat.com>
+---
+ daemons/ipa-kdb/ipa_kdb_principals.c | 52 +++++++++++++++++++++++++++---------
+ 1 file changed, 40 insertions(+), 12 deletions(-)
+
+diff --git a/daemons/ipa-kdb/ipa_kdb_principals.c b/daemons/ipa-kdb/ipa_kdb_principals.c
+index 6cdfa909452a4b55912b2a5a74648abd2053482a..5b80909475565d6bb4fa8cba67629094daf51eb3 100644
+--- a/daemons/ipa-kdb/ipa_kdb_principals.c
++++ b/daemons/ipa-kdb/ipa_kdb_principals.c
+@@ -1198,30 +1198,58 @@ krb5_error_code ipadb_get_principal(krb5_context kcontext,
+             /* skip '@' and use part after '@' as an enterprise realm for comparison */
+             realm++;
+ 
+-            kerr = ipadb_is_princ_from_trusted_realm(kcontext,
+-                                                     realm,
+-                                                     upn->length - (realm - upn->data),
+-                                                     &trusted_realm);
+-            if (kerr == 0) {
+-                kentry = calloc(1, sizeof(krb5_db_entry));
+-                if (!kentry) {
++            /* check for our realm */
++            if (strncasecmp(ipactx->realm, realm,
++                            upn->length - (realm - upn->data)) == 0) {
++                /* it looks like it is ok to use malloc'ed strings as principal */
++                krb5_free_unparsed_name(kcontext, principal);
++                principal = strndup((const char *) upn->data, upn->length);
++                if (principal == NULL) {
+                     kerr = ENOMEM;
+                     goto done;
+                 }
+-                kerr = krb5_parse_name(kcontext, principal,
+-                                       &kentry->princ);
++
++                ldap_msgfree(res);
++                res = NULL;
++                kerr = ipadb_fetch_principals(ipactx, flags, principal, &res);
+                 if (kerr != 0) {
+                     goto done;
+                 }
+ 
+-                kerr = krb5_set_principal_realm(kcontext, kentry->princ, trusted_realm);
++                kerr = ipadb_find_principal(kcontext, flags, res, &principal,
++                                            &lentry);
+                 if (kerr != 0) {
+                     goto done;
+                 }
+-                *entry = kentry;
++            } else {
++
++                kerr = ipadb_is_princ_from_trusted_realm(kcontext,
++                                                         realm,
++                                                         upn->length - (realm - upn->data),
++                                                         &trusted_realm);
++                if (kerr == 0) {
++                    kentry = calloc(1, sizeof(krb5_db_entry));
++                    if (!kentry) {
++                        kerr = ENOMEM;
++                        goto done;
++                    }
++                    kerr = krb5_parse_name(kcontext, principal,
++                                           &kentry->princ);
++                    if (kerr != 0) {
++                        goto done;
++                    }
++
++                    kerr = krb5_set_principal_realm(kcontext, kentry->princ, trusted_realm);
++                    if (kerr != 0) {
++                        goto done;
++                    }
++                    *entry = kentry;
++                }
++                goto done;
+             }
++        } else {
++            goto done;
+         }
+-        goto done;
+     }
+ 
+     kerr = ipadb_parse_ldap_entry(kcontext, principal, lentry, entry, &pol);
+-- 
+2.4.3
+

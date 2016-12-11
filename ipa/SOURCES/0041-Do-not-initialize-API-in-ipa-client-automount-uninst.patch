@@ -1,0 +1,41 @@
+From c92d242a215c7fb312aaeb07dd02f5783aec1817 Mon Sep 17 00:00:00 2001
+From: Martin Basti <mbasti@redhat.com>
+Date: Thu, 28 Jul 2016 09:47:39 +0200
+Subject: [PATCH] Do not initialize API in ipa-client-automount uninstall
+
+API is not needed in uninstallation, it may only produce errors.
+
+https://fedorahosted.org/freeipa/ticket/6072
+
+Reviewed-By: Florence Blanc-Renaud <frenaud@redhat.com>
+---
+ client/ipa-client-automount | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/client/ipa-client-automount b/client/ipa-client-automount
+index f06aa7f8d53ba2528bc2c023792771d5fd341e7c..08209c849f155a8394acddc6bb961be8fa68073c 100755
+--- a/client/ipa-client-automount
++++ b/client/ipa-client-automount
+@@ -378,6 +378,9 @@ def main():
+         paths.IPACLIENT_INSTALL_LOG, verbose=False, debug=options.debug,
+         filemode='a', console_format='%(message)s')
+ 
++    if options.uninstall:
++        return uninstall(fstore, statestore)
++
+     cfg = dict(
+         context='cli_installer',
+         in_server=False,
+@@ -392,9 +395,6 @@ def main():
+     if os.path.exists(paths.IPA_CA_CRT):
+         ca_cert_path = paths.IPA_CA_CRT
+ 
+-    if options.uninstall:
+-        return uninstall(fstore, statestore)
+-
+     if statestore.has_state('autofs'):
+         sys.exit('automount is already configured on this system.\n')
+ 
+-- 
+2.7.4
+

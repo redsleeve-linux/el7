@@ -1,0 +1,321 @@
+From 9be0992e4b6e459ba64c9f2433a5a022dd0b21fa Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Thu, 24 Mar 2016 16:04:25 +0100
+Subject: [PATCH] Add workflow for RHEL anonymous report
+
+Make name and descritpion of RHEL's workflow more obvious.
+
+Related: #1258482
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ doc/Makefile.am                              |  1 +
+ doc/report_uReport.conf.txt                  | 41 ++++++++++++++++++++++++++++
+ po/POTFILES.in                               |  1 +
+ src/plugins/report_RHTSupport.xml.in         | 11 ++++----
+ src/plugins/report_uReport.xml.in            | 11 ++++----
+ src/workflows/Makefile.am                    |  3 ++
+ src/workflows/report_uReport.conf            |  3 ++
+ src/workflows/workflow_RHELCCpp.xml.in       |  4 +--
+ src/workflows/workflow_RHELJava.xml.in       |  4 +--
+ src/workflows/workflow_RHELKerneloops.xml.in |  4 +--
+ src/workflows/workflow_RHELLibreport.xml.in  |  4 +--
+ src/workflows/workflow_RHELPython.xml.in     |  4 +--
+ src/workflows/workflow_RHELvmcore.xml.in     |  4 +--
+ src/workflows/workflow_RHELxorg.xml.in       |  4 +--
+ src/workflows/workflow_uReport.xml.in        |  9 ++++++
+ 15 files changed, 84 insertions(+), 24 deletions(-)
+ create mode 100644 doc/report_uReport.conf.txt
+ create mode 100644 src/workflows/report_uReport.conf
+ create mode 100644 src/workflows/workflow_uReport.xml.in
+
+diff --git a/doc/Makefile.am b/doc/Makefile.am
+index da4785e..9376984 100644
+--- a/doc/Makefile.am
++++ b/doc/Makefile.am
+@@ -48,6 +48,7 @@ MAN5_TXT += report_fedora.conf.txt
+ MAN5_TXT += report_Logger.conf.txt
+ MAN5_TXT += report_rhel.conf.txt
+ MAN5_TXT += report_rhel_bugzilla.conf.txt
++MAN5_TXT += report_uReport.conf.txt
+ MAN5_TXT += report_logger.conf.txt
+ MAN5_TXT += report_mailx.conf.txt
+ MAN5_TXT += report_uploader.conf.txt
+diff --git a/doc/report_uReport.conf.txt b/doc/report_uReport.conf.txt
+new file mode 100644
+index 0000000..07fa836
+--- /dev/null
++++ b/doc/report_uReport.conf.txt
+@@ -0,0 +1,41 @@
++report_uReport.conf(5)
++======================
++
++NAME
++----
++report_uReport.conf - configuration file for libreport.
++
++DESCRIPTION
++-----------
++This configuration file specifies which of the reporting work flow definitions
++are applicable for all problems types on Red Hat Enterprise Linux.
++
++All applicable work flows are presented to users in User Interface as
++possibilities for processing of any problems. A particular work flow becomes
++applicable if its conditions are satisfied.
++
++This configuration file consists from one condition per line.
++
++Each condition line must start with EVENT=workflow_NAME where "workflow_" is
++constant prefix and "workflow_NAME" is base name of path to reporting work flow
++configuration file.
++
++The rest of condition line has form VAR=VAL, VAR!=VAL or VAL~=REGEX, where VAR
++is a name of problem directory element to be checked (for example,
++"executable", "package", hostname" etc). The condition may consists
++from as many element checks as it is necessary.
++
++EXAMPLES
++--------
++Condition line::
++    EVENT=workflow_uReport
++
++The condition line above expects existence of /usr/share/libreport/workflows/workflow_uReport.xml
++
++SEE ALSO
++--------
++report-gtk(1)
++
++AUTHOR
++------
++* ABRT team
+diff --git a/po/POTFILES.in b/po/POTFILES.in
+index 1222c95..d843de1 100644
+--- a/po/POTFILES.in
++++ b/po/POTFILES.in
+@@ -64,6 +64,7 @@ src/workflows/workflow_MailxCCpp.xml.in
+ src/workflows/workflow_Mailx.xml.in
+ src/workflows/workflow_UploadCCpp.xml.in
+ src/workflows/workflow_Upload.xml.in
++src/workflows/workflow_uReport.xml.in
+ src/workflows/workflow_RHELCCpp.xml.in
+ src/workflows/workflow_RHELKerneloops.xml.in
+ src/workflows/workflow_RHELPython.xml.in
+diff --git a/src/plugins/report_RHTSupport.xml.in b/src/plugins/report_RHTSupport.xml.in
+index b7a7872..60e18d9 100644
+--- a/src/plugins/report_RHTSupport.xml.in
++++ b/src/plugins/report_RHTSupport.xml.in
+@@ -4,6 +4,7 @@
+     <_description>Report to Red Hat support</_description>
+ 
+     <requires-items>package</requires-items>
++    <requires-details>yes</requires-details>
+     <exclude-items-by-default>count,event_log,vmcore</exclude-items-by-default>
+     <exclude-items-always></exclude-items-always>
+     <exclude-binary-items>no</exclude-binary-items>
+@@ -24,11 +25,6 @@
+             <_description>Red Hat customer password</_description>
+             <allow-empty>no</allow-empty>
+         </option>
+-        <option type="bool" name="RHTSupport_SSLVerify">
+-            <_label>Verify SSL</_label>
+-            <_description>Check SSL key validity</_description>
+-            <default-value>yes</default-value>
+-        </option>
+         <advanced-options>
+             <option type="bool" name="RHTSupport_SubmitUReport">
+                 <_label>Submit uReport</_label>
+@@ -41,6 +37,11 @@
+                 <_description>Address of the Red Hat support portal</_description>
+                 <default-value>https://api.access.redhat.com/rs</default-value>
+             </option>
++            <option type="bool" name="RHTSupport_SSLVerify">
++                <_label>Verify SSL</_label>
++                <_description>Check SSL key validity</_description>
++                <default-value>yes</default-value>
++            </option>
+             <option type="text" name="http_proxy">
+                 <_label>HTTP Proxy</_label>
+                 <allow-empty>yes</allow-empty>
+diff --git a/src/plugins/report_uReport.xml.in b/src/plugins/report_uReport.xml.in
+index 63dfc22..b997851 100644
+--- a/src/plugins/report_uReport.xml.in
++++ b/src/plugins/report_uReport.xml.in
+@@ -5,6 +5,7 @@
+ 
+     <requires-items>analyzer,reason,executable,pkg_epoch,pkg_name,pkg_version,pkg_release,pkg_arch,os_release,architecture,core_backtrace</requires-items>
+     <gui-review-elements>no</gui-review-elements>
++    <minimal-rating>0</minimal-rating>
+ 
+     <options>
+         <option type="text" name="uReport_URL">
+@@ -18,12 +19,12 @@
+             <_description>Email address that can be used by ABRT server to inform you about news and updates</_description>
+             <allow-empty>yes</allow-empty>
+         </option>
+-        <option type="bool" name="uReport_SSLVerify">
+-            <_label>Verify SSL</_label>
+-            <_description>Check SSL key validity</_description>
+-            <default-value>yes</default-value>
+-        </option>
+         <advanced-options>
++            <option type="bool" name="uReport_SSLVerify">
++                <_label>Verify SSL</_label>
++                <_description>Check SSL key validity</_description>
++                <default-value>yes</default-value>
++            </option>
+             <option type="text" name="http_proxy">
+                 <_label>HTTP Proxy</_label>
+                 <allow-empty>yes</allow-empty>
+diff --git a/src/workflows/Makefile.am b/src/workflows/Makefile.am
+index 0fc1019..72502ca 100644
+--- a/src/workflows/Makefile.am
++++ b/src/workflows/Makefile.am
+@@ -15,6 +15,7 @@ dist_workflows_DATA = \
+     workflow_RHELxorg.xml \
+     workflow_RHELLibreport.xml \
+     workflow_RHELJava.xml \
++    workflow_uReport.xml \
+     workflow_Mailx.xml \
+     workflow_MailxCCpp.xml \
+     workflow_Upload.xml \
+@@ -42,6 +43,7 @@ workflowsdefdir = $(WORKFLOWS_DEFINITION_DIR)
+ dist_workflowsdef_DATA =\
+     report_fedora.conf \
+     report_rhel.conf \
++    report_uReport.conf \
+     report_mailx.conf \
+     report_logger.conf \
+     report_uploader.conf
+@@ -62,6 +64,7 @@ EXTRA_DIST = \
+     workflow_FedoraXorg.xml.in \
+     workflow_FedoraLibreport.xml.in \
+     workflow_FedoraJava.xml.in \
++    workflow_uReport.xml.in \
+     workflow_RHELCCpp.xml.in \
+     workflow_RHELKerneloops.xml.in \
+     workflow_RHELPython.xml.in \
+diff --git a/src/workflows/report_uReport.conf b/src/workflows/report_uReport.conf
+new file mode 100644
+index 0000000..8d76d5a
+--- /dev/null
++++ b/src/workflows/report_uReport.conf
+@@ -0,0 +1,3 @@
++EVENT=workflow_uReport
++# this is just a meta event which consists of other events
++# the list is defined in the xml file
+diff --git a/src/workflows/workflow_RHELCCpp.xml.in b/src/workflows/workflow_RHELCCpp.xml.in
+index 4d0251a..95e1ad0 100644
+--- a/src/workflows/workflow_RHELCCpp.xml.in
++++ b/src/workflows/workflow_RHELCCpp.xml.in
+@@ -1,7 +1,7 @@
+ <?xml version="1.0" encoding="UTF-8" ?>
+ <workflow>
+-    <_name>Report to Red Hat Customer Portal</_name>
+-    <_description>Process the C/C++ crash using the Red Hat infrastructure</_description>
++    <_name>Ask Red Hat Support for help</_name>
++    <_description>Create new Red Hat Support case - I would like to be contacted by Red Hat Support</_description>
+ 
+     <events>
+         <event>collect_*</event>
+diff --git a/src/workflows/workflow_RHELJava.xml.in b/src/workflows/workflow_RHELJava.xml.in
+index 23ef0cb..95e1ad0 100644
+--- a/src/workflows/workflow_RHELJava.xml.in
++++ b/src/workflows/workflow_RHELJava.xml.in
+@@ -1,7 +1,7 @@
+ <?xml version="1.0" encoding="UTF-8" ?>
+ <workflow>
+-    <_name>Report to Red Hat Customer Portal</_name>
+-    <_description>Process the Java exception using the Red Hat infrastructure</_description>
++    <_name>Ask Red Hat Support for help</_name>
++    <_description>Create new Red Hat Support case - I would like to be contacted by Red Hat Support</_description>
+ 
+     <events>
+         <event>collect_*</event>
+diff --git a/src/workflows/workflow_RHELKerneloops.xml.in b/src/workflows/workflow_RHELKerneloops.xml.in
+index 941a898..95e1ad0 100644
+--- a/src/workflows/workflow_RHELKerneloops.xml.in
++++ b/src/workflows/workflow_RHELKerneloops.xml.in
+@@ -1,7 +1,7 @@
+ <?xml version="1.0" encoding="UTF-8" ?>
+ <workflow>
+-    <_name>Report to Red Hat Customer Portal</_name>
+-    <_description>Process the kerneloops using the Red Hat infrastructure</_description>
++    <_name>Ask Red Hat Support for help</_name>
++    <_description>Create new Red Hat Support case - I would like to be contacted by Red Hat Support</_description>
+ 
+     <events>
+         <event>collect_*</event>
+diff --git a/src/workflows/workflow_RHELLibreport.xml.in b/src/workflows/workflow_RHELLibreport.xml.in
+index b8b4f04..b211ae7 100644
+--- a/src/workflows/workflow_RHELLibreport.xml.in
++++ b/src/workflows/workflow_RHELLibreport.xml.in
+@@ -1,7 +1,7 @@
+ <?xml version="1.0" encoding="UTF-8" ?>
+ <workflow>
+-    <_name>Report to Red Hat Customer Portal</_name>
+-    <_description>Process the problem using the Red Hat infrastructure</_description>
++    <_name>Ask Red Hat Support for help</_name>
++    <_description>Create new Red Hat Support case - I would like to be contacted by Red Hat Support</_description>
+ 
+     <events>
+         <event>report_RHTSupport</event>
+diff --git a/src/workflows/workflow_RHELPython.xml.in b/src/workflows/workflow_RHELPython.xml.in
+index ee1c4e7..95e1ad0 100644
+--- a/src/workflows/workflow_RHELPython.xml.in
++++ b/src/workflows/workflow_RHELPython.xml.in
+@@ -1,7 +1,7 @@
+ <?xml version="1.0" encoding="UTF-8" ?>
+ <workflow>
+-    <_name>Report to Red Hat Customer Portal</_name>
+-    <_description>Process the python exception using the Red Hat infrastructure</_description>
++    <_name>Ask Red Hat Support for help</_name>
++    <_description>Create new Red Hat Support case - I would like to be contacted by Red Hat Support</_description>
+ 
+     <events>
+         <event>collect_*</event>
+diff --git a/src/workflows/workflow_RHELvmcore.xml.in b/src/workflows/workflow_RHELvmcore.xml.in
+index f2a775d..8ab6e1a 100644
+--- a/src/workflows/workflow_RHELvmcore.xml.in
++++ b/src/workflows/workflow_RHELvmcore.xml.in
+@@ -1,7 +1,7 @@
+ <?xml version="1.0" encoding="UTF-8" ?>
+ <workflow>
+-    <_name>Report to Red Hat Customer Portal</_name>
+-    <_description>Process the kernel crash using the Red Hat infrastructure</_description>
++    <_name>Ask Red Hat Support for help</_name>
++    <_description>Create new Red Hat Support case - I would like to be contacted by Red Hat Support</_description>
+ 
+     <events>
+         <event>collect_*</event>
+diff --git a/src/workflows/workflow_RHELxorg.xml.in b/src/workflows/workflow_RHELxorg.xml.in
+index 13697b9..b211ae7 100644
+--- a/src/workflows/workflow_RHELxorg.xml.in
++++ b/src/workflows/workflow_RHELxorg.xml.in
+@@ -1,7 +1,7 @@
+ <?xml version="1.0" encoding="UTF-8" ?>
+ <workflow>
+-    <_name>Report to Red Hat Customer Portal</_name>
+-    <_description>Process the X Server problem using the Red Hat infrastructure</_description>
++    <_name>Ask Red Hat Support for help</_name>
++    <_description>Create new Red Hat Support case - I would like to be contacted by Red Hat Support</_description>
+ 
+     <events>
+         <event>report_RHTSupport</event>
+diff --git a/src/workflows/workflow_uReport.xml.in b/src/workflows/workflow_uReport.xml.in
+new file mode 100644
+index 0000000..83ff515
+--- /dev/null
++++ b/src/workflows/workflow_uReport.xml.in
+@@ -0,0 +1,9 @@
++<?xml version="1.0" encoding="UTF-8" ?>
++<workflow>
++    <_name>Submit anonymous crash report</_name>
++    <_description>Submit anonymous crash report - I do not want to be contacted by Red Hat Support</_description>
++
++    <events>
++        <event>report_uReport</event>
++    </events>
++</workflow>
+-- 
+1.8.3.1
+

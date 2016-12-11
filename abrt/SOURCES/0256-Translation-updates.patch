@@ -1,0 +1,3945 @@
+From 879a02adb6a5887bed134545e7db9b1d00fa7836 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Thu, 1 Sep 2016 14:49:24 +0200
+Subject: [PATCH] Translation updates
+
+Resolves #1304240
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ po/de.po    | 124 +++++++++++++++++++--------------------
+ po/es.po    | 188 ++++++++++++++++++++++++++++++------------------------------
+ po/fr.po    | 129 ++++++++++++++++++++---------------------
+ po/it.po    | 124 +++++++++++++++++++--------------------
+ po/ja.po    | 124 +++++++++++++++++++--------------------
+ po/ko.po    | 124 +++++++++++++++++++--------------------
+ po/pt_BR.po | 134 +++++++++++++++++++++----------------------
+ po/ru.po    | 124 +++++++++++++++++++--------------------
+ po/zh_CN.po | 131 +++++++++++++++++++++---------------------
+ po/zh_TW.po | 126 ++++++++++++++++++++--------------------
+ 10 files changed, 664 insertions(+), 664 deletions(-)
+
+diff --git a/po/de.po b/po/de.po
+index 455b7b2..ea61f95 100644
+--- a/po/de.po
++++ b/po/de.po
+@@ -19,7 +19,7 @@ msgid ""
+ msgstr ""
+ "Project-Id-Version: PACKAGE VERSION\n"
+ "Report-Msgid-Bugs-To: jmoskovc@redhat.com\n"
+-"POT-Creation-Date: 2015-07-14 15:37+0200\n"
++"POT-Creation-Date: 2016-06-29 15:31+0200\n"
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
+@@ -29,7 +29,7 @@ msgstr ""
+ "language/de/)\n"
+ "Language: de\n"
+ "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+-"X-Generator: Zanata 3.6.2\n"
++"X-Generator: Zanata 3.9.5\n"
+ 
+ #: ../src/applet/abrt-applet.desktop.in.h:1
+ msgid "Automatic Bug Reporting Tool"
+@@ -363,7 +363,7 @@ msgstr "Über"
+ msgid "Quit"
+ msgstr "Beenden"
+ 
+-#: ../src/daemon/abrt-action-save-package-data.c:378
++#: ../src/daemon/abrt-action-save-package-data.c:400
+ msgid ""
+ "& [-v] [-c CONFFILE] -d DIR\n"
+ "\n"
+@@ -373,9 +373,9 @@ msgstr ""
+ "\n"
+ "Paketdatenbank durchsuchen und Paket- und Komponentennamen speichern"
+ 
+-#: ../src/daemon/abrt-action-save-package-data.c:390
++#: ../src/daemon/abrt-action-save-package-data.c:412
+ #: ../src/plugins/abrt-action-analyze-backtrace.c:53
+-#: ../src/plugins/abrt-action-analyze-c.c:78
++#: ../src/plugins/abrt-action-analyze-c.c:141
+ #: ../src/plugins/abrt-action-analyze-oops.c:48
+ #: ../src/plugins/abrt-action-analyze-xorg.c:84
+ #: ../src/plugins/abrt-action-analyze-python.c:47
+@@ -384,12 +384,12 @@ msgstr ""
+ msgid "Problem directory"
+ msgstr "Fehler-Verzeichnis"
+ 
+-#: ../src/daemon/abrt-action-save-package-data.c:391
++#: ../src/daemon/abrt-action-save-package-data.c:413
+ msgid "Configuration file"
+ msgstr "Konfigurationsdatei"
+ 
+-#: ../src/daemon/abrt-server.c:792 ../src/dbus/abrt-dbus.c:1001
+-#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:484
++#: ../src/daemon/abrt-server.c:792 ../src/dbus/abrt-dbus.c:1004
++#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:465
+ msgid "& [options]"
+ msgstr "& [options]"
+ 
+@@ -403,72 +403,72 @@ msgstr "NUM als Client-UID benutzen"
+ msgid "Log to syslog"
+ msgstr "In Systemprotokoll speichern"
+ 
+-#: ../src/daemon/abrt-server.c:805 ../src/daemon/abrtd.c:500
++#: ../src/daemon/abrt-server.c:805 ../src/daemon/abrtd.c:481
+ msgid "Add program names to log"
+ msgstr "Anwendungsnamen protokollieren"
+ 
+-#: ../src/dbus/abrt-dbus.c:132
++#: ../src/dbus/abrt-dbus.c:131
+ msgid "Unknown error"
+ msgstr "Unbekannter Fehler"
+ 
+-#: ../src/dbus/abrt-dbus.c:221
++#: ../src/dbus/abrt-dbus.c:220
+ #, c-format
+ msgid "'%s' is not a valid problem directory"
+ msgstr "»%s« ist kein gültiges Problem-Verzeichnis"
+ 
+-#: ../src/dbus/abrt-dbus.c:256
++#: ../src/dbus/abrt-dbus.c:255
+ #, c-format
+ msgid "'%s' element can't be modified"
+ msgstr "Element »%s« kann nicht geändert werden"
+ 
+-#: ../src/dbus/abrt-dbus.c:285 ../src/dbus/abrt-dbus.c:498
+-#: ../src/dbus/abrt-dbus.c:560 ../src/dbus/abrt-dbus.c:625
+-#: ../src/dbus/abrt-dbus.c:815 ../src/dbus/abrt-configuration.c:618
++#: ../src/dbus/abrt-dbus.c:284 ../src/dbus/abrt-dbus.c:497
++#: ../src/dbus/abrt-dbus.c:559 ../src/dbus/abrt-dbus.c:624
++#: ../src/dbus/abrt-dbus.c:814 ../src/dbus/abrt-configuration.c:618
+ #: ../src/dbus/abrt-configuration.c:683
+ #, c-format
+ msgid "Not Authorized"
+ msgstr "Nicht erlaubt"
+ 
+-#: ../src/dbus/abrt-dbus.c:298
++#: ../src/dbus/abrt-dbus.c:297
+ msgid "Can't access the problem for modification"
+ msgstr "Der Fehlerbericht kann nicht für die Bearbeitung geöffnet werden"
+ 
+-#: ../src/dbus/abrt-dbus.c:514
++#: ../src/dbus/abrt-dbus.c:513
+ msgid "Chowning directory failed. Check system logs for more details."
+ msgstr ""
+ "Ordnerrechte konnten nicht angepasst werden. Für detaillierte Hinweise die "
+ "System-Logdateien überprüfen."
+ 
+ # translation auto-copied from project abrt, version master, document abrt, author Roman Spirgi
+-#: ../src/dbus/abrt-dbus.c:635
++#: ../src/dbus/abrt-dbus.c:634
+ msgid "Can't access the problem for reading"
+ msgstr "Fehlerbericht kann nicht mit Lesezugriff geöffnet werden"
+ 
+-#: ../src/dbus/abrt-dbus.c:690 ../src/dbus/abrt-dbus.c:755
+-#: ../src/dbus/abrt-dbus.c:911
++#: ../src/dbus/abrt-dbus.c:689 ../src/dbus/abrt-dbus.c:754
++#: ../src/dbus/abrt-dbus.c:910
+ #, c-format
+ msgid "'%s' is not a valid element name"
+ msgstr "»%s« ist kein gültiger Name für das Element"
+ 
+-#: ../src/dbus/abrt-dbus.c:711
++#: ../src/dbus/abrt-dbus.c:710
+ #, c-format
+ msgid "Can't get size of '%s'"
+ msgstr "Größe von '%s' kann nicht bestimmt werden"
+ 
+-#: ../src/dbus/abrt-dbus.c:726
++#: ../src/dbus/abrt-dbus.c:725
+ msgid "No problem space left"
+ msgstr "Kein weiterer Speicherplatz für die Fehlerbeschreibung vorhanden"
+ 
+-#: ../src/dbus/abrt-dbus.c:776
++#: ../src/dbus/abrt-dbus.c:775
+ #, c-format
+ msgid "Can't delete the element '%s' from the problem directory '%s'"
+ msgstr "Element »%s« kann nicht vo Fehlerverzeichnis »%s« entfernt werden"
+ 
+-#: ../src/dbus/abrt-dbus.c:803
++#: ../src/dbus/abrt-dbus.c:802
+ msgid "Can't access the problem"
+ msgstr "Auf Fehlerbericht kann nicht zugegriffen werden"
+ 
+-#: ../src/dbus/abrt-dbus.c:983 ../src/dbus/abrt-configuration.c:983
++#: ../src/dbus/abrt-dbus.c:986 ../src/dbus/abrt-configuration.c:983
+ #, c-format
+ msgid ""
+ "The name '%s' has been lost, please check if other service owning the name "
+@@ -477,16 +477,16 @@ msgstr ""
+ "Der Name »%s« ist verloren gegangen. Bitte stellen Sie sicher, dass kein "
+ "anderer Dienst unter dem gleichen Namen läuft.\n"
+ 
+-#: ../src/dbus/abrt-dbus.c:1010 ../src/dbus/abrt-configuration.c:1011
+-#: ../src/daemon/abrtd.c:499
++#: ../src/dbus/abrt-dbus.c:1013 ../src/dbus/abrt-configuration.c:1011
++#: ../src/daemon/abrtd.c:480
+ msgid "Exit after NUM seconds of inactivity"
+ msgstr "Nach NUM Sekunden Inaktivität beenden"
+ 
+-#: ../src/dbus/abrt-dbus.c:1028 ../src/dbus/abrt-configuration.c:1021
++#: ../src/dbus/abrt-dbus.c:1031 ../src/dbus/abrt-configuration.c:1021
+ msgid "This program must be run as root."
+ msgstr "Die Anwendung muss mit Root-Rechten ausgeführt werden."
+ 
+-#: ../src/daemon/abrtd.c:451
++#: ../src/daemon/abrtd.c:432
+ msgid ""
+ "The problem data are incomplete. This usually happens when a problem is "
+ "detected while computer is shutting down or user is logging out. In order to "
+@@ -501,11 +501,11 @@ msgstr ""
+ "Entwicklern helfen wollen, dieses Problem zu lösen, kontaktieren Sie die "
+ "Entwickler bitte direkt."
+ 
+-#: ../src/daemon/abrtd.c:497
++#: ../src/daemon/abrtd.c:478
+ msgid "Do not daemonize"
+ msgstr "Nicht als Hintergrunddienst ausführen"
+ 
+-#: ../src/daemon/abrtd.c:498
++#: ../src/daemon/abrtd.c:479
+ msgid "Log to syslog even with -d"
+ msgstr "Auch mit -d  im Systemprotokoll speichern"
+ 
+@@ -561,71 +561,71 @@ msgid "Maximal cache size in MiB. Default is "
+ msgstr "Maximale Cache-Größe in MB. Standard ist "
+ 
+ #: ../src/daemon/abrt-auto-reporting.c:200
+-#: ../src/daemon/abrt-auto-reporting.c:208
++#: ../src/daemon/abrt-auto-reporting.c:213
+ msgid "& [ "
+ msgstr "& [ "
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:235
++#: ../src/daemon/abrt-auto-reporting.c:240
+ msgid "Turns the authentication off"
+ msgstr "Deaktiviert die Authentifizierung"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:236
++#: ../src/daemon/abrt-auto-reporting.c:241
+ msgid "Red Hat Support user name"
+ msgstr "Red Hat Support Benutzername"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:237
++#: ../src/daemon/abrt-auto-reporting.c:242
+ msgid "Red Hat Support password, if not given, a prompt for it will be issued"
+ msgstr ""
+ "Red Hat Support Passwort; falls nicht angegeben, wird zur Eingabe eines "
+ "Passworts aufgefordert"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:238
++#: ../src/daemon/abrt-auto-reporting.c:243
+ msgid "uReport SSL certificate paths or certificate type"
+ msgstr "uReport SSL-Zertifikatspfad oder -Zertifikatstyp"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:254
++#: ../src/daemon/abrt-auto-reporting.c:259
+ msgid "You also need to specify --username for --password"
+ msgstr "Sie müssen ebenfalls --username für --password angeben"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:260
++#: ../src/daemon/abrt-auto-reporting.c:265
+ msgid "You can use either --username or --certificate"
+ msgstr "Sie können entweder --username oder --certificate verwenden"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:266
++#: ../src/daemon/abrt-auto-reporting.c:271
+ msgid "You can use either --username or --anonymous"
+ msgstr "Sie können entweder --username oder --anonymous verwenden"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:272
++#: ../src/daemon/abrt-auto-reporting.c:277
+ msgid "You can use either --anonymous or --certificate"
+ msgstr "Sie können entweder --anonymous oder --certificate verwenden"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:279
++#: ../src/daemon/abrt-auto-reporting.c:284
+ msgid "Invalid number of arguments"
+ msgstr "Ungültige Parameteranzahl"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:298
++#: ../src/daemon/abrt-auto-reporting.c:303
+ #, c-format
+ msgid "Unknown option value: '%s'\n"
+ msgstr "Unbekannter Optionswert: »%s«\n"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:338
++#: ../src/daemon/abrt-auto-reporting.c:343
+ msgid "Password:"
+ msgstr "Passwort:"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:341
++#: ../src/daemon/abrt-auto-reporting.c:346
+ msgid "Cannot continue without password\n"
+ msgstr "Fortfahren ohne Passwort nicht möglich\n"
+ 
+ #. Print only the part before ':' of a string like "username:password"
+-#: ../src/daemon/abrt-auto-reporting.c:382
++#: ../src/daemon/abrt-auto-reporting.c:387
+ msgid "HTTP Authenticated auto reporting"
+ msgstr "Per HTTP authentifizierte automatische Berichterstattung"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:384
++#: ../src/daemon/abrt-auto-reporting.c:389
+ msgid "SSL Client Authenticated auto reporting"
+ msgstr "Per SSL-Client authentifizierte automatische Berichterstattung"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:386
++#: ../src/daemon/abrt-auto-reporting.c:391
+ msgid "anonymous auto reporting"
+ msgstr "Anonyme automatische Berichterstattung"
+ 
+@@ -799,7 +799,7 @@ msgstr "Verarbeitung der Ablaufverfolgung für %s ist fehlgeschlagen"
+ msgid "Crash thread not found"
+ msgstr "Absturz Thread nicht gefunden"
+ 
+-#: ../src/plugins/abrt-action-analyze-c.c:67
++#: ../src/plugins/abrt-action-analyze-c.c:130
+ msgid ""
+ "& [-v] -d DIR\n"
+ "\n"
+@@ -2026,7 +2026,7 @@ msgstr ""
+ msgid "See 'abrt-cli COMMAND --help' for more information"
+ msgstr "Siehe 'abrt-cli COMMAND --help' für weitere Informationen"
+ 
+-#: ../src/cli/list.c:121
++#: ../src/cli/list.c:124
+ #, c-format
+ msgid ""
+ "%sRun 'abrt-cli report %s' for creating a case in Red Hat Customer Portal\n"
+@@ -2034,30 +2034,30 @@ msgstr ""
+ "%sFühren Sie »abrt-cli report %s« aus, um ein Ticket im Red Hat Kundenportal "
+ "zu erstellen\n"
+ 
+-#: ../src/cli/list.c:173
++#: ../src/cli/list.c:176
+ msgid "& list [options]"
+ msgstr "& auflisten [options]"
+ 
+-#: ../src/cli/list.c:182
++#: ../src/cli/list.c:185
+ msgid "List only not-reported problems"
+ msgstr "Nur noch nicht berichtete Probleme anzeigen"
+ 
+ #. deprecate -d option with --pretty=full
+-#: ../src/cli/list.c:184 ../src/cli/list.c:237
++#: ../src/cli/list.c:187 ../src/cli/list.c:240
+ msgid "Show detailed report"
+ msgstr "Detaillierten Bericht anzeigen"
+ 
+-#: ../src/cli/list.c:185
++#: ../src/cli/list.c:188
+ msgid "List only the problems more recent than specified timestamp"
+ msgstr ""
+ "Nur die Probleme anzeigen, welcher vor dem festgelegten Zeitpunkt auftraten"
+ 
+-#: ../src/cli/list.c:186
++#: ../src/cli/list.c:189
+ msgid "List only the problems older than specified timestamp"
+ msgstr ""
+ "Nur die Probleme anzeigen, welcher nach dem festgelegten Zeitpunkt auftraten"
+ 
+-#: ../src/cli/list.c:212
++#: ../src/cli/list.c:215
+ #, c-format
+ msgid ""
+ "The Autoreporting feature is disabled. Please consider enabling it by "
+@@ -2068,34 +2068,34 @@ msgstr ""
+ "Betracht, sie\n"
+ "zu aktivieren, indem Sie 'abrt-auto-reporting enabled' als Root ausführen\n"
+ 
+-#: ../src/cli/list.c:229
++#: ../src/cli/list.c:232
+ msgid "& info [options] DIR..."
+ msgstr "& info [Optionen] DIR..."
+ 
+-#: ../src/cli/list.c:238
++#: ../src/cli/list.c:241
+ msgid "Text larger than this will be shown abridged"
+ msgstr "Längere Texte werden gekürzt angezeigt"
+ 
+-#: ../src/cli/list.c:258
++#: ../src/cli/list.c:261
+ #, c-format
+ msgid "No such problem directory '%s'"
+ msgstr "Kein solches Fehlerverzeichnis »%s« vorhanden"
+ 
+-#: ../src/cli/status.c:63
++#: ../src/cli/status.c:66
+ msgid "& status"
+ msgstr "& Status"
+ 
+-#: ../src/cli/status.c:71
++#: ../src/cli/status.c:74
+ msgid "Print only the problem count without any message"
+ msgstr "Nur die Fehleranzahl ohne Mitteilung ausgeben"
+ 
+-#: ../src/cli/status.c:72
++#: ../src/cli/status.c:75
+ msgid "Print only the problems more recent than specified timestamp"
+ msgstr ""
+ "Das aktuellste Auftreten des Fehlers anstatt des angegebenen Zeitstempel "
+ "ausgeben"
+ 
+-#: ../src/cli/status.c:88
++#: ../src/cli/status.c:91
+ #, c-format
+ msgid "ABRT has detected %u problem(s). For more info run: abrt-cli list%s\n"
+ msgstr ""
+diff --git a/po/es.po b/po/es.po
+index eb5642e..cb1c136 100644
+--- a/po/es.po
++++ b/po/es.po
+@@ -23,21 +23,22 @@
+ # Gerardo Rosales <grosale86@gmail.com>, 2015. #zanata
+ # Gladys Guerrero Lozano <gguerrer@redhat.com>, 2015. #zanata
+ # Jakub Filak <jfilak@redhat.com>, 2015. #zanata
++# Máximo Castañeda Riloba <mcrcctm@gmail.com>, 2016. #zanata
+ msgid ""
+ msgstr ""
+ "Project-Id-Version: PACKAGE VERSION\n"
+ "Report-Msgid-Bugs-To: jmoskovc@redhat.com\n"
+-"POT-Creation-Date: 2015-07-14 15:37+0200\n"
++"POT-Creation-Date: 2016-06-29 15:31+0200\n"
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
+-"PO-Revision-Date: 2015-07-21 11:54-0400\n"
+-"Last-Translator: Gladys Guerrero Lozano <gguerrer@redhat.com>\n"
++"PO-Revision-Date: 2016-08-31 07:26-0400\n"
++"Last-Translator: Máximo Castañeda Riloba <mcrcctm@gmail.com>\n"
+ "Language-Team: Spanish (http://www.transifex.com/projects/p/fedora-abrt/"
+ "language/es/)\n"
+ "Language: es\n"
+ "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+-"X-Generator: Zanata 3.6.2\n"
++"X-Generator: Zanata 3.9.5\n"
+ 
+ #: ../src/applet/abrt-applet.desktop.in.h:1
+ msgid "Automatic Bug Reporting Tool"
+@@ -367,7 +368,7 @@ msgstr "Acerca de"
+ msgid "Quit"
+ msgstr "Salir"
+ 
+-#: ../src/daemon/abrt-action-save-package-data.c:378
++#: ../src/daemon/abrt-action-save-package-data.c:400
+ msgid ""
+ "& [-v] [-c CONFFILE] -d DIR\n"
+ "\n"
+@@ -378,9 +379,9 @@ msgstr ""
+ "Solicita el paquete de  base de datos y guarda el nombre del paquete  y "
+ "componente"
+ 
+-#: ../src/daemon/abrt-action-save-package-data.c:390
++#: ../src/daemon/abrt-action-save-package-data.c:412
+ #: ../src/plugins/abrt-action-analyze-backtrace.c:53
+-#: ../src/plugins/abrt-action-analyze-c.c:78
++#: ../src/plugins/abrt-action-analyze-c.c:141
+ #: ../src/plugins/abrt-action-analyze-oops.c:48
+ #: ../src/plugins/abrt-action-analyze-xorg.c:84
+ #: ../src/plugins/abrt-action-analyze-python.c:47
+@@ -389,14 +390,14 @@ msgstr ""
+ msgid "Problem directory"
+ msgstr "Directorio de problemas"
+ 
+-#: ../src/daemon/abrt-action-save-package-data.c:391
++#: ../src/daemon/abrt-action-save-package-data.c:413
+ msgid "Configuration file"
+ msgstr "Archivo de configuración"
+ 
+-#: ../src/daemon/abrt-server.c:792 ../src/dbus/abrt-dbus.c:1001
+-#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:484
++#: ../src/daemon/abrt-server.c:792 ../src/dbus/abrt-dbus.c:1004
++#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:465
+ msgid "& [options]"
+-msgstr "& [options]"
++msgstr "& [opciones]"
+ 
+ #: ../src/daemon/abrt-server.c:803
+ msgid "Use NUM as client uid"
+@@ -408,73 +409,73 @@ msgstr "Utilice NUM como uid del cliente"
+ msgid "Log to syslog"
+ msgstr "Registrarse en syslog"
+ 
+-#: ../src/daemon/abrt-server.c:805 ../src/daemon/abrtd.c:500
++#: ../src/daemon/abrt-server.c:805 ../src/daemon/abrtd.c:481
+ msgid "Add program names to log"
+ msgstr "Agrega el nombre del programa al log"
+ 
+-#: ../src/dbus/abrt-dbus.c:132
++#: ../src/dbus/abrt-dbus.c:131
+ msgid "Unknown error"
+ msgstr "Error desconocido"
+ 
+-#: ../src/dbus/abrt-dbus.c:221
++#: ../src/dbus/abrt-dbus.c:220
+ #, c-format
+ msgid "'%s' is not a valid problem directory"
+ msgstr "'%s' no es un directorio de problemas válido"
+ 
+-#: ../src/dbus/abrt-dbus.c:256
++#: ../src/dbus/abrt-dbus.c:255
+ #, c-format
+ msgid "'%s' element can't be modified"
+ msgstr "'%s' elemento no puede ser modificado"
+ 
+-#: ../src/dbus/abrt-dbus.c:285 ../src/dbus/abrt-dbus.c:498
+-#: ../src/dbus/abrt-dbus.c:560 ../src/dbus/abrt-dbus.c:625
+-#: ../src/dbus/abrt-dbus.c:815 ../src/dbus/abrt-configuration.c:618
++#: ../src/dbus/abrt-dbus.c:284 ../src/dbus/abrt-dbus.c:497
++#: ../src/dbus/abrt-dbus.c:559 ../src/dbus/abrt-dbus.c:624
++#: ../src/dbus/abrt-dbus.c:814 ../src/dbus/abrt-configuration.c:618
+ #: ../src/dbus/abrt-configuration.c:683
+ #, c-format
+ msgid "Not Authorized"
+ msgstr "No autorizado"
+ 
+-#: ../src/dbus/abrt-dbus.c:298
++#: ../src/dbus/abrt-dbus.c:297
+ msgid "Can't access the problem for modification"
+ msgstr "No puedo acceder al problema para modificación"
+ 
+-#: ../src/dbus/abrt-dbus.c:514
++#: ../src/dbus/abrt-dbus.c:513
+ msgid "Chowning directory failed. Check system logs for more details."
+ msgstr ""
+ "Error al ejecutar chown en directorio. Revise los registros del sistema para "
+ "más detalles. "
+ 
+ # translation auto-copied from project abrt, version master, document abrt, author Alex Puchades
+-#: ../src/dbus/abrt-dbus.c:635
++#: ../src/dbus/abrt-dbus.c:634
+ msgid "Can't access the problem for reading"
+ msgstr "No se puede acceder al problema para lectura"
+ 
+-#: ../src/dbus/abrt-dbus.c:690 ../src/dbus/abrt-dbus.c:755
+-#: ../src/dbus/abrt-dbus.c:911
++#: ../src/dbus/abrt-dbus.c:689 ../src/dbus/abrt-dbus.c:754
++#: ../src/dbus/abrt-dbus.c:910
+ #, c-format
+ msgid "'%s' is not a valid element name"
+ msgstr "'%s' no es un nombre válido de elemento"
+ 
+-#: ../src/dbus/abrt-dbus.c:711
++#: ../src/dbus/abrt-dbus.c:710
+ #, c-format
+ msgid "Can't get size of '%s'"
+ msgstr "No se puede obtener tamaño de «%s»"
+ 
+-#: ../src/dbus/abrt-dbus.c:726
++#: ../src/dbus/abrt-dbus.c:725
+ msgid "No problem space left"
+ msgstr "No queda espacio del problema"
+ 
+-#: ../src/dbus/abrt-dbus.c:776
++#: ../src/dbus/abrt-dbus.c:775
+ #, c-format
+ msgid "Can't delete the element '%s' from the problem directory '%s'"
+ msgstr "No puedo borrar el elemento '%s' del directorio de problemas '%s'"
+ 
+ # translation auto-copied from project abrt, version master, document abrt, author Alex Puchades
+-#: ../src/dbus/abrt-dbus.c:803
++#: ../src/dbus/abrt-dbus.c:802
+ msgid "Can't access the problem"
+ msgstr "No se puede acceder al problema"
+ 
+-#: ../src/dbus/abrt-dbus.c:983 ../src/dbus/abrt-configuration.c:983
++#: ../src/dbus/abrt-dbus.c:986 ../src/dbus/abrt-configuration.c:983
+ #, c-format
+ msgid ""
+ "The name '%s' has been lost, please check if other service owning the name "
+@@ -483,16 +484,16 @@ msgstr ""
+ "El nombre '%s' ser perdió, por favor, verifique si otro servicio que tenga "
+ "ese nombre no se esté ejecutando.\n"
+ 
+-#: ../src/dbus/abrt-dbus.c:1010 ../src/dbus/abrt-configuration.c:1011
+-#: ../src/daemon/abrtd.c:499
++#: ../src/dbus/abrt-dbus.c:1013 ../src/dbus/abrt-configuration.c:1011
++#: ../src/daemon/abrtd.c:480
+ msgid "Exit after NUM seconds of inactivity"
+ msgstr "Sale después de NUM de segundos de inactividad"
+ 
+-#: ../src/dbus/abrt-dbus.c:1028 ../src/dbus/abrt-configuration.c:1021
++#: ../src/dbus/abrt-dbus.c:1031 ../src/dbus/abrt-configuration.c:1021
+ msgid "This program must be run as root."
+ msgstr "Este programa debe ser ejecutado como root."
+ 
+-#: ../src/daemon/abrtd.c:451
++#: ../src/daemon/abrtd.c:432
+ msgid ""
+ "The problem data are incomplete. This usually happens when a problem is "
+ "detected while computer is shutting down or user is logging out. In order to "
+@@ -507,11 +508,11 @@ msgstr ""
+ "tiempo y desea ayudar a los desarrolladores en su esfuerzo por solucionarlo, "
+ "por favor contáctelos directamente."
+ 
+-#: ../src/daemon/abrtd.c:497
++#: ../src/daemon/abrtd.c:478
+ msgid "Do not daemonize"
+ msgstr "No convertir en un demonio"
+ 
+-#: ../src/daemon/abrtd.c:498
++#: ../src/daemon/abrtd.c:479
+ msgid "Log to syslog even with -d"
+ msgstr "Registrar en syslog aún con -d"
+ 
+@@ -554,7 +555,7 @@ msgstr ""
+ 
+ #: ../src/daemon/abrt-upload-watch.c:281
+ msgid "Daemize"
+-msgstr "Daemize"
++msgstr "Convertir en demonio"
+ 
+ #: ../src/daemon/abrt-upload-watch.c:282
+ msgid "Number of concurrent workers. Default is "
+@@ -565,71 +566,71 @@ msgid "Maximal cache size in MiB. Default is "
+ msgstr "Tamaño máximo de la caché en MB. El predeterminado es"
+ 
+ #: ../src/daemon/abrt-auto-reporting.c:200
+-#: ../src/daemon/abrt-auto-reporting.c:208
++#: ../src/daemon/abrt-auto-reporting.c:213
+ msgid "& [ "
+ msgstr "& [ "
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:235
++#: ../src/daemon/abrt-auto-reporting.c:240
+ msgid "Turns the authentication off"
+ msgstr "Retira la autenticación"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:236
++#: ../src/daemon/abrt-auto-reporting.c:241
+ msgid "Red Hat Support user name"
+ msgstr "Nombre de usuario de Red Hat Support"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:237
++#: ../src/daemon/abrt-auto-reporting.c:242
+ msgid "Red Hat Support password, if not given, a prompt for it will be issued"
+ msgstr "Contraseña de Red Hat Support, si no la ingresa, se le indicará"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:238
++#: ../src/daemon/abrt-auto-reporting.c:243
+ msgid "uReport SSL certificate paths or certificate type"
+ msgstr "Rutas de certificado uReport SSL o tipo de certificado"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:254
++#: ../src/daemon/abrt-auto-reporting.c:259
+ msgid "You also need to specify --username for --password"
+ msgstr "También necesita especificar --username  para --password"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:260
++#: ../src/daemon/abrt-auto-reporting.c:265
+ msgid "You can use either --username or --certificate"
+ msgstr "Puede usar --username  o --certificate"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:266
++#: ../src/daemon/abrt-auto-reporting.c:271
+ msgid "You can use either --username or --anonymous"
+ msgstr "Puede usar --username o --anonymous"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:272
++#: ../src/daemon/abrt-auto-reporting.c:277
+ msgid "You can use either --anonymous or --certificate"
+ msgstr "Puede usar --anonymous o --certificate"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:279
++#: ../src/daemon/abrt-auto-reporting.c:284
+ msgid "Invalid number of arguments"
+ msgstr "Número de argumentos no es válido"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:298
++#: ../src/daemon/abrt-auto-reporting.c:303
+ #, c-format
+ msgid "Unknown option value: '%s'\n"
+ msgstr "Valor de opción desconocido: '%s'\n"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:338
++#: ../src/daemon/abrt-auto-reporting.c:343
+ msgid "Password:"
+ msgstr "Contraseña:"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:341
++#: ../src/daemon/abrt-auto-reporting.c:346
+ msgid "Cannot continue without password\n"
+ msgstr "No puede continuar sin contraseña\n"
+ 
+ #. Print only the part before ':' of a string like "username:password"
+-#: ../src/daemon/abrt-auto-reporting.c:382
++#: ../src/daemon/abrt-auto-reporting.c:387
+ msgid "HTTP Authenticated auto reporting"
+-msgstr "Autoreporte autenticado HTTP"
++msgstr "Presentación automática de informes con autenticación HTTP"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:384
++#: ../src/daemon/abrt-auto-reporting.c:389
+ msgid "SSL Client Authenticated auto reporting"
+-msgstr "Autoreporte de cliente autenticadoSSL "
++msgstr "Presentación automática de informes con autenticación de cliente SSL"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:386
++#: ../src/daemon/abrt-auto-reporting.c:391
+ msgid "anonymous auto reporting"
+-msgstr "Autoreporte anónimo "
++msgstr "Presentación automática de informes anónima"
+ 
+ #: ../src/daemon/abrt-handle-upload.in:135
+ #, c-format
+@@ -724,12 +725,12 @@ msgstr "Generación de seguimiento"
+ #: ../src/lib/problem_api_dbus.c:42
+ #, c-format
+ msgid "Can't connect to system DBus: %s"
+-msgstr "No se puede conectar con el sistema DBys: %s"
++msgstr "No se puede conectar con el sistema DBus: %s"
+ 
+ #: ../src/lib/problem_api_dbus.c:68
+ #, c-format
+ msgid "Can't chown '%s': %s"
+-msgstr "No puedo hacer chown'%s': %s"
++msgstr "No se pudo cambiar el propietario de '%s': %s"
+ 
+ #: ../src/lib/problem_api_dbus.c:97
+ #, c-format
+@@ -765,14 +766,14 @@ msgid ""
+ "Can't write to '%s'. Problem '%s' will not be removed from the ignored "
+ "problems '%s'"
+ msgstr ""
+-"No puede escribir en ‘%s’. Problema ‘%s’ no será quitado de los problemas "
+-"ignorados ‘%s’"
++"No puede escribir en ‘%s’. No se eliminará el problema ‘%s’ de la lista de "
++"problemas ignorados ‘%s’"
+ 
+ #. Something nefarious happened
+ #: ../src/lib/ignored_problems.c:264
+ #, c-format
+ msgid "Can't rename '%s' to '%s'. Failed to remove problem '%s'"
+-msgstr "No puede renombrar ‘%s’ a ‘%s’. Fallado al quitar problema ‘%s’"
++msgstr "No puede renombrar ‘%s’ a ‘%s’. No se pudo eliminar el problema ‘%s’"
+ 
+ #: ../src/plugins/abrt-action-analyze-backtrace.c:41
+ msgid ""
+@@ -781,9 +782,9 @@ msgid ""
+ "Analyzes C/C++ backtrace, generates duplication hash, backtrace rating,\n"
+ "and identifies crash function in problem directory DIR"
+ msgstr ""
+-"& [options] -d DIR\n"
++"& [opciones] -d DIR\n"
+ "\n"
+-"Analiza el trazado de  C/C++, genera duplicación de hash,  clasificación de "
++"Analiza el trazado de  C/C++, genera duplicación de hash, clasificación de "
+ "seguimiento \n"
+ "e identifica función de caídas en directorio de problemas DIR"
+ 
+@@ -801,7 +802,7 @@ msgstr "Ha fallado el análisis del trazado de %s"
+ msgid "Crash thread not found"
+ msgstr "No se encontró el hilo que se colgó"
+ 
+-#: ../src/plugins/abrt-action-analyze-c.c:67
++#: ../src/plugins/abrt-action-analyze-c.c:130
+ msgid ""
+ "& [-v] -d DIR\n"
+ "\n"
+@@ -905,10 +906,10 @@ msgid ""
+ "\n"
+ "Analyzes coredump in problem directory DIR, generates and saves backtrace"
+ msgstr ""
+-"& [options] -d DIR\n"
++"& [opciones] -d DIR\n"
+ "\n"
+-"Analiza a coredump en el directorio de problemas DIR, genera y guarda "
+-"seguimiento"
++"Analiza el archivo de volcado en el directorio de problemas DIR, genera y "
++"guarda seguimiento"
+ 
+ #: ../src/plugins/abrt-action-generate-backtrace.c:56
+ msgid "Additional debuginfo directories"
+@@ -1050,7 +1051,7 @@ msgstr "Noninteractive, asume que se responde 'Sí' a todas las preguntas"
+ 
+ #: ../src/plugins/abrt-action-install-debuginfo-to-abrt-cache.c:67
+ msgid "- means STDIN, default: build_ids"
+-msgstr "- means STDIN, default: build_ids"
++msgstr "- para la entrada estándar; valor predeterminado: build_ids"
+ 
+ #: ../src/plugins/abrt-action-install-debuginfo-to-abrt-cache.c:68
+ msgid "Download only specified files"
+@@ -1092,11 +1093,11 @@ msgid ""
+ "SIZE.\n"
+ "FILEs are preserved (never deleted)."
+ msgstr ""
+-"& [-v] [-d SIZE:DIR]... [-f SIZE:DIR]... [-p DIR] [FILE]...\n"
++"& [-v] [-d TAMAÑO:DIR]... [-f TAMAÑO:DIR]... [-p DIR] [ARCHIVO]...\n"
+ "\n"
+-"Borra los directorios de problemas (-d) o archivos (-f) en DIR hasta que "
+-"sean más pequeños que TAMAÑO.\n"
+-"LOS ARCHIVOS se preservan (nunca se borran)."
++"Borra los directorios (-d) o archivos (-f) de problemas en DIR hasta que "
++"sean menores de TAMAÑO.\n"
++"Los ARCHIVOs se mantienen (nunca se borran)."
+ 
+ #: ../src/plugins/abrt-action-trim-files.c:236
+ msgid "Delete whole problem directories"
+@@ -2021,14 +2022,14 @@ msgid ""
+ "Private Reports is enabled, use 'abrt-cli -a COMMAND' to get the detected "
+ "problems."
+ msgstr ""
+-"Private Reports está activado, use 'abrt-cli -a COMMAND'  para obtener los "
+-"problemas   detectados."
++"Private Reports está activado, use 'abrt-cli -a COMANDO'  para obtener los "
++"problemas detectados."
+ 
+ #: ../src/cli/abrt-cli.c:164
+ msgid "See 'abrt-cli COMMAND --help' for more information"
+-msgstr "Para obtener más información, consulte  'abrt-cli COMMAND --help' "
++msgstr "Para obtener más información, consulte 'abrt-cli COMANDO --help' "
+ 
+-#: ../src/cli/list.c:121
++#: ../src/cli/list.c:124
+ #, c-format
+ msgid ""
+ "%sRun 'abrt-cli report %s' for creating a case in Red Hat Customer Portal\n"
+@@ -2037,29 +2038,29 @@ msgstr ""
+ "Red Hat\n"
+ 
+ # translation auto-copied from project abrt, version master, document abrt, author Gerardo Rosales
+-#: ../src/cli/list.c:173
++#: ../src/cli/list.c:176
+ msgid "& list [options]"
+ msgstr "& list [opciones]"
+ 
+-#: ../src/cli/list.c:182
++#: ../src/cli/list.c:185
+ msgid "List only not-reported problems"
+ msgstr "Liste únicamente los problemas no reportados"
+ 
+ #. deprecate -d option with --pretty=full
+-#: ../src/cli/list.c:184 ../src/cli/list.c:237
++#: ../src/cli/list.c:187 ../src/cli/list.c:240
+ msgid "Show detailed report"
+ msgstr "Muestre el reporte detallado"
+ 
+-#: ../src/cli/list.c:185
++#: ../src/cli/list.c:188
+ msgid "List only the problems more recent than specified timestamp"
+ msgstr ""
+ "Liste solo los problemas más recientes que la marca de tiempo especificada"
+ 
+-#: ../src/cli/list.c:186
++#: ../src/cli/list.c:189
+ msgid "List only the problems older than specified timestamp"
+ msgstr "Liste solo los problemas anteriores a la marca de tiempo especificada"
+ 
+-#: ../src/cli/list.c:212
++#: ../src/cli/list.c:215
+ #, c-format
+ msgid ""
+ "The Autoreporting feature is disabled. Please consider enabling it by "
+@@ -2070,35 +2071,35 @@ msgstr ""
+ "habilitarla al emitir \n"
+ "'abrt-auto-reporting enabled' como usuario con privilegios de root.\n"
+ 
+-#: ../src/cli/list.c:229
++#: ../src/cli/list.c:232
+ msgid "& info [options] DIR..."
+ msgstr "& info [options] DIR..."
+ 
+-#: ../src/cli/list.c:238
++#: ../src/cli/list.c:241
+ msgid "Text larger than this will be shown abridged"
+ msgstr "Los textos de más extensos que este, aparecen abreviados"
+ 
+-#: ../src/cli/list.c:258
++#: ../src/cli/list.c:261
+ #, c-format
+ msgid "No such problem directory '%s'"
+ msgstr "No se encontró el directorio '%s' del problema"
+ 
+ # translation auto-copied from project abrt, version master, document abrt, author Alex Puchades
+-#: ../src/cli/status.c:63
++#: ../src/cli/status.c:66
+ msgid "& status"
+ msgstr "& estatus"
+ 
+-#: ../src/cli/status.c:71
++#: ../src/cli/status.c:74
+ msgid "Print only the problem count without any message"
+ msgstr "Imprimir únicamente el conteo del problema sin ningún mensaje"
+ 
+-#: ../src/cli/status.c:72
++#: ../src/cli/status.c:75
+ msgid "Print only the problems more recent than specified timestamp"
+ msgstr ""
+ "Imprimir únicamente los problemas más recientes que la marca de tiempo "
+ "especificada"
+ 
+-#: ../src/cli/status.c:88
++#: ../src/cli/status.c:91
+ #, c-format
+ msgid "ABRT has detected %u problem(s). For more info run: abrt-cli list%s\n"
+ msgstr ""
+@@ -2144,12 +2145,11 @@ msgstr "Para el siguiente problema presione la tecla ENTER:"
+ #: ../src/cli/process.c:138
+ msgid "Without --since argument, iterates over all detected problems."
+ msgstr ""
+-"Without -- puesto que el argumento se repite sobre todos los problemas "
+-"detectados."
++"Sin el parámetro --since, se repite sobre todos los problemas detectados."
+ 
+ #: ../src/cli/process.c:144
+ msgid "Selects only problems detected after timestamp"
+-msgstr "Selecciona unicamente los problemas después del tiempo especificado"
++msgstr "Selecciona únicamente los problemas después del tiempo especificado"
+ 
+ #: ../src/plugins/analyze_CCpp.xml.in.h:1
+ msgid ""
+@@ -2226,8 +2226,8 @@ msgid ""
+ "Checks if there are vimrc and gvimrc files in /etc and saves them as "
+ "system_vimrc and system_gvimrc, respectively."
+ msgstr ""
+-"Verifica si hay archivos vimrc y gvimrc en /etc y los guard como "
+-"system_vimrc and system_gvimrc, respectivamente"
++"Verifica si hay archivos vimrc y gvimrc en /etc y los guarda como "
++"system_vimrc y system_gvimrc, respectivamente"
+ 
+ #: ../src/plugins/collect_vimrc_user.xml.in.h:1
+ msgid "Collect yours vim configuration files"
+@@ -2235,7 +2235,7 @@ msgstr "Recolecta sus archivos de configuración vim"
+ 
+ #: ../src/plugins/collect_vimrc_user.xml.in.h:2
+ msgid "Save .vimrc and .gvimrc from your home directory"
+-msgstr "Guarda  .vimrc y .gvimrc de su directorio principal"
++msgstr "Guarda .vimrc y .gvimrc de su directorio principal"
+ 
+ #: ../src/plugins/collect_vimrc_user.xml.in.h:3
+ msgid ""
+@@ -2247,7 +2247,7 @@ msgstr ""
+ 
+ #: ../src/plugins/post_report.xml.in.h:1
+ msgid "Post report"
+-msgstr "Informe posterior"
++msgstr "Publicar informe"
+ 
+ #: ../src/plugins/post_report.xml.in.h:2
+ msgid "Executed after the reporting is finished"
+diff --git a/po/fr.po b/po/fr.po
+index c0084ce..019ecad 100644
+--- a/po/fr.po
++++ b/po/fr.po
+@@ -15,22 +15,23 @@
+ # Vincent  <vincent.herber@gmail.com>, 2011
+ # Jakub Filak <jfilak@redhat.com>, 2015. #zanata
+ # Julie Carbone <jcarbone@redhat.com>, 2015. #zanata
++# Richard Marko <rmarko@fedoraproject.org>, 2015. #zanata
+ # Sam Friedmann <sfriedma@redhat.com>, 2015. #zanata
+ msgid ""
+ msgstr ""
+ "Project-Id-Version: PACKAGE VERSION\n"
+ "Report-Msgid-Bugs-To: jmoskovc@redhat.com\n"
+-"POT-Creation-Date: 2015-07-14 15:37+0200\n"
++"POT-Creation-Date: 2016-06-29 15:31+0200\n"
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
+-"PO-Revision-Date: 2015-07-16 08:54-0400\n"
+-"Last-Translator: Sam Friedmann <sfriedma@redhat.com>\n"
++"PO-Revision-Date: 2015-07-29 09:45-0400\n"
++"Last-Translator: Richard Marko <rmarko@fedoraproject.org>\n"
+ "Language-Team: French (http://www.transifex.com/projects/p/fedora-abrt/"
+ "language/fr/)\n"
+ "Language: fr\n"
+ "Plural-Forms: nplurals=2; plural=(n > 1);\n"
+-"X-Generator: Zanata 3.6.2\n"
++"X-Generator: Zanata 3.9.5\n"
+ 
+ #: ../src/applet/abrt-applet.desktop.in.h:1
+ msgid "Automatic Bug Reporting Tool"
+@@ -370,7 +371,7 @@ msgstr "À propos"
+ msgid "Quit"
+ msgstr "Quitter"
+ 
+-#: ../src/daemon/abrt-action-save-package-data.c:378
++#: ../src/daemon/abrt-action-save-package-data.c:400
+ msgid ""
+ "& [-v] [-c CONFFILE] -d DIR\n"
+ "\n"
+@@ -381,9 +382,9 @@ msgstr ""
+ "Interroge la base de données des paquets et enregistre le paquet et le nom "
+ "du composant"
+ 
+-#: ../src/daemon/abrt-action-save-package-data.c:390
++#: ../src/daemon/abrt-action-save-package-data.c:412
+ #: ../src/plugins/abrt-action-analyze-backtrace.c:53
+-#: ../src/plugins/abrt-action-analyze-c.c:78
++#: ../src/plugins/abrt-action-analyze-c.c:141
+ #: ../src/plugins/abrt-action-analyze-oops.c:48
+ #: ../src/plugins/abrt-action-analyze-xorg.c:84
+ #: ../src/plugins/abrt-action-analyze-python.c:47
+@@ -392,12 +393,12 @@ msgstr ""
+ msgid "Problem directory"
+ msgstr "Répertoire des incidents"
+ 
+-#: ../src/daemon/abrt-action-save-package-data.c:391
++#: ../src/daemon/abrt-action-save-package-data.c:413
+ msgid "Configuration file"
+ msgstr "Fichier de configuration"
+ 
+-#: ../src/daemon/abrt-server.c:792 ../src/dbus/abrt-dbus.c:1001
+-#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:484
++#: ../src/daemon/abrt-server.c:792 ../src/dbus/abrt-dbus.c:1004
++#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:465
+ msgid "& [options]"
+ msgstr "& [options]"
+ 
+@@ -411,72 +412,72 @@ msgstr "Utiliser NUM en tant qu'UID client"
+ msgid "Log to syslog"
+ msgstr "Journaliser vers syslog"
+ 
+-#: ../src/daemon/abrt-server.c:805 ../src/daemon/abrtd.c:500
++#: ../src/daemon/abrt-server.c:805 ../src/daemon/abrtd.c:481
+ msgid "Add program names to log"
+ msgstr "Ajouter le nom des programmes dans le journal"
+ 
+-#: ../src/dbus/abrt-dbus.c:132
++#: ../src/dbus/abrt-dbus.c:131
+ msgid "Unknown error"
+ msgstr "Erreur inconnue"
+ 
+-#: ../src/dbus/abrt-dbus.c:221
++#: ../src/dbus/abrt-dbus.c:220
+ #, c-format
+ msgid "'%s' is not a valid problem directory"
+ msgstr "« %s » n'est pas un répertoire d'incidents valide"
+ 
+-#: ../src/dbus/abrt-dbus.c:256
++#: ../src/dbus/abrt-dbus.c:255
+ #, c-format
+ msgid "'%s' element can't be modified"
+ msgstr "L'élément « %s » ne peut pas être modifié"
+ 
+-#: ../src/dbus/abrt-dbus.c:285 ../src/dbus/abrt-dbus.c:498
+-#: ../src/dbus/abrt-dbus.c:560 ../src/dbus/abrt-dbus.c:625
+-#: ../src/dbus/abrt-dbus.c:815 ../src/dbus/abrt-configuration.c:618
++#: ../src/dbus/abrt-dbus.c:284 ../src/dbus/abrt-dbus.c:497
++#: ../src/dbus/abrt-dbus.c:559 ../src/dbus/abrt-dbus.c:624
++#: ../src/dbus/abrt-dbus.c:814 ../src/dbus/abrt-configuration.c:618
+ #: ../src/dbus/abrt-configuration.c:683
+ #, c-format
+ msgid "Not Authorized"
+ msgstr "Interdit"
+ 
+-#: ../src/dbus/abrt-dbus.c:298
++#: ../src/dbus/abrt-dbus.c:297
+ msgid "Can't access the problem for modification"
+ msgstr "Impossible d'accéder à l'incident pour effectuer des modifications"
+ 
+-#: ../src/dbus/abrt-dbus.c:514
++#: ../src/dbus/abrt-dbus.c:513
+ msgid "Chowning directory failed. Check system logs for more details."
+ msgstr ""
+ "Échec du chown sur le répertoire. Vérifier les journaux du système pour plus "
+ "de détails."
+ 
+-#: ../src/dbus/abrt-dbus.c:635
++#: ../src/dbus/abrt-dbus.c:634
+ msgid "Can't access the problem for reading"
+ msgstr "Impossible d'accéder à l'incident pour la lecture"
+ 
+-#: ../src/dbus/abrt-dbus.c:690 ../src/dbus/abrt-dbus.c:755
+-#: ../src/dbus/abrt-dbus.c:911
++#: ../src/dbus/abrt-dbus.c:689 ../src/dbus/abrt-dbus.c:754
++#: ../src/dbus/abrt-dbus.c:910
+ #, c-format
+ msgid "'%s' is not a valid element name"
+ msgstr "« %s » n'est pas un nom d'élément valide"
+ 
+-#: ../src/dbus/abrt-dbus.c:711
++#: ../src/dbus/abrt-dbus.c:710
+ #, c-format
+ msgid "Can't get size of '%s'"
+ msgstr "Impossible d'obtenir la taille de « %s »"
+ 
+-#: ../src/dbus/abrt-dbus.c:726
++#: ../src/dbus/abrt-dbus.c:725
+ msgid "No problem space left"
+ msgstr "Il ne reste plus d'espace pour les incidents"
+ 
+-#: ../src/dbus/abrt-dbus.c:776
++#: ../src/dbus/abrt-dbus.c:775
+ #, c-format
+ msgid "Can't delete the element '%s' from the problem directory '%s'"
+ msgstr ""
+ "Impossible de supprimer l'élément « %s » du répertoire des incidents « %s »"
+ 
+-#: ../src/dbus/abrt-dbus.c:803
++#: ../src/dbus/abrt-dbus.c:802
+ msgid "Can't access the problem"
+ msgstr "Impossible d'accéder à l'incident"
+ 
+-#: ../src/dbus/abrt-dbus.c:983 ../src/dbus/abrt-configuration.c:983
++#: ../src/dbus/abrt-dbus.c:986 ../src/dbus/abrt-configuration.c:983
+ #, c-format
+ msgid ""
+ "The name '%s' has been lost, please check if other service owning the name "
+@@ -485,16 +486,16 @@ msgstr ""
+ "Le nom « %s » a été perdu, merci de vérifier qu'un autre service utilisant "
+ "ce même nom ne tourne pas.\n"
+ 
+-#: ../src/dbus/abrt-dbus.c:1010 ../src/dbus/abrt-configuration.c:1011
+-#: ../src/daemon/abrtd.c:499
++#: ../src/dbus/abrt-dbus.c:1013 ../src/dbus/abrt-configuration.c:1011
++#: ../src/daemon/abrtd.c:480
+ msgid "Exit after NUM seconds of inactivity"
+ msgstr "Quitter après NUM secondes d'inactivité"
+ 
+-#: ../src/dbus/abrt-dbus.c:1028 ../src/dbus/abrt-configuration.c:1021
++#: ../src/dbus/abrt-dbus.c:1031 ../src/dbus/abrt-configuration.c:1021
+ msgid "This program must be run as root."
+ msgstr "Le programme doit être lancé en tant que root."
+ 
+-#: ../src/daemon/abrtd.c:451
++#: ../src/daemon/abrtd.c:432
+ msgid ""
+ "The problem data are incomplete. This usually happens when a problem is "
+ "detected while computer is shutting down or user is logging out. In order to "
+@@ -509,11 +510,11 @@ msgstr ""
+ "vous avez du temps et désirez aider les développeurs dans leur effort de "
+ "résolution de cet incident, merci de les contacter directement."
+ 
+-#: ../src/daemon/abrtd.c:497
++#: ../src/daemon/abrtd.c:478
+ msgid "Do not daemonize"
+ msgstr "Ne pas lancer le démon"
+ 
+-#: ../src/daemon/abrtd.c:498
++#: ../src/daemon/abrtd.c:479
+ msgid "Log to syslog even with -d"
+ msgstr "Journaliser vers syslog même avec -d"
+ 
+@@ -569,71 +570,71 @@ msgid "Maximal cache size in MiB. Default is "
+ msgstr "Taille maximale de cache en Mio. La valeur par défaut est"
+ 
+ #: ../src/daemon/abrt-auto-reporting.c:200
+-#: ../src/daemon/abrt-auto-reporting.c:208
++#: ../src/daemon/abrt-auto-reporting.c:213
+ msgid "& [ "
+ msgstr "& [ "
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:235
++#: ../src/daemon/abrt-auto-reporting.c:240
+ msgid "Turns the authentication off"
+ msgstr "Désactive l'authentification"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:236
++#: ../src/daemon/abrt-auto-reporting.c:241
+ msgid "Red Hat Support user name"
+ msgstr "Nom d'utilisateur du Support Red Hat"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:237
++#: ../src/daemon/abrt-auto-reporting.c:242
+ msgid "Red Hat Support password, if not given, a prompt for it will be issued"
+ msgstr ""
+ "Si le mot de passe du Support Red Hat n'est pas fourni, vous serez invité à "
+ "en créer un."
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:238
++#: ../src/daemon/abrt-auto-reporting.c:243
+ msgid "uReport SSL certificate paths or certificate type"
+ msgstr "Types ou chemins de certificat uReport SSL"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:254
++#: ../src/daemon/abrt-auto-reporting.c:259
+ msgid "You also need to specify --username for --password"
+ msgstr "Vous devez également indiquer --username pour --password"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:260
++#: ../src/daemon/abrt-auto-reporting.c:265
+ msgid "You can use either --username or --certificate"
+ msgstr "Vous pouvez utiliser --username ou --certificate"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:266
++#: ../src/daemon/abrt-auto-reporting.c:271
+ msgid "You can use either --username or --anonymous"
+ msgstr "Vous pouvez utiliser --username ou --anonymous"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:272
++#: ../src/daemon/abrt-auto-reporting.c:277
+ msgid "You can use either --anonymous or --certificate"
+ msgstr "Vous pouvez utiliser --anonymous ou --certificate"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:279
++#: ../src/daemon/abrt-auto-reporting.c:284
+ msgid "Invalid number of arguments"
+ msgstr "Nombre d'arguments non valide"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:298
++#: ../src/daemon/abrt-auto-reporting.c:303
+ #, c-format
+ msgid "Unknown option value: '%s'\n"
+ msgstr "Valeur de l'option inconnue : « %s »\n"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:338
++#: ../src/daemon/abrt-auto-reporting.c:343
+ msgid "Password:"
+ msgstr "Mot de passe :"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:341
++#: ../src/daemon/abrt-auto-reporting.c:346
+ msgid "Cannot continue without password\n"
+ msgstr "Impossible de continuer sans mot de passe\n"
+ 
+ #. Print only the part before ':' of a string like "username:password"
+-#: ../src/daemon/abrt-auto-reporting.c:382
++#: ../src/daemon/abrt-auto-reporting.c:387
+ msgid "HTTP Authenticated auto reporting"
+ msgstr "Autoreporting authentifié avec HTTP"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:384
++#: ../src/daemon/abrt-auto-reporting.c:389
+ msgid "SSL Client Authenticated auto reporting"
+ msgstr "Autoreporting authentifié avec le Client SSL"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:386
++#: ../src/daemon/abrt-auto-reporting.c:391
+ msgid "anonymous auto reporting"
+ msgstr "Autoreporting anonyme"
+ 
+@@ -808,7 +809,7 @@ msgstr "Erreur lors de l'analyse du backtrace pour %s"
+ msgid "Crash thread not found"
+ msgstr "Fil d'exécution planté introuvable"
+ 
+-#: ../src/plugins/abrt-action-analyze-c.c:67
++#: ../src/plugins/abrt-action-analyze-c.c:130
+ msgid ""
+ "& [-v] -d DIR\n"
+ "\n"
+@@ -2054,7 +2055,7 @@ msgid "See 'abrt-cli COMMAND --help' for more information"
+ msgstr ""
+ "Voir « abrt-cli COMMAND --help » pour obtenir davantage d'informations"
+ 
+-#: ../src/cli/list.c:121
++#: ../src/cli/list.c:124
+ #, c-format
+ msgid ""
+ "%sRun 'abrt-cli report %s' for creating a case in Red Hat Customer Portal\n"
+@@ -2062,30 +2063,30 @@ msgstr ""
+ "%sExécuter « abrt-cli report %s » pour créer un dossier dans le Portail "
+ "Client Red Hat\n"
+ 
+-#: ../src/cli/list.c:173
++#: ../src/cli/list.c:176
+ msgid "& list [options]"
+ msgstr "& list [options]"
+ 
+-#: ../src/cli/list.c:182
++#: ../src/cli/list.c:185
+ msgid "List only not-reported problems"
+ msgstr "Répertorier les problèmes non rapportés uniquement"
+ 
+ #. deprecate -d option with --pretty=full
+-#: ../src/cli/list.c:184 ../src/cli/list.c:237
++#: ../src/cli/list.c:187 ../src/cli/list.c:240
+ msgid "Show detailed report"
+ msgstr "Afficher le rapport détaillé"
+ 
+-#: ../src/cli/list.c:185
++#: ../src/cli/list.c:188
+ msgid "List only the problems more recent than specified timestamp"
+ msgstr ""
+ "Répertorier uniquement les problèmes plus récents que la date indiquée"
+ 
+-#: ../src/cli/list.c:186
++#: ../src/cli/list.c:189
+ msgid "List only the problems older than specified timestamp"
+ msgstr ""
+ "Répertorier uniquement les incidents plus anciens que la date indiquée"
+ 
+-#: ../src/cli/list.c:212
++#: ../src/cli/list.c:215
+ #, c-format
+ msgid ""
+ "The Autoreporting feature is disabled. Please consider enabling it by "
+@@ -2096,32 +2097,32 @@ msgstr ""
+ "Veuillez envisager de l'activer en effectuant\n"
+ "la commande « abrt-auto-reporting enabled » en tant qu'utilisateur root.\n"
+ 
+-#: ../src/cli/list.c:229
++#: ../src/cli/list.c:232
+ msgid "& info [options] DIR..."
+ msgstr "& info [options] DIR..."
+ 
+-#: ../src/cli/list.c:238
++#: ../src/cli/list.c:241
+ msgid "Text larger than this will be shown abridged"
+ msgstr "Un texte plus grand que ce qui suit sera abrégé"
+ 
+-#: ../src/cli/list.c:258
++#: ../src/cli/list.c:261
+ #, c-format
+ msgid "No such problem directory '%s'"
+ msgstr "Répertoire d'incidents « %s » inconnu"
+ 
+-#: ../src/cli/status.c:63
++#: ../src/cli/status.c:66
+ msgid "& status"
+ msgstr "& status"
+ 
+-#: ../src/cli/status.c:71
++#: ../src/cli/status.c:74
+ msgid "Print only the problem count without any message"
+ msgstr "Affiche uniquement le nombre d'incident sans autre message"
+ 
+-#: ../src/cli/status.c:72
++#: ../src/cli/status.c:75
+ msgid "Print only the problems more recent than specified timestamp"
+ msgstr "Affiche les seuls incidents plus récents que l'horodatage indiqué"
+ 
+-#: ../src/cli/status.c:88
++#: ../src/cli/status.c:91
+ #, c-format
+ msgid "ABRT has detected %u problem(s). For more info run: abrt-cli list%s\n"
+ msgstr ""
+diff --git a/po/it.po b/po/it.po
+index 2ad531e..1fcb308 100644
+--- a/po/it.po
++++ b/po/it.po
+@@ -19,7 +19,7 @@ msgid ""
+ msgstr ""
+ "Project-Id-Version: PACKAGE VERSION\n"
+ "Report-Msgid-Bugs-To: jmoskovc@redhat.com\n"
+-"POT-Creation-Date: 2015-07-14 15:37+0200\n"
++"POT-Creation-Date: 2016-06-29 15:31+0200\n"
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
+@@ -29,7 +29,7 @@ msgstr ""
+ "language/it/)\n"
+ "Language: it\n"
+ "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+-"X-Generator: Zanata 3.6.2\n"
++"X-Generator: Zanata 3.9.5\n"
+ 
+ #: ../src/applet/abrt-applet.desktop.in.h:1
+ msgid "Automatic Bug Reporting Tool"
+@@ -358,7 +358,7 @@ msgstr "Informazioni"
+ msgid "Quit"
+ msgstr "Esci"
+ 
+-#: ../src/daemon/abrt-action-save-package-data.c:378
++#: ../src/daemon/abrt-action-save-package-data.c:400
+ msgid ""
+ "& [-v] [-c CONFFILE] -d DIR\n"
+ "\n"
+@@ -369,9 +369,9 @@ msgstr ""
+ "Interroga il database del pacchetto e salva il nome del componente e quello "
+ "del pacchetto"
+ 
+-#: ../src/daemon/abrt-action-save-package-data.c:390
++#: ../src/daemon/abrt-action-save-package-data.c:412
+ #: ../src/plugins/abrt-action-analyze-backtrace.c:53
+-#: ../src/plugins/abrt-action-analyze-c.c:78
++#: ../src/plugins/abrt-action-analyze-c.c:141
+ #: ../src/plugins/abrt-action-analyze-oops.c:48
+ #: ../src/plugins/abrt-action-analyze-xorg.c:84
+ #: ../src/plugins/abrt-action-analyze-python.c:47
+@@ -380,12 +380,12 @@ msgstr ""
+ msgid "Problem directory"
+ msgstr "Directory del problema"
+ 
+-#: ../src/daemon/abrt-action-save-package-data.c:391
++#: ../src/daemon/abrt-action-save-package-data.c:413
+ msgid "Configuration file"
+ msgstr "File di configurazione"
+ 
+-#: ../src/daemon/abrt-server.c:792 ../src/dbus/abrt-dbus.c:1001
+-#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:484
++#: ../src/daemon/abrt-server.c:792 ../src/dbus/abrt-dbus.c:1004
++#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:465
+ msgid "& [options]"
+ msgstr "& [opzioni]"
+ 
+@@ -399,72 +399,72 @@ msgstr "Utilizzare NUM per l'uid del client"
+ msgid "Log to syslog"
+ msgstr "Log su syslog"
+ 
+-#: ../src/daemon/abrt-server.c:805 ../src/daemon/abrtd.c:500
++#: ../src/daemon/abrt-server.c:805 ../src/daemon/abrtd.c:481
+ msgid "Add program names to log"
+ msgstr "Aggiungi i nomi dei programmi sul log"
+ 
+-#: ../src/dbus/abrt-dbus.c:132
++#: ../src/dbus/abrt-dbus.c:131
+ msgid "Unknown error"
+ msgstr "Errore sconosciuto"
+ 
+-#: ../src/dbus/abrt-dbus.c:221
++#: ../src/dbus/abrt-dbus.c:220
+ #, c-format
+ msgid "'%s' is not a valid problem directory"
+ msgstr "'%s' non è una directory di problema valida"
+ 
+-#: ../src/dbus/abrt-dbus.c:256
++#: ../src/dbus/abrt-dbus.c:255
+ #, c-format
+ msgid "'%s' element can't be modified"
+ msgstr "Impossibile modificare l'elemento '%s' "
+ 
+-#: ../src/dbus/abrt-dbus.c:285 ../src/dbus/abrt-dbus.c:498
+-#: ../src/dbus/abrt-dbus.c:560 ../src/dbus/abrt-dbus.c:625
+-#: ../src/dbus/abrt-dbus.c:815 ../src/dbus/abrt-configuration.c:618
++#: ../src/dbus/abrt-dbus.c:284 ../src/dbus/abrt-dbus.c:497
++#: ../src/dbus/abrt-dbus.c:559 ../src/dbus/abrt-dbus.c:624
++#: ../src/dbus/abrt-dbus.c:814 ../src/dbus/abrt-configuration.c:618
+ #: ../src/dbus/abrt-configuration.c:683
+ #, c-format
+ msgid "Not Authorized"
+ msgstr "Non Autorizzato"
+ 
+-#: ../src/dbus/abrt-dbus.c:298
++#: ../src/dbus/abrt-dbus.c:297
+ msgid "Can't access the problem for modification"
+ msgstr "Impossibile accedere al problema per la modifica"
+ 
+-#: ../src/dbus/abrt-dbus.c:514
++#: ../src/dbus/abrt-dbus.c:513
+ msgid "Chowning directory failed. Check system logs for more details."
+ msgstr ""
+ "Modifica proprietario della directory fallita. Controllare i log del sistema "
+ "per maggiori informazioni."
+ 
+-#: ../src/dbus/abrt-dbus.c:635
++#: ../src/dbus/abrt-dbus.c:634
+ msgid "Can't access the problem for reading"
+ msgstr "Impossibile accedere al problema per la lettura"
+ 
+-#: ../src/dbus/abrt-dbus.c:690 ../src/dbus/abrt-dbus.c:755
+-#: ../src/dbus/abrt-dbus.c:911
++#: ../src/dbus/abrt-dbus.c:689 ../src/dbus/abrt-dbus.c:754
++#: ../src/dbus/abrt-dbus.c:910
+ #, c-format
+ msgid "'%s' is not a valid element name"
+ msgstr "'%s' non è un nome di elemento valido"
+ 
+-#: ../src/dbus/abrt-dbus.c:711
++#: ../src/dbus/abrt-dbus.c:710
+ #, c-format
+ msgid "Can't get size of '%s'"
+ msgstr "Impossibile ottenere la dimensione di '%s'"
+ 
+-#: ../src/dbus/abrt-dbus.c:726
++#: ../src/dbus/abrt-dbus.c:725
+ msgid "No problem space left"
+ msgstr "Nessuno spazio del problema rimasto"
+ 
+-#: ../src/dbus/abrt-dbus.c:776
++#: ../src/dbus/abrt-dbus.c:775
+ #, c-format
+ msgid "Can't delete the element '%s' from the problem directory '%s'"
+ msgstr ""
+ "Impossibile cancellare l'elemento '%s' dalla directory del problema '%s'"
+ 
+-#: ../src/dbus/abrt-dbus.c:803
++#: ../src/dbus/abrt-dbus.c:802
+ msgid "Can't access the problem"
+ msgstr "Impossibile accedere al problema"
+ 
+-#: ../src/dbus/abrt-dbus.c:983 ../src/dbus/abrt-configuration.c:983
++#: ../src/dbus/abrt-dbus.c:986 ../src/dbus/abrt-configuration.c:983
+ #, c-format
+ msgid ""
+ "The name '%s' has been lost, please check if other service owning the name "
+@@ -473,16 +473,16 @@ msgstr ""
+ "Il nome '%s' è stato perso, verificare che altri servizi che utilizzano "
+ "questo nome non siano in esecuzione.\n"
+ 
+-#: ../src/dbus/abrt-dbus.c:1010 ../src/dbus/abrt-configuration.c:1011
+-#: ../src/daemon/abrtd.c:499
++#: ../src/dbus/abrt-dbus.c:1013 ../src/dbus/abrt-configuration.c:1011
++#: ../src/daemon/abrtd.c:480
+ msgid "Exit after NUM seconds of inactivity"
+ msgstr "Esci dopo NUM secondi di inattività"
+ 
+-#: ../src/dbus/abrt-dbus.c:1028 ../src/dbus/abrt-configuration.c:1021
++#: ../src/dbus/abrt-dbus.c:1031 ../src/dbus/abrt-configuration.c:1021
+ msgid "This program must be run as root."
+ msgstr "Questo programma deve essere eseguito come root."
+ 
+-#: ../src/daemon/abrtd.c:451
++#: ../src/daemon/abrtd.c:432
+ msgid ""
+ "The problem data are incomplete. This usually happens when a problem is "
+ "detected while computer is shutting down or user is logging out. In order to "
+@@ -496,11 +496,11 @@ msgstr ""
+ "permetterà di inviare questo problema. Se hai un po' di tempo e vuoi aiutare "
+ "gli sviluppatori a correggere il malfunzionameto, contattali direttamente."
+ 
+-#: ../src/daemon/abrtd.c:497
++#: ../src/daemon/abrtd.c:478
+ msgid "Do not daemonize"
+ msgstr "Non rendere demone"
+ 
+-#: ../src/daemon/abrtd.c:498
++#: ../src/daemon/abrtd.c:479
+ msgid "Log to syslog even with -d"
+ msgstr "Log su syslog anche con -d"
+ 
+@@ -557,71 +557,71 @@ msgid "Maximal cache size in MiB. Default is "
+ msgstr "Dimensione cache massima in MiB. L'impostazione predefinita è"
+ 
+ #: ../src/daemon/abrt-auto-reporting.c:200
+-#: ../src/daemon/abrt-auto-reporting.c:208
++#: ../src/daemon/abrt-auto-reporting.c:213
+ msgid "& [ "
+ msgstr "& [ "
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:235
++#: ../src/daemon/abrt-auto-reporting.c:240
+ msgid "Turns the authentication off"
+ msgstr "   Disabilita l'autenticazione"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:236
++#: ../src/daemon/abrt-auto-reporting.c:241
+ msgid "Red Hat Support user name"
+ msgstr "Nome utente per il Red Hat Support"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:237
++#: ../src/daemon/abrt-auto-reporting.c:242
+ msgid "Red Hat Support password, if not given, a prompt for it will be issued"
+ msgstr ""
+ "Password per il Red Hat Support, se non specificata verrà richiesto di "
+ "inserirne una"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:238
++#: ../src/daemon/abrt-auto-reporting.c:243
+ msgid "uReport SSL certificate paths or certificate type"
+ msgstr "Tipo di certificato o percorsi per il certificato SSL uReport"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:254
++#: ../src/daemon/abrt-auto-reporting.c:259
+ msgid "You also need to specify --username for --password"
+ msgstr "Specificare --username per --password"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:260
++#: ../src/daemon/abrt-auto-reporting.c:265
+ msgid "You can use either --username or --certificate"
+ msgstr "Usare --username o --certificate"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:266
++#: ../src/daemon/abrt-auto-reporting.c:271
+ msgid "You can use either --username or --anonymous"
+ msgstr "Usare --username o --anonymous"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:272
++#: ../src/daemon/abrt-auto-reporting.c:277
+ msgid "You can use either --anonymous or --certificate"
+ msgstr "Usare --anonymous o --certificate"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:279
++#: ../src/daemon/abrt-auto-reporting.c:284
+ msgid "Invalid number of arguments"
+ msgstr "Numero non valido di argomenti"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:298
++#: ../src/daemon/abrt-auto-reporting.c:303
+ #, c-format
+ msgid "Unknown option value: '%s'\n"
+ msgstr "Valore opzione sconosciuto: '%s'\n"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:338
++#: ../src/daemon/abrt-auto-reporting.c:343
+ msgid "Password:"
+ msgstr "Password:"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:341
++#: ../src/daemon/abrt-auto-reporting.c:346
+ msgid "Cannot continue without password\n"
+ msgstr "Impossibile continuare senza password\n"
+ 
+ #. Print only the part before ':' of a string like "username:password"
+-#: ../src/daemon/abrt-auto-reporting.c:382
++#: ../src/daemon/abrt-auto-reporting.c:387
+ msgid "HTTP Authenticated auto reporting"
+ msgstr "Auto reporting autenticato con HTTP"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:384
++#: ../src/daemon/abrt-auto-reporting.c:389
+ msgid "SSL Client Authenticated auto reporting"
+ msgstr "Auto reporting autenticato con client SSL"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:386
++#: ../src/daemon/abrt-auto-reporting.c:391
+ msgid "anonymous auto reporting"
+ msgstr "auto reporting anonimo"
+ 
+@@ -797,7 +797,7 @@ msgstr "Fallita analisi del backtrace per %s"
+ msgid "Crash thread not found"
+ msgstr "Thread di crash non trovato"
+ 
+-#: ../src/plugins/abrt-action-analyze-c.c:67
++#: ../src/plugins/abrt-action-analyze-c.c:130
+ msgid ""
+ "& [-v] -d DIR\n"
+ "\n"
+@@ -2022,7 +2022,7 @@ msgstr ""
+ msgid "See 'abrt-cli COMMAND --help' for more information"
+ msgstr "Consultare 'abrt-cli COMMAND --help' per maggiori informazioni"
+ 
+-#: ../src/cli/list.c:121
++#: ../src/cli/list.c:124
+ #, c-format
+ msgid ""
+ "%sRun 'abrt-cli report %s' for creating a case in Red Hat Customer Portal\n"
+@@ -2030,28 +2030,28 @@ msgstr ""
+ "%sEsegui 'abrt-cli report %s' per creare un caso nel Portale clienti di Red "
+ "Hat\n"
+ 
+-#: ../src/cli/list.c:173
++#: ../src/cli/list.c:176
+ msgid "& list [options]"
+ msgstr "& list [options]"
+ 
+-#: ../src/cli/list.c:182
++#: ../src/cli/list.c:185
+ msgid "List only not-reported problems"
+ msgstr "Elenca solo problemi non riportati"
+ 
+ #. deprecate -d option with --pretty=full
+-#: ../src/cli/list.c:184 ../src/cli/list.c:237
++#: ../src/cli/list.c:187 ../src/cli/list.c:240
+ msgid "Show detailed report"
+ msgstr "Mostra una notifica dettagliata"
+ 
+-#: ../src/cli/list.c:185
++#: ../src/cli/list.c:188
+ msgid "List only the problems more recent than specified timestamp"
+ msgstr "Elenca solo i problemi più recenti della data specificata"
+ 
+-#: ../src/cli/list.c:186
++#: ../src/cli/list.c:189
+ msgid "List only the problems older than specified timestamp"
+ msgstr "Elenca solo i problemi più vecchi della data specificata"
+ 
+-#: ../src/cli/list.c:212
++#: ../src/cli/list.c:215
+ #, c-format
+ msgid ""
+ "The Autoreporting feature is disabled. Please consider enabling it by "
+@@ -2061,32 +2061,32 @@ msgstr ""
+ "La funzione di auto-reporting è disabilitata. Abilitarla con il comando\n"
+ "'abrt-auto-reporting enabled' come utente con privilegi root\n"
+ 
+-#: ../src/cli/list.c:229
++#: ../src/cli/list.c:232
+ msgid "& info [options] DIR..."
+ msgstr "& info [opzioni] DIR..."
+ 
+-#: ../src/cli/list.c:238
++#: ../src/cli/list.c:241
+ msgid "Text larger than this will be shown abridged"
+ msgstr "I testi con dimensioni maggiori di questo verranno mostrati ridotti"
+ 
+-#: ../src/cli/list.c:258
++#: ../src/cli/list.c:261
+ #, c-format
+ msgid "No such problem directory '%s'"
+ msgstr "Directory '%s' del problema non trovata"
+ 
+-#: ../src/cli/status.c:63
++#: ../src/cli/status.c:66
+ msgid "& status"
+ msgstr "& status"
+ 
+-#: ../src/cli/status.c:71
++#: ../src/cli/status.c:74
+ msgid "Print only the problem count without any message"
+ msgstr "Stampa solo il contatore del problema senza nessun messaggio"
+ 
+-#: ../src/cli/status.c:72
++#: ../src/cli/status.c:75
+ msgid "Print only the problems more recent than specified timestamp"
+ msgstr "Stampa solo i problemi più recenti di un timestamp specificato"
+ 
+-#: ../src/cli/status.c:88
++#: ../src/cli/status.c:91
+ #, c-format
+ msgid "ABRT has detected %u problem(s). For more info run: abrt-cli list%s\n"
+ msgstr ""
+diff --git a/po/ja.po b/po/ja.po
+index 25c97de..9673028 100644
+--- a/po/ja.po
++++ b/po/ja.po
+@@ -17,7 +17,7 @@ msgid ""
+ msgstr ""
+ "Project-Id-Version: PACKAGE VERSION\n"
+ "Report-Msgid-Bugs-To: jmoskovc@redhat.com\n"
+-"POT-Creation-Date: 2015-07-14 15:37+0200\n"
++"POT-Creation-Date: 2016-06-29 15:31+0200\n"
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
+@@ -27,7 +27,7 @@ msgstr ""
+ "language/ja/)\n"
+ "Language: ja\n"
+ "Plural-Forms: nplurals=1; plural=0;\n"
+-"X-Generator: Zanata 3.6.2\n"
++"X-Generator: Zanata 3.9.5\n"
+ 
+ #: ../src/applet/abrt-applet.desktop.in.h:1
+ msgid "Automatic Bug Reporting Tool"
+@@ -333,7 +333,7 @@ msgstr "ABRT について"
+ msgid "Quit"
+ msgstr "終了"
+ 
+-#: ../src/daemon/abrt-action-save-package-data.c:378
++#: ../src/daemon/abrt-action-save-package-data.c:400
+ msgid ""
+ "& [-v] [-c CONFFILE] -d DIR\n"
+ "\n"
+@@ -343,9 +343,9 @@ msgstr ""
+ "\n"
+ "パッケージのデータベースに問い合わせを行い、 パッケージとコンポーネント名を保存します"
+ 
+-#: ../src/daemon/abrt-action-save-package-data.c:390
++#: ../src/daemon/abrt-action-save-package-data.c:412
+ #: ../src/plugins/abrt-action-analyze-backtrace.c:53
+-#: ../src/plugins/abrt-action-analyze-c.c:78
++#: ../src/plugins/abrt-action-analyze-c.c:141
+ #: ../src/plugins/abrt-action-analyze-oops.c:48
+ #: ../src/plugins/abrt-action-analyze-xorg.c:84
+ #: ../src/plugins/abrt-action-analyze-python.c:47
+@@ -354,12 +354,12 @@ msgstr ""
+ msgid "Problem directory"
+ msgstr "問題ディレクトリ"
+ 
+-#: ../src/daemon/abrt-action-save-package-data.c:391
++#: ../src/daemon/abrt-action-save-package-data.c:413
+ msgid "Configuration file"
+ msgstr "設定ファイル"
+ 
+-#: ../src/daemon/abrt-server.c:792 ../src/dbus/abrt-dbus.c:1001
+-#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:484
++#: ../src/daemon/abrt-server.c:792 ../src/dbus/abrt-dbus.c:1004
++#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:465
+ msgid "& [options]"
+ msgstr "& [オプション]"
+ 
+@@ -373,85 +373,85 @@ msgstr "NUM をクライアントの uid  として使用する"
+ msgid "Log to syslog"
+ msgstr "syslog にログする"
+ 
+-#: ../src/daemon/abrt-server.c:805 ../src/daemon/abrtd.c:500
++#: ../src/daemon/abrt-server.c:805 ../src/daemon/abrtd.c:481
+ msgid "Add program names to log"
+ msgstr "ログにプログラム名を追加する"
+ 
+-#: ../src/dbus/abrt-dbus.c:132
++#: ../src/dbus/abrt-dbus.c:131
+ msgid "Unknown error"
+ msgstr "不明なエラーです"
+ 
+-#: ../src/dbus/abrt-dbus.c:221
++#: ../src/dbus/abrt-dbus.c:220
+ #, c-format
+ msgid "'%s' is not a valid problem directory"
+ msgstr "「%s」は有効な問題ディレクトリではありません"
+ 
+-#: ../src/dbus/abrt-dbus.c:256
++#: ../src/dbus/abrt-dbus.c:255
+ #, c-format
+ msgid "'%s' element can't be modified"
+ msgstr "'%s' エレメントを修正できません"
+ 
+-#: ../src/dbus/abrt-dbus.c:285 ../src/dbus/abrt-dbus.c:498
+-#: ../src/dbus/abrt-dbus.c:560 ../src/dbus/abrt-dbus.c:625
+-#: ../src/dbus/abrt-dbus.c:815 ../src/dbus/abrt-configuration.c:618
++#: ../src/dbus/abrt-dbus.c:284 ../src/dbus/abrt-dbus.c:497
++#: ../src/dbus/abrt-dbus.c:559 ../src/dbus/abrt-dbus.c:624
++#: ../src/dbus/abrt-dbus.c:814 ../src/dbus/abrt-configuration.c:618
+ #: ../src/dbus/abrt-configuration.c:683
+ #, c-format
+ msgid "Not Authorized"
+ msgstr "権限がありません"
+ 
+-#: ../src/dbus/abrt-dbus.c:298
++#: ../src/dbus/abrt-dbus.c:297
+ msgid "Can't access the problem for modification"
+ msgstr "問題にアクセスして修正できません"
+ 
+-#: ../src/dbus/abrt-dbus.c:514
++#: ../src/dbus/abrt-dbus.c:513
+ msgid "Chowning directory failed. Check system logs for more details."
+ msgstr "ディレクトリの所有者変更に失敗しました。詳細はシステムログを確認してください。"
+ 
+-#: ../src/dbus/abrt-dbus.c:635
++#: ../src/dbus/abrt-dbus.c:634
+ msgid "Can't access the problem for reading"
+ msgstr "問題にアクセスして読み込むことができません"
+ 
+-#: ../src/dbus/abrt-dbus.c:690 ../src/dbus/abrt-dbus.c:755
+-#: ../src/dbus/abrt-dbus.c:911
++#: ../src/dbus/abrt-dbus.c:689 ../src/dbus/abrt-dbus.c:754
++#: ../src/dbus/abrt-dbus.c:910
+ #, c-format
+ msgid "'%s' is not a valid element name"
+ msgstr "'%s' は有効なエレメント名ではありません"
+ 
+-#: ../src/dbus/abrt-dbus.c:711
++#: ../src/dbus/abrt-dbus.c:710
+ #, c-format
+ msgid "Can't get size of '%s'"
+ msgstr "'%s' の容量を取得できません"
+ 
+-#: ../src/dbus/abrt-dbus.c:726
++#: ../src/dbus/abrt-dbus.c:725
+ msgid "No problem space left"
+ msgstr "残っている問題領域はありません"
+ 
+-#: ../src/dbus/abrt-dbus.c:776
++#: ../src/dbus/abrt-dbus.c:775
+ #, c-format
+ msgid "Can't delete the element '%s' from the problem directory '%s'"
+ msgstr "「%s」エレメントを問題ディレクトリの「%s」から削除できません"
+ 
+-#: ../src/dbus/abrt-dbus.c:803
++#: ../src/dbus/abrt-dbus.c:802
+ msgid "Can't access the problem"
+ msgstr "問題にアクセスできません"
+ 
+-#: ../src/dbus/abrt-dbus.c:983 ../src/dbus/abrt-configuration.c:983
++#: ../src/dbus/abrt-dbus.c:986 ../src/dbus/abrt-configuration.c:983
+ #, c-format
+ msgid ""
+ "The name '%s' has been lost, please check if other service owning the name "
+ "is not running.\n"
+ msgstr "'%s' の名前を紛失しました。その名前を持つ他のサービスが実行していないかチェックして下さい。\n"
+ 
+-#: ../src/dbus/abrt-dbus.c:1010 ../src/dbus/abrt-configuration.c:1011
+-#: ../src/daemon/abrtd.c:499
++#: ../src/dbus/abrt-dbus.c:1013 ../src/dbus/abrt-configuration.c:1011
++#: ../src/daemon/abrtd.c:480
+ msgid "Exit after NUM seconds of inactivity"
+ msgstr "休止状態が NUM 秒以上続いた場合は終了します"
+ 
+-#: ../src/dbus/abrt-dbus.c:1028 ../src/dbus/abrt-configuration.c:1021
++#: ../src/dbus/abrt-dbus.c:1031 ../src/dbus/abrt-configuration.c:1021
+ msgid "This program must be run as root."
+ msgstr "このプログラムは root で実行しなければなりません"
+ 
+-#: ../src/daemon/abrtd.c:451
++#: ../src/daemon/abrtd.c:432
+ msgid ""
+ "The problem data are incomplete. This usually happens when a problem is "
+ "detected while computer is shutting down or user is logging out. In order to "
+@@ -462,11 +462,11 @@ msgstr ""
+ "問題データは不完全なデータです。コンピューターのシャットダウン中やユーザーのログアウト中に問題が検出されると、こうしたことが発生します。役に立たない問題レポートは提出されないよう、ABRT "
+ "によりこの問題の送信は許可されません。この問題を解決するため時間をとって開発者にご協力頂ける場合は、開発者に直接ご連絡ください。"
+ 
+-#: ../src/daemon/abrtd.c:497
++#: ../src/daemon/abrtd.c:478
+ msgid "Do not daemonize"
+ msgstr "デーモン化しない"
+ 
+-#: ../src/daemon/abrtd.c:498
++#: ../src/daemon/abrtd.c:479
+ msgid "Log to syslog even with -d"
+ msgstr "-d オプションを使用するとログを syslog へ書き込みます"
+ 
+@@ -520,69 +520,69 @@ msgid "Maximal cache size in MiB. Default is "
+ msgstr "MiB 単位の最大キャッシュ容量。規定値は次のとおりです。"
+ 
+ #: ../src/daemon/abrt-auto-reporting.c:200
+-#: ../src/daemon/abrt-auto-reporting.c:208
++#: ../src/daemon/abrt-auto-reporting.c:213
+ msgid "& [ "
+ msgstr "& [ "
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:235
++#: ../src/daemon/abrt-auto-reporting.c:240
+ msgid "Turns the authentication off"
+ msgstr "認証をオフにする"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:236
++#: ../src/daemon/abrt-auto-reporting.c:241
+ msgid "Red Hat Support user name"
+ msgstr "Red Hat サポートユーザー名"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:237
++#: ../src/daemon/abrt-auto-reporting.c:242
+ msgid "Red Hat Support password, if not given, a prompt for it will be issued"
+ msgstr "Red Hat Support パスワード、入力しないとあとで入力が求められます"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:238
++#: ../src/daemon/abrt-auto-reporting.c:243
+ msgid "uReport SSL certificate paths or certificate type"
+ msgstr "uReport SSL 証明書パスまたは証明書タイプ"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:254
++#: ../src/daemon/abrt-auto-reporting.c:259
+ msgid "You also need to specify --username for --password"
+ msgstr "--password には --username も指定してください"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:260
++#: ../src/daemon/abrt-auto-reporting.c:265
+ msgid "You can use either --username or --certificate"
+ msgstr "--username または --certificate のいずれかを使用します"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:266
++#: ../src/daemon/abrt-auto-reporting.c:271
+ msgid "You can use either --username or --anonymous"
+ msgstr "--username または --anonymous のいずれかを使用します"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:272
++#: ../src/daemon/abrt-auto-reporting.c:277
+ msgid "You can use either --anonymous or --certificate"
+ msgstr "--anonymous または --certificate のいずれかを使用します"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:279
++#: ../src/daemon/abrt-auto-reporting.c:284
+ msgid "Invalid number of arguments"
+ msgstr "引数の数が無効な数です"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:298
++#: ../src/daemon/abrt-auto-reporting.c:303
+ #, c-format
+ msgid "Unknown option value: '%s'\n"
+ msgstr "不明なオプション値です: '%s'\n"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:338
++#: ../src/daemon/abrt-auto-reporting.c:343
+ msgid "Password:"
+ msgstr "パスワード:"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:341
++#: ../src/daemon/abrt-auto-reporting.c:346
+ msgid "Cannot continue without password\n"
+ msgstr "パスワードを入力しないと先に進めません\n"
+ 
+ #. Print only the part before ':' of a string like "username:password"
+-#: ../src/daemon/abrt-auto-reporting.c:382
++#: ../src/daemon/abrt-auto-reporting.c:387
+ msgid "HTTP Authenticated auto reporting"
+ msgstr "HTTP 認証の自動報告"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:384
++#: ../src/daemon/abrt-auto-reporting.c:389
+ msgid "SSL Client Authenticated auto reporting"
+ msgstr "SSL クライアント認証の自動報告"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:386
++#: ../src/daemon/abrt-auto-reporting.c:391
+ msgid "anonymous auto reporting"
+ msgstr "anonymous 自動報告"
+ 
+@@ -751,7 +751,7 @@ msgstr "%s のバックトレース構文解析に失敗しました"
+ msgid "Crash thread not found"
+ msgstr "クラッシュスレッドは見つかりませんでした"
+ 
+-#: ../src/plugins/abrt-action-analyze-c.c:67
++#: ../src/plugins/abrt-action-analyze-c.c:130
+ msgid ""
+ "& [-v] -d DIR\n"
+ "\n"
+@@ -1916,34 +1916,34 @@ msgstr "プライベートレポートが有効になっています、'abrt-cli
+ msgid "See 'abrt-cli COMMAND --help' for more information"
+ msgstr "詳細については abrt-cli COMMAND --help を参照してください"
+ 
+-#: ../src/cli/list.c:121
++#: ../src/cli/list.c:124
+ #, c-format
+ msgid ""
+ "%sRun 'abrt-cli report %s' for creating a case in Red Hat Customer Portal\n"
+ msgstr "Red Hat カスタマーポータルにケースを作成するため %s'abrt-cli report を実行する%s'\n"
+ 
+-#: ../src/cli/list.c:173
++#: ../src/cli/list.c:176
+ msgid "& list [options]"
+ msgstr "& list [options]"
+ 
+-#: ../src/cli/list.c:182
++#: ../src/cli/list.c:185
+ msgid "List only not-reported problems"
+ msgstr "報告されていない問題のみを表示する"
+ 
+ #. deprecate -d option with --pretty=full
+-#: ../src/cli/list.c:184 ../src/cli/list.c:237
++#: ../src/cli/list.c:187 ../src/cli/list.c:240
+ msgid "Show detailed report"
+ msgstr "詳細報告を表示する"
+ 
+-#: ../src/cli/list.c:185
++#: ../src/cli/list.c:188
+ msgid "List only the problems more recent than specified timestamp"
+ msgstr "指定したタイムスタンプより新しい問題のみを表示します"
+ 
+-#: ../src/cli/list.c:186
++#: ../src/cli/list.c:189
+ msgid "List only the problems older than specified timestamp"
+ msgstr "指定したタイムスタンプよりも古い問題のみを表示します"
+ 
+-#: ../src/cli/list.c:212
++#: ../src/cli/list.c:215
+ #, c-format
+ msgid ""
+ "The Autoreporting feature is disabled. Please consider enabling it by "
+@@ -1953,32 +1953,32 @@ msgstr ""
+ "自動報告機能は無効になっています。root の特権を持つユーザーで\n"
+ "'abrt-auto-reporting enabled' を発行し、この機能を有効にすることを検討してみてください\n"
+ 
+-#: ../src/cli/list.c:229
++#: ../src/cli/list.c:232
+ msgid "& info [options] DIR..."
+ msgstr "& info [オプション] DIR..."
+ 
+-#: ../src/cli/list.c:238
++#: ../src/cli/list.c:241
+ msgid "Text larger than this will be shown abridged"
+ msgstr "これより大きなテキストは要約して表示されます"
+ 
+-#: ../src/cli/list.c:258
++#: ../src/cli/list.c:261
+ #, c-format
+ msgid "No such problem directory '%s'"
+ msgstr "そのような問題ディレクトリ '%s' はありません"
+ 
+-#: ../src/cli/status.c:63
++#: ../src/cli/status.c:66
+ msgid "& status"
+ msgstr "& status"
+ 
+-#: ../src/cli/status.c:71
++#: ../src/cli/status.c:74
+ msgid "Print only the problem count without any message"
+ msgstr "問題の件数のみを表示し、メッセージは表示しません"
+ 
+-#: ../src/cli/status.c:72
++#: ../src/cli/status.c:75
+ msgid "Print only the problems more recent than specified timestamp"
+ msgstr "指定されたタイムスタンプよりも新しい問題のみを表示する"
+ 
+-#: ../src/cli/status.c:88
++#: ../src/cli/status.c:91
+ #, c-format
+ msgid "ABRT has detected %u problem(s). For more info run: abrt-cli list%s\n"
+ msgstr "ABRT により %u 件の問題が検出されました。次を実行して詳細を確認してください: abrt-cli list%s\n"
+diff --git a/po/ko.po b/po/ko.po
+index 22dd209..6684de2 100644
+--- a/po/ko.po
++++ b/po/ko.po
+@@ -13,7 +13,7 @@ msgid ""
+ msgstr ""
+ "Project-Id-Version: PACKAGE VERSION\n"
+ "Report-Msgid-Bugs-To: jmoskovc@redhat.com\n"
+-"POT-Creation-Date: 2015-07-14 15:37+0200\n"
++"POT-Creation-Date: 2016-06-29 15:31+0200\n"
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
+@@ -23,7 +23,7 @@ msgstr ""
+ "language/ko/)\n"
+ "Language: ko\n"
+ "Plural-Forms: nplurals=1; plural=0;\n"
+-"X-Generator: Zanata 3.6.2\n"
++"X-Generator: Zanata 3.9.5\n"
+ 
+ #: ../src/applet/abrt-applet.desktop.in.h:1
+ msgid "Automatic Bug Reporting Tool"
+@@ -326,7 +326,7 @@ msgstr "ABRT에 대해 "
+ msgid "Quit"
+ msgstr "종료 "
+ 
+-#: ../src/daemon/abrt-action-save-package-data.c:378
++#: ../src/daemon/abrt-action-save-package-data.c:400
+ msgid ""
+ "& [-v] [-c CONFFILE] -d DIR\n"
+ "\n"
+@@ -335,9 +335,9 @@ msgstr "& [-v] [-c CONFFILE] -d DIR\n"
+ "\n"
+ "패키지 데이터베이스를 쿼리하고 패키지 및 구성 요소 이름을 저장합니다 "
+ 
+-#: ../src/daemon/abrt-action-save-package-data.c:390
++#: ../src/daemon/abrt-action-save-package-data.c:412
+ #: ../src/plugins/abrt-action-analyze-backtrace.c:53
+-#: ../src/plugins/abrt-action-analyze-c.c:78
++#: ../src/plugins/abrt-action-analyze-c.c:141
+ #: ../src/plugins/abrt-action-analyze-oops.c:48
+ #: ../src/plugins/abrt-action-analyze-xorg.c:84
+ #: ../src/plugins/abrt-action-analyze-python.c:47
+@@ -346,12 +346,12 @@ msgstr "& [-v] [-c CONFFILE] -d DIR\n"
+ msgid "Problem directory"
+ msgstr "문제가 있는 디렉토리 "
+ 
+-#: ../src/daemon/abrt-action-save-package-data.c:391
++#: ../src/daemon/abrt-action-save-package-data.c:413
+ msgid "Configuration file"
+ msgstr "설정 파일 "
+ 
+-#: ../src/daemon/abrt-server.c:792 ../src/dbus/abrt-dbus.c:1001
+-#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:484
++#: ../src/daemon/abrt-server.c:792 ../src/dbus/abrt-dbus.c:1004
++#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:465
+ msgid "& [options]"
+ msgstr "& [options]"
+ 
+@@ -365,85 +365,85 @@ msgstr "NUM을 클라이언트 uid로 사용 "
+ msgid "Log to syslog"
+ msgstr "syslog에 로그   "
+ 
+-#: ../src/daemon/abrt-server.c:805 ../src/daemon/abrtd.c:500
++#: ../src/daemon/abrt-server.c:805 ../src/daemon/abrtd.c:481
+ msgid "Add program names to log"
+ msgstr "로그에 프로그램 이름 추가 "
+ 
+-#: ../src/dbus/abrt-dbus.c:132
++#: ../src/dbus/abrt-dbus.c:131
+ msgid "Unknown error"
+ msgstr "알 수 없는 오류"
+ 
+-#: ../src/dbus/abrt-dbus.c:221
++#: ../src/dbus/abrt-dbus.c:220
+ #, c-format
+ msgid "'%s' is not a valid problem directory"
+ msgstr "'%s'는 유효한 문제 디렉토리가 아닙니다"
+ 
+-#: ../src/dbus/abrt-dbus.c:256
++#: ../src/dbus/abrt-dbus.c:255
+ #, c-format
+ msgid "'%s' element can't be modified"
+ msgstr "'%s' 요소를 수정할 수 없습니다 "
+ 
+-#: ../src/dbus/abrt-dbus.c:285 ../src/dbus/abrt-dbus.c:498
+-#: ../src/dbus/abrt-dbus.c:560 ../src/dbus/abrt-dbus.c:625
+-#: ../src/dbus/abrt-dbus.c:815 ../src/dbus/abrt-configuration.c:618
++#: ../src/dbus/abrt-dbus.c:284 ../src/dbus/abrt-dbus.c:497
++#: ../src/dbus/abrt-dbus.c:559 ../src/dbus/abrt-dbus.c:624
++#: ../src/dbus/abrt-dbus.c:814 ../src/dbus/abrt-configuration.c:618
+ #: ../src/dbus/abrt-configuration.c:683
+ #, c-format
+ msgid "Not Authorized"
+ msgstr "권한이 없습니다 "
+ 
+-#: ../src/dbus/abrt-dbus.c:298
++#: ../src/dbus/abrt-dbus.c:297
+ msgid "Can't access the problem for modification"
+ msgstr "수정하기 위해 문제에 액세스할 수 없습니다 "
+ 
+-#: ../src/dbus/abrt-dbus.c:514
++#: ../src/dbus/abrt-dbus.c:513
+ msgid "Chowning directory failed. Check system logs for more details."
+ msgstr "디렉토리의 소유자 변경에 실패했습니다. 보다 자세한 내용은 시스템 로그를 확인하십시오. "
+ 
+-#: ../src/dbus/abrt-dbus.c:635
++#: ../src/dbus/abrt-dbus.c:634
+ msgid "Can't access the problem for reading"
+ msgstr "문제에 액세스하여 불러올 수 없습니다 "
+ 
+-#: ../src/dbus/abrt-dbus.c:690 ../src/dbus/abrt-dbus.c:755
+-#: ../src/dbus/abrt-dbus.c:911
++#: ../src/dbus/abrt-dbus.c:689 ../src/dbus/abrt-dbus.c:754
++#: ../src/dbus/abrt-dbus.c:910
+ #, c-format
+ msgid "'%s' is not a valid element name"
+ msgstr "'%s'은 유효한 요소 이름이 아닙니다 "
+ 
+-#: ../src/dbus/abrt-dbus.c:711
++#: ../src/dbus/abrt-dbus.c:710
+ #, c-format
+ msgid "Can't get size of '%s'"
+ msgstr "'%s' 용량을 얻을 수 없습니다 "
+ 
+-#: ../src/dbus/abrt-dbus.c:726
++#: ../src/dbus/abrt-dbus.c:725
+ msgid "No problem space left"
+ msgstr "남은 문제 공간이 없음 "
+ 
+-#: ../src/dbus/abrt-dbus.c:776
++#: ../src/dbus/abrt-dbus.c:775
+ #, c-format
+ msgid "Can't delete the element '%s' from the problem directory '%s'"
+ msgstr "문제 디렉토리 '%s'에서 요소 '%s'를 삭제할 수 없습니다 "
+ 
+-#: ../src/dbus/abrt-dbus.c:803
++#: ../src/dbus/abrt-dbus.c:802
+ msgid "Can't access the problem"
+ msgstr "문제에 액세스할 수 없습니다"
+ 
+-#: ../src/dbus/abrt-dbus.c:983 ../src/dbus/abrt-configuration.c:983
++#: ../src/dbus/abrt-dbus.c:986 ../src/dbus/abrt-configuration.c:983
+ #, c-format
+ msgid ""
+ "The name '%s' has been lost, please check if other service owning the name "
+ "is not running.\n"
+ msgstr "'%s'의 이름이 분실되었습니다. 이 이름을 갖는 다른 서비스가 실행되고 있지 않은지 확인하십시오.\n"
+ 
+-#: ../src/dbus/abrt-dbus.c:1010 ../src/dbus/abrt-configuration.c:1011
+-#: ../src/daemon/abrtd.c:499
++#: ../src/dbus/abrt-dbus.c:1013 ../src/dbus/abrt-configuration.c:1011
++#: ../src/daemon/abrtd.c:480
+ msgid "Exit after NUM seconds of inactivity"
+ msgstr "NUM 초 동안 동작하지 않을 경우 종료합니다 "
+ 
+-#: ../src/dbus/abrt-dbus.c:1028 ../src/dbus/abrt-configuration.c:1021
++#: ../src/dbus/abrt-dbus.c:1031 ../src/dbus/abrt-configuration.c:1021
+ msgid "This program must be run as root."
+ msgstr "이 프로그램은 root로 실행해야 합니다."
+ 
+-#: ../src/daemon/abrtd.c:451
++#: ../src/daemon/abrtd.c:432
+ msgid ""
+ "The problem data are incomplete. This usually happens when a problem is "
+ "detected while computer is shutting down or user is logging out. In order to "
+@@ -455,11 +455,11 @@ msgstr ""
+ "정확하게 문제를 보고하기 위해 ABRT는 이 문제를 전송하는 것을 허용하지 않습니다. 시간이 허락하여 이 문제를 해결하기 위해 개발자에게 "
+ "도움을 주려면 개발자에게 직접 연락을 취하십시오."
+ 
+-#: ../src/daemon/abrtd.c:497
++#: ../src/daemon/abrtd.c:478
+ msgid "Do not daemonize"
+ msgstr "데몬화하지 않습니다 "
+ 
+-#: ../src/daemon/abrtd.c:498
++#: ../src/daemon/abrtd.c:479
+ msgid "Log to syslog even with -d"
+ msgstr "-d를 사용하여 syslog에 로그 "
+ 
+@@ -513,69 +513,69 @@ msgid "Maximal cache size in MiB. Default is "
+ msgstr "MiB 단위의 최대 캐시 용량입니다. 기본값은 다음과 같습니다 "
+ 
+ #: ../src/daemon/abrt-auto-reporting.c:200
+-#: ../src/daemon/abrt-auto-reporting.c:208
++#: ../src/daemon/abrt-auto-reporting.c:213
+ msgid "& [ "
+ msgstr "& [ "
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:235
++#: ../src/daemon/abrt-auto-reporting.c:240
+ msgid "Turns the authentication off"
+ msgstr "인증을 해제"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:236
++#: ../src/daemon/abrt-auto-reporting.c:241
+ msgid "Red Hat Support user name"
+ msgstr "Red Hat Support 사용자 이름"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:237
++#: ../src/daemon/abrt-auto-reporting.c:242
+ msgid "Red Hat Support password, if not given, a prompt for it will be issued"
+ msgstr "Red Hat Support 암호를 지정하지 않은 경우 이를 요청하는 메세지가 나타납니다"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:238
++#: ../src/daemon/abrt-auto-reporting.c:243
+ msgid "uReport SSL certificate paths or certificate type"
+ msgstr "uReport SSL 인증서 경로 또는 인증서 유형"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:254
++#: ../src/daemon/abrt-auto-reporting.c:259
+ msgid "You also need to specify --username for --password"
+ msgstr "--password의 --username을 지정하십시오"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:260
++#: ../src/daemon/abrt-auto-reporting.c:265
+ msgid "You can use either --username or --certificate"
+ msgstr "--username 또는 --certificate 중 하나를 사용할 수 있습니다"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:266
++#: ../src/daemon/abrt-auto-reporting.c:271
+ msgid "You can use either --username or --anonymous"
+ msgstr "--username 또는 --anonymous 중 하나를 사용할 수 있습니다"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:272
++#: ../src/daemon/abrt-auto-reporting.c:277
+ msgid "You can use either --anonymous or --certificate"
+ msgstr "--anonymous 또는 --certificate 중 하나를 사용할 수 있습니다"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:279
++#: ../src/daemon/abrt-auto-reporting.c:284
+ msgid "Invalid number of arguments"
+ msgstr "잘못된 인수 개수 "
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:298
++#: ../src/daemon/abrt-auto-reporting.c:303
+ #, c-format
+ msgid "Unknown option value: '%s'\n"
+ msgstr "알 수 없는 옵션 값: '%s'\n"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:338
++#: ../src/daemon/abrt-auto-reporting.c:343
+ msgid "Password:"
+ msgstr "암호: "
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:341
++#: ../src/daemon/abrt-auto-reporting.c:346
+ msgid "Cannot continue without password\n"
+ msgstr "암호없이 계속 진행할 수 없습니다\n"
+ 
+ #. Print only the part before ':' of a string like "username:password"
+-#: ../src/daemon/abrt-auto-reporting.c:382
++#: ../src/daemon/abrt-auto-reporting.c:387
+ msgid "HTTP Authenticated auto reporting"
+ msgstr "HTTP 인증 자동 보고"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:384
++#: ../src/daemon/abrt-auto-reporting.c:389
+ msgid "SSL Client Authenticated auto reporting"
+ msgstr "SSL 클라이언트 인증 자동 보고"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:386
++#: ../src/daemon/abrt-auto-reporting.c:391
+ msgid "anonymous auto reporting"
+ msgstr "익명으로 자동 보고"
+ 
+@@ -743,7 +743,7 @@ msgstr "%s 용 백트레이스 구문 분석 실패 "
+ msgid "Crash thread not found"
+ msgstr "충돌 스레드를 찾을 수 없습니다 "
+ 
+-#: ../src/plugins/abrt-action-analyze-c.c:67
++#: ../src/plugins/abrt-action-analyze-c.c:130
+ msgid ""
+ "& [-v] -d DIR\n"
+ "\n"
+@@ -1900,34 +1900,34 @@ msgstr "비공개 보고서가 활성화되어 있습니다. 'abrt-cli -a COMMAN
+ msgid "See 'abrt-cli COMMAND --help' for more information"
+ msgstr "보다 자세한 내용은 'abrt-cli COMMAND --help'에서 참조하십시오 "
+ 
+-#: ../src/cli/list.c:121
++#: ../src/cli/list.c:124
+ #, c-format
+ msgid ""
+ "%sRun 'abrt-cli report %s' for creating a case in Red Hat Customer Portal\n"
+ msgstr "%s 'abrt-cli report %s'를 실행하여 Red Hat 고객 포털에 기술 문의를 작성합니다 \n"
+ 
+-#: ../src/cli/list.c:173
++#: ../src/cli/list.c:176
+ msgid "& list [options]"
+ msgstr "& list [options]"
+ 
+-#: ../src/cli/list.c:182
++#: ../src/cli/list.c:185
+ msgid "List only not-reported problems"
+ msgstr "보고되지 않는 문제만 나열합니다 "
+ 
+ #. deprecate -d option with --pretty=full
+-#: ../src/cli/list.c:184 ../src/cli/list.c:237
++#: ../src/cli/list.c:187 ../src/cli/list.c:240
+ msgid "Show detailed report"
+ msgstr "상세 보고를 표시합니다 "
+ 
+-#: ../src/cli/list.c:185
++#: ../src/cli/list.c:188
+ msgid "List only the problems more recent than specified timestamp"
+ msgstr "지정된 타임 스탬프 보다 최신의 문제만 나열 "
+ 
+-#: ../src/cli/list.c:186
++#: ../src/cli/list.c:189
+ msgid "List only the problems older than specified timestamp"
+ msgstr "지정된 타임 스탬프보다 오래된 문제만 나열합니다 "
+ 
+-#: ../src/cli/list.c:212
++#: ../src/cli/list.c:215
+ #, c-format
+ msgid ""
+ "The Autoreporting feature is disabled. Please consider enabling it by "
+@@ -1937,32 +1937,32 @@ msgstr ""
+ "자동보고 기능은 비활성화되어 있습니다. root 권한을 가진 사용자로\n"
+ "'abrt-auto-reporting enabled'를 실행하여 이를 활성화합니다\n"
+ 
+-#: ../src/cli/list.c:229
++#: ../src/cli/list.c:232
+ msgid "& info [options] DIR..."
+ msgstr "& info [options] DIR..."
+ 
+-#: ../src/cli/list.c:238
++#: ../src/cli/list.c:241
+ msgid "Text larger than this will be shown abridged"
+ msgstr "이보다 더 큰 텍스트는 요약하여 표시됩니다"
+ 
+-#: ../src/cli/list.c:258
++#: ../src/cli/list.c:261
+ #, c-format
+ msgid "No such problem directory '%s'"
+ msgstr "이러한 문제 디렉토리 '%s'가 없음 "
+ 
+-#: ../src/cli/status.c:63
++#: ../src/cli/status.c:66
+ msgid "& status"
+ msgstr "& status"
+ 
+-#: ../src/cli/status.c:71
++#: ../src/cli/status.c:74
+ msgid "Print only the problem count without any message"
+ msgstr "아무 메세지를 표시하지 않고 문제의 건수만 출력 "
+ 
+-#: ../src/cli/status.c:72
++#: ../src/cli/status.c:75
+ msgid "Print only the problems more recent than specified timestamp"
+ msgstr "지정된 타임 스탬프 보다 최신의 문제만 출력"
+ 
+-#: ../src/cli/status.c:88
++#: ../src/cli/status.c:91
+ #, c-format
+ msgid "ABRT has detected %u problem(s). For more info run: abrt-cli list%s\n"
+ msgstr ""
+diff --git a/po/pt_BR.po b/po/pt_BR.po
+index 8309f5e..7a1098b 100644
+--- a/po/pt_BR.po
++++ b/po/pt_BR.po
+@@ -22,24 +22,22 @@
+ # Taylon Silmer <taylon@taylon.eti.br>, 2011
+ # Teseu <tuliomac@gmail.com>, 2011
+ # Vitor Lobo Ramos <lobocode@gmail.com>, 2014
+-# Gcintra <gcintra@redhat.com>, 2015. #zanata
+-# Jakub Filak <jfilak@redhat.com>, 2015. #zanata
+-# Jonatas Z. de Vasconcellos <jonataszv@fedoraproject.org>, 2015. #zanata
++# Daniel Lara <danniel@fedoraproject.org>, 2016. #zanata
+ msgid ""
+ msgstr ""
+ "Project-Id-Version: PACKAGE VERSION\n"
+ "Report-Msgid-Bugs-To: jmoskovc@redhat.com\n"
+-"POT-Creation-Date: 2015-07-14 15:37+0200\n"
++"POT-Creation-Date: 2016-06-29 15:31+0200\n"
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
+-"PO-Revision-Date: 2015-07-18 11:44-0400\n"
+-"Last-Translator: Gcintra <gcintra@redhat.com>\n"
++"PO-Revision-Date: 2016-03-02 01:16-0500\n"
++"Last-Translator: Copied by Zanata <copied-by-zanata@zanata.org>\n"
+ "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/"
+ "fedora-abrt/language/pt_BR/)\n"
+ "Language: pt-BR\n"
+ "Plural-Forms: nplurals=2; plural=(n > 1);\n"
+-"X-Generator: Zanata 3.6.2\n"
++"X-Generator: Zanata 3.9.5\n"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+ #: ../src/applet/abrt-applet.desktop.in.h:1
+@@ -410,7 +408,7 @@ msgid "Quit"
+ msgstr "Sair"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-action-save-package-data.c:378
++#: ../src/daemon/abrt-action-save-package-data.c:400
+ msgid ""
+ "& [-v] [-c CONFFILE] -d DIR\n"
+ "\n"
+@@ -421,9 +419,9 @@ msgstr ""
+ "Analise o banco de dados do pacote e salve o pacote e nome do componente"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-action-save-package-data.c:390
++#: ../src/daemon/abrt-action-save-package-data.c:412
+ #: ../src/plugins/abrt-action-analyze-backtrace.c:53
+-#: ../src/plugins/abrt-action-analyze-c.c:78
++#: ../src/plugins/abrt-action-analyze-c.c:141
+ #: ../src/plugins/abrt-action-analyze-oops.c:48
+ #: ../src/plugins/abrt-action-analyze-xorg.c:84
+ #: ../src/plugins/abrt-action-analyze-python.c:47
+@@ -433,13 +431,13 @@ msgid "Problem directory"
+ msgstr "Diretório do problema"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-action-save-package-data.c:391
++#: ../src/daemon/abrt-action-save-package-data.c:413
+ msgid "Configuration file"
+ msgstr "Arquivo de Configuração"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-server.c:792 ../src/dbus/abrt-dbus.c:1001
+-#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:484
++#: ../src/daemon/abrt-server.c:792 ../src/dbus/abrt-dbus.c:1004
++#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:465
+ msgid "& [options]"
+ msgstr "& [options]"
+ 
+@@ -456,83 +454,83 @@ msgid "Log to syslog"
+ msgstr "Log para o syslog"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-server.c:805 ../src/daemon/abrtd.c:500
++#: ../src/daemon/abrt-server.c:805 ../src/daemon/abrtd.c:481
+ msgid "Add program names to log"
+ msgstr "Adicionar os nomes dos programas ao log"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:132
++#: ../src/dbus/abrt-dbus.c:131
+ msgid "Unknown error"
+ msgstr "Erro desconhecido"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:221
++#: ../src/dbus/abrt-dbus.c:220
+ #, c-format
+ msgid "'%s' is not a valid problem directory"
+ msgstr "'%s' não é um diretório de problema válido"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:256
++#: ../src/dbus/abrt-dbus.c:255
+ #, c-format
+ msgid "'%s' element can't be modified"
+ msgstr "O '%s' não pode ser modificado"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:285 ../src/dbus/abrt-dbus.c:498
+-#: ../src/dbus/abrt-dbus.c:560 ../src/dbus/abrt-dbus.c:625
+-#: ../src/dbus/abrt-dbus.c:815 ../src/dbus/abrt-configuration.c:618
++#: ../src/dbus/abrt-dbus.c:284 ../src/dbus/abrt-dbus.c:497
++#: ../src/dbus/abrt-dbus.c:559 ../src/dbus/abrt-dbus.c:624
++#: ../src/dbus/abrt-dbus.c:814 ../src/dbus/abrt-configuration.c:618
+ #: ../src/dbus/abrt-configuration.c:683
+ #, c-format
+ msgid "Not Authorized"
+ msgstr "Não Autorizado"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:298
++#: ../src/dbus/abrt-dbus.c:297
+ msgid "Can't access the problem for modification"
+ msgstr "Não é possível acessar o problema para modificação"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:514
++#: ../src/dbus/abrt-dbus.c:513
+ msgid "Chowning directory failed. Check system logs for more details."
+ msgstr ""
+ "Erro ao mudar o dono do diretório. Verifique os logs do sistema para mais "
+ "detalhes."
+ 
+ # translation auto-copied from project abrt, version master, document abrt, author Jonatas Z. de Vasconcellos
+-#: ../src/dbus/abrt-dbus.c:635
++#: ../src/dbus/abrt-dbus.c:634
+ msgid "Can't access the problem for reading"
+ msgstr "Não é possível acessar o problema para leitura"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:690 ../src/dbus/abrt-dbus.c:755
+-#: ../src/dbus/abrt-dbus.c:911
++#: ../src/dbus/abrt-dbus.c:689 ../src/dbus/abrt-dbus.c:754
++#: ../src/dbus/abrt-dbus.c:910
+ #, c-format
+ msgid "'%s' is not a valid element name"
+ msgstr "'%s'  não é um nome válido de elemento"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:711
++#: ../src/dbus/abrt-dbus.c:710
+ #, c-format
+ msgid "Can't get size of '%s'"
+ msgstr "Não foi possível obter o tamanho de '%s'"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:726
++#: ../src/dbus/abrt-dbus.c:725
+ msgid "No problem space left"
+ msgstr "Nenhum problema de espaço."
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:776
++#: ../src/dbus/abrt-dbus.c:775
+ #, c-format
+ msgid "Can't delete the element '%s' from the problem directory '%s'"
+ msgstr "Não é possível remover o elemento '%s' do diretório de problema '%s'"
+ 
+-#: ../src/dbus/abrt-dbus.c:803
++#: ../src/dbus/abrt-dbus.c:802
+ msgid "Can't access the problem"
+ msgstr "Não é possível acessar o problema "
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:983 ../src/dbus/abrt-configuration.c:983
++#: ../src/dbus/abrt-dbus.c:986 ../src/dbus/abrt-configuration.c:983
+ #, c-format
+ msgid ""
+ "The name '%s' has been lost, please check if other service owning the name "
+@@ -542,18 +540,18 @@ msgstr ""
+ "nome não está em execução.\n"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:1010 ../src/dbus/abrt-configuration.c:1011
+-#: ../src/daemon/abrtd.c:499
++#: ../src/dbus/abrt-dbus.c:1013 ../src/dbus/abrt-configuration.c:1011
++#: ../src/daemon/abrtd.c:480
+ msgid "Exit after NUM seconds of inactivity"
+ msgstr "Sai após os segundos NUM de inatividade"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:1028 ../src/dbus/abrt-configuration.c:1021
++#: ../src/dbus/abrt-dbus.c:1031 ../src/dbus/abrt-configuration.c:1021
+ msgid "This program must be run as root."
+ msgstr "Este programa deve estar sendo executado como root."
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrtd.c:451
++#: ../src/daemon/abrtd.c:432
+ msgid ""
+ "The problem data are incomplete. This usually happens when a problem is "
+ "detected while computer is shutting down or user is logging out. In order to "
+@@ -569,12 +567,12 @@ msgstr ""
+ "favor contacte-os diretamente."
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrtd.c:497
++#: ../src/daemon/abrtd.c:478
+ msgid "Do not daemonize"
+ msgstr "Não criar um daemon"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrtd.c:498
++#: ../src/daemon/abrtd.c:479
+ msgid "Log to syslog even with -d"
+ msgstr "Registrar no syslog mesmo com o -d"
+ 
+@@ -634,71 +632,71 @@ msgstr "Tamanho máximo de cache em MiB. O padrão é"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+ #: ../src/daemon/abrt-auto-reporting.c:200
+-#: ../src/daemon/abrt-auto-reporting.c:208
++#: ../src/daemon/abrt-auto-reporting.c:213
+ msgid "& [ "
+ msgstr "& [ "
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:235
++#: ../src/daemon/abrt-auto-reporting.c:240
+ msgid "Turns the authentication off"
+ msgstr "Desliga a Autenticação"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:236
++#: ../src/daemon/abrt-auto-reporting.c:241
+ msgid "Red Hat Support user name"
+ msgstr "Nome do usuário do Red Hat Support"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:237
++#: ../src/daemon/abrt-auto-reporting.c:242
+ msgid "Red Hat Support password, if not given, a prompt for it will be issued"
+ msgstr ""
+ "Senha do Red Hat Support, caso não seja fornecida, será enviada uma "
+ "solicitação "
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:238
++#: ../src/daemon/abrt-auto-reporting.c:243
+ msgid "uReport SSL certificate paths or certificate type"
+ msgstr "Caminhos de certiifcado ou tipo de certificado do uReport SSL"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:254
++#: ../src/daemon/abrt-auto-reporting.c:259
+ msgid "You also need to specify --username for --password"
+ msgstr "Você também precisa especificar --username para --password"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:260
++#: ../src/daemon/abrt-auto-reporting.c:265
+ msgid "You can use either --username or --certificate"
+ msgstr "Você pode utilizar --username ou --certificate"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:266
++#: ../src/daemon/abrt-auto-reporting.c:271
+ msgid "You can use either --username or --anonymous"
+ msgstr "Você pode usar --username ou --anonymous"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:272
++#: ../src/daemon/abrt-auto-reporting.c:277
+ msgid "You can use either --anonymous or --certificate"
+ msgstr "Você pode usar --anonymous ou --certificate"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:279
++#: ../src/daemon/abrt-auto-reporting.c:284
+ msgid "Invalid number of arguments"
+ msgstr "Número de argumentos é inválido"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:298
++#: ../src/daemon/abrt-auto-reporting.c:303
+ #, c-format
+ msgid "Unknown option value: '%s'\n"
+ msgstr "Valor de opção desconhecida: '%s'\n"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:338
++#: ../src/daemon/abrt-auto-reporting.c:343
+ msgid "Password:"
+ msgstr "Senha:"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:341
++#: ../src/daemon/abrt-auto-reporting.c:346
+ msgid "Cannot continue without password\n"
+ msgstr "Não foi possível continuar sem uma senha\n"
+ 
+ #. Print only the part before ':' of a string like "username:password"
+-#: ../src/daemon/abrt-auto-reporting.c:382
++#: ../src/daemon/abrt-auto-reporting.c:387
+ msgid "HTTP Authenticated auto reporting"
+ msgstr "Reportagem automática de HTTP autenticado"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:384
++#: ../src/daemon/abrt-auto-reporting.c:389
+ msgid "SSL Client Authenticated auto reporting"
+ msgstr "Reportagem automática de SSL Client autenticado"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:386
++#: ../src/daemon/abrt-auto-reporting.c:391
+ msgid "anonymous auto reporting"
+ msgstr "Reportagem automática anônima"
+ 
+@@ -882,7 +880,7 @@ msgid "Crash thread not found"
+ msgstr "Opção de travamento não foi encontrada"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/plugins/abrt-action-analyze-c.c:67
++#: ../src/plugins/abrt-action-analyze-c.c:130
+ msgid ""
+ "& [-v] -d DIR\n"
+ "\n"
+@@ -1320,7 +1318,7 @@ msgstr "Exceção aritmética"
+ 
+ #: ../src/plugins/abrt-gdb-exploitable:637
+ msgid "Division by zero"
+-msgstr "Sivisão por zero"
++msgstr "Divisão por zero"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+ #: ../src/plugins/abrt-gdb-exploitable:641
+@@ -2258,7 +2256,7 @@ msgstr ""
+ msgid "See 'abrt-cli COMMAND --help' for more information"
+ msgstr "Ver 'abrt-cli COMMAND --help' para mais informações."
+ 
+-#: ../src/cli/list.c:121
++#: ../src/cli/list.c:124
+ #, c-format
+ msgid ""
+ "%sRun 'abrt-cli report %s' for creating a case in Red Hat Customer Portal\n"
+@@ -2266,33 +2264,33 @@ msgstr ""
+ "%sExecutar 'abrt-cli report %s' para criar um caso no Red Hat Customer "
+ "Portal\n"
+ 
+-#: ../src/cli/list.c:173
++#: ../src/cli/list.c:176
+ msgid "& list [options]"
+ msgstr "& list [opções]"
+ 
+-#: ../src/cli/list.c:182
++#: ../src/cli/list.c:185
+ msgid "List only not-reported problems"
+ msgstr "Listar somente os problemas não reportados"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+ #. deprecate -d option with --pretty=full
+-#: ../src/cli/list.c:184 ../src/cli/list.c:237
++#: ../src/cli/list.c:187 ../src/cli/list.c:240
+ msgid "Show detailed report"
+ msgstr "Exibir relatório detalhado"
+ 
+-#: ../src/cli/list.c:185
++#: ../src/cli/list.c:188
+ msgid "List only the problems more recent than specified timestamp"
+ msgstr ""
+ "Listar apenas problemas mais recentes que o carimbo de data e hora "
+ "especificado"
+ 
+-#: ../src/cli/list.c:186
++#: ../src/cli/list.c:189
+ msgid "List only the problems older than specified timestamp"
+ msgstr ""
+ "Listar apenas problemas mais recentes que o carimbo de data e hora "
+ "especificado"
+ 
+-#: ../src/cli/list.c:212
++#: ../src/cli/list.c:215
+ #, c-format
+ msgid ""
+ "The Autoreporting feature is disabled. Please consider enabling it by "
+@@ -2304,36 +2302,36 @@ msgstr ""
+ "previlégios root.\n"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/cli/list.c:229
++#: ../src/cli/list.c:232
+ msgid "& info [options] DIR..."
+ msgstr "& info [options] DIR..."
+ 
+-#: ../src/cli/list.c:238
++#: ../src/cli/list.c:241
+ msgid "Text larger than this will be shown abridged"
+ msgstr "Texto maior do que este será exibido abreviado"
+ 
+-#: ../src/cli/list.c:258
++#: ../src/cli/list.c:261
+ #, c-format
+ msgid "No such problem directory '%s'"
+ msgstr "Não há tal diretório de problemas '%s'"
+ 
+-#: ../src/cli/status.c:63
++#: ../src/cli/status.c:66
+ msgid "& status"
+ msgstr "& status"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/cli/status.c:71
++#: ../src/cli/status.c:74
+ msgid "Print only the problem count without any message"
+ msgstr "Mostrar apenas a contagem de problema sem mensagem"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/cli/status.c:72
++#: ../src/cli/status.c:75
+ msgid "Print only the problems more recent than specified timestamp"
+ msgstr ""
+ "Mostrar apenas problemas mais recentes que a marca de tempo especificada"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/cli/status.c:88
++#: ../src/cli/status.c:91
+ #, c-format
+ msgid "ABRT has detected %u problem(s). For more info run: abrt-cli list%s\n"
+ msgstr ""
+diff --git a/po/ru.po b/po/ru.po
+index cd56d9a..a9390da 100644
+--- a/po/ru.po
++++ b/po/ru.po
+@@ -18,7 +18,7 @@ msgid ""
+ msgstr ""
+ "Project-Id-Version: PACKAGE VERSION\n"
+ "Report-Msgid-Bugs-To: jmoskovc@redhat.com\n"
+-"POT-Creation-Date: 2015-07-14 15:37+0200\n"
++"POT-Creation-Date: 2016-06-29 15:31+0200\n"
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
+@@ -29,7 +29,7 @@ msgstr ""
+ "Language: ru\n"
+ "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
+ "n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+-"X-Generator: Zanata 3.6.2\n"
++"X-Generator: Zanata 3.9.5\n"
+ 
+ #: ../src/applet/abrt-applet.desktop.in.h:1
+ msgid "Automatic Bug Reporting Tool"
+@@ -350,7 +350,7 @@ msgstr "О программе"
+ msgid "Quit"
+ msgstr "Выход"
+ 
+-#: ../src/daemon/abrt-action-save-package-data.c:378
++#: ../src/daemon/abrt-action-save-package-data.c:400
+ msgid ""
+ "& [-v] [-c CONFFILE] -d DIR\n"
+ "\n"
+@@ -360,9 +360,9 @@ msgstr ""
+ "\n"
+ "Сделать запрос к базе данных и сохранить название пакета и компонента"
+ 
+-#: ../src/daemon/abrt-action-save-package-data.c:390
++#: ../src/daemon/abrt-action-save-package-data.c:412
+ #: ../src/plugins/abrt-action-analyze-backtrace.c:53
+-#: ../src/plugins/abrt-action-analyze-c.c:78
++#: ../src/plugins/abrt-action-analyze-c.c:141
+ #: ../src/plugins/abrt-action-analyze-oops.c:48
+ #: ../src/plugins/abrt-action-analyze-xorg.c:84
+ #: ../src/plugins/abrt-action-analyze-python.c:47
+@@ -371,12 +371,12 @@ msgstr ""
+ msgid "Problem directory"
+ msgstr "Каталог с данными сбоя"
+ 
+-#: ../src/daemon/abrt-action-save-package-data.c:391
++#: ../src/daemon/abrt-action-save-package-data.c:413
+ msgid "Configuration file"
+ msgstr "Файл конфигурации"
+ 
+-#: ../src/daemon/abrt-server.c:792 ../src/dbus/abrt-dbus.c:1001
+-#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:484
++#: ../src/daemon/abrt-server.c:792 ../src/dbus/abrt-dbus.c:1004
++#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:465
+ msgid "& [options]"
+ msgstr "& [параметры]"
+ 
+@@ -390,71 +390,71 @@ msgstr "Использовать NUM как uid клиента"
+ msgid "Log to syslog"
+ msgstr "Запись в журнал"
+ 
+-#: ../src/daemon/abrt-server.c:805 ../src/daemon/abrtd.c:500
++#: ../src/daemon/abrt-server.c:805 ../src/daemon/abrtd.c:481
+ msgid "Add program names to log"
+ msgstr "Добавить названия программ в журнал"
+ 
+-#: ../src/dbus/abrt-dbus.c:132
++#: ../src/dbus/abrt-dbus.c:131
+ msgid "Unknown error"
+ msgstr "Неизвестная ошибка"
+ 
+-#: ../src/dbus/abrt-dbus.c:221
++#: ../src/dbus/abrt-dbus.c:220
+ #, c-format
+ msgid "'%s' is not a valid problem directory"
+ msgstr "Недопустимый каталог с данными сбоя: «%s»"
+ 
+-#: ../src/dbus/abrt-dbus.c:256
++#: ../src/dbus/abrt-dbus.c:255
+ #, c-format
+ msgid "'%s' element can't be modified"
+ msgstr "Элемент «%s» не может быть изменен"
+ 
+-#: ../src/dbus/abrt-dbus.c:285 ../src/dbus/abrt-dbus.c:498
+-#: ../src/dbus/abrt-dbus.c:560 ../src/dbus/abrt-dbus.c:625
+-#: ../src/dbus/abrt-dbus.c:815 ../src/dbus/abrt-configuration.c:618
++#: ../src/dbus/abrt-dbus.c:284 ../src/dbus/abrt-dbus.c:497
++#: ../src/dbus/abrt-dbus.c:559 ../src/dbus/abrt-dbus.c:624
++#: ../src/dbus/abrt-dbus.c:814 ../src/dbus/abrt-configuration.c:618
+ #: ../src/dbus/abrt-configuration.c:683
+ #, c-format
+ msgid "Not Authorized"
+ msgstr "Не разрешено"
+ 
+-#: ../src/dbus/abrt-dbus.c:298
++#: ../src/dbus/abrt-dbus.c:297
+ msgid "Can't access the problem for modification"
+ msgstr "Ошибка доступа к проблеме с целью ее изменения"
+ 
+-#: ../src/dbus/abrt-dbus.c:514
++#: ../src/dbus/abrt-dbus.c:513
+ msgid "Chowning directory failed. Check system logs for more details."
+ msgstr "Не удалось изменить владельца каталога. Проверьте журналы."
+ 
+ # translation auto-copied from project abrt, version master, document abrt, author Igor Gorbounov
+-#: ../src/dbus/abrt-dbus.c:635
++#: ../src/dbus/abrt-dbus.c:634
+ msgid "Can't access the problem for reading"
+ msgstr "Не удается получить доступ к данным сбоя для чтения"
+ 
+-#: ../src/dbus/abrt-dbus.c:690 ../src/dbus/abrt-dbus.c:755
+-#: ../src/dbus/abrt-dbus.c:911
++#: ../src/dbus/abrt-dbus.c:689 ../src/dbus/abrt-dbus.c:754
++#: ../src/dbus/abrt-dbus.c:910
+ #, c-format
+ msgid "'%s' is not a valid element name"
+ msgstr "Недопустимое имя элемента:  «%s»"
+ 
+-#: ../src/dbus/abrt-dbus.c:711
++#: ../src/dbus/abrt-dbus.c:710
+ #, c-format
+ msgid "Can't get size of '%s'"
+ msgstr "Не удалось определить размер «%s»."
+ 
+-#: ../src/dbus/abrt-dbus.c:726
++#: ../src/dbus/abrt-dbus.c:725
+ msgid "No problem space left"
+ msgstr "Недостаточно места"
+ 
+-#: ../src/dbus/abrt-dbus.c:776
++#: ../src/dbus/abrt-dbus.c:775
+ #, c-format
+ msgid "Can't delete the element '%s' from the problem directory '%s'"
+ msgstr "Ошибка удаления элемента «%s» из каталога «%s»"
+ 
+ # translation auto-copied from project abrt, version master, document abrt, author Igor Gorbounov
+-#: ../src/dbus/abrt-dbus.c:803
++#: ../src/dbus/abrt-dbus.c:802
+ msgid "Can't access the problem"
+ msgstr "Не удается получить доступ к данным сбоя"
+ 
+-#: ../src/dbus/abrt-dbus.c:983 ../src/dbus/abrt-configuration.c:983
++#: ../src/dbus/abrt-dbus.c:986 ../src/dbus/abrt-configuration.c:983
+ #, c-format
+ msgid ""
+ "The name '%s' has been lost, please check if other service owning the name "
+@@ -463,17 +463,17 @@ msgstr ""
+ "Имя «%s» было потеряно, проверьте, не работает ли другая служба, "
+ "использующая это имя.\n"
+ 
+-#: ../src/dbus/abrt-dbus.c:1010 ../src/dbus/abrt-configuration.c:1011
+-#: ../src/daemon/abrtd.c:499
++#: ../src/dbus/abrt-dbus.c:1013 ../src/dbus/abrt-configuration.c:1011
++#: ../src/daemon/abrtd.c:480
+ msgid "Exit after NUM seconds of inactivity"
+ msgstr "Выйти после NUM секунд бездействия"
+ 
+-#: ../src/dbus/abrt-dbus.c:1028 ../src/dbus/abrt-configuration.c:1021
++#: ../src/dbus/abrt-dbus.c:1031 ../src/dbus/abrt-configuration.c:1021
+ msgid "This program must be run as root."
+ msgstr ""
+ "Эта программа должна запускаться от имени привелигированного пользователя."
+ 
+-#: ../src/daemon/abrtd.c:451
++#: ../src/daemon/abrtd.c:432
+ msgid ""
+ "The problem data are incomplete. This usually happens when a problem is "
+ "detected while computer is shutting down or user is logging out. In order to "
+@@ -487,11 +487,11 @@ msgstr ""
+ "об этой ошибке. Если у вас есть время, и вы хотите помочь разработчикам в их "
+ "усилиях разобраться с этим сбоем, связывайтесь с ними напрямую."
+ 
+-#: ../src/daemon/abrtd.c:497
++#: ../src/daemon/abrtd.c:478
+ msgid "Do not daemonize"
+ msgstr "Не выполнять как службу"
+ 
+-#: ../src/daemon/abrtd.c:498
++#: ../src/daemon/abrtd.c:479
+ msgid "Log to syslog even with -d"
+ msgstr "Запись в журнал даже с -d"
+ 
+@@ -546,71 +546,71 @@ msgid "Maximal cache size in MiB. Default is "
+ msgstr "Максимальный размер кэша в МиБ. По умолчанию:"
+ 
+ #: ../src/daemon/abrt-auto-reporting.c:200
+-#: ../src/daemon/abrt-auto-reporting.c:208
++#: ../src/daemon/abrt-auto-reporting.c:213
+ msgid "& [ "
+ msgstr "& [ "
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:235
++#: ../src/daemon/abrt-auto-reporting.c:240
+ msgid "Turns the authentication off"
+ msgstr "Отключает аутентификацию"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:236
++#: ../src/daemon/abrt-auto-reporting.c:241
+ msgid "Red Hat Support user name"
+ msgstr "Имя пользователя в системе поддержки Red Hat"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:237
++#: ../src/daemon/abrt-auto-reporting.c:242
+ msgid "Red Hat Support password, if not given, a prompt for it will be issued"
+ msgstr ""
+ "Пароль доступа к системе поддержки Red Hat. Если не указан, будет предложено "
+ "его ввести вручную"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:238
++#: ../src/daemon/abrt-auto-reporting.c:243
+ msgid "uReport SSL certificate paths or certificate type"
+ msgstr "Путь к SSL-сертификату uReport или тип сертификата"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:254
++#: ../src/daemon/abrt-auto-reporting.c:259
+ msgid "You also need to specify --username for --password"
+ msgstr "Если пароль задан, необходимо определить --username"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:260
++#: ../src/daemon/abrt-auto-reporting.c:265
+ msgid "You can use either --username or --certificate"
+ msgstr "Укажите --username или --certificate "
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:266
++#: ../src/daemon/abrt-auto-reporting.c:271
+ msgid "You can use either --username or --anonymous"
+ msgstr "Укажите --username или --anonymous"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:272
++#: ../src/daemon/abrt-auto-reporting.c:277
+ msgid "You can use either --anonymous or --certificate"
+ msgstr "Укажите --anonymous или --certificate"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:279
++#: ../src/daemon/abrt-auto-reporting.c:284
+ msgid "Invalid number of arguments"
+ msgstr "Недопустимое число аргументов"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:298
++#: ../src/daemon/abrt-auto-reporting.c:303
+ #, c-format
+ msgid "Unknown option value: '%s'\n"
+ msgstr "Неизвестное значение: «%s»\n"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:338
++#: ../src/daemon/abrt-auto-reporting.c:343
+ msgid "Password:"
+ msgstr "Пароль:"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:341
++#: ../src/daemon/abrt-auto-reporting.c:346
+ msgid "Cannot continue without password\n"
+ msgstr "Для продолжения необходимо ввести пароль.\n"
+ 
+ #. Print only the part before ':' of a string like "username:password"
+-#: ../src/daemon/abrt-auto-reporting.c:382
++#: ../src/daemon/abrt-auto-reporting.c:387
+ msgid "HTTP Authenticated auto reporting"
+ msgstr "Автоматический отчет для HTTP-подключений"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:384
++#: ../src/daemon/abrt-auto-reporting.c:389
+ msgid "SSL Client Authenticated auto reporting"
+ msgstr "Автоматический отчет для SSL-подключений"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:386
++#: ../src/daemon/abrt-auto-reporting.c:391
+ msgid "anonymous auto reporting"
+ msgstr "Автоматический отчет для анонимных подключений"
+ 
+@@ -783,7 +783,7 @@ msgstr "Ошибка разбора протокола сбоя %s"
+ msgid "Crash thread not found"
+ msgstr "Поток сбоя не найден"
+ 
+-#: ../src/plugins/abrt-action-analyze-c.c:67
++#: ../src/plugins/abrt-action-analyze-c.c:130
+ msgid ""
+ "& [-v] -d DIR\n"
+ "\n"
+@@ -1995,7 +1995,7 @@ msgid "See 'abrt-cli COMMAND --help' for more information"
+ msgstr ""
+ "Для получения дополнительной информации выполните «abrt-cli КОМАНДА --help»"
+ 
+-#: ../src/cli/list.c:121
++#: ../src/cli/list.c:124
+ #, c-format
+ msgid ""
+ "%sRun 'abrt-cli report %s' for creating a case in Red Hat Customer Portal\n"
+@@ -2004,28 +2004,28 @@ msgstr ""
+ "пользователей Red Hat\n"
+ 
+ # translation auto-copied from project abrt, version master, document abrt, author Igor Gorbounov
+-#: ../src/cli/list.c:173
++#: ../src/cli/list.c:176
+ msgid "& list [options]"
+ msgstr "& list [параметры]"
+ 
+-#: ../src/cli/list.c:182
++#: ../src/cli/list.c:185
+ msgid "List only not-reported problems"
+ msgstr "Показать ошибки, о которых еще не сообщалось"
+ 
+ #. deprecate -d option with --pretty=full
+-#: ../src/cli/list.c:184 ../src/cli/list.c:237
++#: ../src/cli/list.c:187 ../src/cli/list.c:240
+ msgid "Show detailed report"
+ msgstr "Показать подробный отчёт"
+ 
+-#: ../src/cli/list.c:185
++#: ../src/cli/list.c:188
+ msgid "List only the problems more recent than specified timestamp"
+ msgstr "Дать список сбоев, обнаруженных после указанного момента времени"
+ 
+-#: ../src/cli/list.c:186
++#: ../src/cli/list.c:189
+ msgid "List only the problems older than specified timestamp"
+ msgstr "Дать список сбоев, обнаруженных до указанного момента времени"
+ 
+-#: ../src/cli/list.c:212
++#: ../src/cli/list.c:215
+ #, c-format
+ msgid ""
+ "The Autoreporting feature is disabled. Please consider enabling it by "
+@@ -2035,33 +2035,33 @@ msgstr ""
+ "Функции автоматического создания отчетов отключены. \n"
+ "Чтобы их включить, в режиме root выполните: abrt-auto-reporting enabled\n"
+ 
+-#: ../src/cli/list.c:229
++#: ../src/cli/list.c:232
+ msgid "& info [options] DIR..."
+ msgstr "& info [параметры] DIR..."
+ 
+-#: ../src/cli/list.c:238
++#: ../src/cli/list.c:241
+ msgid "Text larger than this will be shown abridged"
+ msgstr "Текст, длина которого превышает указанную, будет усечен"
+ 
+-#: ../src/cli/list.c:258
++#: ../src/cli/list.c:261
+ #, c-format
+ msgid "No such problem directory '%s'"
+ msgstr "Нет такого каталога:  «%s»."
+ 
+ # translation auto-copied from project abrt, version master, document abrt, author Igor Gorbounov
+-#: ../src/cli/status.c:63
++#: ../src/cli/status.c:66
+ msgid "& status"
+ msgstr "& status"
+ 
+-#: ../src/cli/status.c:71
++#: ../src/cli/status.c:74
+ msgid "Print only the problem count without any message"
+ msgstr "Вывод только числа сбоев"
+ 
+-#: ../src/cli/status.c:72
++#: ../src/cli/status.c:75
+ msgid "Print only the problems more recent than specified timestamp"
+ msgstr "Вывод сбоев, обнаруженных после указанного момента времени"
+ 
+-#: ../src/cli/status.c:88
++#: ../src/cli/status.c:91
+ #, c-format
+ msgid "ABRT has detected %u problem(s). For more info run: abrt-cli list%s\n"
+ msgstr ""
+diff --git a/po/zh_CN.po b/po/zh_CN.po
+index f848292..d66dbb8 100644
+--- a/po/zh_CN.po
++++ b/po/zh_CN.po
+@@ -15,26 +15,27 @@
+ # yusuf <yusufma77@yahoo.com>, 2011
+ # Zamir SUN <zamirs@163.com>, 2013
+ # Leah Liu <lliu@redhat.com>, 2015. #zanata
++# Alex Eng <aeng@redhat.com>, 2016. #zanata
+ msgid ""
+ msgstr ""
+ "Project-Id-Version: PACKAGE VERSION\n"
+ "Report-Msgid-Bugs-To: jmoskovc@redhat.com\n"
+-"POT-Creation-Date: 2015-07-14 15:37+0200\n"
++"POT-Creation-Date: 2016-06-29 15:31+0200\n"
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
+-"PO-Revision-Date: 2015-07-17 08:20-0400\n"
+-"Last-Translator: Leah Liu <lliu@redhat.com>\n"
++"PO-Revision-Date: 2016-05-24 01:05-0400\n"
++"Last-Translator: Copied by Zanata <copied-by-zanata@zanata.org>\n"
+ "Language-Team: Chinese (China) (http://www.transifex.com/projects/p/fedora-"
+ "abrt/language/zh_CN/)\n"
+ "Language: zh-CN\n"
+ "Plural-Forms: nplurals=1; plural=0;\n"
+-"X-Generator: Zanata 3.6.2\n"
++"X-Generator: Zanata 3.9.5\n"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+ #: ../src/applet/abrt-applet.desktop.in.h:1
+ msgid "Automatic Bug Reporting Tool"
+-msgstr "错误自动报告工具"
++msgstr "错误自动报告工具 alex"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+ #: ../src/applet/abrt-applet.desktop.in.h:2
+@@ -370,7 +371,7 @@ msgid "Quit"
+ msgstr "退出"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-action-save-package-data.c:378
++#: ../src/daemon/abrt-action-save-package-data.c:400
+ msgid ""
+ "& [-v] [-c CONFFILE] -d DIR\n"
+ "\n"
+@@ -380,9 +381,9 @@ msgstr "& [-v] [-c CONFFILE] -d DIR\n"
+ "查询软件包数据库并保存软件包和组件名称"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-action-save-package-data.c:390
++#: ../src/daemon/abrt-action-save-package-data.c:412
+ #: ../src/plugins/abrt-action-analyze-backtrace.c:53
+-#: ../src/plugins/abrt-action-analyze-c.c:78
++#: ../src/plugins/abrt-action-analyze-c.c:141
+ #: ../src/plugins/abrt-action-analyze-oops.c:48
+ #: ../src/plugins/abrt-action-analyze-xorg.c:84
+ #: ../src/plugins/abrt-action-analyze-python.c:47
+@@ -392,13 +393,13 @@ msgid "Problem directory"
+ msgstr "问题目录"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-action-save-package-data.c:391
++#: ../src/daemon/abrt-action-save-package-data.c:413
+ msgid "Configuration file"
+ msgstr "配置文件"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-server.c:792 ../src/dbus/abrt-dbus.c:1001
+-#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:484
++#: ../src/daemon/abrt-server.c:792 ../src/dbus/abrt-dbus.c:1004
++#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:465
+ msgid "& [options]"
+ msgstr "& [options]"
+ 
+@@ -415,80 +416,80 @@ msgid "Log to syslog"
+ msgstr "记录至 syslog"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-server.c:805 ../src/daemon/abrtd.c:500
++#: ../src/daemon/abrt-server.c:805 ../src/daemon/abrtd.c:481
+ msgid "Add program names to log"
+ msgstr "在日志中添加程序名"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:132
++#: ../src/dbus/abrt-dbus.c:131
+ msgid "Unknown error"
+ msgstr "未知错误"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:221
++#: ../src/dbus/abrt-dbus.c:220
+ #, c-format
+ msgid "'%s' is not a valid problem directory"
+ msgstr "'%s' 不是有效的问题目录"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:256
++#: ../src/dbus/abrt-dbus.c:255
+ #, c-format
+ msgid "'%s' element can't be modified"
+ msgstr "无法修改 '%s' 元素"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:285 ../src/dbus/abrt-dbus.c:498
+-#: ../src/dbus/abrt-dbus.c:560 ../src/dbus/abrt-dbus.c:625
+-#: ../src/dbus/abrt-dbus.c:815 ../src/dbus/abrt-configuration.c:618
++#: ../src/dbus/abrt-dbus.c:284 ../src/dbus/abrt-dbus.c:497
++#: ../src/dbus/abrt-dbus.c:559 ../src/dbus/abrt-dbus.c:624
++#: ../src/dbus/abrt-dbus.c:814 ../src/dbus/abrt-configuration.c:618
+ #: ../src/dbus/abrt-configuration.c:683
+ #, c-format
+ msgid "Not Authorized"
+ msgstr "未授权"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:298
++#: ../src/dbus/abrt-dbus.c:297
+ msgid "Can't access the problem for modification"
+ msgstr "无法访问该问题进行修改"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:514
++#: ../src/dbus/abrt-dbus.c:513
+ msgid "Chowning directory failed. Check system logs for more details."
+ msgstr "变更目录属主失败。请检查系统日志以了解更多。"
+ 
+-#: ../src/dbus/abrt-dbus.c:635
++#: ../src/dbus/abrt-dbus.c:634
+ msgid "Can't access the problem for reading"
+ msgstr "无法访问该问题进行读取"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:690 ../src/dbus/abrt-dbus.c:755
+-#: ../src/dbus/abrt-dbus.c:911
++#: ../src/dbus/abrt-dbus.c:689 ../src/dbus/abrt-dbus.c:754
++#: ../src/dbus/abrt-dbus.c:910
+ #, c-format
+ msgid "'%s' is not a valid element name"
+ msgstr "'%s' 不是一个有效的元素名"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:711
++#: ../src/dbus/abrt-dbus.c:710
+ #, c-format
+ msgid "Can't get size of '%s'"
+ msgstr "无法获取 '%s' 的大小"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:726
++#: ../src/dbus/abrt-dbus.c:725
+ msgid "No problem space left"
+ msgstr "没有留出问题空间"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:776
++#: ../src/dbus/abrt-dbus.c:775
+ #, c-format
+ msgid "Can't delete the element '%s' from the problem directory '%s'"
+ msgstr "无法从问题目录 '%s' 中删除元素 '%s'"
+ 
+-#: ../src/dbus/abrt-dbus.c:803
++#: ../src/dbus/abrt-dbus.c:802
+ msgid "Can't access the problem"
+ msgstr "无法访问该问题"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:983 ../src/dbus/abrt-configuration.c:983
++#: ../src/dbus/abrt-dbus.c:986 ../src/dbus/abrt-configuration.c:983
+ #, c-format
+ msgid ""
+ "The name '%s' has been lost, please check if other service owning the name "
+@@ -496,18 +497,18 @@ msgid ""
+ msgstr "名称 '%s' 已丢失，请检查其它拥有该名称的服务是否未运行。\n"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:1010 ../src/dbus/abrt-configuration.c:1011
+-#: ../src/daemon/abrtd.c:499
++#: ../src/dbus/abrt-dbus.c:1013 ../src/dbus/abrt-configuration.c:1011
++#: ../src/daemon/abrtd.c:480
+ msgid "Exit after NUM seconds of inactivity"
+ msgstr "闲置 NUM 秒后退出"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:1028 ../src/dbus/abrt-configuration.c:1021
++#: ../src/dbus/abrt-dbus.c:1031 ../src/dbus/abrt-configuration.c:1021
+ msgid "This program must be run as root."
+ msgstr "此程序必须以 root 权限运行。"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrtd.c:451
++#: ../src/daemon/abrtd.c:432
+ msgid ""
+ "The problem data are incomplete. This usually happens when a problem is "
+ "detected while computer is shutting down or user is logging out. In order to "
+@@ -519,12 +520,12 @@ msgstr ""
+ "将不允许您提交该问题。如果您有时间想帮助开发者找出问题的根源，请直接与他们联系。"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrtd.c:497
++#: ../src/daemon/abrtd.c:478
+ msgid "Do not daemonize"
+ msgstr "不要在后台运行"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrtd.c:498
++#: ../src/daemon/abrtd.c:479
+ msgid "Log to syslog even with -d"
+ msgstr "即使加入 -d 选项也记录至 syslog"
+ 
+@@ -587,70 +588,70 @@ msgstr "以 MiB 计最大缓存尺寸。默认为"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+ #: ../src/daemon/abrt-auto-reporting.c:200
+-#: ../src/daemon/abrt-auto-reporting.c:208
++#: ../src/daemon/abrt-auto-reporting.c:213
+ msgid "& [ "
+ msgstr "& [ "
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:235
++#: ../src/daemon/abrt-auto-reporting.c:240
+ msgid "Turns the authentication off"
+ msgstr "关闭认证"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:236
++#: ../src/daemon/abrt-auto-reporting.c:241
+ msgid "Red Hat Support user name"
+ msgstr "Red Hat 支持用户名"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:237
++#: ../src/daemon/abrt-auto-reporting.c:242
+ msgid "Red Hat Support password, if not given, a prompt for it will be issued"
+ msgstr "Red Hat 支持密码，如果不输入密码则会有提示。"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:238
++#: ../src/daemon/abrt-auto-reporting.c:243
+ msgid "uReport SSL certificate paths or certificate type"
+ msgstr "uReport SSL 证书路径或者证书类型"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:254
++#: ../src/daemon/abrt-auto-reporting.c:259
+ msgid "You also need to specify --username for --password"
+ msgstr "您还需要为 --password 指定 --username"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:260
++#: ../src/daemon/abrt-auto-reporting.c:265
+ msgid "You can use either --username or --certificate"
+ msgstr "您可以使用 --username 或者 --certificate"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:266
++#: ../src/daemon/abrt-auto-reporting.c:271
+ msgid "You can use either --username or --anonymous"
+ msgstr "您可以使用 --username 或者 --anonymous"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:272
++#: ../src/daemon/abrt-auto-reporting.c:277
+ msgid "You can use either --anonymous or --certificate"
+ msgstr "您可以使用 --anonymous 或者 --certificate"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:279
++#: ../src/daemon/abrt-auto-reporting.c:284
+ msgid "Invalid number of arguments"
+ msgstr "无效参数值"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-auto-reporting.c:298
++#: ../src/daemon/abrt-auto-reporting.c:303
+ #, c-format
+ msgid "Unknown option value: '%s'\n"
+ msgstr "未知选项值：'%s'\n"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:338
++#: ../src/daemon/abrt-auto-reporting.c:343
+ msgid "Password:"
+ msgstr "密码："
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:341
++#: ../src/daemon/abrt-auto-reporting.c:346
+ msgid "Cannot continue without password\n"
+ msgstr "需要密码才可继续\n"
+ 
+ #. Print only the part before ':' of a string like "username:password"
+-#: ../src/daemon/abrt-auto-reporting.c:382
++#: ../src/daemon/abrt-auto-reporting.c:387
+ msgid "HTTP Authenticated auto reporting"
+ msgstr "HTTP 认证的自动报告"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:384
++#: ../src/daemon/abrt-auto-reporting.c:389
+ msgid "SSL Client Authenticated auto reporting"
+ msgstr "SSL 客户端认证的自动报告"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:386
++#: ../src/daemon/abrt-auto-reporting.c:391
+ msgid "anonymous auto reporting"
+ msgstr "匿名自动报告"
+ 
+@@ -831,7 +832,7 @@ msgid "Crash thread not found"
+ msgstr "崩溃线程"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/plugins/abrt-action-analyze-c.c:67
++#: ../src/plugins/abrt-action-analyze-c.c:130
+ msgid ""
+ "& [-v] -d DIR\n"
+ "\n"
+@@ -2164,38 +2165,38 @@ msgstr "启用专用报告，使用 'abrt-cli -a COMMAND' 获取探测到的问
+ msgid "See 'abrt-cli COMMAND --help' for more information"
+ msgstr "详情请查看 'abrt-cli COMMAND --help'"
+ 
+-#: ../src/cli/list.c:121
++#: ../src/cli/list.c:124
+ #, c-format
+ msgid ""
+ "%sRun 'abrt-cli report %s' for creating a case in Red Hat Customer Portal\n"
+ msgstr "%s 运行 'abrt-cli report %s' 在 Red Hat 客户门户网站中创建问题单\n"
+ 
+-#: ../src/cli/list.c:173
++#: ../src/cli/list.c:176
+ msgid "& list [options]"
+ msgstr "& list [选项]"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/cli/list.c:182
++#: ../src/cli/list.c:185
+ msgid "List only not-reported problems"
+ msgstr "只列出未报告的问题"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+ #. deprecate -d option with --pretty=full
+-#: ../src/cli/list.c:184 ../src/cli/list.c:237
++#: ../src/cli/list.c:187 ../src/cli/list.c:240
+ msgid "Show detailed report"
+ msgstr "显示详细报告"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/cli/list.c:185
++#: ../src/cli/list.c:188
+ msgid "List only the problems more recent than specified timestamp"
+ msgstr "仅列出比指定时间更晚的问题"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/cli/list.c:186
++#: ../src/cli/list.c:189
+ msgid "List only the problems older than specified timestamp"
+ msgstr "仅列出比指定时间戳更早的问题"
+ 
+-#: ../src/cli/list.c:212
++#: ../src/cli/list.c:215
+ #, c-format
+ msgid ""
+ "The Autoreporting feature is disabled. Please consider enabling it by "
+@@ -2206,37 +2207,37 @@ msgstr ""
+ "作为有 root 特权的用户使用命令 'abrt-auto-reporting enabled'\n"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/cli/list.c:229
++#: ../src/cli/list.c:232
+ msgid "& info [options] DIR..."
+ msgstr "& info [选项] DIR..."
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/cli/list.c:238
++#: ../src/cli/list.c:241
+ msgid "Text larger than this will be shown abridged"
+ msgstr "超出此大小的文字会在显示时被删节"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/cli/list.c:258
++#: ../src/cli/list.c:261
+ #, c-format
+ msgid "No such problem directory '%s'"
+ msgstr "没有问题目录 '%s'"
+ 
+-#: ../src/cli/status.c:63
++#: ../src/cli/status.c:66
+ msgid "& status"
+ msgstr "& status"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/cli/status.c:71
++#: ../src/cli/status.c:74
+ msgid "Print only the problem count without any message"
+ msgstr "仅显示问题计数。"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/cli/status.c:72
++#: ../src/cli/status.c:75
+ msgid "Print only the problems more recent than specified timestamp"
+ msgstr "仅显示比指定时间更晚的问题。"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/cli/status.c:88
++#: ../src/cli/status.c:91
+ #, c-format
+ msgid "ABRT has detected %u problem(s). For more info run: abrt-cli list%s\n"
+ msgstr "ABRT 已检测到 '%u' 个问题。预了解详细信息请执行：abrt-cli list%s\n"
+diff --git a/po/zh_TW.po b/po/zh_TW.po
+index 75e83e6..e93a848 100644
+--- a/po/zh_TW.po
++++ b/po/zh_TW.po
+@@ -6,13 +6,13 @@
+ # Chester Cheng <ccheng@redhat.com>, 2012,2014
+ # Jiří Moskovčák <jmoskovc@redhat.com>, 2011
+ # Terry Chuang <tchuang@redhat.com>, 2014
+-# Chester Cheng <ccheng@redhat.com>, 2015. #zanata
++# Chester Cheng <snowlet.cheng@gmail.com>, 2015. #zanata
+ # Terry Chuang <tchuang@redhat.com>, 2015. #zanata
+ msgid ""
+ msgstr ""
+ "Project-Id-Version: PACKAGE VERSION\n"
+ "Report-Msgid-Bugs-To: jmoskovc@redhat.com\n"
+-"POT-Creation-Date: 2015-07-14 15:37+0200\n"
++"POT-Creation-Date: 2016-06-29 15:31+0200\n"
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
+@@ -22,7 +22,7 @@ msgstr ""
+ "abrt/language/zh_TW/)\n"
+ "Language: zh-TW\n"
+ "Plural-Forms: nplurals=1; plural=0;\n"
+-"X-Generator: Zanata 3.6.2\n"
++"X-Generator: Zanata 3.9.5\n"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+ #: ../src/applet/abrt-applet.desktop.in.h:1
+@@ -371,7 +371,7 @@ msgid "Quit"
+ msgstr "退出"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-action-save-package-data.c:378
++#: ../src/daemon/abrt-action-save-package-data.c:400
+ msgid ""
+ "& [-v] [-c CONFFILE] -d DIR\n"
+ "\n"
+@@ -381,9 +381,9 @@ msgstr "& [-v] [-c CONFFILE] -d DIR\n"
+ "查詢軟體包資料庫，並儲存軟體包與元件名稱"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-action-save-package-data.c:390
++#: ../src/daemon/abrt-action-save-package-data.c:412
+ #: ../src/plugins/abrt-action-analyze-backtrace.c:53
+-#: ../src/plugins/abrt-action-analyze-c.c:78
++#: ../src/plugins/abrt-action-analyze-c.c:141
+ #: ../src/plugins/abrt-action-analyze-oops.c:48
+ #: ../src/plugins/abrt-action-analyze-xorg.c:84
+ #: ../src/plugins/abrt-action-analyze-python.c:47
+@@ -393,13 +393,13 @@ msgid "Problem directory"
+ msgstr "問題目錄"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-action-save-package-data.c:391
++#: ../src/daemon/abrt-action-save-package-data.c:413
+ msgid "Configuration file"
+ msgstr "組態檔"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-server.c:792 ../src/dbus/abrt-dbus.c:1001
+-#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:484
++#: ../src/daemon/abrt-server.c:792 ../src/dbus/abrt-dbus.c:1004
++#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:465
+ msgid "& [options]"
+ msgstr "& [選項]"
+ 
+@@ -416,81 +416,81 @@ msgid "Log to syslog"
+ msgstr "紀錄至 syslog"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-server.c:805 ../src/daemon/abrtd.c:500
++#: ../src/daemon/abrt-server.c:805 ../src/daemon/abrtd.c:481
+ msgid "Add program names to log"
+ msgstr "加入程式名稱至紀錄檔"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:132
++#: ../src/dbus/abrt-dbus.c:131
+ msgid "Unknown error"
+ msgstr "未知錯誤"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:221
++#: ../src/dbus/abrt-dbus.c:220
+ #, c-format
+ msgid "'%s' is not a valid problem directory"
+ msgstr "「%s」不是有效的問題目錄"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:256
++#: ../src/dbus/abrt-dbus.c:255
+ #, c-format
+ msgid "'%s' element can't be modified"
+ msgstr "無法修改「%s」元素"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:285 ../src/dbus/abrt-dbus.c:498
+-#: ../src/dbus/abrt-dbus.c:560 ../src/dbus/abrt-dbus.c:625
+-#: ../src/dbus/abrt-dbus.c:815 ../src/dbus/abrt-configuration.c:618
++#: ../src/dbus/abrt-dbus.c:284 ../src/dbus/abrt-dbus.c:497
++#: ../src/dbus/abrt-dbus.c:559 ../src/dbus/abrt-dbus.c:624
++#: ../src/dbus/abrt-dbus.c:814 ../src/dbus/abrt-configuration.c:618
+ #: ../src/dbus/abrt-configuration.c:683
+ #, c-format
+ msgid "Not Authorized"
+ msgstr "未授權"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:298
++#: ../src/dbus/abrt-dbus.c:297
+ msgid "Can't access the problem for modification"
+ msgstr "無法存取問題以修改"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:514
++#: ../src/dbus/abrt-dbus.c:513
+ msgid "Chowning directory failed. Check system logs for more details."
+ msgstr "目錄擁有者變更失敗。請檢查紀錄檔瞭解更多細節。"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:635
++#: ../src/dbus/abrt-dbus.c:634
+ msgid "Can't access the problem for reading"
+ msgstr "無法存取問題以閱讀"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:690 ../src/dbus/abrt-dbus.c:755
+-#: ../src/dbus/abrt-dbus.c:911
++#: ../src/dbus/abrt-dbus.c:689 ../src/dbus/abrt-dbus.c:754
++#: ../src/dbus/abrt-dbus.c:910
+ #, c-format
+ msgid "'%s' is not a valid element name"
+ msgstr "「%s」不是有效的元素名稱"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:711
++#: ../src/dbus/abrt-dbus.c:710
+ #, c-format
+ msgid "Can't get size of '%s'"
+ msgstr "無法取得「%s」的大小"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:726
++#: ../src/dbus/abrt-dbus.c:725
+ msgid "No problem space left"
+ msgstr "無剩餘問題空間"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:776
++#: ../src/dbus/abrt-dbus.c:775
+ #, c-format
+ msgid "Can't delete the element '%s' from the problem directory '%s'"
+ msgstr "無法從問題目錄「%2$s」刪除「%1$s」元素"
+ 
+-#: ../src/dbus/abrt-dbus.c:803
++#: ../src/dbus/abrt-dbus.c:802
+ msgid "Can't access the problem"
+ msgstr "無法存取問題"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:983 ../src/dbus/abrt-configuration.c:983
++#: ../src/dbus/abrt-dbus.c:986 ../src/dbus/abrt-configuration.c:983
+ #, c-format
+ msgid ""
+ "The name '%s' has been lost, please check if other service owning the name "
+@@ -498,18 +498,18 @@ msgid ""
+ msgstr "「%s」名稱已遺失，請確認其他擁有該名稱的服務並未執行中。\n"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:1010 ../src/dbus/abrt-configuration.c:1011
+-#: ../src/daemon/abrtd.c:499
++#: ../src/dbus/abrt-dbus.c:1013 ../src/dbus/abrt-configuration.c:1011
++#: ../src/daemon/abrtd.c:480
+ msgid "Exit after NUM seconds of inactivity"
+ msgstr "在停止使用 NUM 秒後離開"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/dbus/abrt-dbus.c:1028 ../src/dbus/abrt-configuration.c:1021
++#: ../src/dbus/abrt-dbus.c:1031 ../src/dbus/abrt-configuration.c:1021
+ msgid "This program must be run as root."
+ msgstr "此程式必須以 root 身份執行。"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrtd.c:451
++#: ../src/daemon/abrtd.c:432
+ msgid ""
+ "The problem data are incomplete. This usually happens when a problem is "
+ "detected while computer is shutting down or user is logging out. In order to "
+@@ -521,12 +521,12 @@ msgstr ""
+ "不會允許您提交此種問題報告。若您有時間，且也想幫助開發者來處理此問題，請直接聯繫開發者。"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrtd.c:497
++#: ../src/daemon/abrtd.c:478
+ msgid "Do not daemonize"
+ msgstr "不要在幕後運行"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrtd.c:498
++#: ../src/daemon/abrtd.c:479
+ msgid "Log to syslog even with -d"
+ msgstr "即使加上 -d 參數也紀錄至 syslog"
+ 
+@@ -589,69 +589,69 @@ msgstr "最大快取大小，單位為 MiB。預設為 "
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+ #: ../src/daemon/abrt-auto-reporting.c:200
+-#: ../src/daemon/abrt-auto-reporting.c:208
++#: ../src/daemon/abrt-auto-reporting.c:213
+ msgid "& [ "
+ msgstr "& [ "
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:235
++#: ../src/daemon/abrt-auto-reporting.c:240
+ msgid "Turns the authentication off"
+ msgstr "關閉身份認證"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:236
++#: ../src/daemon/abrt-auto-reporting.c:241
+ msgid "Red Hat Support user name"
+ msgstr "Red Hat Support 使用者名稱"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:237
++#: ../src/daemon/abrt-auto-reporting.c:242
+ msgid "Red Hat Support password, if not given, a prompt for it will be issued"
+ msgstr "Red Hat Support 密碼；如果未提供密碼，將會發出提示"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:238
++#: ../src/daemon/abrt-auto-reporting.c:243
+ msgid "uReport SSL certificate paths or certificate type"
+ msgstr "uReport SSL 憑證路徑或憑證類型"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:254
++#: ../src/daemon/abrt-auto-reporting.c:259
+ msgid "You also need to specify --username for --password"
+ msgstr "使用 --password 時必須指定 --username"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:260
++#: ../src/daemon/abrt-auto-reporting.c:265
+ msgid "You can use either --username or --certificate"
+ msgstr "您可以使用 --username 或 --certificate"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:266
++#: ../src/daemon/abrt-auto-reporting.c:271
+ msgid "You can use either --username or --anonymous"
+ msgstr "您可以使用 --username 或 --anonymous"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:272
++#: ../src/daemon/abrt-auto-reporting.c:277
+ msgid "You can use either --anonymous or --certificate"
+ msgstr "您可以使用 --anonymous 或 --certificate"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:279
++#: ../src/daemon/abrt-auto-reporting.c:284
+ msgid "Invalid number of arguments"
+ msgstr "引數數量無效"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:298
++#: ../src/daemon/abrt-auto-reporting.c:303
+ #, c-format
+ msgid "Unknown option value: '%s'\n"
+ msgstr "選項值不明：「%s」\n"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:338
++#: ../src/daemon/abrt-auto-reporting.c:343
+ msgid "Password:"
+ msgstr "密碼："
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:341
++#: ../src/daemon/abrt-auto-reporting.c:346
+ msgid "Cannot continue without password\n"
+ msgstr "沒有密碼無法繼續\n"
+ 
+ #. Print only the part before ':' of a string like "username:password"
+-#: ../src/daemon/abrt-auto-reporting.c:382
++#: ../src/daemon/abrt-auto-reporting.c:387
+ msgid "HTTP Authenticated auto reporting"
+ msgstr "HTTP 身份認證自動回報"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:384
++#: ../src/daemon/abrt-auto-reporting.c:389
+ msgid "SSL Client Authenticated auto reporting"
+ msgstr "SSL 用戶端身份憑證自動回報"
+ 
+-#: ../src/daemon/abrt-auto-reporting.c:386
++#: ../src/daemon/abrt-auto-reporting.c:391
+ msgid "anonymous auto reporting"
+ msgstr "匿名自動回報"
+ 
+@@ -831,7 +831,7 @@ msgid "Crash thread not found"
+ msgstr "沒有找到崩潰執行序"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/plugins/abrt-action-analyze-c.c:67
++#: ../src/plugins/abrt-action-analyze-c.c:130
+ msgid ""
+ "& [-v] -d DIR\n"
+ "\n"
+@@ -2165,38 +2165,38 @@ msgstr "已啟用私密報告，請使用 'abrt-cli -a COMMAND' 以取得偵測
+ msgid "See 'abrt-cli COMMAND --help' for more information"
+ msgstr "請見 'abrt-cli COMMAND --help' 以瞭解更多資訊"
+ 
+-#: ../src/cli/list.c:121
++#: ../src/cli/list.c:124
+ #, c-format
+ msgid ""
+ "%sRun 'abrt-cli report %s' for creating a case in Red Hat Customer Portal\n"
+ msgstr "%s執行 'abrt-cli report %s' 以在 Red Hat 客戶入口網站中建立案例\n"
+ 
+-#: ../src/cli/list.c:173
++#: ../src/cli/list.c:176
+ msgid "& list [options]"
+ msgstr "& list [options]"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/cli/list.c:182
++#: ../src/cli/list.c:185
+ msgid "List only not-reported problems"
+ msgstr "僅列出尚未回報的問題"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+ #. deprecate -d option with --pretty=full
+-#: ../src/cli/list.c:184 ../src/cli/list.c:237
++#: ../src/cli/list.c:187 ../src/cli/list.c:240
+ msgid "Show detailed report"
+ msgstr "顯示詳細的回報"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/cli/list.c:185
++#: ../src/cli/list.c:188
+ msgid "List only the problems more recent than specified timestamp"
+ msgstr "僅列出比指定的時間戳記更近期的問題"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/cli/list.c:186
++#: ../src/cli/list.c:189
+ msgid "List only the problems older than specified timestamp"
+ msgstr "僅列出比指定的時間戳記更之前的問題"
+ 
+-#: ../src/cli/list.c:212
++#: ../src/cli/list.c:215
+ #, c-format
+ msgid ""
+ "The Autoreporting feature is disabled. Please consider enabling it by "
+@@ -2207,37 +2207,37 @@ msgstr ""
+ "身份，透過「abrt-auto-reporting enabled」 來啟用它\n"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/cli/list.c:229
++#: ../src/cli/list.c:232
+ msgid "& info [options] DIR..."
+ msgstr "& info [選項] DIR..."
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/cli/list.c:238
++#: ../src/cli/list.c:241
+ msgid "Text larger than this will be shown abridged"
+ msgstr "大於此的文字會刪減顯示"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/cli/list.c:258
++#: ../src/cli/list.c:261
+ #, c-format
+ msgid "No such problem directory '%s'"
+ msgstr "沒有這個問題目錄「%s」"
+ 
+-#: ../src/cli/status.c:63
++#: ../src/cli/status.c:66
+ msgid "& status"
+ msgstr "& status"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/cli/status.c:71
++#: ../src/cli/status.c:74
+ msgid "Print only the problem count without any message"
+ msgstr "僅列印問題數目而不帶任何訊息"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/cli/status.c:72
++#: ../src/cli/status.c:75
+ msgid "Print only the problems more recent than specified timestamp"
+ msgstr "僅列印比指定的時間戳記更近期的問題"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/cli/status.c:88
++#: ../src/cli/status.c:91
+ #, c-format
+ msgid "ABRT has detected %u problem(s). For more info run: abrt-cli list%s\n"
+ msgstr "ABRT 已偵測到 %u 項問題。若要取得更多資訊，請執行：abrt-cli list%s\n"
+-- 
+1.8.3.1
+

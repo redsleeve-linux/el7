@@ -1,0 +1,125 @@
+From 800aadd6db1ba4429474769b059cc62e75a2c00d Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Fri, 12 Feb 2016 14:40:21 +0100
+Subject: [PATCH] conf files: be able to make directories optional
+
+Related to #316
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/include/internal_libreport.h | 10 ++++++++++
+ src/lib/configuration_files.c    | 19 +++++++++++++++----
+ tests/configuration_files.at     | 35 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 60 insertions(+), 4 deletions(-)
+
+diff --git a/src/include/internal_libreport.h b/src/include/internal_libreport.h
+index 108f4f1..2046e69 100644
+--- a/src/include/internal_libreport.h
++++ b/src/include/internal_libreport.h
+@@ -744,6 +744,16 @@ const char *get_user_conf_base_dir(void);
+ #define load_conf_file_from_dirs libreport_load_conf_file_from_dirs
+ bool load_conf_file_from_dirs(const char *base_name, const char *const *directories, map_string_t *settings, bool skipKeysWithoutValue);
+ 
++enum {
++    CONF_DIR_FLAG_NONE = 0,
++    CONF_DIR_FLAG_OPTIONAL = 1,
++};
++
++#define load_conf_file_from_dirs_ext libreport_load_conf_file_from_dirs_ext
++bool load_conf_file_from_dirs_ext(const char *base_name, const char *const *directories,
++                                  const int * dir_flags, map_string_t *settings,
++                                  bool skipKeysWithoutValue);
++
+ #define save_conf_file libreport_save_conf_file
+ bool save_conf_file(const char *path, map_string_t *settings);
+ #define save_plugin_conf_file libreport_save_plugin_conf_file
+diff --git a/src/lib/configuration_files.c b/src/lib/configuration_files.c
+index b145b9f..3520d93 100644
+--- a/src/lib/configuration_files.c
++++ b/src/lib/configuration_files.c
+@@ -329,6 +329,11 @@ const char *get_user_conf_base_dir(void)
+ 
+ bool load_conf_file_from_dirs(const char *base_name, const char *const *directories, map_string_t *settings, bool skipKeysWithoutValue)
+ {
++    return load_conf_file_from_dirs_ext(base_name, directories, NULL, settings, skipKeysWithoutValue);
++}
++
++bool load_conf_file_from_dirs_ext(const char *base_name, const char *const *directories, const int *dir_flags, map_string_t *settings, bool skipKeysWithoutValue)
++{
+     if (NULL == directories || NULL == *directories)
+     {
+         log_error("No configuration directory specified");
+@@ -336,13 +341,19 @@ bool load_conf_file_from_dirs(const char *base_name, const char *const *director
+     }
+ 
+     bool result = true;
+-    for (const char *const *dir = directories; *dir != NULL; ++dir)
++    for (size_t i = 0; directories[i] != NULL; ++i)
+     {
+-        char *conf_file = concat_path_file(*dir, base_name);
++        char *conf_file = concat_path_file(directories[i], base_name);
+         if (!load_conf_file(conf_file, settings, skipKeysWithoutValue))
+         {
+-            perror_msg("Can't open '%s'", conf_file);
+-            result = false;
++            if (dir_flags && (dir_flags[i] & CONF_DIR_FLAG_OPTIONAL))
++                log_notice("Can't open '%s'", conf_file);
++            else
++            {
++                perror_msg("Can't open '%s'", conf_file);
++                result = false;
++            }
++
+         }
+         free(conf_file);
+     }
+diff --git a/tests/configuration_files.at b/tests/configuration_files.at
+index f9275e1..3c75ffb 100644
+--- a/tests/configuration_files.at
++++ b/tests/configuration_files.at
+@@ -321,6 +321,41 @@ int main(int argc, char **argv)
+ }
+ ]])
+ 
++## ---------------------------- ##
++## load_conf_file_from_dirs_ext ##
++## ---------------------------- ##
++
++AT_TESTFUN([load_conf_file_from_dirs_ext],
++[[
++#include "internal_libreport.h"
++
++#define CONF_NAME "file.conf"
++
++int main(void)
++{
++    g_verbose = 3;
++
++    {
++        const char *const dir_vec[] = {
++            "../../conf/second",
++            "/org/freedesktop/problems/invalid",
++            NULL,
++        };
++
++        int dir_flags_vec[] = {
++            CONF_DIR_FLAG_NONE,
++            CONF_DIR_FLAG_OPTIONAL,
++            -1,
++        };
++
++        map_string_t *settings = new_map_string();
++
++        assert(load_conf_file_from_dirs_ext(CONF_NAME, dir_vec, dir_flags_vec, settings, 0));
++
++        free_map_string(settings);
++    }
++}
++]])
+ 
+ ## ---------------##
+ ## save_conf_file ##
+-- 
+1.8.3.1
+

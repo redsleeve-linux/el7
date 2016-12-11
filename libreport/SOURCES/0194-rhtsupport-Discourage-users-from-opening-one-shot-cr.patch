@@ -1,0 +1,43 @@
+From 49ddc9209df746b83ca4767075c56f4df790a03c Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Tue, 29 Mar 2016 12:01:30 +0200
+Subject: [PATCH] rhtsupport: Discourage users from opening one-shot crashes
+
+Related: #1258482
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/plugins/reporter-rhtsupport.c | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
+
+diff --git a/src/plugins/reporter-rhtsupport.c b/src/plugins/reporter-rhtsupport.c
+index 90988fc..2374dd9 100644
+--- a/src/plugins/reporter-rhtsupport.c
++++ b/src/plugins/reporter-rhtsupport.c
+@@ -630,6 +630,23 @@ int main(int argc, char **argv)
+     rhts_result_t *result_atch = NULL;
+     char *dsc = NULL;
+     char *summary = NULL;
++
++    const char *count = NULL;
++    count = problem_data_get_content_or_NULL(problem_data, FILENAME_COUNT);
++    if (count != NULL
++        && strcmp(count, "1") == 0
++        /* the 'count' file can lie */
++        && get_problem_data_reproducible(problem_data) <= PROBLEM_REPRODUCIBLE_UNKNOWN)
++    {
++        int r = ask_yes_no(
++            _("The problem has only occurred once and the ability to reproduce "
++              "the problem is unknown. Please ensure you will be able to "
++              "provide detailed information to our Support Team. "
++              "Would you like to continue and open a new support case?"));
++        if (!r)
++            exit(EXIT_CANCEL_BY_USER);
++    }
++
+     const char *function;
+     const char *reason;
+     const char *package;
+-- 
+1.8.3.1
+

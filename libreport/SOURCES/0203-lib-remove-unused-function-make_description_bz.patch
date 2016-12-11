@@ -1,0 +1,68 @@
+From eb013d53b789cf8b99325618e248b2380c51c815 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Wed, 6 Apr 2016 15:49:23 +0200
+Subject: [PATCH] lib: remove unused function make_description_bz
+
+The function was replaced by using problem report api.
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/include/internal_libreport.h |  2 --
+ src/lib/make_descr.c             | 28 ----------------------------
+ 2 files changed, 30 deletions(-)
+
+diff --git a/src/include/internal_libreport.h b/src/include/internal_libreport.h
+index 4f3c56a..c3b2045 100644
+--- a/src/include/internal_libreport.h
++++ b/src/include/internal_libreport.h
+@@ -666,8 +666,6 @@ enum {
+ };
+ #define make_description libreport_make_description
+ char *make_description(problem_data_t *problem_data, char **names_to_skip, unsigned max_text_size, unsigned desc_flags);
+-#define make_description_bz libreport_make_description_bz
+-char* make_description_bz(problem_data_t *problem_data, unsigned max_text_size);
+ #define make_description_logger libreport_make_description_logger
+ char* make_description_logger(problem_data_t *problem_data, unsigned max_text_size);
+ #define make_description_mailx libreport_make_description_mailx
+diff --git a/src/lib/make_descr.c b/src/lib/make_descr.c
+index fd180a9..a16eb98 100644
+--- a/src/lib/make_descr.c
++++ b/src/lib/make_descr.c
+@@ -356,34 +356,6 @@ static const char *const blacklisted_items[] = {
+     NULL
+ };
+ 
+-/* Items we don't want to include in email */
+-static const char *const blacklisted_items_mailx[] = {
+-    CD_DUMPDIR        ,
+-    FILENAME_ANALYZER ,
+-    FILENAME_TYPE     ,
+-    FILENAME_COREDUMP ,
+-    FILENAME_DUPHASH  ,
+-    FILENAME_UUID     ,
+-    FILENAME_COUNT    ,
+-    FILENAME_TAINTED_SHORT,
+-    FILENAME_ARCHITECTURE,
+-    FILENAME_PACKAGE,
+-    FILENAME_OS_RELEASE,
+-    FILENAME_COMPONENT,
+-    FILENAME_REASON,
+-    NULL
+-};
+-
+-char* make_description_bz(problem_data_t *problem_data, unsigned max_text_size)
+-{
+-    return make_description(
+-                problem_data,
+-                (char**)blacklisted_items,
+-                max_text_size,
+-                MAKEDESC_SHOW_FILES | MAKEDESC_SHOW_MULTILINE
+-    );
+-}
+-
+ char* make_description_logger(problem_data_t *problem_data, unsigned max_text_size)
+ {
+     return make_description(
+-- 
+1.8.3.1
+

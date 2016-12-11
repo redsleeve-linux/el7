@@ -1,0 +1,35 @@
+From ed68fcd4d3c8ef4ed3def66e3a237715567ac358 Mon Sep 17 00:00:00 2001
+From: "knoha@redhat.com" <knoha@redhat.com>
+Date: Fri, 24 Jul 2015 07:56:02 +0200
+Subject: [PATCH] abrt-merge-pstoreoops: merge files in descending order
+
+fs/pstore reads the data from kmsg_dump_get_buffer(), which starts at
+the end of the kmsg buffer, in a while loop and increases Part no. in
+each iteration.
+
+Related: rhbz#1233662
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/hooks/abrt-merge-pstoreoops.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/hooks/abrt-merge-pstoreoops.c b/src/hooks/abrt-merge-pstoreoops.c
+index 6fc3109..36f1e0b 100644
+--- a/src/hooks/abrt-merge-pstoreoops.c
++++ b/src/hooks/abrt-merge-pstoreoops.c
+@@ -64,9 +64,9 @@ int compare_oops_texts(const void *a, const void *b)
+         return -1;
+     if (aa->panic_no > bb->panic_no)
+         return 1;
+-    if (aa->part_no < bb->part_no)
++    if (aa->part_no > bb->part_no)
+         return -1;
+-    return (aa->part_no > bb->part_no);
++    return (aa->part_no < bb->part_no);
+ }
+ 
+ int main(int argc, char **argv)
+-- 
+2.4.3
+

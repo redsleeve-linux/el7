@@ -1,0 +1,10 @@
+--- a/server/core.c	2015/01/12 13:37:20	1651082
++++ b/server/core.c	2015/01/12 13:38:02	1651083
+@@ -1271,6 +1271,7 @@
+ static int reset_config_defines(void *dummy)
+ {
+     ap_server_config_defines = saved_server_config_defines;
++    saved_server_config_defines = NULL;
+     server_config_defined_vars = NULL;
+     return OK;
+ }

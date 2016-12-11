@@ -1,0 +1,153 @@
+From 6e15c8b20b2ff852fcc638948eb88ea5dfa4a916 Mon Sep 17 00:00:00 2001
+From: Ray Strode <rstrode@redhat.com>
+Date: Fri, 10 Oct 2014 16:11:01 -0400
+Subject: [PATCH] main: fix incorrectly sized buffer for /proc/cmdline
+
+We assume /proc/cmdline will be no more than 512 bytes (including NUL).
+It can actually be 4096 bytes (excluding NUL).
+
+This commit makes sure we allocate enough space for it and its NUL.
+---
+ src/main.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/main.c b/src/main.c
+index 4101550..d5f4f4d 100644
+--- a/src/main.c
++++ b/src/main.c
+@@ -30,61 +30,61 @@
+ #include <fcntl.h>
+ #include <stdlib.h>
+ #include <stdio.h>
+ #include <sysexits.h>
+ #include <sys/ioctl.h>
+ #include <unistd.h>
+ #include <wchar.h>
+ #include <paths.h>
+ #include <assert.h>
+ #include <values.h>
+ 
+ #include <linux/kd.h>
+ #include <linux/vt.h>
+ 
+ #include "ply-buffer.h"
+ #include "ply-command-parser.h"
+ #include "ply-boot-server.h"
+ #include "ply-boot-splash.h"
+ #include "ply-device-manager.h"
+ #include "ply-event-loop.h"
+ #include "ply-hashtable.h"
+ #include "ply-list.h"
+ #include "ply-logger.h"
+ #include "ply-renderer.h"
+ #include "ply-terminal-session.h"
+ #include "ply-trigger.h"
+ #include "ply-utils.h"
+ #include "ply-progress.h"
+ 
+ #ifndef PLY_MAX_COMMAND_LINE_SIZE
+-#define PLY_MAX_COMMAND_LINE_SIZE 512
++#define PLY_MAX_COMMAND_LINE_SIZE 4097
+ #endif
+ 
+ #define BOOT_DURATION_FILE     PLYMOUTH_TIME_DIRECTORY "/boot-duration"
+ #define SHUTDOWN_DURATION_FILE PLYMOUTH_TIME_DIRECTORY "/shutdown-duration"
+ 
+ typedef enum {
+   PLY_MODE_BOOT,
+   PLY_MODE_SHUTDOWN,
+   PLY_MODE_UPDATES
+ } ply_mode_t;
+ 
+ typedef struct 
+ {
+   const char    *keys;
+   ply_trigger_t *trigger;
+ } ply_keystroke_watch_t;
+ 
+ typedef struct 
+ {
+   enum {PLY_ENTRY_TRIGGER_TYPE_PASSWORD,
+         PLY_ENTRY_TRIGGER_TYPE_QUESTION}
+         type;
+   const char    *prompt;
+   ply_trigger_t *trigger;
+ } ply_entry_trigger_t;
+ 
+ typedef struct
+ {
+   ply_event_loop_t *loop;
+   ply_boot_server_t *boot_server;
+@@ -1782,68 +1782,67 @@ detach_from_running_session (state_t *state)
+ 
+   if (!state->is_attached)
+     return;
+ 
+   ply_trace ("detaching from terminal session");
+   ply_terminal_session_detach (state->session);
+   state->is_redirected = false;
+   state->is_attached = false;
+ }
+ 
+ static bool
+ get_kernel_command_line (state_t *state)
+ {
+   int fd;
+   const char *remaining_command_line;
+   char *key;
+ 
+   if (state->kernel_command_line_is_set)
+     return true;
+ 
+   ply_trace ("opening /proc/cmdline");
+   fd = open ("/proc/cmdline", O_RDONLY);
+ 
+   if (fd < 0)
+     {
+       ply_trace ("couldn't open it: %m");
+       return false;
+     }
+ 
+   ply_trace ("reading kernel command line");
+-  if (read (fd, state->kernel_command_line, sizeof (state->kernel_command_line)) < 0)
++  if (read (fd, state->kernel_command_line, sizeof (state->kernel_command_line) - 1) < 0)
+     {
+       ply_trace ("couldn't read it: %m");
+       close (fd);
+       return false;
+     }
+ 
+-
+   /* we now use plymouth.argument for kernel commandline arguments.
+    * It used to be plymouth:argument. This bit just rewrites all : to be .
+    */
+   remaining_command_line = state->kernel_command_line;
+   while ((key = strstr (remaining_command_line, "plymouth:")) != NULL)
+     {
+       char *colon;
+ 
+       colon = key + strlen ("plymouth");
+       *colon = '.';
+ 
+       remaining_command_line = colon + 1;
+     }
+   ply_trace ("Kernel command line is: '%s'", state->kernel_command_line);
+ 
+   close (fd);
+ 
+   state->kernel_command_line_is_set = true;
+   return true;
+ }
+ 
+ static void
+ check_verbosity (state_t *state)
+ {
+   const char *stream;
+   const char *path;
+ 
+   ply_trace ("checking if tracing should be enabled");
+ 
+   stream = command_line_get_string_after_prefix (state->kernel_command_line,
+-- 
+1.8.3.1
+

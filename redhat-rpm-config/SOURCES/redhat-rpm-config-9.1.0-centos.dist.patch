@@ -1,0 +1,12 @@
+diff -uNrp redhat-rpm-config-9.1.0.orig/dist.sh redhat-rpm-config-9.1.0/dist.sh
+--- redhat-rpm-config-9.1.0.orig/dist.sh	2010-02-02 03:24:04.000000000 -0600
++++ redhat-rpm-config-9.1.0/dist.sh	2014-06-19 09:29:04.064790458 -0500
+@@ -25,7 +25,7 @@ function check_rhl {
+ }
+ 
+ function check_rhel {
+-    egrep -q "(Enterprise|Advanced)" $RELEASEFILE && echo $DISTNUM
++    egrep -q "(Enterprise|Advanced|CentOS)" $RELEASEFILE && echo $DISTNUM
+ }
+ 
+ function check_fedora {

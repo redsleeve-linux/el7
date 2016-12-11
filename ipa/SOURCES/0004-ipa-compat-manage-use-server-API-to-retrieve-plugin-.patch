@@ -1,0 +1,28 @@
+From 5d699a0bff0c42220d68fac54d08fbcdd2daae67 Mon Sep 17 00:00:00 2001
+From: Martin Babinsky <mbabinsk@redhat.com>
+Date: Mon, 11 Jul 2016 10:46:34 +0200
+Subject: [PATCH] ipa-compat-manage: use server API to retrieve plugin status
+
+https://fedorahosted.org/freeipa/ticket/6033
+
+Reviewed-By: Stanislav Laznicka <slaznick@redhat.com>
+---
+ install/tools/ipa-compat-manage | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/install/tools/ipa-compat-manage b/install/tools/ipa-compat-manage
+index 2b13c4a68531c7b6261465399b59225db094aba2..178cef9792c703f868fa3639a3a570b963dc7ed6 100755
+--- a/install/tools/ipa-compat-manage
++++ b/install/tools/ipa-compat-manage
+@@ -103,7 +103,7 @@ def main():
+         if dirman_password is None:
+             sys.exit("Directory Manager password required")
+ 
+-    api.bootstrap(context='cli', debug=options.debug)
++    api.bootstrap(context='cli', in_server=True, debug=options.debug)
+     api.finalize()
+ 
+     conn = None
+-- 
+2.4.3
+

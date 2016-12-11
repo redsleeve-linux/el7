@@ -1,0 +1,29 @@
+From a48b8aa5e4d45b238551c122f88dfc8151314c93 Mon Sep 17 00:00:00 2001
+From: David Kupka <dkupka@redhat.com>
+Date: Thu, 14 Jul 2016 10:15:59 +0200
+Subject: [PATCH] schema: Fix subtopic -> topic mapping
+
+https://fedorahosted.org/freeipa/ticket/6069
+
+Reviewed-By: Martin Babinsky <mbabinsk@redhat.com>
+---
+ ipaserver/plugins/schema.py | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/ipaserver/plugins/schema.py b/ipaserver/plugins/schema.py
+index a82b357899a483fd3b3dc9f7407bd26a4c03aada..8fd7c6ba1c4ed8cd6e27cb8b1b04f48694a4f1ff 100644
+--- a/ipaserver/plugins/schema.py
++++ b/ipaserver/plugins/schema.py
+@@ -399,7 +399,8 @@ class topic_(MetaObject):
+                         continue
+                     if topic_value is not None:
+                         topic_name = unicode(topic_value)
+-                        topic['topic_topic'] = topic_full_name
++                        topic['topic_topic'] = '{}/{}'.format(topic_name,
++                                                              topic_version)
+                     else:
+                         topic.pop('topic_topic', None)
+ 
+-- 
+2.7.4
+

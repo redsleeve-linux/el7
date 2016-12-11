@@ -1,0 +1,32 @@
+From 3270f452485f737c12f63bab11c3f1f62339f098 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Mon, 4 May 2015 10:35:25 +0200
+Subject: [PATCH] cli: do not exit with segfault if dbus fails
+
+There was a segfault when we ran 'abrt-cli list' and dbus failed.
+
+Related to rhbz#1217901
+
+Related: #1224984
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/cli/list.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/cli/list.c b/src/cli/list.c
+index 1594906..b3b9066 100644
+--- a/src/cli/list.c
++++ b/src/cli/list.c
+@@ -191,6 +191,8 @@ int cmd_list(int argc, const char **argv)
+     parse_opts(argc, (char **)argv, program_options, program_usage_string);
+ 
+     vector_of_problem_data_t *ci = fetch_crash_infos();
++    if (ci == NULL)
++        return 1;
+ 
+     g_ptr_array_sort_with_data(ci, &cmp_problem_data, (char *) FILENAME_LAST_OCCURRENCE);
+ 
+-- 
+2.4.3
+

@@ -1,0 +1,36 @@
+From c3d1141ebcca9ffa41c8146b0d751cd2b98d905e Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Mon, 3 Nov 2014 15:59:26 +0100
+Subject: [LIBREPORT PATCH 111/113] ureport: be able to configure ContactEmail
+ from GUI
+
+reporter-rhtsupport reads uReport_ContactEmail configuration option
+before attaching the contact email to uReport. It is likely that users
+will run the reporter from the GUI, so they must be able to configure
+the reporter from the GUI too.
+
+Related to rhbz#1150388
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/plugins/report_uReport.xml.in | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/plugins/report_uReport.xml.in b/src/plugins/report_uReport.xml.in
+index c8bb858..e91b129 100644
+--- a/src/plugins/report_uReport.xml.in
++++ b/src/plugins/report_uReport.xml.in
+@@ -13,6 +13,10 @@
+             <_description>Address of uReport webservice</_description>
+             <default-value>http://bug-report.itos.redhat.com</default-value>
+         </option>
++        <option type="text" name="uReport_ContactEmail">
++            <_label>Contact email address</_label>
++            <_description>Email address that can be used by ABRT server to inform you about news and updates</_description>
++        </option>
+         <option type="bool" name="uReport_SSLVerify">
+             <_label>Verify SSL</_label>
+             <_description>Check SSL key validity</_description>
+-- 
+1.8.3.1
+

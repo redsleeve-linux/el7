@@ -1,0 +1,31 @@
+From f2055f8c6469b590172d94e9ea530243af89f028 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Thu, 2 Jul 2015 15:26:29 +0200
+Subject: [PATCH] cli: get list of possible workflows for problem_data_t
+
+File system access is not possible, so we have to rely on the data
+transfered via D-Bus.
+
+Related: #1224984
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/cli/list.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cli/list.c b/src/cli/list.c
+index b3b9066..483e9de 100644
+--- a/src/cli/list.c
++++ b/src/cli/list.c
+@@ -97,7 +97,7 @@ static void print_crash(problem_data_t *problem_data, int detailed, int text_siz
+              * libreport and try to improve libreport public API.
+              */
+             const char *const dump_dir_name = problem_data_get_content_or_NULL(problem_data, CD_DUMPDIR);
+-            GList *const wf_names = list_possible_events_glist(dump_dir_name, "workflow");
++            GList *const wf_names = list_possible_events_problem_data_glist(problem_data, dump_dir_name, "workflow");
+             GHashTable *const possible_workflows = load_workflow_config_data_from_list(wf_names, WORKFLOWS_DIR);
+             g_list_free_full(wf_names, free);
+ 
+-- 
+2.4.3
+

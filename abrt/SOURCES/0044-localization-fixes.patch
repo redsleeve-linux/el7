@@ -1,0 +1,756 @@
+From 40823feb83cc2a7ad7aac8fb0da1ff7c0773eb2a Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Mon, 14 Jul 2014 16:06:17 +0200
+Subject: [ABRT PATCH 44/66] localization fixes
+
+commit fc0f32d878bb93e7498340224281fa526b4aeaf7
+Author: Jakub Filak <jfilak@redhat.com>
+Date:   Wed Apr 16 12:03:31 2014 +0200
+
+    localization: fix gettext
+
+    https://www.gnu.org/software/gettext/manual/html_node/Libraries.html
+
+commit f8533576b349f346acafdc7c0182a995a569a443
+Author: Jakub Filak <jfilak@redhat.com>
+Date:   Wed Apr 16 21:08:29 2014 +0200
+
+    do not clear LANG env variable
+    abrt-action-install-debuginfo-to-abrt-cache
+
+commit d05e231eaf05dc6680be031741d1d7593445f70d
+Author: Jakub Filak <jfilak@redhat.com>
+Date:   Wed Apr 16 21:13:44 2014 +0200
+
+    a-a-a-core: fix localization
+
+    The strings of that file are not translated at all because
+    the file was not included in POTFILES.in
+
+Resolves rhbz#1087880
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ po/POTFILES.in                                     |   1 +
+ src/configuration-gui/system-config-abrt.c         |   4 +-
+ src/include/Makefile.am                            |   3 +
+ src/include/internal_libabrt.h                     |  50 ++++++
+ src/include/libabrt.h                              |  15 --
+ src/lib/Makefile.am                                |   3 +
+ src/lib/hooklib.c                                  |   4 +-
+ src/lib/ignored_problems.c                         |   4 +-
+ src/lib/libabrt_init.c                             |  28 ++++
+ src/lib/problem_api_dbus.c                         |  10 +-
+ src/plugins/Makefile.am                            |   8 +-
+ src/plugins/abrt-action-analyze-core               | 186 ---------------------
+ src/plugins/abrt-action-analyze-core.in            | 186 +++++++++++++++++++++
+ .../abrt-action-install-debuginfo-to-abrt-cache.c  |   3 +-
+ 14 files changed, 298 insertions(+), 207 deletions(-)
+ create mode 100644 src/include/internal_libabrt.h
+ create mode 100644 src/lib/libabrt_init.c
+ delete mode 100644 src/plugins/abrt-action-analyze-core
+ create mode 100644 src/plugins/abrt-action-analyze-core.in
+
+diff --git a/po/POTFILES.in b/po/POTFILES.in
+index 2c36802..ff9b97a 100644
+--- a/po/POTFILES.in
++++ b/po/POTFILES.in
+@@ -21,6 +21,7 @@ src/lib/problem_api_dbus.c
+ src/lib/ignored_problems.c
+ src/plugins/abrt-action-analyze-backtrace.c
+ src/plugins/abrt-action-analyze-c.c
++src/plugins/abrt-action-analyze-core.in
+ src/plugins/abrt-action-analyze-oops.c
+ src/plugins/abrt-action-analyze-xorg.c
+ src/plugins/abrt-action-analyze-python.c
+diff --git a/src/configuration-gui/system-config-abrt.c b/src/configuration-gui/system-config-abrt.c
+index b15a5ef..bd9f13f 100644
+--- a/src/configuration-gui/system-config-abrt.c
++++ b/src/configuration-gui/system-config-abrt.c
+@@ -18,7 +18,7 @@
+ #include "system-config-abrt.h"
+ #include "abrt-config-widget.h"
+ 
+-#include <libabrt.h>
++#include "internal_libabrt.h"
+ 
+ #define CLOSE_BUTTON_DATA_NAME_CALLBACK "my-close-callback"
+ #define CLOSE_BUTTON_DATA_NAME_USER_DATA "my-close-user-data"
+@@ -105,6 +105,8 @@ system_config_abrt_dialog_delete_event(GtkWidget *dialog, GdkEvent *event, gpoin
+ 
+ void show_system_config_abrt_dialog(GtkWindow *parent)
+ {
++    INITIALIZE_LIBABRT();
++
+     GtkWidget *dialog = gtk_dialog_new();
+ 
+     gtk_window_set_title(GTK_WINDOW(dialog), _("Problem Reporting Configuration"));
+diff --git a/src/include/Makefile.am b/src/include/Makefile.am
+index 49a6f5c..c1952cb 100644
+--- a/src/include/Makefile.am
++++ b/src/include/Makefile.am
+@@ -6,3 +6,6 @@ libabrt_include_HEADERS = \
+     abrt-dbus.h \
+     hooklib.h \
+     problem_api.h
++
++EXTRA_DIST = \
++    internal_libabrt.h
+diff --git a/src/include/internal_libabrt.h b/src/include/internal_libabrt.h
+new file mode 100644
+index 0000000..3ad22fc
+--- /dev/null
++++ b/src/include/internal_libabrt.h
+@@ -0,0 +1,50 @@
++/*
++    Copyright (C) 2014  ABRT team
++    Copyright (C) 2014  RedHat Inc
++
++    This program is free software; you can redistribute it and/or modify
++    it under the terms of the GNU General Public License as published by
++    the Free Software Foundation; either version 2 of the License, or
++    (at your option) any later version.
++
++    This program is distributed in the hope that it will be useful,
++    but WITHOUT ANY WARRANTY; without even the implied warranty of
++    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++    GNU General Public License for more details.
++
++    You should have received a copy of the GNU General Public License along
++    with this program; if not, write to the Free Software Foundation, Inc.,
++    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
++*/
++
++#include "libabrt.h"
++
++#ifdef HAVE_CONFIG_H
++# include "config.h"
++#endif
++
++#undef NORETURN
++#define NORETURN __attribute__ ((noreturn))
++
++/* Must be after #include "config.h" */
++#if ENABLE_NLS
++# include <libintl.h>
++# define _(S) dgettext(PACKAGE, S)
++#else
++# define _(S) (S)
++#endif
++
++extern int g_libabrt_inited;
++void libabrt_init(void);
++
++#define INITIALIZE_LIBABRT() \
++    do \
++    { \
++        if (!g_libabrt_inited) \
++        { \
++            g_libabrt_inited = 1; \
++            libabrt_init(); \
++        } \
++    } \
++    while (0)
++
+diff --git a/src/include/libabrt.h b/src/include/libabrt.h
+index d5911e7..3e42a09 100644
+--- a/src/include/libabrt.h
++++ b/src/include/libabrt.h
+@@ -15,21 +15,6 @@
+ #include <libreport/internal_libreport.h>
+ #include "hooklib.h"
+ 
+-#ifdef HAVE_CONFIG_H
+-# include "config.h"
+-#endif
+-
+-/* Must be after #include "config.h" */
+-#if ENABLE_NLS
+-# include <libintl.h>
+-# define _(S) gettext(S)
+-#else
+-# define _(S) (S)
+-#endif
+-
+-#undef NORETURN
+-#define NORETURN __attribute__ ((noreturn))
+-
+ #undef ARRAY_SIZE
+ #define ARRAY_SIZE(x) ((unsigned)(sizeof(x) / sizeof((x)[0])))
+ 
+diff --git a/src/lib/Makefile.am b/src/lib/Makefile.am
+index 5c281d2..32a054a 100644
+--- a/src/lib/Makefile.am
++++ b/src/lib/Makefile.am
+@@ -5,6 +5,7 @@ lib_LTLIBRARIES = \
+     libabrt.la
+ 
+ libabrt_la_SOURCES = \
++    libabrt_init.c \
+     abrt_conf.c \
+     hooklib.c \
+     daemon_is_ok.c \
+@@ -40,3 +41,5 @@ libabrt_la_LIBADD = \
+     $(GIO_LIBS) \
+     $(LIBREPORT_LIBS) \
+     $(SATYR_LIBS)
++
++DEFS = -DLOCALEDIR=\"$(localedir)\" @DEFS@
+diff --git a/src/lib/hooklib.c b/src/lib/hooklib.c
+index 23447df..4a50727 100644
+--- a/src/lib/hooklib.c
++++ b/src/lib/hooklib.c
+@@ -16,7 +16,7 @@
+     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ */
+ #include <sys/statvfs.h>
+-#include "libabrt.h"
++#include "internal_libabrt.h"
+ 
+ int low_free_space(unsigned setting_MaxCrashReportsSize, const char *dump_location)
+ {
+@@ -241,6 +241,8 @@ char *run_unstrip_n(const char *dump_dir_name, unsigned timeout_sec)
+ 
+ char *get_backtrace(const char *dump_dir_name, unsigned timeout_sec, const char *debuginfo_dirs)
+ {
++    INITIALIZE_LIBABRT();
++
+     struct dump_dir *dd = dd_opendir(dump_dir_name, /*flags:*/ 0);
+     if (!dd)
+         return NULL;
+diff --git a/src/lib/ignored_problems.c b/src/lib/ignored_problems.c
+index df138d8..7779c4c 100644
+--- a/src/lib/ignored_problems.c
++++ b/src/lib/ignored_problems.c
+@@ -17,7 +17,7 @@
+     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ */
+ 
+-#include "libabrt.h"
++#include "internal_libabrt.h"
+ 
+ #define IGN_COLUMN_DELIMITER ';'
+ #define IGN_DD_OPEN_FLAGS (DD_OPEN_READONLY | DD_FAIL_QUIETLY_ENOENT | DD_FAIL_QUIETLY_EACCES)
+@@ -193,6 +193,8 @@ void ignored_problems_add(ignored_problems_t *set, const char *problem_id)
+ void ignored_problems_remove_row(ignored_problems_t *set, const char *problem_id,
+         const char *uuid, const char *duphash)
+ {
++    INITIALIZE_LIBABRT();
++
+     VERB1 log("Going to remove problem '%s' from ignored problems", problem_id);
+ 
+     FILE *orig_fp;
+diff --git a/src/lib/libabrt_init.c b/src/lib/libabrt_init.c
+new file mode 100644
+index 0000000..f9c1449
+--- /dev/null
++++ b/src/lib/libabrt_init.c
+@@ -0,0 +1,28 @@
++/*
++    Copyright (C) 2014  ABRT team
++    Copyright (C) 2014  RedHat Inc
++
++    This program is free software; you can redistribute it and/or modify
++    it under the terms of the GNU General Public License as published by
++    the Free Software Foundation; either version 2 of the License, or
++    (at your option) any later version.
++
++    This program is distributed in the hope that it will be useful,
++    but WITHOUT ANY WARRANTY; without even the implied warranty of
++    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++    GNU General Public License for more details.
++
++    You should have received a copy of the GNU General Public License along
++    with this program; if not, write to the Free Software Foundation, Inc.,
++    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
++*/
++#include "internal_libabrt.h"
++
++int g_libabrt_inited;
++
++void libabrt_init(void)
++{
++#if ENABLE_NLS
++    bindtextdomain(PACKAGE, LOCALEDIR);
++#endif
++}
+diff --git a/src/lib/problem_api_dbus.c b/src/lib/problem_api_dbus.c
+index 784a43f..2d77898 100644
+--- a/src/lib/problem_api_dbus.c
++++ b/src/lib/problem_api_dbus.c
+@@ -18,7 +18,7 @@
+ */
+ 
+ #include "abrt_glib.h"
+-#include "libabrt.h"
++#include "internal_libabrt.h"
+ 
+ static GDBusProxy *get_dbus_proxy(void)
+ {
+@@ -48,6 +48,8 @@ static GDBusProxy *get_dbus_proxy(void)
+ 
+ int chown_dir_over_dbus(const char *problem_dir_path)
+ {
++    INITIALIZE_LIBABRT();
++
+     GDBusProxy *proxy = get_dbus_proxy();
+     if (!proxy)
+         return 1;
+@@ -72,6 +74,8 @@ int chown_dir_over_dbus(const char *problem_dir_path)
+ 
+ int delete_problem_dirs_over_dbus(const GList *problem_dir_paths)
+ {
++    INITIALIZE_LIBABRT();
++
+     GDBusProxy *proxy = get_dbus_proxy();
+     if (!proxy)
+         return 1;
+@@ -99,6 +103,8 @@ int delete_problem_dirs_over_dbus(const GList *problem_dir_paths)
+ 
+ problem_data_t *get_problem_data_dbus(const char *problem_dir_path)
+ {
++    INITIALIZE_LIBABRT();
++
+     GDBusProxy *proxy = get_dbus_proxy();
+     if (!proxy)
+         return NULL;
+@@ -143,6 +149,8 @@ problem_data_t *get_problem_data_dbus(const char *problem_dir_path)
+ 
+ GList *get_problems_over_dbus(bool authorize)
+ {
++    INITIALIZE_LIBABRT();
++
+     GDBusProxy *proxy = get_dbus_proxy();
+     if (!proxy)
+         return ERR_PTR;
+diff --git a/src/plugins/Makefile.am b/src/plugins/Makefile.am
+index dd32c7d..727dae0 100644
+--- a/src/plugins/Makefile.am
++++ b/src/plugins/Makefile.am
+@@ -89,6 +89,7 @@ EXTRA_DIST = \
+     analyze_LocalGDB.xml.in \
+     analyze_RetraceServer.xml.in \
+     analyze_VMcore.xml.in \
++    abrt-action-analyze-core.in \
+     abrt-action-analyze-vmcore \
+     abrt-action-check-oops-for-hw-error \
+     abrt-action-save-kernel-data \
+@@ -306,7 +307,7 @@ endif
+ 
+ DEFS = -DLOCALEDIR=\"$(localedir)\" @DEFS@
+ 
+-DISTCLEANFILES = abrt-action-analyze-ccpp-local
++DISTCLEANFILES = abrt-action-analyze-ccpp-local abrt-action-analyze-core
+ 
+ abrt-action-perform-ccpp-analysis: abrt-action-perform-ccpp-analysis.in
+ 	sed -e s,\@libexecdir\@,$(libexecdir),g \
+@@ -315,3 +316,8 @@ abrt-action-perform-ccpp-analysis: abrt-action-perform-ccpp-analysis.in
+ abrt-action-analyze-ccpp-local: abrt-action-analyze-ccpp-local.in
+ 	sed -e s,\@LIBEXEC_DIR\@,$(libexecdir),g \
+         $< >$@
++
++abrt-action-analyze-core: abrt-action-analyze-core.in
++	sed -e s,\@localedir\@,$(localedir),g \
++        -e s,\@PACKAGE\@,$(PACKAGE),g \
++        $< >$@
+diff --git a/src/plugins/abrt-action-analyze-core b/src/plugins/abrt-action-analyze-core
+deleted file mode 100644
+index 806cc26..0000000
+--- a/src/plugins/abrt-action-analyze-core
++++ /dev/null
+@@ -1,186 +0,0 @@
+-#!/usr/bin/python -u
+-# -*- coding: utf-8 -*-
+-# WARNING: python -u means unbuffered I/O. Without it the messages are
+-# passed to the parent asynchronously which looks bad in clients.
+-
+-from subprocess import Popen, PIPE
+-import sys
+-import os
+-import getopt
+-
+-GETTEXT_PROGNAME = "abrt"
+-import locale
+-import gettext
+-
+-_ = lambda x: gettext.lgettext(x)
+-
+-
+-verbose = 0
+-
+-def log(s):
+-    sys.stderr.write("%s\n" % s)
+-
+-def log1(message):
+-    if verbose > 0:
+-        log(message)
+-
+-def log2(message):
+-    if verbose > 1:
+-        log(message)
+-
+-def error_msg(s):
+-    sys.stderr.write("%s\n" % s)
+-
+-def error_msg_and_die(s):
+-    sys.stderr.write("%s\n" % s)
+-    sys.exit(1)
+-
+-def xopen(name, mode):
+-    try:
+-        r = open(name, mode)
+-    except IOError, ex:
+-        error_msg_and_die("Can't open '%s': %s" % (name, ex))
+-    return r
+-
+-
+-def init_gettext():
+-    try:
+-        locale.setlocale(locale.LC_ALL, "")
+-    except locale.Error:
+-        os.environ['LC_ALL'] = 'C'
+-        locale.setlocale(locale.LC_ALL, "")
+-    # Defeat "AttributeError: 'module' object has no attribute 'nl_langinfo'"
+-    try:
+-        gettext.bind_textdomain_codeset(GETTEXT_PROGNAME, locale.nl_langinfo(locale.CODESET))
+-    except AttributeError:
+-        pass
+-    gettext.bindtextdomain(GETTEXT_PROGNAME, '/usr/share/locale')
+-    gettext.textdomain(GETTEXT_PROGNAME)
+-
+-#eu_unstrip_OUT=`eu-unstrip "--core=$core" -n 2>eu_unstrip.ERR`
+-def extract_info_from_core(coredump_name):
+-    """
+-    Extracts builds with filenames,
+-    Returns a list of tuples (build_id, filename)
+-    """
+-    #OFFSET = 0
+-    BUILD_ID = 1
+-    LIBRARY = 2
+-    #SEP = 3
+-    EXECUTABLE = 4
+-
+-    log(_("Analyzing coredump '%s'") % coredump_name)
+-    eu_unstrip_OUT = Popen(["eu-unstrip","--core=%s" % coredump_name, "-n"], stdout=PIPE, bufsize=-1).communicate()[0]
+-    # parse eu_unstrip_OUT and return the list of build_ids
+-
+-    # eu_unstrip_OUT = (
+-    # "0x7f42362ca000+0x204000 c4d35d993598a6242f7525d024b5ec3becf5b447@0x7f42362ca1a0 /usr/lib64/libcanberra-gtk.so.0 - libcanberra-gtk.so.0\n"
+-    # "0x3afa400000+0x210000 607308f916c13c3ad9ee503008d31fa671ba73ce@0x3afa4001a0 /usr/lib64/libcanberra.so.0 - libcanberra.so.0\n"
+-    # "0x3afa400000+0x210000 607308f916c13c3ad9ee503008d31fa671ba73ce@0x3afa4001a0 /usr/lib64/libcanberra.so.0 - libcanberra.so.0\n"
+-    # "0x3bc7000000+0x208000 3be016bb723e85779a23e111a8ab1a520b209422@0x3bc70001a0 /usr/lib64/libvorbisfile.so.3 - libvorbisfile.so.3\n"
+-    # "0x7f423609e000+0x22c000 87f9c7d9844f364c73aa2566d6cfc9c5fa36d35d@0x7f423609e1a0 /usr/lib64/libvorbis.so.0 - libvorbis.so.0\n"
+-    # "0x7f4235e99000+0x205000 b5bc98c125a11b571cf4f2746268a6d3cfa95b68@0x7f4235e991a0 /usr/lib64/libogg.so.0 - libogg.so.0\n"
+-    # "0x7f4235c8b000+0x20e000 f1ff6c8ee30dba27e90ef0c5b013df2833da2889@0x7f4235c8b1a0 /usr/lib64/libtdb.so.1 - libtdb.so.1\n"
+-    # "0x3bc3000000+0x209000 8ef56f789fd914e8d0678eb0cdfda1bfebb00b40@0x3bc30001a0 /usr/lib64/libltdl.so.7 - libltdl.so.7\n"
+-    # "0x7f4231b64000+0x22b000 3ca5b83798349f78b362b1ea51c8a4bc8114b8b1@0x7f4231b641a0 /usr/lib64/gio/modules/libgvfsdbus.so - libgvfsdbus.so\n"
+-    # "0x7f423192a000+0x218000 ad024a01ad132737a8cfc7c95beb7c77733a652d@0x7f423192a1a0 /usr/lib64/libgvfscommon.so.0 - libgvfscommon.so.0\n"
+-    # "0x7f423192a000+0x218000 ad024a01ad132737a8cfc7c95beb7c77733a652d@0x7f423192a1a0 /usr/lib64/libgvfscommon.so.0 - libgvfscommon.so.0\n"
+-    # "0x3bb8e00000+0x20e000 d240ac5755184a95c783bb98a2d05530e0cf958a@0x3bb8e001a0 /lib64/libudev.so.0 - libudev.so.0\n"
+-    # )
+-    #print eu_unstrip_OUT
+-    # we failed to get build ids from the core -> die
+-    if not eu_unstrip_OUT:
+-        error_msg_and_die("Can't get build ids from %s" % coredump_name)
+-
+-    lines = eu_unstrip_OUT.split('\n')
+-    # using set ensures the unique values
+-    build_ids = set()
+-    libraries = set()
+-
+-    for line in lines:
+-        b_ids_line = line.split()
+-        if len(b_ids_line) >= EXECUTABLE:
+-            # [exe] -> the executable itself
+-            # linux-vdso.so.1 -> Virtual Dynamic Shared Object
+-            # linux-gate.so.1 -> the same as vdso
+-            # See https://bugzilla.redhat.com/show_bug.cgi?id=706969
+-            # "Please split kernel debuginfo packages so that VDSO debuginfos are separate" -
+-            # we might want to remove this special-casing later.
+-            if b_ids_line[BUILD_ID] == '-':
+-                log(_("Missing build id: %s" % b_ids_line[EXECUTABLE]))
+-            elif ((len(b_ids_line) == EXECUTABLE) or (b_ids_line[EXECUTABLE] not in ["linux-vdso.so.1", "linux-gate.so.1"])):
+-                build_id = b_ids_line[BUILD_ID].split('@')[0]
+-                build_ids.add(build_id)
+-                library = b_ids_line[LIBRARY]
+-                libraries.add(library)
+-            else:
+-                log2("skipping line '%s'" % line)
+-    log1("Found %i build_ids" % len(build_ids))
+-    log1("Found %i libs" % len(libraries))
+-    return build_ids
+-
+-def build_ids_to_path(build_ids):
+-    """
+-    build_id1=${build_id:0:2}
+-    build_id2=${build_id:2}
+-    file="usr/lib/debug/.build-id/$build_id1/$build_id2.debug"
+-    """
+-    return ["/usr/lib/debug/.build-id/%s/%s.debug" % (b_id[:2], b_id[2:]) for b_id in build_ids]
+-
+-if __name__ == "__main__":
+-    # localization
+-    init_gettext()
+-
+-    ABRT_VERBOSE = os.getenv("ABRT_VERBOSE")
+-    if (ABRT_VERBOSE):
+-        try:
+-            verbose = int(ABRT_VERBOSE)
+-        except:
+-            pass
+-
+-    progname = os.path.basename(sys.argv[0])
+-    help_text = _("Usage: %s [-v] [-o OUTFILE] -c COREFILE") % progname
+-    try:
+-        opts, args = getopt.getopt(sys.argv[1:], "vhc:o:", ["help", "core="])
+-    except getopt.GetoptError, err:
+-        error_msg(err) # prints something like "option -a not recognized"
+-        error_msg_and_die(help_text)
+-
+-    core = None
+-    opt_o = None
+-
+-    for opt, arg in opts:
+-        if opt in ("-h", "--help"):
+-            print help_text
+-            exit(0)
+-        elif opt == "-v":
+-            verbose += 1
+-        elif opt == "-o":
+-            opt_o = arg
+-        elif opt in ("-c", "--core"):
+-            core = arg
+-
+-    if not core:
+-        error_msg(_("COREFILE is not specified"))
+-        error_msg_and_die(help_text)
+-
+-    b_ids = extract_info_from_core(core)
+-
+-    try:
+-        # Note that we open -o FILE only when we reach the point
+-        # when we are definitely going to write something to it
+-        outfile = sys.stdout
+-        outname = opt_o
+-        # Make sure the file is readable for all
+-        oldmask = os.umask(0002)
+-        for bid in b_ids:
+-            if outname:
+-                outfile = xopen(outname, "w")
+-                outname = None
+-            outfile.write("%s\n" % bid)
+-        outfile.close()
+-        os.umask(oldmask)
+-    except IOError, e:
+-        if not opt_o:
+-            opt_o = "<stdout>"
+-        error_msg_and_die("Error writing to '%s': %s" % (opt_o, e))
+diff --git a/src/plugins/abrt-action-analyze-core.in b/src/plugins/abrt-action-analyze-core.in
+new file mode 100644
+index 0000000..0185ac5
+--- /dev/null
++++ b/src/plugins/abrt-action-analyze-core.in
+@@ -0,0 +1,186 @@
++#!/usr/bin/python -u
++# -*- coding: utf-8 -*-
++# WARNING: python -u means unbuffered I/O. Without it the messages are
++# passed to the parent asynchronously which looks bad in clients.
++
++from subprocess import Popen, PIPE
++import sys
++import os
++import getopt
++
++GETTEXT_PROGNAME = "@PACKAGE@"
++import locale
++import gettext
++
++_ = lambda x: gettext.lgettext(x)
++
++
++verbose = 0
++
++def log(s):
++    sys.stderr.write("%s\n" % s)
++
++def log1(message):
++    if verbose > 0:
++        log(message)
++
++def log2(message):
++    if verbose > 1:
++        log(message)
++
++def error_msg(s):
++    sys.stderr.write("%s\n" % s)
++
++def error_msg_and_die(s):
++    sys.stderr.write("%s\n" % s)
++    sys.exit(1)
++
++def xopen(name, mode):
++    try:
++        r = open(name, mode)
++    except IOError, ex:
++        error_msg_and_die("Can't open '%s': %s" % (name, ex))
++    return r
++
++
++def init_gettext():
++    try:
++        locale.setlocale(locale.LC_ALL, "")
++    except locale.Error:
++        os.environ['LC_ALL'] = 'C'
++        locale.setlocale(locale.LC_ALL, "")
++    # Defeat "AttributeError: 'module' object has no attribute 'nl_langinfo'"
++    try:
++        gettext.bind_textdomain_codeset(GETTEXT_PROGNAME, locale.nl_langinfo(locale.CODESET))
++    except AttributeError:
++        pass
++    gettext.bindtextdomain(GETTEXT_PROGNAME, "@localedir@")
++    gettext.textdomain(GETTEXT_PROGNAME)
++
++#eu_unstrip_OUT=`eu-unstrip "--core=$core" -n 2>eu_unstrip.ERR`
++def extract_info_from_core(coredump_name):
++    """
++    Extracts builds with filenames,
++    Returns a list of tuples (build_id, filename)
++    """
++    #OFFSET = 0
++    BUILD_ID = 1
++    LIBRARY = 2
++    #SEP = 3
++    EXECUTABLE = 4
++
++    log(_("Analyzing coredump '%s'") % coredump_name)
++    eu_unstrip_OUT = Popen(["eu-unstrip","--core=%s" % coredump_name, "-n"], stdout=PIPE, bufsize=-1).communicate()[0]
++    # parse eu_unstrip_OUT and return the list of build_ids
++
++    # eu_unstrip_OUT = (
++    # "0x7f42362ca000+0x204000 c4d35d993598a6242f7525d024b5ec3becf5b447@0x7f42362ca1a0 /usr/lib64/libcanberra-gtk.so.0 - libcanberra-gtk.so.0\n"
++    # "0x3afa400000+0x210000 607308f916c13c3ad9ee503008d31fa671ba73ce@0x3afa4001a0 /usr/lib64/libcanberra.so.0 - libcanberra.so.0\n"
++    # "0x3afa400000+0x210000 607308f916c13c3ad9ee503008d31fa671ba73ce@0x3afa4001a0 /usr/lib64/libcanberra.so.0 - libcanberra.so.0\n"
++    # "0x3bc7000000+0x208000 3be016bb723e85779a23e111a8ab1a520b209422@0x3bc70001a0 /usr/lib64/libvorbisfile.so.3 - libvorbisfile.so.3\n"
++    # "0x7f423609e000+0x22c000 87f9c7d9844f364c73aa2566d6cfc9c5fa36d35d@0x7f423609e1a0 /usr/lib64/libvorbis.so.0 - libvorbis.so.0\n"
++    # "0x7f4235e99000+0x205000 b5bc98c125a11b571cf4f2746268a6d3cfa95b68@0x7f4235e991a0 /usr/lib64/libogg.so.0 - libogg.so.0\n"
++    # "0x7f4235c8b000+0x20e000 f1ff6c8ee30dba27e90ef0c5b013df2833da2889@0x7f4235c8b1a0 /usr/lib64/libtdb.so.1 - libtdb.so.1\n"
++    # "0x3bc3000000+0x209000 8ef56f789fd914e8d0678eb0cdfda1bfebb00b40@0x3bc30001a0 /usr/lib64/libltdl.so.7 - libltdl.so.7\n"
++    # "0x7f4231b64000+0x22b000 3ca5b83798349f78b362b1ea51c8a4bc8114b8b1@0x7f4231b641a0 /usr/lib64/gio/modules/libgvfsdbus.so - libgvfsdbus.so\n"
++    # "0x7f423192a000+0x218000 ad024a01ad132737a8cfc7c95beb7c77733a652d@0x7f423192a1a0 /usr/lib64/libgvfscommon.so.0 - libgvfscommon.so.0\n"
++    # "0x7f423192a000+0x218000 ad024a01ad132737a8cfc7c95beb7c77733a652d@0x7f423192a1a0 /usr/lib64/libgvfscommon.so.0 - libgvfscommon.so.0\n"
++    # "0x3bb8e00000+0x20e000 d240ac5755184a95c783bb98a2d05530e0cf958a@0x3bb8e001a0 /lib64/libudev.so.0 - libudev.so.0\n"
++    # )
++    #print eu_unstrip_OUT
++    # we failed to get build ids from the core -> die
++    if not eu_unstrip_OUT:
++        error_msg_and_die("Can't get build ids from %s" % coredump_name)
++
++    lines = eu_unstrip_OUT.split('\n')
++    # using set ensures the unique values
++    build_ids = set()
++    libraries = set()
++
++    for line in lines:
++        b_ids_line = line.split()
++        if len(b_ids_line) >= EXECUTABLE:
++            # [exe] -> the executable itself
++            # linux-vdso.so.1 -> Virtual Dynamic Shared Object
++            # linux-gate.so.1 -> the same as vdso
++            # See https://bugzilla.redhat.com/show_bug.cgi?id=706969
++            # "Please split kernel debuginfo packages so that VDSO debuginfos are separate" -
++            # we might want to remove this special-casing later.
++            if b_ids_line[BUILD_ID] == '-':
++                log(_("Missing build id: %s" % b_ids_line[EXECUTABLE]))
++            elif ((len(b_ids_line) == EXECUTABLE) or (b_ids_line[EXECUTABLE] not in ["linux-vdso.so.1", "linux-gate.so.1"])):
++                build_id = b_ids_line[BUILD_ID].split('@')[0]
++                build_ids.add(build_id)
++                library = b_ids_line[LIBRARY]
++                libraries.add(library)
++            else:
++                log2("skipping line '%s'" % line)
++    log1("Found %i build_ids" % len(build_ids))
++    log1("Found %i libs" % len(libraries))
++    return build_ids
++
++def build_ids_to_path(build_ids):
++    """
++    build_id1=${build_id:0:2}
++    build_id2=${build_id:2}
++    file="usr/lib/debug/.build-id/$build_id1/$build_id2.debug"
++    """
++    return ["/usr/lib/debug/.build-id/%s/%s.debug" % (b_id[:2], b_id[2:]) for b_id in build_ids]
++
++if __name__ == "__main__":
++    # localization
++    init_gettext()
++
++    ABRT_VERBOSE = os.getenv("ABRT_VERBOSE")
++    if (ABRT_VERBOSE):
++        try:
++            verbose = int(ABRT_VERBOSE)
++        except:
++            pass
++
++    progname = os.path.basename(sys.argv[0])
++    help_text = _("Usage: %s [-v] [-o OUTFILE] -c COREFILE") % progname
++    try:
++        opts, args = getopt.getopt(sys.argv[1:], "vhc:o:", ["help", "core="])
++    except getopt.GetoptError, err:
++        error_msg(err) # prints something like "option -a not recognized"
++        error_msg_and_die(help_text)
++
++    core = None
++    opt_o = None
++
++    for opt, arg in opts:
++        if opt in ("-h", "--help"):
++            print help_text
++            exit(0)
++        elif opt == "-v":
++            verbose += 1
++        elif opt == "-o":
++            opt_o = arg
++        elif opt in ("-c", "--core"):
++            core = arg
++
++    if not core:
++        error_msg(_("COREFILE is not specified"))
++        error_msg_and_die(help_text)
++
++    b_ids = extract_info_from_core(core)
++
++    try:
++        # Note that we open -o FILE only when we reach the point
++        # when we are definitely going to write something to it
++        outfile = sys.stdout
++        outname = opt_o
++        # Make sure the file is readable for all
++        oldmask = os.umask(0002)
++        for bid in b_ids:
++            if outname:
++                outfile = xopen(outname, "w")
++                outname = None
++            outfile.write("%s\n" % bid)
++        outfile.close()
++        os.umask(oldmask)
++    except IOError, e:
++        if not opt_o:
++            opt_o = "<stdout>"
++        error_msg_and_die("Error writing to '%s': %s" % (opt_o, e))
+diff --git a/src/plugins/abrt-action-install-debuginfo-to-abrt-cache.c b/src/plugins/abrt-action-install-debuginfo-to-abrt-cache.c
+index cf74326..e0eccc0 100644
+--- a/src/plugins/abrt-action-install-debuginfo-to-abrt-cache.c
++++ b/src/plugins/abrt-action-install-debuginfo-to-abrt-cache.c
+@@ -74,7 +74,8 @@ int main(int argc, char **argv)
+         // However since we communicate through environment variables
+         // we have to keep a whitelist of variables to keep.
+         static const char *whitelist[] = {
+-            "REPORT_CLIENT_SLAVE" //  Check if the app is being run as a slave
++            "REPORT_CLIENT_SLAVE", //  Check if the app is being run as a slave
++            "LANG",
+         };
+         const size_t wlsize = sizeof(whitelist)/sizeof(char*);
+         char *setlist[sizeof(whitelist)/sizeof(char*)] = { 0 };
+-- 
+1.8.3.1
+

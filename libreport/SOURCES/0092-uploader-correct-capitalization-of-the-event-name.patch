@@ -1,0 +1,28 @@
+From 76b1fcd85d86325a4158600cd680da5ce599012d Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Thu, 2 Oct 2014 09:19:27 +0200
+Subject: [LIBREPORT PATCH 92/93] uploader: correct capitalization of the event
+ name
+
+Related to rhbz#1014788
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/plugins/report_Uploader.xml.in | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/plugins/report_Uploader.xml.in b/src/plugins/report_Uploader.xml.in
+index a136aad..7df006a 100644
+--- a/src/plugins/report_Uploader.xml.in
++++ b/src/plugins/report_Uploader.xml.in
+@@ -1,6 +1,6 @@
+ <?xml version="1.0" encoding="UTF-8" ?>
+ <event>
+-    <_name>Report uploader</_name>
++    <_name>Report Uploader</_name>
+     <_description>Upload as tar.gz file (via FTP/SCP/...)</_description>
+ 
+     <requires-items></requires-items>
+-- 
+1.8.3.1
+

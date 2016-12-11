@@ -1,0 +1,189 @@
+From fc7ce16996d750b05ffa13cec1ff0708a8972e0a Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Thu, 9 Jan 2014 13:59:51 +0100
+Subject: [LIBREPORT PATCH 4/6] add a workflow for libreport type problems
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ po/POTFILES.in                                      |  3 +++
+ src/lib/report_event.conf                           |  4 ++--
+ src/workflows/Makefile.am                           | 13 +++++++++----
+ src/workflows/report_fedora.conf                    |  4 ++++
+ src/workflows/report_rhel.conf                      |  4 ++++
+ src/workflows/report_rhel_bugzilla.conf             |  4 ++++
+ src/workflows/workflow_FedoraLibreport.xml.in       |  9 +++++++++
+ src/workflows/workflow_RHELBugzillaLibreport.xml.in |  9 +++++++++
+ src/workflows/workflow_RHELLibreport.xml.in         |  9 +++++++++
+ 9 files changed, 53 insertions(+), 6 deletions(-)
+ create mode 100644 src/workflows/workflow_FedoraLibreport.xml.in
+ create mode 100644 src/workflows/workflow_RHELBugzillaLibreport.xml.in
+ create mode 100644 src/workflows/workflow_RHELLibreport.xml.in
+
+diff --git a/po/POTFILES.in b/po/POTFILES.in
+index 35e209d..426cfcf 100644
+--- a/po/POTFILES.in
++++ b/po/POTFILES.in
+@@ -53,14 +53,17 @@ src/workflows/workflow_FedoraKerneloops.xml.in
+ src/workflows/workflow_FedoraPython.xml.in
+ src/workflows/workflow_FedoraVmcore.xml.in
+ src/workflows/workflow_FedoraXorg.xml.in
++src/workflows/workflow_FedoraLibreport.xml.in
+ src/workflows/workflow_Upload.xml.in
+ src/workflows/workflow_RHELCCpp.xml.in
+ src/workflows/workflow_RHELKerneloops.xml.in
+ src/workflows/workflow_RHELPython.xml.in
+ src/workflows/workflow_RHELvmcore.xml.in
+ src/workflows/workflow_RHELxorg.xml.in
++src/workflows/workflow_RHELLibreport.xml.in
+ src/workflows/workflow_RHELBugzillaCCpp.xml.in
+ src/workflows/workflow_RHELBugzillaKerneloops.xml.in
+ src/workflows/workflow_RHELBugzillaPython.xml.in
+ src/workflows/workflow_RHELBugzillaVmcore.xml.in
+ src/workflows/workflow_RHELBugzillaXorg.xml.in
++src/workflows/workflow_RHELBugzillaLibreport.xml.in
+diff --git a/src/lib/report_event.conf b/src/lib/report_event.conf
+index bcf523d..7b2e4f4 100644
+--- a/src/lib/report_event.conf
++++ b/src/lib/report_event.conf
+@@ -49,7 +49,7 @@ include workflows.d/*.conf
+ #EVENT=report_Dummy analyzer=libreport echo "Hello world" >> /tmp/libreport.log
+ 
+ EVENT=report-gui analyzer=libreport
+-    report-gtk -e report_Bugzilla -- "$DUMP_DIR"
++    report-gtk -- "$DUMP_DIR"
+ 
+ EVENT=report-cli analyzer=libreport
+-    report-cli -e report_Bugzilla -- "$DUMP_DIR"
++    report-cli -- "$DUMP_DIR"
+diff --git a/src/workflows/Makefile.am b/src/workflows/Makefile.am
+index 5b3cfb8..54a504e 100644
+--- a/src/workflows/Makefile.am
++++ b/src/workflows/Makefile.am
+@@ -11,7 +11,8 @@ dist_workflows_DATA = \
+     workflow_RHELKerneloops.xml \
+     workflow_RHELPython.xml \
+     workflow_RHELvmcore.xml \
+-    workflow_RHELxorg.xml
++    workflow_RHELxorg.xml \
++    workflow_RHELLibreport.xml
+ 
+ if BUILD_BUGZILLA
+ dist_workflows_DATA += \
+@@ -23,7 +24,8 @@ dist_workflows_DATA += \
+     workflow_RHELBugzillaKerneloops.xml \
+     workflow_RHELBugzillaPython.xml \
+     workflow_RHELBugzillaVmcore.xml \
+-    workflow_RHELBugzillaXorg.xml
++    workflow_RHELBugzillaXorg.xml \
++    workflow_RHELBugzillaLibreport.xml
+ endif
+ 
+ workflowsdefdir = $(WORKFLOWS_DEFINITION_DIR)
+@@ -46,12 +48,14 @@ EXTRA_DIST = \
+     workflow_FedoraPython.xml.in \
+     workflow_FedoraVmcore.xml.in \
+     workflow_FedoraXorg.xml.in \
++    workflow_FedoraLibreport.xml.in \
+     workflow_Upload.xml.in \
+     workflow_RHELCCpp.xml.in \
+     workflow_RHELKerneloops.xml.in \
+     workflow_RHELPython.xml.in \
+     workflow_RHELvmcore.xml.in \
+-    workflow_RHELxorg.xml.in
++    workflow_RHELxorg.xml.in \
++    workflow_RHELLibreport.xml.in
+ 
+ if BUILD_BUGZILLA
+ EXTRA_DIST += \
+@@ -63,5 +67,6 @@ EXTRA_DIST += \
+     workflow_RHELBugzillaKerneloops.xml.in \
+     workflow_RHELBugzillaPython.xml.in \
+     workflow_RHELBugzillaVmcore.xml.in \
+-    workflow_RHELBugzillaXorg.xml.in
++    workflow_RHELBugzillaXorg.xml.in \
++    workflow_RHELBugzillaLibreport.xml.in
+ endif
+diff --git a/src/workflows/report_fedora.conf b/src/workflows/report_fedora.conf
+index 84009bf..e935b16 100644
+--- a/src/workflows/report_fedora.conf
++++ b/src/workflows/report_fedora.conf
+@@ -1,3 +1,7 @@
++EVENT=workflow_FedoraLibreport analyzer=libreport
++# this is just a meta event which consists of other events
++# the list is defined in the xml file
++
+ EVENT=workflow_FedoraCCpp analyzer=CCpp
+ # this is just a meta event which consists of other events
+ # the list is defined in the xml file
+diff --git a/src/workflows/report_rhel.conf b/src/workflows/report_rhel.conf
+index 104bcc3..870db3f 100644
+--- a/src/workflows/report_rhel.conf
++++ b/src/workflows/report_rhel.conf
+@@ -1,3 +1,7 @@
++EVENT=workflow_RHELLibreport analyzer=libreport
++# this is just a meta event which consists of other events
++# the list is defined in the xml file
++
+ EVENT=workflow_RHELCCpp analyzer=CCpp
+ # this is just a meta event which consists of other events
+ # the list is defined in the xml file
+diff --git a/src/workflows/report_rhel_bugzilla.conf b/src/workflows/report_rhel_bugzilla.conf
+index 3281cb8..b986959 100644
+--- a/src/workflows/report_rhel_bugzilla.conf
++++ b/src/workflows/report_rhel_bugzilla.conf
+@@ -1,3 +1,7 @@
++EVENT=workflow_RHELBugzillaLibreport analyzer=libreport
++# this is just a meta event which consists of other events
++# the list is defined in the xml file
++
+ EVENT=workflow_RHELBugzillaCCpp analyzer=CCpp
+ # this is just a meta event which consists of other events
+ # the list is defined in the xml file
+diff --git a/src/workflows/workflow_FedoraLibreport.xml.in b/src/workflows/workflow_FedoraLibreport.xml.in
+new file mode 100644
+index 0000000..16e08cc
+--- /dev/null
++++ b/src/workflows/workflow_FedoraLibreport.xml.in
+@@ -0,0 +1,9 @@
++<?xml version="1.0" encoding="UTF-8" ?>
++<workflow>
++    <_name>Report to Fedora</_name>
++    <_description>Process the problem using the Fedora infrastructure</_description>
++
++    <events>
++        <event>report_Bugzilla</event>
++    </events>
++</workflow>
+diff --git a/src/workflows/workflow_RHELBugzillaLibreport.xml.in b/src/workflows/workflow_RHELBugzillaLibreport.xml.in
+new file mode 100644
+index 0000000..b9c5cb3
+--- /dev/null
++++ b/src/workflows/workflow_RHELBugzillaLibreport.xml.in
+@@ -0,0 +1,9 @@
++<?xml version="1.0" encoding="UTF-8" ?>
++<workflow>
++    <_name>Report to Red Hat Bugzilla</_name>
++    <_description>Process the problem using the Red Hat infrastructure</_description>
++
++    <events>
++        <event>report_Bugzilla</event>
++    </events>
++</workflow>
+diff --git a/src/workflows/workflow_RHELLibreport.xml.in b/src/workflows/workflow_RHELLibreport.xml.in
+new file mode 100644
+index 0000000..b8b4f04
+--- /dev/null
++++ b/src/workflows/workflow_RHELLibreport.xml.in
+@@ -0,0 +1,9 @@
++<?xml version="1.0" encoding="UTF-8" ?>
++<workflow>
++    <_name>Report to Red Hat Customer Portal</_name>
++    <_description>Process the problem using the Red Hat infrastructure</_description>
++
++    <events>
++        <event>report_RHTSupport</event>
++    </events>
++</workflow>
+-- 
+1.8.3.1
+

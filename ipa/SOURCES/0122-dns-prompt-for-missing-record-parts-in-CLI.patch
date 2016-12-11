@@ -1,0 +1,201 @@
+From 7563ae6257c56555e502d40bc6fc2e142f850094 Mon Sep 17 00:00:00 2001
+From: Jan Cholasta <jcholast@redhat.com>
+Date: Fri, 2 Sep 2016 16:42:57 +0200
+Subject: [PATCH] dns: prompt for missing record parts in CLI
+
+Fix the code which determines if a record part is required and thus should
+be prompted not to wrongfully consider all record parts to be optional.
+
+https://fedorahosted.org/freeipa/ticket/6203
+
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+---
+ API.txt                  | 29 +++++++++++++++++++++++++++++
+ VERSION                  |  4 ++--
+ ipaclient/plugins/dns.py | 30 ++++++++++++++++--------------
+ ipaserver/plugins/dns.py | 15 +++++++++++++++
+ 4 files changed, 62 insertions(+), 16 deletions(-)
+
+diff --git a/API.txt b/API.txt
+index 5b83bfbd0b457b77e0522ab7d83abfae4df3ebe9..fb5bf83cea0633130217cf1327481c8e9b11c4fc 100644
+--- a/API.txt
++++ b/API.txt
+@@ -6312,9 +6312,20 @@ default: dns_is_enabled/1
+ default: dns_resolve/1
+ default: dns_system_records/1
+ default: dns_update_system_records/1
++default: dnsa6record/1
++default: dnsaaaarecord/1
++default: dnsafsdbrecord/1
++default: dnsaplrecord/1
++default: dnsarecord/1
++default: dnscertrecord/1
++default: dnscnamerecord/1
+ default: dnsconfig/1
+ default: dnsconfig_mod/1
+ default: dnsconfig_show/1
++default: dnsdhcidrecord/1
++default: dnsdlvrecord/1
++default: dnsdnamerecord/1
++default: dnsdsrecord/1
+ default: dnsforwardzone/1
+ default: dnsforwardzone_add/1
+ default: dnsforwardzone_add_permission/1
+@@ -6325,6 +6336,16 @@ default: dnsforwardzone_find/1
+ default: dnsforwardzone_mod/1
+ default: dnsforwardzone_remove_permission/1
+ default: dnsforwardzone_show/1
++default: dnshiprecord/1
++default: dnsipseckeyrecord/1
++default: dnskeyrecord/1
++default: dnskxrecord/1
++default: dnslocrecord/1
++default: dnsmxrecord/1
++default: dnsnaptrrecord/1
++default: dnsnsecrecord/1
++default: dnsnsrecord/1
++default: dnsptrrecord/1
+ default: dnsrecord/1
+ default: dnsrecord_add/1
+ default: dnsrecord_del/1
+@@ -6333,12 +6354,20 @@ default: dnsrecord_find/1
+ default: dnsrecord_mod/1
+ default: dnsrecord_show/1
+ default: dnsrecord_split_parts/1
++default: dnsrprecord/1
++default: dnsrrsigrecord/1
+ default: dnsserver/1
+ default: dnsserver_add/1
+ default: dnsserver_del/1
+ default: dnsserver_find/1
+ default: dnsserver_mod/1
+ default: dnsserver_show/1
++default: dnssigrecord/1
++default: dnsspfrecord/1
++default: dnssrvrecord/1
++default: dnssshfprecord/1
++default: dnstlsarecord/1
++default: dnstxtrecord/1
+ default: dnszone/1
+ default: dnszone_add/1
+ default: dnszone_add_permission/1
+diff --git a/VERSION b/VERSION
+index a8b89ed305bcfdf2990a7400d005a68d734fa7e8..796e9fea36b72f3a63372c84b9bfb1538efccfb7 100644
+--- a/VERSION
++++ b/VERSION
+@@ -90,5 +90,5 @@ IPA_DATA_VERSION=20100614120000
+ #                                                      #
+ ########################################################
+ IPA_API_VERSION_MAJOR=2
+-IPA_API_VERSION_MINOR=212
+-# Last change: ab: service: add flag to allow S4U2Self
++IPA_API_VERSION_MINOR=213
++# Last change: dns: prompt for missing record parts in CLI
+diff --git a/ipaclient/plugins/dns.py b/ipaclient/plugins/dns.py
+index db9c17f8b523365779e53adfb2acc43f4a23401f..5e29b8c6666f94f52add7f2e1de8679127886fc2 100644
+--- a/ipaclient/plugins/dns.py
++++ b/ipaclient/plugins/dns.py
+@@ -25,10 +25,10 @@ import copy
+ 
+ from ipaclient.frontend import MethodOverride
+ from ipalib import errors
+-from ipalib.dns import (get_part_rrtype,
+-                        get_record_rrtype,
++from ipalib.dns import (get_record_rrtype,
+                         has_cli_options,
+                         iterate_rrparams_by_parts,
++                        part_name_format,
+                         record_name_format)
+ from ipalib.parameters import Bool
+ from ipalib.plugable import Registry
+@@ -46,9 +46,9 @@ _rev_top_record_types = ('PTR', )
+ _zone_top_record_types = ('NS', 'MX', 'LOC', )
+ 
+ 
+-def __get_part_param(cmd, part, output_kw, default=None):
+-    name = part.name
+-    label = unicode(part.label)
++def __get_part_param(rrtype, cmd, part, output_kw, default=None):
++    name = part_name_format % (rrtype.lower(), part.name)
++    label = unicode(cmd.params[name].label)
+     optional = not part.required
+ 
+     output_kw[name] = cmd.prompt_param(part,
+@@ -64,29 +64,31 @@ def prompt_parts(rrtype, cmd, mod_dnsvalue=None):
+             name, mod_dnsvalue)['result']
+ 
+     user_options = {}
+-    parts = [p for p in cmd.params() if get_part_rrtype(p.name) == rrtype]
+-    if not parts:
++    try:
++        rrobj = cmd.api.Object['dns{}record'.format(rrtype.lower())]
++    except KeyError:
+         return user_options
+ 
+-    for part_id, part in enumerate(parts):
++    for part_id, part in enumerate(rrobj.params()):
+         if mod_parts:
+             default = mod_parts[part_id]
+         else:
+             default = None
+ 
+-        __get_part_param(cmd, part, user_options, default)
++        __get_part_param(rrtype, cmd, part, user_options, default)
+ 
+     return user_options
+ 
+ 
+ def prompt_missing_parts(rrtype, cmd, kw, prompt_optional=False):
+     user_options = {}
+-    parts = [p for p in cmd.params() if get_part_rrtype(p.name) == rrtype]
+-    if not parts:
++    try:
++        rrobj = cmd.api.Object['dns{}record'.format(rrtype.lower())]
++    except KeyError:
+         return user_options
+ 
+-    for part in parts:
+-        name = part.name
++    for part in rrobj.params():
++        name = part_name_format % (rrtype.lower(), part.name)
+ 
+         if name in kw:
+             continue
+@@ -96,7 +98,7 @@ def prompt_missing_parts(rrtype, cmd, kw, prompt_optional=False):
+             continue
+ 
+         default = part.get_default(**kw)
+-        __get_part_param(cmd, part, user_options, default)
++        __get_part_param(rrtype, cmd, part, user_options, default)
+ 
+     return user_options
+ 
+diff --git a/ipaserver/plugins/dns.py b/ipaserver/plugins/dns.py
+index 6f1bd716d202bd85dfc46b5eb94f73e85683b917..f048351e649fe0e8e2893627946333b14c11018a 100644
+--- a/ipaserver/plugins/dns.py
++++ b/ipaserver/plugins/dns.py
+@@ -3471,6 +3471,21 @@ class dnsrecord(LDAPObject):
+             )
+ 
+ 
++# Make DNS record types available as objects in the API.
++# This is used by the CLI to get otherwise unavailable attributes of record
++# parts.
++for param in _dns_records:
++    register()(
++        type(
++            'dns{}record'.format(param.rrtype.lower()),
++            (Object,),
++            dict(
++                takes_params=(param.parts or ()) + (param.extra or ()),
++            )
++        )
++    )
++
++
+ @register()
+ class dnsrecord_split_parts(Command):
+     NO_CLI = True
+-- 
+2.7.4
+

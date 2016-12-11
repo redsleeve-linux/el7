@@ -1,0 +1,34 @@
+From 277ffd77b9ce6eaee007d72139b81804cb12f327 Mon Sep 17 00:00:00 2001
+From: Richard Marko <rmarko@fedoraproject.org>
+Date: Fri, 17 Jul 2015 14:19:34 +0200
+Subject: [PATCH] abrt-hook-ccpp: reset ownership after saving core backtrace
+
+Signed-off-by: Richard Marko <rmarko@fedoraproject.org>
+---
+ src/hooks/abrt-hook-ccpp.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/hooks/abrt-hook-ccpp.c b/src/hooks/abrt-hook-ccpp.c
+index 6759fc0..5b277af 100644
+--- a/src/hooks/abrt-hook-ccpp.c
++++ b/src/hooks/abrt-hook-ccpp.c
+@@ -1027,13 +1027,13 @@ int main(int argc, char** argv)
+         }
+ #endif
+ 
+-        /* And finally set the right uid and gid */
+-        dd_reset_ownership(dd);
+-
+         /* Perform crash-time unwind of the guilty thread. */
+         if (tid > 0 && setting_CreateCoreBacktrace)
+             create_core_backtrace(tid, executable, signal_no, dd);
+ 
++        /* And finally set the right uid and gid */
++        dd_reset_ownership(dd);
++
+         /* We close dumpdir before we start catering for crash storm case.
+          * Otherwise, delete_dump_dir's from other concurrent
+          * CCpp's won't be able to delete our dump (their delete_dump_dir
+-- 
+2.4.3
+

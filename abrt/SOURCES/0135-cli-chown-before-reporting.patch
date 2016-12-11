@@ -1,0 +1,97 @@
+From 5e288cf2d54f6b3e67745f71db836f37901d2ad5 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Wed, 3 Jun 2015 05:40:41 +0200
+Subject: [PATCH] cli: chown before reporting
+
+User must have write access to the reported directory to be able to
+report it but abrt-dbus allows the user to read data of problems that
+belongs to him which may not be accessible in file system.
+
+The GUI does the same and make sures the user can write to the reported
+directory by chowning it before reporting.
+
+Related: #1224984
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/cli/abrt-cli-core.c |  5 +++++
+ src/cli/abrt-cli-core.h |  3 +++
+ src/cli/report.c        | 24 +++++++++++++++---------
+ 3 files changed, 23 insertions(+), 9 deletions(-)
+
+diff --git a/src/cli/abrt-cli-core.c b/src/cli/abrt-cli-core.c
+index 77a37f7..46acd01 100644
+--- a/src/cli/abrt-cli-core.c
++++ b/src/cli/abrt-cli-core.c
+@@ -107,3 +107,8 @@ char *hash2dirname(const char *hash)
+ 
+     return found_name;
+ }
++
++char *hash2dirname_if_necessary(const char *input)
++{
++    return isxdigit_str(input) ? hash2dirname(input) : xstrdup(input);
++}
+diff --git a/src/cli/abrt-cli-core.h b/src/cli/abrt-cli-core.h
+index 33b2ea6..d69d463 100644
+--- a/src/cli/abrt-cli-core.h
++++ b/src/cli/abrt-cli-core.h
+@@ -34,6 +34,9 @@ vector_of_problem_data_t *fetch_crash_infos(void);
+ char *find_problem_by_hash(const char *hash, GList *problems);
+ /* Returns malloced string, or NULL if not found: */
+ char *hash2dirname(const char *hash);
++/* If input looks like a hash, returns malloced string, or NULL if not found.
++ * Otherwise returns a copy of the input. */
++char *hash2dirname_if_necessary(const char *input);
+ 
+ 
+ #endif /* ABRT_CLI_CORE_H_ */
+diff --git a/src/cli/report.c b/src/cli/report.c
+index 33d8b44..6af9769 100644
+--- a/src/cli/report.c
++++ b/src/cli/report.c
+@@ -53,26 +53,32 @@ int cmd_report(int argc, const char **argv)
+     while (*argv)
+     {
+         const char *dir_name = *argv++;
++        char *const real_problem_id = hash2dirname_if_necessary(dir_name);
++        if (real_problem_id == NULL)
++        {
++            error_msg(_("Can't find problem '%s'"), dir_name);
++            continue;
++        }
+ 
+-        char *free_me = NULL;
+-        if (access(dir_name, F_OK) != 0 && errno == ENOENT)
++        const int res = chown_dir_over_dbus(real_problem_id);
++        if (res != 0)
+         {
+-            free_me = hash2dirname(dir_name);
+-            if (free_me)
+-                dir_name = free_me;
++            error_msg(_("Can't take ownership of '%s'"), real_problem_id);
++            free(real_problem_id);
++            continue;
+         }
+-        int status = report_problem_in_dir(dir_name,
++        int status = report_problem_in_dir(real_problem_id,
+                                              LIBREPORT_WAIT
+                                            | LIBREPORT_RUN_CLI);
+ 
+         /* the problem was successfully reported and option is -d */
+         if((opts & OPT_d) && (status == 0 || status == EXIT_STOP_EVENT_RUN))
+         {
+-            log(_("Deleting '%s'"), dir_name);
+-            delete_dump_dir_possibly_using_abrtd(dir_name);
++            log(_("Deleting '%s'"), real_problem_id);
++            delete_dump_dir_possibly_using_abrtd(real_problem_id);
+         }
+ 
+-        free(free_me);
++        free(real_problem_id);
+ 
+         if (status)
+             exit(status);
+-- 
+2.4.3
+

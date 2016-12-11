@@ -1,0 +1,28 @@
+From 567b1fdbaff68f9fc2f52853bda95dcc11cb5ff0 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Fri, 10 Oct 2014 11:18:51 +0200
+Subject: [ABRT PATCH 70/70] applet: don't show duphash instead of component
+
+Related to rhbz#1084031
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/applet/applet.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/applet/applet.c b/src/applet/applet.c
+index a40f877..bd95666 100644
+--- a/src/applet/applet.c
++++ b/src/applet/applet.c
+@@ -1326,7 +1326,7 @@ static void Crash(DBusMessage* signal)
+     if (duphash != NULL && duphash[0] != '\0')
+         problem_data_add_text_noteditable(pi->problem_data, FILENAME_DUPHASH, duphash);
+     if (package_name != NULL && package_name[0] != '\0')
+-        problem_data_add_text_noteditable(pi->problem_data, FILENAME_COMPONENT, duphash);
++        problem_data_add_text_noteditable(pi->problem_data, FILENAME_COMPONENT, package_name);
+     pi->foreign = foreign_problem;
+     show_problem_notification(pi, flags);
+ }
+-- 
+1.8.3.1
+

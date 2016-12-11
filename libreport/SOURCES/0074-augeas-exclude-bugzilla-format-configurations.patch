@@ -1,0 +1,28 @@
+From cd91665c5604b2b4999f2f1d0aeaf02dec32aa64 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Thu, 18 Sep 2014 11:25:15 +0200
+Subject: [LIBREPORT PATCH 74/93] augeas: exclude bugzilla format
+ configurations
+
+Resolves: #1139922
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ augeas/libreport.aug | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/augeas/libreport.aug b/augeas/libreport.aug
+index 3eba157..0e1e5e5 100644
+--- a/augeas/libreport.aug
++++ b/augeas/libreport.aug
+@@ -24,6 +24,7 @@ module Libreport =
+                . (incl (Sys.getenv("HOME") . "/.config/abrt/settings/*"))
+                . (incl (Sys.getenv("XDG_CACHE_HOME") . "/abrt/events/*"))
+                . (incl (Sys.getenv("HOME") . "/.cache/abrt/events/*"))
++               . (excl "/etc/libreport/plugins/bugzilla_format*")
+                . Util.stdexcl
+ 
+     let xfm = transform lns filter
+-- 
+1.8.3.1
+

@@ -1,0 +1,41 @@
+From 5cbc284813a85df42d8031612030f1f27d8ea075 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Thu, 3 Sep 2015 13:54:38 +0200
+Subject: [PATCH] curl: add posibility to use own Certificate Authority cert
+
+Related to rhbz#1223805
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/include/libreport_curl.h | 1 +
+ src/lib/curl.c               | 2 ++
+ 2 files changed, 3 insertions(+)
+
+diff --git a/src/include/libreport_curl.h b/src/include/libreport_curl.h
+index 4b41ecc..812738c 100644
+--- a/src/include/libreport_curl.h
++++ b/src/include/libreport_curl.h
+@@ -37,6 +37,7 @@ typedef struct post_state {
+     const char  *password;
+     const char  *client_cert_path;
+     const char  *client_key_path;
++    const char  *cert_authority_cert_path;
+     /* Results of POST transaction: */
+     int         http_resp_code;
+     /* cast from CURLcode enum.
+diff --git a/src/lib/curl.c b/src/lib/curl.c
+index f7321b5..606d9ea 100644
+--- a/src/lib/curl.c
++++ b/src/lib/curl.c
+@@ -542,6 +542,8 @@ post(post_state_t *state,
+         xcurl_easy_setopt_ptr(handle, CURLOPT_SSLCERT, state->client_cert_path);
+         xcurl_easy_setopt_ptr(handle, CURLOPT_SSLKEY, state->client_key_path);
+     }
++    if (state->cert_authority_cert_path)
++        xcurl_easy_setopt_ptr(handle, CURLOPT_CAINFO, state->cert_authority_cert_path);
+ 
+     // This is the place where everything happens.
+     // Here errors are not limited to "out of memory", can't just die.
+-- 
+2.4.3
+

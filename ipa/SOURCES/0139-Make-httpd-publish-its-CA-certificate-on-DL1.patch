@@ -1,0 +1,34 @@
+From 3ea5984f2806958dee1b94fe993d20b09f64b107 Mon Sep 17 00:00:00 2001
+From: Stanislav Laznicka <slaznick@redhat.com>
+Date: Tue, 11 Oct 2016 15:48:47 +0200
+Subject: [PATCH] Make httpd publish its CA certificate on DL1
+
+httpd did not publish its certificate on DL1 which could
+cause issues during client installation in a rare corner
+case where there would be no way of getting the certificate
+but from a HTTP instance.
+
+https://fedorahosted.org/freeipa/ticket/6393
+
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+---
+ ipaserver/install/httpinstance.py | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/ipaserver/install/httpinstance.py b/ipaserver/install/httpinstance.py
+index 00f890175ae583f485797da6f913a7f83b302df3..431671eaf55d4ac63dc01190e254931dac096dec 100644
+--- a/ipaserver/install/httpinstance.py
++++ b/ipaserver/install/httpinstance.py
+@@ -175,8 +175,7 @@ class HTTPInstance(service.Service):
+         self.step("importing CA certificates from LDAP", self.__import_ca_certs)
+         if autoconfig:
+             self.step("setting up browser autoconfig", self.__setup_autoconfig)
+-        if not self.promote:
+-            self.step("publish CA cert", self.__publish_ca_cert)
++        self.step("publish CA cert", self.__publish_ca_cert)
+         self.step("clean up any existing httpd ccache", self.remove_httpd_ccache)
+         self.step("configuring SELinux for httpd", self.configure_selinux_for_httpd)
+         if not self.is_kdcproxy_configured():
+-- 
+2.10.2
+

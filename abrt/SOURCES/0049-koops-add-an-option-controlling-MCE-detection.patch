@@ -1,0 +1,208 @@
+From 0ec7f45a005a5faeb3d013710572d7b09fada376 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Fri, 21 Mar 2014 15:36:58 +0100
+Subject: [ABRT PATCH 49/66] koops: add an option controlling MCE detection
+
+It is necessary to be able to turn off the detection of Non-fatal MCEs
+on a certain machine.
+
+Related to #807
+Resolves: rhbz#1076820
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+
+Conflicts:
+	src/hooks/Makefile.am
+---
+ doc/abrt-dump-oops.txt                             |  5 ++++
+ doc/dbus-configuration/Makefile.am                 |  1 +
+ .../com.redhat.problems.configuration.oops.xml.in  | 11 ++++++++
+ src/hooks/Makefile.am                              |  3 ++-
+ src/hooks/oops.conf                                |  7 ++++++
+ src/include/libabrt.h                              | 10 ++++++++
+ src/lib/kernel.c                                   | 29 +++++++++++++++++++++-
+ src/plugins/abrt-dump-oops.c                       | 25 ++++++++++++++++++-
+ 8 files changed, 88 insertions(+), 3 deletions(-)
+ create mode 100644 doc/dbus-configuration/com.redhat.problems.configuration.oops.xml.in
+ create mode 100644 src/hooks/oops.conf
+
+diff --git a/doc/abrt-dump-oops.txt b/doc/abrt-dump-oops.txt
+index cdb985c..5aa6bca 100644
+--- a/doc/abrt-dump-oops.txt
++++ b/doc/abrt-dump-oops.txt
+@@ -14,6 +14,11 @@ DESCRIPTION
+ This tool creates problem directory from, updates problem directory with or
+ prints oops extracted from FILE or standard input.
+ 
++FILES
++-----
++/etc/abrt/plugins/oops.conf::
++   Configuration file where user can disable detection of non-fatal MCEs
++
+ OPTIONS
+ -------
+ -v, --verbose::
+diff --git a/doc/dbus-configuration/Makefile.am b/doc/dbus-configuration/Makefile.am
+index 2a3889d..15173de 100644
+--- a/doc/dbus-configuration/Makefile.am
++++ b/doc/dbus-configuration/Makefile.am
+@@ -8,6 +8,7 @@ dist_dbusabrtinterfaces_DATA = \
+ 	com.redhat.problems.configuration.xml \
+ 	com.redhat.problems.configuration.abrt.xml \
+ 	com.redhat.problems.configuration.ccpp.xml \
++	com.redhat.problems.configuration.oops.xml \
+ 	com.redhat.problems.configuration.python.xml \
+ 	com.redhat.problems.configuration.vmcore.xml \
+ 	com.redhat.problems.configuration.xorg.xml
+diff --git a/doc/dbus-configuration/com.redhat.problems.configuration.oops.xml.in b/doc/dbus-configuration/com.redhat.problems.configuration.oops.xml.in
+new file mode 100644
+index 0000000..22bd166
+--- /dev/null
++++ b/doc/dbus-configuration/com.redhat.problems.configuration.oops.xml.in
+@@ -0,0 +1,11 @@
++<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
++ "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
++
++<node name="/com/redhat/problems/configuration/oops">
++    <annotation name="com.redhat.problems.ConfFile" value="/etc/abrt/plugins/oops.conf" />
++    <annotation name="com.redhat.problems.DefaultConfFile" value="/usr/share/abrt/conf.d/plugins/oops.conf" />
++
++    <interface name="com.redhat.problems.configuration.oops">
++        <property name="OnlyFatalMCE" type="b" access="readwrite" />
++    </interface>
++</node>
+diff --git a/src/hooks/Makefile.am b/src/hooks/Makefile.am
+index 1cce3d7..e536089 100644
+--- a/src/hooks/Makefile.am
++++ b/src/hooks/Makefile.am
+@@ -6,7 +6,8 @@ pluginsconfdir = $(PLUGINS_CONF_DIR)
+ dist_pluginsconf_DATA = \
+     CCpp.conf \
+     python.conf \
+-    vmcore.conf
++    vmcore.conf \
++    oops.conf
+ 
+ defaultpluginsconfdir = $(DEFAULT_PLUGINS_CONF_DIR)
+ dist_defaultpluginsconf_DATA = $(dist_pluginsconf_DATA)
+diff --git a/src/hooks/oops.conf b/src/hooks/oops.conf
+new file mode 100644
+index 0000000..0e35a68
+--- /dev/null
++++ b/src/hooks/oops.conf
+@@ -0,0 +1,7 @@
++# Lot of Machine Check Exceptions are correctable and thus not interesting to
++# users. Moreover some hardware may produce plenty of MCEs by design.
++#
++# Setting the following option to 'yes' will configure ABRT to detect only
++# the fatal MCEs.
++#
++OnlyFatalMCE = no
+diff --git a/src/include/libabrt.h b/src/include/libabrt.h
+index 3e42a09..85a5a5c 100644
+--- a/src/include/libabrt.h
++++ b/src/include/libabrt.h
+@@ -9,6 +9,8 @@
+ #ifndef LIBABRT_H_
+ #define LIBABRT_H_
+ 
++#include <regex.h>
++
+ #include <gio/gio.h> /* dbus */
+ #include "abrt-dbus.h"
+ /* libreport's internal functions we use: */
+@@ -109,6 +111,14 @@ int koops_hash_str(char hash_str[SHA1_RESULT_LEN*2 + 1], const char *oops_buf);
+ void koops_extract_oopses(GList **oops_list, char *buffer, size_t buflen);
+ #define koops_print_suspicious_strings abrt_koops_print_suspicious_strings
+ void koops_print_suspicious_strings(void);
++/**
++ * Prints all suspicious strings that do not match any of the regular
++ * expression in NULL terminated list.
++ *
++ * The regular expression should be compiled with REG_NOSUB flag.
++ */
++#define koops_print_suspicious_strings_filtered abrt_koops_print_suspicious_strings_filtered
++void koops_print_suspicious_strings_filtered(const regex_t **filterout);
+ 
+ /* dbus client api */
+ 
+diff --git a/src/lib/kernel.c b/src/lib/kernel.c
+index ad20c65..799463d 100644
+--- a/src/lib/kernel.c
++++ b/src/lib/kernel.c
+@@ -158,8 +158,35 @@ static const char *const s_koops_suspicious_strings[] = {
+ 
+ void koops_print_suspicious_strings(void)
+ {
++    koops_print_suspicious_strings_filtered(NULL);
++}
++
++static bool match_any(const regex_t **res, const char *str)
++{
++    for (const regex_t **r = res; *r != NULL; ++r)
++    {
++        /* Regular expressions compiled with REG_NOSUB */
++        const int reti = regexec(*r, str, 0, NULL, 0);
++        if (reti == 0)
++            return true;
++        else if (reti != REG_NOMATCH)
++        {
++            char msgbuf[100];
++            regerror(reti, *r, msgbuf, sizeof(msgbuf));
++            error_msg_and_die("Regex match failed: %s", msgbuf);
++        }
++    }
++
++    return false;
++}
++
++void koops_print_suspicious_strings_filtered(const regex_t **filterout)
++{
+     for (const char *const *str = s_koops_suspicious_strings; *str; ++str)
+-        puts(*str);
++    {
++        if (filterout == NULL || !match_any(filterout, *str))
++            puts(*str);
++    }
+ }
+ 
+ void koops_extract_oopses(GList **oops_list, char *buffer, size_t buflen)
+diff --git a/src/plugins/abrt-dump-oops.c b/src/plugins/abrt-dump-oops.c
+index 12291be..9f0dc87 100644
+--- a/src/plugins/abrt-dump-oops.c
++++ b/src/plugins/abrt-dump-oops.c
+@@ -295,7 +295,30 @@ int main(int argc, char **argv)
+ 
+     if (opts & OPT_m)
+     {
+-        koops_print_suspicious_strings();
++        map_string_t *settings = new_map_string();
++
++        load_abrt_plugin_conf_file("oops.conf", settings);
++
++        int only_fatal_mce = 1;
++        try_get_map_string_item_as_bool(settings, "OnlyFatalMCE", &only_fatal_mce);
++
++        free_map_string(settings);
++
++        if (only_fatal_mce)
++        {
++            regex_t mce_re;
++            if (regcomp(&mce_re, "^Machine .*$", REG_NOSUB) != 0)
++                perror_msg_and_die(_("Failed to compile regex"));
++
++            const regex_t *filter[] = { &mce_re, NULL };
++
++            koops_print_suspicious_strings_filtered(filter);
++
++            regfree(&mce_re);
++        }
++        else
++            koops_print_suspicious_strings();
++
+         return 1;
+     }
+ 
+-- 
+1.8.3.1
+

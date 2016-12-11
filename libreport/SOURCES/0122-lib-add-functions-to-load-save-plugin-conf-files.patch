@@ -1,0 +1,80 @@
+From 641176aaf757dac6442a2359f34c4b46537485f4 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Thu, 18 Dec 2014 23:59:29 +0100
+Subject: [LIBREPORT PATCH 122/124] lib: add functions to load/save plugin conf
+ files
+
+Related: #1140224, #1174833
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/include/internal_libreport.h |  4 ++++
+ src/lib/configuration_files.c    | 27 +++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+)
+
+diff --git a/src/include/internal_libreport.h b/src/include/internal_libreport.h
+index 585b807..967324b 100644
+--- a/src/include/internal_libreport.h
++++ b/src/include/internal_libreport.h
+@@ -723,12 +723,16 @@ void parse_release_for_rhts(const char *pRelease, char **product, char **version
+  */
+ #define load_conf_file libreport_load_conf_file
+ bool load_conf_file(const char *pPath, map_string_t *settings, bool skipKeysWithoutValue);
++#define load_plugin_conf_file libreport_load_plugin_conf_file
++bool load_plugin_conf_file(const char *name, map_string_t *settings, bool skipKeysWithoutValue);
+ 
+ #define load_conf_file_from_dirs libreport_load_conf_file_from_dirs
+ bool load_conf_file_from_dirs(const char *base_name, const char *const *directories, map_string_t *settings, bool skipKeysWithoutValue);
+ 
+ #define save_conf_file libreport_save_conf_file
+ bool save_conf_file(const char *path, map_string_t *settings);
++#define save_plugin_conf_file libreport_save_plugin_conf_file
++bool save_plugin_conf_file(const char *name, map_string_t *settings);
+ 
+ #define save_app_conf_file libreport_save_app_conf_file
+ bool save_app_conf_file(const char* application_name, map_string_t *settings);
+diff --git a/src/lib/configuration_files.c b/src/lib/configuration_files.c
+index bc1852e..4975d62 100644
+--- a/src/lib/configuration_files.c
++++ b/src/lib/configuration_files.c
+@@ -341,6 +341,20 @@ bool load_conf_file_from_dirs(const char *base_name, const char *const *director
+     return result;
+ }
+ 
++bool load_plugin_conf_file(const char *name, map_string_t *settings, bool skipKeysWithoutValue)
++{
++    const char *dirs[] = {
++        PLUGINS_CONF_DIR,
++        NULL,
++    };
++
++    const char *plugins_conf_dir = getenv("LIBREPORT_DEBUG_PLUGINS_CONF_DIR");
++    if (plugins_conf_dir != NULL)
++        dirs[0] = plugins_conf_dir;
++
++    return load_conf_file_from_dirs(name, dirs, settings, skipKeysWithoutValue);
++}
++
+ static int
+ cmpstringp(const void *p1, const void *p2)
+ {
+@@ -458,3 +472,16 @@ finalize:
+ 
+     return retval;
+ }
++
++bool save_plugin_conf_file(const char *name, map_string_t *settings)
++{
++    const char *plugins_conf_dir = getenv("LIBREPORT_DEBUG_PLUGINS_CONF_DIR");
++    if (plugins_conf_dir == NULL)
++        plugins_conf_dir = PLUGINS_CONF_DIR;
++
++    char *conf_path = concat_path_file(plugins_conf_dir, name);
++    bool ret = save_conf_file(conf_path, settings);
++    free(conf_path);
++
++    return ret;
++}
+-- 
+1.8.3.1
+

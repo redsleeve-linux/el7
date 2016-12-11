@@ -1,0 +1,60 @@
+From 27a9ae13ec7b41969eabc88441ad5cca12c26a87 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Mon, 21 Mar 2016 15:38:46 +0100
+Subject: [PATCH] lib: hooklib: make signal_is_fatal() public
+
+Related to: rhbz#1277848
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/include/hooklib.h |  2 ++
+ src/lib/hooklib.c     | 26 ++++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+)
+
+diff --git a/src/include/hooklib.h b/src/include/hooklib.h
+index 4edd4ea..2de0294 100644
+--- a/src/include/hooklib.h
++++ b/src/include/hooklib.h
+@@ -29,3 +29,5 @@
+  stored data, but it's not guaranteed)
+  */
+ char *problem_data_save(problem_data_t *pd);
++
++int signal_is_fatal(int signal_no, const char **name);
+diff --git a/src/lib/hooklib.c b/src/lib/hooklib.c
+index 160a011..3e47612 100644
+--- a/src/lib/hooklib.c
++++ b/src/lib/hooklib.c
+@@ -553,3 +553,29 @@ bool allowed_new_user_problem_entry(uid_t uid, const char *name, const char *val
+     error_msg("Only root is permitted to create element '%s' containing '%s'", name, value);
+     return false;
+ }
++
++int signal_is_fatal(int signal_no, const char **name)
++{
++    const char *signame = NULL;
++    switch (signal_no)
++    {
++        case SIGILL : signame = "ILL" ; break;
++        case SIGFPE : signame = "FPE" ; break;
++        case SIGSEGV: signame = "SEGV"; break;
++        case SIGBUS : signame = "BUS" ; break; //Bus error (bad memory access)
++        case SIGABRT: signame = "ABRT"; break; //usually when abort() was called
++    // We have real-world reports from users who see buggy programs
++    // dying with SIGTRAP, uncommented it too:
++        case SIGTRAP: signame = "TRAP"; break; //Trace/breakpoint trap
++    // These usually aren't caused by bugs:
++      //case SIGQUIT: signame = "QUIT"; break; //Quit from keyboard
++      //case SIGSYS : signame = "SYS" ; break; //Bad argument to routine (SVr4)
++      //case SIGXCPU: signame = "XCPU"; break; //CPU time limit exceeded (4.2BSD)
++      //case SIGXFSZ: signame = "XFSZ"; break; //File size limit exceeded (4.2BSD)
++    }
++
++    if (name != NULL)
++        *name = signame;
++
++   return signame != NULL;
++}
+-- 
+1.8.3.1
+

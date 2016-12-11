@@ -1,0 +1,45 @@
+From eaa631227fa1a89d55c8dbaa236b7c8a1cdf7d9c Mon Sep 17 00:00:00 2001
+From: Christian Heimes <cheimes@redhat.com>
+Date: Wed, 24 Aug 2016 12:28:47 +0200
+Subject: [PATCH] Require httpd 2.4.6-31 with mod_proxy Unix socket support
+
+httpd 2.4.6-6 does not support mod_proxy ProxyPass for Unix sockets. The
+feature is provided by 2.4.7 upstream was backported to 2.4.6-31
+(bz1168081). It's required to proxy Custodia.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1168081
+https://httpd.apache.org/docs/trunk/mod/mod_proxy.html#proxypass
+
+https://fedorahosted.org/freeipa/ticket/6251
+
+Signed-off-by: Christian Heimes <cheimes@redhat.com>
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+---
+ freeipa.spec.in | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/freeipa.spec.in b/freeipa.spec.in
+index 29b63c9300b73d82aea88dbcf50f2f6ab5f9e9bd..08343d9f2049680185ddd32428b040824d882d66 100644
+--- a/freeipa.spec.in
++++ b/freeipa.spec.in
+@@ -141,7 +141,7 @@ Requires(post): krb5-server >= %{krb5_base_version}, krb5-server < %{krb5_base_v
+ Requires: krb5-pkinit-openssl
+ Requires: cyrus-sasl-gssapi%{?_isa}
+ Requires: ntp
+-Requires: httpd >= 2.4.6-6
++Requires: httpd >= 2.4.6-31
+ Requires: mod_wsgi
+ Requires: mod_auth_gssapi >= 1.4.0
+ Requires: mod_nss >= 1.0.8-26
+@@ -231,7 +231,7 @@ Summary: Common files used by IPA server
+ Group: System Environment/Base
+ BuildArch: noarch
+ Requires: %{name}-client-common = %{version}-%{release}
+-Requires: httpd >= 2.4.6-6
++Requires: httpd >= 2.4.6-31
+ Requires: systemd-units >= 38
+ Requires: custodia
+ 
+-- 
+2.7.4
+

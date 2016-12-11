@@ -1,0 +1,29 @@
+From 0f2014b68ea19dd7a239c4c9b7a7774b03f2cca2 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Wed, 8 Jan 2014 09:38:30 +0100
+Subject: [LIBREPORT PATCH 1/6] wizard: do not use deprecated gtk3 API
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/gui-wizard-gtk/wizard.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/gui-wizard-gtk/wizard.c b/src/gui-wizard-gtk/wizard.c
+index c37f69f..3faa8e8 100644
+--- a/src/gui-wizard-gtk/wizard.c
++++ b/src/gui-wizard-gtk/wizard.c
+@@ -2597,7 +2597,11 @@ static void add_workflow_buttons(GtkBox *box, GHashTable *workflows, GCallback f
+         gtk_label_set_use_markup(GTK_LABEL(label), true);
+         gtk_widget_set_halign(label, GTK_ALIGN_START);
+         gtk_widget_set_margin_top(label, 10);
++#if ((GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION < 11) || (GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION == 11 && GTK_MICRO_VERSION < 2))
+         gtk_widget_set_margin_left(label, 40);
++#else
++        gtk_widget_set_margin_start(label, 40);
++#endif
+         gtk_widget_set_margin_bottom(label, 10);
+         free(btn_label);
+         g_signal_connect(button, "clicked", func, w);
+-- 
+1.8.3.1
+

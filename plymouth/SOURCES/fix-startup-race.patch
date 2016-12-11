@@ -1,0 +1,213 @@
+From 530db7a38000c0ee82ef833eec27ca05539da59e Mon Sep 17 00:00:00 2001
+From: Ray Strode <rstrode@redhat.com>
+Date: Wed, 5 Feb 2014 15:09:13 -0500
+Subject: [PATCH 1/2] main: don't show splash from cancel_pending_delayed_show
+
+It was a weird to show something in a function called "cancel..show"
+
+Instead move the logic to the one caller that actually needed that
+functionality (on_ask_for_password)
+---
+ src/main.c | 24 ++++++++++++++----------
+ 1 file changed, 14 insertions(+), 10 deletions(-)
+
+diff --git a/src/main.c b/src/main.c
+index e1cbcd9..64552b4 100644
+--- a/src/main.c
++++ b/src/main.c
+@@ -455,95 +455,99 @@ show_default_splash (state_t *state)
+   if (state->boot_splash == NULL)
+     {
+       ply_trace ("Trying old scheme for default splash");
+       state->boot_splash = show_theme (state, PLYMOUTH_THEME_PATH "default.plymouth");
+     }
+ 
+   if (state->boot_splash == NULL)
+     {
+       ply_trace ("Could not start default splash screen,"
+                  "showing text splash screen");
+       state->boot_splash = show_theme (state, PLYMOUTH_THEME_PATH "text/text.plymouth");
+     }
+ 
+   if (state->boot_splash == NULL)
+     {
+       ply_trace ("Could not start text splash screen,"
+                  "showing built-in splash screen");
+       state->boot_splash = show_theme (state, NULL);
+     }
+ 
+   if (state->boot_splash == NULL)
+     {
+       ply_error ("plymouthd: could not start boot splash: %m");
+       return;
+     }
+ }
+ 
+ static void
+ cancel_pending_delayed_show (state_t *state)
+ {
+-  bool has_open_seats;
+-
+   if (isnan (state->splash_delay))
+     return;
+ 
+   ply_event_loop_stop_watching_for_timeout (state->loop,
+                                             (ply_event_loop_timeout_handler_t)
+                                             show_splash,
+                                             state);
+   state->splash_delay = NAN;
+-  has_open_seats = ply_device_manager_has_open_seats (state->device_manager);
+-
+-  if (state->is_shown && has_open_seats)
+-    {
+-      ply_trace ("splash delay cancelled, showing splash immediately");
+-      show_splash (state);
+-    }
+ }
+ 
+ static void
+ on_ask_for_password (state_t      *state,
+                      const char   *prompt,
+                      ply_trigger_t *answer)
+ {
+   ply_entry_trigger_t *entry_trigger;
+ 
+   if (state->boot_splash == NULL)
+     {
+       /* Waiting to be shown, boot splash will
+        * arrive shortly so just sit tight
+        */
+       if (state->is_shown)
+         {
+-          ply_trace ("splash still coming up, waiting a bit");
++          bool has_open_seats;
++
+           cancel_pending_delayed_show (state);
++
++          has_open_seats = ply_device_manager_has_open_seats (state->device_manager);
++
++          if (has_open_seats)
++            {
++              ply_trace ("seats open now, showing splash immediately");
++              show_splash (state);
++            }
++          else
++            {
++              ply_trace ("splash still coming up, waiting a bit");
++            }
+         }
+       else
+         {
+           /* No splash, client will have to get password */
+           ply_trace ("no splash loaded, replying immediately with no password");
+           ply_trigger_pull (answer, NULL);
+           return;
+         }
+     }
+ 
+   entry_trigger = calloc (1, sizeof (ply_entry_trigger_t));
+   entry_trigger->type = PLY_ENTRY_TRIGGER_TYPE_PASSWORD;
+   entry_trigger->prompt = prompt;
+   entry_trigger->trigger = answer;
+   ply_trace ("queuing password request with boot splash");
+   ply_list_append_data (state->entry_triggers, entry_trigger);
+   update_display (state);
+ }
+ 
+ static void
+ on_ask_question (state_t      *state,
+                  const char   *prompt,
+                  ply_trigger_t *answer)
+ {
+   ply_entry_trigger_t *entry_trigger;
+ 
+   entry_trigger = calloc (1, sizeof (ply_entry_trigger_t));
+   entry_trigger->type = PLY_ENTRY_TRIGGER_TYPE_QUESTION;
+   entry_trigger->prompt = prompt;
+   entry_trigger->trigger = answer;
+-- 
+1.8.3.1
+
+
+From 09bbba9201456305ac609d5f6a4be96463adcfd2 Mon Sep 17 00:00:00 2001
+From: Ray Strode <rstrode@redhat.com>
+Date: Wed, 5 Feb 2014 15:12:17 -0500
+Subject: [PATCH 2/2] main: cancel show_splash timeout on deactivate
+
+This fixes a race/crash where plymouthd get deactivated
+right before the show timer fires and it tries to
+show itself after things have been torn down.
+---
+ src/main.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/main.c b/src/main.c
+index 64552b4..4a9d91f 100644
+--- a/src/main.c
++++ b/src/main.c
+@@ -1211,60 +1211,62 @@ on_boot_splash_idle (state_t *state)
+     }
+   else if (state->deactivate_trigger != NULL)
+     {
+       ply_trace ("deactivating splash");
+       deactivate_splash (state);
+     }
+ }
+ 
+ static void
+ on_deactivate (state_t       *state,
+                ply_trigger_t *deactivate_trigger)
+ {
+   if (state->is_inactive)
+     {
+       ply_trigger_pull (deactivate_trigger, NULL);
+       return;
+     }
+ 
+   if (state->deactivate_trigger != NULL)
+     {
+       ply_trigger_add_handler (state->deactivate_trigger,
+                                (ply_trigger_handler_t)
+                                ply_trigger_pull,
+                                deactivate_trigger);
+       return;
+     }
+ 
+   state->deactivate_trigger = deactivate_trigger;
+ 
+   ply_trace ("deactivating");
++  cancel_pending_delayed_show (state);
++
+   ply_device_manager_deactivate_keyboards (state->device_manager);
+ 
+   if (state->boot_splash != NULL)
+     {
+       ply_boot_splash_become_idle (state->boot_splash,
+                                    (ply_boot_splash_on_idle_handler_t)
+                                    on_boot_splash_idle,
+                                    state);
+     }
+   else
+     {
+       ply_trace ("deactivating splash");
+       deactivate_splash (state);
+     }
+ }
+ 
+ static void
+ on_reactivate (state_t *state)
+ {
+   if (!state->is_inactive)
+     return;
+ 
+   if (state->local_console_terminal != NULL)
+     {
+       ply_terminal_open (state->local_console_terminal);
+       ply_terminal_watch_for_vt_changes (state->local_console_terminal);
+       ply_terminal_set_unbuffered_input (state->local_console_terminal);
+       ply_terminal_ignore_mode_changes (state->local_console_terminal, false);
+     }
+ 
+-- 
+1.8.3.1
+

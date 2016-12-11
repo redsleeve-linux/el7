@@ -1,0 +1,117 @@
+From accb28721d061f2e06e927bdb1337317db3aa706 Mon Sep 17 00:00:00 2001
+From: Thomas Markwalder <tmark@isc.org>
+Date: Mon, 19 Jan 2015 13:40:25 -0500
+Subject: [PATCH] [v4_2] Fixed inconsistencies in setting hop count limit in
+ dhcrelay
+
+diff --git a/common/socket.c b/common/socket.c
+index c170448..5467a35 100644
+--- a/common/socket.c
++++ b/common/socket.c
+@@ -300,18 +300,24 @@ if_register_socket(struct interface_info *info, int family,
+ #endif
+ 	}
+ 
+-	if ((family == AF_INET6) &&
+-	    ((info->flags & INTERFACE_UPSTREAM) != 0)) {
+-		int hop_limit = 32;
+-		if (setsockopt(sock, IPPROTO_IPV6, IPV6_MULTICAST_HOPS,
+-			       &hop_limit, sizeof(int)) < 0) {
+-			log_fatal("setsockopt: IPV6_MULTICAST_HOPS: %m");
+-		}
+-	}
+ #endif /* DHCPv6 */
+ 
+ 	return sock;
+ }
++
++#ifdef DHCPv6
++void set_multicast_hop_limit(struct interface_info* info, int hop_limit) {
++	if (setsockopt(info->wfdesc, IPPROTO_IPV6, IPV6_MULTICAST_HOPS,
++		       &hop_limit, sizeof(int)) < 0) {
++		log_fatal("setMulticaseHopLimit: IPV6_MULTICAST_HOPS: %m");
++	}
++
++	log_debug("Setting hop count limit to %d for interface %s",
++		  hop_limit, info->name);
++
++}
++#endif /* DHCPv6 */
++
+ #endif /* USE_SOCKET_SEND || USE_SOCKET_RECEIVE || USE_SOCKET_FALLBACK */
+ 
+ #if defined (USE_SOCKET_SEND) || defined (USE_SOCKET_FALLBACK)
+diff --git a/includes/dhcpd.h b/includes/dhcpd.h
+index 2b15430..bd11b48 100644
+--- a/includes/dhcpd.h
++++ b/includes/dhcpd.h
+@@ -2386,6 +2386,8 @@ void get_hw_addr(const char *name, struct hardware *hw);
+ #if defined (USE_SOCKET_SEND) || defined (USE_SOCKET_RECEIVE) \
+ 	|| defined (USE_SOCKET_FALLBACK)
+ int if_register_socket(struct interface_info *, int, int *, struct in6_addr *);
++
++void set_multicast_hop_limit(struct interface_info* info, int hop_limit);
+ #endif
+ 
+ #if defined (USE_SOCKET_FALLBACK) && !defined (USE_SOCKET_SEND)
+diff --git a/relay/dhcrelay.c b/relay/dhcrelay.c
+index 927e404..ad76d3e 100644
+--- a/relay/dhcrelay.c
++++ b/relay/dhcrelay.c
+@@ -1173,8 +1173,8 @@ parse_downstream(char *arg) {
+ 	/* Share with up side? */
+ 	for (up = upstreams; up; up = up->next) {
+ 		if (strcmp(ifname, up->ifp->name) == 0) {
+-			log_info("Interface '%s' is both down and up.",
+-				 ifname);
++			log_info("parse_downstream: Interface '%s' is "
++				 "both down and up.", ifname);
+ 			ifp = up->ifp;
+ 			break;
+ 		}
+@@ -1192,8 +1192,8 @@ parse_downstream(char *arg) {
+ 			interface_dereference(&interfaces, MDL);
+ 		}
+ 		interface_reference(&interfaces, ifp, MDL);
+-		ifp->flags |= INTERFACE_REQUESTED | INTERFACE_DOWNSTREAM;
+ 	}
++	ifp->flags |= INTERFACE_REQUESTED | INTERFACE_DOWNSTREAM;
+ 
+ 	/* New downstream. */
+ 	dp = (struct stream_list *) dmalloc(sizeof(*dp), MDL);
+@@ -1244,6 +1244,8 @@ parse_upstream(char *arg) {
+ 	}
+ 	for (dp = downstreams; dp; dp = dp->next) {
+ 		if (strcmp(ifname, dp->ifp->name) == 0) {
++			log_info("parse_upstream: Interface '%s' is "
++				 "both down and up.", ifname);
+ 			ifp = dp->ifp;
+ 			break;
+ 		}
+@@ -1261,8 +1263,8 @@ parse_upstream(char *arg) {
+ 			interface_dereference(&interfaces, MDL);
+ 		}
+ 		interface_reference(&interfaces, ifp, MDL);
+-		ifp->flags |= INTERFACE_REQUESTED | INTERFACE_UPSTREAM;
+ 	}
++	ifp->flags |= INTERFACE_REQUESTED | INTERFACE_UPSTREAM;
+ 
+ 	/* New upstream. */
+ 	up = (struct stream_list *) dmalloc(sizeof(*up), MDL);
+@@ -1330,6 +1332,13 @@ setup_streams(void) {
+ 		if (up->ifp->v6address_count == 0)
+ 			log_fatal("Interface '%s' has no IPv6 addresses.",
+ 				  up->ifp->name);
++
++		/* RFC 3315 Sec 20 - "If the relay agent relays messages to
++		 * the All_DHCP_Servers address or other multicast addresses,
++		 * it sets the Hop Limit field to 32." */
++		if (IN6_IS_ADDR_MULTICAST(&up->link.sin6_addr)) {
++			set_multicast_hop_limit(up->ifp, HOP_COUNT_LIMIT);
++		}
+ 	}
+ }
+ 
+-- 
+2.1.0
+

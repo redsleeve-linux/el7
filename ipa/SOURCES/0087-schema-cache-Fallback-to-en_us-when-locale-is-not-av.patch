@@ -1,0 +1,39 @@
+From 444907f8dd6d840bfbb97cf65ae754f0d816f706 Mon Sep 17 00:00:00 2001
+From: David Kupka <dkupka@redhat.com>
+Date: Thu, 18 Aug 2016 10:59:09 +0200
+Subject: [PATCH] schema cache: Fallback to 'en_us' when locale is not
+ available
+
+https://fedorahosted.org/freeipa/ticket/6204
+
+Reviewed-By: Jan Cholasta <jcholast@redhat.com>
+---
+ ipaclient/remote_plugins/schema.py | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/ipaclient/remote_plugins/schema.py b/ipaclient/remote_plugins/schema.py
+index 6fc70bf4b294badedd651e15b7e403cc40619f5c..8a77a15d489f067ab1312e863178458570403cc6 100644
+--- a/ipaclient/remote_plugins/schema.py
++++ b/ipaclient/remote_plugins/schema.py
+@@ -441,9 +441,15 @@ class Schema(object):
+             self._dict[ns] = {}
+             self._namespaces[ns] = _SchemaNameSpace(self, ns)
+ 
+-        self._language = (
+-            locale.setlocale(locale.LC_ALL, '').split('.')[0].lower()
+-        )
++        # copy-paste from ipalib/rpc.py
++        try:
++            self._language = (
++                locale.setlocale(locale.LC_ALL, '').split('.')[0].lower()
++            )
++        except locale.Error:
++            # fallback to default locale
++            self._language = 'en_us'
++
+         try:
+             self._fingerprint = server_info['fingerprint']
+             self._expiration = server_info['expiration']
+-- 
+2.7.4
+

@@ -1,0 +1,420 @@
+From c01356b4cda271c96a8129f66e63904f4b75efd2 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Tue, 15 Apr 2014 17:40:13 +0200
+Subject: [LIBREPORT PATCH 43/93] localization: fix gettext
+
+https://www.gnu.org/software/gettext/manual/html_node/Libraries.html
+
+Resolves to rhbz#1087861
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/client-python/__init__.py            |  5 ++---
+ src/gtk-helpers/ask_dialogs.c            |  2 ++
+ src/gtk-helpers/config_dialog.c          |  5 +++++
+ src/gtk-helpers/event_config_dialog.c    |  6 ++++++
+ src/gtk-helpers/secrets.c                |  8 ++++++++
+ src/gtk-helpers/workflow_config_dialog.c |  2 ++
+ src/include/internal_libreport.h         | 15 ++++++++++++++-
+ src/lib/Makefile.am                      |  6 +++++-
+ src/lib/abrt_sock.c                      |  2 ++
+ src/lib/client.c                         | 10 ++++------
+ src/lib/create_dump_dir.c                |  2 ++
+ src/lib/curl.c                           |  2 ++
+ src/lib/event_config.c                   |  4 ++++
+ src/lib/libreport_init.c                 | 28 ++++++++++++++++++++++++++++
+ src/lib/make_descr.c                     |  2 ++
+ src/lib/parse_options.c                  |  2 ++
+ src/lib/problem_data.c                   |  2 ++
+ src/lib/run_event.c                      |  2 ++
+ 18 files changed, 94 insertions(+), 11 deletions(-)
+ create mode 100644 src/lib/libreport_init.c
+
+diff --git a/src/client-python/__init__.py b/src/client-python/__init__.py
+index 53f5f92..8966f22 100644
+--- a/src/client-python/__init__.py
++++ b/src/client-python/__init__.py
+@@ -30,11 +30,11 @@ from report import EXIT_CANCEL_BY_USER as RETURN_CANCEL_BY_USER
+ from report import EXIT_STOP_EVENT_RUN as RETURN_STOP_EVENT_RUN
+ 
+ 
+-GETTEXT_PROGNAME = "abrt"
++GETTEXT_PROGNAME = "libreport"
+ import locale
+ import gettext
+ 
+-_ = lambda x: gettext.lgettext(x)
++_ = lambda x: gettext.ldgettext(GETTEXT_PROGNAME, x)
+ 
+ def init_gettext():
+     try:
+@@ -48,7 +48,6 @@ def init_gettext():
+     except AttributeError:
+         pass
+     gettext.bindtextdomain(GETTEXT_PROGNAME, '/usr/share/locale')
+-    gettext.textdomain(GETTEXT_PROGNAME)
+ 
+ init_gettext()
+ 
+diff --git a/src/gtk-helpers/ask_dialogs.c b/src/gtk-helpers/ask_dialogs.c
+index a038126..d188dc5 100644
+--- a/src/gtk-helpers/ask_dialogs.c
++++ b/src/gtk-helpers/ask_dialogs.c
+@@ -54,6 +54,8 @@ static int run_ask_yes_no_save_generic_result_dialog(ask_yes_no_dialog_flags fla
+                                                      const char *message,
+                                                      GtkWindow *parent)
+ {
++    INITIALIZE_LIBREPORT();
++
+     const char *ask_result = get_user_setting(key);
+ 
+     if (ask_result)
+diff --git a/src/gtk-helpers/config_dialog.c b/src/gtk-helpers/config_dialog.c
+index fb22561..c80dc56 100644
+--- a/src/gtk-helpers/config_dialog.c
++++ b/src/gtk-helpers/config_dialog.c
+@@ -145,6 +145,8 @@ void dehydrate_config_dialog(GList *option_widgets)
+ 
+ void add_item_to_config_liststore(gpointer cdialog, gpointer inf, gpointer user_data)
+ {
++    INITIALIZE_LIBREPORT();
++
+     GtkListStore *list_store = (GtkListStore *)user_data;
+     config_item_info_t *info = (config_item_info_t *)inf;
+ 
+@@ -272,6 +274,7 @@ static void on_close_cb(GtkWidget *btn, gpointer config_list_w)
+ 
+ GtkWindow *create_config_list_window(GHashTable *configs, GtkWindow *parent)
+ {
++    INITIALIZE_LIBREPORT();
+ 
+     // config window
+     GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+@@ -341,6 +344,8 @@ GtkWindow *create_config_list_window(GHashTable *configs, GtkWindow *parent)
+ 
+ void show_config_list_dialog(GtkWindow *parent)
+ {
++    INITIALIZE_LIBREPORT();
++
+     GHashTable *confs = g_hash_table_new_full(
+             /*hash_func*/ g_str_hash,
+             /*key_equal_func:*/ g_str_equal,
+diff --git a/src/gtk-helpers/event_config_dialog.c b/src/gtk-helpers/event_config_dialog.c
+index c8a251c..1ed5196 100644
+--- a/src/gtk-helpers/event_config_dialog.c
++++ b/src/gtk-helpers/event_config_dialog.c
+@@ -191,6 +191,8 @@ static void add_option_to_table(gpointer data, gpointer user_data)
+ 
+ config_dialog_t *create_event_config_dialog_content(event_config_t *event, GtkWidget *content)
+ {
++    INITIALIZE_LIBREPORT();
++
+     if (content == NULL)
+         content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+ 
+@@ -285,6 +287,8 @@ config_dialog_t *create_event_config_dialog_content(event_config_t *event, GtkWi
+ 
+ config_dialog_t *create_event_config_dialog(const char *event_name, GtkWindow *parent)
+ {
++    INITIALIZE_LIBREPORT();
++
+     event_config_t *event = get_event_config(event_name);
+ 
+     if(!ec_is_configurable(event))
+@@ -340,6 +344,8 @@ GtkListStore *add_events_to_liststore(GHashTable *events)
+ 
+ int show_event_config_dialog(const char *event_name, GtkWindow *parent)
+ {
++    INITIALIZE_LIBREPORT();
++
+     event_config_t *event = get_event_config(event_name);
+ 
+     GtkWindow *parent_window = parent ? parent : g_event_list_window;
+diff --git a/src/gtk-helpers/secrets.c b/src/gtk-helpers/secrets.c
+index 86c2208..fdc6616 100644
+--- a/src/gtk-helpers/secrets.c
++++ b/src/gtk-helpers/secrets.c
+@@ -1493,6 +1493,8 @@ static void save_event_config(const char *event_name,
+ 
+ bool is_event_config_user_storage_available()
+ {
++    INITIALIZE_LIBREPORT();
++
+     if (g_state == SBS_INITIAL)
+         g_state = secrets_service_connect();
+ 
+@@ -1507,6 +1509,8 @@ bool is_event_config_user_storage_available()
+  */
+ void load_single_event_config_data_from_user_storage(event_config_t *config)
+ {
++    INITIALIZE_LIBREPORT();
++
+     GHashTable *tmp = g_hash_table_new_full(
+                 /*hash_func*/ g_str_hash,
+                 /*key_equal_func:*/ g_str_equal,
+@@ -1529,6 +1533,8 @@ void load_single_event_config_data_from_user_storage(event_config_t *config)
+  */
+ void load_event_config_data_from_user_storage(GHashTable *event_config_list)
+ {
++    INITIALIZE_LIBREPORT();
++
+     if (is_event_config_user_storage_available())
+     {
+         bool dismissed = false;
+@@ -1589,6 +1595,8 @@ void save_event_config_data_to_user_storage(const char *event_name,
+                                             const event_config_t *event_config,
+                                             bool store_passwords)
+ {
++    INITIALIZE_LIBREPORT();
++
+     if (is_event_config_user_storage_available())
+         save_event_config(event_name, event_config->options, store_passwords);
+     else
+diff --git a/src/gtk-helpers/workflow_config_dialog.c b/src/gtk-helpers/workflow_config_dialog.c
+index fb312e3..7c399e4 100644
+--- a/src/gtk-helpers/workflow_config_dialog.c
++++ b/src/gtk-helpers/workflow_config_dialog.c
+@@ -64,6 +64,8 @@ void save_data_from_worfklow_dialog(gpointer data, /* not needed */ const char *
+ 
+ config_dialog_t *create_workflow_config_dialog(const char *workflow_name, GtkWindow *parent)
+ {
++    INITIALIZE_LIBREPORT();
++
+     workflow_t *workflow = get_workflow(workflow_name);
+     GList *events = wf_get_event_list(workflow);
+ 
+diff --git a/src/include/internal_libreport.h b/src/include/internal_libreport.h
+index e6d3150..f9670b0 100644
+--- a/src/include/internal_libreport.h
++++ b/src/include/internal_libreport.h
+@@ -62,7 +62,7 @@
+ /* Must be after #include "config.h" */
+ #if ENABLE_NLS
+ # include <libintl.h>
+-# define _(S) gettext(S)
++# define _(S) dgettext(PACKAGE, S)
+ #else
+ # define _(S) (S)
+ #endif
+@@ -925,6 +925,19 @@ enum {
+ #define log_problem_data libreport_log_problem_data
+ void log_problem_data(problem_data_t *problem_data, const char *pfx);
+ 
++extern int g_libreport_inited;
++void libreport_init(void);
++
++#define INITIALIZE_LIBREPORT() \
++    do \
++    { \
++        if (!g_libreport_inited) \
++        { \
++            g_libreport_inited = 1; \
++            libreport_init(); \
++        } \
++    } \
++    while (0)
+ 
+ const char *abrt_init(char **argv);
+ #define export_abrt_envvars libreport_export_abrt_envvars
+diff --git a/src/lib/Makefile.am b/src/lib/Makefile.am
+index ac173f6..d2ff675 100644
+--- a/src/lib/Makefile.am
++++ b/src/lib/Makefile.am
+@@ -54,7 +54,9 @@ libreport_la_SOURCES = \
+     workflow.c \
+     workflow_xml_parser.c \
+     config_item_info.c \
+-    xml_parser.c
++    xml_parser.c \
++    libreport_init.c
++
+ libreport_la_CPPFLAGS = \
+     -I$(srcdir)/../include \
+     -DLOCALSTATEDIR='"$(localstatedir)"' \
+@@ -145,6 +147,8 @@ libreport_web_la_LIBADD = \
+     $(XMLRPC_LIBS) $(XMLRPC_CLIENT_LIBS) \
+     libreport.la
+ 
++DEFS = -DLOCALEDIR=\"$(localedir)\" @DEFS@
++
+ $(DESTDIR)/$(DEBUG_DUMPS_DIR):
+ 	$(mkdir_p) '$@'
+ # no need to chmod it here
+diff --git a/src/lib/abrt_sock.c b/src/lib/abrt_sock.c
+index 1526623..962ecc9 100644
+--- a/src/lib/abrt_sock.c
++++ b/src/lib/abrt_sock.c
+@@ -136,6 +136,8 @@ int problem_data_send_to_abrt(problem_data_t* problem_data)
+ 
+ int delete_dump_dir_possibly_using_abrtd(const char *dump_dir_name)
+ {
++    INITIALIZE_LIBREPORT();
++
+ #if DUMP_DIR_OWNED_BY_USER == 0
+     /* Try to delete it ourselves */
+     struct dump_dir *dd = dd_opendir(dump_dir_name, DD_OPEN_READONLY);
+diff --git a/src/lib/client.c b/src/lib/client.c
+index 7761150..93b4876 100644
+--- a/src/lib/client.c
++++ b/src/lib/client.c
+@@ -50,9 +50,8 @@ int set_echo(int enable)
+ 
+ int ask_yes_no(const char *question)
+ {
+-#if ENABLE_NLS
+-    textdomain(PACKAGE);
+-#endif
++    INITIALIZE_LIBREPORT();
++
+     const char *yes = _("y");
+     const char *no = _("N");
+ 
+@@ -83,9 +82,8 @@ int ask_yes_no(const char *question)
+ 
+ int ask_yes_no_yesforever(const char *key, const char *question)
+ {
+-#if ENABLE_NLS
+-    textdomain(PACKAGE);
+-#endif
++    INITIALIZE_LIBREPORT();
++
+     const char *yes = _("y");
+     const char *no = _("N");
+     const char *forever = _("f");
+diff --git a/src/lib/create_dump_dir.c b/src/lib/create_dump_dir.c
+index d48b099..4f67523 100644
+--- a/src/lib/create_dump_dir.c
++++ b/src/lib/create_dump_dir.c
+@@ -32,6 +32,8 @@ static struct dump_dir *try_dd_create(const char *base_dir_name, const char *dir
+ 
+ struct dump_dir *create_dump_dir_from_problem_data(problem_data_t *problem_data, const char *base_dir_name)
+ {
++    INITIALIZE_LIBREPORT();
++
+     char *type = problem_data_get_content_or_NULL(problem_data, FILENAME_ANALYZER);
+ 
+     if (!type)
+diff --git a/src/lib/curl.c b/src/lib/curl.c
+index 662a2cf..5ca18dd 100644
+--- a/src/lib/curl.c
++++ b/src/lib/curl.c
+@@ -301,6 +301,8 @@ post(post_state_t *state,
+                 const char *data,
+                 off_t data_size)
+ {
++    INITIALIZE_LIBREPORT();
++
+     CURLcode curl_err;
+     long response_code;
+     post_state_t localstate;
+diff --git a/src/lib/event_config.c b/src/lib/event_config.c
+index b25517d..30b94d3 100644
+--- a/src/lib/event_config.c
++++ b/src/lib/event_config.c
+@@ -395,6 +395,8 @@ static char *validate_event_option(event_option_t *opt)
+ 
+ GHashTable *validate_event(const char *event_name)
+ {
++    INITIALIZE_LIBREPORT();
++
+     event_config_t *config = get_event_config(event_name);
+     if (!config)
+         return NULL;
+@@ -435,6 +437,8 @@ bool check_problem_rating_usability(const event_config_t *cfg,
+                                     char **description,
+                                     char **detail)
+ {
++    INITIALIZE_LIBREPORT();
++
+     char *tmp_desc = NULL;
+     char *tmp_detail = NULL;
+     bool result = true;
+diff --git a/src/lib/libreport_init.c b/src/lib/libreport_init.c
+new file mode 100644
+index 0000000..8b9c3f5
+--- /dev/null
++++ b/src/lib/libreport_init.c
+@@ -0,0 +1,28 @@
++/*
++    Copyright (C) 2014  ABRT team
++    Copyright (C) 2014  RedHat Inc
++
++    This program is free software; you can redistribute it and/or modify
++    it under the terms of the GNU General Public License as published by
++    the Free Software Foundation; either version 2 of the License, or
++    (at your option) any later version.
++
++    This program is distributed in the hope that it will be useful,
++    but WITHOUT ANY WARRANTY; without even the implied warranty of
++    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++    GNU General Public License for more details.
++
++    You should have received a copy of the GNU General Public License along
++    with this program; if not, write to the Free Software Foundation, Inc.,
++    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
++*/
++#include "internal_libreport.h"
++
++int g_libreport_inited;
++
++void libreport_init(void)
++{
++#if ENABLE_NLS
++    bindtextdomain(PACKAGE, LOCALEDIR);
++#endif
++}
+diff --git a/src/lib/make_descr.c b/src/lib/make_descr.c
+index 660a7ac..d183ac1 100644
+--- a/src/lib/make_descr.c
++++ b/src/lib/make_descr.c
+@@ -51,6 +51,8 @@ char *make_description_item_multiline(const char *name, const char *content)
+ char *make_description(problem_data_t *problem_data, char **names_to_skip,
+                        unsigned max_text_size, unsigned desc_flags)
+ {
++    INITIALIZE_LIBREPORT();
++
+     struct strbuf *buf_dsc = strbuf_new();
+ 
+     const char *analyzer = problem_data_get_content_or_NULL(problem_data,
+diff --git a/src/lib/parse_options.c b/src/lib/parse_options.c
+index 3f079d2..b6bf312 100644
+--- a/src/lib/parse_options.c
++++ b/src/lib/parse_options.c
+@@ -55,6 +55,8 @@ void export_abrt_envvars(int pfx)
+ 
+ void show_usage_and_die(const char *usage, const struct options *opt)
+ {
++    INITIALIZE_LIBREPORT();
++
+     fputs(_("Usage: "), stderr);
+     while (*usage)
+     {
+diff --git a/src/lib/problem_data.c b/src/lib/problem_data.c
+index 3b90b43..18d9541 100644
+--- a/src/lib/problem_data.c
++++ b/src/lib/problem_data.c
+@@ -207,6 +207,8 @@ void problem_data_add_file(problem_data_t *pd, const char *name, const char *pat
+ 
+ char *problem_data_get_content_or_die(problem_data_t *problem_data, const char *key)
+ {
++    INITIALIZE_LIBREPORT();
++
+     struct problem_item *item = problem_data_get_item_or_NULL(problem_data, key);
+     if (!item)
+         error_msg_and_die(_("Essential element '%s' is missing, can't continue"), key);
+diff --git a/src/lib/run_event.c b/src/lib/run_event.c
+index 5efc0c5..a56cf88 100644
+--- a/src/lib/run_event.c
++++ b/src/lib/run_event.c
+@@ -756,6 +756,8 @@ static void run_event_stdio_error_and_die(const char *error_line, void *param)
+ 
+ char *exit_status_as_string(const char *progname, int status)
+ {
++    INITIALIZE_LIBREPORT();
++
+     char *msg;
+     if (WIFSIGNALED(status))
+         msg = xasprintf(_("('%s' was killed by signal %u)\n"), progname, WTERMSIG(status));
+-- 
+1.8.3.1
+

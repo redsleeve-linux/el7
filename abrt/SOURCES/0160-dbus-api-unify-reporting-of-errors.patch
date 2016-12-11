@@ -1,0 +1,82 @@
+From c4ed648911bf4fb7b5c2c9596bd2418f4f836e00 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Tue, 11 Aug 2015 09:54:55 +0200
+Subject: [PATCH] dbus-api: unify reporting of errors
+
+User ERR_PTR for failures in all functions because some of the functions
+use NULL as a valid response (NULL is an empty GList).
+
+Related: rhbz#1224984
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/include/libabrt.h      | 12 +++++++-----
+ src/lib/problem_api_dbus.c |  2 +-
+ 2 files changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/src/include/libabrt.h b/src/include/libabrt.h
+index 5d74aa3..3b17a64 100644
+--- a/src/include/libabrt.h
++++ b/src/include/libabrt.h
+@@ -135,7 +135,7 @@ void koops_print_suspicious_strings_filtered(const regex_t **filterout);
+ 
+   Requires authorization
+ 
+-  @return 0 if successfull non-zeru on failure
++  @return 0 if successful; non-zero on failure
+ */
+ int chown_dir_over_dbus(const char *problem_dir_path);
+ 
+@@ -161,7 +161,8 @@ char *load_text_over_dbus(const char *problem_id, const char *element_name);
+  @brief Delets multiple problems specified by their id (as returned from problem_data_save)
+ 
+  @param problem_dir_paths List of problem ids
+- @return 0 if operation was successfull, non-zero on failure
++
++ @return 0 if operation was successful, non-zero on failure
+ */
+ 
+ int delete_problem_dirs_over_dbus(const GList *problem_dir_paths);
+@@ -169,14 +170,14 @@ int delete_problem_dirs_over_dbus(const GList *problem_dir_paths);
+ /**
+   @brief Fetches problem information for specified problem id
+ 
+-  @return problem_data_t or NULL on failure
++  @return a valid pointer to problem_data_t or ERR_PTR on failure
+ */
+ problem_data_t *get_problem_data_dbus(const char *problem_dir_path);
+ 
+ /**
+   @brief Fetches full problem data for specified problem id
+ 
+-  @return problem_data_t or ERR_PTR on failure
++  @return a valid pointer to problem_data_t or ERR_PTR on failure
+ */
+ problem_data_t *get_full_problem_data_over_dbus(const char *problem_dir_path);
+ 
+@@ -184,7 +185,8 @@ problem_data_t *get_full_problem_data_over_dbus(const char *problem_dir_path);
+   @brief Fetches all problems from problem database
+ 
+   @param authorize If set to true will try to fetch even problems owned by other users (will require root authorization over policy kit)
+-  @return List of problem ids or NULL on failure
++
++  @return List of problem ids or ERR_PTR on failure (NULL is an empty list)
+ */
+ GList *get_problems_over_dbus(bool authorize);
+ 
+diff --git a/src/lib/problem_api_dbus.c b/src/lib/problem_api_dbus.c
+index 5148932..dd06633 100644
+--- a/src/lib/problem_api_dbus.c
++++ b/src/lib/problem_api_dbus.c
+@@ -132,7 +132,7 @@ problem_data_t *get_problem_data_dbus(const char *problem_dir_path)
+     {
+         error_msg(_("Can't get problem data from abrt-dbus: %s"), error->message);
+         g_error_free(error);
+-        return NULL;
++        return ERR_PTR;
+     }
+ 
+     problem_data_t *pd = problem_data_new();
+-- 
+2.4.3
+

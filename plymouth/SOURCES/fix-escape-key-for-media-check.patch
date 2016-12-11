@@ -1,0 +1,96 @@
+From 014f62a8701e7c69436bfbf37a0f1b73968a23e8 Mon Sep 17 00:00:00 2001
+From: Ray Strode <rstrode@redhat.com>
+Date: Fri, 1 Jul 2016 16:39:59 -0400
+Subject: [PATCH] main: fix escape key for media check
+
+Right now, if a show-splash request comes in, then
+we don't actually operate on it until splash delay
+seconds later (~5 by default).
+
+The problem is, if a hide-splash request comes in, in the mean
+while, we don't cancel the queued show-splash request.
+
+This commit fixes that.
+---
+ src/main.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/main.c b/src/main.c
+index 7c4ea3c..8a201f8 100644
+--- a/src/main.c
++++ b/src/main.c
+@@ -1153,62 +1153,70 @@ hide_splash (state_t *state)
+   state->is_shown = false;
+ 
+   cancel_pending_delayed_show (state);
+ 
+   if (state->boot_splash == NULL)
+     return;
+ 
+   ply_boot_splash_hide (state->boot_splash);
+ 
+   if (state->local_console_terminal != NULL)
+     ply_terminal_set_mode (state->local_console_terminal, PLY_TERMINAL_MODE_TEXT);
+ }
+ 
+ static void
+ dump_details_and_quit_splash (state_t *state)
+ {
+   state->showing_details = false;
+   toggle_between_splash_and_details (state);
+ 
+   ply_device_manager_deactivate_renderers (state->device_manager);
+   hide_splash (state);
+   quit_splash (state);
+ }
+ 
+ static void
+ on_hide_splash (state_t *state)
+ {
+   if (state->is_inactive)
+     return;
+ 
++  /* If the splash is NULL then we haven't shown it yet,
++   * but we still need to call hide splash so it won't show
++   * spontaneously after the splash delay later.
++   */
+   if (state->boot_splash == NULL)
+-    return;
++    {
++      ply_trace ("cancelling pending show splash operation (if any)");
++      hide_splash (state);
++      return;
++    }
+ 
+   ply_trace ("hiding boot splash");
+   dump_details_and_quit_splash (state);
+ }
+ 
+ #ifdef PLY_ENABLE_DEPRECATED_GDM_TRANSITION
+ static void
+ tell_gdm_to_transition (void)
+ {
+   int fd;
+ 
+   fd = creat ("/var/spool/gdm/force-display-on-active-vt", 0644);
+   close (fd);
+ }
+ #endif
+ 
+ static void
+ quit_program (state_t *state)
+ {
+   ply_trace ("cleaning up devices");
+   ply_device_manager_free (state->device_manager);
+ 
+   ply_trace ("exiting event loop");
+   ply_event_loop_exit (state->loop, 0);
+ 
+   if (pid_file != NULL)
+     {
+       unlink (pid_file);
+       free (pid_file);
+       pid_file = NULL;
+-- 
+2.7.4
+

@@ -1,0 +1,30 @@
+From b4fdb9cccbb6b9ea953e2a633d08ace920f84850 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Mon, 24 Feb 2014 17:53:29 +0100
+Subject: [ABRT PATCH 37/40] sos: capture all necessary data
+
+Thanks Deepu K S <dkochuka@redhat.com>
+
+Closes rhbz#1069278
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/daemon/abrt_event.conf | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/daemon/abrt_event.conf b/src/daemon/abrt_event.conf
+index fe9c3d5..380b312 100644
+--- a/src/daemon/abrt_event.conf
++++ b/src/daemon/abrt_event.conf
+@@ -74,6 +74,8 @@ EVENT=post-create
+                 --only=memory --only=networking --only=nfsserver --only=pam \
+                 --only=process --only=rpm -k rpm.rpmva=off --only=ssh \
+                 --only=startup --only=yum --only=general --only=x11 \
++                --only=cups --only=logs --only=grub2 --only=cron --only=pci \
++                --only=auditd --only=selinux --only=lvm2 --only=sar \
+                 >sosreport.log 2>&1 \
+         && {
+                 rm sosreport.log
+-- 
+1.8.3.1
+

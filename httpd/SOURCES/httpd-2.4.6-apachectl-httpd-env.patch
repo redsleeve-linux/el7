@@ -1,0 +1,38 @@
+diff --git a/docs/man/apachectl.8 b/docs/man/apachectl.8
+index 054550f..4bfc7cb 100644
+--- a/docs/man/apachectl.8
++++ b/docs/man/apachectl.8
+@@ -77,7 +77,7 @@ status
+ Displays a brief status report\&. Similar to the fullstatus option, except that the list of requests currently being served is omitted\&.  
+ .TP
+ graceful
+-Gracefully restarts the Apache httpd daemon\&. If the daemon is not running, it is started\&. This differs from a normal restart in that currently open connections are not aborted\&. A side effect is that old log files will not be closed immediately\&. This means that if used in a log rotation script, a substantial delay may be necessary to ensure that the old log files are closed before processing them\&. This command automatically checks the configuration files as in configtest before initiating the restart to make sure Apache doesn't die\&. This is equivalent to apachectl -k graceful\&.  
++Gracefully restarts the Apache httpd daemon\&. If the daemon is not running, it is not started\&. This differs from a normal restart in that currently open connections are not aborted\&. A side effect is that old log files will not be closed immediately\&. This means that if used in a log rotation script, a substantial delay may be necessary to ensure that the old log files are closed before processing them\&. This command automatically checks the configuration files as in configtest before initiating the restart to make sure Apache doesn't die\&. This is equivalent to apachectl -k graceful\&.  
+ .TP
+ graceful-stop
+ Gracefully stops the Apache httpd daemon\&. This differs from a normal stop in that currently open connections are not aborted\&. A side effect is that old log files will not be closed immediately\&. This is equivalent to apachectl -k graceful-stop\&.  
+diff --git a/support/apachectl.in b/support/apachectl.in
+index 2d59623..10fc280 100644
+--- a/support/apachectl.in
++++ b/support/apachectl.in
+@@ -93,9 +93,9 @@ function testconfig() {
+ # httpd is denied terminal access in SELinux, so run in the
+ # current context to get stdout from $HTTPD -t.
+ if test -x /usr/sbin/selinuxenabled && /usr/sbin/selinuxenabled; then
+-  runcon -- `id -Z` $HTTPD $OPTIONS -t
++  runcon -- `id -Z` /usr/sbin/httpd $OPTIONS -t
+ else
+-  $HTTPD $OPTIONS -t
++  /usr/sbin/httpd $OPTIONS -t
+ fi
+ ERROR=$?
+ }
+@@ -134,7 +134,7 @@ fullstatus)
+     $LYNX $STATUSURL
+     ;;
+ *)
+-    $HTTPD $OPTIONS "$@"
++    /usr/sbin/httpd $OPTIONS "$@"
+     ERROR=$?
+ esac
+ 

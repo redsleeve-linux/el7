@@ -1,0 +1,36 @@
+From 52ad614c1d2c7dedc46ce2420cbd146a623fbd94 Mon Sep 17 00:00:00 2001
+From: Jan Cholasta <jcholast@redhat.com>
+Date: Mon, 5 Sep 2016 09:35:42 +0200
+Subject: [PATCH] dns: normalize record type read interactively in
+ dnsrecord_add
+
+When dnsrecord_add is called without options in interactive mode, it
+prompts the user to enter a record type. The record type is expected to be
+upper case further in the code, which causes non-upper case values not to
+work correctly.
+
+Fix this issue by upper casing the value after it is read.
+
+https://fedorahosted.org/freeipa/ticket/6203
+
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+---
+ ipaclient/plugins/dns.py | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/ipaclient/plugins/dns.py b/ipaclient/plugins/dns.py
+index e17c282fab2bf1ede095fe37e5cb240eaea21e35..db9c17f8b523365779e53adfb2acc43f4a23401f 100644
+--- a/ipaclient/plugins/dns.py
++++ b/ipaclient/plugins/dns.py
+@@ -175,6 +175,8 @@ class dnsrecord_add(MethodOverride):
+             if rrtype is None:
+                 return
+ 
++            rrtype = rrtype.upper()
++
+             try:
+                 name = record_name_format % rrtype.lower()
+                 param = self.params[name]
+-- 
+2.7.4
+

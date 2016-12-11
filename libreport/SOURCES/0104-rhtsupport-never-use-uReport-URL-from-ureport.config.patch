@@ -1,0 +1,58 @@
+From 218ae6bbc9ecd1538bfde2c8033cd1ff82a53bbe Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Wed, 22 Oct 2014 10:21:07 +0200
+Subject: [LIBREPORT PATCH 104/105] rhtsupport: never use uReport URL from
+ ureport.config
+
+The GUI reporter always export uReport_URL, thus reporter-rhtsupport
+never use the Strata URL.
+
+Moreover, usage of uReport_URL is really bad idea, because a reporter
+thinks he is going to send data to the portal but the ureport might end
+somewhere else.
+
+Related #1139987
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/plugins/reporter-rhtsupport.c | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/plugins/reporter-rhtsupport.c b/src/plugins/reporter-rhtsupport.c
+index e1c73d0..4b74c5c 100644
+--- a/src/plugins/reporter-rhtsupport.c
++++ b/src/plugins/reporter-rhtsupport.c
+@@ -383,18 +383,18 @@ void prepare_ureport_configuration(const char *urcfile,
+     load_conf_file(urcfile, settings, false);
+     ureport_server_config_init(urconf);
+ 
+-    char *url = NULL;
+-    UREPORT_OPTION_VALUE_FROM_CONF(settings, "URL", url, xstrdup);
+-    if (url == NULL)
+-    {
+-        ureport_server_config_set_url(urconf, concat_path_file(portal_url, "/telemetry/abrt"));
+-        urconf->ur_ssl_verify = ssl_verify;
+-    }
+-    else
+-    {
+-        UREPORT_OPTION_VALUE_FROM_CONF(settings, "SSLVerify", urconf->ur_ssl_verify, string_to_bool);
+-        ureport_server_config_set_url(urconf, url);
+-    }
++    /* The following lines cause that we always use URL from ureport's
++     * configuration becuase the GUI reporter always exports uReport_URL env
++     * var.
++     *
++     *   char *url = NULL;
++     *   UREPORT_OPTION_VALUE_FROM_CONF(settings, "URL", url, xstrdup);
++     *   if (url != NULL)
++     *       ureport_server_config_set_url(urconf, url);
++     */
++
++    ureport_server_config_set_url(urconf, concat_path_file(portal_url, "/telemetry/abrt"));
++    urconf->ur_ssl_verify = ssl_verify;
+ 
+     ureport_server_config_set_basic_auth(urconf, login, password);
+ 
+-- 
+1.8.3.1
+

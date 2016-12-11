@@ -1,0 +1,163 @@
+From 1902735613a3cc4a1c87e8cbae83a7452bfd8327 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Sun, 1 May 2016 07:13:56 +0200
+Subject: [PATCH] Fix memory leaks in abrt-dbus
+
+Fix several repeated leaks that were causing abrt-dbus to waste system
+memory.
+
+I used this valgrind command:
+    valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all \
+             --track-origins=yes --suppressions=glib.supp \
+             --log-file=/tmp/leaks-$(date +%s).txt abrt-dbus -vvv -t 10
+
+With suppressions from libsecret and NetworkManager:
+  * https://raw.githubusercontent.com/GNOME/libsecret/master/build/glib.supp
+  * https://raw.githubusercontent.com/NetworkManager/NetworkManager/master/valgrind.suppressions
+
+The suppressions were needed because Glib allocates a lot of static
+stuff and does not free it at exit because it is useless.
+
+Resolves: #1319704
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/dbus/abrt-dbus.c   | 39 ++++++++++++++++++++++-----------------
+ src/dbus/abrt-polkit.c |  3 +++
+ src/lib/abrt_conf.c    |  3 +++
+ src/lib/abrt_glib.c    |  7 +++----
+ src/lib/problem_api.c  |  1 +
+ 5 files changed, 32 insertions(+), 21 deletions(-)
+
+diff --git a/src/dbus/abrt-dbus.c b/src/dbus/abrt-dbus.c
+index 173cec4..0a459cd 100644
+--- a/src/dbus/abrt-dbus.c
++++ b/src/dbus/abrt-dbus.c
+@@ -97,22 +97,21 @@ static uid_t get_caller_uid(GDBusConnection *connection, GDBusMethodInvocation *
+     GError *error = NULL;
+     guint caller_uid;
+ 
+-    GDBusProxy * proxy = g_dbus_proxy_new_sync(connection,
+-                                     G_DBUS_PROXY_FLAGS_NONE,
+-                                     NULL,
+-                                     "org.freedesktop.DBus",
+-                                     "/org/freedesktop/DBus",
+-                                     "org.freedesktop.DBus",
+-                                     NULL,
+-                                     &error);
+-
+-    GVariant *result = g_dbus_proxy_call_sync(proxy,
+-                                     "GetConnectionUnixUser",
+-                                     g_variant_new ("(s)", caller),
+-                                     G_DBUS_CALL_FLAGS_NONE,
+-                                     -1,
+-                                     NULL,
+-                                     &error);
++    /* Proxy isn't necessary if only need to call a single method.  By default
++     * GDBusProxy connects to signals and downloads property values. It
++     * suppressed by passing flags argument, but not-creating proxy at all is
++     * much faster and safer. */
++    GVariant *result = g_dbus_connection_call_sync(connection,
++                                                   "org.freedesktop.DBus",
++                                                   "/org/freedesktop/DBus",
++                                                   "org.freedesktop.DBus",
++                                                   "GetConnectionUnixUser",
++                                                   g_variant_new ("(s)", caller),
++                                                   /* reply_type */  NULL,
++                                                   G_DBUS_CALL_FLAGS_NONE,
++                                                   /* timeout */     -1,
++                                                   /* cancellable */ NULL,
++                                                   &error);
+ 
+     if (result == NULL)
+     {
+@@ -940,7 +939,11 @@ static void handle_method_call(GDBusConnection *connection,
+ static gboolean on_timeout_cb(gpointer user_data)
+ {
+     g_main_loop_quit(loop);
+-    return TRUE;
++
++    /* FALSE -> remove and destroy this source. Without it, the timeout source
++     * will be leaked at exit - that isn't a problem but it makes valgrind out
++     * less readable. */
++    return FALSE;
+ }
+ 
+ static const GDBusInterfaceVTable interface_vtable =
+@@ -1059,6 +1062,8 @@ int main(int argc, char *argv[])
+ 
+     g_dbus_node_info_unref(introspection_data);
+ 
++    g_main_loop_unref(loop);
++
+     free_abrt_conf_data();
+ 
+     return 0;
+diff --git a/src/dbus/abrt-polkit.c b/src/dbus/abrt-polkit.c
+index 39880e5..34af8a4 100644
+--- a/src/dbus/abrt-polkit.c
++++ b/src/dbus/abrt-polkit.c
+@@ -59,8 +59,11 @@ static PolkitResult do_check(PolkitSubject *subject, const char *action_id)
+                 POLKIT_CHECK_AUTHORIZATION_FLAGS_ALLOW_USER_INTERACTION,
+                 cancellable,
+                 &error);
++
++    g_object_unref(cancellable);
+     g_object_unref(authority);
+     g_source_remove(cancel_timeout);
++    g_object_unref(subject);
+     if (error)
+     {
+         g_error_free(error);
+diff --git a/src/lib/abrt_conf.c b/src/lib/abrt_conf.c
+index 4a49032..5ae64c5 100644
+--- a/src/lib/abrt_conf.c
++++ b/src/lib/abrt_conf.c
+@@ -37,6 +37,9 @@ void free_abrt_conf_data()
+ 
+     free(g_settings_dump_location);
+     g_settings_dump_location = NULL;
++
++    free(g_settings_autoreporting_event);
++    g_settings_autoreporting_event = NULL;
+ }
+ 
+ static void ParseCommon(map_string_t *settings, const char *conf_filename)
+diff --git a/src/lib/abrt_glib.c b/src/lib/abrt_glib.c
+index f7c128e..60e104f 100644
+--- a/src/lib/abrt_glib.c
++++ b/src/lib/abrt_glib.c
+@@ -22,15 +22,14 @@
+ GList *string_list_from_variant(GVariant *variant)
+ {
+     GList *list = NULL;
+-    GVariantIter *iter;
++    GVariantIter iter;
++    g_variant_iter_init(&iter, variant);
+     gchar *str;
+-    g_variant_get(variant, "as", &iter);
+-    while (g_variant_iter_loop(iter, "s", &str))
++    while (g_variant_iter_loop(&iter, "s", &str))
+     {
+         log_notice("adding: %s", str);
+         list = g_list_prepend(list, xstrdup(str));
+     }
+-    g_variant_unref(variant);
+ 
+     /* we were prepending items, so we should reverse the list to not confuse people
+      * by returning items in reversed order than it's in the variant
+diff --git a/src/lib/problem_api.c b/src/lib/problem_api.c
+index b343882..9fedb3d 100644
+--- a/src/lib/problem_api.c
++++ b/src/lib/problem_api.c
+@@ -51,6 +51,7 @@ int for_each_problem_in_dir(const char *path,
+         if (dir_fd < 0)
+         {
+             VERB2 perror_msg("can't open problem directory '%s'", full_name);
++            free(full_name);
+             continue;
+         }
+ 
+-- 
+1.8.3.1
+

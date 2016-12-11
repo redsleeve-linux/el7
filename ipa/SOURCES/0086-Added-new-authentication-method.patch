@@ -1,0 +1,79 @@
+From b620de7a08aa626290f166213bb8e1eac62a47be Mon Sep 17 00:00:00 2001
+From: Tiboris <tibor.dudlak@gmail.com>
+Date: Tue, 16 Aug 2016 14:13:29 +0200
+Subject: [PATCH] Added new authentication method
+
+Addressing ticket https://fedorahosted.org/freeipa/ticket/5764
+
+Reviewed-By: Stanislav Laznicka <slaznick@redhat.com>
+---
+ ipaserver/plugins/xmlserver.py |  6 +++++-
+ ipaserver/rpcserver.py         | 17 +++++++++++++----
+ 2 files changed, 18 insertions(+), 5 deletions(-)
+
+diff --git a/ipaserver/plugins/xmlserver.py b/ipaserver/plugins/xmlserver.py
+index d8fe24e0cb407603e9898e934229c9373f3c8b62..08c7456ed6dbfcc59f532314894031fba584e20a 100644
+--- a/ipaserver/plugins/xmlserver.py
++++ b/ipaserver/plugins/xmlserver.py
+@@ -28,12 +28,16 @@ register = Registry()
+ 
+ 
+ if api.env.context in ('server', 'lite'):
+-    from ipaserver.rpcserver import wsgi_dispatch, xmlserver, jsonserver_kerb, jsonserver_session, login_kerberos, login_password, change_password, sync_token, xmlserver_session
++    from ipaserver.rpcserver import (
++        wsgi_dispatch, xmlserver, jsonserver_kerb, jsonserver_session,
++        login_kerberos, login_x509, login_password, change_password,
++        sync_token, xmlserver_session)
+     register()(wsgi_dispatch)
+     register()(xmlserver)
+     register()(jsonserver_kerb)
+     register()(jsonserver_session)
+     register()(login_kerberos)
++    register()(login_x509)
+     register()(login_password)
+     register()(change_password)
+     register()(sync_token)
+diff --git a/ipaserver/rpcserver.py b/ipaserver/rpcserver.py
+index d036f3c27521f17709672b830d5aa58167c76b34..e48dc3498d6ed8feb6ea44a9a678a8b8c50e8d9b 100644
+--- a/ipaserver/rpcserver.py
++++ b/ipaserver/rpcserver.py
+@@ -857,16 +857,16 @@ class jsonserver_kerb(jsonserver, KerberosWSGIExecutioner):
+     key = '/json'
+ 
+ 
+-class login_kerberos(Backend, KerberosSession, HTTP_Status):
+-    key = '/session/login_kerberos'
++class KerberosLogin(Backend, KerberosSession, HTTP_Status):
++    key = None
+ 
+     def _on_finalize(self):
+-        super(login_kerberos, self)._on_finalize()
++        super(KerberosLogin, self)._on_finalize()
+         self.api.Backend.wsgi_dispatch.mount(self, self.key)
+         self.kerb_session_on_finalize()
+ 
+     def __call__(self, environ, start_response):
+-        self.debug('WSGI login_kerberos.__call__:')
++        self.debug('WSGI KerberosLogin.__call__:')
+ 
+         # Get the ccache created by mod_auth_gssapi
+         user_ccache_name=environ.get('KRB5CCNAME')
+@@ -876,6 +876,15 @@ class login_kerberos(Backend, KerberosSession, HTTP_Status):
+ 
+         return self.finalize_kerberos_acquisition('login_kerberos', user_ccache_name, environ, start_response)
+ 
++
++class login_kerberos(KerberosLogin):
++    key = '/session/login_kerberos'
++
++
++class login_x509(KerberosLogin):
++    key = '/session/login_x509'
++
++
+ class login_password(Backend, KerberosSession, HTTP_Status):
+ 
+     content_type = 'text/plain'
+-- 
+2.7.4
+

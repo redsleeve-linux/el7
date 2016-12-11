@@ -1,0 +1,32 @@
+From 9b4153fdc1af86344da9f4cf6fa139a8dcb18c8c Mon Sep 17 00:00:00 2001
+From: Petr Spacek <pspacek@redhat.com>
+Date: Fri, 12 Aug 2016 17:08:30 +0200
+Subject: [PATCH] DNS: allow to add forward zone to already broken sub-domain
+
+Errors during DNS resolution might indicate that forwarder is the
+necessary configuration which is missing. Now we disallow adding a
+forwarder only if the zone is normally resolvable without the forwarder.
+
+https://fedorahosted.org/freeipa/ticket/6062
+
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+---
+ ipaserver/plugins/dns.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ipaserver/plugins/dns.py b/ipaserver/plugins/dns.py
+index 585b28c15daf00df2918a67585f7fb6e99462f1e..6f1bd716d202bd85dfc46b5eb94f73e85683b917 100644
+--- a/ipaserver/plugins/dns.py
++++ b/ipaserver/plugins/dns.py
+@@ -2097,7 +2097,7 @@ class DNSZoneBase_add(LDAPCreate):
+ 
+         if not options['skip_overlap_check']:
+             try:
+-                check_zone_overlap(keys[-1])
++                check_zone_overlap(keys[-1], raise_on_error=False)
+             except ValueError as e:
+                 raise errors.InvocationError(e.message)
+ 
+-- 
+2.7.4
+

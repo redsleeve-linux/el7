@@ -1,0 +1,52 @@
+From 09b5f9fc0e75886917aae014c2bb0c5bd67d3c4c Mon Sep 17 00:00:00 2001
+From: Petr Spacek <pspacek@redhat.com>
+Date: Tue, 12 Jul 2016 17:42:40 +0200
+Subject: [PATCH] server-install: Fix --hostname option to always override
+ api.env values
+
+Attempts to compare local hostname with user-provided values are error
+prone as we found out in #5794. This patch removes comparison and makes
+the env values deterministic.
+
+https://fedorahosted.org/freeipa/ticket/6071
+
+Reviewed-By: Jan Cholasta <jcholast@redhat.com>
+---
+ ipaserver/install/server/install.py | 13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)
+
+diff --git a/ipaserver/install/server/install.py b/ipaserver/install/server/install.py
+index 65f9318201e648b30a3c13626e807ac6f3a9416d..1e925595b93ff95a98b3e6c3d0c357b1766dc1dc 100644
+--- a/ipaserver/install/server/install.py
++++ b/ipaserver/install/server/install.py
+@@ -560,7 +560,12 @@ def install_check(installer):
+     cfg = dict(
+         context='installer',
+         in_server=True,
++        # make sure host name specified by user is used instead of default
++        host=host_name,
+     )
++    if setup_ca:
++        # we have an IPA-integrated CA
++        cfg['ca_host'] = host_name
+ 
+     # Create the management framework config file and finalize api
+     target_fname = paths.IPA_DEFAULT_CONF
+@@ -586,14 +591,6 @@ def install_check(installer):
+     # Must be readable for everyone
+     os.chmod(target_fname, 0o644)
+ 
+-    system_hostname = get_fqdn()
+-    if host_name != system_hostname:
+-        root_logger.debug("Chosen hostname (%s) differs from system hostname "
+-                          "(%s) - change it" % (host_name, system_hostname))
+-        # update `api.env.ca_host` to correct hostname
+-        # https://fedorahosted.org/freeipa/ticket/4936
+-        api.env.ca_host = host_name
+-
+     api.bootstrap(**cfg)
+     api.finalize()
+ 
+-- 
+2.7.4
+

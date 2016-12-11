@@ -1,0 +1,26 @@
+From 284e4e055a2dabd7b27771cd448ba4603abd634a Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Thu, 25 Feb 2016 09:23:32 +0100
+Subject: [PATCH] configure: set version to 2.1.11.1
+
+Customer cases created with libreport which contains feature "Add a pair of
+steps to libreport reporting workflow to enhance the quality of opened customer
+cases" (rhbz#1258482) are marked with libreport version 2.1.11.1.
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ libreport-version |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/libreport-version b/libreport-version
+index 09843e3..54fd9a4 100644
+--- a/libreport-version
++++ b/libreport-version
+@@ -1 +1 @@
+-2.1.11
+\ No newline at end of file
++2.1.11.1
+\ No newline at end of file
+-- 
+1.7.1
+

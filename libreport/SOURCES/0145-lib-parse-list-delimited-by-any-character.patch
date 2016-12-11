@@ -1,0 +1,146 @@
+From 72a59b68e2d7cbe14ed6f8e0b2837c0a98e2899a Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Thu, 2 Jul 2015 14:59:58 +0200
+Subject: [PATCH] lib: parse list delimited by any character
+
+Related: #1224984
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/include/internal_libreport.h |  2 ++
+ src/lib/glib_support.c           | 34 +++++++++++++++++++++++++++------
+ tests/glib_helpers.at            | 41 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 71 insertions(+), 6 deletions(-)
+
+diff --git a/src/include/internal_libreport.h b/src/include/internal_libreport.h
+index d35d715..b36cbd9 100644
+--- a/src/include/internal_libreport.h
++++ b/src/include/internal_libreport.h
+@@ -779,6 +779,8 @@ file_obj_t *new_file_obj(const char* fullpath, const char* filename);
+ void free_file_obj(file_obj_t *f);
+ #define load_workflow_config_data libreport_load_workflow_config_data
+ GHashTable *load_workflow_config_data(const char* path);
++#define parse_delimited_list libreport_parse_delimited_list
++GList *parse_delimited_list(char* list, const char *delim);
+ #define parse_list libreport_parse_list
+ GList *parse_list(const char* list);
+ 
+diff --git a/src/lib/glib_support.c b/src/lib/glib_support.c
+index 6276e9d..02c2dfd 100644
+--- a/src/lib/glib_support.c
++++ b/src/lib/glib_support.c
+@@ -53,12 +53,15 @@ void glib_init(void)
+ }
+ 
+ /*
+- * Parser comma separated list of strings to Glist
++ * Parser a list of strings to Glist
+  *
+- * @param list comma separated list of strings
++ * The function modifies the passed list.
++ *
++ * @param list a separated list of strings
++ * @param delim a set of bytes that delimit the tokens in the parsed string
+  * @returns GList or null if the list is empty
+  */
+-GList *parse_list(const char* list)
++GList *parse_delimited_list(char* list, const char *delim)
+ {
+     if (list == NULL)
+         return NULL;
+@@ -66,18 +69,37 @@ GList *parse_list(const char* list)
+     GList *l = NULL;
+ 
+     char *saved_ptr = NULL;
+-    char *tmp_list = xstrdup(list);
+-    char *item = strtok_r(tmp_list, LIST_DELIMITER, &saved_ptr);
++    char *item = strtok_r(list, delim, &saved_ptr);
+     while (item)
+     {
+         l = g_list_append(l, strtrim(xstrdup(item)));
+-        item = strtok_r(NULL, LIST_DELIMITER, &saved_ptr);
++        item = strtok_r(NULL, delim, &saved_ptr);
+     }
+ 
++    return l;
++}
++
++/*
++ * Parser comma separated list of strings to Glist
++ *
++ * @param list comma separated list of strings
++ * @returns GList or null if the list is empty
++ */
++GList *parse_list(const char* list)
++{
++    if (list == NULL)
++        return NULL;
++
++    char *tmp_list = xstrdup(list);
++
++    GList *l = parse_delimited_list(list, LIST_DELIMITER);
++
+     free(tmp_list);
++
+     return l;
+ }
+ 
++
+ void list_free_with_free(GList *list)
+ {
+     GList *li;
+diff --git a/tests/glib_helpers.at b/tests/glib_helpers.at
+index e118819..0dc7f7e 100644
+--- a/tests/glib_helpers.at
++++ b/tests/glib_helpers.at
+@@ -2,6 +2,47 @@
+ 
+ AT_BANNER([glib helpers])
+ 
++## ------------ ##
++## parse a list ##
++## ------------ ##
++
++AT_TESTFUN([parse_delimited_list],
++[[
++#include "internal_libreport.h"
++#include <assert.h>
++
++int test(const char *list, const char *delimiter, const char *strings[])
++{
++    char *tmp_list = xstrdup(list);
++    GList *l = parse_delimited_list(tmp_list, delimiter);
++    free(tmp_list);
++
++    char **tmp = (char **)strings;
++    int retval = 0;
++
++    while(l != NULL) {
++        log("is: '%s'", (char *)l->data);
++        log("should be: '%s'", *tmp);
++        retval |= strcmp((char *)l->data, *(tmp++)) != 0;
++        if (retval)
++            break; // no need to continue further
++        l = g_list_next(l);
++    }
++
++    return retval;
++}
++
++int main(void)
++{
++    const char *new_line_list = "hello \n world \n fedora \n redhat";
++    const char *colon_list = "hello:world:fedora:redhat";
++    const char *strings[] = {"hello", "world", "fedora", "redhat"};
++
++    assert(test(new_line_list, "\n", strings) == 0);
++    assert(test(colon_list, ":", strings) == 0);
++}
++]])
++
+ ## -------------------------- ##
+ ## parse comma separated list ##
+ ## -------------------------- ##
+-- 
+2.4.3
+

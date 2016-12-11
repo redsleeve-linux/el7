@@ -1,0 +1,31 @@
+From fdcaf9f8437fcd12220af125a4fe0871c6d33f47 Mon Sep 17 00:00:00 2001
+From: Jan Cholasta <jcholast@redhat.com>
+Date: Thu, 4 Aug 2016 09:58:38 +0200
+Subject: [PATCH] install: fix external CA cert validation
+
+The code which loads the external CA cert chain was never executed because
+of an incorrect usage of an iterator (iterating over it twice).
+
+https://fedorahosted.org/freeipa/ticket/6166
+
+Reviewed-By: Jan Cholasta <jcholast@redhat.com>
+---
+ ipaserver/install/installutils.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ipaserver/install/installutils.py b/ipaserver/install/installutils.py
+index 25f48aed1eeaa03353465bc40abf3484ec19bf3b..66ba33326adcdb47c2ba77c573ba9b66a82b365e 100644
+--- a/ipaserver/install/installutils.py
++++ b/ipaserver/install/installutils.py
+@@ -1038,7 +1038,7 @@ def load_external_cert(files, subject_base):
+             raise ScriptError(
+                 "IPA CA certificate not found in %s" % (", ".join(files)))
+ 
+-        trust_chain = reversed(nssdb.get_trust_chain(ca_nickname))
++        trust_chain = list(reversed(nssdb.get_trust_chain(ca_nickname)))
+         ca_cert_chain = []
+         for nickname in trust_chain:
+             cert, subject, issuer = cache[nickname]
+-- 
+2.7.4
+

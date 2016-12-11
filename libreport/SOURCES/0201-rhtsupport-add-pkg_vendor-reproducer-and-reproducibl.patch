@@ -1,0 +1,67 @@
+From 60e3877eecba52fc855ac40120e67c069e0cd60b Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Thu, 3 Mar 2016 10:25:10 +0100
+Subject: [PATCH] rhtsupport: add pkg_vendor, reproducer and reproducible to
+ description
+
+Related to: rhbz#1261358
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/plugins/reporter-rhtsupport.c | 21 ++++++++++++++++-----
+ 1 file changed, 16 insertions(+), 5 deletions(-)
+
+diff --git a/src/plugins/reporter-rhtsupport.c b/src/plugins/reporter-rhtsupport.c
+index 7d45b75..781b5b1 100644
+--- a/src/plugins/reporter-rhtsupport.c
++++ b/src/plugins/reporter-rhtsupport.c
+@@ -27,16 +27,20 @@
+ 
+ /* problem report format template */
+ #define PROBLEM_REPORT_TEMPLATE \
+-    "%summary:: [abrt] %pkg_name%[[: %crash_function%()]][[: %reason%]][[: TAINTED %tainted_short%]]\n" \
++    "%summary:: [abrt] [[%pkg_name%]][[: %crash_function%()]][[: %reason%]][[: TAINTED %tainted_short%]]\n" \
+     "\n" \
+     "Description of problem:: %bare_comment\n" \
+     "\n" \
+-    "Truncated backtrace:: %bare_%short_backtrace\n" \
++    "Additional info::" \
++    "    count,reason,package,pkg_vendor,cmdline,executable,%reporter\n" \
+     "\n" \
+-    "Other report identifiers:: %bare_reported_to\n" \
++    "How reproducible:: %bare_reproducible\n" \
+     "\n" \
+-    "Additional info::" \
+-    "    count,reason,package,cmdline,executable,%reporter\n"
++    "Steps to reproduce:: %bare_reproducer\n" \
++    "\n" \
++    "Truncated backtrace:: %bare_%short_backtrace\n" \
++    "\n" \
++    "Other report identifiers:: %bare_reported_to\n"
+ 
+ #define ABRT_ELEMENTS_KB_ARTICLE "https://access.redhat.com/articles/2134281"
+ 
+@@ -677,6 +681,10 @@ int main(int argc, char **argv)
+             exit(EXIT_CANCEL_BY_USER);
+     }
+ 
++    /* In the case there is no pkg_vendor file use "unknown vendor"  */
++    if (!vendor)
++        problem_data_add_text_noteditable(problem_data, FILENAME_PKG_VENDOR, "unknown vendor");
++
+     const char *executable = NULL;
+     executable  = problem_data_get_content_or_NULL(problem_data, FILENAME_EXECUTABLE);
+     if (!package)
+@@ -689,6 +697,9 @@ int main(int argc, char **argv)
+         free(message);
+         if (!r)
+             exit(EXIT_CANCEL_BY_USER);
++
++        problem_data_add_text_noteditable(problem_data, FILENAME_PACKAGE,
++                                         "not belong to any package");
+     }
+ 
+     char tmpdir_name[sizeof(LARGE_DATA_TMP_DIR"/rhtsupport-"LIBREPORT_ISO_DATE_STRING_SAMPLE"-XXXXXX")];
+-- 
+1.8.3.1
+

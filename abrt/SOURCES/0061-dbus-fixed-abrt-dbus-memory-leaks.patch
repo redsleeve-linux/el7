@@ -1,0 +1,47 @@
+From ca9e26aab4b78dbd0d5f59ca5e3bda47000b6353 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Thu, 18 Sep 2014 15:02:01 +0200
+Subject: [ABRT PATCH 61/66] dbus: fixed abrt-dbus memory leaks
+
+Fixed memory leaks in abrt-dbus (method FindProblemByElementInTimeRange).
+This method leaks memory if fuzzing on org.freedesktop.problems interface.
+
+Related to rhbz#1015473
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/dbus/abrt-dbus.c | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)
+
+diff --git a/src/dbus/abrt-dbus.c b/src/dbus/abrt-dbus.c
+index 0350dee..308a9af 100644
+--- a/src/dbus/abrt-dbus.c
++++ b/src/dbus/abrt-dbus.c
+@@ -685,13 +685,17 @@ static void handle_method_call(GDBusConnection *connection,
+ 
+     if (g_strcmp0(method_name, "FindProblemByElementInTimeRange") == 0)
+     {
+-        const char *element;
+-        const char *value;
+-        long timestamp_from;
+-        long timestamp_to;
+-        bool all;
+-
+-        g_variant_get(parameters, "(ssxxb)", &element, &value, &timestamp_from, &timestamp_to, &all);
++        const gchar *element;
++        const gchar *value;
++        glong timestamp_from;
++        glong timestamp_to;
++        gboolean all;
++
++        g_variant_get_child(parameters, 0, "&s", &element);
++        g_variant_get_child(parameters, 1, "&s", &value);
++        g_variant_get_child(parameters, 2, "x", &timestamp_from);
++        g_variant_get_child(parameters, 3, "x", &timestamp_to);
++        g_variant_get_child(parameters, 4, "b", &all);
+ 
+         if (all && polkit_check_authorization_dname(caller, "org.freedesktop.problems.getall") == PolkitYes)
+             caller_uid = 0;
+-- 
+1.8.3.1
+

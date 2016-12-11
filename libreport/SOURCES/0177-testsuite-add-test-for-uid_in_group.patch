@@ -1,0 +1,54 @@
+From eed8e1ded537327132a7cec7dec7af75ddea5656 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Wed, 16 Dec 2015 10:54:25 +0100
+Subject: [PATCH] testsuite: add test for uid_in_group()
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ tests/dump_dir.at | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)
+
+diff --git a/tests/dump_dir.at b/tests/dump_dir.at
+index fb8c7ce..70a97e6 100644
+--- a/tests/dump_dir.at
++++ b/tests/dump_dir.at
+@@ -322,3 +322,36 @@ int main(void)
+     return 0;
+ }
+ ]])
++
++## ------------ ##
++## uid_in_group ##
++## ------------ ##
++
++AT_TESTFUN([uid_in_group],
++[[
++#include "internal_libreport.h"
++#include <libtar.h>
++#include <assert.h>
++
++int main(void)
++{
++    // not existing user id
++    assert(uid_in_group((uid_t)-1, 0) == false);
++
++    // root user is member of root group
++    assert(uid_in_group(0, 0) == true);
++
++    // user root isn't member of not existing group
++    assert(uid_in_group(0, (gid_t)-1) == false);
++
++    // user root isn't member of nobody group
++    gid_t nobody_gid = (gid_t)-1;
++    struct group *gr = getgrnam("nobody");
++    if (gr)
++        nobody_gid = gr->gr_gid;
++
++    assert(uid_in_group(0, nobody_gid) == false);
++
++    return 0;
++}
++]])
+-- 
+1.8.3.1
+

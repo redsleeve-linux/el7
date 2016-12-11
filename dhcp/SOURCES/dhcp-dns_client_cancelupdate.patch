@@ -1,0 +1,69 @@
+diff -up dhcp-4.2.5/client/dhclient.c.dns_client_cancelupdate dhcp-4.2.5/client/dhclient.c
+--- dhcp-4.2.5/client/dhclient.c.dns_client_cancelupdate	2015-06-25 14:31:27.309035906 +0200
++++ dhcp-4.2.5/client/dhclient.c	2015-06-25 14:34:26.477642016 +0200
+@@ -121,6 +121,8 @@ static int check_option_values(struct un
+ 			       const char *ptr, size_t len);
+ 
+ static void setup_ib_interface(struct interface_info *ip);
++static void dhclient_ddns_cb_free(dhcp_ddns_cb_t *ddns_cb,
++                                   char* file, int line);
+ 
+ int
+ main(int argc, char **argv) {
+@@ -4306,7 +4308,7 @@ client_dns_remove_action(dhcp_ddns_cb_t
+ 	}
+ 
+ 	/* If we are done or have an error clean up */
+-	ddns_cb_free(ddns_cb, MDL);
++	dhclient_ddns_cb_free(ddns_cb, MDL);
+ 	return;
+ }
+ 
+@@ -4335,7 +4337,7 @@ client_dns_remove(struct client_state *c
+ 		result = client_dns_update(client, ddns_cb);
+ 
+ 		if (result != ISC_R_TIMEDOUT) {
+-			ddns_cb_free(ddns_cb, MDL);
++			dhclient_ddns_cb_free(ddns_cb, MDL);
+ 		}
+ 	}
+ }
+@@ -4418,10 +4420,7 @@ client_dns_update_timeout (void *cp)
+ 	 * the control block and should free it.
+ 	 */
+ 	if (status != ISC_R_TIMEDOUT) {
+-		if (client != NULL) {
+-			client->ddns_cb = NULL;
+-		}
+-		ddns_cb_free(ddns_cb, MDL);
++		dhclient_ddns_cb_free(ddns_cb, MDL);
+ 	}
+ }
+ 
+@@ -4510,7 +4509,7 @@ client_dns_update_action(dhcp_ddns_cb_t
+ 		return;
+ 	}
+ 
+-	ddns_cb_free(ddns_cb, MDL);
++	dhclient_ddns_cb_free(ddns_cb, MDL);
+ 	return;
+ }
+ 
+@@ -4873,3 +4872,17 @@ add_reject(struct packet *packet) {
+ 	 */
+ 	log_info("Server added to list of rejected servers.");
+ }
++
++/* Wrapper function around common ddns_cb_free function that ensures
++ * we set the client_state pointer to the control block to NULL. */
++static void
++dhclient_ddns_cb_free(dhcp_ddns_cb_t *ddns_cb, char* file, int line) {
++    if (ddns_cb) {
++        struct client_state *client = (struct client_state *)ddns_cb->lease;
++        if (client != NULL) {
++            client->ddns_cb = NULL;
++        }
++
++        ddns_cb_free(ddns_cb, file, line);
++    }
++}

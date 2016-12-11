@@ -1,0 +1,322 @@
+From 8eefbac3b67756f0dfe9d68741d70015023b5216 Mon Sep 17 00:00:00 2001
+From: Martin Milata <mmilata@redhat.com>
+Date: Fri, 17 Jul 2015 12:52:49 +0200
+Subject: [PATCH] Create core backtrace in unwind hook
+
+Related to #829.
+
+We need to implement #882 in order for this to work. This change
+requires (yet unreleased) satyr-0.16.
+
+The feature is turned off by default, you need to pass
+--enable-dump-time-unwind to configure in order to enable it.
+
+Signed-off-by: Martin Milata <mmilata@redhat.com>
+
+Conflicts:
+	src/hooks/abrt-hook-ccpp.c
+---
+ configure.ac                        |  12 ++++
+ doc/abrt-CCpp.conf.txt              |  18 ++++++
+ src/hooks/CCpp.conf                 |  15 +++++
+ src/hooks/abrt-hook-ccpp.c          | 108 ++++++++++++++++++++++++------------
+ src/hooks/abrt-install-ccpp-hook.in |   4 +-
+ 5 files changed, 121 insertions(+), 36 deletions(-)
+
+diff --git a/configure.ac b/configure.ac
+index 56b8ad8..330dd9c 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -232,6 +232,18 @@ AC_ARG_ENABLE([native-unwinder],
+ [fi]
+ 
+ 
++# Perform stack unwind on live/dying process in the core handler?
++
++AC_ARG_ENABLE([dump-time-unwind],
++    AS_HELP_STRING([--enable-dump-time-unwind],
++        [create core stack trace while the crashed process is still in memory (default is no)]),
++    [], [enable_dump_time_unwind=no])
++
++[if test "$enable_native_unwinder" = "yes" -a "$enable_dump_time_unwind" = "yes"]
++[then]
++    AC_DEFINE([ENABLE_DUMP_TIME_UNWIND], [1], [Create core stacktrace while the process is still in memory.])
++[fi]
++
+ AC_SUBST(CONF_DIR)
+ AC_SUBST(DEFAULT_CONF_DIR)
+ AC_SUBST(VAR_RUN)
+diff --git a/doc/abrt-CCpp.conf.txt b/doc/abrt-CCpp.conf.txt
+index ad3830b..498d53d 100644
+--- a/doc/abrt-CCpp.conf.txt
++++ b/doc/abrt-CCpp.conf.txt
+@@ -19,12 +19,30 @@ SaveBinaryImage = 'yes' / 'no' ...::
+    Useful, for example, when _deleted binary_ segfaults.
+    Default is 'no'.
+ 
++CreateCoreBacktrace = 'yes' / 'no' ...::
++   When this option is set to 'yes', core backtrace is generated
++   from the memory image of the crashing process. Only the crash
++   thread is present in the backtrace. This feature requires
++   kernel 3.18 or newer, otherwise the core backtrace is not
++   created.
++   Default is 'yes'.
++
++SaveFullCore = 'yes' / 'no' ...::
++   Save full coredump? If set to 'no', coredump won't be saved
++   and you won't be able to report the crash to Bugzilla. Only
++   useful with 'CreateCoreBacktrace' set to 'yes'. Please
++   note that if this option is set to 'no' and MakeCompatCore
++   is set to 'yes', the core is still written to the current
++   directory.
++   Default is 'yes'.
++
+ VerboseLog = NUM::
+    Used to make the hook more verbose
+ 
+ SEE ALSO
+ --------
+ abrt.conf(5)
++abrt-action-generate-core-backtrace(1)
+ 
+ AUTHORS
+ -------
+diff --git a/src/hooks/CCpp.conf b/src/hooks/CCpp.conf
+index d199116..b1a0a22 100644
+--- a/src/hooks/CCpp.conf
++++ b/src/hooks/CCpp.conf
+@@ -8,6 +8,21 @@ MakeCompatCore = yes
+ # (useful, for example, when _deleted binary_ segfaults)
+ SaveBinaryImage = no
+ 
++# When this option is set to 'yes', core backtrace is generated
++# from the memory image of the crashing process. Only the crash
++# thread is present in the backtrace. This feature requires
++# kernel 3.18 or newer, otherwise the core backtrace is not
++# created.
++CreateCoreBacktrace = yes
++
++# Save full coredump? If set to 'no', coredump won't be saved
++# and you won't be able to report the crash to Bugzilla. Only
++# useful with CreateCoreBacktrace set to 'yes'. Please
++# note that if this option is set to 'no' and MakeCompatCore
++# is set to 'yes', the core is still written to the current
++# directory.
++SaveFullCore = yes
++
+ # Used for debugging the hook
+ #VerboseLog = 2
+ 
+diff --git a/src/hooks/abrt-hook-ccpp.c b/src/hooks/abrt-hook-ccpp.c
+index 2dd9ac6..b5f00f6 100644
+--- a/src/hooks/abrt-hook-ccpp.c
++++ b/src/hooks/abrt-hook-ccpp.c
+@@ -22,6 +22,11 @@
+ #include "libabrt.h"
+ #include <selinux/selinux.h>
+ 
++#ifdef ENABLE_DUMP_TIME_UNWIND
++#include <satyr/abrt.h>
++#include <satyr/utils.h>
++#endif /* ENABLE_DUMP_TIME_UNWIND */
++
+ #define  DUMP_SUID_UNSAFE 1
+ #define  DUMP_SUID_SAFE 2
+ 
+@@ -155,13 +160,13 @@ static struct dump_dir *dd;
+  * %g - gid
+  * %t - UNIX time of dump
+  * %e - executable filename
+- * %h - hostname
++ * %i - crash thread tid
+  * %% - output one "%"
+  */
+ /* Hook must be installed with exactly the same sequence of %c specifiers.
+  * Last one, %h, may be omitted (we can find it out).
+  */
+-static const char percent_specifiers[] = "%scpugteh";
++static const char percent_specifiers[] = "%scpugtei";
+ static char *core_basename = (char*) "core";
+ 
+ static char* get_executable(pid_t pid, int *fd_p)
+@@ -580,6 +585,24 @@ static int create_or_die(const char *filename, int user_core_fd)
+     perror_msg_and_die("Can't open '%s'", filename);
+ }
+ 
++static void create_core_backtrace(pid_t tid, const char *executable, int signal_no, const char *dd_path)
++{
++#ifdef ENABLE_DUMP_TIME_UNWIND
++    if (g_verbose > 1)
++        sr_debug_parser = true;
++
++    char *error_message = NULL;
++    bool success = sr_abrt_create_core_stacktrace_from_core_hook(dd_path, tid, executable,
++                                                                 signal_no, &error_message);
++
++    if (!success)
++    {
++        log("Failed to create core_backtrace: %s", error_message);
++        free(error_message);
++    }
++#endif /* ENABLE_DUMP_TIME_UNWIND */
++}
++
+ static int create_user_core(int user_core_fd, pid_t pid, off_t ulimit_c)
+ {
+     int err = 1;
+@@ -619,9 +642,9 @@ int main(int argc, char** argv)
+ 
+     if (argc < 8)
+     {
+-        /* percent specifier:         %s   %c              %p  %u  %g  %t   %e          %h */
++        /* percent specifier:         %s   %c              %p  %u  %g  %t   %e          %i */
+         /* argv:                  [0] [1]  [2]             [3] [4] [5] [6]  [7]         [8]*/
+-        error_msg_and_die("Usage: %s SIGNO CORE_SIZE_LIMIT PID UID GID TIME BINARY_NAME [HOSTNAME]", argv[0]);
++        error_msg_and_die("Usage: %s SIGNO CORE_SIZE_LIMIT PID UID GID TIME BINARY_NAME [TID]", argv[0]);
+     }
+ 
+     /* Not needed on 2.6.30.
+@@ -646,6 +669,8 @@ int main(int argc, char** argv)
+     /* ... and plugins/CCpp.conf */
+     bool setting_MakeCompatCore;
+     bool setting_SaveBinaryImage;
++    bool setting_SaveFullCore;
++    bool setting_CreateCoreBacktrace;
+     {
+         map_string_t *settings = new_map_string();
+         load_abrt_plugin_conf_file("CCpp.conf", settings);
+@@ -654,6 +679,10 @@ int main(int argc, char** argv)
+         setting_MakeCompatCore = value && string_to_bool(value);
+         value = get_map_string_item_or_NULL(settings, "SaveBinaryImage");
+         setting_SaveBinaryImage = value && string_to_bool(value);
++        value = get_map_string_item_or_NULL(settings, "SaveFullCore");
++        setting_SaveFullCore = value ? string_to_bool(value) : true;
++        value = get_map_string_item_or_NULL(settings, "CreateCoreBacktrace");
++        setting_CreateCoreBacktrace = value ? string_to_bool(value) : true;
+         value = get_map_string_item_or_NULL(settings, "VerboseLog");
+         if (value)
+             g_verbose = xatoi_positive(value);
+@@ -686,11 +715,10 @@ int main(int argc, char** argv)
+             free(s);
+     }
+ 
+-    struct utsname uts;
+-    if (!argv[8]) /* no HOSTNAME? */
++    pid_t tid = 0;
++    if (argv[8])
+     {
+-        uname(&uts);
+-        argv[8] = uts.nodename;
++        tid = xatoi_positive(argv[8]);
+     }
+ 
+     char path[PATH_MAX];
+@@ -906,36 +934,42 @@ int main(int argc, char** argv)
+             off_t sz = copyfd_eof(src_fd_binary, dst_fd, COPYFD_SPARSE);
+             if (fsync(dst_fd) != 0 || close(dst_fd) != 0 || sz < 0)
+             {
+-                dd_delete(dd);
+-                error_msg_and_die("Error saving '%s'", path);
++                dd_delete(dd); error_msg_and_die("Error saving '%s'", path);
+             }
+             close(src_fd_binary);
+         }
+ 
+-        strcpy(path + path_len, "/"FILENAME_COREDUMP);
+-        int abrt_core_fd = create_or_die(path, user_core_fd);
+-
+-        /* We write both coredumps at once.
+-         * We can't write user coredump first, since it might be truncated
+-         * and thus can't be copied and used as abrt coredump;
+-         * and if we write abrt coredump first and then copy it as user one,
+-         * then we have a race when process exits but coredump does not exist yet:
+-         * $ echo -e '#include<signal.h>\nmain(){raise(SIGSEGV);}' | gcc -o test -x c -
+-         * $ rm -f core*; ulimit -c unlimited; ./test; ls -l core*
+-         * 21631 Segmentation fault (core dumped) ./test
+-         * ls: cannot access core*: No such file or directory <=== BAD
+-         */
+-        off_t core_size = copyfd_sparse(STDIN_FILENO, abrt_core_fd, user_core_fd, ulimit_c);
+-
+-        close_user_core(user_core_fd, core_size);
+-
+-        if (fsync(abrt_core_fd) != 0 || close(abrt_core_fd) != 0 || core_size < 0)
++        off_t core_size = 0;
++        if (setting_SaveFullCore)
+         {
+-            unlink(path);
+-            dd_delete(dd);
+-            /* copyfd_sparse logs the error including errno string,
+-             * but it does not log file name */
+-            error_msg_and_die("Error writing '%s'", path);
++            strcpy(path + path_len, "/"FILENAME_COREDUMP);
++            int abrt_core_fd = create_or_die(path, user_core_fd);
++
++            /* We write both coredumps at once.
++             * We can't write user coredump first, since it might be truncated
++             * and thus can't be copied and used as abrt coredump;
++             * and if we write abrt coredump first and then copy it as user one,
++             * then we have a race when process exits but coredump does not exist yet:
++             * $ echo -e '#include<signal.h>\nmain(){raise(SIGSEGV);}' | gcc -o test -x c -
++             * $ rm -f core*; ulimit -c unlimited; ./test; ls -l core*
++             * 21631 Segmentation fault (core dumped) ./test
++             * ls: cannot access core*: No such file or directory <=== BAD
++             */
++            core_size = copyfd_sparse(STDIN_FILENO, abrt_core_fd, user_core_fd, ulimit_c);
++            close_user_core(user_core_fd, core_size);
++            if (fsync(abrt_core_fd) != 0 || close(abrt_core_fd) != 0 || core_size < 0)
++            {
++                unlink(path);
++                dd_delete(dd);
++                /* copyfd_sparse logs the error including errno string,
++                 * but it does not log file name */
++                error_msg_and_die("Error writing '%s'", path);
++            }
++        }
++        else
++        {
++            /* User core is created even if WriteFullCore is off. */
++            create_user_core(user_core_fd, pid, ulimit_c);
+         }
+ 
+ /* Because of #1211835 and #1126850 */
+@@ -977,6 +1011,10 @@ int main(int argc, char** argv)
+         /* And finally set the right uid and gid */
+         dd_reset_ownership(dd);
+ 
++        /* Perform crash-time unwind of the guilty thread. */
++        if (tid > 0 && setting_CreateCoreBacktrace)
++            create_core_backtrace(tid, executable, signal_no, dd->dd_dirname);
++
+         /* We close dumpdir before we start catering for crash storm case.
+          * Otherwise, delete_dump_dir's from other concurrent
+          * CCpp's won't be able to delete our dump (their delete_dump_dir
+@@ -990,7 +1028,9 @@ int main(int argc, char** argv)
+             strcpy(path, newpath);
+         free(newpath);
+ 
+-        log("Saved core dump of pid %lu (%s) to %s (%llu bytes)", (long)pid, executable, path, (long long)core_size);
++        if (core_size > 0)
++            log_notice("Saved core dump of pid %lu (%s) to %s (%llu bytes)",
++                       (long)pid, executable, path, (long long)core_size);
+ 
+         notify_new_path(path);
+ 
+diff --git a/src/hooks/abrt-install-ccpp-hook.in b/src/hooks/abrt-install-ccpp-hook.in
+index aa01231..d4ed4a5 100755
+--- a/src/hooks/abrt-install-ccpp-hook.in
++++ b/src/hooks/abrt-install-ccpp-hook.in
+@@ -11,9 +11,9 @@ SAVED_PATTERN_DIR="@VAR_RUN@/abrt"
+ SAVED_PATTERN_FILE="@VAR_RUN@/abrt/saved_core_pattern"
+ HOOK_BIN="@libexecdir@/abrt-hook-ccpp"
+ # Must match percent_specifiers[] order in abrt-hook-ccpp.c:
+-PATTERN="|$HOOK_BIN %s %c %p %u %g %t %e"
++PATTERN="|$HOOK_BIN %s %c %p %u %g %t %e %i"
+ # Same, but with bogus "executable name" parameter
+-PATTERN1="|$HOOK_BIN %s %c %p %u %g %t e"
++PATTERN1="|$HOOK_BIN %s %c %p %u %g %t e %i"
+ 
+ # core_pipe_limit specifies how many dump_helpers can run at the same time
+ # 0 - means unlimited, but it's not guaranteed that /proc/<pid> of crashing
+-- 
+2.4.3
+

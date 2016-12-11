@@ -1,0 +1,11 @@
+--- a/modules/metadata/mod_remoteip.c	2015/06/30 08:36:49	1688398
++++ b/modules/metadata/mod_remoteip.c	2015/06/30 08:40:17	1688399
+@@ -255,7 +255,7 @@
+     }
+     remote = apr_pstrdup(r->pool, remote);
+ 
+-    temp_sa = c->client_addr;
++    temp_sa = r->useragent_addr ? r->useragent_addr : c->client_addr;
+ 
+     while (remote) {
+ 

@@ -1,0 +1,81 @@
+From adb6802b1b4dec30f19c3bf76089b6bc60ac0454 Mon Sep 17 00:00:00 2001
+From: Jan Cholasta <jcholast@redhat.com>
+Date: Mon, 1 Aug 2016 09:55:58 +0200
+Subject: [PATCH] cert: do not crash on invalid data in cert-find
+
+https://fedorahosted.org/freeipa/ticket/6150
+
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+Reviewed-By: Pavel Vomacka <pvomacka@redhat.com>
+---
+ ipaserver/plugins/cert.py | 28 ++++++++++++++++++++++++----
+ 1 file changed, 24 insertions(+), 4 deletions(-)
+
+diff --git a/ipaserver/plugins/cert.py b/ipaserver/plugins/cert.py
+index 47dccf15a4010f2766642aedd2cc16e0a1eb1dd4..b8df074a186ca91daa8e8f5e725724ea7bc5a663 100644
+--- a/ipaserver/plugins/cert.py
++++ b/ipaserver/plugins/cert.py
+@@ -32,7 +32,7 @@ import six
+ 
+ from ipalib import Command, Str, Int, Flag
+ from ipalib import api
+-from ipalib import errors
++from ipalib import errors, messages
+ from ipalib import pkcs10
+ from ipalib import x509
+ from ipalib import ngettext
+@@ -994,7 +994,15 @@ class cert_find(Search, CertMethod):
+             )
+ 
+     def _get_cert_key(self, cert):
+-        nss_cert = x509.load_certificate(cert, x509.DER)
++        try:
++            nss_cert = x509.load_certificate(cert, x509.DER)
++        except NSPRError as e:
++            message = messages.SearchResultTruncated(
++                reason=_("failed to load certificate: %s") % e,
++            )
++            self.add_message(message)
++
++            raise ValueError("failed to load certificate")
+ 
+         return (DN(unicode(nss_cert.issuer)), nss_cert.serial_number)
+ 
+@@ -1017,7 +1025,10 @@ class cert_find(Search, CertMethod):
+         except KeyError:
+             return result, False, False
+ 
+-        key = self._get_cert_key(cert)
++        try:
++            key = self._get_cert_key(cert)
++        except ValueError:
++            return result, True, True
+ 
+         result[key] = self._get_cert_obj(cert, all, raw, pkey_only)
+ 
+@@ -1132,12 +1143,21 @@ class cert_find(Search, CertMethod):
+             entries = []
+             truncated = False
+         else:
++            try:
++                ldap.handle_truncated_result(truncated)
++            except errors.LimitsExceeded as e:
++                self.add_message(messages.SearchResultTruncated(reason=e))
++
+             truncated = bool(truncated)
+ 
+         for entry in entries:
+             for attr in ('usercertificate', 'usercertificate;binary'):
+                 for cert in entry.get(attr, []):
+-                    key = self._get_cert_key(cert)
++                    try:
++                        key = self._get_cert_key(cert)
++                    except ValueError:
++                        truncated = True
++                        continue
+ 
+                     try:
+                         obj = result[key]
+-- 
+2.7.4
+

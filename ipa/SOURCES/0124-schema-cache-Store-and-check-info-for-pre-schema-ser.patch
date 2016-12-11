@@ -1,0 +1,393 @@
+From 2618c2fbbd9e23f79a667ac373b0a828cdd5d643 Mon Sep 17 00:00:00 2001
+From: David Kupka <dkupka@redhat.com>
+Date: Mon, 22 Aug 2016 13:34:30 +0200
+Subject: [PATCH] schema cache: Store and check info for pre-schema servers
+
+Cache CommandError answer to schema command to avoid sending the command
+to pre-schema servers every time. This information expires after some
+time (1 hour) in order to start using schema as soon as the server is
+upgraded.
+
+https://fedorahosted.org/freeipa/ticket/6095
+
+Signed-off-by: Jan Cholasta <jcholast@redhat.com>
+Signed-off-by: David Kupka <dkupka@redhat.com>
+Reviewed-By: Tomas Krizek <tkrizek@redhat.com>
+---
+ ipaclient/remote_plugins/__init__.py |  80 +++++++++++++--------
+ ipaclient/remote_plugins/compat.py   |   9 ++-
+ ipaclient/remote_plugins/schema.py   | 130 ++++++++++++++++++-----------------
+ 3 files changed, 128 insertions(+), 91 deletions(-)
+
+diff --git a/ipaclient/remote_plugins/__init__.py b/ipaclient/remote_plugins/__init__.py
+index 2be9222be693a5c4a04a735c216f590d75c1ecfe..b783c32819e58f49532531b6d7f3a594c17bae16 100644
+--- a/ipaclient/remote_plugins/__init__.py
++++ b/ipaclient/remote_plugins/__init__.py
+@@ -5,7 +5,9 @@
+ import collections
+ import errno
+ import json
++import locale
+ import os
++import time
+ 
+ from . import compat
+ from . import schema
+@@ -23,20 +25,18 @@ class ServerInfo(collections.MutableMapping):
+     def __init__(self, api):
+         hostname = DNSName(api.env.server).ToASCII()
+         self._path = os.path.join(self._DIR, hostname)
++        self._force_check = api.env.force_schema_check
+         self._dict = {}
+-        self._dirty = False
+ 
+-        self._read()
+-
+-    def __enter__(self):
+-        return self
+-
+-    def __exit__(self, *_exc_info):
+-        self.flush()
++        # copy-paste from ipalib/rpc.py
++        try:
++            self._language = (
++                 locale.setlocale(locale.LC_ALL, '').split('.')[0].lower()
++            )
++        except locale.Error:
++            self._language = 'en_us'
+ 
+-    def flush(self):
+-        if self._dirty:
+-            self._write()
++        self._read()
+ 
+     def _read(self):
+         try:
+@@ -62,13 +62,10 @@ class ServerInfo(collections.MutableMapping):
+         return self._dict[key]
+ 
+     def __setitem__(self, key, value):
+-        if key not in self._dict or self._dict[key] != value:
+-            self._dirty = True
+         self._dict[key] = value
+ 
+     def __delitem__(self, key):
+         del self._dict[key]
+-        self._dirty = True
+ 
+     def __iter__(self):
+         return iter(self._dict)
+@@ -76,26 +73,55 @@ class ServerInfo(collections.MutableMapping):
+     def __len__(self):
+         return len(self._dict)
+ 
++    def update_validity(self, ttl=None):
++        if ttl is None:
++            ttl = 3600
++        self['expiration'] = time.time() + ttl
++        self['language'] = self._language
++        self._write()
++
++    def is_valid(self):
++        if self._force_check:
++            return False
++
++        try:
++            expiration = self._dict['expiration']
++            language = self._dict['language']
++        except KeyError:
++            # if any of these is missing consider the entry expired
++            return False
++
++        if expiration < time.time():
++            # validity passed
++            return False
++
++        if language != self._language:
++            # language changed since last check
++            return False
++
++        return True
++
+ 
+ def get_package(api):
+     if api.env.in_tree:
+         from ipaserver import plugins
+     else:
+-        client = rpcclient(api)
+-        client.finalize()
+-
+         try:
+-            server_info = api._server_info
++            plugins = api._remote_plugins
+         except AttributeError:
+-            server_info = api._server_info = ServerInfo(api)
++            server_info = ServerInfo(api)
+ 
+-        try:
+-            plugins = schema.get_package(api, server_info, client)
+-        except schema.NotAvailable:
+-            plugins = compat.get_package(api, server_info, client)
+-        finally:
+-            server_info.flush()
+-            if client.isconnected():
+-                client.disconnect()
++            client = rpcclient(api)
++            client.finalize()
++
++            try:
++                plugins = schema.get_package(server_info, client)
++            except schema.NotAvailable:
++                plugins = compat.get_package(server_info, client)
++            finally:
++                if client.isconnected():
++                    client.disconnect()
++
++            object.__setattr__(api, '_remote_plugins', plugins)
+ 
+     return plugins
+diff --git a/ipaclient/remote_plugins/compat.py b/ipaclient/remote_plugins/compat.py
+index 5e08cb0ed73becbc17e724864d1a853142a5ef6f..984eecd3f86fada96084d70bbbeb81c3730346e8 100644
+--- a/ipaclient/remote_plugins/compat.py
++++ b/ipaclient/remote_plugins/compat.py
+@@ -31,10 +31,15 @@ class CompatObject(Object):
+     pass
+ 
+ 
+-def get_package(api, server_info, client):
++def get_package(server_info, client):
+     try:
+         server_version = server_info['version']
+     except KeyError:
++        is_valid = False
++    else:
++        is_valid = server_info.is_valid()
++
++    if not is_valid:
+         if not client.isconnected():
+             client.connect(verbose=False)
+         env = client.forward(u'env', u'api_version', version=u'2.0')
+@@ -51,6 +56,8 @@ def get_package(api, server_info, client):
+             else:
+                 server_version = u'2.0'
+         server_info['version'] = server_version
++        server_info.update_validity()
++
+     server_version = LooseVersion(server_version)
+ 
+     package_names = {}
+diff --git a/ipaclient/remote_plugins/schema.py b/ipaclient/remote_plugins/schema.py
+index 553da35127188b1ae842a7a0b58433e632c82b9f..5634fd1c8fc9c4f9276b57eac2e4abecc8d7c792 100644
+--- a/ipaclient/remote_plugins/schema.py
++++ b/ipaclient/remote_plugins/schema.py
+@@ -7,10 +7,8 @@ import contextlib
+ import errno
+ import fcntl
+ import json
+-import locale
+ import os
+ import sys
+-import time
+ import types
+ import zipfile
+ 
+@@ -220,7 +218,7 @@ class _SchemaPlugin(object):
+ 
+     def __call__(self, api):
+         if self._class is None:
+-            schema = api._schema[self.schema_key][self.full_name]
++            schema = self._schema[self.schema_key][self.full_name]
+             name, bases, class_dict = self._create_class(api, schema)
+             self._class = type(name, bases, class_dict)
+ 
+@@ -361,7 +359,7 @@ class Schema(object):
+     namespaces = {'classes', 'commands', 'topics'}
+     _DIR = os.path.join(paths.USER_CACHE_PATH, 'ipa', 'schema', FORMAT)
+ 
+-    def __init__(self, api, server_info, client):
++    def __init__(self, client, fingerprint=None):
+         self._dict = {}
+         self._namespaces = {}
+         self._help = None
+@@ -371,48 +369,29 @@ class Schema(object):
+             self._dict[ns] = {}
+             self._namespaces[ns] = _SchemaNameSpace(self, ns)
+ 
+-        # copy-paste from ipalib/rpc.py
+-        try:
+-            self._language = (
+-                locale.setlocale(locale.LC_ALL, '').split('.')[0].lower()
+-            )
+-        except locale.Error:
+-            # fallback to default locale
+-            self._language = 'en_us'
+-
+-        try:
+-            self._fingerprint = server_info['fingerprint']
+-            self._expiration = server_info['expiration']
+-            language = server_info['language']
+-        except KeyError:
+-            is_known = False
+-        else:
+-            is_known = (not api.env.force_schema_check and
+-                        self._expiration > time.time() and
+-                        self._language == language)
++        ttl = None
++        read_failed = False
+ 
+-        if is_known:
++        if fingerprint is not None:
+             try:
+-                self._read_schema()
+-            except Exception:
+-                pass
+-            else:
+-                return
+-
+-        try:
+-            self._fetch(client)
+-        except NotAvailable:
+-            raise
+-        except SchemaUpToDate as e:
+-            self._fingerprint = e.fingerprint
+-            self._expiration = time.time() + e.ttl
+-            self._read_schema()
+-        else:
+-            self._write_schema()
++                self._read_schema(fingerprint)
++            except Exception as e:
++                # Failed to read the schema from cache. There may be a lot of
++                # causes and not much we can do about it. Just ensure we will
++                # ignore the cache and fetch the schema from server.
++                logger.warning("Failed to read schema: {}".format(e))
++                fingerprint = None
++                read_failed = True
++
++        if fingerprint is None:
++            fingerprint, ttl = self._fetch(client, ignore_cache=read_failed)
++            try:
++                self._write_schema(fingerprint)
++            except Exception as e:
++                logger.warning("Failed to write schema: {}".format(e))
+ 
+-        server_info['fingerprint'] = self._fingerprint
+-        server_info['expiration'] = self._expiration
+-        server_info['language'] = self._language
++        self.fingerprint = fingerprint
++        self.ttl = ttl
+ 
+     @contextlib.contextmanager
+     def _open(self, filename, mode):
+@@ -429,14 +408,16 @@ class Schema(object):
+             finally:
+                 fcntl.flock(f, fcntl.LOCK_UN)
+ 
+-    def _fetch(self, client):
++    def _fetch(self, client, ignore_cache=False):
+         if not client.isconnected():
+             client.connect(verbose=False)
+ 
+-        try:
+-            fps = [fsdecode(f) for f in os.listdir(self._DIR)]
+-        except EnvironmentError:
+-            fps = []
++        fps = []
++        if not ignore_cache:
++            try:
++                fps = [fsdecode(f) for f in os.listdir(self._DIR)]
++            except EnvironmentError:
++                pass
+ 
+         kwargs = {u'version': u'2.170'}
+         if fps:
+@@ -459,12 +440,11 @@ class Schema(object):
+             logger.warning("Failed to fetch schema: %s", e)
+             raise NotAvailable()
+ 
+-        self._fingerprint = fp
+-        self._expiration = time.time() + ttl
++        return (fp, ttl,)
+ 
+-    def _read_schema(self):
++    def _read_schema(self, fingerprint):
+         self._file.truncate(0)
+-        with self._open(self._fingerprint, 'r') as f:
++        with self._open(fingerprint, 'r') as f:
+             self._file.write(f.read())
+ 
+         with zipfile.ZipFile(self._file, 'r') as schema:
+@@ -500,13 +480,12 @@ class Schema(object):
+ 
+         return halp
+ 
+-    def _write_schema(self):
++    def _write_schema(self, fingerprint):
+         try:
+             os.makedirs(self._DIR)
+         except EnvironmentError as e:
+             if e.errno != errno.EEXIST:
+-                logger.warning("Failed to write schema: {}".format(e))
+-                return
++                raise
+ 
+         self._file.truncate(0)
+         with zipfile.ZipFile(self._file, 'w', zipfile.ZIP_DEFLATED) as schema:
+@@ -523,7 +502,7 @@ class Schema(object):
+                             json.dumps(self._generate_help(self._dict)))
+ 
+         self._file.seek(0)
+-        with self._open(self._fingerprint, 'w') as f:
++        with self._open(fingerprint, 'w') as f:
+             f.truncate(0)
+             f.write(self._file.read())
+ 
+@@ -550,14 +529,39 @@ class Schema(object):
+         return self._help[namespace][member]
+ 
+ 
+-def get_package(api, server_info, client):
+-    try:
+-        schema = api._schema
+-    except AttributeError:
+-        schema = Schema(api, server_info, client)
+-        object.__setattr__(api, '_schema', schema)
++def get_package(server_info, client):
++    NO_FINGERPRINT = object()
++
++    fingerprint = NO_FINGERPRINT
++    if server_info.is_valid():
++        fingerprint = server_info.get('fingerprint', fingerprint)
++
++    if fingerprint is not None:
++        try:
++            try:
++                if fingerprint is NO_FINGERPRINT:
++                    schema = Schema(client)
++                else:
++                    schema = Schema(client, fingerprint)
++            except SchemaUpToDate as e:
++                schema = Schema(client, e.fingerprint)
++        except NotAvailable:
++            fingerprint = None
++            ttl = None
++        except SchemaUpToDate as e:
++            fingerprint = e.fingerprint
++            ttl = e.ttl
++        else:
++            fingerprint = schema.fingerprint
++            ttl = schema.ttl
++
++        server_info['fingerprint'] = fingerprint
++        server_info.update_validity(ttl)
++
++    if fingerprint is None:
++        raise NotAvailable()
+ 
+-    fingerprint = str(server_info['fingerprint'])
++    fingerprint = str(fingerprint)
+     package_name = '{}${}'.format(__name__, fingerprint)
+     package_dir = '{}${}'.format(os.path.splitext(__file__)[0], fingerprint)
+ 
+-- 
+2.7.4
+

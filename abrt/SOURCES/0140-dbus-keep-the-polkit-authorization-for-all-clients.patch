@@ -1,0 +1,69 @@
+From 9c807b4f4d808201118f15182e12a9e68e12dc36 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Thu, 2 Jul 2015 12:19:30 +0200
+Subject: [PATCH] dbus: keep the polkit authorization for all clients
+
+I played with the defaults and I've found out that:
+ - allow_any == clients like ssh
+ - allow_active == for local console (X, terminal)
+ - allow_inactive had no effect
+
+Anyway, I do not find any reason to prevent any client from getting
+access to all ABRT problems and I also think we should use
+'auth_admin_keep' until we implement the new abrt dbus service.
+
+auth_admin_keep - requires authorization for the first request and the
+authorization is kept for a brief period (polkit(8)).
+
+commit e98c8766655216db3d9a08b1fa52ba7decf57c46
+Author: Stef Walter <stefw@redhat.com>
+Date:   Mon May 5 08:41:00 2014 +0200
+
+dbus: Fix desktop centric polkit policy file
+
+In order to allow use of ABRT's DBus API on servers, the polkit
+policy should allow admin usage even when not logged in an active
+seat (ie: monitor and keyboard). Otherwise use from ssh logins and
+Cockpit is prevented.
+
+Related: #1224984
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+
+Conflicts:
+	src/dbus/abrt_polkit.policy
+---
+ src/dbus/abrt_polkit.policy | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/dbus/abrt_polkit.policy b/src/dbus/abrt_polkit.policy
+index 06008b4..beb615f 100644
+--- a/src/dbus/abrt_polkit.policy
++++ b/src/dbus/abrt_polkit.policy
+@@ -19,9 +19,9 @@ Copyright (c) 2012 ABRT Team <crash-catcher@fedorahosted.com>
+     <description>Get problems from all users</description>
+     <message>Reading others problems requires authentication</message>
+     <defaults>
+-      <allow_any>no</allow_any>
++      <allow_any>auth_admin_keep</allow_any>
+       <allow_active>auth_admin_keep</allow_active>
+-      <allow_inactive>no</allow_inactive>
++      <allow_inactive>auth_admin_keep</allow_inactive>
+     </defaults>
+   </action>
+ 
+@@ -30,9 +30,9 @@ Copyright (c) 2012 ABRT Team <crash-catcher@fedorahosted.com>
+     <description>Set value of configuration properties</description>
+     <message>Update configuration values reuquires authentication</message>
+     <defaults>
+-      <allow_any>no</allow_any>
++      <allow_any>auth_admin_keep</allow_any>
+       <allow_active>auth_admin_keep</allow_active>
+-      <allow_inactive>no</allow_inactive>
++      <allow_inactive>auth_admin_keep</allow_inactive>
+     </defaults>
+   </action>
+ 
+-- 
+2.4.3
+

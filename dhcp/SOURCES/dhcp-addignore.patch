@@ -1,0 +1,147 @@
+diff -Naur ./common/conflex.c ../dhcp-4.2.5/common/conflex.c
+--- ./common/conflex.c	2016-02-11 13:03:38.892135723 +0100
++++ ../dhcp-4.2.5/common/conflex.c	2016-02-11 13:05:18.447135723 +0100
+@@ -1067,6 +1067,8 @@
+ 			return IF;
+ 		if (!strcasecmp (atom + 1, "s"))
+ 			return IS;
++		if (!strcasecmp (atom + 1, "gnore-client-uids"))
++			return IGNORE_CLIENT_UIDS;
+ 		if (!strcasecmp (atom + 1, "gnore"))
+ 			return IGNORE;
+ 		break;
+diff -Naur ./includes/dhcpd.h ../dhcp-4.2.5/includes/dhcpd.h
+--- ./includes/dhcpd.h	2016-02-11 13:03:38.903135723 +0100
++++ ../dhcp-4.2.5/includes/dhcpd.h	2016-02-11 13:12:20.398135723 +0100
+@@ -766,6 +766,8 @@
+ #endif
+ #endif
+ 
++#define SV_IGNORE_CLIENT_UIDS 78
++
+ #if !defined (DEFAULT_DEFAULT_LEASE_TIME)
+ # define DEFAULT_DEFAULT_LEASE_TIME 43200
+ #endif
+diff -Naur ./includes/dhctoken.h ../dhcp-4.2.5/includes/dhctoken.h
+--- ./includes/dhctoken.h	2016-02-11 13:03:38.901135723 +0100
++++ ../dhcp-4.2.5/includes/dhctoken.h	2016-02-11 13:13:09.958135723 +0100
+@@ -366,7 +366,8 @@
+ 	SECONDARY6 = 667,
+ 	TOKEN_INFINIBAND = 668,
+ 	BOOTP_BROADCAST_ALWAYS = 669,
+-	DESTINATION_DESCRIPTOR = 670
++	DESTINATION_DESCRIPTOR = 670,
++	IGNORE_CLIENT_UIDS = 671
+ };
+ 
+ #define is_identifier(x)	((x) >= FIRST_TOKEN &&	\
+diff -Naur ./server/confpars.c ../dhcp-4.2.5/server/confpars.c
+--- ./server/confpars.c	2016-02-11 13:03:38.915135723 +0100
++++ ../dhcp-4.2.5/server/confpars.c	2016-02-11 13:15:48.269135723 +0100
+@@ -332,6 +332,7 @@
+ 	       | ONE_LEASE_PER_CLIENT boolean
+ 	       | GET_LEASE_HOSTNAMES boolean
+ 	       | USE_HOST_DECL_NAME boolean
++	       | IGNORE_CLIENT_UIDS boolean
+ 	       | NEXT_SERVER ip-addr-or-hostname SEMI
+ 	       | option_parameter
+ 	       | SERVER-IDENTIFIER ip-addr-or-hostname SEMI
+@@ -4125,6 +4126,10 @@
+ 		code = SV_LEASEQUERY;
+ 		break;
+ 
++	      case IGNORE_CLIENT_UIDS:
++		code = SV_IGNORE_CLIENT_UIDS;
++		break;
++
+ 	      default:
+ 		parse_warn (cfile, "expecting allow/deny key");
+ 		skip_to_semi (cfile);
+@@ -4138,7 +4143,6 @@
+ 	status = option_cache(oc, NULL, data, option, MDL);
+ 	expression_dereference (&data, MDL);
+ 	parse_semi (cfile);
+-	return status;
+ }
+ 
+ void
+diff -Naur ./server/dhcp.c ../dhcp-4.2.5/server/dhcp.c
+--- ./server/dhcp.c	2016-02-11 13:03:38.916135723 +0100
++++ ../dhcp-4.2.5/server/dhcp.c	2016-02-11 13:24:06.173135723 +0100
+@@ -2393,34 +2393,39 @@
+ 	/* Update Client Last Transaction Time. */
+ 	lt->cltt = cur_time;
+ 
+-	/* Record the uid, if given... */
+-	oc = lookup_option (&dhcp_universe, packet -> options,
+-			    DHO_DHCP_CLIENT_IDENTIFIER);
+-	if (!oc)
++	/* See if we want to record the uid for this client */
++	oc = lookup_option(&server_universe, state->options,
++		SV_IGNORE_CLIENT_UIDS);
++	if ((oc == NULL) ||
++		!evaluate_boolean_option_cache(&ignorep, packet, lease, NULL,
++			packet->options, state->options,
++			&lease->scope, oc, MDL)) {
++
++		/* Record the uid, if given... */
+ 		oc = lookup_option (&dhcp_universe, packet -> options,
+-				    DHO_PXE_CLIENT_ID);
+-	if (oc &&
+-	    evaluate_option_cache (&d1, packet, lease,
+-				   (struct client_state *)0,
+-				   packet -> options, state -> options,
+-				   &lease -> scope, oc, MDL)) {
+-		if (d1.len <= sizeof lt -> uid_buf) {
+-			memcpy (lt -> uid_buf, d1.data, d1.len);
+-			lt -> uid = lt -> uid_buf;
+-			lt -> uid_max = sizeof lt -> uid_buf;
+-			lt -> uid_len = d1.len;
+-		} else {
+-			unsigned char *tuid;
+-			lt -> uid_max = d1.len;
+-			lt -> uid_len = d1.len;
+-			tuid = (unsigned char *)dmalloc (lt -> uid_max, MDL);
+-			/* XXX inelegant */
+-			if (!tuid)
+-				log_fatal ("no memory for large uid.");
+-			memcpy (tuid, d1.data, lt -> uid_len);
+-			lt -> uid = tuid;
++			DHO_DHCP_CLIENT_IDENTIFIER);
++		if (oc &&
++		    evaluate_option_cache(&d1, packet, lease, NULL,
++					packet->options, state->options,
++					&lease->scope, oc, MDL)) {
++			if (d1.len <= sizeof(lt->uid_buf)) {
++				memcpy(lt->uid_buf, d1.data, d1.len);
++				lt->uid = lt->uid_buf;
++				lt->uid_max = sizeof(lt->uid_buf);
++				lt->uid_len = d1.len;
++			} else {
++				unsigned char *tuid;
++				lt->uid_max = d1.len;
++				lt->uid_len = d1.len;
++				tuid = (unsigned char *)dmalloc(lt->uid_max, MDL);
++				/* XXX inelegant */
++				if (!tuid)
++					log_fatal ("no memory for large uid.");
++				memcpy(tuid, d1.data, lt->uid_len);
++				lt->uid = tuid;
++			}
++			data_string_forget (&d1, MDL);
+ 		}
+-		data_string_forget (&d1, MDL);
+ 	}
+ 
+ 	if (host) {
+diff -Naur ./server/stables.c ../dhcp-4.2.5/server/stables.c
+--- ./server/stables.c	2016-02-11 13:03:38.909135723 +0100
++++ ../dhcp-4.2.5/server/stables.c	2016-02-11 13:25:00.081135723 +0100
+@@ -266,6 +266,7 @@
+ 	{ "ldap-tls-randfile", "t",		&server_universe,  77, 1 },
+ #endif /* LDAP_USE_SSL */
+ #endif /* LDAP_CONFIGURATION */
++	{ "ignore-client-uids", "f", &server_universe, 78, 1 },
+ 	{ NULL, NULL, NULL, 0, 0 }
+ };
+ 

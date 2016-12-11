@@ -1,0 +1,11 @@
+diff -Nuar redhat-rpm-config-9.1.0_old/Makefile redhat-rpm-config-9.1.0/Makefile
+--- redhat-rpm-config-9.1.0_old/Makefile	2013-08-26 10:54:34.040834006 +0800
++++ redhat-rpm-config-9.1.0/Makefile	2013-08-26 10:57:03.315833999 +0800
+@@ -15,6 +15,7 @@
+ 	cp -pr macros.* $(DESTDIR)/etc/rpm/
+ 	rm -f $(DESTDIR)/usr/lib/rpm/redhat/Makefile
+ 	rm -f $(DESTDIR)/usr/lib/rpm/redhat/macros.*
++	chmod +x $(DESTDIR)/usr/lib/rpm/redhat/find-provides.d/modalias.prov
+ 
+ tag-archive:
+ 	@git tag -a $(CVSTAG) -m "$(NAME)-$(VERSION) release"

@@ -1,0 +1,37 @@
+From 0a0f32622b06234deb64a01376b0706a03650681 Mon Sep 17 00:00:00 2001
+From: Christian Heimes <cheimes@redhat.com>
+Date: Tue, 2 Aug 2016 16:58:07 +0200
+Subject: [PATCH] Correct path to HTTPD's systemd service directory
+
+Ticket #5681 and commit 586fee293f42388510fa5436af19460bbe1fdec5 changed
+the location of the ipa.conf for Apache HTTPD. The variables
+SYSTEMD_SYSTEM_HTTPD_D_DIR and SYSTEMD_SYSTEM_HTTPD_IPA_CONF point to
+the wrong directory /etc/systemd/system/httpd.d/. The path is corrected
+to  /etc/systemd/system/httpd.service.d/.
+
+https://fedorahosted.org/freeipa/ticket/6158
+https://bugzilla.redhat.com/show_bug.cgi?id=1362537
+Signed-off-by: Christian Heimes <cheimes@redhat.com>
+Reviewed-By: Abhijeet Kasurde <akasurde@redhat.com>
+---
+ ipaplatform/base/paths.py | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/ipaplatform/base/paths.py b/ipaplatform/base/paths.py
+index 1507ac36da5b40447c951ee608053a09b2db2fc3..9c8eaf951df89d373796be3f354bd3c51a329902 100644
+--- a/ipaplatform/base/paths.py
++++ b/ipaplatform/base/paths.py
+@@ -126,8 +126,8 @@ class BasePathNamespace(object):
+     SYSCONFIG_PKI_TOMCAT = "/etc/sysconfig/pki-tomcat"
+     SYSCONFIG_PKI_TOMCAT_PKI_TOMCAT_DIR = "/etc/sysconfig/pki/tomcat/pki-tomcat"
+     ETC_SYSTEMD_SYSTEM_DIR = "/etc/systemd/system/"
+-    SYSTEMD_SYSTEM_HTTPD_D_DIR = "/etc/systemd/system/httpd.d/"
+-    SYSTEMD_SYSTEM_HTTPD_IPA_CONF = "/etc/systemd/system/httpd.d/ipa.conf"
++    SYSTEMD_SYSTEM_HTTPD_D_DIR = "/etc/systemd/system/httpd.service.d/"
++    SYSTEMD_SYSTEM_HTTPD_IPA_CONF = "/etc/systemd/system/httpd.service.d/ipa.conf"
+     SYSTEMD_CERTMONGER_SERVICE = "/etc/systemd/system/multi-user.target.wants/certmonger.service"
+     SYSTEMD_IPA_SERVICE = "/etc/systemd/system/multi-user.target.wants/ipa.service"
+     SYSTEMD_SSSD_SERVICE = "/etc/systemd/system/multi-user.target.wants/sssd.service"
+-- 
+2.7.4
+
