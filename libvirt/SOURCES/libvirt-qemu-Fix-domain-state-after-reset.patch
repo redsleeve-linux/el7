@@ -1,0 +1,44 @@
+From 75d5905470fc64bff87e0e76d8a958a9f2f94f5e Mon Sep 17 00:00:00 2001
+Message-Id: <75d5905470fc64bff87e0e76d8a958a9f2f94f5e@dist-git>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Tue, 2 Aug 2016 13:38:58 +0200
+Subject: [PATCH] qemu: Fix domain state after reset
+
+When reset was called from a domain that crashed we didn't change the
+crashed state into a paused one which could confuse users.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1269575
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit daf01a61254cc21d90e15dae8080f13e9a34b489)
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+---
+ src/qemu/qemu_driver.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index aed5e80..2fe217d 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -2139,6 +2139,7 @@ qemuDomainReset(virDomainPtr dom, unsigned int flags)
+     virDomainObjPtr vm;
+     int ret = -1;
+     qemuDomainObjPrivatePtr priv;
++    virDomainState state;
+ 
+     virCheckFlags(0, -1);
+ 
+@@ -2165,6 +2166,10 @@ qemuDomainReset(virDomainPtr dom, unsigned int flags)
+ 
+     priv->fakeReboot = false;
+ 
++    state = virDomainObjGetState(vm, NULL);
++    if (state == VIR_DOMAIN_CRASHED)
++        virDomainObjSetState(vm, VIR_DOMAIN_PAUSED, VIR_DOMAIN_PAUSED_CRASHED);
++
+  endjob:
+     qemuDomainObjEndJob(driver, vm);
+ 
+-- 
+2.9.2
+

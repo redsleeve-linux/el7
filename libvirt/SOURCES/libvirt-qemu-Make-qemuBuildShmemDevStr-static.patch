@@ -1,0 +1,50 @@
+From 93fc1569d49857d0cfc28b24c29b9e1f3dc94a01 Mon Sep 17 00:00:00 2001
+Message-Id: <93fc1569d49857d0cfc28b24c29b9e1f3dc94a01@dist-git>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Fri, 4 Nov 2016 10:29:37 +0100
+Subject: [PATCH] qemu: Make qemuBuildShmemDevStr static
+
+It isn't used anywhere else.
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit c7e0a6a667de26c86910c6b1c65810b6762fdd05)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1392031
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+---
+ src/qemu/qemu_command.c | 2 +-
+ src/qemu/qemu_command.h | 4 ----
+ 2 files changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index 7abe213..4b08b81 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -8456,7 +8456,7 @@ qemuBuildSmartcardCommandLine(virLogManagerPtr logManager,
+ }
+ 
+ 
+-char *
++static char *
+ qemuBuildShmemDevStr(virDomainDefPtr def,
+                      virDomainShmemDefPtr shmem,
+                      virQEMUCapsPtr qemuCaps)
+diff --git a/src/qemu/qemu_command.h b/src/qemu/qemu_command.h
+index 36cfc51..7f33d83 100644
+--- a/src/qemu/qemu_command.h
++++ b/src/qemu/qemu_command.h
+@@ -143,10 +143,6 @@ int qemuBuildRNGBackendProps(virDomainRNGDefPtr rng,
+                              const char **type,
+                              virJSONValuePtr *props);
+ 
+-char *qemuBuildShmemDevStr(virDomainDefPtr def,
+-                           virDomainShmemDefPtr shmem,
+-                           virQEMUCapsPtr qemuCaps);
+-
+ int qemuOpenPCIConfig(virDomainHostdevDefPtr dev);
+ 
+ /* Current, best practice */
+-- 
+2.10.2
+

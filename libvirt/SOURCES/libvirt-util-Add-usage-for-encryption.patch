@@ -1,0 +1,357 @@
+From 47fc4f22b1ebc54f3ffb6f36f8efb7f9304ef1c5 Mon Sep 17 00:00:00 2001
+Message-Id: <47fc4f22b1ebc54f3ffb6f36f8efb7f9304ef1c5@dist-git>
+From: John Ferlan <jferlan@redhat.com>
+Date: Mon, 25 Jul 2016 12:42:46 -0400
+Subject: [PATCH] util: Add 'usage' for encryption
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1301021
+
+In order to use more common code and set up for a future type, modify the
+encryption secret to allow the "usage" attribute or the "uuid" attribute
+to define the secret. The "usage" in the case of a volume secret would be
+the path to the volume as dictated by the backwards compatibility brought
+on by virStorageGenerateQcowEncryption where it set up the usage field as
+the vol->target.path and didn't allow someone to provide it. This carries
+into virSecretObjListFindByUsageLocked which takes the secret usage attribute
+value from from the domain disk definition and compares it against the
+usage type from the secret definition. Since none of the code dealing
+with qcow/qcow2 encryption secrets uses usage for lookup, it's a mostly
+cosmetic change. The real usage comes in a future path where the encryption
+is expanded to be a luks volume and the secret will allow definition of
+the usage field.
+
+This code will make use of the virSecretLookup{Parse|Format}Secret common code.
+
+Signed-off-by: John Ferlan <jferlan@redhat.com>
+(cherry picked from commit 47e88b33befa1aafa4fd4db99c77a45c66d41c0a)
+---
+ docs/formatstorageencryption.html.in               | 12 +++++---
+ docs/schemas/storagecommon.rng                     | 11 +++++--
+ src/qemu/qemu_process.c                            | 13 +++-----
+ src/storage/storage_backend.c                      |  3 +-
+ src/storage/storage_backend_fs.c                   |  3 +-
+ src/util/virstorageencryption.c                    | 26 ++++++----------
+ src/util/virstorageencryption.h                    |  3 +-
+ .../qemuxml2argv-encrypted-disk-usage.args         | 24 +++++++++++++++
+ .../qemuxml2argv-encrypted-disk-usage.xml          | 36 ++++++++++++++++++++++
+ tests/qemuxml2argvtest.c                           |  1 +
+ .../qemuxml2xmlout-encrypted-disk-usage.xml        |  1 +
+ tests/qemuxml2xmltest.c                            |  1 +
+ 12 files changed, 98 insertions(+), 36 deletions(-)
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-encrypted-disk-usage.args
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-encrypted-disk-usage.xml
+ create mode 120000 tests/qemuxml2xmloutdata/qemuxml2xmlout-encrypted-disk-usage.xml
+
+diff --git a/docs/formatstorageencryption.html.in b/docs/formatstorageencryption.html.in
+index 04c3346..58e1073 100644
+--- a/docs/formatstorageencryption.html.in
++++ b/docs/formatstorageencryption.html.in
+@@ -25,10 +25,14 @@
+     <p>
+       The <code>encryption</code> tag can currently contain a sequence of
+       <code>secret</code> tags, each with mandatory attributes <code>type</code>
+-      and <code>uuid</code>.  The only currently defined value of
+-      <code>type</code> is <code>passphrase</code>.  <code>uuid</code>
+-      refers to a secret known to libvirt.  libvirt can use a secret value
+-      previously set using <code>virSecretSetValue()</code>, or, if supported
++      and either <code>uuid</code> or <code>usage</code>
++      (<span class="since">since 2.1.0</span>). The only currently defined
++      value of <code>type</code> is <code>passphrase</code>. The
++      <code>uuid</code> is "uuid" of the <code>secret</code> while
++      <code>usage</code> is the value "usage" subelement field.
++      A secret value can be set in libvirt by the
++      <a href="html/libvirt-libvirt-secret.html#virSecretSetValue">
++      <code>virSecretSetValue</code></a> API. Alternatively, if supported
+       by the particular volume format and driver, automatically generate a
+       secret value at the time of volume creation, and store it using the
+       specified <code>uuid</code>.
+diff --git a/docs/schemas/storagecommon.rng b/docs/schemas/storagecommon.rng
+index 7c04462..c5b71de 100644
+--- a/docs/schemas/storagecommon.rng
++++ b/docs/schemas/storagecommon.rng
+@@ -27,9 +27,14 @@
+           <value>passphrase</value>
+         </choice>
+       </attribute>
+-      <attribute name='uuid'>
+-        <ref name="UUID"/>
+-      </attribute>
++      <choice>
++        <attribute name='uuid'>
++          <ref name="UUID"/>
++        </attribute>
++        <attribute name='usage'>
++          <text/>
++        </attribute>
++      </choice>
+     </element>
+   </define>
+ 
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 4eb35ea..4ffd9b7 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -70,6 +70,7 @@
+ #include "virnuma.h"
+ #include "virstring.h"
+ #include "virhostdev.h"
++#include "secret_util.h"
+ #include "storage/storage_driver.h"
+ #include "configmake.h"
+ #include "nwfilter_conf.h"
+@@ -377,7 +378,6 @@ qemuProcessGetVolumeQcowPassphrase(virConnectPtr conn,
+                                    char **secretRet,
+                                    size_t *secretLen)
+ {
+-    virSecretPtr secret;
+     char *passphrase;
+     unsigned char *data;
+     size_t size;
+@@ -416,14 +416,9 @@ qemuProcessGetVolumeQcowPassphrase(virConnectPtr conn,
+         goto cleanup;
+     }
+ 
+-    secret = conn->secretDriver->secretLookupByUUID(conn,
+-                                                    enc->secrets[0]->uuid);
+-    if (secret == NULL)
+-        goto cleanup;
+-    data = conn->secretDriver->secretGetValue(secret, &size, 0,
+-                                              VIR_SECRET_GET_VALUE_INTERNAL_CALL);
+-    virObjectUnref(secret);
+-    if (data == NULL)
++    if (virSecretGetSecretString(conn, &enc->secrets[0]->seclookupdef,
++                                 VIR_SECRET_USAGE_TYPE_VOLUME,
++                                 &data, &size) < 0)
+         goto cleanup;
+ 
+     if (memchr(data, '\0', size) != NULL) {
+diff --git a/src/storage/storage_backend.c b/src/storage/storage_backend.c
+index 5adf1fd..d6a451d 100644
+--- a/src/storage/storage_backend.c
++++ b/src/storage/storage_backend.c
+@@ -648,7 +648,8 @@ virStorageGenerateQcowEncryption(virConnectPtr conn,
+         goto cleanup;
+ 
+     enc_secret->type = VIR_STORAGE_ENCRYPTION_SECRET_TYPE_PASSPHRASE;
+-    memcpy(enc_secret->uuid, secret->uuid, VIR_UUID_BUFLEN);
++    enc_secret->seclookupdef.type = VIR_SECRET_LOOKUP_TYPE_UUID;
++    memcpy(enc_secret->seclookupdef.u.uuid, secret->uuid, VIR_UUID_BUFLEN);
+     enc->format = VIR_STORAGE_ENCRYPTION_FORMAT_QCOW;
+     enc->secrets[0] = enc_secret; /* Space for secrets[0] allocated above */
+     enc_secret = NULL;
+diff --git a/src/storage/storage_backend_fs.c b/src/storage/storage_backend_fs.c
+index 44dabf4..839a2c7 100644
+--- a/src/storage/storage_backend_fs.c
++++ b/src/storage/storage_backend_fs.c
+@@ -1312,7 +1312,8 @@ virStorageBackendFileSystemLoadDefaultSecrets(virConnectPtr conn,
+     vol->target.encryption->secrets[0] = encsec;
+ 
+     encsec->type = VIR_STORAGE_ENCRYPTION_SECRET_TYPE_PASSPHRASE;
+-    virSecretGetUUID(sec, encsec->uuid);
++    encsec->seclookupdef.type = VIR_SECRET_LOOKUP_TYPE_UUID;
++    virSecretGetUUID(sec, encsec->seclookupdef.u.uuid);
+     virObjectUnref(sec);
+ 
+     return 0;
+diff --git a/src/util/virstorageencryption.c b/src/util/virstorageencryption.c
+index 8105158..afb44da 100644
+--- a/src/util/virstorageencryption.c
++++ b/src/util/virstorageencryption.c
+@@ -34,6 +34,7 @@
+ #include "virerror.h"
+ #include "viruuid.h"
+ #include "virfile.h"
++#include "virsecret.h"
+ 
+ #define VIR_FROM_THIS VIR_FROM_STORAGE
+ 
+@@ -114,6 +115,7 @@ virStorageEncryptionSecretParse(xmlXPathContextPtr ctxt,
+     virStorageEncryptionSecretPtr ret;
+     char *type_str = NULL;
+     char *uuidstr = NULL;
++    char *usagestr = NULL;
+ 
+     if (VIR_ALLOC(ret) < 0)
+         return NULL;
+@@ -133,21 +135,12 @@ virStorageEncryptionSecretParse(xmlXPathContextPtr ctxt,
+                        type_str);
+         goto cleanup;
+     }
++
++    if (virSecretLookupParseSecret(node, &ret->seclookupdef) < 0)
++        goto cleanup;
++
+     VIR_FREE(type_str);
+ 
+-    if ((uuidstr = virXPathString("string(./@uuid)", ctxt))) {
+-        if (virUUIDParse(uuidstr, ret->uuid) < 0) {
+-            virReportError(VIR_ERR_XML_ERROR,
+-                           _("malformed volume encryption uuid '%s'"),
+-                           uuidstr);
+-            goto cleanup;
+-        }
+-        VIR_FREE(uuidstr);
+-    } else {
+-        virReportError(VIR_ERR_XML_ERROR, "%s",
+-                       _("missing volume encryption uuid"));
+-        goto cleanup;
+-    }
+     ctxt->node = old_node;
+     return ret;
+ 
+@@ -155,6 +148,7 @@ virStorageEncryptionSecretParse(xmlXPathContextPtr ctxt,
+     VIR_FREE(type_str);
+     virStorageEncryptionSecretFree(ret);
+     VIR_FREE(uuidstr);
++    VIR_FREE(usagestr);
+     ctxt->node = old_node;
+     return NULL;
+ }
+@@ -244,7 +238,6 @@ virStorageEncryptionSecretFormat(virBufferPtr buf,
+                                  virStorageEncryptionSecretPtr secret)
+ {
+     const char *type;
+-    char uuidstr[VIR_UUID_STRING_BUFLEN];
+ 
+     if (!(type = virStorageEncryptionSecretTypeToString(secret->type))) {
+         virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+@@ -252,9 +245,8 @@ virStorageEncryptionSecretFormat(virBufferPtr buf,
+         return -1;
+     }
+ 
+-    virUUIDFormat(secret->uuid, uuidstr);
+-    virBufferAsprintf(buf, "<secret type='%s' uuid='%s'/>\n",
+-                      type, uuidstr);
++    virSecretLookupFormatSecret(buf, type, &secret->seclookupdef);
++
+     return 0;
+ }
+ 
+diff --git a/src/util/virstorageencryption.h b/src/util/virstorageencryption.h
+index 04641b1..c68c66e 100644
+--- a/src/util/virstorageencryption.h
++++ b/src/util/virstorageencryption.h
+@@ -25,6 +25,7 @@
+ 
+ # include "internal.h"
+ # include "virbuffer.h"
++# include "virsecret.h"
+ # include "virutil.h"
+ 
+ # include <libxml/tree.h>
+@@ -40,7 +41,7 @@ typedef struct _virStorageEncryptionSecret virStorageEncryptionSecret;
+ typedef virStorageEncryptionSecret *virStorageEncryptionSecretPtr;
+ struct _virStorageEncryptionSecret {
+     int type; /* virStorageEncryptionSecretType */
+-    unsigned char uuid[VIR_UUID_BUFLEN];
++    virSecretLookupTypeDef seclookupdef;
+ };
+ 
+ typedef enum {
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-encrypted-disk-usage.args b/tests/qemuxml2argvdata/qemuxml2argv-encrypted-disk-usage.args
+new file mode 100644
+index 0000000..4371413
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-encrypted-disk-usage.args
+@@ -0,0 +1,24 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/home/test \
++USER=test \
++LOGNAME=test \
++QEMU_AUDIO_DRV=none \
++/usr/bin/qemu \
++-name encryptdisk \
++-S \
++-M pc \
++-m 1024 \
++-smp 1 \
++-uuid 496898a6-e6ff-f7c8-5dc2-3cf410945ee9 \
++-nographic \
++-nodefaults \
++-monitor unix:/tmp/lib/domain--1-encryptdisk/monitor.sock,server,nowait \
++-no-acpi \
++-boot c \
++-usb \
++-drive file=/storage/guest_disks/encryptdisk,format=qcow2,if=none,\
++id=drive-virtio-disk0 \
++-device virtio-blk-pci,bus=pci.0,addr=0x4,drive=drive-virtio-disk0,\
++id=virtio-disk0 \
++-device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x3
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-encrypted-disk-usage.xml b/tests/qemuxml2argvdata/qemuxml2argv-encrypted-disk-usage.xml
+new file mode 100644
+index 0000000..ec6413f
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-encrypted-disk-usage.xml
+@@ -0,0 +1,36 @@
++<domain type='qemu'>
++  <name>encryptdisk</name>
++  <uuid>496898a6-e6ff-f7c8-5dc2-3cf410945ee9</uuid>
++  <memory unit='KiB'>1048576</memory>
++  <currentMemory unit='KiB'>524288</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='i686' machine='pc'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++    <emulator>/usr/bin/qemu</emulator>
++    <disk type='file' device='disk'>
++      <driver name='qemu' type='qcow2'/>
++      <source file='/storage/guest_disks/encryptdisk'/>
++      <target dev='vda' bus='virtio'/>
++      <encryption format='qcow'>
++        <secret type='passphrase' usage='/storage/guest_disks/encryptdisk'/>
++      </encryption>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/>
++    </disk>
++    <controller type='usb' index='0'>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x2'/>
++    </controller>
++    <controller type='pci' index='0' model='pci-root'/>
++    <input type='mouse' bus='ps2'/>
++    <input type='keyboard' bus='ps2'/>
++    <memballoon model='virtio'>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x03' function='0x0'/>
++    </memballoon>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2argvtest.c b/tests/qemuxml2argvtest.c
+index 7fc10a8..d37d125 100644
+--- a/tests/qemuxml2argvtest.c
++++ b/tests/qemuxml2argvtest.c
+@@ -1361,6 +1361,7 @@ mymain(void)
+     driver.caps->host.cpu = cpuDefault;
+ 
+     DO_TEST("encrypted-disk", NONE);
++    DO_TEST("encrypted-disk-usage", NONE);
+ 
+     DO_TEST("memtune", NONE);
+     DO_TEST("memtune-unlimited", NONE);
+diff --git a/tests/qemuxml2xmloutdata/qemuxml2xmlout-encrypted-disk-usage.xml b/tests/qemuxml2xmloutdata/qemuxml2xmlout-encrypted-disk-usage.xml
+new file mode 120000
+index 0000000..824120a
+--- /dev/null
++++ b/tests/qemuxml2xmloutdata/qemuxml2xmlout-encrypted-disk-usage.xml
+@@ -0,0 +1 @@
++../qemuxml2argvdata/qemuxml2argv-encrypted-disk-usage.xml
+\ No newline at end of file
+diff --git a/tests/qemuxml2xmltest.c b/tests/qemuxml2xmltest.c
+index 2112d39..693e712 100644
+--- a/tests/qemuxml2xmltest.c
++++ b/tests/qemuxml2xmltest.c
+@@ -501,6 +501,7 @@ mymain(void)
+     DO_TEST("pci-serial-dev-chardev");
+ 
+     DO_TEST("encrypted-disk");
++    DO_TEST("encrypted-disk-usage");
+     DO_TEST("memtune");
+     DO_TEST("memtune-unlimited");
+     DO_TEST("blkiotune");
+-- 
+2.9.2
+

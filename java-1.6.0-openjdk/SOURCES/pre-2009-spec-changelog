@@ -1,0 +1,1021 @@
+# This file contains the spec file changelogs prior to 2011
+
+* Tue Jun 06 2011 Jiri Vanek <jvanek@redhat.com> - 1:1.6.0.0-58.1.10.2
+- Resolves: rhbz#709375
+- Bumped to IcedTea6 1.10.2
+- RH706250, S6213702, CVE-2011-0872: (so) non-blocking sockets with TCP urgent
+  disabled get still selected for read ops (win)
+- RH706106, S6618658, CVE-2011-0865: Vulnerability in deserialization
+- RH706111, S7012520, CVE-2011-0815: Heap overflow vulnerability in 
+  FileDialog.show() (win)
+- RH706139, S7013519, CVE-2011-0822, CVE-2011-0862: Integer overflows in 2D 
+  code
+- RH706153, S7013969, CVE-2011-0867: NetworkInterface.toString can reveal 
+  bindings
+- RH706234, S7013971, CVE-2011-0869: Vulnerability in SAAJ
+- RH706239, S7016340, CVE-2011-0870: Vulnerability in SAAJ
+- RH706241, S7016495, CVE-2011-0868: Crash in Java 2D transforming an image 
+  with scale close to zero
+- RH706248, S7020198, CVE-2011-0871: ImageIcon creates Component with null acc
+- RH706245, S7020373, CVE-2011-0864: JSR rewriting can overflow memory address
+  size variables
+
+* Tue Apr 19 2011 Deepak Bhole <dbhole@redhat.com> 1:1.6.0.0-57.1.10.1
+- Updated to IcedTea6 1.10.1
+- Added --disable-bootstrap switch for non-bootstrap builds
+- Updated hotspot tarball to hs20-b11 (f0f676c5a2c6)
+- Removed java-1.6.0-openjdk-fix-RA.patch (in icedTea6 1.10.1)
+
+* Tue Apr 13 2011 Jiri Vanek <javenk@redhat.com> 1:1.6.0.0-57.1.10
+- removed BuildRequires: libstdc++-static as it is fixed upstream
+- added information for icedtea6.1.10 fixlist: http://blog.fuseyism.com/index.php/2011/04/04/icedtea6-1101-released/
+
+
+* Tue Apr 12 2011 Dan Horák <dan[at]danny.cz> 1:1.6.0.0-56.1.10
+- fix autogen vs. patch5 order
+
+* Tue Mar 15 2011 Jiri Vanek <javenk@redhat.com> 1:1.6.0.0-55.1.10
+-removed plugin
+-bumped to icedtea6  1.10
+-./configure adapted for icedtea6 1.10
+-added newest hotspot 20
+-bumped to openjdk b22
+-added patch5 makefile-xalan-deps.patch to sutisfy xalan dependencies.
+-fixed patch0
+-added patch6
+
+* Tue Feb 15 2011 Deepak Bhole <dbhole@redhat.com> 1:1.6.0.0-52.1.9.7
+- Updated to IcedTea6 1.9.7
+- Enabled bootstrap
+- Security updates:
+  S6378709, CVE-2010-4465: AWT event dispatch does not support framework code
+  S6854912, CVE-2010-4465: Security issue with the clipboard access in Applets
+  S6878713, CVE-2010-4469: Verifier heap corruption, relating to backward jsrs
+  S6907662, CVE-2010-4465: System clipboard should ensure access restrictions
+  S6927050, CVE-2010-4470: Features set on SchemaFactory not inherited by 
+                           Validator
+  S6981922, CVE-2010-4448: DNS cache poisoning by untrusted applets
+  S6983554, CVE-2010-4450: (launcher) Fix empty user's LD_LIBRARY_PATH 
+                           environment variable in the launcher
+  S6985453, CVE-2010-4471: Font.createFont may expose some system properties 
+                           in exception text
+  S6994263, CVE-2010-4472: Untrusted code can replace JRE's XML DSig Transform
+                           or C14N algorithm implementations
+  RH677332, CVE-2011-0706: IcedTea multiple signers privilege escalation
+
+* Wed Feb 9 2011 Jiri Vanek <jvanek@redhat.com>  1:1.6.0.0-53.1.9.6
+- updated to icedtea 1.9.6
+- Security updates
+  - S4421494, CVE-2010-4476: infinite loop while parsing double literal.
+
+
+* Wed Feb 09 2011 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 1:1.6.0.0-52.1.9.5
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_15_Mass_Rebuild
+
+* Fri Jan 28 2011 Jiri Vanek <jvanek@redhat.com>  1:1.6.0.0-51.1.9.5
+- updated to icedtea 1.9.5
+- http://blog.fuseyism.com/index.php/2011/02/01/security-icedtea6-178-185-195-released/
+
+* Tue Jan 18 2011 Jiri Vanek <jvanek@redhat.com> - 1:1.6.0.0-50.1.9.4
+- updated to iced tea 1.9.4
+
+* Thu Jan 13 2011 Deepak Bhole <dbhole@redhat.com> - 1:1.6.0.0-49.1.9.3
+- Sync with F14 and rebuild for rawhide:
+  From Deepak Bhole <dbhole@redhat.com>:
+   - Updated to IcedTea 1.9.3
+   - Resolves: rhbz# 645843
+   - Resolves: rhbz# 647737
+   - Resolves: rhbz# 643674
+   - Remove patch that disabled Compressed Oops. It is now the default upstream.
+   - Added BR for libstdc++-static
+   - From Andrew Hughes (ahughes@redhat.com): Updated to IcedTea 1.9.1
+   - Sync with F13:
+    - Fixed plugin update to IcedTeaPlugin.so
+    - Fixed plugin cpu usage issue
+    - Fixed plugin rewrites ? in URL
+    - Resolves: rhbz#500077
+    - Resolves: rhbz#560193
+    - Resolves: rhbz#601281
+    - Resolves: rhbz#616893
+    - Resolves: rhbz#616895
+    - Resolves: rhbz#595191
+    - Resovles: rhbz#596850
+    - Resolves: rhbz#597134
+    - Resolves: rhbz#580432
+    - Resovles: rhbz#598353
+    - Resolves: rhbz#592553
+    - Resolves: rhbz#602906
+  From Jiri Vanek <jvanek@redhat.com>:
+   - Resolves: rhbz#657491
+   - Removed Asian and Indic font dependencies.
+   - added fonts dependencies
+
+* Tue Nov 2 2010 Jiri Vanek <jvanek@redhat.com> -1:1.6.0-41.1.8
+-fixing  rhbz#648499 - BuildRequires: redhat-lsb
+
+* Mon Oct 18 2010 JiriVanek <jvanek@redhat.com> - 1:1.6.0.0-40.b18
+- added javaws man pages
+- Updated name
+
+* Wed Jun 09 2010 Deepak Bhole <dbhole@redhat.com> - 1:1.6.0.0-39.b18
+- Update source file names
+
+* Tue Jun 08 2010 Deepak Bhole <dbhole@redhat.com> - 1:1.6.0.0-38.b18
+- Change file-requires to requires for mozilla-filesystem%{?_isa}
+
+* Mon Apr 12 2010 Martin Matejovic <mmatejov@redhat.com> - 1:1.6.0-37.b18
+- Added icedtea6-1.8
+- Added openjdk b18
+- Removed java-1.6.0-openjdk-securitypatches-20100323.patch
+- Removed java-1.6.0-openjdk-linux-globals.patch
+- Removed java-1.6.0-openjdk-memory-barriers.patch
+
+
+* Tue Mar 30 2010 Martin Matejovic <mmatejov@redhat.com> - 1:1.6.0-37.b17
+- Added java-1.6.0-openjdk-securitypatches-20100323.patch
+- Added java-1.6.0-openjdk-linux-globals.patch
+- Added java-1.6.0-openjdk-memory-barriers.patch
+- Resolves: rhbz#575760
+- Resolves: rhbz#575764
+- Resolves: rhbz#575736
+- Resolves: rhbz#575740
+- Resolves: rhbz#575745
+- Resolves: rhbz#575747
+- Resolves: rhbz#575755
+- Resolves: rhbz#575756
+- Resolves: rhbz#575818
+- Resolves: rhbz#575808
+- Resolves: rhbz#575789
+- Resolves: rhbz#575775
+- Resolves: rhbz#575772
+- Resolves: rhbz#575769
+- Resolves: rhbz#533125
+- Resolves: rhbz#575871
+- Resolves: rhbz#575865
+- Resolves: rhbz#575861
+- Resolves: rhbz#575854
+- Resolves: rhbz#575846
+
+* Tue Mar 2 2010 Martin Matejovic <mmatejov@redhat.com> - 1:1.6.0-35.b17
+- Added icedtea6-1.7.1
+- Resolves: rhbz#542586
+- Resolves: rhbz#568640
+- Resolves: rhbz#567228
+- Resolves: rhbz#539971
+- Resolves: rhbz#555503
+- Resolves: rhbz#523651
+- Resolves: rhbz#500077
+- Resolves: rhbz#475892
+
+* Fri Jan 29 2010 Martin Matejovic <mmatejov@redhat.com> - 1:1.6.0-34.b17
+- Added icedtea6-1.7
+- Added openjdk b17
+- npplugin enabled
+- Removed: java-1.6.0-openjdk-netbeans.patch
+- Removed: java-1.6.0-openjdk-securitypatches-20091103.patch
+- Removed: java-1.6.0-openjdk-sparc-fixes.patch
+- Removed: java-1.6.0-openjdk-sparc-hotspot.patch
+- Removed: java-1.6.0-openjdk-x11.patch
+
+* Mon Dec 14 2009 Martin Matejovic <mmatejov@redhat.com> - 1:1.6.0-33.b16
+- Added java-1.6.0-openjdk-elf-debuginfo.patch
+- Added java-1.6.0-openjdk-debuginfo.patch
+
+* Thu Nov 12 2009 Martin Matejovic <mmatejov@redhat.com> - 1:1.6.0-33.b16
+- Updated release
+- Fixed applying patches
+
+* Mon Nov 09 2009 Martin Matejovic <mmatejov@redhat.com> - 1:1.6.0-32.b16
+- Added java-1.6.0-openjdk-securitypatches-20091103.patch
+- Removed BuildRequirement: openmotif-devel, lesstif-devel
+- Resolves: rhbz#510197
+- Resolves: rhbz#530053
+- Resolves: rhbz#530057
+- Resolves: rhbz#530061
+- Resolves: rhbz#530062
+- Resolves: rhbz#530063
+- Resolves: rhbz#530067
+- Resolves: rhbz#530098
+- Resolves: rhbz#530173
+- Resolves: rhbz#530175
+- Resolves: rhbz#530296
+- Resolves: rhbz#530297
+- Resolves: rhbz#530300
+
+* Thu Sep  9 2009 Lillian Angel <langel@redhat.com> - 1:1.6.0-31.b16
+- Added java-1.6.0-openjdk-netbeans.patch.
+- Reenabled visualvm.
+
+* Thu Sep  9 2009 Lillian Angel <langel@redhat.com> - 1:1.6.0-30.b16
+- Temporarily removed building of visualvm.
+
+* Thu Sep  9 2009 Lillian Angel <langel@redhat.com> - 1:1.6.0-30.b16
+- Removed unneeded patches.
+- Updated icedteaver to 1.6
+- Resolves: rhbz#484858
+- Resolves: rhbz#497408
+- Resolves: rhbz#489414
+
+* Mon Aug 10 2009 Ville Skyttä <ville.skytta@iki.fi> - 1:1.6.0-29.b16
+- Use bzipped java-access-bridge tarball.
+
+* Tue Aug  4 2009 Lillian Angel <langel@redhat.com> - 1:1.6.0-28.b16
+- Updated java-1.6.0-openjdk-netx.patch, and renamed to
+java-1.6.0-openjdk-netxandplugin.patch.
+- Added java-1.6.0-openjdk-securitypatches.patch.
+- Resolves: rhbz#512101
+- Resolves: rhbz#512896
+- Resolves: rhbz#512914
+- Resolves: rhbz#512907
+- Resolves: rhbz#512921
+- Resolves: rhbz#511915
+- Resolves: rhbz#512915
+- Resolves: rhbz#512920
+- Resolves: rhbz#512714
+- Resolves: rhbz#513215
+- Resolves: rhbz#513220
+- Resolves: rhbz#513222
+- Resolves: rhbz#513223
+- Resolves: rhbz#503794
+
+* Thu Jul 30 2009 Lillian Angel  <langel@redhat.com> - 1:1.6.0-27.b16
+- java-1.6.0-openjdk-x11.patch updated.
+
+* Wed Jul 29 2009 Lillian Angel  <langel@redhat.com> - 1:1.6.0-27.b16
+- Renamed java-1.6.0-openjdk-libx11.patch to java-1.6.0-openjdk-x11.patch 
+and updated.
+
+* Wed Jul 29 2009 Lillian Angel  <langel@redhat.com> - 1:1.6.0-26.b16
+- Added java-1.6.0-openjdk-libx11.patch.
+
+* Fri Jul 24 2009 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 1:1.6.0.0-25.b16
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_12_Mass_Rebuild
+
+* Fri Jul 10 2009 Lillian Angel <langel@redhat.com> - 1:1.6.0-24.b16
+- Added java-1.6.0-openjdk-execvpe.patch.
+
+* Thu Jul  9 2009 Lillian Angel <langel@redhat.com> - 1:1.6.0-24.b16
+- Added java-1.6.0-openjdk-netx.patch
+- Moved policytool to devel package.
+- Updated release.
+- Resolves: rhbz#507870
+- Resolves: rhbz#471346
+
+* Fri May 29 2009 Lillian Angel <langel@redhat.com> - 1:1.6.0-23.b16
+- Fixed abs-install-dir.
+- Updated release.
+
+* Fri May 29 2009 Lillian Angel <langel@redhat.com> - 1:1.6.0-22.b16
+- Set icedteasnapshot to nil.
+- Updated release.
+
+* Wed May 21 2009 Lillian Angel <langel@redhat.com> - 1:1.6.0-21.b16
+- Disable building systemtap on non-jit arches.
+
+* Tue May 19 2009 Lillian Angel <langel@redhat.com> - 1:1.6.0-21.b16
+- Set icedteasnapshot. Only release candidate.
+
+* Tue May 19 2009 Lillian Angel <langel@redhat.com> - 1:1.6.0-21.b16
+- Removed java-1.6.0-openjdk-lcms.patch java-1.6.0-openjdk-securitypatches.patch 
+java-1.6.0-openjdk-pulsejava.patch.
+- Updated visualvm source.
+- Updated sparc patches.
+- Updated release.
+- Updated icedteaver.
+- Updated openjdkver.
+- Updated openjdkdate.
+- Adjusted buildoutputdir.
+- Set runtests to 0. Hanging test causing problems.
+- Include systemtap support, install hotspot tapset.
+- Resolves: rhbz#479041 
+- Resolves: rhbz#480075 
+- Resolves: rhbz#483095 
+- Resolves: rhbz#487872 
+- Resolves: rhbz#467591 
+- Resolves: rhbz#487452 
+- Resolves: rhbz#498109 
+- Resolves: rhbz#497191 
+- Resolves: rhbz#462876 
+- Resolves: rhbz#489586
+- Resolves: rhbz#501391
+
+* Wed May 6 2009 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-20.b14
+- Added devel requirement for netbeans-platform
+
+* Mon Apr 27 2009 Christopher Aillon <caillon@redhat.com> - 1:1.6.0.0-20.b14
+- Rebuild against newer gecko
+
+* Mon Apr  6 2009 Lillian Angel <langel@redhat.com> - 1:1.6.0-19.b14
+- Updated java-1.6.0-openjdk-lcms.patch
+
+* Thu Apr  2 2009 Lillian Angel <langel@redhat.com> - 1:1.6.0-18.b14
+- Added java-1.6.0-openjdk-pulsejava.patch.
+- Updated release.
+- Updated java-1.6.0-openjdk-lcms.patch.
+- Resolves: rhbz#492367
+- Resolves: rhbz#493276
+
+* Tue Mar 24 2009 Lillian Angel <langel@redhat.com> - 1:1.6.0-17.b14
+- Updated java-1.6.0-openjdk-lcms.patch.
+
+* Tue Mar 24 2009 Lillian Angel <langel@redhat.com> - 1:1.6.0-16.b14
+- Added java-1.6.0-openjdk-securitypatches.patch.
+- Updated release.
+
+* Fri Mar 20 2009 Lillian Angel <langel@redhat.com> - 1:1.6.0-15.b14
+- Added java-1.6.0-openjdk-lcms.patch.
+
+* Mon Mar 9 2009 Lillian Angel <langel@redhat.com> - 1:1.6.0-14.b14
+- Updated sources. 
+- Resolves: rhbz#489029
+
+* Mon Mar  2 2009 Lillian Angel <langel@redhat.com> - 1:1.6.0-14.b14
+- Reverting last change.
+
+* Mon Mar  2 2009 Lillian Angel <langel@redhat.com> - 1:1.6.0-14.b14
+- Fixed archinstall i386 to i586, since Fedora 11 made the switch.
+
+* Wed Feb 25 2009 Dennis Gilmore <dennis@ausil.us> - 1:1.6.0-13.b14
+- fix sparc arch building asm-sparc has gone. we only have asm/ now
+- add sparc arches back to the jit arch list
+
+* Wed Feb 25 2009 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-12.b14
+- Updated release.
+- Updated icedteaver.
+- Re-enabled visualvm building.
+- Installed jvisualvm appropriately.
+- Resolves: rhbz#480487
+- Resolves: rhbz#482943  
+
+* Wed Feb 25 2009 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 1:1.6.0.0-11.b14
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_11_Mass_Rebuild
+
+* Mon Jan 26 2009 Lillian Angel <langel@redhat.com> - 1:1.6.0-10.b14
+- Updated sources.
+
+* Fri Jan 23 2009 Lillian Angel <langel@redhat.com> - 1:1.6.0-10.b14
+- Added accessibility patch.
+
+* Thu Jan 22 2009 Lillian Angel <langel@redhat.com> - 1:1.6.0-10.b14
+- Updated to icedtea-1.4 snapshot.
+- Updated release.
+- Removed netbeans and visualvm.
+- Resolves: rhbz#472953
+- Resolves: rhbz#475081 
+- Resolves: rhbz#452573
+- Resolves: rhbz#477351
+- Resolves: rhbz#475109
+- Resolves: rhbz#476462
+
+* Sun Jan 11 2009 Lillian Angel <langel@redhat.com> - 1:1.6.0-9.b14
+- Removed README.plugin, updated source list.
+- Updated release.
+
+* Fri Dec  5 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0-8.b14
+- Added hotspot source.
+- Added --with-hotspot-src-zip build option.
+- Set runtests to 1.
+- Updated jtreg log.
+- Added new patch to add GNOME to java.security.
+- Updated icedteasnapshot.
+- Updated openjdkver.
+- Updated openjdkdate.
+- Resolves: rhbz#474431
+- Resolves: rhbz#474503
+- Resolves: rhbz#472862
+
+* Tue Dec  2 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0-7.b13
+- Set runtests to 0.
+
+* Tue Dec  2 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0-7.b13
+- Updated pkgversion to include release and arch.
+- Set runtests to 1.
+- Updated icedteasnapshot.
+- Resolves: rhbz#468484
+- Resolves: rhbz#472862
+- Resolves: rhbz#472234
+- Resolves: rhbz#472233
+- Resolves: rhbz#472231
+- Resolves: rhbz#472228
+- Resolves: rhbz#472224
+- Resolves: rhbz#472218
+- Resolves: rhbz#472213
+- Resolves: rhbz#472212
+- Resolves: rhbz#472211
+- Resolves: rhbz#472209
+- Resolves: rhbz#472208
+- Resolves: rhbz#472206
+- Resolves: rhbz#472201
+
+* Mon Nov 24 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0-6.b13
+- Updated icedteasnapshot.
+- Updated openjdkver to b13.
+- Updated openjdkdate.
+- Resolves: rhbz#471987
+- Resolves: rhbz#465531
+- Resolves: rhbz#470551
+
+* Thu Nov 20 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0-6.b12
+- Redirect error from removing gcjwebplugin link.
+- Resolves: rhbz#471568
+
+* Thu Nov 13 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0-5.b12
+- Added java-fonts to Provides for base package.
+- Resolves: rhbz#469893
+
+* Wed Nov 12 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0-4.b12
+- Fixed pulse audio build requirements.
+- Updated release.
+- Resolves: rhbz#471229
+
+* Fri Nov  7 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0-3.b12
+- Updated icedteasnapshot.
+- Resolves: rhbz#453290
+- Resolves: rhbz#469361 
+
+* Wed Nov  5 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0-3.b12
+- Re-enabled pulse java. Fix committed upstream to prevent TCK failures.
+- Updated release.
+- Updated icedteasnapshot.
+- Updated icedteaver.
+- Updated visualvm source.
+
+* Thu Oct 30 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0-2.b12
+- Fixed post plugin scriptlet to work for install, as well as upgrade.
+
+* Wed Oct 29 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0-2.b12
+- Fixed release string.
+
+* Mon Oct 27 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0-2b12
+- Updated icedteasnapshot.
+- Fixed post scriptlet to remove gcjwebplugin.so.
+- Updated jvisualvm requirement.
+- Added build option --with-pkgversion=6b12-Fedora-10
+- Resolves: rhbz#428503
+- Resolves: rhbz#251829
+- Resolves: rhbz#415061
+- Resolves: rhbz#452188
+
+* Mon Oct 27 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0-1.2.b12
+- Added netbeans requirement for devel package.
+- Fixed removal of gcjwebplugin.so link when installing plugin package.
+- Updated Release.
+- Resolves: rhbz#468635
+
+* Fri Oct 24 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0-1.1.b12
+- Removed --enable-pulse-java. Causes some TCK tests to fail.
+
+* Fri Oct 24 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0-1.1.b12
+- Updated sources to include latest liveconnect fixes.
+
+* Wed Oct 22 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0-1.0.b12
+- Removed option to build with alternate jar.
+
+* Tue Oct 21 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0-1.0.b12
+- Updated icedteaver.
+- Updated Release.
+- Changed to use IcedTeaPlugin.so instead of gcjwebplugin.so. Includes 
+LiveConnect support.
+- Updated mauvedate.
+- Added xulrunner-devel and xulrunner-devel-unstable as build requirements.
+- Enabled building of pulse-java, not default sound implementation though.
+- Added build requirements for pulse-java.
+- Resolves: rhbz#468043 
+- Resolves: rhbz#375161 
+- Resolves: rhbz#432184 
+- Resolves: rhbz#302071 
+- Resolves: rhbz#457536 
+- Resolves: rhbz#460236 
+- Resolves: rhbz#460084
+- Resolves: rhbz#467794
+
+* Tue Oct 14 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0-0.23.b12
+- Updated icedteasnapshot to nil.
+- Updated release.
+- Added jakarta-commons-logging requirement for visualvm.
+
+* Thu Oct  2 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0-0.22.b12
+- Enabled building of jvisualvm tool.
+
+* Wed Sep 24 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0-0.21.b12
+- Removed all instances of security jars.
+
+* Wed Sep 24 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0-0.21.b12
+- Updated icedteasnapshot.
+- Updated release.
+- Updated openjdkver.
+- Updated openjdkdate.
+
+* Mon Sep 22 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0-0.20.b11
+- Removed update-desktop-database dependency.
+- Resolves: rhbz#463046
+
+* Mon Sep 08 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0-0.20.b11
+- Added rhino requirement.
+- Resolves: rhbz#461336
+
+* Tue Aug 05 2008 Lillian Angel <langel@redhat.com> 1:1.6.0-0.20.b11
+- Updated icedteasnapshot.
+
+* Thu Jul 31 2008 Lillian Angel <langel@redhat.com> 1:1.6.0-0.20.b11
+- Added java-access-bridge idlj patch. Temp workaround for bug similar to:
+http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=6708395. 
+
+* Mon Jul 28 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0-0.20.b11
+- Removed freetype patch.
+
+* Wed Jul 23 2008 Lubomir Rintel <lkundrak@v3.sk> - 1:1.6.0-0.20.b11
+- Specify vendor for javaws desktop entry.
+- Merge EPEL-5 and Fedora devel packages.
+
+* Mon Jul 21 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.19.b11
+- Updated icedteasnapshot.
+
+* Wed Jul 16 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.18.b10
+- Updated icedteasnapshot.
+- Updated openjdkver.
+- Updated openjdkdate.
+- Updated generate-fedora-zip.sh
+
+* Tue Jul 15 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.18.b10
+- Updated accessver to 1.23.
+
+* Tue Jul 15 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.18.b10
+- Added rhino as a BuildRequirement.
+
+* Tue Jul 15 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.18.b10
+- Removed all unneeded patches. Security patches are included in the 
+new icedtea source.
+
+* Tue Jul 15 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.18.b10
+- Fixed fedorazip.
+
+* Tue Jul 15 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.18.b10
+- Updated icedteaver.
+- Updated icedteasnapshot.
+- Updated openjdkdate.
+- Updated openjdkver.
+- Updated release.
+- Resolves: rhbz#452525
+- Resolves: rhbz#369861 
+
+* Thu Jul  9 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.17.b09
+- Added sparc/64 patches.
+
+* Wed Jul  8 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.17.b09
+- Only apply hotspot security patch of jitarches.
+
+* Wed Jul  2 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.17.b09
+- Added OpenJDK security patches.
+
+* Tue Jun  3 2008 Thomas Fitzsimmons <fitzsim@redhat.com> - 1:1.6.0.0-0.16.b09
+- Add runtests define.
+- Provide Xvfb instance to jtreg.
+- Run test suites on JIT architectures only.
+- Clean up arch handling.
+
+* Fri May 30 2008 Thomas Fitzsimmons <fitzsim@redhat.com> - 1:1.6.0.0-0.15.b09
+- Remove jhat patch.
+
+* Fri May 30 2008 Thomas Fitzsimmons <fitzsim@redhat.com> - 1:1.6.0.0-0.15.b09
+- Remove makefile patch.
+- Update generate-fedora-zip.sh.
+
+* Fri May 30 2008 Thomas Fitzsimmons <fitzsim@redhat.com> - 1:1.6.0.0-0.15.b09
+- Formatting cleanups.
+
+* Fri May 30 2008 Thomas Fitzsimmons <fitzsim@redhat.com> - 1:1.6.0.0-0.15.b09
+- Group all Mauve commands.
+
+* Fri May 30 2008 Thomas Fitzsimmons <fitzsim@redhat.com> - 1:1.6.0.0-0.15.b09
+- Formatting cleanups.
+- Add jtreg_output to src subpackage.
+
+* Wed May 28 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.15.b09
+- Updated icedteasnapshot for new release.
+
+* Tue May 27 2008 Thomas Fitzsimmons <fitzsim@redhat.com> - 1:1.6.0.0-0.15.b09
+- Require ca-certificates.
+- Symlink to ca-certificates cacerts.
+- Remove cacerts from files list.
+- Resolves: rhbz#444260
+
+* Mon May 26 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.14.b09
+- Added eclipse-ecj build requirement for mauve.
+- Updated icedteasnapshot.
+
+* Fri May 23 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.14.b09
+- Fixed jtreg testing.
+
+* Fri May 23 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.14.b09
+- Updated icedteasnapshot.
+- Updated release.
+- Added jtreg testing.
+
+* Thu May 22 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.13.b09
+- Added new patch java-1.6.0-openjdk-java-access-bridge-tck.patch.
+- Updated release.
+
+* Mon May 05 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.12.b09
+- Updated release.
+- Updated icedteasnapshot.
+- Resolves: rhbz#445182
+- Resolves: rhbz#445183
+
+* Tue Apr 29 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.11.b09
+- Fixed javaws.desktop installation.
+
+* Tue Apr 29 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.11.b09
+- Updated icedteasnapshot.
+- Removed java-1.6.0-openjdk-jconsole.desktop and
+  java-1.6.0-openjdk-policytool.desktop files.
+
+* Tue Apr 29 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.11.b09
+- Updated release.
+- Added archbuild and archinstall definitions for ia64.
+- Resolves: rhbz#433843
+
+* Mon Apr 28 2008 Lubomir Rintel <lkundrak@v3.sk> - 1:1.6.0.0-0.12.b08
+- Merge changes made to build on Red Hat Enterprise Linux 5, to include in EPEL:
+- Require Freetype 2.2.0 instead of 2.3.0.
+- Build against openmotif instead of lesstif when not on Fedora.
+
+* Mon Apr 28 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.10.b09
+- Fixed installation of javaws.desktop and javaws.png.
+
+* Mon Apr 28 2008 Joshua Sumali <jsumali@redhat.com> - 1:1.6.0.0-0.10.b09
+- Added javaws menu entry.
+- Resolves: rhbz#443851
+
+* Mon Apr 28 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.10.b09
+- Updated release.
+- Updated icedteasnapshot.
+- Added jconsole and policy menu entries.
+- Removed all jhat references.
+- Resolves: rhbz#435235
+- Resolves: rhbz#417501
+- Resolves: rhbz#437418
+- Resolves: rhbz#443360
+- Resolves: rhbz#304031
+
+* Thu Apr 18 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.9.b09
+- Updated icedteaver.
+- Updated icedteasnapshot.
+- Updated openjdkver.
+- Updated openjdkdate.
+- Updated release.
+- Resolves: rhbz#442602
+- Resolves: rhbz#442514
+- Resolves: rhbz#441437
+- Resolves: rhbz#375541
+
+* Thu Apr 17 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.9.b08
+- Added javaws to /usr/bin.
+- Resolves: rhbz#437929
+
+* Mon Apr 08 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.8.b08
+- Updated sources.
+- Updated icedteaver.
+
+* Mon Apr 07 2008 Dennis Gilmore <dennis@ausil.us> - 1:1.6.0.0-0.8.b08
+- Enable building for all arches using zero where there is not a native port.
+
+* Mon Mar 31 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.7.b08
+- Updated icedteasnapshot. Includes sources needed to build xmlgraphics-commons.
+- Updated release.
+- Resolves: rhbz#439676
+
+* Fri Mar 28 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.6.b08
+- Updated icedteasnapshot to fix ppc failure.
+
+* Thu Mar 27 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.6.b08
+- Removed iconv of THIRD_PARTY_README.
+
+* Thu Mar 27 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.6.b08
+- Updated icedteasnapshot.
+- Updated openjdkver and openjdkdate.
+- Removed java-1.6.0-openjdk-trademark.patch.
+- Updated generate-fedora-zip.sh.
+- Resolves: rhbz#438421
+
+* Thu Mar 20 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.5.b06
+- Updated icedteasnapshot.
+- Updated java-1.6.0-openjdk-optflags.patch.
+
+* Mon Mar 17 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.5.b06
+- Updated icedteasnapshot.
+- Updated Release.
+- Added new patch: java-1.6.0-openjdk-optflags.patch.
+- Resolves: rhbz#437331
+
+* Mon Mar 17 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.5.b06
+- Added version for freetype-devel requirement.
+- Resolves: rhbz#437782
+
+* Fri Mar 14 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.4.b06
+- Fixed Provides and Obsoletes for all sub-packages. Should have specified
+  java-1.7.0-icedtea < 1.7.0.0-0.999 instead of 1.7.0-0.999.
+- Resolves: rhbz#437492
+
+* Wed Mar 12 2008 Thomas Fitzsimmons <fitzsim@redhat.com> - 1:1.6.0.0-0.4.b06
+- Add FIXME about versionless SONAMEs.
+
+* Wed Mar 12 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.3.b06
+- Updated release.
+- Updated mauvedate to 2008-03-11.
+- Updated accessmajorver to 1.22.
+- Updated accessminorver to 0.
+
+* Tue Mar 11 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.2.b06
+- Updated snapshot.
+- Changed icedteaopt to use --with-openjdk instead of --with-icedtea.
+
+* Tue Mar 11 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.2.b06
+- Added Provides and Obsoletes for all subpackages. All sub-packages
+  replaces java-1.7.0-icedtea.
+- Updated Release.
+- Changed BuildRequires from java-1.7.0-icedtea to java-1.6.0-openjdk.
+- Added TRADEMARK file to docs.
+
+* Tue Mar 11 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.2.b06
+- Added Provides and Obsoletes. This package replaces java-1.7.0-icedtea.
+
+* Fri Feb 15 2008 Lillian Angel <langel@redhat.com> - 1:1.6.0.0-0.1.b06
+- Adapted for java-1.6.0-openjdk.
+
+* Wed Feb 13 2008 Lillian Angel <langel@redhat.com> - 1.7.0.0-0.25.b24
+- Added libffi requirement for ppc/64.
+
+* Wed Feb 13 2008 Lillian Angel <langel@redhat.com> - 1.7.0.0-0.25.b24
+- Updated icedteaver to 1.6.
+- Updated release.
+
+* Mon Feb 11 2008 Lillian Angel <langel@redhat.com> - 1.7.0.0-0.24.b24
+- Added libjpeg-6b as a requirement.
+- Resolves rhbz#432181
+
+* Mon Jan 28 2008 Lillian Angel <langel@redhat.com> - 1.7.0.0-0.24.b24
+- Kill Xvfb after it completes mauve tests.
+
+* Mon Jan 21 2008 Thomas Fitzsimmons <fitzsim@redhat.com> - 1.7.0.0-0.24.b24
+- Remove cgibindir macro.
+- Remove icedtearelease.
+- Remove binfmt_misc support.
+- Remove .snapshot from changelog lines wider than 80 columns.
+
+* Tue Jan 08 2008 Lillian Angel <langel@redhat.com> - 1.7.0.0-0.23.b24.snapshot
+- Added xorg-x11-fonts-misc as a build requirement for Mauve.
+- Updated mauve_tests.
+
+* Mon Jan 07 2008 Lillian Angel <langel@redhat.com> - 1.7.0.0-0.23.b24.snapshot
+- Updated Mauve's build requirements.
+- Excluding Mauve tests that try to access the network.
+- Added Xvfb functionality to mauve tests to avoid display-related failures.
+- Resolves rhbz#427614
+
+* Thu Jan 03 2008 Lillian Angel <langel@redhat.com> - 1.7.0.0-0.23.b24.snapshot
+- Added mercurial as a Build Requirement.
+- Fixed archbuild/archinstall if-block.
+
+* Thu Jan 03 2008 Lillian Angel <langel@redhat.com> - 1.7.0.0-0.23.b24.snapshot
+- Removed BuildRequirement firefox-devel.
+- Added BuildRequirement gecko-devel.
+- Resolves rhbz#427350
+
+* Fri Dec 28 2007 Lillian Angel <langel@redhat.com> - 1.7.0.0-0.23.b24.snapshot
+- Updated icedtea source.
+- Resolves rhbz#426142
+
+* Thu Dec 13 2007 Lillian Angel <langel@redhat.com> - 1.7.0.0-0.23.b24.snapshot
+- Updated icedteaver.
+- Updated Release.
+- Updated buildoutputdir.
+- Removed openjdkdate.
+- Updated openjdkver.
+- Updated openjdkzip and fedorazip.
+- Added Requires: jpackage-utils.
+- Removed java-1.7.0-makefile.patch.
+- Updated patch list.
+- Resolves rhbz#411941
+- Resolves rhbz#399221
+- Resolves rhbz#318621
+
+* Thu Dec  6 2007 Thomas Fitzsimmons <fitzsim@redhat.com> - 1.7.0.0-0.22.b23
+- Clear bootstrap mode on ppc and ppc64.
+
+* Wed Dec  5 2007 Thomas Fitzsimmons <fitzsim@redhat.com> - 1.7.0.0-0.21.b23
+- Update icedteasnapshot.
+
+* Fri Nov 30 2007 Thomas Fitzsimmons <fitzsim@redhat.com> - 1.7.0.0-0.21.b23
+- Update icedteasnapshot.
+- Remove ExclusiveArch.
+- Assume i386.
+- Add support for ppc and ppc64.
+- Bootstrap on ppc and ppc64.
+
+* Thu Nov 15 2007 Thomas Fitzsimmons <fitzsim@redhat.com> - 1.7.0.0-0.20.b23
+- Add giflib-devel build requirement.
+
+* Thu Nov 15 2007 Thomas Fitzsimmons <fitzsim@redhat.com> - 1.7.0.0-0.20.b23
+- Add libjpeg-devel and libpng-devel build requirements.
+
+* Thu Nov 15 2007 Lillian Angel <langel@redhat.com> - 1.7.0.0-0.20.b23.snapshot
+- Added gcjbootstrap.
+- Updated openjdkver and openjdkdate to new b23 release.
+- Updated Release.
+- Added gcjbootstrap checks in.
+- Resolves: rhbz#333721
+
+* Mon Oct 15 2007 Lillian Angel <langel@redhat.com> - 1.7.0.0-0.19.b21.snapshot
+- Updated release.
+
+* Fri Oct 12 2007 Lillian Angel <langel@redhat.com> - 1.7.0.0-0.18.b21.snapshot
+- Updated release.
+
+* Fri Oct 12 2007 Lillian Angel <langel@redhat.com> - 1.7.0.0-0.17.b21.snapshot
+- Added jhat patch back in.
+
+* Thu Oct 11 2007 Lillian Angel <langel@redhat.com> - 1.7.0.0-0.17.b21.snapshot
+- Update icedtearelease.
+- Update icedteasnapshot.
+- Update openjdkver.
+- Update openjdkdate.
+- Updated genurl.
+- Removed unneeded patches.
+- Removed gcjbootstrap.
+- Removed icedteaopt.
+- Removed all gcj related checks.
+- Resolves: rhbz#317041
+- Resolves: rhbz#314211
+- Resolves: rhbz#314141
+- Resolves: rhbz#301691
+
+* Mon Oct 1 2007 Lillian Angel <langel@redhat.com> - 1.7.0.0-0.16.b19.snapshot
+- Listed mauve_output as a doc file instead of a source.
+- Added mauve_tests to the src files as doc.
+
+* Fri Sep 28 2007 Lillian Angel <langel@redhat.com> - 1.7.0.0-0.16.b19.snapshot
+- Fixed testing. Output is stored in a file and passes/debug info is not shown.
+
+* Thu Sep 27 2007 Thomas Fitzsimmons <fitzsim@redhat.com> - 1.7.0.0-0.16.b19
+- Apply patch to use system tzdata.
+- Require tzdata-java.
+- Fix mauve shell fragment.
+
+* Thu Sep 27 2007 Lillian Angel <langel@redhat.com> - 1.7.0.0-0.15.b19.snapshot
+- Removed jtreg setup line.
+
+* Wed Sep 26 2007 Lillian Angel <langel@redhat.com> - 1.7.0.0-0.15.b19.snapshot
+- Removed jtreg.  Does not adhere to Fedora guidelines.
+
+* Tue Sep 25 2007 Lillian Angel <langel@redhat.com> - 1.7.0.0-0.15.b19.snapshot
+- Fixed running of Xvfb so it does not terminate after a successful
+  test.
+- Fixed mauve and jtreg test runs to not break the build when an error
+  is thrown
+
+* Mon Sep 24 2007 Lillian Angel <langel@redhat.com> - 1.7.0.0-0.15.b19.snapshot
+- Added JTreg zip as source.
+- Run JTreg tests after build for smoke testing.
+- Added Xvfb as build requirement.
+
+* Wed Sep 12 2007 Lillian Angel <langel@redhat.com> - 1.7.0.0-0.15.b19.snapshot
+- Added Mauve tarball as source.
+- Added mauve_tests as source.
+- Run Mauve after build for regression testing.
+
+* Thu Sep  7 2007 Thomas Fitzsimmons <fitzsim@redhat.com> - 1.7.0.0-0.15.b18
+- Do not require openssl for build.
+- Require openssl.
+- Set gcjbootstrap to 0.
+- Remove generate-cacerts.pl.
+- Update icedtearelease.
+- Update icedteasnapshot.
+- Update openjdkver.
+- Update openjdkdate.
+
+* Wed Sep  5 2007 Thomas Fitzsimmons <fitzsim@redhat.com> - 1.7.0.0-0.15.b18
+- Rename javadoc master alternative javadocdir.
+- Resolves: rhbz#269901
+
+* Wed Sep  5 2007 Thomas Fitzsimmons <fitzsim@redhat.com> - 1.7.0.0-0.15.b18
+- Remove epoch in plugin provides.
+- Bump release number.
+- Resolves: rhbz#274001
+
+* Mon Aug 27 2007 Thomas Fitzsimmons <fitzsim@redhat.com> - 1.7.0.0-0.14.b18
+- Include idlj man page in files list.
+
+* Mon Aug 27 2007 Thomas Fitzsimmons <fitzsim@redhat.com> - 1.7.0.0-0.14.b18
+- Add documentation for plugin and src subpackages.
+- Fix plugin alternative on x86_64.
+- Add java-1.7.0-icedtea-win32.patch.
+- Rename modzip.sh generate-fedora-zip.sh.
+- Keep patches in main directory.
+- Namespace patches.
+- Add java-1.7.0-icedtea-win32.patch, README.plugin and README.src.
+- Bump release number.
+
+* Mon Aug 27 2007 Lillian Angel <langel@redhat.com> - 1.7.0.0-0.13.b18.snapshot
+- Added line to run modzip.sh to remove specific files from the openjdk zip.
+- Defined new openjdk zip created by modzip.sh as newopenjdkzip.
+- Added line to patch the IcedTea Makefile. No need to download openjdk zip.
+- Updated genurl.
+- Updated icedteasnapshot.
+
+* Fri Aug 24 2007 Thomas Fitzsimmons <fitzsim@redhat.com> - 1.7.0.0-0.13.b18
+- Remove RMI CGI script and subpackage.
+- Fix Java Access Bridge for GNOME URL.
+
+* Thu Aug 23 2007 Thomas Fitzsimmons <fitzsim@redhat.com> - 1.7.0.0-0.12.b18
+- Fully qualify Java Access Bridge for GNOME and generate-cacerts
+  source paths.
+- Fix plugin post alternatives invocation.
+- Include IcedTea documentation.
+- Update icedteasnapshot.
+
+* Tue Aug 21 2007 Thomas Fitzsimmons <fitzsim@redhat.com> - 1.7.0.0-0.11.b18
+- Revert change to configure macro.
+
+* Mon Aug 20 2007 Thomas Fitzsimmons <fitzsim@redhat.com> - 1.7.0.0-0.11.b18
+- Fix rpmlint errors.
+
+* Mon Aug 20 2007 Thomas Fitzsimmons <fitzsim@redhat.com> - 1.7.0.0-0.11.b18
+- Add missing development alternatives.
+- Bump accessver to 1.19.2.
+- Bump icedteaver.
+- Set icedteasnapshot.
+- Define icedtearelease.
+- Bump openjdkver.
+- Bump openjdkdate.
+- Bump release number.
+- Add plugin build requirements and subpackage.
+
+* Tue Jul 31 2007 Lillian Angel <langel@redhat.com> - 1.7.0.0-0.10.b16.1.2
+- Bump icedteaver.
+- Updated icedteasnapshot.
+- Updated release to include icedteaver.
+
+* Wed Jul 25 2007 Lillian Angel <langel@redhat.com> - 1.7.0.0-0.9.b16
+- Updated icedteasnapshot.
+- Bump openjdkver.
+- Bump openjdkdate.
+- Bump release number.
+
+* Wed Jul 18 2007 Thomas Fitzsimmons <fitzsim@redhat.com> - 1.7.0.0-0.8.b15
+- Only build rmi subpackage on non-x86_64 architectures.
+
+* Wed Jul 18 2007 Thomas Fitzsimmons <fitzsim@redhat.com> - 1.7.0.0-0.8.b15
+- Bump icedteaver.
+- Update icedteasnapshot.
+
+* Fri Jul 13 2007 Thomas Fitzsimmons <fitzsim@redhat.com> - 1.7.0.0-0.8.b15
+- Add rmi subpackage.
+- Remove name-version javadoc directory.
+
+* Fri Jul 13 2007 Thomas Fitzsimmons <fitzsim@redhat.com> - 1.7.0.0-0.8.b15
+- Set man extension to .gz in base and devel post sections.
+
+* Thu Jul 12 2007 Thomas Fitzsimmons <fitzsim@redhat.com> - 1.7.0.0-0.7.b15
+- Clear icedteasnapshot.
+- Bump release number.
+
+* Wed Jul 11 2007 Lillian Angel <langel@redhat.com> - 1.7.0.0-0.6.b15
+- Updated icedteasnapshot.
+- Bump openjdkver.
+- Bump openjdkdate.
+- Bump release number.
+
+* Thu Jul  5 2007 Thomas Fitzsimmons <fitzsim@redhat.com> - 1.7.0.0-0.5.b14
+- Define icedteasnapshot.
+
+* Wed Jul  4 2007 Thomas Fitzsimmons <fitzsim@redhat.com> - 1.7.0.0-0.4.b14
+- Prevent jar repacking.
+
+* Wed Jul  4 2007 Thomas Fitzsimmons <fitzsim@redhat.com> - 1.7.0.0-0.4.b14
+- Include generate-cacerts.pl.
+- Generate and install cacerts file.
+
+* Tue Jul  3 2007 Thomas Fitzsimmons <fitzsim@redhat.com> - 1.7.0.0-0.4.b14
+- Add javadoc subpackage.
+- Add Java Access Bridge for GNOME.
+- Add support for executable JAR files.
+- Bump alternatives priority to 17000.
+
+* Thu Jun 28 2007 Thomas Fitzsimmons <fitzsim@redhat.com> - 1.7.0.0-0.4.b14
+- Add support for executable jar files.
+- Bump icedteaver.
+- Bump openjdkver.
+- Bump openjdkdate.
+- Bump release number.
+
+* Tue Jun 19 2007 Thomas Fitzsimmons <fitzsim@redhat.com> - 1.7.0.0-0.3.b13
+- Import IcedTea 1.1.
+- Bump icedteaver.
+- Bump openjdkver.
+- Bump openjdkdate.
+- Bump release number.
+- Use --with-openjdk-src-zip.
+
+* Tue Jun 12 2007 Thomas Fitzsimmons <fitzsim@redhat.com> - 1.7.0.0-0.2.b12
+- Initial build.

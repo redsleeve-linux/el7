@@ -1,0 +1,45 @@
+From 1a6ed7e15d95b976797a30f1f8b76817765c6e64 Mon Sep 17 00:00:00 2001
+Message-Id: <1a6ed7e15d95b976797a30f1f8b76817765c6e64@dist-git>
+From: John Ferlan <jferlan@redhat.com>
+Date: Tue, 16 Aug 2016 11:43:52 -0400
+Subject: [PATCH] conf: Provide error on undefined iothreadsched entry
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1366484
+
+When commit id '6dfb4507' refactored where the iothreadsched data was
+stored, the error message for when the virDomainIOThreadIDFind failed
+to find an iothreadid ("iothreadsched attribute 'iothreads' uses
+undefined iothread ids") was lost. This led to the possibility that
+someone would try to use it, but receive the generic message "An error
+occurred, but the cause is unknown".
+
+This patch adds the error message back so that someone will know that
+they have an invalid configuration.
+
+Signed-off-by: John Ferlan <jferlan@redhat.com>
+(cherry picked from commit 8c6b29e7b41d678ab9c5542efd607b28776e4f24)
+---
+ src/conf/domain_conf.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 33954f7..ffafef3 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -15532,8 +15532,12 @@ virDomainDefGetIOThreadSched(virDomainDefPtr def,
+ {
+     virDomainIOThreadIDDefPtr iothrinfo;
+ 
+-    if (!(iothrinfo = virDomainIOThreadIDFind(def, iothread)))
++    if (!(iothrinfo = virDomainIOThreadIDFind(def, iothread))) {
++        virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
++                       _("Cannot find 'iothread' : %u"),
++                       iothread);
+         return NULL;
++    }
+ 
+     return &iothrinfo->sched;
+ }
+-- 
+2.9.2
+

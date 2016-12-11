@@ -1,0 +1,44 @@
+From 03832c723800e942e67bdc15595844b07422c147 Mon Sep 17 00:00:00 2001
+Message-Id: <03832c723800e942e67bdc15595844b07422c147@dist-git>
+From: Erik Skultety <eskultet@redhat.com>
+Date: Tue, 16 Aug 2016 13:06:01 +0200
+Subject: [PATCH] Revert "admin: Fix the default uri for session daemon to
+ libvirtd:///session"
+
+The problem is, that the patch fixed the issue in its own way because the
+original upstream commit 30ce2f0e (which was an incorrect upstream fix anyway)
+was dependent on commit f5da0d18 which wasn't backported, thus causing
+conflicts. However, it turned out that f5da0d18 had to be backported
+eventually, therefore the issue with session daemon uri for virt-admin can be
+fixed by a proper backport of upstream commit 9e5e7f3a (that fixes 30ce2f0e in
+upstream).
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1367269
+Signed-off-by: Erik Skultety <eskultet@redhat.com>
+---
+ src/libvirt-admin.c | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/libvirt-admin.c b/src/libvirt-admin.c
+index fb2f7b8..f07cb10 100644
+--- a/src/libvirt-admin.c
++++ b/src/libvirt-admin.c
+@@ -181,13 +181,9 @@ virAdmGetDefaultURI(virConfPtr conf)
+         /* Since we can't probe connecting via any hypervisor driver as libvirt
+          * does, if no explicit URI was given and neither the environment
+          * variable, nor the configuration parameter had previously been set,
+-         * we set the default admin server URI to 'libvirtd:///system' or
+-         * 'libvirtd:///session' depending on the process's EUID.
++         * we set the default admin server URI to 'libvirtd://system'.
+          */
+-        if (geteuid() == 0)
+-            uristr = "libvirtd:///system";
+-        else
+-            uristr = "libvirtd:///session";
++        uristr = "libvirtd:///system";
+     }
+ 
+     return uristr;
+-- 
+2.9.2
+

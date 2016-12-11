@@ -1,0 +1,536 @@
+From aa8079012cc5655cc0e2c55532f8e6b55f1d0a51 Mon Sep 17 00:00:00 2001
+Message-Id: <aa8079012cc5655cc0e2c55532f8e6b55f1d0a51@dist-git>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Mon, 25 Jul 2016 10:24:56 +0200
+Subject: [PATCH] Introduce <iommu> device
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+A device with an attribute 'model', with just one model
+so far:
+
+<devices>
+  ...
+  <iommu model='intel'/>
+</devices>
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1235581
+(cherry picked from commit ea0ed35d6efcba9e79c76d7b57959f553b76224a)
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+---
+ docs/formatdomain.html.in                          | 26 +++++++
+ docs/schemas/domaincommon.rng                      | 11 +++
+ src/conf/domain_conf.c                             | 90 +++++++++++++++++++++-
+ src/conf/domain_conf.h                             | 16 ++++
+ src/libvirt_private.syms                           |  2 +
+ src/qemu/qemu_driver.c                             |  6 ++
+ src/qemu/qemu_hotplug.c                            |  1 +
+ .../qemuxml2argvdata/qemuxml2argv-intel-iommu.xml  | 37 +++++++++
+ .../qemuxml2xmlout-intel-iommu.xml                 | 37 +++++++++
+ tests/qemuxml2xmltest.c                            |  4 +
+ 10 files changed, 229 insertions(+), 1 deletion(-)
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-intel-iommu.xml
+ create mode 100644 tests/qemuxml2xmloutdata/qemuxml2xmlout-intel-iommu.xml
+
+diff --git a/docs/formatdomain.html.in b/docs/formatdomain.html.in
+index b0b2f82..d206f6a 100644
+--- a/docs/formatdomain.html.in
++++ b/docs/formatdomain.html.in
+@@ -6716,6 +6716,32 @@ qemu-kvm -net nic,model=? /dev/null
+       </dd>
+     </dl>
+ 
++    <h4><a name="elementsIommu">IOMMU devices</a></h4>
++
++    <p>
++      The <code>iommu</code> element can be used to add an IOMMU device.
++      <span class="since">Since 2.1.0</span>
++    </p>
++
++    <p>
++      Example:
++    </p>
++<pre>
++  ...
++  &lt;devices&gt;
++    &lt;iommu model='intel'/&gt;
++  &lt;/devices&gt;
++  ...
++</pre>
++    <dl>
++      <dt><code>model</code></dt>
++      <dd>
++        <p>
++          Currently only the <code>intel</code> model is supported.
++        </p>
++      </dd>
++    </dl>
++
+     <h3><a name="seclabel">Security label</a></h3>
+ 
+     <p>
+diff --git a/docs/schemas/domaincommon.rng b/docs/schemas/domaincommon.rng
+index 0876daa..f17104b 100644
+--- a/docs/schemas/domaincommon.rng
++++ b/docs/schemas/domaincommon.rng
+@@ -3713,6 +3713,14 @@
+    </optional>
+   </define>
+ 
++  <define name="iommu">
++    <element name="iommu">
++      <attribute name="model">
++        <value>intel</value>
++      </attribute>
++    </element>
++  </define>
++
+   <define name="input">
+     <element name="input">
+       <choice>
+@@ -4184,6 +4192,9 @@
+         <zeroOrMore>
+           <ref name="panic"/>
+         </zeroOrMore>
++        <optional>
++          <ref name="iommu"/>
++        </optional>
+       </interleave>
+     </element>
+   </define>
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index bc01633..ddeca0d 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -241,7 +241,8 @@ VIR_ENUM_IMPL(virDomainDevice, VIR_DOMAIN_DEVICE_LAST,
+               "shmem",
+               "tpm",
+               "panic",
+-              "memory")
++              "memory",
++              "iommu")
+ 
+ VIR_ENUM_IMPL(virDomainDeviceAddress, VIR_DOMAIN_DEVICE_ADDRESS_TYPE_LAST,
+               "none",
+@@ -804,6 +805,9 @@ VIR_ENUM_IMPL(virDomainTPMModel, VIR_DOMAIN_TPM_MODEL_LAST,
+ VIR_ENUM_IMPL(virDomainTPMBackend, VIR_DOMAIN_TPM_TYPE_LAST,
+               "passthrough")
+ 
++VIR_ENUM_IMPL(virDomainIOMMUModel, VIR_DOMAIN_IOMMU_MODEL_LAST,
++              "intel")
++
+ VIR_ENUM_IMPL(virDomainDiskDiscard, VIR_DOMAIN_DISK_DISCARD_LAST,
+               "default",
+               "unmap",
+@@ -2364,6 +2368,9 @@ void virDomainDeviceDefFree(virDomainDeviceDefPtr def)
+     case VIR_DOMAIN_DEVICE_MEMORY:
+         virDomainMemoryDefFree(def->data.memory);
+         break;
++    case VIR_DOMAIN_DEVICE_IOMMU:
++        VIR_FREE(def->data.iommu);
++        break;
+     case VIR_DOMAIN_DEVICE_LAST:
+     case VIR_DOMAIN_DEVICE_NONE:
+         break;
+@@ -2610,6 +2617,8 @@ void virDomainDefFree(virDomainDefPtr def)
+         virDomainPanicDefFree(def->panics[i]);
+     VIR_FREE(def->panics);
+ 
++    VIR_FREE(def->iommu);
++
+     VIR_FREE(def->idmap.uidmap);
+     VIR_FREE(def->idmap.gidmap);
+ 
+@@ -3179,6 +3188,7 @@ virDomainDeviceGetInfo(virDomainDeviceDefPtr device)
+     /* The following devices do not contain virDomainDeviceInfo */
+     case VIR_DOMAIN_DEVICE_LEASE:
+     case VIR_DOMAIN_DEVICE_GRAPHICS:
++    case VIR_DOMAIN_DEVICE_IOMMU:
+     case VIR_DOMAIN_DEVICE_LAST:
+     case VIR_DOMAIN_DEVICE_NONE:
+         break;
+@@ -3540,6 +3550,7 @@ virDomainDeviceInfoIterateInternal(virDomainDefPtr def,
+     case VIR_DOMAIN_DEVICE_LAST:
+     case VIR_DOMAIN_DEVICE_RNG:
+     case VIR_DOMAIN_DEVICE_MEMORY:
++    case VIR_DOMAIN_DEVICE_IOMMU:
+         break;
+     }
+ #endif
+@@ -4635,6 +4646,7 @@ virDomainDeviceDefValidateInternal(const virDomainDeviceDef *dev,
+     case VIR_DOMAIN_DEVICE_TPM:
+     case VIR_DOMAIN_DEVICE_PANIC:
+     case VIR_DOMAIN_DEVICE_MEMORY:
++    case VIR_DOMAIN_DEVICE_IOMMU:
+     case VIR_DOMAIN_DEVICE_NONE:
+     case VIR_DOMAIN_DEVICE_LAST:
+         break;
+@@ -13269,6 +13281,39 @@ virDomainMemoryDefParseXML(xmlNodePtr memdevNode,
+ }
+ 
+ 
++static virDomainIOMMUDefPtr
++virDomainIOMMUDefParseXML(xmlNodePtr node)
++{
++    virDomainIOMMUDefPtr iommu = NULL, ret = NULL;
++    char *tmp = NULL;
++    int val;
++
++    if (VIR_ALLOC(iommu) < 0)
++        goto cleanup;
++
++    if (!(tmp = virXMLPropString(node, "model"))) {
++        virReportError(VIR_ERR_XML_ERROR, "%s",
++                       _("missing model for IOMMU device"));
++        goto cleanup;
++    }
++
++    if ((val = virDomainIOMMUModelTypeFromString(tmp)) < 0) {
++        virReportError(VIR_ERR_XML_ERROR, _("unknown IOMMU model: %s"), tmp);
++        goto cleanup;
++    }
++
++    iommu->model = val;
++
++    ret = iommu;
++    iommu = NULL;
++
++ cleanup:
++    VIR_FREE(iommu);
++    VIR_FREE(tmp);
++    return ret;
++}
++
++
+ virDomainDeviceDefPtr
+ virDomainDeviceDefParse(const char *xmlStr,
+                         const virDomainDef *def,
+@@ -13410,6 +13455,10 @@ virDomainDeviceDefParse(const char *xmlStr,
+         if (!(dev->data.memory = virDomainMemoryDefParseXML(node, ctxt, flags)))
+             goto error;
+         break;
++    case VIR_DOMAIN_DEVICE_IOMMU:
++        if (!(dev->data.iommu = virDomainIOMMUDefParseXML(node)))
++            goto error;
++        break;
+     case VIR_DOMAIN_DEVICE_NONE:
+     case VIR_DOMAIN_DEVICE_LAST:
+         break;
+@@ -17217,6 +17266,21 @@ virDomainDefParseXML(xmlDocPtr xml,
+     }
+     VIR_FREE(nodes);
+ 
++    if ((n = virXPathNodeSet("./devices/iommu", ctxt, &nodes)) < 0)
++        goto error;
++
++    if (n > 1) {
++        virReportError(VIR_ERR_XML_ERROR, "%s",
++                       _("only a single IOMMU device is supported"));
++        goto error;
++    }
++
++    if (n > 0) {
++        if (!(def->iommu = virDomainIOMMUDefParseXML(nodes[0])))
++            goto error;
++    }
++    VIR_FREE(nodes);
++
+     /* analysis of the user namespace mapping */
+     if ((n = virXPathNodeSet("./idmap/uid", ctxt, &nodes)) < 0)
+         goto error;
+@@ -18983,6 +19047,23 @@ virDomainDefCheckABIStability(virDomainDefPtr src,
+             goto error;
+     }
+ 
++    if (!!src->iommu != !!dst->iommu) {
++        virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
++                       _("Target domain IOMMU device count "
++                         "does not match source"));
++        goto error;
++    }
++
++    if (src->iommu &&
++        src->iommu->model != dst->iommu->model) {
++        virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
++                       _("Target domain IOMMU device model '%s' "
++                         "does not match source '%s'"),
++                       virDomainIOMMUModelTypeToString(dst->iommu->model),
++                       virDomainIOMMUModelTypeToString(src->iommu->model));
++        goto error;
++    }
++
+     /* Coverity is not very happy with this - all dead_error_condition */
+ #if !STATIC_ANALYSIS
+     /* This switch statement is here to trigger compiler warning when adding
+@@ -19015,6 +19096,7 @@ virDomainDefCheckABIStability(virDomainDefPtr src,
+     case VIR_DOMAIN_DEVICE_PANIC:
+     case VIR_DOMAIN_DEVICE_SHMEM:
+     case VIR_DOMAIN_DEVICE_MEMORY:
++    case VIR_DOMAIN_DEVICE_IOMMU:
+         break;
+     }
+ #endif
+@@ -23525,6 +23607,11 @@ virDomainDefFormatInternal(virDomainDefPtr def,
+             goto error;
+     }
+ 
++    if (def->iommu) {
++        virBufferAsprintf(buf, "<iommu model='%s'/>\n",
++                          virDomainIOMMUModelTypeToString(def->iommu->model));
++    }
++
+     virBufferAdjustIndent(buf, -2);
+     virBufferAddLit(buf, "</devices>\n");
+ 
+@@ -24642,6 +24729,7 @@ virDomainDeviceDefCopy(virDomainDeviceDefPtr src,
+     case VIR_DOMAIN_DEVICE_MEMBALLOON:
+     case VIR_DOMAIN_DEVICE_NVRAM:
+     case VIR_DOMAIN_DEVICE_SHMEM:
++    case VIR_DOMAIN_DEVICE_IOMMU:
+     case VIR_DOMAIN_DEVICE_LAST:
+         virReportError(VIR_ERR_INTERNAL_ERROR,
+                        _("Copying definition of '%d' type "
+diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
+index f29c4bd..1f75be1 100644
+--- a/src/conf/domain_conf.h
++++ b/src/conf/domain_conf.h
+@@ -151,6 +151,9 @@ typedef virDomainShmemDef *virDomainShmemDefPtr;
+ typedef struct _virDomainTPMDef virDomainTPMDef;
+ typedef virDomainTPMDef *virDomainTPMDefPtr;
+ 
++typedef struct _virDomainIOMMUDef virDomainIOMMUDef;
++typedef virDomainIOMMUDef *virDomainIOMMUDefPtr;
++
+ /* Flags for the 'type' field in virDomainDeviceDef */
+ typedef enum {
+     VIR_DOMAIN_DEVICE_NONE = 0,
+@@ -176,6 +179,7 @@ typedef enum {
+     VIR_DOMAIN_DEVICE_TPM,
+     VIR_DOMAIN_DEVICE_PANIC,
+     VIR_DOMAIN_DEVICE_MEMORY,
++    VIR_DOMAIN_DEVICE_IOMMU,
+ 
+     VIR_DOMAIN_DEVICE_LAST
+ } virDomainDeviceType;
+@@ -207,6 +211,7 @@ struct _virDomainDeviceDef {
+         virDomainTPMDefPtr tpm;
+         virDomainPanicDefPtr panic;
+         virDomainMemoryDefPtr memory;
++        virDomainIOMMUDefPtr iommu;
+     } data;
+ };
+ 
+@@ -2097,6 +2102,15 @@ struct _virDomainKeyWrapDef {
+     int dea; /* enum virTristateSwitch */
+ };
+ 
++typedef enum {
++    VIR_DOMAIN_IOMMU_MODEL_INTEL,
++
++    VIR_DOMAIN_IOMMU_MODEL_LAST
++} virDomainIOMMUModel;
++
++struct _virDomainIOMMUDef {
++    virDomainIOMMUModel model;
++};
+ /*
+  * Guest VM main configuration
+  *
+@@ -2234,6 +2248,7 @@ struct _virDomainDef {
+     virCPUDefPtr cpu;
+     virSysinfoDefPtr sysinfo;
+     virDomainRedirFilterDefPtr redirfilter;
++    virDomainIOMMUDefPtr iommu;
+ 
+     void *namespaceData;
+     virDomainXMLNamespace ns;
+@@ -2999,6 +3014,7 @@ VIR_ENUM_DECL(virDomainTPMModel)
+ VIR_ENUM_DECL(virDomainTPMBackend)
+ VIR_ENUM_DECL(virDomainMemoryModel)
+ VIR_ENUM_DECL(virDomainMemoryBackingModel)
++VIR_ENUM_DECL(virDomainIOMMUModel)
+ /* from libvirt.h */
+ VIR_ENUM_DECL(virDomainState)
+ VIR_ENUM_DECL(virDomainNostateReason)
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index 8cd1ba3..4dd93d7 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -353,6 +353,8 @@ virDomainHubTypeToString;
+ virDomainHypervTypeFromString;
+ virDomainHypervTypeToString;
+ virDomainInputDefFree;
++virDomainIOMMUModelTypeFromString;
++virDomainIOMMUModelTypeToString;
+ virDomainIOThreadIDAdd;
+ virDomainIOThreadIDDefFree;
+ virDomainIOThreadIDDel;
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index f1425b7..2d6e5d2 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -7440,6 +7440,7 @@ qemuDomainAttachDeviceLive(virDomainObjPtr vm,
+     case VIR_DOMAIN_DEVICE_SHMEM:
+     case VIR_DOMAIN_DEVICE_TPM:
+     case VIR_DOMAIN_DEVICE_PANIC:
++    case VIR_DOMAIN_DEVICE_IOMMU:
+     case VIR_DOMAIN_DEVICE_LAST:
+         virReportError(VIR_ERR_OPERATION_UNSUPPORTED,
+                        _("live attach of device '%s' is not supported"),
+@@ -7531,6 +7532,7 @@ qemuDomainDetachDeviceLive(virDomainObjPtr vm,
+     case VIR_DOMAIN_DEVICE_NONE:
+     case VIR_DOMAIN_DEVICE_TPM:
+     case VIR_DOMAIN_DEVICE_PANIC:
++    case VIR_DOMAIN_DEVICE_IOMMU:
+     case VIR_DOMAIN_DEVICE_LAST:
+         virReportError(VIR_ERR_OPERATION_UNSUPPORTED,
+                        _("live detach of device '%s' is not supported"),
+@@ -7646,6 +7648,7 @@ qemuDomainUpdateDeviceLive(virConnectPtr conn,
+     case VIR_DOMAIN_DEVICE_NONE:
+     case VIR_DOMAIN_DEVICE_TPM:
+     case VIR_DOMAIN_DEVICE_PANIC:
++    case VIR_DOMAIN_DEVICE_IOMMU:
+     case VIR_DOMAIN_DEVICE_LAST:
+         virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+                        _("live update of device '%s' is not supported"),
+@@ -7809,6 +7812,7 @@ qemuDomainAttachDeviceConfig(virDomainDefPtr vmdef,
+     case VIR_DOMAIN_DEVICE_NONE:
+     case VIR_DOMAIN_DEVICE_TPM:
+     case VIR_DOMAIN_DEVICE_PANIC:
++    case VIR_DOMAIN_DEVICE_IOMMU:
+     case VIR_DOMAIN_DEVICE_LAST:
+          virReportError(VIR_ERR_OPERATION_UNSUPPORTED,
+                         _("persistent attach of device '%s' is not supported"),
+@@ -7963,6 +7967,7 @@ qemuDomainDetachDeviceConfig(virDomainDefPtr vmdef,
+     case VIR_DOMAIN_DEVICE_NONE:
+     case VIR_DOMAIN_DEVICE_TPM:
+     case VIR_DOMAIN_DEVICE_PANIC:
++    case VIR_DOMAIN_DEVICE_IOMMU:
+     case VIR_DOMAIN_DEVICE_LAST:
+         virReportError(VIR_ERR_OPERATION_UNSUPPORTED,
+                        _("persistent detach of device '%s' is not supported"),
+@@ -8061,6 +8066,7 @@ qemuDomainUpdateDeviceConfig(virDomainDefPtr vmdef,
+     case VIR_DOMAIN_DEVICE_NONE:
+     case VIR_DOMAIN_DEVICE_TPM:
+     case VIR_DOMAIN_DEVICE_PANIC:
++    case VIR_DOMAIN_DEVICE_IOMMU:
+     case VIR_DOMAIN_DEVICE_LAST:
+         virReportError(VIR_ERR_OPERATION_UNSUPPORTED,
+                        _("persistent update of device '%s' is not supported"),
+diff --git a/src/qemu/qemu_hotplug.c b/src/qemu/qemu_hotplug.c
+index 4a56cad..7a71333 100644
+--- a/src/qemu/qemu_hotplug.c
++++ b/src/qemu/qemu_hotplug.c
+@@ -3328,6 +3328,7 @@ qemuDomainRemoveDevice(virQEMUDriverPtr driver,
+     case VIR_DOMAIN_DEVICE_SHMEM:
+     case VIR_DOMAIN_DEVICE_TPM:
+     case VIR_DOMAIN_DEVICE_PANIC:
++    case VIR_DOMAIN_DEVICE_IOMMU:
+     case VIR_DOMAIN_DEVICE_LAST:
+         virReportError(VIR_ERR_OPERATION_UNSUPPORTED,
+                        _("don't know how to remove a %s device"),
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-intel-iommu.xml b/tests/qemuxml2argvdata/qemuxml2argv-intel-iommu.xml
+new file mode 100644
+index 0000000..b5b2b51
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-intel-iommu.xml
+@@ -0,0 +1,37 @@
++<domain type='qemu'>
++  <name>QEMUGuest1</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219100</memory>
++  <currentMemory unit='KiB'>219100</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='x86_64' machine='q35'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++    <emulator>/usr/bin/qemu</emulator>
++    <controller type='pci' index='0' model='pcie-root'/>
++    <controller type='pci' index='1' model='dmi-to-pci-bridge'>
++      <model name='i82801b11-bridge'/>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x1e' function='0x0'/>
++    </controller>
++    <controller type='pci' index='2' model='pci-bridge'>
++      <model name='pci-bridge'/>
++      <target chassisNr='2'/>
++      <address type='pci' domain='0x0000' bus='0x01' slot='0x00' function='0x0'/>
++    </controller>
++    <controller type='sata' index='0'>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x1f' function='0x2'/>
++    </controller>
++    <input type='mouse' bus='ps2'/>
++    <input type='keyboard' bus='ps2'/>
++    <memballoon model='virtio'>
++      <address type='pci' domain='0x0000' bus='0x02' slot='0x01' function='0x0'/>
++    </memballoon>
++    <iommu model='intel'/>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2xmloutdata/qemuxml2xmlout-intel-iommu.xml b/tests/qemuxml2xmloutdata/qemuxml2xmlout-intel-iommu.xml
+new file mode 100644
+index 0000000..b5b2b51
+--- /dev/null
++++ b/tests/qemuxml2xmloutdata/qemuxml2xmlout-intel-iommu.xml
+@@ -0,0 +1,37 @@
++<domain type='qemu'>
++  <name>QEMUGuest1</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219100</memory>
++  <currentMemory unit='KiB'>219100</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='x86_64' machine='q35'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++    <emulator>/usr/bin/qemu</emulator>
++    <controller type='pci' index='0' model='pcie-root'/>
++    <controller type='pci' index='1' model='dmi-to-pci-bridge'>
++      <model name='i82801b11-bridge'/>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x1e' function='0x0'/>
++    </controller>
++    <controller type='pci' index='2' model='pci-bridge'>
++      <model name='pci-bridge'/>
++      <target chassisNr='2'/>
++      <address type='pci' domain='0x0000' bus='0x01' slot='0x00' function='0x0'/>
++    </controller>
++    <controller type='sata' index='0'>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x1f' function='0x2'/>
++    </controller>
++    <input type='mouse' bus='ps2'/>
++    <input type='keyboard' bus='ps2'/>
++    <memballoon model='virtio'>
++      <address type='pci' domain='0x0000' bus='0x02' slot='0x01' function='0x0'/>
++    </memballoon>
++    <iommu model='intel'/>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2xmltest.c b/tests/qemuxml2xmltest.c
+index c6ef28c..2112d39 100644
+--- a/tests/qemuxml2xmltest.c
++++ b/tests/qemuxml2xmltest.c
+@@ -830,6 +830,10 @@ mymain(void)
+     DO_TEST("video-qxl-heads");
+     DO_TEST("video-qxl-noheads");
+ 
++    DO_TEST_FULL("intel-iommu", WHEN_ACTIVE, GIC_NONE,
++                 QEMU_CAPS_DEVICE_PCI_BRIDGE,
++                 QEMU_CAPS_DEVICE_DMI_TO_PCI_BRIDGE);
++
+     qemuTestDriverFree(&driver);
+ 
+     return ret == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+-- 
+2.9.2
+

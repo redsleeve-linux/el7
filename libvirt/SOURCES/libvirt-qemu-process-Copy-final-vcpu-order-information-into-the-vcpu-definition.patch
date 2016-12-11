@@ -1,0 +1,98 @@
+From 6e807be3ce7a6a2ca3ea4ad8e853b953a052739d Mon Sep 17 00:00:00 2001
+Message-Id: <6e807be3ce7a6a2ca3ea4ad8e853b953a052739d@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 24 Aug 2016 16:11:36 -0400
+Subject: [PATCH] qemu: process: Copy final vcpu order information into the
+ vcpu definition
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1097930
+https://bugzilla.redhat.com/show_bug.cgi?id=1224341
+
+The vcpu order information is extracted only for hotpluggable entities,
+while vcpu definitions belonging to the same hotpluggable entity need
+to all share the order information.
+
+We also can't overwrite it right away in the vcpu info detection code as
+the order is necessary to add the hotpluggable vcpus enabled on boot in
+the correct order.
+
+The helper will store the order information in places where we are
+certain that it's necessary.
+
+(cherry picked from commit 20ef1232ec9b51dc498d270f7c279235b6842d25)
+---
+ src/qemu/qemu_domain.c  | 34 ++++++++++++++++++++++++++++++++++
+ src/qemu/qemu_domain.h  |  3 +++
+ src/qemu/qemu_process.c |  2 ++
+ 3 files changed, 39 insertions(+)
+
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index 07c42a0..959b551 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -5949,3 +5949,37 @@ qemuDomainVcpuHotplugIsInOrder(virDomainDefPtr def)
+ 
+     return seenonlinevcpus == virDomainDefGetVcpus(def);
+ }
++
++
++/**
++ * qemuDomainVcpuPersistOrder:
++ * @def: domain definition
++ *
++ * Saves the order of vcpus detected from qemu to the domain definition.
++ * The private data note the order only for the entry describing the
++ * hotpluggable entity. This function copies the order into the definition part
++ * of all sub entities.
++ */
++void
++qemuDomainVcpuPersistOrder(virDomainDefPtr def)
++{
++    size_t maxvcpus = virDomainDefGetVcpusMax(def);
++    virDomainVcpuDefPtr vcpu;
++    qemuDomainVcpuPrivatePtr vcpupriv;
++    unsigned int prevorder = 0;
++    size_t i;
++
++    for (i = 0; i < maxvcpus; i++) {
++        vcpu = virDomainDefGetVcpu(def, i);
++        vcpupriv = QEMU_DOMAIN_VCPU_PRIVATE(vcpu);
++
++        if (!vcpu->online) {
++            vcpu->order = 0;
++        } else {
++            if (vcpupriv->enable_id != 0)
++                prevorder = vcpupriv->enable_id;
++
++            vcpu->order = prevorder;
++        }
++    }
++}
+diff --git a/src/qemu/qemu_domain.h b/src/qemu/qemu_domain.h
+index 3a80769..cc7bd51 100644
+--- a/src/qemu/qemu_domain.h
++++ b/src/qemu/qemu_domain.h
+@@ -727,4 +727,7 @@ int qemuDomainPrepareChannel(virDomainChrDefPtr chr,
+ bool qemuDomainVcpuHotplugIsInOrder(virDomainDefPtr def)
+     ATTRIBUTE_NONNULL(1);
+ 
++void qemuDomainVcpuPersistOrder(virDomainDefPtr def)
++    ATTRIBUTE_NONNULL(1);
++
+ #endif /* __QEMU_DOMAIN_H__ */
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 1726608..c94eed4 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -5202,6 +5202,8 @@ qemuProcessLaunch(virConnectPtr conn,
+     if (qemuDomainValidateVcpuInfo(vm) < 0)
+         goto cleanup;
+ 
++    qemuDomainVcpuPersistOrder(vm->def);
++
+     VIR_DEBUG("Detecting IOThread PIDs");
+     if (qemuProcessDetectIOThreadPIDs(driver, vm, asyncJob) < 0)
+         goto cleanup;
+-- 
+2.10.0
+

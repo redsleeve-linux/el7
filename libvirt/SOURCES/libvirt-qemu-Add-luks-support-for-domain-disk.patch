@@ -1,0 +1,409 @@
+From a1901b36addfb7a064a5d451e1cfb47d5737c8eb Mon Sep 17 00:00:00 2001
+Message-Id: <a1901b36addfb7a064a5d451e1cfb47d5737c8eb@dist-git>
+From: John Ferlan <jferlan@redhat.com>
+Date: Mon, 25 Jul 2016 12:43:00 -0400
+Subject: [PATCH] qemu: Add luks support for domain disk
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1301021
+
+Generate the luks command line using the AES secret key to encrypt the
+luks secret. A luks secret object will be in addition to a an AES secret.
+
+For hotplug, check if the encinfo exists and if so, add the AES secret
+for the passphrase for the secret object used to decrypt the device.
+
+Modify/augment the fakeSecret* in qemuxml2argvtest in order to handle
+find a uuid or a volume usage with a specific path prefix in the XML
+(corresponds to the already generated XML tests). Add error message
+when the 'usageID' is not 'mycluster_myname'. Commit id '1d632c39'
+altered the error message generation to rely on the errors from the
+secret_driver (or it's faked replacement).
+
+Add the .args output for adding the LUKS disk to the domain
+
+Signed-off-by: John Ferlan <jferlan@redhat.com>
+(cherry picked from commit da86c6c22674ccc147224afa2740e33d8cbdbf22)
+
+NB: The .args output was modified from upstream since the downstream
+    does not contain commit id 'e114b09157b7fcca12b218b531debfbc0c3a09d7'
+    which adds ",sockets=1,cores=1,threads=1" to the "-smp 1" on the
+    command line
+
+Signed-off-by: John Ferlan <jferlan@redhat.com>
+---
+ src/qemu/qemu_command.c                            |  9 +++
+ src/qemu/qemu_domain.c                             | 25 +++++++-
+ src/qemu/qemu_hotplug.c                            | 68 ++++++++++++++++++++++
+ .../qemuxml2argvdata/qemuxml2argv-luks-disks.args  | 36 ++++++++++++
+ tests/qemuxml2argvtest.c                           | 24 +++++++-
+ 5 files changed, 156 insertions(+), 6 deletions(-)
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-luks-disks.args
+
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index 0ee1d34..6c91e53 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -1087,6 +1087,7 @@ qemuBuildDriveStr(virDomainDiskDefPtr disk,
+     int actualType = virStorageSourceGetActualType(disk->src);
+     qemuDomainDiskPrivatePtr diskPriv = QEMU_DOMAIN_DISK_PRIVATE(disk);
+     qemuDomainSecretInfoPtr secinfo = diskPriv->secinfo;
++    qemuDomainSecretInfoPtr encinfo = diskPriv->encinfo;
+     bool emitDeviceSyntax = qemuDiskBusNeedsDeviceArg(disk->bus);
+ 
+     if (idx < 0) {
+@@ -1226,6 +1227,10 @@ qemuBuildDriveStr(virDomainDiskDefPtr disk,
+                               secinfo->s.aes.alias);
+         }
+ 
++        if (encinfo)
++            virQEMUBuildLuksOpts(&opt, &disk->src->encryption->encinfo,
++                                 encinfo->s.aes.alias);
++
+         if (disk->src->format > 0 &&
+             disk->src->type != VIR_STORAGE_TYPE_DIR)
+             virBufferAsprintf(&opt, "format=%s,",
+@@ -1928,6 +1933,7 @@ qemuBuildDiskDriveCommandLine(virCommandPtr cmd,
+         virDomainDiskDefPtr disk = def->disks[i];
+         qemuDomainDiskPrivatePtr diskPriv = QEMU_DOMAIN_DISK_PRIVATE(disk);
+         qemuDomainSecretInfoPtr secinfo = diskPriv->secinfo;
++        qemuDomainSecretInfoPtr encinfo = diskPriv->encinfo;
+ 
+         /* PowerPC pseries based VMs do not support floppy device */
+         if (disk->device == VIR_DOMAIN_DISK_DEVICE_FLOPPY &&
+@@ -1956,6 +1962,9 @@ qemuBuildDiskDriveCommandLine(virCommandPtr cmd,
+         if (qemuBuildDiskSecinfoCommandLine(cmd, secinfo) < 0)
+             return -1;
+ 
++        if (qemuBuildDiskSecinfoCommandLine(cmd, encinfo) < 0)
++            return -1;
++
+         virCommandAddArg(cmd, "-drive");
+ 
+         optstr = qemuBuildDriveStr(disk,
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index 27158f4..26d0d12 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -946,7 +946,8 @@ qemuDomainSecretSetup(virConnectPtr conn,
+ {
+     if (virCryptoHaveCipher(VIR_CRYPTO_CIPHER_AES256CBC) &&
+         virQEMUCapsGet(priv->qemuCaps, QEMU_CAPS_OBJECT_SECRET) &&
+-        secretUsageType == VIR_SECRET_USAGE_TYPE_CEPH) {
++        (secretUsageType == VIR_SECRET_USAGE_TYPE_CEPH ||
++         secretUsageType == VIR_SECRET_USAGE_TYPE_VOLUME)) {
+         if (qemuDomainSecretAESSetup(conn, priv, secinfo, srcalias,
+                                      secretUsageType, username,
+                                      seclookupdef, isLuks) < 0)
+@@ -1006,11 +1007,14 @@ qemuDomainSecretDiskPrepare(virConnectPtr conn,
+                             virDomainDiskDefPtr disk)
+ {
+     virStorageSourcePtr src = disk->src;
++    qemuDomainDiskPrivatePtr diskPriv = QEMU_DOMAIN_DISK_PRIVATE(disk);
+     qemuDomainSecretInfoPtr secinfo = NULL;
+ 
+-    if (conn && qemuDomainSecretDiskCapable(src)) {
++    if (!conn)
++        return 0;
++
++    if (qemuDomainSecretDiskCapable(src)) {
+         virSecretUsageType secretUsageType = VIR_SECRET_USAGE_TYPE_ISCSI;
+-        qemuDomainDiskPrivatePtr diskPriv = QEMU_DOMAIN_DISK_PRIVATE(disk);
+ 
+         if (VIR_ALLOC(secinfo) < 0)
+             return -1;
+@@ -1026,6 +1030,21 @@ qemuDomainSecretDiskPrepare(virConnectPtr conn,
+         diskPriv->secinfo = secinfo;
+     }
+ 
++    if (!virStorageSourceIsEmpty(src) && src->encryption &&
++        src->format == VIR_STORAGE_FILE_LUKS) {
++
++        if (VIR_ALLOC(secinfo) < 0)
++            return -1;
++
++        if (qemuDomainSecretSetup(conn, priv, secinfo, disk->info.alias,
++                                  VIR_SECRET_USAGE_TYPE_VOLUME, NULL,
++                                  &src->encryption->secrets[0]->seclookupdef,
++                                  true) < 0)
++            goto error;
++
++        diskPriv->encinfo = secinfo;
++    }
++
+     return 0;
+ 
+  error:
+diff --git a/src/qemu/qemu_hotplug.c b/src/qemu/qemu_hotplug.c
+index 9cb1d44..6509867 100644
+--- a/src/qemu/qemu_hotplug.c
++++ b/src/qemu/qemu_hotplug.c
+@@ -312,11 +312,14 @@ qemuDomainAttachVirtioDiskDevice(virConnectPtr conn,
+     bool releaseaddr = false;
+     bool driveAdded = false;
+     bool secobjAdded = false;
++    bool encobjAdded = false;
+     virQEMUDriverConfigPtr cfg = virQEMUDriverGetConfig(driver);
+     const char *src = virDomainDiskGetSource(disk);
+     virJSONValuePtr secobjProps = NULL;
++    virJSONValuePtr encobjProps = NULL;
+     qemuDomainDiskPrivatePtr diskPriv;
+     qemuDomainSecretInfoPtr secinfo;
++    qemuDomainSecretInfoPtr encinfo;
+ 
+     if (!disk->info.type) {
+         if (qemuDomainMachineIsS390CCW(vm->def) &&
+@@ -356,6 +359,10 @@ qemuDomainAttachVirtioDiskDevice(virConnectPtr conn,
+             goto error;
+     }
+ 
++    encinfo = diskPriv->encinfo;
++    if (encinfo && qemuBuildSecretInfoProps(encinfo, &encobjProps) < 0)
++        goto error;
++
+     if (!(drivestr = qemuBuildDriveStr(disk, false, priv->qemuCaps)))
+         goto error;
+ 
+@@ -379,6 +386,15 @@ qemuDomainAttachVirtioDiskDevice(virConnectPtr conn,
+     }
+     secobjAdded = true;
+ 
++    if (encobjProps) {
++        rv = qemuMonitorAddObject(priv->mon, "secret", encinfo->s.aes.alias,
++                                  encobjProps);
++        encobjProps = NULL; /* qemuMonitorAddObject consumes */
++        if (rv < 0)
++            goto exit_monitor;
++    }
++    encobjAdded = true;
++
+     if (qemuMonitorAddDrive(priv->mon, drivestr) < 0)
+         goto exit_monitor;
+     driveAdded = true;
+@@ -398,6 +414,7 @@ qemuDomainAttachVirtioDiskDevice(virConnectPtr conn,
+ 
+  cleanup:
+     virJSONValueFree(secobjProps);
++    virJSONValueFree(encobjProps);
+     qemuDomainSecretDiskDestroy(disk);
+     VIR_FREE(devstr);
+     VIR_FREE(drivestr);
+@@ -413,6 +430,8 @@ qemuDomainAttachVirtioDiskDevice(virConnectPtr conn,
+     }
+     if (secobjAdded)
+         ignore_value(qemuMonitorDelObject(priv->mon, secinfo->s.aes.alias));
++    if (encobjAdded)
++        ignore_value(qemuMonitorDelObject(priv->mon, encinfo->s.aes.alias));
+     if (orig_err) {
+         virSetError(orig_err);
+         virFreeError(orig_err);
+@@ -570,11 +589,17 @@ qemuDomainAttachSCSIDisk(virConnectPtr conn,
+ {
+     size_t i;
+     qemuDomainObjPrivatePtr priv = vm->privateData;
++    virErrorPtr orig_err;
+     char *drivestr = NULL;
+     char *devstr = NULL;
+     bool driveAdded = false;
++    bool encobjAdded = false;
+     int ret = -1;
++    int rv;
+     virQEMUDriverConfigPtr cfg = virQEMUDriverGetConfig(driver);
++    virJSONValuePtr encobjProps = NULL;
++    qemuDomainDiskPrivatePtr diskPriv;
++    qemuDomainSecretInfoPtr encinfo;
+ 
+     if (qemuDomainPrepareDisk(driver, vm, disk, NULL, false) < 0)
+         goto cleanup;
+@@ -605,6 +630,11 @@ qemuDomainAttachSCSIDisk(virConnectPtr conn,
+     if (qemuDomainSecretDiskPrepare(conn, priv, disk) < 0)
+         goto error;
+ 
++    diskPriv = QEMU_DOMAIN_DISK_PRIVATE(disk);
++    encinfo = diskPriv->encinfo;
++    if (encinfo && qemuBuildSecretInfoProps(encinfo, &encobjProps) < 0)
++        goto error;
++
+     if (!(devstr = qemuBuildDriveDevStr(vm->def, disk, 0, priv->qemuCaps)))
+         goto error;
+ 
+@@ -616,6 +646,15 @@ qemuDomainAttachSCSIDisk(virConnectPtr conn,
+ 
+     qemuDomainObjEnterMonitor(driver, vm);
+ 
++    if (encobjProps) {
++        rv = qemuMonitorAddObject(priv->mon, "secret", encinfo->s.aes.alias,
++                                  encobjProps);
++        encobjProps = NULL; /* qemuMonitorAddObject consumes */
++        if (rv < 0)
++            goto exit_monitor;
++    }
++    encobjAdded = true;
++
+     if (qemuMonitorAddDrive(priv->mon, drivestr) < 0)
+         goto exit_monitor;
+     driveAdded = true;
+@@ -632,6 +671,7 @@ qemuDomainAttachSCSIDisk(virConnectPtr conn,
+     ret = 0;
+ 
+  cleanup:
++    virJSONValueFree(encobjProps);
+     qemuDomainSecretDiskDestroy(disk);
+     VIR_FREE(devstr);
+     VIR_FREE(drivestr);
+@@ -643,6 +683,14 @@ qemuDomainAttachSCSIDisk(virConnectPtr conn,
+     if (driveAdded)
+         VIR_WARN("qemuMonitorAddDevice failed on %s (%s)", drivestr, devstr);
+ 
++    orig_err = virSaveLastError();
++    if (encobjAdded)
++        ignore_value(qemuMonitorDelObject(priv->mon, encinfo->s.aes.alias));
++    if (orig_err) {
++        virSetError(orig_err);
++        virFreeError(orig_err);
++    }
++
+     ignore_value(qemuDomainObjExitMonitor(driver, vm));
+ 
+     virDomainAuditDisk(vm, NULL, disk->src, "attach", false);
+@@ -2856,6 +2904,7 @@ qemuDomainRemoveDiskDevice(virQEMUDriverPtr driver,
+     qemuDomainObjPrivatePtr priv = vm->privateData;
+     char *drivestr;
+     char *objAlias = NULL;
++    char *encAlias = NULL;
+ 
+     VIR_DEBUG("Removing disk %s from domain %p %s",
+               disk->info.alias, vm, vm->def->name);
+@@ -2881,6 +2930,20 @@ qemuDomainRemoveDiskDevice(virQEMUDriverPtr driver,
+         }
+     }
+ 
++    /* Similarly, if this is possible a device using LUKS encryption, we
++     * can remove the luks object password too
++     */
++    if (!virStorageSourceIsEmpty(disk->src) && disk->src->encryption &&
++        disk->src->format == VIR_STORAGE_FILE_LUKS) {
++
++        if (!(encAlias =
++              qemuDomainGetSecretAESAlias(disk->info.alias, true))) {
++            VIR_FREE(objAlias);
++            VIR_FREE(drivestr);
++            return -1;
++        }
++    }
++
+     qemuDomainObjEnterMonitor(driver, vm);
+ 
+     /* If it fails, then so be it - it was a best shot */
+@@ -2888,6 +2951,11 @@ qemuDomainRemoveDiskDevice(virQEMUDriverPtr driver,
+         ignore_value(qemuMonitorDelObject(priv->mon, objAlias));
+     VIR_FREE(objAlias);
+ 
++    /* If it fails, then so be it - it was a best shot */
++    if (encAlias)
++        ignore_value(qemuMonitorDelObject(priv->mon, encAlias));
++    VIR_FREE(encAlias);
++
+     qemuMonitorDriveDel(priv->mon, drivestr);
+     VIR_FREE(drivestr);
+     if (qemuDomainObjExitMonitor(driver, vm) < 0)
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-luks-disks.args b/tests/qemuxml2argvdata/qemuxml2argv-luks-disks.args
+new file mode 100644
+index 0000000..efb5cb0
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-luks-disks.args
+@@ -0,0 +1,36 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/home/test \
++USER=test \
++LOGNAME=test \
++QEMU_AUDIO_DRV=none \
++/usr/bin/qemu \
++-name encryptdisk \
++-S \
++-object secret,id=masterKey0,format=raw,\
++file=/tmp/lib/domain--1-encryptdisk/master-key.aes \
++-M pc-i440fx-2.1 \
++-m 1024 \
++-smp 1 \
++-uuid 496898a6-e6ff-f7c8-5dc2-3cf410945ee9 \
++-nographic \
++-nodefaults \
++-monitor unix:/tmp/lib/domain--1-encryptdisk/monitor.sock,server,nowait \
++-no-acpi \
++-boot c \
++-usb \
++-object secret,id=virtio-disk0-luks-secret0,\
++data=9eao5F8qtkGt+seB1HYivWIxbtwUu6MQtg1zpj/oDtUsPr1q8wBYM91uEHCn6j/1,\
++keyid=masterKey0,iv=AAECAwQFBgcICQoLDA0ODw==,format=base64 \
++-drive file=/storage/guest_disks/encryptdisk,\
++key-secret=virtio-disk0-luks-secret0,format=luks,if=none,id=drive-virtio-disk0 \
++-device virtio-blk-pci,bus=pci.0,addr=0x4,drive=drive-virtio-disk0,\
++id=virtio-disk0 \
++-object secret,id=virtio-disk1-luks-secret0,\
++data=9eao5F8qtkGt+seB1HYivWIxbtwUu6MQtg1zpj/oDtUsPr1q8wBYM91uEHCn6j/1,\
++keyid=masterKey0,iv=AAECAwQFBgcICQoLDA0ODw==,format=base64 \
++-drive file=/storage/guest_disks/encryptdisk2,\
++key-secret=virtio-disk1-luks-secret0,format=luks,if=none,id=drive-virtio-disk1 \
++-device virtio-blk-pci,bus=pci.0,addr=0x5,drive=drive-virtio-disk1,\
++id=virtio-disk1 \
++-device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x3
+diff --git a/tests/qemuxml2argvtest.c b/tests/qemuxml2argvtest.c
+index d37d125..eddacf8 100644
+--- a/tests/qemuxml2argvtest.c
++++ b/tests/qemuxml2argvtest.c
+@@ -49,12 +49,22 @@ fakeSecretGetValue(virSecretPtr obj ATTRIBUTE_UNUSED,
+ 
+ static virSecretPtr
+ fakeSecretLookupByUsage(virConnectPtr conn,
+-                        int usageType ATTRIBUTE_UNUSED,
++                        int usageType,
+                         const char *usageID)
+ {
+     unsigned char uuid[VIR_UUID_BUFLEN];
+-    if (STRNEQ(usageID, "mycluster_myname"))
++    if (usageType == VIR_SECRET_USAGE_TYPE_VOLUME) {
++        if (!STRPREFIX(usageID, "/storage/guest_disks/")) {
++            virReportError(VIR_ERR_INTERNAL_ERROR,
++                           "test provided invalid volume storage prefix '%s'",
++                           usageID);
++            return NULL;
++        }
++    } else if (STRNEQ(usageID, "mycluster_myname")) {
++        virReportError(VIR_ERR_INTERNAL_ERROR,
++                       "test provided incorrect usage '%s'", usageID);
+         return NULL;
++    }
+ 
+     if (virUUIDGenerate(uuid) < 0)
+         return NULL;
+@@ -62,10 +72,17 @@ fakeSecretLookupByUsage(virConnectPtr conn,
+     return virGetSecret(conn, uuid, usageType, usageID);
+ }
+ 
++static virSecretPtr
++fakeSecretLookupByUUID(virConnectPtr conn,
++                       const unsigned char *uuid)
++{
++    return virGetSecret(conn, uuid, 0, "");
++}
++
+ static virSecretDriver fakeSecretDriver = {
+     .connectNumOfSecrets = NULL,
+     .connectListSecrets = NULL,
+-    .secretLookupByUUID = NULL,
++    .secretLookupByUUID = fakeSecretLookupByUUID,
+     .secretLookupByUsage = fakeSecretLookupByUsage,
+     .secretDefineXML = NULL,
+     .secretGetXMLDesc = NULL,
+@@ -1362,6 +1379,7 @@ mymain(void)
+ 
+     DO_TEST("encrypted-disk", NONE);
+     DO_TEST("encrypted-disk-usage", NONE);
++    DO_TEST("luks-disks", QEMU_CAPS_OBJECT_SECRET);
+ 
+     DO_TEST("memtune", NONE);
+     DO_TEST("memtune-unlimited", NONE);
+-- 
+2.9.2
+

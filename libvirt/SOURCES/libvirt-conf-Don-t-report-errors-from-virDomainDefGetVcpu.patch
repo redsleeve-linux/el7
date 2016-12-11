@@ -1,0 +1,76 @@
+From 5304cda0dc6e8f370a1f80050e03fdc4d6479d06 Mon Sep 17 00:00:00 2001
+Message-Id: <5304cda0dc6e8f370a1f80050e03fdc4d6479d06@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 24 Aug 2016 16:10:45 -0400
+Subject: [PATCH] conf: Don't report errors from virDomainDefGetVcpu
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1097930
+https://bugzilla.redhat.com/show_bug.cgi?id=1224341
+
+Most callers make sure that it's never called with an out of range vCPU.
+Every other caller reports a different error explicitly. Drop the error
+reporting and clean up some dead code paths.
+
+(cherry picked from commit 9cc931f0bbfc4529b3d07b4226af7b218624858d)
+---
+ src/conf/domain_conf.c |  6 +-----
+ src/qemu/qemu_driver.c | 10 ++--------
+ 2 files changed, 3 insertions(+), 13 deletions(-)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index a923b60..7a12462 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -1433,12 +1433,8 @@ virDomainVcpuDefPtr
+ virDomainDefGetVcpu(virDomainDefPtr def,
+                     unsigned int vcpu)
+ {
+-    if (vcpu >= def->maxvcpus) {
+-        virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+-                       _("vCPU '%u' is not present in domain definition"),
+-                       vcpu);
++    if (vcpu >= def->maxvcpus)
+         return NULL;
+-    }
+ 
+     return &def->vcpus[vcpu];
+ }
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index b4ab095..71f2fb6 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -4620,14 +4620,11 @@ qemuDomainHotplugAddVcpu(virQEMUDriverPtr driver,
+                          unsigned int vcpu)
+ {
+     qemuDomainObjPrivatePtr priv = vm->privateData;
+-    virDomainVcpuDefPtr vcpuinfo;
++    virDomainVcpuDefPtr vcpuinfo = virDomainDefGetVcpu(vm->def, vcpu);
+     int ret = -1;
+     int rc;
+     int oldvcpus = virDomainDefGetVcpus(vm->def);
+ 
+-    if (!(vcpuinfo = virDomainDefGetVcpu(vm->def, vcpu)))
+-        return -1;
+-
+     if (vcpuinfo->online) {
+         virReportError(VIR_ERR_INVALID_ARG,
+                        _("vCPU '%u' is already online"), vcpu);
+@@ -4672,14 +4669,11 @@ qemuDomainHotplugDelVcpu(virQEMUDriverPtr driver,
+                          unsigned int vcpu)
+ {
+     qemuDomainObjPrivatePtr priv = vm->privateData;
+-    virDomainVcpuDefPtr vcpuinfo;
++    virDomainVcpuDefPtr vcpuinfo = virDomainDefGetVcpu(vm->def, vcpu);
+     int ret = -1;
+     int rc;
+     int oldvcpus = virDomainDefGetVcpus(vm->def);
+ 
+-    if (!(vcpuinfo = virDomainDefGetVcpu(vm->def, vcpu)))
+-        return -1;
+-
+     if (!vcpuinfo->online) {
+         virReportError(VIR_ERR_INVALID_ARG,
+                        _("vCPU '%u' is already offline"), vcpu);
+-- 
+2.10.0
+

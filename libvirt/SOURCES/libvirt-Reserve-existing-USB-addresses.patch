@@ -1,0 +1,232 @@
+From 5749f8cb78cea11e1247fdcd6108fc632c38a3bc Mon Sep 17 00:00:00 2001
+Message-Id: <5749f8cb78cea11e1247fdcd6108fc632c38a3bc@dist-git>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Thu, 21 Jul 2016 15:57:53 +0200
+Subject: [PATCH] Reserve existing USB addresses
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Check if they fit on the USB controllers the domain has,
+and error out if two devices try to use the same address.
+
+(cherry picked from commit ddd31fd7dce3ffaf07d31502c57e1ca940f454fa)
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1215968
+---
+ src/conf/domain_addr.c                             | 42 ++++++++++++++++++++++
+ src/conf/domain_addr.h                             |  4 +++
+ src/libvirt_private.syms                           |  1 +
+ src/qemu/qemu_domain.c                             |  1 +
+ src/qemu/qemu_domain.h                             |  1 +
+ src/qemu/qemu_domain_address.c                     | 38 +++++++++++++++++++-
+ .../qemuxml2argv-usb-hub-conflict.xml              | 22 ++++++++++++
+ tests/qemuxml2argvtest.c                           |  3 ++
+ 8 files changed, 111 insertions(+), 1 deletion(-)
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-usb-hub-conflict.xml
+
+diff --git a/src/conf/domain_addr.c b/src/conf/domain_addr.c
+index ad20fef..bbac399 100644
+--- a/src/conf/domain_addr.c
++++ b/src/conf/domain_addr.c
+@@ -1562,3 +1562,45 @@ virDomainUSBAddressSetAddControllers(virDomainUSBAddressSetPtr addrs,
+     }
+     return 0;
+ }
++
++
++int
++virDomainUSBAddressReserve(virDomainDeviceInfoPtr info,
++                           void *data)
++{
++    virDomainUSBAddressSetPtr addrs = data;
++    virDomainUSBAddressHubPtr targetHub = NULL;
++    char *portStr = NULL;
++    int ret = -1;
++    int targetPort;
++
++    if (info->type != VIR_DOMAIN_DEVICE_ADDRESS_TYPE_USB)
++        return 0;
++
++    if (!virDomainUSBAddressPortIsValid(info->addr.usb.port))
++        return 0;
++
++    portStr = virDomainUSBAddressPortFormat(info->addr.usb.port);
++    if (!portStr)
++        goto cleanup;
++    VIR_DEBUG("Reserving USB address bus=%u port=%s", info->addr.usb.bus, portStr);
++
++    if (!(targetHub = virDomainUSBAddressFindPort(addrs, info, &targetPort,
++                                                  portStr)))
++        goto cleanup;
++
++    if (virBitmapIsBitSet(targetHub->portmap, targetPort)) {
++        virReportError(VIR_ERR_XML_ERROR,
++                       _("Duplicate USB address bus %u port %s"),
++                       info->addr.usb.bus, portStr);
++        goto cleanup;
++    }
++
++    ignore_value(virBitmapSetBit(targetHub->portmap, targetPort));
++
++    ret = 0;
++
++ cleanup:
++    VIR_FREE(portStr);
++    return ret;
++}
+diff --git a/src/conf/domain_addr.h b/src/conf/domain_addr.h
+index 2bd4a0d..a24d216 100644
+--- a/src/conf/domain_addr.h
++++ b/src/conf/domain_addr.h
+@@ -275,4 +275,8 @@ int virDomainUSBAddressSetAddControllers(virDomainUSBAddressSetPtr addrs,
+     ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2);
+ void virDomainUSBAddressSetFree(virDomainUSBAddressSetPtr addrs);
+ 
++int
++virDomainUSBAddressReserve(virDomainDeviceInfoPtr info,
++                           void *data)
++    ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2);
+ #endif /* __DOMAIN_ADDR_H__ */
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index f0fed8e..f66ccf5 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -110,6 +110,7 @@ virDomainPCIControllerModelToConnectType;
+ virDomainUSBAddressPortFormat;
+ virDomainUSBAddressPortFormatBuf;
+ virDomainUSBAddressPortIsValid;
++virDomainUSBAddressReserve;
+ virDomainUSBAddressSetAddControllers;
+ virDomainUSBAddressSetCreate;
+ virDomainUSBAddressSetFree;
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index 5b4d7a3..8b0f847 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -1244,6 +1244,7 @@ qemuDomainObjPrivateFree(void *data)
+     virDomainPCIAddressSetFree(priv->pciaddrs);
+     virDomainCCWAddressSetFree(priv->ccwaddrs);
+     virDomainVirtioSerialAddrSetFree(priv->vioserialaddrs);
++    virDomainUSBAddressSetFree(priv->usbaddrs);
+     virDomainChrSourceDefFree(priv->monConfig);
+     qemuDomainObjFreeJob(priv);
+     VIR_FREE(priv->vcpupids);
+diff --git a/src/qemu/qemu_domain.h b/src/qemu/qemu_domain.h
+index c87dcc7..b71a28d 100644
+--- a/src/qemu/qemu_domain.h
++++ b/src/qemu/qemu_domain.h
+@@ -190,6 +190,7 @@ struct _qemuDomainObjPrivate {
+     virDomainPCIAddressSetPtr pciaddrs;
+     virDomainCCWAddressSetPtr ccwaddrs;
+     virDomainVirtioSerialAddrSetPtr vioserialaddrs;
++    virDomainUSBAddressSetPtr usbaddrs;
+ 
+     virQEMUCapsPtr qemuCaps;
+     char *lockState;
+diff --git a/src/qemu/qemu_domain_address.c b/src/qemu/qemu_domain_address.c
+index ee44d45..f66b2f0 100644
+--- a/src/qemu/qemu_domain_address.c
++++ b/src/qemu/qemu_domain_address.c
+@@ -1622,11 +1622,44 @@ qemuDomainAssignPCIAddresses(virDomainDefPtr def,
+ }
+ 
+ 
++static int
++qemuDomainAssignUSBAddresses(virDomainDefPtr def,
++                             virDomainObjPtr obj)
++{
++    int ret = -1;
++    virDomainUSBAddressSetPtr addrs = NULL;
++    qemuDomainObjPrivatePtr priv = NULL;
++
++    if (!(addrs = virDomainUSBAddressSetCreate()))
++        goto cleanup;
++
++    if (virDomainUSBAddressSetAddControllers(addrs, def) < 0)
++        goto cleanup;
++
++    if (virDomainUSBDeviceDefForeach(def, virDomainUSBAddressReserve, addrs,
++                                     true) < 0)
++        goto cleanup;
++
++    VIR_DEBUG("Existing USB addresses have been reserved");
++
++    if (obj && obj->privateData) {
++        priv = obj->privateData;
++        priv->usbaddrs = addrs;
++        addrs = NULL;
++    }
++    ret = 0;
++
++ cleanup:
++    virDomainUSBAddressSetFree(addrs);
++    return ret;
++}
++
++
+ int
+ qemuDomainAssignAddresses(virDomainDefPtr def,
+                           virQEMUCapsPtr qemuCaps,
+                           virDomainObjPtr obj,
+-                          bool newDomain ATTRIBUTE_UNUSED)
++                          bool newDomain)
+ {
+     if (qemuDomainAssignVirtioSerialAddresses(def, obj) < 0)
+         return -1;
+@@ -1642,6 +1675,9 @@ qemuDomainAssignAddresses(virDomainDefPtr def,
+     if (qemuDomainAssignPCIAddresses(def, qemuCaps, obj) < 0)
+         return -1;
+ 
++    if (newDomain && qemuDomainAssignUSBAddresses(def, obj) < 0)
++        return -1;
++
+     return 0;
+ }
+ 
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-usb-hub-conflict.xml b/tests/qemuxml2argvdata/qemuxml2argv-usb-hub-conflict.xml
+new file mode 100644
+index 0000000..9a48ba0
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-usb-hub-conflict.xml
+@@ -0,0 +1,22 @@
++<domain type='qemu'>
++  <name>QEMUGuest1</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219136</memory>
++  <currentMemory unit='KiB'>219136</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='i686' machine='pc'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <devices>
++    <emulator>/usr/bin/qemu</emulator>
++    <controller type='usb' index='0'/>
++    <memballoon model='virtio'/>
++    <hub type='usb'>
++      <address type='usb' bus='0' port='1'/>
++    </hub>
++    <input type='mouse' bus='usb'>
++      <address type='usb' bus='0' port='1'/>
++    </input>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2argvtest.c b/tests/qemuxml2argvtest.c
+index 4389e24..9c18989 100644
+--- a/tests/qemuxml2argvtest.c
++++ b/tests/qemuxml2argvtest.c
+@@ -1159,6 +1159,9 @@ mymain(void)
+     DO_TEST("usb-hub",
+             QEMU_CAPS_CHARDEV, QEMU_CAPS_USB_HUB,
+             QEMU_CAPS_NODEFCONFIG);
++    DO_TEST_PARSE_ERROR("usb-hub-conflict",
++            QEMU_CAPS_CHARDEV, QEMU_CAPS_USB_HUB,
++            QEMU_CAPS_NODEFCONFIG);
+     DO_TEST("usb-port-missing",
+             QEMU_CAPS_CHARDEV, QEMU_CAPS_USB_HUB,
+             QEMU_CAPS_NODEFCONFIG);
+-- 
+2.9.2
+

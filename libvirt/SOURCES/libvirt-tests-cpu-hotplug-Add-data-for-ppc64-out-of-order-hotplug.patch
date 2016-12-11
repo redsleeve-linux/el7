@@ -1,0 +1,369 @@
+From c1cabe4130eaf51441aa6a3f5b688c2177218195 Mon Sep 17 00:00:00 2001
+Message-Id: <c1cabe4130eaf51441aa6a3f5b688c2177218195@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 24 Aug 2016 16:11:28 -0400
+Subject: [PATCH] tests: cpu-hotplug: Add data for ppc64 out-of-order hotplug
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1097930
+https://bugzilla.redhat.com/show_bug.cgi?id=1224341
+
+Test the algorithm that extracts the order in which the vcpu entries
+were plugged in on a sample of data created by plugging in vcpus
+arbitrarily.
+
+(cherry picked from commit 1c455c4743796d2c977bfc1e999a233eeef1127f)
+---
+ ...mumonitorjson-cpuinfo-ppc64-hotplug-4-cpus.json | 221 +++++++++++++++++++++
+ ...onitorjson-cpuinfo-ppc64-hotplug-4-hotplug.json |  29 +++
+ .../qemumonitorjson-cpuinfo-ppc64-hotplug-4.data   |  62 ++++++
+ tests/qemumonitorjsontest.c                        |   1 +
+ 4 files changed, 313 insertions(+)
+ create mode 100644 tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-ppc64-hotplug-4-cpus.json
+ create mode 100644 tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-ppc64-hotplug-4-hotplug.json
+ create mode 100644 tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-ppc64-hotplug-4.data
+
+diff --git a/tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-ppc64-hotplug-4-cpus.json b/tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-ppc64-hotplug-4-cpus.json
+new file mode 100644
+index 0000000..bcb6eab
+--- /dev/null
++++ b/tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-ppc64-hotplug-4-cpus.json
+@@ -0,0 +1,221 @@
++{
++  "return": [
++    {
++      "arch": "ppc",
++      "current": true,
++      "CPU": 0,
++      "nip": -4611686018426772172,
++      "qom_path": "/machine/unattached/device[1]/thread[0]",
++      "halted": false,
++      "thread_id": 21925
++    },
++    {
++      "arch": "ppc",
++      "current": false,
++      "CPU": 1,
++      "nip": -4611686018426772172,
++      "qom_path": "/machine/unattached/device[1]/thread[1]",
++      "halted": false,
++      "thread_id": 21926
++    },
++    {
++      "arch": "ppc",
++      "current": false,
++      "CPU": 2,
++      "nip": -4611686018426772172,
++      "qom_path": "/machine/unattached/device[1]/thread[2]",
++      "halted": false,
++      "thread_id": 21927
++    },
++    {
++      "arch": "ppc",
++      "current": false,
++      "CPU": 3,
++      "nip": -4611686018426772172,
++      "qom_path": "/machine/unattached/device[1]/thread[3]",
++      "halted": false,
++      "thread_id": 21928
++    },
++    {
++      "arch": "ppc",
++      "current": false,
++      "CPU": 4,
++      "nip": -4611686018426772172,
++      "qom_path": "/machine/unattached/device[1]/thread[4]",
++      "halted": false,
++      "thread_id": 21930
++    },
++    {
++      "arch": "ppc",
++      "current": false,
++      "CPU": 5,
++      "nip": -4611686018426772172,
++      "qom_path": "/machine/unattached/device[1]/thread[5]",
++      "halted": false,
++      "thread_id": 21931
++    },
++    {
++      "arch": "ppc",
++      "current": false,
++      "CPU": 6,
++      "nip": -4611686018426772172,
++      "qom_path": "/machine/unattached/device[1]/thread[6]",
++      "halted": false,
++      "thread_id": 21932
++    },
++    {
++      "arch": "ppc",
++      "current": false,
++      "CPU": 7,
++      "nip": -4611686018426772172,
++      "qom_path": "/machine/unattached/device[1]/thread[7]",
++      "halted": false,
++      "thread_id": 21933
++    },
++    {
++      "arch": "ppc",
++      "current": false,
++      "CPU": 8,
++      "nip": -4611686018426772172,
++      "qom_path": "/machine/peripheral/vcpu1/thread[0]",
++      "halted": false,
++      "thread_id": 22741
++    },
++    {
++      "arch": "ppc",
++      "current": false,
++      "CPU": 9,
++      "nip": -4611686018426772172,
++      "qom_path": "/machine/peripheral/vcpu1/thread[1]",
++      "halted": false,
++      "thread_id": 22742
++    },
++    {
++      "arch": "ppc",
++      "current": false,
++      "CPU": 10,
++      "nip": -4611686018426772172,
++      "qom_path": "/machine/peripheral/vcpu1/thread[2]",
++      "halted": false,
++      "thread_id": 22743
++    },
++    {
++      "arch": "ppc",
++      "current": false,
++      "CPU": 11,
++      "nip": -4611686018419474700,
++      "qom_path": "/machine/peripheral/vcpu1/thread[3]",
++      "halted": false,
++      "thread_id": 22744
++    },
++    {
++      "arch": "ppc",
++      "current": false,
++      "CPU": 12,
++      "nip": -4611686018426772172,
++      "qom_path": "/machine/peripheral/vcpu1/thread[4]",
++      "halted": false,
++      "thread_id": 22745
++    },
++    {
++      "arch": "ppc",
++      "current": false,
++      "CPU": 13,
++      "nip": -4611686018426772172,
++      "qom_path": "/machine/peripheral/vcpu1/thread[5]",
++      "halted": false,
++      "thread_id": 22746
++    },
++    {
++      "arch": "ppc",
++      "current": false,
++      "CPU": 14,
++      "nip": -4611686018426772172,
++      "qom_path": "/machine/peripheral/vcpu1/thread[6]",
++      "halted": false,
++      "thread_id": 22747
++    },
++    {
++      "arch": "ppc",
++      "current": false,
++      "CPU": 15,
++      "nip": -4611686018426772172,
++      "qom_path": "/machine/peripheral/vcpu1/thread[7]",
++      "halted": false,
++      "thread_id": 22748
++    },
++    {
++      "arch": "ppc",
++      "current": false,
++      "CPU": 16,
++      "nip": 0,
++      "qom_path": "/machine/peripheral/vcpu0/thread[0]",
++      "halted": true,
++      "thread_id": 23170
++    },
++    {
++      "arch": "ppc",
++      "current": false,
++      "CPU": 17,
++      "nip": 0,
++      "qom_path": "/machine/peripheral/vcpu0/thread[1]",
++      "halted": true,
++      "thread_id": 23171
++    },
++    {
++      "arch": "ppc",
++      "current": false,
++      "CPU": 18,
++      "nip": 0,
++      "qom_path": "/machine/peripheral/vcpu0/thread[2]",
++      "halted": true,
++      "thread_id": 23172
++    },
++    {
++      "arch": "ppc",
++      "current": false,
++      "CPU": 19,
++      "nip": 0,
++      "qom_path": "/machine/peripheral/vcpu0/thread[3]",
++      "halted": true,
++      "thread_id": 23173
++    },
++    {
++      "arch": "ppc",
++      "current": false,
++      "CPU": 20,
++      "nip": 0,
++      "qom_path": "/machine/peripheral/vcpu0/thread[4]",
++      "halted": true,
++      "thread_id": 23174
++    },
++    {
++      "arch": "ppc",
++      "current": false,
++      "CPU": 21,
++      "nip": 0,
++      "qom_path": "/machine/peripheral/vcpu0/thread[5]",
++      "halted": true,
++      "thread_id": 23175
++    },
++    {
++      "arch": "ppc",
++      "current": false,
++      "CPU": 22,
++      "nip": 0,
++      "qom_path": "/machine/peripheral/vcpu0/thread[6]",
++      "halted": true,
++      "thread_id": 23176
++    },
++    {
++      "arch": "ppc",
++      "current": false,
++      "CPU": 23,
++      "nip": 0,
++      "qom_path": "/machine/peripheral/vcpu0/thread[7]",
++      "halted": true,
++      "thread_id": 23177
++    }
++  ],
++  "id": "libvirt-37"
++}
+diff --git a/tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-ppc64-hotplug-4-hotplug.json b/tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-ppc64-hotplug-4-hotplug.json
+new file mode 100644
+index 0000000..ded2054
+--- /dev/null
++++ b/tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-ppc64-hotplug-4-hotplug.json
+@@ -0,0 +1,29 @@
++{
++  "return": [
++    {
++      "props": {
++        "core-id": 16
++      },
++      "vcpus-count": 8,
++      "qom-path": "/machine/peripheral/vcpu1",
++      "type": "host-spapr-cpu-core"
++    },
++    {
++      "props": {
++        "core-id": 8
++      },
++      "vcpus-count": 8,
++      "qom-path": "/machine/peripheral/vcpu0",
++      "type": "host-spapr-cpu-core"
++    },
++    {
++      "props": {
++        "core-id": 0
++      },
++      "vcpus-count": 8,
++      "qom-path": "/machine/unattached/device[1]",
++      "type": "host-spapr-cpu-core"
++    }
++  ],
++  "id": "libvirt-38"
++}
+diff --git a/tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-ppc64-hotplug-4.data b/tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-ppc64-hotplug-4.data
+new file mode 100644
+index 0000000..22a425d
+--- /dev/null
++++ b/tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-ppc64-hotplug-4.data
+@@ -0,0 +1,62 @@
++[vcpu libvirt-id='0']
++    thread-id='21925'
++    qemu-id='1'
++    type='host-spapr-cpu-core'
++    qom_path='/machine/unattached/device[1]'
++    topology: core='0' vcpus='8'
++[vcpu libvirt-id='1']
++    thread-id='21926'
++[vcpu libvirt-id='2']
++    thread-id='21927'
++[vcpu libvirt-id='3']
++    thread-id='21928'
++[vcpu libvirt-id='4']
++    thread-id='21930'
++[vcpu libvirt-id='5']
++    thread-id='21931'
++[vcpu libvirt-id='6']
++    thread-id='21932'
++[vcpu libvirt-id='7']
++    thread-id='21933'
++[vcpu libvirt-id='8']
++    thread-id='23170'
++    qemu-id='3'
++    type='host-spapr-cpu-core'
++    alias='vcpu0'
++    qom_path='/machine/peripheral/vcpu0'
++    topology: core='8' vcpus='8'
++[vcpu libvirt-id='9']
++    thread-id='23171'
++[vcpu libvirt-id='10']
++    thread-id='23172'
++[vcpu libvirt-id='11']
++    thread-id='23173'
++[vcpu libvirt-id='12']
++    thread-id='23174'
++[vcpu libvirt-id='13']
++    thread-id='23175'
++[vcpu libvirt-id='14']
++    thread-id='23176'
++[vcpu libvirt-id='15']
++    thread-id='23177'
++[vcpu libvirt-id='16']
++    thread-id='22741'
++    qemu-id='2'
++    type='host-spapr-cpu-core'
++    alias='vcpu1'
++    qom_path='/machine/peripheral/vcpu1'
++    topology: core='16' vcpus='8'
++[vcpu libvirt-id='17']
++    thread-id='22742'
++[vcpu libvirt-id='18']
++    thread-id='22743'
++[vcpu libvirt-id='19']
++    thread-id='22744'
++[vcpu libvirt-id='20']
++    thread-id='22745'
++[vcpu libvirt-id='21']
++    thread-id='22746'
++[vcpu libvirt-id='22']
++    thread-id='22747'
++[vcpu libvirt-id='23']
++    thread-id='22748'
+diff --git a/tests/qemumonitorjsontest.c b/tests/qemumonitorjsontest.c
+index 3cb7083..ddcbd78 100644
+--- a/tests/qemumonitorjsontest.c
++++ b/tests/qemumonitorjsontest.c
+@@ -2590,6 +2590,7 @@ mymain(void)
+     DO_TEST_CPU_INFO("ppc64-basic", 24);
+     DO_TEST_CPU_INFO("ppc64-hotplug-1", 24);
+     DO_TEST_CPU_INFO("ppc64-hotplug-2", 24);
++    DO_TEST_CPU_INFO("ppc64-hotplug-4", 24);
+ 
+     qemuTestDriverFree(&driver);
+ 
+-- 
+2.10.0
+

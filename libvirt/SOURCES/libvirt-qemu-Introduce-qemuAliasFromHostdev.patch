@@ -1,0 +1,71 @@
+From 7b5a14e1402fe13052f1d632d3f95307ea829a75 Mon Sep 17 00:00:00 2001
+Message-Id: <7b5a14e1402fe13052f1d632d3f95307ea829a75@dist-git>
+From: John Ferlan <jferlan@redhat.com>
+Date: Tue, 2 Aug 2016 12:04:38 -0400
+Subject: [PATCH] qemu: Introduce qemuAliasFromHostdev
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1289391
+
+Introduce a common API to generate the alias for a host device
+
+(cherry picked from commit 647bc753d453dcf9ffafe95a3233cb4fbbffca5a)
+
+Resolved conflicts since upstream commit 'dd0dbe1d' is not present
+(e.g. qemuAliasDiskDriveSkipPrefix)
+
+Signed-off-by: John Ferlan <jferlan@redhat.com>
+---
+ src/qemu/qemu_alias.c | 23 +++++++++++++++++++++++
+ src/qemu/qemu_alias.h |  2 ++
+ 2 files changed, 25 insertions(+)
+
+diff --git a/src/qemu/qemu_alias.c b/src/qemu/qemu_alias.c
+index 51a654a..a85d3d1 100644
+--- a/src/qemu/qemu_alias.c
++++ b/src/qemu/qemu_alias.c
+@@ -467,6 +467,29 @@ qemuAliasFromDisk(const virDomainDiskDef *disk)
+ }
+ 
+ 
++/* qemuAliasFromHostdev
++ * @hostdev: Pointer to host device
++ *
++ * Generate and return a string containing a drive alias
++ */
++char *
++qemuAliasFromHostdev(const virDomainHostdevDef *hostdev)
++{
++    char *ret;
++
++    if (!hostdev->info->alias) {
++        virReportError(VIR_ERR_INVALID_ARG, "%s",
++                       _("hostdev does not have an alias"));
++        return NULL;
++    }
++
++    ignore_value(virAsprintf(&ret, "%s-%s",
++                 virDomainDeviceAddressTypeToString(hostdev->info->type),
++                 hostdev->info->alias));
++    return ret;
++}
++
++
+ /* qemuDomainGetMasterKeyAlias:
+  *
+  * Generate and return the masterKey alias
+diff --git a/src/qemu/qemu_alias.h b/src/qemu/qemu_alias.h
+index d1c6ba8..bb19710 100644
+--- a/src/qemu/qemu_alias.h
++++ b/src/qemu/qemu_alias.h
+@@ -67,6 +67,8 @@ int qemuDomainDeviceAliasIndex(const virDomainDeviceInfo *info,
+ 
+ char *qemuAliasFromDisk(const virDomainDiskDef *disk);
+ 
++char *qemuAliasFromHostdev(const virDomainHostdevDef *hostdev);
++
+ char *qemuDomainGetMasterKeyAlias(void);
+ 
+ char *qemuDomainGetSecretAESAlias(const char *srcalias,
+-- 
+2.9.2
+

@@ -1,0 +1,88 @@
+From a61eeb7afe4694defd6a6bd46f917802fd88703c Mon Sep 17 00:00:00 2001
+Message-Id: <a61eeb7afe4694defd6a6bd46f917802fd88703c@dist-git>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Tue, 16 Aug 2016 12:49:45 +0200
+Subject: [PATCH] conf: report an error message for non-existing USB hubs
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+If any of the devices referenced a USB hub that does not exist,
+defining the domain would either fail with:
+error: An error occurred, but the cause is unknown
+(if only the last hub in the path is missing)
+or crash.
+
+Return a proper error instead of crashing.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1367130
+(cherry picked from commit ef66bd5df8af93db5a77f0c1f33182139c9b63b3)
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+---
+ src/conf/domain_addr.c                                |  8 ++++++++
+ .../qemuxml2argv-usb-hub-nonexistent.xml              | 19 +++++++++++++++++++
+ tests/qemuxml2argvtest.c                              |  3 +++
+ 3 files changed, 30 insertions(+)
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-usb-hub-nonexistent.xml
+
+diff --git a/src/conf/domain_addr.c b/src/conf/domain_addr.c
+index 14baef7..6567093 100644
+--- a/src/conf/domain_addr.c
++++ b/src/conf/domain_addr.c
+@@ -1501,6 +1501,14 @@ virDomainUSBAddressFindPort(virDomainUSBAddressSetPtr addrs,
+             return NULL;
+         }
+         hub = hub->ports[portIdx];
++        if (!hub) {
++            virReportError(VIR_ERR_XML_ERROR,
++                           _("there is no hub at port %u in USB address bus: %u port: %s"),
++                           info->addr.usb.port[i],
++                           info->addr.usb.bus,
++                           portStr);
++            return NULL;
++        }
+     }
+ 
+     *targetIdx = info->addr.usb.port[lastIdx] - 1;
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-usb-hub-nonexistent.xml b/tests/qemuxml2argvdata/qemuxml2argv-usb-hub-nonexistent.xml
+new file mode 100644
+index 0000000..2090319
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-usb-hub-nonexistent.xml
+@@ -0,0 +1,19 @@
++<domain type='qemu'>
++  <name>QEMUGuest1</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219136</memory>
++  <currentMemory unit='KiB'>219136</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='i686' machine='pc'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <devices>
++    <emulator>/usr/bin/qemu</emulator>
++    <controller type='usb' index='0'/>
++    <memballoon model='virtio'/>
++    <input type='mouse' bus='usb'>
++      <address type='usb' bus='0' port='1.2.3'/>
++    </input>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2argvtest.c b/tests/qemuxml2argvtest.c
+index b86a8a1..b1ff684 100644
+--- a/tests/qemuxml2argvtest.c
++++ b/tests/qemuxml2argvtest.c
+@@ -1202,6 +1202,9 @@ mymain(void)
+     DO_TEST_PARSE_ERROR("usb-hub-conflict",
+             QEMU_CAPS_CHARDEV, QEMU_CAPS_USB_HUB,
+             QEMU_CAPS_NODEFCONFIG);
++    DO_TEST_PARSE_ERROR("usb-hub-nonexistent",
++            QEMU_CAPS_CHARDEV, QEMU_CAPS_USB_HUB,
++            QEMU_CAPS_NODEFCONFIG);
+     DO_TEST("usb-port-missing",
+             QEMU_CAPS_CHARDEV, QEMU_CAPS_USB_HUB,
+             QEMU_CAPS_NODEFCONFIG);
+-- 
+2.9.2
+

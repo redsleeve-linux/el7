@@ -1,0 +1,105 @@
+From d9e2deb0b6928f213d11f5c6e82ac17c3cad0b3b Mon Sep 17 00:00:00 2001
+Message-Id: <d9e2deb0b6928f213d11f5c6e82ac17c3cad0b3b@dist-git>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Mon, 25 Jul 2016 10:24:57 +0200
+Subject: [PATCH] Add QEMU_CAPS_DEVICE_INTEL_IOMMU
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Check whether QEMU supports -device intel-iommu
+
+Note that the presence of this option does not mean that it's
+usable because of a bug in earlier QEMU versions, but it's
+better than nothing.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1235581
+(cherry picked from commit 8e7e79738d47d7881eb6ccc61ddcb0cfba418d94)
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+
+ Conflicts:
+	src/qemu/qemu_capabilities.c
+	src/qemu/qemu_capabilities.h
+	tests/qemucapabilitiesdata/caps_2.4.0.x86_64.xml
+	tests/qemucapabilitiesdata/caps_2.5.0.x86_64.xml
+	tests/qemucapabilitiesdata/caps_2.6.0.x86_64.xml
+  Downstream is missing QEMU_CAPS_DISPLAY
+---
+ src/qemu/qemu_capabilities.c                     | 2 ++
+ src/qemu/qemu_capabilities.h                     | 1 +
+ tests/qemucapabilitiesdata/caps_2.4.0.x86_64.xml | 1 +
+ tests/qemucapabilitiesdata/caps_2.5.0.x86_64.xml | 1 +
+ tests/qemucapabilitiesdata/caps_2.6.0.x86_64.xml | 1 +
+ 5 files changed, 6 insertions(+)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index 9f1c0e1..b35948d 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -337,6 +337,7 @@ VIR_ENUM_IMPL(virQEMUCaps, QEMU_CAPS_LAST,
+               "drive-detect-zeroes",
+ 
+               "tls-creds-x509", /* 230 */
++              "intel-iommu",
+     );
+ 
+ 
+@@ -1566,6 +1567,7 @@ struct virQEMUCapsStringFlags virQEMUCapsObjectTypes[] = {
+     { "pxb", QEMU_CAPS_DEVICE_PXB },
+     { "pxb-pcie", QEMU_CAPS_DEVICE_PXB_PCIE },
+     { "tls-creds-x509", QEMU_CAPS_OBJECT_TLS_CREDS_X509 },
++    { "intel-iommu", QEMU_CAPS_DEVICE_INTEL_IOMMU },
+ };
+ 
+ static struct virQEMUCapsStringFlags virQEMUCapsObjectPropsVirtioBalloon[] = {
+diff --git a/src/qemu/qemu_capabilities.h b/src/qemu/qemu_capabilities.h
+index 9d891c8..379aff0 100644
+--- a/src/qemu/qemu_capabilities.h
++++ b/src/qemu/qemu_capabilities.h
+@@ -370,6 +370,7 @@ typedef enum {
+ 
+     /* 230 */
+     QEMU_CAPS_OBJECT_TLS_CREDS_X509, /* -object tls-creds-x509 */
++    QEMU_CAPS_DEVICE_INTEL_IOMMU, /* -device intel-iommu */
+ 
+     QEMU_CAPS_LAST /* this must always be the last item */
+ } virQEMUCapsFlags;
+diff --git a/tests/qemucapabilitiesdata/caps_2.4.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_2.4.0.x86_64.xml
+index 112ac95..98c260c 100644
+--- a/tests/qemucapabilitiesdata/caps_2.4.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.4.0.x86_64.xml
+@@ -182,6 +182,7 @@
+   <flag name='qxl-vga.max_outputs'/>
+   <flag name='spice-unix'/>
+   <flag name='drive-detect-zeroes'/>
++  <flag name='intel-iommu'/>
+   <version>2004000</version>
+   <kvmVersion>0</kvmVersion>
+   <package></package>
+diff --git a/tests/qemucapabilitiesdata/caps_2.5.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_2.5.0.x86_64.xml
+index 8157985..590c8c1 100644
+--- a/tests/qemucapabilitiesdata/caps_2.5.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.5.0.x86_64.xml
+@@ -187,6 +187,7 @@
+   <flag name='spice-unix'/>
+   <flag name='drive-detect-zeroes'/>
+   <flag name='tls-creds-x509'/>
++  <flag name='intel-iommu'/>
+   <version>2005000</version>
+   <kvmVersion>0</kvmVersion>
+   <package></package>
+diff --git a/tests/qemucapabilitiesdata/caps_2.6.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_2.6.0.x86_64.xml
+index 1d503dd..128ac11 100644
+--- a/tests/qemucapabilitiesdata/caps_2.6.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.6.0.x86_64.xml
+@@ -193,6 +193,7 @@
+   <flag name='spice-unix'/>
+   <flag name='drive-detect-zeroes'/>
+   <flag name='tls-creds-x509'/>
++  <flag name='intel-iommu'/>
+   <version>2006000</version>
+   <kvmVersion>0</kvmVersion>
+   <package></package>
+-- 
+2.9.2
+

@@ -1,0 +1,79 @@
+From a13eac3b9909d824e1f821b869ae166a25479121 Mon Sep 17 00:00:00 2001
+Message-Id: <a13eac3b9909d824e1f821b869ae166a25479121@dist-git>
+From: Erik Skultety <eskultet@redhat.com>
+Date: Tue, 16 Aug 2016 13:06:03 +0200
+Subject: [PATCH] admin: Fix default uri config option name
+ s/admin_uri_default/uri_default
+
+The original name 'admin_uri_default' was introduced to our code by commit
+dbecb87f. However, at that time we already had a separate config file for
+admin library but the commit mentioned above didn't properly adjust the
+config's option name. The result is that when we're loading the config, we
+check a non-existent config option (there's not much to do with the URIs
+anyway, since we only allow local connection). Additionally, virt-admin's man
+page documents, that the default URI can be altered by setting
+admin_uri_default option. So the fix proposed by this patch leaves the
+libvirt-admin.conf as is and adjusts the naming in the code as well as in the
+virt-admin's man page.
+
+Signed-off-by: Erik Skultety <eskultet@redhat.com>
+(cherry picked from commit f5f32bcd1bb7d96b38c34a85658ac0996683f8bc)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1367269
+Signed-off-by: Erik Skultety <eskultet@redhat.com>
+
+ Conflicts:
+	src/libvirt-admin.c - conflicts caused by downstream commit 00f1be9c
+        which had to be modified compared to its upstream original f5da0d18
+        that was relying on some newly added accessors which were not
+        backported.
+---
+ src/libvirt-admin.c  | 4 ++--
+ tools/virt-admin.pod | 7 ++++---
+ 2 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/libvirt-admin.c b/src/libvirt-admin.c
+index c485752..f3bbe8c 100644
+--- a/src/libvirt-admin.c
++++ b/src/libvirt-admin.c
+@@ -169,10 +169,10 @@ virAdmGetDefaultURI(virConfPtr conf, char **uristr)
+             return -1;
+         VIR_DEBUG("Using LIBVIRT_ADMIN_DEFAULT_URI '%s'", *uristr);
+     } else {
+-        if ((value = virConfGetValue(conf, "admin_uri_default"))) {
++        if ((value = virConfGetValue(conf, "uri_default"))) {
+             if (value->type != VIR_CONF_STRING) {
+                 virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+-                               _("Expected a string for 'admin_uri_default' "
++                               _("Expected a string for 'uri_default' "
+                                  "config parameter"));
+                 return -1;
+             }
+diff --git a/tools/virt-admin.pod b/tools/virt-admin.pod
+index afc4689..49b267f 100644
+--- a/tools/virt-admin.pod
++++ b/tools/virt-admin.pod
+@@ -127,7 +127,7 @@ Will print the current directory.
+ 
+ (Re)-Connect to a daemon's administrating server. The I<URI> parameter
+ specifies how to connect to the administrating server.
+-If I<LIBVIRT_ADMIN_DEFAULT_URI> or I<admin_uri_default> (see below) were set,
++If I<LIBVIRT_ADMIN_DEFAULT_URI> or I<uri_default> (see below) were set,
+ I<connect> is automatically issued every time a command that requires an
+ active connection is executed. Note that this only applies if there is no
+ connection at all or there is an inactive one.
+@@ -140,8 +140,9 @@ L<http://libvirt.org/uri.html> on how to make URIs.
+ =item B<uri>
+ 
+ Prints the administrating server canonical URI, can be useful in shell mode. If
+-no I<uri> was specified, neither I<LIBVIRT_ADMIN_DEFAULT_URI> or
+-I<admin_uri_default> were set, libvirtd:///system is used.
++no I<uri> was specified, neither I<LIBVIRT_ADMIN_DEFAULT_URI> environment
++variable nor I<uri_default> option (libvirt-admin.conf) were set,
++libvirtd:///system is used.
+ 
+ =back
+ 
+-- 
+2.9.2
+

@@ -1,0 +1,384 @@
+From b330f5cda86acf70de78d103a7ed5a0e0e3cbacb Mon Sep 17 00:00:00 2001
+Message-Id: <b330f5cda86acf70de78d103a7ed5a0e0e3cbacb@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Fri, 5 Aug 2016 14:35:25 +0200
+Subject: [PATCH] Introduce SMM feature
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1304483
+
+Since its release of 2.4.0 qemu is able to enable System
+Management Module in the firmware, or disable it. We should
+expose this capability in the XML. Unfortunately, there's no good
+way to determine whether the binary we are talking to supports
+it. I mean, if qemu's run with real machine type, the smm
+attribute can be seen in 'qom-list /machine' output. But it's not
+there when qemu's run with -M none. Therefore we're stuck with
+version based check.
+
+Also, for the RHEL-7.3 I had to adjust the machine-smm-opt test.
+In the upstream we already retired QEMU_CAPS_SMP_TOPOLOGY
+capability, but not in RHEL yet.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit d0e4be9d0297494ba0e23843593f734234ddb08f)
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+
+ Conflicts:
+   tests/qemucapabilitiesdata/caps_2.6.0-gicv2.aarch64.xml
+   tests/qemucapabilitiesdata/caps_2.6.0-gicv3.aarch64.xml
+   tests/qemucapabilitiesdata/caps_2.6.0.ppc64le.xml -
+   QEMU_CAPS_DISPLAY is not backported yet
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ docs/formatdomain.html.in                          |  6 +++++
+ docs/schemas/domaincommon.rng                      |  9 +++++++
+ src/conf/domain_conf.c                             |  5 +++-
+ src/conf/domain_conf.h                             |  1 +
+ src/qemu/qemu_capabilities.c                       | 16 +++++++++++++
+ src/qemu/qemu_capabilities.h                       |  4 ++++
+ src/qemu/qemu_command.c                            | 12 ++++++++++
+ tests/qemucapabilitiesdata/caps_2.4.0.x86_64.xml   |  1 +
+ tests/qemucapabilitiesdata/caps_2.5.0.x86_64.xml   |  1 +
+ .../caps_2.6.0-gicv2.aarch64.xml                   |  1 +
+ .../caps_2.6.0-gicv3.aarch64.xml                   |  1 +
+ tests/qemucapabilitiesdata/caps_2.6.0.ppc64le.xml  |  1 +
+ tests/qemucapabilitiesdata/caps_2.6.0.x86_64.xml   |  1 +
+ .../qemuxml2argv-machine-smm-opt.args              | 25 +++++++++++++++++++
+ .../qemuxml2argv-machine-smm-opt.xml               | 28 ++++++++++++++++++++++
+ tests/qemuxml2argvtest.c                           |  8 +++++++
+ 16 files changed, 119 insertions(+), 1 deletion(-)
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-machine-smm-opt.args
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-machine-smm-opt.xml
+
+diff --git a/docs/formatdomain.html.in b/docs/formatdomain.html.in
+index f006179..4d4d601 100644
+--- a/docs/formatdomain.html.in
++++ b/docs/formatdomain.html.in
+@@ -1655,6 +1655,12 @@
+           values are <code>2</code>, <code>3</code> and <code>host</code>.
+           <span class="since">Since 1.2.16</span>
+       </dd>
++      <dt><code>smm</code></dt>
++      <dd>Enable System Management Mode. Possible values are
++          <code>on</code> and <code>off</code>. The default is left
++          for hypervisor to decide.
++          <span class="since">Since 2.1.0</span>
++      </dd>
+     </dl>
+ 
+     <h3><a name="elementsTime">Time keeping</a></h3>
+diff --git a/docs/schemas/domaincommon.rng b/docs/schemas/domaincommon.rng
+index f17104b..3960a98 100644
+--- a/docs/schemas/domaincommon.rng
++++ b/docs/schemas/domaincommon.rng
+@@ -4286,6 +4286,15 @@
+               </optional>
+             </element>
+           </optional>
++          <optional>
++            <element name="smm">
++              <optional>
++                <attribute name="state">
++                  <ref name="virOnOff"/>
++                </attribute>
++              </optional>
++            </element>
++          </optional>
+         </interleave>
+       </element>
+     </optional>
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index abf889a..c02c821 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -137,7 +137,8 @@ VIR_ENUM_IMPL(virDomainFeature, VIR_DOMAIN_FEATURE_LAST,
+               "capabilities",
+               "pmu",
+               "vmport",
+-              "gic")
++              "gic",
++              "smm")
+ 
+ VIR_ENUM_IMPL(virDomainCapabilitiesPolicy, VIR_DOMAIN_CAPABILITIES_POLICY_LAST,
+               "default",
+@@ -16361,6 +16362,7 @@ virDomainDefParseXML(xmlDocPtr xml,
+         case VIR_DOMAIN_FEATURE_PMU:
+         case VIR_DOMAIN_FEATURE_PVSPINLOCK:
+         case VIR_DOMAIN_FEATURE_VMPORT:
++        case VIR_DOMAIN_FEATURE_SMM:
+             node = ctxt->node;
+             ctxt->node = nodes[i];
+             if ((tmp = virXPathString("string(./@state)", ctxt))) {
+@@ -23265,6 +23267,7 @@ virDomainDefFormatInternal(virDomainDefPtr def,
+             case VIR_DOMAIN_FEATURE_PMU:
+             case VIR_DOMAIN_FEATURE_PVSPINLOCK:
+             case VIR_DOMAIN_FEATURE_VMPORT:
++            case VIR_DOMAIN_FEATURE_SMM:
+                 switch ((virTristateSwitch) def->features[i]) {
+                 case VIR_TRISTATE_SWITCH_LAST:
+                 case VIR_TRISTATE_SWITCH_ABSENT:
+diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
+index 1f75be1..88b0122 100644
+--- a/src/conf/domain_conf.h
++++ b/src/conf/domain_conf.h
+@@ -1598,6 +1598,7 @@ typedef enum {
+     VIR_DOMAIN_FEATURE_PMU,
+     VIR_DOMAIN_FEATURE_VMPORT,
+     VIR_DOMAIN_FEATURE_GIC,
++    VIR_DOMAIN_FEATURE_SMM,
+ 
+     VIR_DOMAIN_FEATURE_LAST
+ } virDomainFeature;
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index b35948d..d3964bd 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -338,6 +338,7 @@ VIR_ENUM_IMPL(virQEMUCaps, QEMU_CAPS_LAST,
+ 
+               "tls-creds-x509", /* 230 */
+               "intel-iommu",
++              "smm",
+     );
+ 
+ 
+@@ -3538,6 +3539,10 @@ virQEMUCapsInitQMPMonitor(virQEMUCapsPtr qemuCaps,
+     if (qemuCaps->version >= 2003000)
+         virQEMUCapsSet(qemuCaps, QEMU_CAPS_VHOSTUSER_MULTIQUEUE);
+ 
++    /* smm option is supported from v2.4.0 */
++    if (qemuCaps->version >= 2004000)
++        virQEMUCapsSet(qemuCaps, QEMU_CAPS_MACHINE_SMM_OPT);
++
+     /* Since 2.4.50 ARM virt machine supports gic-version option */
+     if (qemuCaps->version >= 2004050)
+         virQEMUCapsSet(qemuCaps, QEMU_CAPS_MACH_VIRT_GIC_VERSION);
+@@ -4057,6 +4062,17 @@ virQEMUCapsSupportsVmport(virQEMUCapsPtr qemuCaps,
+ 
+ 
+ bool
++virQEMUCapsSupportsSMM(virQEMUCapsPtr qemuCaps,
++                       const virDomainDef *def)
++{
++    if (!virQEMUCapsGet(qemuCaps, QEMU_CAPS_MACHINE_SMM_OPT))
++        return false;
++
++    return qemuDomainMachineIsQ35(def);
++}
++
++
++bool
+ virQEMUCapsIsMachineSupported(virQEMUCapsPtr qemuCaps,
+                               const char *canonical_machine)
+ {
+diff --git a/src/qemu/qemu_capabilities.h b/src/qemu/qemu_capabilities.h
+index 379aff0..150d619 100644
+--- a/src/qemu/qemu_capabilities.h
++++ b/src/qemu/qemu_capabilities.h
+@@ -371,6 +371,7 @@ typedef enum {
+     /* 230 */
+     QEMU_CAPS_OBJECT_TLS_CREDS_X509, /* -object tls-creds-x509 */
+     QEMU_CAPS_DEVICE_INTEL_IOMMU, /* -device intel-iommu */
++    QEMU_CAPS_MACHINE_SMM_OPT, /* -machine xxx,smm=on/off/auto */
+ 
+     QEMU_CAPS_LAST /* this must always be the last item */
+ } virQEMUCapsFlags;
+@@ -407,6 +408,9 @@ bool virQEMUCapsHasPCIMultiBus(virQEMUCapsPtr qemuCaps,
+ bool virQEMUCapsSupportsVmport(virQEMUCapsPtr qemuCaps,
+                                const virDomainDef *def);
+ 
++bool virQEMUCapsSupportsSMM(virQEMUCapsPtr qemuCaps,
++                            const virDomainDef *def);
++
+ char *virQEMUCapsFlagsString(virQEMUCapsPtr qemuCaps);
+ 
+ const char *virQEMUCapsGetBinary(virQEMUCapsPtr qemuCaps);
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index 1a5c6dc..773f5f3 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -6996,6 +6996,7 @@ qemuBuildMachineCommandLine(virCommandPtr cmd,
+         }
+     } else {
+         virTristateSwitch vmport = def->features[VIR_DOMAIN_FEATURE_VMPORT];
++        virTristateSwitch smm = def->features[VIR_DOMAIN_FEATURE_SMM];
+ 
+         virCommandAddArg(cmd, "-machine");
+         virBufferAdd(&buf, def->os.machine, -1);
+@@ -7025,6 +7026,17 @@ qemuBuildMachineCommandLine(virCommandPtr cmd,
+                               virTristateSwitchTypeToString(vmport));
+         }
+ 
++        if (smm) {
++            if (!virQEMUCapsSupportsSMM(qemuCaps, def)) {
++                virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
++                               _("smm is not available with this QEMU binary"));
++                goto cleanup;
++            }
++
++            virBufferAsprintf(&buf, ",smm=%s",
++                              virTristateSwitchTypeToString(smm));
++        }
++
+         if (def->mem.dump_core) {
+             if (!virQEMUCapsGet(qemuCaps, QEMU_CAPS_DUMP_GUEST_CORE)) {
+                 virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+diff --git a/tests/qemucapabilitiesdata/caps_2.4.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_2.4.0.x86_64.xml
+index 98c260c..225019a 100644
+--- a/tests/qemucapabilitiesdata/caps_2.4.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.4.0.x86_64.xml
+@@ -183,6 +183,7 @@
+   <flag name='spice-unix'/>
+   <flag name='drive-detect-zeroes'/>
+   <flag name='intel-iommu'/>
++  <flag name='smm'/>
+   <version>2004000</version>
+   <kvmVersion>0</kvmVersion>
+   <package></package>
+diff --git a/tests/qemucapabilitiesdata/caps_2.5.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_2.5.0.x86_64.xml
+index 590c8c1..f16f057 100644
+--- a/tests/qemucapabilitiesdata/caps_2.5.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.5.0.x86_64.xml
+@@ -188,6 +188,7 @@
+   <flag name='drive-detect-zeroes'/>
+   <flag name='tls-creds-x509'/>
+   <flag name='intel-iommu'/>
++  <flag name='smm'/>
+   <version>2005000</version>
+   <kvmVersion>0</kvmVersion>
+   <package></package>
+diff --git a/tests/qemucapabilitiesdata/caps_2.6.0-gicv2.aarch64.xml b/tests/qemucapabilitiesdata/caps_2.6.0-gicv2.aarch64.xml
+index aa65733..c57f11f 100644
+--- a/tests/qemucapabilitiesdata/caps_2.6.0-gicv2.aarch64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.6.0-gicv2.aarch64.xml
+@@ -157,6 +157,7 @@
+   <flag name='name-guest'/>
+   <flag name='drive-detect-zeroes'/>
+   <flag name='tls-creds-x509'/>
++  <flag name='smm'/>
+   <version>2005094</version>
+   <kvmVersion>0</kvmVersion>
+   <package></package>
+diff --git a/tests/qemucapabilitiesdata/caps_2.6.0-gicv3.aarch64.xml b/tests/qemucapabilitiesdata/caps_2.6.0-gicv3.aarch64.xml
+index 04d77f7..9798323 100644
+--- a/tests/qemucapabilitiesdata/caps_2.6.0-gicv3.aarch64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.6.0-gicv3.aarch64.xml
+@@ -157,6 +157,7 @@
+   <flag name='name-guest'/>
+   <flag name='drive-detect-zeroes'/>
+   <flag name='tls-creds-x509'/>
++  <flag name='smm'/>
+   <version>2005094</version>
+   <kvmVersion>0</kvmVersion>
+   <package></package>
+diff --git a/tests/qemucapabilitiesdata/caps_2.6.0.ppc64le.xml b/tests/qemucapabilitiesdata/caps_2.6.0.ppc64le.xml
+index 120d249..7392551 100644
+--- a/tests/qemucapabilitiesdata/caps_2.6.0.ppc64le.xml
++++ b/tests/qemucapabilitiesdata/caps_2.6.0.ppc64le.xml
+@@ -151,6 +151,7 @@
+   <flag name='name-guest'/>
+   <flag name='drive-detect-zeroes'/>
+   <flag name='tls-creds-x509'/>
++  <flag name='smm'/>
+   <version>2005094</version>
+   <kvmVersion>0</kvmVersion>
+   <package></package>
+diff --git a/tests/qemucapabilitiesdata/caps_2.6.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_2.6.0.x86_64.xml
+index 128ac11..766c514 100644
+--- a/tests/qemucapabilitiesdata/caps_2.6.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.6.0.x86_64.xml
+@@ -194,6 +194,7 @@
+   <flag name='drive-detect-zeroes'/>
+   <flag name='tls-creds-x509'/>
+   <flag name='intel-iommu'/>
++  <flag name='smm'/>
+   <version>2006000</version>
+   <kvmVersion>0</kvmVersion>
+   <package></package>
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-machine-smm-opt.args b/tests/qemuxml2argvdata/qemuxml2argv-machine-smm-opt.args
+new file mode 100644
+index 0000000..e49d7e9
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-machine-smm-opt.args
+@@ -0,0 +1,25 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/home/test \
++USER=test \
++LOGNAME=test \
++QEMU_AUDIO_DRV=none \
++/usr/bin/qemu \
++-name QEMUGuest1 \
++-S \
++-machine q35,accel=tcg,smm=on \
++-m 214 \
++-smp 1,sockets=1,cores=1,threads=1 \
++-uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
++-nographic \
++-nodefaults \
++-monitor unix:/tmp/lib/domain--1-QEMUGuest1/monitor.sock,server,nowait \
++-no-acpi \
++-boot c \
++-device i82801b11-bridge,id=pci.1,bus=pcie.0,addr=0x1e \
++-device pci-bridge,chassis_nr=2,id=pci.2,bus=pci.1,addr=0x0 \
++-device virtio-scsi-pci,id=scsi0,bus=pci.2,addr=0x1 \
++-drive file=/dev/HostVG/QEMUGuest1,format=raw,if=none,id=drive-scsi0-0-0-0 \
++-device scsi-disk,bus=scsi0.0,channel=0,scsi-id=0,lun=0,\
++drive=drive-scsi0-0-0-0,id=scsi0-0-0-0 \
++-device virtio-balloon-pci,id=balloon0,bus=pci.2,addr=0x2
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-machine-smm-opt.xml b/tests/qemuxml2argvdata/qemuxml2argv-machine-smm-opt.xml
+new file mode 100644
+index 0000000..b964b5e
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-machine-smm-opt.xml
+@@ -0,0 +1,28 @@
++<domain type='qemu'>
++  <name>QEMUGuest1</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219100</memory>
++  <currentMemory unit='KiB'>219100</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='x86_64' machine='q35'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <features>
++    <smm state='on'/>
++  </features>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++    <emulator>/usr/bin/qemu</emulator>
++    <disk type='block' device='disk'>
++      <source dev='/dev/HostVG/QEMUGuest1'/>
++      <target dev='sda' bus='scsi'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='0'/>
++    </disk>
++    <controller type='scsi' index='0'/>
++    <memballoon model='virtio'/>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2argvtest.c b/tests/qemuxml2argvtest.c
+index f49f9b9..5c26812 100644
+--- a/tests/qemuxml2argvtest.c
++++ b/tests/qemuxml2argvtest.c
+@@ -617,6 +617,14 @@ mymain(void)
+             QEMU_CAPS_DUMP_GUEST_CORE);
+     DO_TEST_FAILURE("machine-core-on", NONE);
+     DO_TEST_FAILURE("machine-core-on", QEMU_CAPS_MACHINE_OPT);
++    DO_TEST("machine-smm-opt",
++            QEMU_CAPS_DEVICE_DMI_TO_PCI_BRIDGE,
++            QEMU_CAPS_DEVICE_PCI_BRIDGE,
++            QEMU_CAPS_ICH9_AHCI,
++            QEMU_CAPS_MACHINE_OPT,
++            QEMU_CAPS_MACHINE_SMM_OPT,
++            QEMU_CAPS_SMP_TOPOLOGY,
++            QEMU_CAPS_VIRTIO_SCSI);
+     DO_TEST("machine-usb-opt", QEMU_CAPS_MACHINE_OPT,
+             QEMU_CAPS_MACHINE_USB_OPT);
+     DO_TEST("machine-vmport-opt", QEMU_CAPS_MACHINE_OPT,
+-- 
+2.9.2
+

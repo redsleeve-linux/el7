@@ -1,0 +1,36 @@
+From 70b18a664f73f36641c8b6db8b7ac57715d4f187 Mon Sep 17 00:00:00 2001
+Message-Id: <70b18a664f73f36641c8b6db8b7ac57715d4f187@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Fri, 26 Aug 2016 15:45:28 -0400
+Subject: [PATCH] conf: Fix build with picky GCC
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1097930
+https://bugzilla.redhat.com/show_bug.cgi?id=1224341
+
+../../src/conf/domain_conf.c:4425:21: error: potential null pointer dereference [-Werror=null-dereference]
+         switch (vcpu->hotpluggable) {
+                 ~~~~^~~~~~~~~~~~~~
+
+(cherry picked from commit 9cf086be6d916c52035a0ee89f3f0f020e9fee1f)
+---
+ src/conf/domain_conf.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 9c49ba7..261684e 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -4515,6 +4515,10 @@ virDomainVcpuDefPostParse(virDomainDefPtr def)
+     for (i = 0; i < maxvcpus; i++) {
+         vcpu = virDomainDefGetVcpu(def, i);
+ 
++        /* impossible but some compilers don't like it */
++        if (!vcpu)
++            continue;
++
+         switch (vcpu->hotpluggable) {
+         case VIR_TRISTATE_BOOL_ABSENT:
+             if (vcpu->online)
+-- 
+2.10.0
+

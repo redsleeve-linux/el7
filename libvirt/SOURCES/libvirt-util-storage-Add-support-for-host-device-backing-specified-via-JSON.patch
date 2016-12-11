@@ -1,0 +1,51 @@
+From 73fc27c0ac5b2c8eedf2c92ba5fd4a473ca14f1c Mon Sep 17 00:00:00 2001
+Message-Id: <73fc27c0ac5b2c8eedf2c92ba5fd4a473ca14f1c@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 2 Aug 2016 13:41:49 +0200
+Subject: [PATCH] util: storage: Add support for host device backing specified
+ via JSON
+
+JSON pseudo protocol for qemu allows to explicitly specify devices.
+Add convertor to the internal type.
+
+(cherry picked from commit 47f292dd35c4f2163d4a5f6d8673128c74e91a48)
+https://bugzilla.redhat.com/show_bug.cgi?id=1134878 [JSON backing]
+https://bugzilla.redhat.com/show_bug.cgi?id=1247521 [gluster multi-host]
+---
+ src/util/virstoragefile.c | 2 ++
+ tests/virstoragetest.c    | 6 ++++++
+ 2 files changed, 8 insertions(+)
+
+diff --git a/src/util/virstoragefile.c b/src/util/virstoragefile.c
+index 25f363d..45266c5 100644
+--- a/src/util/virstoragefile.c
++++ b/src/util/virstoragefile.c
+@@ -2554,6 +2554,8 @@ struct virStorageSourceJSONDriverParser {
+ 
+ static const struct virStorageSourceJSONDriverParser jsonParsers[] = {
+     {"file", virStorageSourceParseBackingJSONPath, VIR_STORAGE_TYPE_FILE},
++    {"host_device", virStorageSourceParseBackingJSONPath, VIR_STORAGE_TYPE_BLOCK},
++    {"host_cdrom", virStorageSourceParseBackingJSONPath, VIR_STORAGE_TYPE_BLOCK},
+ };
+ 
+ 
+diff --git a/tests/virstoragetest.c b/tests/virstoragetest.c
+index 04575f2..6873180 100644
+--- a/tests/virstoragetest.c
++++ b/tests/virstoragetest.c
+@@ -1370,6 +1370,12 @@ mymain(void)
+                                         "}"
+                             "}",
+                        "<source file='/path/to/file'/>\n");
++    TEST_BACKING_PARSE("json:{\"file.driver\":\"host_device\", "
++                             "\"file.filename\":\"/path/to/dev\"}",
++                       "<source dev='/path/to/dev'/>\n");
++    TEST_BACKING_PARSE("json:{\"file.driver\":\"host_cdrom\", "
++                             "\"file.filename\":\"/path/to/cdrom\"}",
++                       "<source dev='/path/to/cdrom'/>\n");
+ 
+  cleanup:
+     /* Final cleanup */
+-- 
+2.9.2
+

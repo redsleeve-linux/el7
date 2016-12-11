@@ -1,0 +1,37 @@
+From 940c4182a5132ec055f8516318353c5a3409e058 Mon Sep 17 00:00:00 2001
+Message-Id: <940c4182a5132ec055f8516318353c5a3409e058@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 24 Aug 2016 16:11:05 -0400
+Subject: [PATCH] qemu: Improve error message in virDomainGetVcpus
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1097930
+https://bugzilla.redhat.com/show_bug.cgi?id=1224341
+
+If the VM is offline we can't retrieve the runtime statistical
+information. Pinning could be retrieved but there are separate APIs for
+that.
+
+(cherry picked from commit dd976f786cc241be8b62ee44a08ce27158fa386c)
+---
+ src/qemu/qemu_driver.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index d3cf267..57ca522 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -5290,9 +5290,8 @@ qemuDomainGetVcpus(virDomainPtr dom,
+         goto cleanup;
+ 
+     if (!virDomainObjIsActive(vm)) {
+-        virReportError(VIR_ERR_OPERATION_INVALID,
+-                       "%s",
+-                       _("cannot list vcpu pinning for an inactive domain"));
++        virReportError(VIR_ERR_OPERATION_INVALID, "%s",
++                       _("cannot retrieve vcpu information for inactive domain"));
+         goto cleanup;
+     }
+ 
+-- 
+2.10.0
+

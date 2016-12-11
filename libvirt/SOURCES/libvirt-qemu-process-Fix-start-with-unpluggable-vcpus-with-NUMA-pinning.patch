@@ -1,0 +1,53 @@
+From b917728ea6ae2e11c9ce5a46de1eedcdbe366748 Mon Sep 17 00:00:00 2001
+Message-Id: <b917728ea6ae2e11c9ce5a46de1eedcdbe366748@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 7 Sep 2016 16:12:14 +0200
+Subject: [PATCH] qemu: process: Fix start with unpluggable vcpus with NUMA
+ pinning
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1097930
+
+Similarly to vcpu hotplug the emulator thread cgroup numa mapping needs
+to be relaxed while hot-adding vcpus so that the threads can allocate
+data in the DMA zone.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1370084
+(cherry picked from commit 68115fe0abf833a5d1dfb3a00aa216c332e84acb)
+---
+ src/qemu/qemu_process.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 9583506..0777c0c 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -4823,6 +4823,8 @@ qemuProcessSetupHotpluggableVcpus(virQEMUDriverPtr driver,
+                                   qemuDomainAsyncJob asyncJob)
+ {
+     unsigned int maxvcpus = virDomainDefGetVcpusMax(vm->def);
++    qemuDomainObjPrivatePtr priv = vm->privateData;
++    qemuCgroupEmulatorAllNodesDataPtr emulatorCgroup = NULL;
+     virDomainVcpuDefPtr vcpu;
+     qemuDomainVcpuPrivatePtr vcpupriv;
+     virJSONValuePtr vcpuprops = NULL;
+@@ -4855,6 +4857,9 @@ qemuProcessSetupHotpluggableVcpus(virQEMUDriverPtr driver,
+     qsort(bootHotplug, nbootHotplug, sizeof(*bootHotplug),
+           qemuProcessVcpusSortOrder);
+ 
++    if (qemuCgroupEmulatorAllNodesAllow(priv->cgroup, &emulatorCgroup) < 0)
++        goto cleanup;
++
+     for (i = 0; i < nbootHotplug; i++) {
+         vcpu = bootHotplug[i];
+ 
+@@ -4879,6 +4884,7 @@ qemuProcessSetupHotpluggableVcpus(virQEMUDriverPtr driver,
+     ret = 0;
+ 
+  cleanup:
++    qemuCgrouEmulatorAllNodesRestore(emulatorCgroup);
+     VIR_FREE(bootHotplug);
+     virJSONValueFree(vcpuprops);
+     return ret;
+-- 
+2.10.0
+

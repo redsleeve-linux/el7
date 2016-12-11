@@ -1,0 +1,122 @@
+From 35b27f217c3614ffe368262297ca4e77e9bec4bb Mon Sep 17 00:00:00 2001
+Message-Id: <35b27f217c3614ffe368262297ca4e77e9bec4bb@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 2 Aug 2016 13:41:53 +0200
+Subject: [PATCH] util: storage: Add JSON backing volume parser for 'nbd'
+ protocol
+
+(cherry picked from commit a1674fd9d98d5e0c39c02a0c05841089c8ed63f2)
+https://bugzilla.redhat.com/show_bug.cgi?id=1134878 [JSON backing]
+https://bugzilla.redhat.com/show_bug.cgi?id=1247521 [gluster multi-host]
+---
+ src/util/virstoragefile.c | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ tests/virstoragetest.c    | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 75 insertions(+)
+
+diff --git a/src/util/virstoragefile.c b/src/util/virstoragefile.c
+index 7fd1593..7f598fa 100644
+--- a/src/util/virstoragefile.c
++++ b/src/util/virstoragefile.c
+@@ -2711,6 +2711,50 @@ virStorageSourceParseBackingJSONiSCSI(virStorageSourcePtr src,
+ }
+ 
+ 
++static int
++virStorageSourceParseBackingJSONNbd(virStorageSourcePtr src,
++                                    virJSONValuePtr json,
++                                    int opaque ATTRIBUTE_UNUSED)
++{
++    const char *path = virJSONValueObjectGetString(json, "path");
++    const char *host = virJSONValueObjectGetString(json, "host");
++    const char *port = virJSONValueObjectGetString(json, "port");
++    const char *export = virJSONValueObjectGetString(json, "export");
++
++    if (!path && !host) {
++        virReportError(VIR_ERR_INVALID_ARG, "%s",
++                       _("missing path or host of NBD server in JSON backing "
++                         "volume definition"));
++        return -1;
++    }
++
++    src->type = VIR_STORAGE_TYPE_NETWORK;
++    src->protocol = VIR_STORAGE_NET_PROTOCOL_NBD;
++
++    if (VIR_STRDUP(src->path, export) < 0)
++        return -1;
++
++    if (VIR_ALLOC_N(src->hosts, 1) < 0)
++        return -1;
++    src->nhosts = 1;
++
++    if (path) {
++        src->hosts[0].transport = VIR_STORAGE_NET_HOST_TRANS_UNIX;
++        if (VIR_STRDUP(src->hosts[0].socket, path) < 0)
++            return -1;
++    } else {
++        src->hosts[0].transport = VIR_STORAGE_NET_HOST_TRANS_TCP;
++        if (VIR_STRDUP(src->hosts[0].name, host) < 0)
++            return -1;
++
++        if (VIR_STRDUP(src->hosts[0].port, port) < 0)
++            return -1;
++    }
++
++    return 0;
++}
++
++
+ struct virStorageSourceJSONDriverParser {
+     const char *drvname;
+     int (*func)(virStorageSourcePtr src, virJSONValuePtr json, int opaque);
+@@ -2728,6 +2772,7 @@ static const struct virStorageSourceJSONDriverParser jsonParsers[] = {
+     {"tftp", virStorageSourceParseBackingJSONUri, VIR_STORAGE_NET_PROTOCOL_TFTP},
+     {"gluster", virStorageSourceParseBackingJSONGluster, 0},
+     {"iscsi", virStorageSourceParseBackingJSONiSCSI, 0},
++    {"nbd", virStorageSourceParseBackingJSONNbd, 0},
+ };
+ 
+ 
+diff --git a/tests/virstoragetest.c b/tests/virstoragetest.c
+index 22aae47..4ddcac0 100644
+--- a/tests/virstoragetest.c
++++ b/tests/virstoragetest.c
+@@ -1437,6 +1437,36 @@ mymain(void)
+                         "  <host transport='unix' socket='/path/socket'/>\n"
+                         "  <host name='example.com'/>\n"
+                         "</source>\n");
++    TEST_BACKING_PARSE("json:{\"file\":{\"driver\":\"nbd\","
++                                       "\"path\":\"/path/to/socket\""
++                                      "}"
++                            "}",
++                       "<source protocol='nbd'>\n"
++                       "  <host transport='unix' socket='/path/to/socket'/>\n"
++                       "</source>\n");
++    TEST_BACKING_PARSE("json:{\"file.driver\":\"nbd\","
++                             "\"file.path\":\"/path/to/socket\""
++                            "}",
++                       "<source protocol='nbd'>\n"
++                       "  <host transport='unix' socket='/path/to/socket'/>\n"
++                       "</source>\n");
++    TEST_BACKING_PARSE("json:{\"file\":{\"driver\":\"nbd\","
++                                       "\"export\":\"blah\","
++                                       "\"host\":\"example.org\","
++                                       "\"port\":\"6000\""
++                                      "}"
++                            "}",
++                       "<source protocol='nbd' name='blah'>\n"
++                       "  <host name='example.org' port='6000'/>\n"
++                       "</source>\n");
++    TEST_BACKING_PARSE("json:{\"file.driver\":\"nbd\","
++                             "\"file.export\":\"blah\","
++                             "\"file.host\":\"example.org\","
++                             "\"file.port\":\"6000\""
++                            "}",
++                       "<source protocol='nbd' name='blah'>\n"
++                       "  <host name='example.org' port='6000'/>\n"
++                       "</source>\n");
+ 
+  cleanup:
+     /* Final cleanup */
+-- 
+2.9.2
+

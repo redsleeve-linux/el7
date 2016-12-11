@@ -1,0 +1,55 @@
+From 380bb5119e8ec08d79123c2323b6fcf59194b31d Mon Sep 17 00:00:00 2001
+Message-Id: <380bb5119e8ec08d79123c2323b6fcf59194b31d@dist-git>
+From: John Ferlan <jferlan@redhat.com>
+Date: Fri, 5 Aug 2016 16:10:10 +0200
+Subject: [PATCH] tests: Fix broken build
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1304483
+
+Commit id 'f522b7d2' caused a build failure :
+
+GEN      check-augeas-virtlogd
+Test failure:test_libvirtd_qemu.aug:69.3-147.28:
+ Expected:
+{
+...
+  { "nvram"
+    { "1" = "/usr/share/OVMF/OVMF_CODE.fd:/usr/share/OVMF/OVMF_VARS.fd" }
+    { "2" = "/usr/share/AAVMF/AAVMF_CODE.fd:/usr/share/AAVMF/AAVMF_VARS.fd" }
+  }
+...
+ Actual:
+...
+{
+  { "nvram"
+    { "1" = "/usr/share/OVMF/OVMF_CODE.fd:/usr/share/OVMF/OVMF_VARS.fd" }
+    { "2" = "/usr/share/OVMF/OVMF_CODE.secboot.fd:/usr/share/OVMF/OVMF_VARS.fd" }
+    { "3" = "/usr/share/AAVMF/AAVMF_CODE.fd:/usr/share/AAVMF/AAVMF_VARS.fd" }
+  }
+...
+
+This patch adds the OVMF_CODE.secboot.fd to the aug.in file
+
+Signed-off-by: John Ferlan <jferlan@redhat.com>
+(cherry picked from commit d5813d72ad2bd8f9735b96bafe2ba350f74b3994)
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/test_libvirtd_qemu.aug.in | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/qemu/test_libvirtd_qemu.aug.in b/src/qemu/test_libvirtd_qemu.aug.in
+index c4d4f19..99bf90f 100644
+--- a/src/qemu/test_libvirtd_qemu.aug.in
++++ b/src/qemu/test_libvirtd_qemu.aug.in
+@@ -77,6 +77,7 @@ module Test_libvirtd_qemu =
+ { "log_timestamp" = "0" }
+ { "nvram"
+     { "1" = "/usr/share/OVMF/OVMF_CODE.fd:/usr/share/OVMF/OVMF_VARS.fd" }
+-    { "2" = "/usr/share/AAVMF/AAVMF_CODE.fd:/usr/share/AAVMF/AAVMF_VARS.fd" }
++    { "2" = "/usr/share/OVMF/OVMF_CODE.secboot.fd:/usr/share/OVMF/OVMF_VARS.fd" }
++    { "3" = "/usr/share/AAVMF/AAVMF_CODE.fd:/usr/share/AAVMF/AAVMF_VARS.fd" }
+ }
+ { "stdio_handler" = "logd" }
+-- 
+2.9.2
+

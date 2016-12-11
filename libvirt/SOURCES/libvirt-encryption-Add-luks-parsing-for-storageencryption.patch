@@ -1,0 +1,330 @@
+From 155f32761f7f6569fde7c4c718169fb4f514d2c3 Mon Sep 17 00:00:00 2001
+Message-Id: <155f32761f7f6569fde7c4c718169fb4f514d2c3@dist-git>
+From: John Ferlan <jferlan@redhat.com>
+Date: Mon, 25 Jul 2016 12:42:48 -0400
+Subject: [PATCH] encryption: Add luks parsing for storageencryption
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1301021
+
+Add parse and format of the luks/passphrase secret including tests for
+volume XML parsing.
+
+Signed-off-by: John Ferlan <jferlan@redhat.com>
+(cherry picked from commit 9bbf0d7e6457e5a0668017eb8e17276f747fc9cc)
+
+Resolved conflict in docs/formatsecret.html.in since commit id
+c84380106fe69f86842dc7e8c032af6740bef77e is not present downstream
+
+Signed-off-by: John Ferlan <jferlan@redhat.com>
+---
+ docs/formatstorageencryption.html.in               | 26 ++++++++++++-
+ docs/schemas/storagecommon.rng                     |  2 +
+ src/qemu/qemu_process.c                            |  6 +++
+ src/storage/storage_backend.c                      |  3 +-
+ src/storage/storage_backend_fs.c                   |  7 +++-
+ src/storage/storage_backend_gluster.c              |  2 +
+ src/util/virstorageencryption.c                    |  2 +-
+ src/util/virstorageencryption.h                    |  1 +
+ tests/qemuxml2argvdata/qemuxml2argv-luks-disks.xml | 45 ++++++++++++++++++++++
+ .../qemuxml2xmlout-luks-disks.xml                  |  1 +
+ tests/qemuxml2xmltest.c                            |  1 +
+ tests/storagevolxml2xmlin/vol-luks.xml             | 21 ++++++++++
+ tests/storagevolxml2xmlout/vol-luks.xml            | 21 ++++++++++
+ tests/storagevolxml2xmltest.c                      |  1 +
+ 14 files changed, 134 insertions(+), 5 deletions(-)
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-luks-disks.xml
+ create mode 120000 tests/qemuxml2xmloutdata/qemuxml2xmlout-luks-disks.xml
+ create mode 100644 tests/storagevolxml2xmlin/vol-luks.xml
+ create mode 100644 tests/storagevolxml2xmlout/vol-luks.xml
+
+diff --git a/docs/formatstorageencryption.html.in b/docs/formatstorageencryption.html.in
+index 58e1073..380763e 100644
+--- a/docs/formatstorageencryption.html.in
++++ b/docs/formatstorageencryption.html.in
+@@ -56,8 +56,20 @@
+       the <code>secret</code> element is not present during volume creation,
+       a secret is automatically generated and attached to the volume.
+     </p>
++    <h3><a name="StorageEncryptionLuks">"luks" format</a></h3>
++    <p>
++      The <code>luks</code> format is specific to a luks encrypted volume
++      and the secret used in order to either encrypt or decrypt the volume.
++      A single <code>&lt;secret type='passphrase'...&gt;</code> element is
++      expected. The secret may be referenced via either a <code>uuid</code> or
++      <code>usage</code> attribute. One of the two must be present. When
++      present for volume creation, the secret will be used in order for
++      volume encryption.  When present for domain usage, the secret will
++      be used as the passphrase to decrypt the volume.
++      <span class="since">Since 2.1.0</span>.
++    </p>
+ 
+-    <h2><a name="example">Example</a></h2>
++    <h2><a name="example">Examples</a></h2>
+ 
+     <p>
+       Here is a simple example, specifying use of the <code>qcow</code> format:
+@@ -67,5 +79,17 @@
+       &lt;encryption format='qcow'&gt;
+          &lt;secret type='passphrase' uuid='c1f11a6d-8c5d-4a3e-ac7a-4e171c5e0d4a' /&gt;
+       &lt;/encryption&gt;</pre>
++
++    <p>
++      Here is a simple example, specifying use of the <code>luks</code> format
++      where it's assumed that a <code>secret</code> has been defined using a
++      <code>usage</code> element with a <code>id</code> of "luks_example":
++    </p>
++    <pre>
++      &lt;encryption format='luks'&gt;
++         &lt;secret type='passphrase' usage='luks_example'/&gt;
++      &lt;/encryption&gt;
++    </pre>
++
+   </body>
+ </html>
+diff --git a/docs/schemas/storagecommon.rng b/docs/schemas/storagecommon.rng
+index c5b71de..63b55b4 100644
+--- a/docs/schemas/storagecommon.rng
++++ b/docs/schemas/storagecommon.rng
+@@ -12,6 +12,7 @@
+         <choice>
+           <value>default</value>
+           <value>qcow</value>
++          <value>luks</value>
+         </choice>
+       </attribute>
+       <zeroOrMore>
+@@ -81,6 +82,7 @@
+       <value>fat</value>
+       <value>vhd</value>
+       <value>ploop</value>
++      <value>luks</value>
+       <ref name='storageFormatBacking'/>
+     </choice>
+   </define>
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 4ffd9b7..129c070 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -2414,6 +2414,12 @@ qemuProcessInitPasswords(virConnectPtr conn,
+             !virDomainDiskGetSource(vm->def->disks[i]))
+             continue;
+ 
++        if (vm->def->disks[i]->src->encryption->format !=
++            VIR_STORAGE_ENCRYPTION_FORMAT_DEFAULT &&
++            vm->def->disks[i]->src->encryption->format !=
++            VIR_STORAGE_ENCRYPTION_FORMAT_QCOW)
++            continue;
++
+         VIR_FREE(secret);
+         if (qemuProcessGetVolumeQcowPassphrase(conn,
+                                                vm->def->disks[i],
+diff --git a/src/storage/storage_backend.c b/src/storage/storage_backend.c
+index d6a451d..97f6ffe 100644
+--- a/src/storage/storage_backend.c
++++ b/src/storage/storage_backend.c
+@@ -1027,8 +1027,7 @@ virStorageBackendCreateQemuImgCheckEncryption(int format,
+         }
+     } else {
+         virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+-                       _("qcow volume encryption unsupported with "
+-                         "volume format %s"), type);
++                       _("volume encryption unsupported with format %s"), type);
+         return -1;
+     }
+ 
+diff --git a/src/storage/storage_backend_fs.c b/src/storage/storage_backend_fs.c
+index 839a2c7..0a12ecb 100644
+--- a/src/storage/storage_backend_fs.c
++++ b/src/storage/storage_backend_fs.c
+@@ -157,7 +157,12 @@ virStorageBackendProbeTarget(virStorageSourcePtr target,
+         case VIR_STORAGE_FILE_QCOW2:
+             (*encryption)->format = VIR_STORAGE_ENCRYPTION_FORMAT_QCOW;
+             break;
+-        default:
++
++        case VIR_STORAGE_FILE_LUKS:
++            (*encryption)->format = VIR_STORAGE_ENCRYPTION_FORMAT_LUKS;
++            break;
++
++        case VIR_STORAGE_ENCRYPTION_FORMAT_LAST:
+             break;
+         }
+ 
+diff --git a/src/storage/storage_backend_gluster.c b/src/storage/storage_backend_gluster.c
+index 0085052..eda060d 100644
+--- a/src/storage/storage_backend_gluster.c
++++ b/src/storage/storage_backend_gluster.c
+@@ -321,6 +321,8 @@ virStorageBackendGlusterRefreshVol(virStorageBackendGlusterStatePtr state,
+         if (vol->target.format == VIR_STORAGE_FILE_QCOW ||
+             vol->target.format == VIR_STORAGE_FILE_QCOW2)
+             vol->target.encryption->format = VIR_STORAGE_ENCRYPTION_FORMAT_QCOW;
++        if (vol->target.format == VIR_STORAGE_FILE_LUKS)
++            vol->target.encryption->format = VIR_STORAGE_ENCRYPTION_FORMAT_LUKS;
+     }
+     vol->target.features = meta->features;
+     meta->features = NULL;
+diff --git a/src/util/virstorageencryption.c b/src/util/virstorageencryption.c
+index cd17554..2b59420 100644
+--- a/src/util/virstorageencryption.c
++++ b/src/util/virstorageencryption.c
+@@ -43,7 +43,7 @@ VIR_ENUM_IMPL(virStorageEncryptionSecret,
+ 
+ VIR_ENUM_IMPL(virStorageEncryptionFormat,
+               VIR_STORAGE_ENCRYPTION_FORMAT_LAST,
+-              "default", "qcow")
++              "default", "qcow", "luks")
+ 
+ static void
+ virStorageEncryptionSecretFree(virStorageEncryptionSecretPtr secret)
+diff --git a/src/util/virstorageencryption.h b/src/util/virstorageencryption.h
+index c68c66e..5e1be3b 100644
+--- a/src/util/virstorageencryption.h
++++ b/src/util/virstorageencryption.h
+@@ -48,6 +48,7 @@ typedef enum {
+     /* "default" is only valid for volume creation */
+     VIR_STORAGE_ENCRYPTION_FORMAT_DEFAULT = 0,
+     VIR_STORAGE_ENCRYPTION_FORMAT_QCOW, /* Both qcow and qcow2 */
++    VIR_STORAGE_ENCRYPTION_FORMAT_LUKS,
+ 
+     VIR_STORAGE_ENCRYPTION_FORMAT_LAST,
+ } virStorageEncryptionFormatType;
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-luks-disks.xml b/tests/qemuxml2argvdata/qemuxml2argv-luks-disks.xml
+new file mode 100644
+index 0000000..9ce15c0
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-luks-disks.xml
+@@ -0,0 +1,45 @@
++<domain type='qemu'>
++  <name>encryptdisk</name>
++  <uuid>496898a6-e6ff-f7c8-5dc2-3cf410945ee9</uuid>
++  <memory unit='KiB'>1048576</memory>
++  <currentMemory unit='KiB'>524288</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='x86_64' machine='pc-i440fx-2.1'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++    <emulator>/usr/bin/qemu</emulator>
++    <disk type='file' device='disk'>
++      <driver name='qemu' type='luks'/>
++      <source file='/storage/guest_disks/encryptdisk'/>
++      <target dev='vda' bus='virtio'/>
++      <encryption format='luks'>
++        <secret type='passphrase' uuid='0a81f5b2-8403-7b23-c8d6-21ccc2f80d6f'/>
++      </encryption>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/>
++    </disk>
++    <disk type='file' device='disk'>
++      <driver name='qemu' type='luks'/>
++      <source file='/storage/guest_disks/encryptdisk2'/>
++      <target dev='vdb' bus='virtio'/>
++      <encryption format='luks'>
++        <secret type='passphrase' usage='mycluster_myname'/>
++      </encryption>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x05' function='0x0'/>
++    </disk>
++    <controller type='usb' index='0'>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x2'/>
++    </controller>
++    <controller type='pci' index='0' model='pci-root'/>
++    <input type='mouse' bus='ps2'/>
++    <input type='keyboard' bus='ps2'/>
++    <memballoon model='virtio'>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x03' function='0x0'/>
++    </memballoon>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2xmloutdata/qemuxml2xmlout-luks-disks.xml b/tests/qemuxml2xmloutdata/qemuxml2xmlout-luks-disks.xml
+new file mode 120000
+index 0000000..b59dc67
+--- /dev/null
++++ b/tests/qemuxml2xmloutdata/qemuxml2xmlout-luks-disks.xml
+@@ -0,0 +1 @@
++../qemuxml2argvdata/qemuxml2argv-luks-disks.xml
+\ No newline at end of file
+diff --git a/tests/qemuxml2xmltest.c b/tests/qemuxml2xmltest.c
+index 693e712..a757fdb 100644
+--- a/tests/qemuxml2xmltest.c
++++ b/tests/qemuxml2xmltest.c
+@@ -502,6 +502,7 @@ mymain(void)
+ 
+     DO_TEST("encrypted-disk");
+     DO_TEST("encrypted-disk-usage");
++    DO_TEST("luks-disks");
+     DO_TEST("memtune");
+     DO_TEST("memtune-unlimited");
+     DO_TEST("blkiotune");
+diff --git a/tests/storagevolxml2xmlin/vol-luks.xml b/tests/storagevolxml2xmlin/vol-luks.xml
+new file mode 100644
+index 0000000..eb4dc41
+--- /dev/null
++++ b/tests/storagevolxml2xmlin/vol-luks.xml
+@@ -0,0 +1,21 @@
++<volume>
++  <name>LuksDemo.img</name>
++  <key>/var/lib/libvirt/images/LuksDemo.img</key>
++  <source>
++  </source>
++  <capacity unit="G">5</capacity>
++  <allocation>294912</allocation>
++  <target>
++    <path>/var/lib/libvirt/images/LuksDemo.img</path>
++    <format type='luks'/>
++    <permissions>
++      <mode>0644</mode>
++      <owner>0</owner>
++      <group>0</group>
++      <label>unconfined_u:object_r:virt_image_t:s0</label>
++    </permissions>
++    <encryption format='luks'>
++      <secret type='passphrase' usage='mumblyfratz'/>
++    </encryption>
++  </target>
++</volume>
+diff --git a/tests/storagevolxml2xmlout/vol-luks.xml b/tests/storagevolxml2xmlout/vol-luks.xml
+new file mode 100644
+index 0000000..5b764b7
+--- /dev/null
++++ b/tests/storagevolxml2xmlout/vol-luks.xml
+@@ -0,0 +1,21 @@
++<volume type='file'>
++  <name>LuksDemo.img</name>
++  <key>/var/lib/libvirt/images/LuksDemo.img</key>
++  <source>
++  </source>
++  <capacity unit='bytes'>5368709120</capacity>
++  <allocation unit='bytes'>294912</allocation>
++  <target>
++    <path>/var/lib/libvirt/images/LuksDemo.img</path>
++    <format type='luks'/>
++    <permissions>
++      <mode>0644</mode>
++      <owner>0</owner>
++      <group>0</group>
++      <label>unconfined_u:object_r:virt_image_t:s0</label>
++    </permissions>
++    <encryption format='luks'>
++      <secret type='passphrase' usage='mumblyfratz'/>
++    </encryption>
++  </target>
++</volume>
+diff --git a/tests/storagevolxml2xmltest.c b/tests/storagevolxml2xmltest.c
+index f722452..a36a706 100644
+--- a/tests/storagevolxml2xmltest.c
++++ b/tests/storagevolxml2xmltest.c
+@@ -105,6 +105,7 @@ mymain(void)
+     DO_TEST("pool-dir", "vol-qcow2-lazy");
+     DO_TEST("pool-dir", "vol-qcow2-0.10-lazy");
+     DO_TEST("pool-dir", "vol-qcow2-nobacking");
++    DO_TEST("pool-dir", "vol-luks");
+     DO_TEST("pool-disk", "vol-partition");
+     DO_TEST("pool-logical", "vol-logical");
+     DO_TEST("pool-logical", "vol-logical-backing");
+-- 
+2.9.2
+

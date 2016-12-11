@@ -1,0 +1,51 @@
+From 90a2a917a15c5fc06f6b390690c134dc5f06e20c Mon Sep 17 00:00:00 2001
+Message-Id: <90a2a917a15c5fc06f6b390690c134dc5f06e20c@dist-git>
+From: Andrea Bolognani <abologna@redhat.com>
+Date: Thu, 7 Jul 2016 13:59:34 +0200
+Subject: [PATCH] qemu: Memory locking is only required for KVM guests on ppc64
+
+Due to the way the hardware works, KVM on ppc64 always requires
+memory locking; however, that is not the case for non-KVM ppc64
+guests, eg. ppc64 guests that are running on x86_64 with TCG.
+
+Only require memory locking for ppc64 guests if they are using
+KVM or, as it's the case for all architectures, they have host
+devices assigned using VFIO.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1350772
+
+(cherry picked from commit cd89d3451b8efcfed05ff1f4a91d9b252dbe26bc)
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+---
+ src/qemu/qemu_domain.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index 4aef7ab..2a42b1b 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -5349,10 +5349,6 @@ qemuDomainRequiresMemLock(virDomainDefPtr def)
+     if (def->mem.locked)
+         return true;
+ 
+-    /* ppc64 domains need to lock some memory even when VFIO is not used */
+-    if (ARCH_IS_PPC64(def->os.arch))
+-        return true;
+-
+     for (i = 0; i < def->nhostdevs; i++) {
+         virDomainHostdevDefPtr dev = def->hostdevs[i];
+ 
+@@ -5362,6 +5358,10 @@ qemuDomainRequiresMemLock(virDomainDefPtr def)
+             return true;
+     }
+ 
++    /* ppc64 KVM domains need to lock some memory even when VFIO is not used */
++    if (ARCH_IS_PPC64(def->os.arch) && def->virtType == VIR_DOMAIN_VIRT_KVM)
++        return true;
++
+     return false;
+ }
+ 
+-- 
+2.9.0
+

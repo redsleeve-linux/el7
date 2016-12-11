@@ -1,0 +1,52 @@
+From 373101d52e752c469d2472e860fd45d826a5e333 Mon Sep 17 00:00:00 2001
+Message-Id: <373101d52e752c469d2472e860fd45d826a5e333@dist-git>
+From: Andrea Bolognani <abologna@redhat.com>
+Date: Tue, 20 Sep 2016 16:23:07 +0200
+Subject: [PATCH] virtlogd: Don't stop or restart along with libvirtd
+
+Commit 839a060 tied the lifecycle of virtlogd more
+closely to that of libvirtd. Unfortunately, while starting
+virtlogd when libvirtd is started is definitely a good idea,
+restarting virtlogd or shutting it down at any time outside
+of system poweroff is not.
+
+Revert part of that commit by removing the PartOf= lines,
+meaning that only startup requests will be propagated from
+libvirtd to virtlogd.
+
+Resolves: https://bugzilla.redhat.com/1372576
+
+(cherry picked from commit f496ce1df35df7498bd3d9d7e113bb2eb3e51ba9)
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+---
+ src/logging/virtlogd.service.in | 1 -
+ src/logging/virtlogd.socket.in  | 1 -
+ 2 files changed, 2 deletions(-)
+
+diff --git a/src/logging/virtlogd.service.in b/src/logging/virtlogd.service.in
+index 8287994..09e0740 100644
+--- a/src/logging/virtlogd.service.in
++++ b/src/logging/virtlogd.service.in
+@@ -2,7 +2,6 @@
+ Description=Virtual machine log manager
+ Requires=virtlogd.socket
+ Before=libvirtd.service
+-PartOf=libvirtd.service
+ Documentation=man:virtlogd(8)
+ Documentation=http://libvirt.org
+ 
+diff --git a/src/logging/virtlogd.socket.in b/src/logging/virtlogd.socket.in
+index efb6504..22b9360 100644
+--- a/src/logging/virtlogd.socket.in
++++ b/src/logging/virtlogd.socket.in
+@@ -1,7 +1,6 @@
+ [Unit]
+ Description=Virtual machine log manager socket
+ Before=libvirtd.service
+-PartOf=libvirtd.service
+ 
+ [Socket]
+ ListenStream=@localstatedir@/run/libvirt/virtlogd-sock
+-- 
+2.10.0
+

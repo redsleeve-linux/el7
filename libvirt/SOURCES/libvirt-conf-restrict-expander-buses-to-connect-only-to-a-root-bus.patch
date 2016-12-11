@@ -1,0 +1,233 @@
+From 646a880d28b878dc45decb1b6d6238bf42ad1006 Mon Sep 17 00:00:00 2001
+Message-Id: <646a880d28b878dc45decb1b6d6238bf42ad1006@dist-git>
+From: Laine Stump <laine@laine.org>
+Date: Wed, 10 Aug 2016 11:00:14 -0400
+Subject: [PATCH] conf: restrict expander buses to connect only to a root bus
+
+More misunderstanding/mistaken assumptions on my part - I had thought
+that a pci-expander-bus could be plugged into any legacy PCI slot, and
+that pcie-expander-bus could be plugged into any PCIe slot. This isn't
+correct - they can both be plugged ontly into their respective root
+buses. This patch adds that restriction.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1358712
+(cherry picked from commit a220f43a65cca6c6f2ca268cdbbf8f997b2e2b13)
+---
+ src/conf/domain_addr.c                             | 32 +++++++++------
+ src/conf/domain_addr.h                             |  6 ++-
+ .../qemuxml2argv-pci-expander-bus-bad-bus.xml      | 26 ++++++++++++
+ .../qemuxml2argv-pcie-expander-bus-bad-bus.xml     | 48 ++++++++++++++++++++++
+ tests/qemuxml2argvtest.c                           |  8 ++++
+ 5 files changed, 107 insertions(+), 13 deletions(-)
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-pci-expander-bus-bad-bus.xml
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-pcie-expander-bus-bad-bus.xml
+
+diff --git a/src/conf/domain_addr.c b/src/conf/domain_addr.c
+index ea641a5..14baef7 100644
+--- a/src/conf/domain_addr.c
++++ b/src/conf/domain_addr.c
+@@ -51,20 +51,17 @@ virDomainPCIControllerModelToConnectType(virDomainControllerModelPCI model)
+         return 0;
+ 
+     case VIR_DOMAIN_CONTROLLER_MODEL_PCI_BRIDGE:
+-    case VIR_DOMAIN_CONTROLLER_MODEL_PCI_EXPANDER_BUS:
+-        /* pci-bridge and pci-expander-bus are treated like a standard
+-         * PCI endpoint device, because they can plug into any
+-         * standard PCI slot.
++        /* pci-bridge is treated like a standard
++         * PCI endpoint device, because it can plug into any
++         * standard PCI slot (it just can't be hotplugged).
+          */
+         return VIR_PCI_CONNECT_TYPE_PCI_DEVICE;
+ 
++    case VIR_DOMAIN_CONTROLLER_MODEL_PCI_EXPANDER_BUS:
++        return VIR_PCI_CONNECT_TYPE_PCI_EXPANDER_BUS;
++
+     case VIR_DOMAIN_CONTROLLER_MODEL_PCIE_EXPANDER_BUS:
+-        /* pcie-expander-bus is treated like a standard PCIe endpoint
+-         * device (the part of pcie-expander-bus that is plugged in
+-         * isn't the expander bus itself, but a companion device used
+-         * for setting it up).
+-         */
+-        return VIR_PCI_CONNECT_TYPE_PCIE_DEVICE;
++        return VIR_PCI_CONNECT_TYPE_PCIE_EXPANDER_BUS;
+ 
+     case VIR_DOMAIN_CONTROLLER_MODEL_DMI_TO_PCI_BRIDGE:
+         return VIR_PCI_CONNECT_TYPE_DMI_TO_PCI_BRIDGE;
+@@ -137,6 +134,10 @@ virDomainPCIAddressFlagsCompatible(virPCIDeviceAddressPtr addr,
+             connectStr = "pci-switch-downstream-port";
+         } else if (devFlags & VIR_PCI_CONNECT_TYPE_DMI_TO_PCI_BRIDGE) {
+             connectStr = "dmi-to-pci-bridge";
++        } else if (devFlags & VIR_PCI_CONNECT_TYPE_PCI_EXPANDER_BUS) {
++            connectStr = "pci-expander-bus";
++        } else if (devFlags & VIR_PCI_CONNECT_TYPE_PCIE_EXPANDER_BUS) {
++            connectStr = "pcie-expander-bus";
+         } else {
+             /* this should never happen. If it does, there is a
+              * bug in the code that sets the flag bits for devices.
+@@ -243,9 +244,15 @@ virDomainPCIAddressBusSetModel(virDomainPCIAddressBusPtr bus,
+      * bus.
+      */
+     switch (model) {
+-    case VIR_DOMAIN_CONTROLLER_MODEL_PCI_BRIDGE:
+     case VIR_DOMAIN_CONTROLLER_MODEL_PCI_ROOT:
+         bus->flags = (VIR_PCI_CONNECT_HOTPLUGGABLE |
++                      VIR_PCI_CONNECT_TYPE_PCI_DEVICE |
++                      VIR_PCI_CONNECT_TYPE_PCI_EXPANDER_BUS);
++        bus->minSlot = 1;
++        bus->maxSlot = VIR_PCI_ADDRESS_SLOT_LAST;
++        break;
++    case VIR_DOMAIN_CONTROLLER_MODEL_PCI_BRIDGE:
++        bus->flags = (VIR_PCI_CONNECT_HOTPLUGGABLE |
+                       VIR_PCI_CONNECT_TYPE_PCI_DEVICE);
+         bus->minSlot = 1;
+         bus->maxSlot = VIR_PCI_ADDRESS_SLOT_LAST;
+@@ -265,7 +272,8 @@ virDomainPCIAddressBusSetModel(virDomainPCIAddressBusPtr bus,
+          */
+         bus->flags = (VIR_PCI_CONNECT_TYPE_PCIE_DEVICE |
+                       VIR_PCI_CONNECT_TYPE_PCIE_ROOT_PORT |
+-                      VIR_PCI_CONNECT_TYPE_DMI_TO_PCI_BRIDGE);
++                      VIR_PCI_CONNECT_TYPE_DMI_TO_PCI_BRIDGE |
++                      VIR_PCI_CONNECT_TYPE_PCIE_EXPANDER_BUS);
+         bus->minSlot = 1;
+         bus->maxSlot = VIR_PCI_ADDRESS_SLOT_LAST;
+         break;
+diff --git a/src/conf/domain_addr.h b/src/conf/domain_addr.h
+index 2d55c46..da19311 100644
+--- a/src/conf/domain_addr.h
++++ b/src/conf/domain_addr.h
+@@ -41,6 +41,8 @@ typedef enum {
+    VIR_PCI_CONNECT_TYPE_PCIE_SWITCH_UPSTREAM_PORT = 1 << 4,
+    VIR_PCI_CONNECT_TYPE_PCIE_SWITCH_DOWNSTREAM_PORT = 1 << 5,
+    VIR_PCI_CONNECT_TYPE_DMI_TO_PCI_BRIDGE = 1 << 6,
++   VIR_PCI_CONNECT_TYPE_PCI_EXPANDER_BUS = 1 << 7,
++   VIR_PCI_CONNECT_TYPE_PCIE_EXPANDER_BUS = 1 << 8,
+ } virDomainPCIConnectFlags;
+ 
+ /* a combination of all bits that describe the type of connections
+@@ -51,7 +53,9 @@ typedef enum {
+     VIR_PCI_CONNECT_TYPE_PCIE_SWITCH_UPSTREAM_PORT | \
+     VIR_PCI_CONNECT_TYPE_PCIE_SWITCH_DOWNSTREAM_PORT | \
+     VIR_PCI_CONNECT_TYPE_PCIE_ROOT_PORT | \
+-    VIR_PCI_CONNECT_TYPE_DMI_TO_PCI_BRIDGE)
++    VIR_PCI_CONNECT_TYPE_DMI_TO_PCI_BRIDGE | \
++    VIR_PCI_CONNECT_TYPE_PCI_EXPANDER_BUS | \
++    VIR_PCI_CONNECT_TYPE_PCIE_EXPANDER_BUS)
+ 
+ /* combination of all bits that could be used to connect a normal
+  * endpoint device (i.e. excluding the connection possible between an
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-pci-expander-bus-bad-bus.xml b/tests/qemuxml2argvdata/qemuxml2argv-pci-expander-bus-bad-bus.xml
+new file mode 100644
+index 0000000..85c1115
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-pci-expander-bus-bad-bus.xml
+@@ -0,0 +1,26 @@
++<domain type='qemu'>
++  <name>expander-test</name>
++  <uuid>3ec6cbe1-b5a2-4515-b800-31a61855df41</uuid>
++  <memory unit='KiB'>219100</memory>
++  <currentMemory unit='KiB'>219100</currentMemory>
++  <vcpu placement='static'>16</vcpu>
++  <os>
++    <type arch='x86_64' machine='pc-i440fx-2.5'>hvm</type>
++  </os>
++  <devices>
++    <emulator>/usr/bin/qemu-system-x86_64</emulator>
++    <controller type='usb' index='0' model='none'/>
++    <controller type='ide' index='0'>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x1'/>
++    </controller>
++    <controller type='pci' index='0' model='pci-root'/>
++    <controller type='pci' index='1' model='pci-bridge'>
++    </controller>
++    <controller type='pci' index='2' model='pci-expander-bus'>
++      <address type='pci' bus='1' slot='1'/>
++    </controller>
++    <input type='mouse' bus='ps2'/>
++    <input type='keyboard' bus='ps2'/>
++    <memballoon model='none'/>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-pcie-expander-bus-bad-bus.xml b/tests/qemuxml2argvdata/qemuxml2argv-pcie-expander-bus-bad-bus.xml
+new file mode 100644
+index 0000000..0305f35
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-pcie-expander-bus-bad-bus.xml
+@@ -0,0 +1,48 @@
++<domain type='qemu'>
++  <name>pcie-expander-bus-test</name>
++  <uuid>11dbdcdd-4c3b-482b-8903-9bdb8c0a2774</uuid>
++  <memory unit='KiB'>2097152</memory>
++  <currentMemory unit='KiB'>2097152</currentMemory>
++  <vcpu placement='static'>16</vcpu>
++  <os>
++    <type arch='x86_64' machine='q35'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <cpu>
++    <topology sockets='2' cores='4' threads='2'/>
++    <numa>
++      <cell cpus='0-7' memory='109550' unit='KiB'/>
++      <cell cpus='8-15' memory='109550' unit='KiB'/>
++    </numa>
++  </cpu>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++    <emulator>/usr/libexec/qemu-kvm</emulator>
++    <disk type='block' device='disk'>
++      <source dev='/dev/HostVG/QEMUGuest1'/>
++      <target dev='sda' bus='sata'/>
++      <address type='drive' controller='0' bus='0' target='0' unit='0'/>
++    </disk>
++    <controller type='pci' index='0' model='pcie-root'/>
++    <controller type='pci' index='1' model='dmi-to-pci-bridge'>
++      <model name='i82801b11-bridge'/>
++    </controller>
++    <controller type='pci' index='2' model='pci-bridge'>
++      <model name='pci-bridge'/>
++      <target chassisNr='56'/>
++    </controller>
++    <controller type='pci' index='3' model='pcie-root-port'>
++      <target busNr='220'>
++        <node>1</node>
++      </target>
++      <address type='pci' bus='0x00'/>
++    </controller>
++    <controller type='pci' index='4' model='pcie-expander-bus'>
++      <address type='pci' bus='3'/>
++    </controller>
++    <memballoon model='none'/>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2argvtest.c b/tests/qemuxml2argvtest.c
+index c7c0ff2..b86a8a1 100644
+--- a/tests/qemuxml2argvtest.c
++++ b/tests/qemuxml2argvtest.c
+@@ -1730,6 +1730,9 @@ mymain(void)
+     DO_TEST_PARSE_ERROR("pci-expander-bus-bad-machine",
+                         QEMU_CAPS_DEVICE_PCI_BRIDGE,
+                         QEMU_CAPS_DEVICE_PXB);
++    DO_TEST_PARSE_ERROR("pci-expander-bus-bad-bus",
++                        QEMU_CAPS_DEVICE_PCI_BRIDGE,
++                        QEMU_CAPS_DEVICE_PXB);
+ 
+     DO_TEST("pcie-expander-bus",
+             QEMU_CAPS_DEVICE_PCI_BRIDGE,
+@@ -1745,6 +1748,11 @@ mymain(void)
+                         QEMU_CAPS_DEVICE_X3130_UPSTREAM,
+                         QEMU_CAPS_DEVICE_XIO3130_DOWNSTREAM,
+                         QEMU_CAPS_DEVICE_PXB_PCIE);
++    DO_TEST_PARSE_ERROR("pcie-expander-bus-bad-bus",
++                        QEMU_CAPS_DEVICE_PCI_BRIDGE,
++                        QEMU_CAPS_DEVICE_DMI_TO_PCI_BRIDGE,
++                        QEMU_CAPS_DEVICE_IOH3420,
++                        QEMU_CAPS_DEVICE_PXB_PCIE);
+ 
+     DO_TEST("hostdev-scsi-lsi",
+             QEMU_CAPS_VIRTIO_SCSI, QEMU_CAPS_SCSI_LSI,
+-- 
+2.9.2
+

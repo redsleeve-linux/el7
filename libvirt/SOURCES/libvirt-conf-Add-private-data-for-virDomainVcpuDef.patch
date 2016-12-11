@@ -1,0 +1,598 @@
+From cb7f9ed96f81aebcade2c42cbdb1bacf97bb611b Mon Sep 17 00:00:00 2001
+Message-Id: <cb7f9ed96f81aebcade2c42cbdb1bacf97bb611b@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 24 Aug 2016 16:10:48 -0400
+Subject: [PATCH] conf: Add private data for virDomainVcpuDef
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1097930
+https://bugzilla.redhat.com/show_bug.cgi?id=1224341
+
+Allow to store driver specific data on a per-vcpu basis.
+
+Move of the virDomainDef*Vcpus* functions was necessary as
+virDomainXMLOptionPtr was declared below this block and I didn't want to
+split the function headers.
+
+(cherry picked from commit 5fe0b6b0a7e0c900ab51927ee859c2c92cc92e5d)
+
+  Conflicts:
+ 	src/bhyve/bhyve_parse_command.c: file missing
+---
+ src/conf/domain_conf.c        | 30 ++++++++++++++++++++++--------
+ src/conf/domain_conf.h        | 22 ++++++++++++++--------
+ src/hyperv/hyperv_driver.c    |  3 ++-
+ src/libxl/libxl_driver.c      |  4 ++--
+ src/lxc/lxc_native.c          |  2 +-
+ src/openvz/openvz_conf.c      |  2 +-
+ src/openvz/openvz_driver.c    | 16 ++++++++++------
+ src/phyp/phyp_driver.c        |  2 +-
+ src/qemu/qemu_driver.c        |  2 +-
+ src/qemu/qemu_parse_command.c |  9 +++++----
+ src/test/test_driver.c        |  4 +++-
+ src/vbox/vbox_common.c        |  4 ++--
+ src/vmx/vmx.c                 |  2 +-
+ src/vz/vz_sdk.c               |  7 ++++---
+ src/xen/xm_internal.c         |  2 +-
+ src/xenapi/xenapi_driver.c    |  2 +-
+ src/xenconfig/xen_common.c    | 13 ++++++++-----
+ src/xenconfig/xen_common.h    |  3 ++-
+ src/xenconfig/xen_sxpr.c      |  2 +-
+ src/xenconfig/xen_xl.c        |  3 ++-
+ src/xenconfig/xen_xm.c        |  3 ++-
+ 21 files changed, 86 insertions(+), 51 deletions(-)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 6d0f967..384059d 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -1313,12 +1313,23 @@ void virDomainLeaseDefFree(virDomainLeaseDefPtr def)
+ 
+ 
+ static virDomainVcpuDefPtr
+-virDomainVcpuDefNew(void)
++virDomainVcpuDefNew(virDomainXMLOptionPtr xmlopt)
+ {
+-    virDomainVcpuDefPtr ret;
++    virObjectPtr priv = NULL;
++    virDomainVcpuDefPtr ret = NULL;
+ 
+-    ignore_value(VIR_ALLOC(ret));
++    if (xmlopt && xmlopt->privateData.vcpuNew &&
++        !(priv = xmlopt->privateData.vcpuNew()))
++        goto cleanup;
+ 
++    if (VIR_ALLOC(ret) < 0)
++        goto cleanup;
++
++    ret->privateData = priv;
++    priv = NULL;
++
++ cleanup:
++    virObjectUnref(priv);
+     return ret;
+ }
+ 
+@@ -1331,13 +1342,15 @@ virDomainVcpuDefFree(virDomainVcpuDefPtr info)
+ 
+     virBitmapFree(info->cpumask);
+     info->cpumask = NULL;
++    virObjectUnref(info->privateData);
+     VIR_FREE(info);
+ }
+ 
+ 
+ int
+ virDomainDefSetVcpusMax(virDomainDefPtr def,
+-                        unsigned int maxvcpus)
++                        unsigned int maxvcpus,
++                        virDomainXMLOptionPtr xmlopt)
+ {
+     size_t oldmax = def->maxvcpus;
+     size_t i;
+@@ -1350,7 +1363,7 @@ virDomainDefSetVcpusMax(virDomainDefPtr def,
+             return -1;
+ 
+         for (i = oldmax; i < def->maxvcpus; i++) {
+-            if (!(def->vcpus[i] = virDomainVcpuDefNew()))
++            if (!(def->vcpus[i] = virDomainVcpuDefNew(xmlopt)))
+                 return -1;
+         }
+     } else {
+@@ -15569,7 +15582,8 @@ virDomainIOThreadSchedParse(xmlNodePtr node,
+ 
+ static int
+ virDomainVcpuParse(virDomainDefPtr def,
+-                   xmlXPathContextPtr ctxt)
++                   xmlXPathContextPtr ctxt,
++                   virDomainXMLOptionPtr xmlopt)
+ {
+     int n;
+     char *tmp = NULL;
+@@ -15587,7 +15601,7 @@ virDomainVcpuParse(virDomainDefPtr def,
+         maxvcpus = 1;
+     }
+ 
+-    if (virDomainDefSetVcpusMax(def, maxvcpus) < 0)
++    if (virDomainDefSetVcpusMax(def, maxvcpus, xmlopt) < 0)
+         goto cleanup;
+ 
+     if ((n = virXPathUInt("string(./vcpu[1]/@current)", ctxt, &vcpus)) < 0) {
+@@ -16056,7 +16070,7 @@ virDomainDefParseXML(xmlDocPtr xml,
+                                   &def->mem.swap_hard_limit) < 0)
+         goto error;
+ 
+-    if (virDomainVcpuParse(def, ctxt) < 0)
++    if (virDomainVcpuParse(def, ctxt, xmlopt) < 0)
+         goto error;
+ 
+     /* Optional - iothreads */
+diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
+index ac37382..e7ff401 100644
+--- a/src/conf/domain_conf.h
++++ b/src/conf/domain_conf.h
+@@ -2043,6 +2043,8 @@ struct _virDomainVcpuDef {
+     virBitmapPtr cpumask;
+ 
+     virDomainThreadSchedParam sched;
++
++    virObjectPtr privateData;
+ };
+ 
+ typedef struct _virDomainBlkiotune virDomainBlkiotune;
+@@ -2261,14 +2263,6 @@ struct _virDomainDef {
+     xmlNodePtr metadata;
+ };
+ 
+-int virDomainDefSetVcpusMax(virDomainDefPtr def, unsigned int vcpus);
+-bool virDomainDefHasVcpusOffline(const virDomainDef *def);
+-unsigned int virDomainDefGetVcpusMax(const virDomainDef *def);
+-int virDomainDefSetVcpus(virDomainDefPtr def, unsigned int vcpus);
+-unsigned int virDomainDefGetVcpus(const virDomainDef *def);
+-virBitmapPtr virDomainDefGetOnlineVcpumap(const virDomainDef *def);
+-virDomainVcpuDefPtr virDomainDefGetVcpu(virDomainDefPtr def, unsigned int vcpu)
+-    ATTRIBUTE_RETURN_CHECK;
+ 
+ unsigned long long virDomainDefGetMemoryInitial(const virDomainDef *def);
+ void virDomainDefSetMemoryTotal(virDomainDefPtr def, unsigned long long size);
+@@ -2422,6 +2416,7 @@ struct _virDomainXMLPrivateDataCallbacks {
+     virDomainXMLPrivateDataFreeFunc   free;
+     virDomainXMLPrivateDataNewFunc    diskNew;
+     virDomainXMLPrivateDataNewFunc    hostdevNew;
++    virDomainXMLPrivateDataNewFunc    vcpuNew;
+     virDomainXMLPrivateDataFormatFunc format;
+     virDomainXMLPrivateDataParseFunc  parse;
+ };
+@@ -2453,6 +2448,17 @@ virDomainObjIsActive(virDomainObjPtr dom)
+     return dom->def->id != -1;
+ }
+ 
++int virDomainDefSetVcpusMax(virDomainDefPtr def,
++                            unsigned int vcpus,
++                            virDomainXMLOptionPtr xmlopt);
++bool virDomainDefHasVcpusOffline(const virDomainDef *def);
++unsigned int virDomainDefGetVcpusMax(const virDomainDef *def);
++int virDomainDefSetVcpus(virDomainDefPtr def, unsigned int vcpus);
++unsigned int virDomainDefGetVcpus(const virDomainDef *def);
++virBitmapPtr virDomainDefGetOnlineVcpumap(const virDomainDef *def);
++virDomainVcpuDefPtr virDomainDefGetVcpu(virDomainDefPtr def, unsigned int vcpu)
++    ATTRIBUTE_RETURN_CHECK;
++
+ virDomainObjPtr virDomainObjNew(virDomainXMLOptionPtr caps)
+     ATTRIBUTE_NONNULL(1);
+ 
+diff --git a/src/hyperv/hyperv_driver.c b/src/hyperv/hyperv_driver.c
+index 9c7faf0..b642a02 100644
+--- a/src/hyperv/hyperv_driver.c
++++ b/src/hyperv/hyperv_driver.c
+@@ -876,7 +876,8 @@ hypervDomainGetXMLDesc(virDomainPtr domain, unsigned int flags)
+     def->mem.cur_balloon = memorySettingData->data->VirtualQuantity * 1024; /* megabyte to kilobyte */
+ 
+     if (virDomainDefSetVcpusMax(def,
+-                                processorSettingData->data->VirtualQuantity) < 0)
++                                processorSettingData->data->VirtualQuantity,
++                                NULL) < 0)
+         goto cleanup;
+ 
+     if (virDomainDefSetVcpus(def,
+diff --git a/src/libxl/libxl_driver.c b/src/libxl/libxl_driver.c
+index be6017a..711e801 100644
+--- a/src/libxl/libxl_driver.c
++++ b/src/libxl/libxl_driver.c
+@@ -557,7 +557,7 @@ libxlAddDom0(libxlDriverPrivatePtr driver)
+     def = NULL;
+ 
+     virDomainObjSetState(vm, VIR_DOMAIN_RUNNING, VIR_DOMAIN_RUNNING_BOOTED);
+-    if (virDomainDefSetVcpusMax(vm->def, d_info.vcpu_max_id + 1))
++    if (virDomainDefSetVcpusMax(vm->def, d_info.vcpu_max_id + 1, driver->xmlopt))
+         goto cleanup;
+ 
+     if (virDomainDefSetVcpus(vm->def, d_info.vcpu_online) < 0)
+@@ -2152,7 +2152,7 @@ libxlDomainSetVcpusFlags(virDomainPtr dom, unsigned int nvcpus,
+ 
+     switch (flags) {
+     case VIR_DOMAIN_VCPU_MAXIMUM | VIR_DOMAIN_VCPU_CONFIG:
+-        if (virDomainDefSetVcpusMax(def, nvcpus) < 0)
++        if (virDomainDefSetVcpusMax(def, nvcpus, driver->xmlopt) < 0)
+             goto cleanup;
+         break;
+ 
+diff --git a/src/lxc/lxc_native.c b/src/lxc/lxc_native.c
+index acbc20b..a34204e 100644
+--- a/src/lxc/lxc_native.c
++++ b/src/lxc/lxc_native.c
+@@ -1020,7 +1020,7 @@ lxcParseConfigString(const char *config,
+ 
+     /* Value not handled by the LXC driver, setting to
+      * minimum required to make XML parsing pass */
+-    if (virDomainDefSetVcpusMax(vmdef, 1) < 0)
++    if (virDomainDefSetVcpusMax(vmdef, 1, xmlopt) < 0)
+         goto error;
+ 
+     if (virDomainDefSetVcpus(vmdef, 1) < 0)
+diff --git a/src/openvz/openvz_conf.c b/src/openvz/openvz_conf.c
+index 50f4902..99ce95c 100644
+--- a/src/openvz/openvz_conf.c
++++ b/src/openvz/openvz_conf.c
+@@ -572,7 +572,7 @@ int openvzLoadDomains(struct openvz_driver *driver)
+         if (ret == 0 || vcpus == 0)
+             vcpus = openvzGetNodeCPUs();
+ 
+-        if (virDomainDefSetVcpusMax(def, vcpus) < 0)
++        if (virDomainDefSetVcpusMax(def, vcpus, driver->xmlopt) < 0)
+             goto cleanup;
+ 
+         if (virDomainDefSetVcpus(def, vcpus) < 0)
+diff --git a/src/openvz/openvz_driver.c b/src/openvz/openvz_driver.c
+index 48c264b..78c91da 100644
+--- a/src/openvz/openvz_driver.c
++++ b/src/openvz/openvz_driver.c
+@@ -70,7 +70,8 @@ static int openvzGetProcessInfo(unsigned long long *cpuTime, int vpsid);
+ static int openvzConnectGetMaxVcpus(virConnectPtr conn, const char *type);
+ static int openvzDomainGetMaxVcpus(virDomainPtr dom);
+ static int openvzDomainSetVcpusInternal(virDomainObjPtr vm,
+-                                        unsigned int nvcpus);
++                                        unsigned int nvcpus,
++                                        virDomainXMLOptionPtr xmlopt);
+ static int openvzDomainSetMemoryInternal(virDomainObjPtr vm,
+                                          unsigned long long memory);
+ static int openvzGetVEStatus(virDomainObjPtr vm, int *status, int *reason);
+@@ -1032,7 +1033,8 @@ openvzDomainDefineXMLFlags(virConnectPtr conn, const char *xml, unsigned int fla
+         goto cleanup;
+     }
+     if (virDomainDefGetVcpusMax(vm->def)) {
+-        if (openvzDomainSetVcpusInternal(vm, virDomainDefGetVcpusMax(vm->def)) < 0) {
++        if (openvzDomainSetVcpusInternal(vm, virDomainDefGetVcpusMax(vm->def),
++                                         driver->xmlopt) < 0) {
+             virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+                            _("Could not set number of vCPUs"));
+              goto cleanup;
+@@ -1130,7 +1132,8 @@ openvzDomainCreateXML(virConnectPtr conn, const char *xml,
+     virDomainObjSetState(vm, VIR_DOMAIN_RUNNING, VIR_DOMAIN_RUNNING_BOOTED);
+ 
+     if (virDomainDefGetVcpusMax(vm->def) > 0) {
+-        if (openvzDomainSetVcpusInternal(vm, virDomainDefGetVcpusMax(vm->def)) < 0) {
++        if (openvzDomainSetVcpusInternal(vm, virDomainDefGetVcpusMax(vm->def),
++                                         driver->xmlopt) < 0) {
+             virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+                            _("Could not set number of vCPUs"));
+             goto cleanup;
+@@ -1347,7 +1350,8 @@ static int openvzDomainGetMaxVcpus(virDomainPtr dom)
+ }
+ 
+ static int openvzDomainSetVcpusInternal(virDomainObjPtr vm,
+-                                        unsigned int nvcpus)
++                                        unsigned int nvcpus,
++                                        virDomainXMLOptionPtr xmlopt)
+ {
+     char        str_vcpus[32];
+     const char *prog[] = { VZCTL, "--quiet", "set", PROGRAM_SENTINEL,
+@@ -1364,7 +1368,7 @@ static int openvzDomainSetVcpusInternal(virDomainObjPtr vm,
+     if (virRun(prog, NULL) < 0)
+         return -1;
+ 
+-    if (virDomainDefSetVcpusMax(vm->def, nvcpus) < 0)
++    if (virDomainDefSetVcpusMax(vm->def, nvcpus, xmlopt) < 0)
+         return -1;
+ 
+     if (virDomainDefSetVcpus(vm->def, nvcpus) < 0)
+@@ -1402,7 +1406,7 @@ static int openvzDomainSetVcpusFlags(virDomainPtr dom, unsigned int nvcpus,
+         goto cleanup;
+     }
+ 
+-    if (openvzDomainSetVcpusInternal(vm, nvcpus) < 0) {
++    if (openvzDomainSetVcpusInternal(vm, nvcpus, driver->xmlopt) < 0) {
+         virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+                        _("Could not set number of vCPUs"));
+         goto cleanup;
+diff --git a/src/phyp/phyp_driver.c b/src/phyp/phyp_driver.c
+index dce20bc..3dd8927 100644
+--- a/src/phyp/phyp_driver.c
++++ b/src/phyp/phyp_driver.c
+@@ -3296,7 +3296,7 @@ phypDomainGetXMLDesc(virDomainPtr dom, unsigned int flags)
+         goto err;
+     }
+ 
+-    if (virDomainDefSetVcpusMax(&def, vcpus) < 0)
++    if (virDomainDefSetVcpusMax(&def, vcpus, phyp_driver->xmlopt) < 0)
+         goto err;
+ 
+     if (virDomainDefSetVcpus(&def, vcpus) < 0)
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index 71f2fb6..d3cf267 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -4863,7 +4863,7 @@ qemuDomainSetVcpusFlags(virDomainPtr dom, unsigned int nvcpus,
+                 goto endjob;
+             }
+ 
+-            if (virDomainDefSetVcpusMax(persistentDef, nvcpus) < 0)
++            if (virDomainDefSetVcpusMax(persistentDef, nvcpus, driver->xmlopt) < 0)
+                 goto endjob;
+         } else {
+             if (virDomainDefSetVcpus(persistentDef, nvcpus) < 0)
+diff --git a/src/qemu/qemu_parse_command.c b/src/qemu/qemu_parse_command.c
+index b1d8a1d..0bcd1ad 100644
+--- a/src/qemu/qemu_parse_command.c
++++ b/src/qemu/qemu_parse_command.c
+@@ -1659,7 +1659,8 @@ qemuParseCommandLineMem(virDomainDefPtr dom,
+ 
+ static int
+ qemuParseCommandLineSmp(virDomainDefPtr dom,
+-                        const char *val)
++                        const char *val,
++                        virDomainXMLOptionPtr xmlopt)
+ {
+     unsigned int sockets = 0;
+     unsigned int cores = 0;
+@@ -1701,7 +1702,7 @@ qemuParseCommandLineSmp(virDomainDefPtr dom,
+     if (maxcpus == 0)
+         maxcpus = vcpus;
+ 
+-    if (virDomainDefSetVcpusMax(dom, maxcpus) < 0)
++    if (virDomainDefSetVcpusMax(dom, maxcpus, xmlopt) < 0)
+         goto error;
+ 
+     if (virDomainDefSetVcpus(dom, vcpus) < 0)
+@@ -1819,7 +1820,7 @@ qemuParseCommandLine(virCapsPtr caps,
+     def->id = -1;
+     def->mem.cur_balloon = 64 * 1024;
+     virDomainDefSetMemoryTotal(def, def->mem.cur_balloon);
+-    if (virDomainDefSetVcpusMax(def, 1) < 0)
++    if (virDomainDefSetVcpusMax(def, 1, xmlopt) < 0)
+         goto error;
+     if (virDomainDefSetVcpus(def, 1) < 0)
+         goto error;
+@@ -1899,7 +1900,7 @@ qemuParseCommandLine(virCapsPtr caps,
+                 goto error;
+         } else if (STREQ(arg, "-smp")) {
+             WANT_VALUE();
+-            if (qemuParseCommandLineSmp(def, val) < 0)
++            if (qemuParseCommandLineSmp(def, val, xmlopt) < 0)
+                 goto error;
+         } else if (STREQ(arg, "-uuid")) {
+             WANT_VALUE();
+diff --git a/src/test/test_driver.c b/src/test/test_driver.c
+index e7bca81..36bbd7f 100644
+--- a/src/test/test_driver.c
++++ b/src/test/test_driver.c
+@@ -2336,6 +2336,7 @@ static int
+ testDomainSetVcpusFlags(virDomainPtr domain, unsigned int nrCpus,
+                         unsigned int flags)
+ {
++    testDriverPtr driver = domain->conn->privateData;
+     virDomainObjPtr privdom = NULL;
+     virDomainDefPtr def;
+     virDomainDefPtr persistentDef;
+@@ -2383,7 +2384,8 @@ testDomainSetVcpusFlags(virDomainPtr domain, unsigned int nrCpus,
+ 
+     if (persistentDef) {
+         if (flags & VIR_DOMAIN_VCPU_MAXIMUM) {
+-            if (virDomainDefSetVcpusMax(persistentDef, nrCpus) < 0)
++            if (virDomainDefSetVcpusMax(persistentDef, nrCpus,
++                                        driver->xmlopt) < 0)
+                 goto cleanup;
+         } else {
+             if (virDomainDefSetVcpus(persistentDef, nrCpus) < 0)
+diff --git a/src/vbox/vbox_common.c b/src/vbox/vbox_common.c
+index 8e49268..a14ab67 100644
+--- a/src/vbox/vbox_common.c
++++ b/src/vbox/vbox_common.c
+@@ -3885,7 +3885,7 @@ static char *vboxDomainGetXMLDesc(virDomainPtr dom, unsigned int flags)
+     virDomainDefSetMemoryTotal(def, memorySize * 1024);
+ 
+     gVBoxAPI.UIMachine.GetCPUCount(machine, &CPUCount);
+-    if (virDomainDefSetVcpusMax(def, CPUCount) < 0)
++    if (virDomainDefSetVcpusMax(def, CPUCount, data->xmlopt) < 0)
+         goto cleanup;
+ 
+     if (virDomainDefSetVcpus(def, CPUCount) < 0)
+@@ -6044,7 +6044,7 @@ static char *vboxDomainSnapshotGetXMLDesc(virDomainSnapshotPtr snapshot,
+         def->dom->os.type = VIR_DOMAIN_OSTYPE_HVM;
+         def->dom->os.arch = virArchFromHost();
+         gVBoxAPI.UIMachine.GetCPUCount(machine, &CPUCount);
+-        if (virDomainDefSetVcpusMax(def->dom, CPUCount) < 0)
++        if (virDomainDefSetVcpusMax(def->dom, CPUCount, data->xmlopt) < 0)
+             goto cleanup;
+ 
+         if (virDomainDefSetVcpus(def->dom, CPUCount) < 0)
+diff --git a/src/vmx/vmx.c b/src/vmx/vmx.c
+index d443dd0..0f557a8 100644
+--- a/src/vmx/vmx.c
++++ b/src/vmx/vmx.c
+@@ -1457,7 +1457,7 @@ virVMXParseConfig(virVMXContext *ctx,
+         goto cleanup;
+     }
+ 
+-    if (virDomainDefSetVcpusMax(def, numvcpus) < 0)
++    if (virDomainDefSetVcpusMax(def, numvcpus, xmlopt) < 0)
+         goto cleanup;
+ 
+     if (virDomainDefSetVcpus(def, numvcpus) < 0)
+diff --git a/src/vz/vz_sdk.c b/src/vz/vz_sdk.c
+index 9d0bc0d..7871230 100644
+--- a/src/vz/vz_sdk.c
++++ b/src/vz/vz_sdk.c
+@@ -1309,7 +1309,8 @@ prlsdkConvertDomainState(VIRTUAL_MACHINE_STATE domainState,
+ 
+ static int
+ prlsdkConvertCpuInfo(PRL_HANDLE sdkdom,
+-                     virDomainDefPtr def)
++                     virDomainDefPtr def,
++                     virDomainXMLOptionPtr xmlopt)
+ {
+     char *buf;
+     int hostcpus;
+@@ -1327,7 +1328,7 @@ prlsdkConvertCpuInfo(PRL_HANDLE sdkdom,
+     if (cpuCount > hostcpus)
+         cpuCount = hostcpus;
+ 
+-    if (virDomainDefSetVcpusMax(def, cpuCount) < 0)
++    if (virDomainDefSetVcpusMax(def, cpuCount, xmlopt) < 0)
+         goto cleanup;
+ 
+     if (virDomainDefSetVcpus(def, cpuCount) < 0)
+@@ -1706,7 +1707,7 @@ prlsdkLoadDomain(vzDriverPtr driver, virDomainObjPtr dom)
+                                                      convert to Kbytes */
+     def->mem.cur_balloon = ram << 10;
+ 
+-    if (prlsdkConvertCpuInfo(sdkdom, def) < 0)
++    if (prlsdkConvertCpuInfo(sdkdom, def, driver->xmlopt) < 0)
+         goto error;
+ 
+     if (prlsdkConvertCpuMode(sdkdom, def) < 0)
+diff --git a/src/xen/xm_internal.c b/src/xen/xm_internal.c
+index 3c34652..8335078 100644
+--- a/src/xen/xm_internal.c
++++ b/src/xen/xm_internal.c
+@@ -700,7 +700,7 @@ xenXMDomainSetVcpusFlags(virConnectPtr conn,
+     }
+ 
+     if (flags & VIR_DOMAIN_VCPU_MAXIMUM) {
+-        if (virDomainDefSetVcpusMax(entry->def, vcpus) < 0)
++        if (virDomainDefSetVcpusMax(entry->def, vcpus, priv->xmlopt) < 0)
+             goto cleanup;
+     } else {
+         if (virDomainDefSetVcpus(entry->def, vcpus) < 0)
+diff --git a/src/xenapi/xenapi_driver.c b/src/xenapi/xenapi_driver.c
+index 676ed5b..9a861c1 100644
+--- a/src/xenapi/xenapi_driver.c
++++ b/src/xenapi/xenapi_driver.c
+@@ -1505,7 +1505,7 @@ xenapiDomainGetXMLDesc(virDomainPtr dom, unsigned int flags)
+ 
+     vcpus = xenapiDomainGetMaxVcpus(dom);
+ 
+-    if (virDomainDefSetVcpusMax(defPtr, vcpus) < 0)
++    if (virDomainDefSetVcpusMax(defPtr, vcpus, priv->xmlopt) < 0)
+         goto error;
+ 
+     if (virDomainDefSetVcpus(defPtr, vcpus) < 0)
+diff --git a/src/xenconfig/xen_common.c b/src/xenconfig/xen_common.c
+index f62a5b1..8365a2c 100644
+--- a/src/xenconfig/xen_common.c
++++ b/src/xenconfig/xen_common.c
+@@ -483,7 +483,9 @@ xenParsePCI(virConfPtr conf, virDomainDefPtr def)
+ 
+ 
+ static int
+-xenParseCPUFeatures(virConfPtr conf, virDomainDefPtr def)
++xenParseCPUFeatures(virConfPtr conf,
++                    virDomainDefPtr def,
++                    virDomainXMLOptionPtr xmlopt)
+ {
+     unsigned long count = 0;
+     const char *str = NULL;
+@@ -492,7 +494,7 @@ xenParseCPUFeatures(virConfPtr conf, virDomainDefPtr def)
+     if (xenConfigGetULong(conf, "vcpus", &count, 1) < 0)
+         return -1;
+ 
+-    if (virDomainDefSetVcpusMax(def, count) < 0)
++    if (virDomainDefSetVcpusMax(def, count, xmlopt) < 0)
+         return -1;
+ 
+     if (virDomainDefSetVcpus(def, count) < 0)
+@@ -502,7 +504,7 @@ xenParseCPUFeatures(virConfPtr conf, virDomainDefPtr def)
+         if (xenConfigGetULong(conf, "maxvcpus", &count, 0) < 0)
+             return -1;
+ 
+-        if (virDomainDefSetVcpusMax(def, count) < 0)
++        if (virDomainDefSetVcpusMax(def, count, xmlopt) < 0)
+             return -1;
+     }
+ 
+@@ -1051,7 +1053,8 @@ int
+ xenParseConfigCommon(virConfPtr conf,
+                      virDomainDefPtr def,
+                      virCapsPtr caps,
+-                     const char *nativeFormat)
++                     const char *nativeFormat,
++                     virDomainXMLOptionPtr xmlopt)
+ {
+     if (xenParseGeneralMeta(conf, def, caps) < 0)
+         return -1;
+@@ -1062,7 +1065,7 @@ xenParseConfigCommon(virConfPtr conf,
+     if (xenParseEventsActions(conf, def) < 0)
+         return -1;
+ 
+-    if (xenParseCPUFeatures(conf, def) < 0)
++    if (xenParseCPUFeatures(conf, def, xmlopt) < 0)
+         return -1;
+ 
+     if (xenParseTimeOffset(conf, def) < 0)
+diff --git a/src/xenconfig/xen_common.h b/src/xenconfig/xen_common.h
+index 1c74bee..9055692 100644
+--- a/src/xenconfig/xen_common.h
++++ b/src/xenconfig/xen_common.h
+@@ -59,7 +59,8 @@ int xenConfigCopyStringOpt(virConfPtr conf,
+ int xenParseConfigCommon(virConfPtr conf,
+                          virDomainDefPtr def,
+                          virCapsPtr caps,
+-                         const char *nativeFormat);
++                         const char *nativeFormat,
++                         virDomainXMLOptionPtr xmlopt);
+ 
+ int xenFormatConfigCommon(virConfPtr conf,
+                           virDomainDefPtr def,
+diff --git a/src/xenconfig/xen_sxpr.c b/src/xenconfig/xen_sxpr.c
+index ea6c177..40dc53c 100644
+--- a/src/xenconfig/xen_sxpr.c
++++ b/src/xenconfig/xen_sxpr.c
+@@ -1233,7 +1233,7 @@ xenParseSxpr(const struct sexpr *root,
+         }
+     }
+ 
+-    if (virDomainDefSetVcpusMax(def, sexpr_int(root, "domain/vcpus")) < 0)
++    if (virDomainDefSetVcpusMax(def, sexpr_int(root, "domain/vcpus"), xmlopt) < 0)
+         goto error;
+ 
+     vcpus = count_one_bits_l(sexpr_u64(root, "domain/vcpu_avail"));
+diff --git a/src/xenconfig/xen_xl.c b/src/xenconfig/xen_xl.c
+index f8cebd2..25a3621 100644
+--- a/src/xenconfig/xen_xl.c
++++ b/src/xenconfig/xen_xl.c
+@@ -594,7 +594,8 @@ xenParseXL(virConfPtr conf,
+     def->virtType = VIR_DOMAIN_VIRT_XEN;
+     def->id = -1;
+ 
+-    if (xenParseConfigCommon(conf, def, caps, XEN_CONFIG_FORMAT_XL) < 0)
++    if (xenParseConfigCommon(conf, def, caps, XEN_CONFIG_FORMAT_XL,
++                             xmlopt) < 0)
+         goto cleanup;
+ 
+     if (xenParseXLOS(conf, def, caps) < 0)
+diff --git a/src/xenconfig/xen_xm.c b/src/xenconfig/xen_xm.c
+index 1023ed2..124c94a 100644
+--- a/src/xenconfig/xen_xm.c
++++ b/src/xenconfig/xen_xm.c
+@@ -447,7 +447,8 @@ xenParseXM(virConfPtr conf,
+     def->virtType = VIR_DOMAIN_VIRT_XEN;
+     def->id = -1;
+ 
+-    if (xenParseConfigCommon(conf, def, caps, XEN_CONFIG_FORMAT_XM) < 0)
++    if (xenParseConfigCommon(conf, def, caps, XEN_CONFIG_FORMAT_XM,
++                             xmlopt) < 0)
+         goto cleanup;
+ 
+     if (xenParseXMOS(conf, def) < 0)
+-- 
+2.10.0
+

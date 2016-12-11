@@ -1,0 +1,40 @@
+From 295e298a18e91a62cadf756f65de7edc99235b42 Mon Sep 17 00:00:00 2001
+Message-Id: <295e298a18e91a62cadf756f65de7edc99235b42@dist-git>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Wed, 24 Aug 2016 16:10:59 -0400
+Subject: [PATCH] conf: Make really sure we don't access non-existing vCPUs
+ again
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1097930
+https://bugzilla.redhat.com/show_bug.cgi?id=1224341
+
+MinGW complained that we might be dereferencing a NULL pointer.  While
+that can't be true, the logic certainly allows for that.
+
+../../src/conf/domain_conf.c: In function 'virDomainDefPostParse':
+../../src/conf/domain_conf.c:4224:18: error: potential null pointer dereference [-Werror=null-dereference]
+         if (!vcpu->online && vcpu->cpumask) {
+              ~~~~^~~~~~~~
+
+Signed-off-by: Daniel P. Berrange <berrange@redhat.com>
+(cherry picked from commit 05f89657eed52550050f9308bb7cb8d56dde9cd0)
+---
+ src/conf/domain_conf.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 7fa4701..8e5afe7 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -4302,7 +4302,7 @@ virDomainDefRemoveOfflineVcpuPin(virDomainDefPtr def)
+     for (i = 0; i < virDomainDefGetVcpusMax(def); i++) {
+         vcpu = virDomainDefGetVcpu(def, i);
+ 
+-        if (!vcpu->online && vcpu->cpumask) {
++        if (vcpu && !vcpu->online && vcpu->cpumask) {
+             virBitmapFree(vcpu->cpumask);
+             vcpu->cpumask = NULL;
+ 
+-- 
+2.10.0
+

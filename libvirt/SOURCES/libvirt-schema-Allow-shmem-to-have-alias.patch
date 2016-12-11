@@ -1,0 +1,35 @@
+From 3d7d9b8b2f298a0b1a98437c801b18776dfe890f Mon Sep 17 00:00:00 2001
+Message-Id: <3d7d9b8b2f298a0b1a98437c801b18776dfe890f@dist-git>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Fri, 4 Nov 2016 10:29:33 +0100
+Subject: [PATCH] schema: Allow shmem to have alias
+
+It already is used and tests will be automatically added in later patches.
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit 9f8be11d5d8b601d47c54c6360045cd17f50f7c5)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1392031
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+---
+ docs/schemas/domaincommon.rng | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/docs/schemas/domaincommon.rng b/docs/schemas/domaincommon.rng
+index 6935b0d..d88ff3e 100644
+--- a/docs/schemas/domaincommon.rng
++++ b/docs/schemas/domaincommon.rng
+@@ -3579,6 +3579,9 @@
+           </element>
+         </optional>
+         <optional>
++          <ref name="alias"/>
++        </optional>
++        <optional>
+           <ref name="address"/>
+         </optional>
+       </interleave>
+-- 
+2.10.2
+

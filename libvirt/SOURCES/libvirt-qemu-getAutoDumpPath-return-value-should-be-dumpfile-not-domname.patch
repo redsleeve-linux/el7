@@ -1,0 +1,38 @@
+From 96c19c7576d3c35298f2fa2757e98e8efb34354f Mon Sep 17 00:00:00 2001
+Message-Id: <96c19c7576d3c35298f2fa2757e98e8efb34354f@dist-git>
+From: Yan Fu <yafu@redhat.com>
+Date: Wed, 13 Jul 2016 07:25:22 +0200
+Subject: [PATCH] qemu: getAutoDumpPath() return value should be dumpfile not
+ domname.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1354238
+
+So we spend some time and effort constructing perfect file name
+for an automatic coredump of a domain, but then just leak it and
+use the domain name anyway. This is probably due to a silly
+mistake that slipped even through review.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 8305322d244337b8af7d2464f88829b307cbb721)
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_driver.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index 7bdf329..f1425b7 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -3877,7 +3877,8 @@ getAutoDumpPath(virQEMUDriverPtr driver,
+                              timestr));
+ 
+     virObjectUnref(cfg);
+-    return domname;
++    VIR_FREE(domname);
++    return dumpfile;
+ }
+ 
+ static void
+-- 
+2.9.2
+

@@ -1,0 +1,215 @@
+From 4351bb2a4232883bccf4596a80ebeedb4bf8bd91 Mon Sep 17 00:00:00 2001
+Message-Id: <4351bb2a4232883bccf4596a80ebeedb4bf8bd91@dist-git>
+From: Prasanna Kumar Kalever <prasanna.kalever@redhat.com>
+Date: Tue, 2 Aug 2016 13:42:04 +0200
+Subject: [PATCH] qemu: command: Add support for multi-host gluster disks
+
+To allow using failover with gluster it's necessary to specify multiple
+volume hosts. Add support for starting qemu with such configurations.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 7b7da9e28332517cfe47d5cf627aa9f7fd88aa3d)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1247521 [gluster multi-host]
+---
+ docs/formatdomain.html.in                          |   2 +-
+ src/qemu/qemu_command.c                            | 101 +++++++++++++++++++++
+ .../qemuxml2argv-disk-drive-network-gluster.args   |   9 +-
+ .../qemuxml2argv-disk-drive-network-gluster.xml    |   9 ++
+ .../qemuxml2xmlout-disk-drive-network-gluster.xml  |  10 ++
+ 5 files changed, 129 insertions(+), 2 deletions(-)
+
+diff --git a/docs/formatdomain.html.in b/docs/formatdomain.html.in
+index d206f6a..f006179 100644
+--- a/docs/formatdomain.html.in
++++ b/docs/formatdomain.html.in
+@@ -2280,7 +2280,7 @@
+               <tr>
+                 <td> gluster </td>
+                 <td> a server running glusterd daemon </td>
+-                <td> only one </td>
++                <td> one or more (<span class="since">Since 2.1.0</span>), just one prior to that </td>
+                 <td> 24007 </td>
+               </tr>
+             </table>
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index b33c39c..88b5da1 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -689,6 +689,100 @@ qemuBuildRBDSecinfoURI(virBufferPtr buf,
+ 
+ 
+ #define QEMU_DEFAULT_NBD_PORT "10809"
++#define QEMU_DEFAULT_GLUSTER_PORT "24007"
++
++/* builds the hosts array */
++static virJSONValuePtr
++qemuBuildGlusterDriveJSONHosts(virStorageSourcePtr src)
++{
++    virJSONValuePtr servers = NULL;
++    virJSONValuePtr server = NULL;
++    virJSONValuePtr ret = NULL;
++    virStorageNetHostDefPtr host;
++    const char *transport;
++    const char *portstr;
++    size_t i;
++
++    if (!(servers = virJSONValueNewArray()))
++        goto cleanup;
++
++    for (i = 0; i < src->nhosts; i++) {
++        host = src->hosts + i;
++        transport = virStorageNetHostTransportTypeToString(host->transport);
++        portstr = host->port;
++
++        if (virJSONValueObjectCreate(&server, "s:type", transport, NULL) < 0)
++            goto cleanup;
++
++        if (!portstr)
++            portstr = QEMU_DEFAULT_GLUSTER_PORT;
++
++        switch ((virStorageNetHostTransport) host->transport) {
++        case VIR_STORAGE_NET_HOST_TRANS_TCP:
++            if (virJSONValueObjectAdd(server,
++                                      "s:host", host->name,
++                                      "s:port", portstr,
++                                      NULL) < 0)
++                goto cleanup;
++            break;
++
++        case VIR_STORAGE_NET_HOST_TRANS_UNIX:
++            if (virJSONValueObjectAdd(server,
++                                      "s:socket", host->socket,
++                                      NULL) < 0)
++                goto cleanup;
++            break;
++
++        case VIR_STORAGE_NET_HOST_TRANS_RDMA:
++        case VIR_STORAGE_NET_HOST_TRANS_LAST:
++            virReportError(VIR_ERR_INTERNAL_ERROR,
++                           _("transport protocol '%s' is not yet supported"),
++                           transport);
++            goto cleanup;
++        }
++
++        if (virJSONValueArrayAppend(servers, server) < 0)
++            goto cleanup;
++
++        server = NULL;
++    }
++
++    ret = servers;
++    servers = NULL;
++
++ cleanup:
++    virJSONValueFree(servers);
++    virJSONValueFree(server);
++
++    return ret;
++}
++
++
++static virJSONValuePtr
++qemuBuildGlusterDriveJSON(virStorageSourcePtr src)
++{
++    const char *protocol = virStorageNetProtocolTypeToString(src->protocol);
++    virJSONValuePtr servers = NULL;
++    virJSONValuePtr ret = NULL;
++
++    if (!(servers = qemuBuildGlusterDriveJSONHosts(src)))
++        return NULL;
++
++     /* { driver:"gluster",
++      *   volume:"testvol",
++      *   path:"/a.img",
++      *   server :[{type:"tcp", host:"1.2.3.4", port:24007},
++      *            {type:"unix", socket:"/tmp/glusterd.socket"}, ...]}
++      */
++    if (virJSONValueObjectCreate(&ret,
++                                 "s:driver", protocol,
++                                 "s:volume", src->volume,
++                                 "s:path", src->path,
++                                 "a:server", servers, NULL) < 0)
++          virJSONValueFree(servers);
++
++    return ret;
++}
+ 
+ 
+ static char *
+@@ -932,7 +1026,14 @@ qemuGetDriveSourceProps(virStorageSourcePtr src,
+     case VIR_STORAGE_TYPE_VOLUME:
+     case VIR_STORAGE_TYPE_NONE:
+     case VIR_STORAGE_TYPE_LAST:
++        break;
++
+     case VIR_STORAGE_TYPE_NETWORK:
++        if (src->protocol == VIR_STORAGE_NET_PROTOCOL_GLUSTER &&
++            src->nhosts > 1) {
++            if (!(fileprops = qemuBuildGlusterDriveJSON(src)))
++                return -1;
++        }
+         break;
+     }
+ 
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-disk-drive-network-gluster.args b/tests/qemuxml2argvdata/qemuxml2argv-disk-drive-network-gluster.args
+index 7851dee..a7a1ae6 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-disk-drive-network-gluster.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-disk-drive-network-gluster.args
+@@ -24,4 +24,11 @@ id=virtio-disk0 \
+ -drive 'file=gluster+unix:///Volume2/Image?socket=/path/to/sock,format=raw,\
+ if=none,id=drive-virtio-disk1' \
+ -device virtio-blk-pci,bus=pci.0,addr=0x4,drive=drive-virtio-disk1,\
+-id=virtio-disk1
++id=virtio-disk1 \
++-drive file.driver=gluster,file.volume=Volume3,file.path=/Image.qcow2,\
++file.server.0.type=tcp,file.server.0.host=example.org,file.server.0.port=6000,\
++file.server.1.type=tcp,file.server.1.host=example.org,file.server.1.port=24007,\
++file.server.2.type=unix,file.server.2.socket=/path/to/sock,format=qcow2,\
++if=none,id=drive-virtio-disk2 \
++-device virtio-blk-pci,bus=pci.0,addr=0x5,drive=drive-virtio-disk2,\
++id=virtio-disk2
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-disk-drive-network-gluster.xml b/tests/qemuxml2argvdata/qemuxml2argv-disk-drive-network-gluster.xml
+index 0c66e7f..ef30e8c 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-disk-drive-network-gluster.xml
++++ b/tests/qemuxml2argvdata/qemuxml2argv-disk-drive-network-gluster.xml
+@@ -28,6 +28,15 @@
+       </source>
+       <target dev='vdb' bus='virtio'/>
+     </disk>
++    <disk type='network' device='disk'>
++      <driver name='qemu' type='qcow2'/>
++      <source protocol='gluster' name='Volume3/Image.qcow2'>
++        <host name='example.org' port='6000'/>
++        <host name='example.org'/>
++        <host transport='unix' socket='/path/to/sock'/>
++      </source>
++      <target dev='vdc' bus='virtio'/>
++    </disk>
+     <controller type='usb' index='0'/>
+     <controller type='pci' index='0' model='pci-root'/>
+     <input type='mouse' bus='ps2'/>
+diff --git a/tests/qemuxml2xmloutdata/qemuxml2xmlout-disk-drive-network-gluster.xml b/tests/qemuxml2xmloutdata/qemuxml2xmlout-disk-drive-network-gluster.xml
+index 160fd9d..8e0add5 100644
+--- a/tests/qemuxml2xmloutdata/qemuxml2xmlout-disk-drive-network-gluster.xml
++++ b/tests/qemuxml2xmloutdata/qemuxml2xmlout-disk-drive-network-gluster.xml
+@@ -30,6 +30,16 @@
+       <target dev='vdb' bus='virtio'/>
+       <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/>
+     </disk>
++    <disk type='network' device='disk'>
++      <driver name='qemu' type='qcow2'/>
++      <source protocol='gluster' name='Volume3/Image.qcow2'>
++        <host name='example.org' port='6000'/>
++        <host name='example.org'/>
++        <host transport='unix' socket='/path/to/sock'/>
++      </source>
++      <target dev='vdc' bus='virtio'/>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x05' function='0x0'/>
++    </disk>
+     <controller type='usb' index='0'>
+       <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x2'/>
+     </controller>
+-- 
+2.9.2
+

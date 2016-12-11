@@ -1,0 +1,47 @@
+From 892ee6bfd6f0a459b16c9bede5a4af83f76ccd22 Mon Sep 17 00:00:00 2001
+Message-Id: <892ee6bfd6f0a459b16c9bede5a4af83f76ccd22@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Fri, 26 Aug 2016 15:45:26 -0400
+Subject: [PATCH] conf: Don't validate vcpu count in XML parser
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1097930
+https://bugzilla.redhat.com/show_bug.cgi?id=1224341
+
+Validating the vcpu count is more intricate and doing it in the XML
+parser will make previously valid configs (with older qemus) vanish.
+
+Now that we have a very similar check in the qemu domain validation
+callback we can do it in a more appropriate place.
+
+This basically reverts commit b54de0830a.
+
+Partially resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1370066
+
+(cherry picked from commit c9cb35c255222be7c972f1e049e297517aa84b42)
+---
+ src/conf/domain_conf.c | 9 ---------
+ 1 file changed, 9 deletions(-)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index d3a0400..9c49ba7 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -16413,15 +16413,6 @@ virDomainDefParseXML(xmlDocPtr xml,
+ 
+         if (def->cpu == NULL)
+             goto error;
+-
+-        if (def->cpu->sockets &&
+-            virDomainDefGetVcpusMax(def) >
+-            def->cpu->sockets * def->cpu->cores * def->cpu->threads) {
+-            virReportError(VIR_ERR_XML_DETAIL, "%s",
+-                           _("Maximum CPUs greater than topology limit"));
+-            goto error;
+-        }
+-
+     }
+ 
+     if (virDomainNumaDefCPUParseXML(def->numa, ctxt) < 0)
+-- 
+2.10.0
+

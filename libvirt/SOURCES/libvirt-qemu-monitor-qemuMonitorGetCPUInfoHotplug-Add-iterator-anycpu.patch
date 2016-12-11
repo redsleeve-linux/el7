@@ -1,0 +1,67 @@
+From c3ae7baaaf353b9d4f71600456f4636030f9d788 Mon Sep 17 00:00:00 2001
+Message-Id: <c3ae7baaaf353b9d4f71600456f4636030f9d788@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 14 Sep 2016 13:04:21 +0200
+Subject: [PATCH] qemu: monitor: qemuMonitorGetCPUInfoHotplug: Add iterator
+ 'anycpu'
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1375783
+
+Add separate iterator for iterating all the entries
+
+(cherry picked from commit 66da0356cd62398b1e06de317458e8883cb32db6)
+---
+ src/qemu/qemu_monitor.c | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)
+
+diff --git a/src/qemu/qemu_monitor.c b/src/qemu/qemu_monitor.c
+index 3ddd019..b88b0de 100644
+--- a/src/qemu/qemu_monitor.c
++++ b/src/qemu/qemu_monitor.c
+@@ -1768,6 +1768,7 @@ qemuMonitorGetCPUInfoHotplug(struct qemuMonitorQueryHotpluggableCpusEntry *hotpl
+     int order = 1;
+     size_t totalvcpus = 0;
+     size_t mastervcpu; /* this iterator is used for iterating hotpluggable entities */
++    size_t anyvcpu; /* this iterator is used for any vcpu entry in the result */
+     size_t i;
+     size_t j;
+ 
+@@ -1827,27 +1828,27 @@ qemuMonitorGetCPUInfoHotplug(struct qemuMonitorQueryHotpluggableCpusEntry *hotpl
+      * multi-vcpu objects */
+     for (j = 0; j < ncpuentries; j++) {
+         /* find the correct entry or beginning of group of entries */
+-        for (i = 0; i < maxvcpus; i++) {
+-            if (cpuentries[j].qom_path && vcpus[i].qom_path &&
+-                STREQ(cpuentries[j].qom_path, vcpus[i].qom_path))
++        for (anyvcpu = 0; anyvcpu < maxvcpus; anyvcpu++) {
++            if (cpuentries[j].qom_path && vcpus[anyvcpu].qom_path &&
++                STREQ(cpuentries[j].qom_path, vcpus[anyvcpu].qom_path))
+                 break;
+         }
+ 
+-        if (i == maxvcpus) {
++        if (anyvcpu == maxvcpus) {
+             VIR_DEBUG("too many query-cpus entries for a given "
+                       "query-hotpluggable-cpus entry");
+             return -1;
+         }
+ 
+-        if (vcpus[i].vcpus != 1) {
++        if (vcpus[anyvcpu].vcpus != 1) {
+             /* find a possibly empty vcpu thread for core granularity systems */
+-            for (; i < maxvcpus; i++) {
+-                if (vcpus[i].tid == 0)
++            for (; anyvcpu < maxvcpus; anyvcpu++) {
++                if (vcpus[anyvcpu].tid == 0)
+                     break;
+             }
+         }
+ 
+-        vcpus[i].tid = cpuentries[j].tid;
++        vcpus[anyvcpu].tid = cpuentries[j].tid;
+     }
+ 
+     return 0;
+-- 
+2.10.0
+

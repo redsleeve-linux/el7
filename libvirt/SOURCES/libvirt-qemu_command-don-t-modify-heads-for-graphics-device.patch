@@ -1,0 +1,36 @@
+From 60309df2aa2cafabf213a3eedfa5825d3b3e87c7 Mon Sep 17 00:00:00 2001
+Message-Id: <60309df2aa2cafabf213a3eedfa5825d3b3e87c7@dist-git>
+From: Pavel Hrdina <phrdina@redhat.com>
+Date: Mon, 15 Aug 2016 12:58:31 +0200
+Subject: [PATCH] qemu_command: don't modify heads for graphics device
+
+Setting heads to 0 in case that *max_outputs* is not supported while building
+command line doesn't have any real effect.  It only removes *heads* attribute
+from live XML, but after restarting libvirt the default value is restored.
+
+Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit ef11e770da543c171f044bbd579e482febcd9b63)
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1366119
+
+Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
+---
+ src/qemu/qemu_command.c | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index 6be16cc..4ce86bb 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -4301,8 +4301,6 @@ qemuBuildDeviceVideoStr(const virDomainDef *def,
+              virQEMUCapsGet(qemuCaps, QEMU_CAPS_QXL_MAX_OUTPUTS))) {
+             if (video->heads)
+                 virBufferAsprintf(&buf, ",max_outputs=%u", video->heads);
+-        } else {
+-            video->heads = 0;
+         }
+     } else if (video->vram &&
+         ((video->type == VIR_DOMAIN_VIDEO_TYPE_VGA &&
+-- 
+2.9.2
+

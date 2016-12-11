@@ -1,0 +1,127 @@
+From 9843ec11c61f08a0f0c9cc23397f28daf87b121a Mon Sep 17 00:00:00 2001
+Message-Id: <9843ec11c61f08a0f0c9cc23397f28daf87b121a@dist-git>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Mon, 25 Jul 2016 10:24:58 +0200
+Subject: [PATCH] qemu: format intel-iommu on the command line
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+<devices>
+  <iommu model='intel'/>
+</devices>
+
+results in:
+
+-device intel-iommu
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1235581
+(cherry picked from commit 4c382376da95bf84c9903e62c714ffa33f85d404)
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+
+Conflicts:
+  tests - downstream does not assume QEMU_CAPS_SMP_TOPOLOGY
+---
+ src/qemu/qemu_command.c                            | 35 ++++++++++++++++++++++
+ .../qemuxml2argvdata/qemuxml2argv-intel-iommu.args | 22 ++++++++++++++
+ tests/qemuxml2argvtest.c                           |  2 ++
+ 3 files changed, 59 insertions(+)
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-intel-iommu.args
+
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index 300c01c..b87d9c3 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -6172,6 +6172,38 @@ qemuBuildBootCommandLine(virCommandPtr cmd,
+ 
+ 
+ static int
++qemuBuildIOMMUCommandLine(virCommandPtr cmd,
++                          const virDomainDef *def,
++                          virQEMUCapsPtr qemuCaps)
++{
++    if (!def->iommu)
++        return 0;
++
++    switch (def->iommu->model) {
++    case VIR_DOMAIN_IOMMU_MODEL_INTEL:
++        if (!virQEMUCapsGet(qemuCaps, QEMU_CAPS_DEVICE_INTEL_IOMMU)) {
++            virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
++                           _("IOMMU device: '%s' is not supported with "
++                             "this QEMU binary"),
++                           virDomainIOMMUModelTypeToString(def->iommu->model));
++            return -1;
++        }
++        if (!qemuDomainMachineIsQ35(def)) {
++            virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
++                           _("IOMMU device: '%s' is only supported with "
++                             "Q35 machines"),
++                           virDomainIOMMUModelTypeToString(def->iommu->model));
++            return -1;
++        }
++        virCommandAddArgList(cmd, "-device", "intel-iommu", NULL);
++    case VIR_DOMAIN_IOMMU_MODEL_LAST:
++        break;
++    }
++    return 0;
++}
++
++
++static int
+ qemuBuildGlobalControllerCommandLine(virCommandPtr cmd,
+                                      const virDomainDef *def,
+                                      virQEMUCapsPtr qemuCaps)
+@@ -9273,6 +9305,9 @@ qemuBuildCommandLine(virQEMUDriverPtr driver,
+     if (qemuBuildBootCommandLine(cmd, def, qemuCaps, &emitBootindex) < 0)
+         goto error;
+ 
++    if (qemuBuildIOMMUCommandLine(cmd, def, qemuCaps) < 0)
++        goto error;
++
+     if (qemuBuildGlobalControllerCommandLine(cmd, def, qemuCaps) < 0)
+         goto error;
+ 
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-intel-iommu.args b/tests/qemuxml2argvdata/qemuxml2argv-intel-iommu.args
+new file mode 100644
+index 0000000..69e4490
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-intel-iommu.args
+@@ -0,0 +1,22 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/home/test \
++USER=test \
++LOGNAME=test \
++QEMU_AUDIO_DRV=none \
++/usr/bin/qemu \
++-name QEMUGuest1 \
++-S \
++-M q35 \
++-m 214 \
++-smp 1 \
++-uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
++-nographic \
++-nodefaults \
++-monitor unix:/tmp/lib/domain--1-QEMUGuest1/monitor.sock,server,nowait \
++-no-acpi \
++-boot c \
++-device intel-iommu \
++-device i82801b11-bridge,id=pci.1,bus=pcie.0,addr=0x1e \
++-device pci-bridge,chassis_nr=2,id=pci.2,bus=pci.1,addr=0x0 \
++-device virtio-balloon-pci,id=balloon0,bus=pci.2,addr=0x1
+diff --git a/tests/qemuxml2argvtest.c b/tests/qemuxml2argvtest.c
+index 51bab61..7fc10a8 100644
+--- a/tests/qemuxml2argvtest.c
++++ b/tests/qemuxml2argvtest.c
+@@ -2043,6 +2043,8 @@ mymain(void)
+                               QEMU_CAPS_NODEFCONFIG, QEMU_CAPS_USB_HUB);
+ 
+     DO_TEST("acpi-table", NONE);
++    DO_TEST("intel-iommu", QEMU_CAPS_DEVICE_PCI_BRIDGE,
++            QEMU_CAPS_DEVICE_DMI_TO_PCI_BRIDGE, QEMU_CAPS_DEVICE_INTEL_IOMMU);
+ 
+     qemuTestDriverFree(&driver);
+ 
+-- 
+2.9.2
+

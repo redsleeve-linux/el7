@@ -1,0 +1,320 @@
+From 847361f1eeda21c6dd8dcf73821b4ecf341095b1 Mon Sep 17 00:00:00 2001
+Message-Id: <847361f1eeda21c6dd8dcf73821b4ecf341095b1@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 24 Aug 2016 16:10:44 -0400
+Subject: [PATCH] conf: Rename virDomainVcpuInfoPtr to virDomainVcpuDefPtr
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1097930
+https://bugzilla.redhat.com/show_bug.cgi?id=1224341
+
+(cherry picked from commit c7d5dd3974df1edb6a1cd8fce989eea43d72527f)
+---
+ src/conf/domain_conf.c   | 22 +++++++++++-----------
+ src/conf/domain_conf.h   | 10 +++++-----
+ src/libxl/libxl_domain.c |  2 +-
+ src/libxl/libxl_driver.c |  2 +-
+ src/qemu/qemu_cgroup.c   |  2 +-
+ src/qemu/qemu_driver.c   | 14 +++++++-------
+ src/qemu/qemu_process.c  |  4 ++--
+ src/test/test_driver.c   |  4 ++--
+ src/vz/vz_sdk.c          |  2 +-
+ 9 files changed, 31 insertions(+), 31 deletions(-)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 9571ee3..a923b60 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -1313,7 +1313,7 @@ void virDomainLeaseDefFree(virDomainLeaseDefPtr def)
+ 
+ 
+ static void
+-virDomainVcpuInfoClear(virDomainVcpuInfoPtr info)
++virDomainVcpuDefClear(virDomainVcpuDefPtr info)
+ {
+     if (!info)
+         return;
+@@ -1337,7 +1337,7 @@ virDomainDefSetVcpusMax(virDomainDefPtr def,
+             return -1;
+     } else {
+         for (i = maxvcpus; i < def->maxvcpus; i++)
+-            virDomainVcpuInfoClear(&def->vcpus[i]);
++            virDomainVcpuDefClear(&def->vcpus[i]);
+ 
+         VIR_SHRINK_N(def->vcpus, def->maxvcpus, def->maxvcpus - maxvcpus);
+     }
+@@ -1429,7 +1429,7 @@ virDomainDefGetOnlineVcpumap(const virDomainDef *def)
+ }
+ 
+ 
+-virDomainVcpuInfoPtr
++virDomainVcpuDefPtr
+ virDomainDefGetVcpu(virDomainDefPtr def,
+                     unsigned int vcpu)
+ {
+@@ -1448,7 +1448,7 @@ static virDomainThreadSchedParamPtr
+ virDomainDefGetVcpuSched(virDomainDefPtr def,
+                          unsigned int vcpu)
+ {
+-    virDomainVcpuInfoPtr vcpuinfo;
++    virDomainVcpuDefPtr vcpuinfo;
+ 
+     if (!(vcpuinfo = virDomainDefGetVcpu(def, vcpu)))
+         return NULL;
+@@ -1514,7 +1514,7 @@ virDomainDefGetVcpuPinInfoHelper(virDomainDefPtr def,
+     virBitmapSetAll(allcpumap);
+ 
+     for (i = 0; i < maxvcpus && i < ncpumaps; i++) {
+-        virDomainVcpuInfoPtr vcpu = virDomainDefGetVcpu(def, i);
++        virDomainVcpuDefPtr vcpu = virDomainDefGetVcpu(def, i);
+         virBitmapPtr bitmap = NULL;
+ 
+         if (vcpu->cpumask)
+@@ -2530,7 +2530,7 @@ void virDomainDefFree(virDomainDefPtr def)
+     virDomainResourceDefFree(def->resource);
+ 
+     for (i = 0; i < def->maxvcpus; i++)
+-        virDomainVcpuInfoClear(&def->vcpus[i]);
++        virDomainVcpuDefClear(&def->vcpus[i]);
+     VIR_FREE(def->vcpus);
+ 
+     /* hostdevs must be freed before nets (or any future "intelligent
+@@ -4270,7 +4270,7 @@ static void
+ virDomainDefRemoveOfflineVcpuPin(virDomainDefPtr def)
+ {
+     size_t i;
+-    virDomainVcpuInfoPtr vcpu;
++    virDomainVcpuDefPtr vcpu;
+ 
+     for (i = 0; i < virDomainDefGetVcpusMax(def); i++) {
+         vcpu = virDomainDefGetVcpu(def, i);
+@@ -14975,7 +14975,7 @@ static int
+ virDomainVcpuPinDefParseXML(virDomainDefPtr def,
+                             xmlNodePtr node)
+ {
+-    virDomainVcpuInfoPtr vcpu;
++    virDomainVcpuDefPtr vcpu;
+     unsigned int vcpuid;
+     char *tmp = NULL;
+     int ret = -1;
+@@ -18638,8 +18638,8 @@ virDomainDefVcpuCheckAbiStability(virDomainDefPtr src,
+     }
+ 
+     for (i = 0; i < src->maxvcpus; i++) {
+-        virDomainVcpuInfoPtr svcpu = &src->vcpus[i];
+-        virDomainVcpuInfoPtr dvcpu = &dst->vcpus[i];
++        virDomainVcpuDefPtr svcpu = &src->vcpus[i];
++        virDomainVcpuDefPtr dvcpu = &dst->vcpus[i];
+ 
+         if (svcpu->online != dvcpu->online) {
+             virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+@@ -22823,7 +22823,7 @@ virDomainCputuneDefFormat(virBufferPtr buf,
+ 
+     for (i = 0; i < def->maxvcpus; i++) {
+         char *cpumask;
+-        virDomainVcpuInfoPtr vcpu = def->vcpus + i;
++        virDomainVcpuDefPtr vcpu = def->vcpus + i;
+ 
+         if (!vcpu->cpumask)
+             continue;
+diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
+index 6eed30e..c20ea79 100644
+--- a/src/conf/domain_conf.h
++++ b/src/conf/domain_conf.h
+@@ -2035,10 +2035,10 @@ struct _virDomainCputune {
+ };
+ 
+ 
+-typedef struct _virDomainVcpuInfo virDomainVcpuInfo;
+-typedef virDomainVcpuInfo *virDomainVcpuInfoPtr;
++typedef struct _virDomainVcpuDef virDomainVcpuDef;
++typedef virDomainVcpuDef *virDomainVcpuDefPtr;
+ 
+-struct _virDomainVcpuInfo {
++struct _virDomainVcpuDef {
+     bool online;
+     virBitmapPtr cpumask;
+ 
+@@ -2132,7 +2132,7 @@ struct _virDomainDef {
+     virDomainBlkiotune blkio;
+     virDomainMemtune mem;
+ 
+-    virDomainVcpuInfoPtr vcpus;
++    virDomainVcpuDefPtr vcpus;
+     size_t maxvcpus;
+     int placement_mode;
+     virBitmapPtr cpumask;
+@@ -2267,7 +2267,7 @@ unsigned int virDomainDefGetVcpusMax(const virDomainDef *def);
+ int virDomainDefSetVcpus(virDomainDefPtr def, unsigned int vcpus);
+ unsigned int virDomainDefGetVcpus(const virDomainDef *def);
+ virBitmapPtr virDomainDefGetOnlineVcpumap(const virDomainDef *def);
+-virDomainVcpuInfoPtr virDomainDefGetVcpu(virDomainDefPtr def, unsigned int vcpu)
++virDomainVcpuDefPtr virDomainDefGetVcpu(virDomainDefPtr def, unsigned int vcpu)
+     ATTRIBUTE_RETURN_CHECK;
+ 
+ unsigned long long virDomainDefGetMemoryInitial(const virDomainDef *def);
+diff --git a/src/libxl/libxl_domain.c b/src/libxl/libxl_domain.c
+index 9feba08..0e26b91 100644
+--- a/src/libxl/libxl_domain.c
++++ b/src/libxl/libxl_domain.c
+@@ -841,7 +841,7 @@ int
+ libxlDomainSetVcpuAffinities(libxlDriverPrivatePtr driver, virDomainObjPtr vm)
+ {
+     libxlDriverConfigPtr cfg = libxlDriverConfigGet(driver);
+-    virDomainVcpuInfoPtr vcpu;
++    virDomainVcpuDefPtr vcpu;
+     libxl_bitmap map;
+     virBitmapPtr cpumask = NULL;
+     size_t i;
+diff --git a/src/libxl/libxl_driver.c b/src/libxl/libxl_driver.c
+index 3189f1c..be6017a 100644
+--- a/src/libxl/libxl_driver.c
++++ b/src/libxl/libxl_driver.c
+@@ -2284,7 +2284,7 @@ libxlDomainPinVcpuFlags(virDomainPtr dom, unsigned int vcpu,
+     libxlDriverConfigPtr cfg = libxlDriverConfigGet(driver);
+     virDomainDefPtr targetDef = NULL;
+     virBitmapPtr pcpumap = NULL;
+-    virDomainVcpuInfoPtr vcpuinfo;
++    virDomainVcpuDefPtr vcpuinfo;
+     virDomainObjPtr vm;
+     int ret = -1;
+ 
+diff --git a/src/qemu/qemu_cgroup.c b/src/qemu/qemu_cgroup.c
+index 1e04a68..2dca874 100644
+--- a/src/qemu/qemu_cgroup.c
++++ b/src/qemu/qemu_cgroup.c
+@@ -874,7 +874,7 @@ qemuRestoreCgroupState(virDomainObjPtr vm)
+         goto error;
+ 
+     for (i = 0; i < virDomainDefGetVcpusMax(vm->def); i++) {
+-        virDomainVcpuInfoPtr vcpu = virDomainDefGetVcpu(vm->def, i);
++        virDomainVcpuDefPtr vcpu = virDomainDefGetVcpu(vm->def, i);
+ 
+         if (!vcpu->online)
+             continue;
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index 9c6c1cf..b4ab095 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -1475,7 +1475,7 @@ qemuDomainHelperGetVcpus(virDomainObjPtr vm,
+         memset(cpumaps, 0, sizeof(*cpumaps) * maxinfo);
+ 
+     for (i = 0; i < virDomainDefGetVcpusMax(vm->def) && ncpuinfo < maxinfo; i++) {
+-        virDomainVcpuInfoPtr vcpu = virDomainDefGetVcpu(vm->def, i);
++        virDomainVcpuDefPtr vcpu = virDomainDefGetVcpu(vm->def, i);
+         pid_t vcpupid = qemuDomainGetVcpuPid(vm, i);
+ 
+         if (!vcpu->online)
+@@ -4620,7 +4620,7 @@ qemuDomainHotplugAddVcpu(virQEMUDriverPtr driver,
+                          unsigned int vcpu)
+ {
+     qemuDomainObjPrivatePtr priv = vm->privateData;
+-    virDomainVcpuInfoPtr vcpuinfo;
++    virDomainVcpuDefPtr vcpuinfo;
+     int ret = -1;
+     int rc;
+     int oldvcpus = virDomainDefGetVcpus(vm->def);
+@@ -4672,7 +4672,7 @@ qemuDomainHotplugDelVcpu(virQEMUDriverPtr driver,
+                          unsigned int vcpu)
+ {
+     qemuDomainObjPrivatePtr priv = vm->privateData;
+-    virDomainVcpuInfoPtr vcpuinfo;
++    virDomainVcpuDefPtr vcpuinfo;
+     int ret = -1;
+     int rc;
+     int oldvcpus = virDomainDefGetVcpus(vm->def);
+@@ -4919,7 +4919,7 @@ qemuDomainPinVcpuLive(virDomainObjPtr vm,
+                       virBitmapPtr cpumap)
+ {
+     virBitmapPtr tmpmap = NULL;
+-    virDomainVcpuInfoPtr vcpuinfo;
++    virDomainVcpuDefPtr vcpuinfo;
+     qemuDomainObjPrivatePtr priv = vm->privateData;
+     virCgroupPtr cgroup_vcpu = NULL;
+     char *str = NULL;
+@@ -5006,7 +5006,7 @@ qemuDomainPinVcpuFlags(virDomainPtr dom,
+     virDomainDefPtr persistentDef;
+     int ret = -1;
+     virBitmapPtr pcpumap = NULL;
+-    virDomainVcpuInfoPtr vcpuinfo = NULL;
++    virDomainVcpuDefPtr vcpuinfo = NULL;
+     virQEMUDriverConfigPtr cfg = NULL;
+ 
+     virCheckFlags(VIR_DOMAIN_AFFECT_LIVE |
+@@ -9365,7 +9365,7 @@ qemuDomainSetNumaParamsLive(virDomainObjPtr vm,
+     virCgroupFree(&cgroup_temp);
+ 
+     for (i = 0; i < virDomainDefGetVcpusMax(vm->def); i++) {
+-        virDomainVcpuInfoPtr vcpu = virDomainDefGetVcpu(vm->def, i);
++        virDomainVcpuDefPtr vcpu = virDomainDefGetVcpu(vm->def, i);
+ 
+         if (!vcpu->online)
+             continue;
+@@ -9776,7 +9776,7 @@ qemuSetVcpusBWLive(virDomainObjPtr vm, virCgroupPtr cgroup,
+         return 0;
+ 
+     for (i = 0; i < virDomainDefGetVcpusMax(vm->def); i++) {
+-        virDomainVcpuInfoPtr vcpu = virDomainDefGetVcpu(vm->def, i);
++        virDomainVcpuDefPtr vcpu = virDomainDefGetVcpu(vm->def, i);
+ 
+         if (!vcpu->online)
+             continue;
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 2f0ef2b..6062f2a 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -4577,7 +4577,7 @@ qemuProcessSetupVcpu(virDomainObjPtr vm,
+                      unsigned int vcpuid)
+ {
+     pid_t vcpupid = qemuDomainGetVcpuPid(vm, vcpuid);
+-    virDomainVcpuInfoPtr vcpu = virDomainDefGetVcpu(vm->def, vcpuid);
++    virDomainVcpuDefPtr vcpu = virDomainDefGetVcpu(vm->def, vcpuid);
+     qemuDomainObjPrivatePtr priv = vm->privateData;
+     char *mem_mask = NULL;
+     virDomainNumatuneMemMode mem_mode;
+@@ -4658,7 +4658,7 @@ qemuProcessSetupVcpu(virDomainObjPtr vm,
+ static int
+ qemuProcessSetupVcpus(virDomainObjPtr vm)
+ {
+-    virDomainVcpuInfoPtr vcpu;
++    virDomainVcpuDefPtr vcpu;
+     unsigned int maxvcpus = virDomainDefGetVcpusMax(vm->def);
+     size_t i;
+ 
+diff --git a/src/test/test_driver.c b/src/test/test_driver.c
+index baff085..e7bca81 100644
+--- a/src/test/test_driver.c
++++ b/src/test/test_driver.c
+@@ -2457,7 +2457,7 @@ static int testDomainGetVcpus(virDomainPtr domain,
+     memset(cpumaps, 0, maxinfo * maplen);
+ 
+     for (i = 0; i < maxinfo; i++) {
+-        virDomainVcpuInfoPtr vcpu = virDomainDefGetVcpu(def, i);
++        virDomainVcpuDefPtr vcpu = virDomainDefGetVcpu(def, i);
+         virBitmapPtr bitmap = NULL;
+ 
+         if (!vcpu->online)
+@@ -2493,7 +2493,7 @@ static int testDomainPinVcpu(virDomainPtr domain,
+                              unsigned char *cpumap,
+                              int maplen)
+ {
+-    virDomainVcpuInfoPtr vcpuinfo;
++    virDomainVcpuDefPtr vcpuinfo;
+     virDomainObjPtr privdom;
+     virDomainDefPtr def;
+     int ret = -1;
+diff --git a/src/vz/vz_sdk.c b/src/vz/vz_sdk.c
+index ae218e9..9d0bc0d 100644
+--- a/src/vz/vz_sdk.c
++++ b/src/vz/vz_sdk.c
+@@ -2284,7 +2284,7 @@ prlsdkCheckUnsupportedParams(PRL_HANDLE sdkdom, virDomainDefPtr def)
+     }
+ 
+     for (i = 0; i < virDomainDefGetVcpusMax(def); i++) {
+-        virDomainVcpuInfoPtr vcpu = virDomainDefGetVcpu(def, i);
++        virDomainVcpuDefPtr vcpu = virDomainDefGetVcpu(def, i);
+ 
+         if (vcpu->cpumask &&
+             !virBitmapEqual(def->cpumask, vcpu->cpumask)) {
+-- 
+2.10.0
+

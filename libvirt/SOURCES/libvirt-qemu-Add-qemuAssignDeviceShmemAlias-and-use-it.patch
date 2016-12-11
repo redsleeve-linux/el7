@@ -1,0 +1,85 @@
+From 27452e33f75a6bc6562d6a6992b496e9e0e25f93 Mon Sep 17 00:00:00 2001
+Message-Id: <27452e33f75a6bc6562d6a6992b496e9e0e25f93@dist-git>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Fri, 4 Nov 2016 10:29:43 +0100
+Subject: [PATCH] qemu: Add qemuAssignDeviceShmemAlias and use it
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit a9996a45992d6d204ec922d836b26da65e3f7191)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1392031
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+---
+ src/qemu/qemu_alias.c | 32 +++++++++++++++++++++++++++++++-
+ src/qemu/qemu_alias.h |  4 ++++
+ 2 files changed, 35 insertions(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_alias.c b/src/qemu/qemu_alias.c
+index a85d3d1..9d4b1d6 100644
+--- a/src/qemu/qemu_alias.c
++++ b/src/qemu/qemu_alias.c
+@@ -351,6 +351,36 @@ qemuAssignDeviceMemoryAlias(virDomainDefPtr def,
+ 
+ 
+ int
++qemuAssignDeviceShmemAlias(virDomainDefPtr def,
++                           virDomainShmemDefPtr shmem,
++                           int idx)
++{
++    if (idx == -1) {
++        size_t i;
++        idx = 0;
++        for (i = 0; i < def->nshmems; i++) {
++            int thisidx;
++
++            if ((thisidx = qemuDomainDeviceAliasIndex(&def->shmems[i]->info,
++                                                      "shmem")) < 0) {
++                virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
++                               _("Unable to determine device index "
++                                 "for shmem device"));
++                return -1;
++            }
++
++            if (thisidx >= idx)
++                idx = thisidx + 1;
++        }
++    }
++
++    if (virAsprintf(&shmem->info.alias, "shmem%d", idx) < 0)
++        return -1;
++    return 0;
++}
++
++
++int
+ qemuAssignDeviceAliases(virDomainDefPtr def, virQEMUCapsPtr qemuCaps)
+ {
+     size_t i;
+@@ -419,7 +449,7 @@ qemuAssignDeviceAliases(virDomainDefPtr def, virQEMUCapsPtr qemuCaps)
+             return -1;
+     }
+     for (i = 0; i < def->nshmems; i++) {
+-        if (virAsprintf(&def->shmems[i]->info.alias, "shmem%zu", i) < 0)
++        if (qemuAssignDeviceShmemAlias(def, def->shmems[i], i) < 0)
+             return -1;
+     }
+     for (i = 0; i < def->nsmartcards; i++) {
+diff --git a/src/qemu/qemu_alias.h b/src/qemu/qemu_alias.h
+index bb19710..6aee457 100644
+--- a/src/qemu/qemu_alias.h
++++ b/src/qemu/qemu_alias.h
+@@ -60,6 +60,10 @@ int qemuAssignDeviceRNGAlias(virDomainDefPtr def,
+ int qemuAssignDeviceMemoryAlias(virDomainDefPtr def,
+                                 virDomainMemoryDefPtr mems);
+ 
++int qemuAssignDeviceShmemAlias(virDomainDefPtr def,
++                               virDomainShmemDefPtr shmem,
++                               int idx);
++
+ int qemuAssignDeviceAliases(virDomainDefPtr def, virQEMUCapsPtr qemuCaps);
+ 
+ int qemuDomainDeviceAliasIndex(const virDomainDeviceInfo *info,
+-- 
+2.10.2
+

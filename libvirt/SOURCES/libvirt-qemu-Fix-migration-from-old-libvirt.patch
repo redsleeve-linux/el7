@@ -1,0 +1,43 @@
+From e32c0091dd23e91cdaa64929e417fa86770849b8 Mon Sep 17 00:00:00 2001
+Message-Id: <e32c0091dd23e91cdaa64929e417fa86770849b8@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Mon, 18 Jul 2016 13:17:28 +0200
+Subject: [PATCH] qemu: Fix migration from old libvirt
+
+Older libvirt versions send persistent XML in a migration cookie even
+when VIR_MIGRATE_PERSIST_DEST flag is not used, but current libvirt
+properly fails if the cookie contains unexpected flags. Thus migration
+from old libvirt fails with
+
+    internal error: Unsupported migration cookie feature persistent
+
+unless VIR_MIGRATE_PERSIST_DEST flag is set.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1320500
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit 338f772e923ce07148abe6dcaf3d62b744e7baf5)
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_migration.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/qemu/qemu_migration.c b/src/qemu/qemu_migration.c
+index 0b1770b..463e624 100644
+--- a/src/qemu/qemu_migration.c
++++ b/src/qemu/qemu_migration.c
+@@ -6183,8 +6183,9 @@ qemuMigrationFinish(virQEMUDriverPtr driver,
+     cookie_flags = QEMU_MIGRATION_COOKIE_NETWORK |
+                    QEMU_MIGRATION_COOKIE_STATS |
+                    QEMU_MIGRATION_COOKIE_NBD;
+-    if (flags & VIR_MIGRATE_PERSIST_DEST)
+-        cookie_flags |= QEMU_MIGRATION_COOKIE_PERSISTENT;
++    /* Some older versions of libvirt always send persistent XML in the cookie
++     * even though VIR_MIGRATE_PERSIST_DEST was not used. */
++    cookie_flags |= QEMU_MIGRATION_COOKIE_PERSISTENT;
+ 
+     if (!(mig = qemuMigrationEatCookie(driver, vm, cookiein,
+                                        cookieinlen, cookie_flags)))
+-- 
+2.9.2
+

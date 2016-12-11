@@ -1,0 +1,238 @@
+From 6c058183513069522ab1b622f2e08eb1de440def Mon Sep 17 00:00:00 2001
+Message-Id: <6c058183513069522ab1b622f2e08eb1de440def@dist-git>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Thu, 21 Jul 2016 15:57:57 +0200
+Subject: [PATCH] Auto-add one hub if there are too many USB devices
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+When parsing a command line with USB devices that have
+no address specified, QEMU automatically adds a USB hub
+if the device would fill up all the available USB ports.
+
+To help most of the users, add one hub if there are more
+USB devices than available ports. For wilder configurations,
+expect the user to provide us with more hubs and/or controllers.
+
+(cherry picked from commit 815d98ac0bb8a4b48a412e026cb6465309e4043c)
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1215968
+
+Conflicts:
+  downstream does not assume QEMU_CAPS_SMP_TOPOLOGY in tests
+---
+ src/conf/domain_addr.c                             | 20 +++++++++
+ src/conf/domain_addr.h                             |  2 +
+ src/libvirt_private.syms                           |  1 +
+ src/qemu/qemu_domain_address.c                     | 48 ++++++++++++++++++++++
+ .../qemuxml2argv-usb-hub-autoadd.args              | 28 +++++++++++++
+ .../qemuxml2argv-usb-hub-autoadd.xml               | 23 +++++++++++
+ tests/qemuxml2argvtest.c                           |  3 ++
+ 7 files changed, 125 insertions(+)
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-usb-hub-autoadd.args
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-usb-hub-autoadd.xml
+
+diff --git a/src/conf/domain_addr.c b/src/conf/domain_addr.c
+index 365ee40..c3469ee 100644
+--- a/src/conf/domain_addr.c
++++ b/src/conf/domain_addr.c
+@@ -1604,6 +1604,26 @@ virDomainUSBAddressFindFreePort(virDomainUSBAddressHubPtr hub,
+ }
+ 
+ 
++size_t
++virDomainUSBAddressCountAllPorts(virDomainDefPtr def)
++{
++    size_t i, ret = 0;
++
++    for (i = 0; i < def->ncontrollers; i++) {
++        virDomainControllerDefPtr cont = def->controllers[i];
++        if (cont->type == VIR_DOMAIN_CONTROLLER_TYPE_USB)
++            ret += virDomainUSBAddressControllerModelToPorts(cont);
++    }
++
++    for (i = 0; i < def->nhubs; i++) {
++        virDomainHubDefPtr hub = def->hubs[i];
++        if (hub->type == VIR_DOMAIN_HUB_TYPE_USB)
++            ret += VIR_DOMAIN_USB_HUB_PORTS;
++    }
++    return ret;
++}
++
++
+ /* Try to find a free port on bus @bus.
+  *
+  * Returns  0 on success
+diff --git a/src/conf/domain_addr.h b/src/conf/domain_addr.h
+index cc36aed..ce94981 100644
+--- a/src/conf/domain_addr.h
++++ b/src/conf/domain_addr.h
+@@ -277,6 +277,8 @@ int
+ virDomainUSBAddressSetAddHub(virDomainUSBAddressSetPtr addrs,
+                              virDomainHubDefPtr hub)
+     ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2);
++size_t
++virDomainUSBAddressCountAllPorts(virDomainDefPtr def);
+ void virDomainUSBAddressSetFree(virDomainUSBAddressSetPtr addrs);
+ 
+ int
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index e23bfe3..8cd1ba3 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -108,6 +108,7 @@ virDomainPCIAddressSlotInUse;
+ virDomainPCIAddressValidate;
+ virDomainPCIControllerModelToConnectType;
+ virDomainUSBAddressAssign;
++virDomainUSBAddressCountAllPorts;
+ virDomainUSBAddressEnsure;
+ virDomainUSBAddressPortFormat;
+ virDomainUSBAddressPortFormatBuf;
+diff --git a/src/qemu/qemu_domain_address.c b/src/qemu/qemu_domain_address.c
+index 7499026..787b357 100644
+--- a/src/qemu/qemu_domain_address.c
++++ b/src/qemu/qemu_domain_address.c
+@@ -1680,6 +1680,51 @@ qemuDomainAssignUSBPorts(virDomainUSBAddressSetPtr addrs,
+ 
+ 
+ static int
++qemuDomainAssignUSBPortsCounter(virDomainDeviceInfoPtr info ATTRIBUTE_UNUSED,
++                                void *opaque)
++{
++    struct qemuAssignUSBIteratorInfo *data = opaque;
++
++    data->count++;
++    return 0;
++}
++
++
++static int
++qemuDomainUSBAddressAddHubs(virDomainDefPtr def)
++{
++    struct qemuAssignUSBIteratorInfo data = { .count = 0 };
++    virDomainHubDefPtr hub = NULL;
++    size_t available_ports;
++    int ret = -1;
++
++    available_ports = virDomainUSBAddressCountAllPorts(def);
++    ignore_value(virDomainUSBDeviceDefForeach(def,
++                                              qemuDomainAssignUSBPortsCounter,
++                                              &data,
++                                              false));
++    VIR_DEBUG("Found %zu USB devices and %zu provided USB ports",
++              data.count, available_ports);
++
++    /* Add one hub if there are more devices than ports
++     * otherwise it's up to the user to specify more hubs/controllers */
++    if (data.count > available_ports) {
++        if (VIR_ALLOC(hub) < 0)
++            return -1;
++        hub->type = VIR_DOMAIN_HUB_TYPE_USB;
++
++        if (VIR_APPEND_ELEMENT(def->hubs, def->nhubs, hub) < 0)
++            goto cleanup;
++    }
++
++    ret = 0;
++ cleanup:
++    VIR_FREE(hub);
++    return ret;
++}
++
++
++static int
+ qemuDomainAssignUSBAddresses(virDomainDefPtr def,
+                              virDomainObjPtr obj)
+ {
+@@ -1690,6 +1735,9 @@ qemuDomainAssignUSBAddresses(virDomainDefPtr def,
+     if (!(addrs = virDomainUSBAddressSetCreate()))
+         goto cleanup;
+ 
++    if (qemuDomainUSBAddressAddHubs(def) < 0)
++        goto cleanup;
++
+     if (virDomainUSBAddressSetAddControllers(addrs, def) < 0)
+         goto cleanup;
+ 
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-usb-hub-autoadd.args b/tests/qemuxml2argvdata/qemuxml2argv-usb-hub-autoadd.args
+new file mode 100644
+index 0000000..12c9691
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-usb-hub-autoadd.args
+@@ -0,0 +1,28 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/home/test \
++USER=test \
++LOGNAME=test \
++QEMU_AUDIO_DRV=none \
++/usr/bin/qemu \
++-name QEMUGuest1 \
++-S \
++-M pc \
++-m 214 \
++-smp 1 \
++-uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
++-nographic \
++-nodefconfig \
++-nodefaults \
++-chardev socket,id=charmonitor,path=/tmp/lib/domain--1-QEMUGuest1/monitor.sock,\
++server,nowait \
++-mon chardev=charmonitor,id=monitor,mode=readline \
++-no-acpi \
++-boot c \
++-usb \
++-device usb-hub,id=hub0,bus=usb.0,port=1 \
++-device usb-mouse,id=input0,bus=usb.0,port=2 \
++-device usb-mouse,id=input1,bus=usb.0,port=1.1 \
++-device usb-mouse,id=input2,bus=usb.0,port=1.2 \
++-device usb-tablet,id=input3,bus=usb.0,port=1.3 \
++-device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x3
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-usb-hub-autoadd.xml b/tests/qemuxml2argvdata/qemuxml2argv-usb-hub-autoadd.xml
+new file mode 100644
+index 0000000..43e0f1f
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-usb-hub-autoadd.xml
+@@ -0,0 +1,23 @@
++<domain type='qemu'>
++  <name>QEMUGuest1</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219136</memory>
++  <currentMemory unit='KiB'>219136</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='i686' machine='pc'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <devices>
++    <emulator>/usr/bin/qemu</emulator>
++    <controller type='usb' index='0'/>
++    <memballoon model='virtio'/>
++    <input type='mouse' bus='usb'>
++    </input>
++    <input type='mouse' bus='usb'>
++    </input>
++    <input type='mouse' bus='usb'>
++    </input>
++    <input type='tablet' bus='usb'/>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2argvtest.c b/tests/qemuxml2argvtest.c
+index e434470..51bab61 100644
+--- a/tests/qemuxml2argvtest.c
++++ b/tests/qemuxml2argvtest.c
+@@ -1163,6 +1163,9 @@ mymain(void)
+     DO_TEST("usb-hub",
+             QEMU_CAPS_CHARDEV, QEMU_CAPS_USB_HUB,
+             QEMU_CAPS_NODEFCONFIG);
++    DO_TEST("usb-hub-autoadd",
++            QEMU_CAPS_CHARDEV, QEMU_CAPS_USB_HUB,
++            QEMU_CAPS_NODEFCONFIG);
+     DO_TEST_PARSE_ERROR("usb-hub-conflict",
+             QEMU_CAPS_CHARDEV, QEMU_CAPS_USB_HUB,
+             QEMU_CAPS_NODEFCONFIG);
+-- 
+2.9.2
+

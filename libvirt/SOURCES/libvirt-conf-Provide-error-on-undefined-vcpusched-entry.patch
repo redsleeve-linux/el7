@@ -1,0 +1,40 @@
+From 6c04a4844d053c51238b5b1c47df95b0d6cba677 Mon Sep 17 00:00:00 2001
+Message-Id: <6c04a4844d053c51238b5b1c47df95b0d6cba677@dist-git>
+From: John Ferlan <jferlan@redhat.com>
+Date: Wed, 24 Aug 2016 16:11:16 -0400
+Subject: [PATCH] conf: Provide error on undefined vcpusched entry
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1097930
+https://bugzilla.redhat.com/show_bug.cgi?id=1224341
+
+Modify virDomainDefGetVcpuSched to emit an error message if
+virDomainDefGetVcpu returns NULL meaning the vcpu could not
+be found. Prior to commit id '9cc931f0b' the error message
+would have been issued in virDomainDefGetVcpu.
+
+(cherry picked from commit 4b15fd0d1f3b63c0feb847b1bfe93cee46813601)
+---
+ src/conf/domain_conf.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 8e5afe7..4e703d9 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -1477,8 +1477,12 @@ virDomainDefGetVcpuSched(virDomainDefPtr def,
+ {
+     virDomainVcpuDefPtr vcpuinfo;
+ 
+-    if (!(vcpuinfo = virDomainDefGetVcpu(def, vcpu)))
++    if (!(vcpuinfo = virDomainDefGetVcpu(def, vcpu))) {
++        virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
++                       _("vCPU '%u' is not present in domain definition"),
++                       vcpu);
+         return NULL;
++    }
+ 
+     return &vcpuinfo->sched;
+ }
+-- 
+2.10.0
+

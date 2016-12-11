@@ -1,0 +1,73 @@
+From 55801bed29ad9b57d8deca92be44e436c3b60b5e Mon Sep 17 00:00:00 2001
+Message-Id: <55801bed29ad9b57d8deca92be44e436c3b60b5e@dist-git>
+From: Shivaprasad G Bhat <sbhat@linux.vnet.ibm.com>
+Date: Tue, 16 Aug 2016 16:26:38 +0200
+Subject: [PATCH] qemu: Adjust the cur_ballon on coldplug/unplug of dimms
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1220702
+
+The cur_balloon also increases/decreases with dimm hotplug/unplug.
+To be consistent, adjust the value for coldplug too. This was inconsistently
+taken care when cur_ballon != memory to begin with. The patch fixes it
+irrespective of that.
+
+Signed-off-by: Shivaprasad G Bhat <sbhat@linux.vnet.ibm.com>
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+(cherry picked from commit 707063efa86a8cab3ee7d64ad203f2e517b82bce)
+---
+ src/conf/domain_conf.c | 4 ----
+ src/qemu/qemu_driver.c | 9 +++++----
+ 2 files changed, 5 insertions(+), 8 deletions(-)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 715ca2b..33954f7 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -14668,10 +14668,6 @@ virDomainMemoryRemove(virDomainDefPtr def,
+ 
+     VIR_DELETE_ELEMENT(def->mems, idx, def->nmems);
+ 
+-    /* fix up balloon size */
+-    if (def->mem.cur_balloon > virDomainDefGetMemoryTotal(def))
+-        def->mem.cur_balloon = virDomainDefGetMemoryTotal(def);
+-
+     /* fix total memory size of the domain */
+     virDomainDefSetMemoryTotal(def, memory - ret->size);
+ 
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index 2fe217d..9c6c1cf 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -7788,8 +7788,7 @@ qemuDomainAttachDeviceConfig(virDomainDefPtr vmdef,
+             return -1;
+         }
+ 
+-        if (vmdef->mem.cur_balloon == virDomainDefGetMemoryTotal(vmdef))
+-            vmdef->mem.cur_balloon += dev->data.memory->size;
++        vmdef->mem.cur_balloon += dev->data.memory->size;
+ 
+         if (virDomainMemoryInsert(vmdef, dev->data.memory) < 0)
+             return -1;
+@@ -7846,6 +7845,7 @@ qemuDomainDetachDeviceConfig(virDomainDefPtr vmdef,
+     virDomainControllerDefPtr cont, det_cont;
+     virDomainChrDefPtr chr;
+     virDomainFSDefPtr fs;
++    virDomainMemoryDefPtr mem;
+     int idx;
+ 
+     switch ((virDomainDeviceType) dev->type) {
+@@ -7943,8 +7943,9 @@ qemuDomainDetachDeviceConfig(virDomainDefPtr vmdef,
+                            _("matching memory device was not found"));
+             return -1;
+         }
+-
+-        virDomainMemoryDefFree(virDomainMemoryRemove(vmdef, idx));
++        mem = virDomainMemoryRemove(vmdef, idx);
++        vmdef->mem.cur_balloon -= mem->size;
++        virDomainMemoryDefFree(mem);
+         break;
+ 
+     case VIR_DOMAIN_DEVICE_REDIRDEV:
+-- 
+2.9.2
+

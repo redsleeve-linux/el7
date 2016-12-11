@@ -1,0 +1,134 @@
+From 444d00e9ead63e1bd96a2ba36fa678dbcaf9c6c2 Mon Sep 17 00:00:00 2001
+Message-Id: <444d00e9ead63e1bd96a2ba36fa678dbcaf9c6c2@dist-git>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Fri, 4 Nov 2016 10:29:51 +0100
+Subject: [PATCH] qemu: Add capabilities for ivshmem-{plain, doorbell}
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit 22d94ca46d797a7e7abd61134ad4490bf196baf5)
+
+ Conflicts (due to bunch of other capabilities):
+	src/qemu/qemu_capabilities.c
+	src/qemu/qemu_capabilities.h
+	tests/qemucapabilitiesdata/caps_2.6.0-gicv2.aarch64.xml
+	tests/qemucapabilitiesdata/caps_2.6.0-gicv3.aarch64.xml
+	tests/qemucapabilitiesdata/caps_2.6.0.ppc64le.xml
+	tests/qemucapabilitiesdata/caps_2.6.0.x86_64.xml
+	tests/qemucapabilitiesdata/caps_2.7.0.x86_64.xml
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1392031
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+---
+ src/qemu/qemu_capabilities.c                            | 4 ++++
+ src/qemu/qemu_capabilities.h                            | 2 ++
+ tests/qemucapabilitiesdata/caps_2.6.0-gicv2.aarch64.xml | 2 ++
+ tests/qemucapabilitiesdata/caps_2.6.0-gicv3.aarch64.xml | 2 ++
+ tests/qemucapabilitiesdata/caps_2.6.0.ppc64le.xml       | 2 ++
+ tests/qemucapabilitiesdata/caps_2.6.0.x86_64.xml        | 2 ++
+ tests/qemucapabilitiesdata/caps_2.7.0.x86_64.xml        | 2 ++
+ 7 files changed, 16 insertions(+)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index 2c49109..e511b8e 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -342,6 +342,8 @@ VIR_ENUM_IMPL(virQEMUCaps, QEMU_CAPS_LAST,
+               "query-hotpluggable-cpus",
+ 
+               "virtio-net.rx_queue_size", /* 235 */
++              "ivshmem-plain",
++              "ivshmem-doorbell",
+     );
+ 
+ 
+@@ -1563,6 +1565,8 @@ struct virQEMUCapsStringFlags virQEMUCapsObjectTypes[] = {
+     { "pxb-pcie", QEMU_CAPS_DEVICE_PXB_PCIE },
+     { "tls-creds-x509", QEMU_CAPS_OBJECT_TLS_CREDS_X509 },
+     { "intel-iommu", QEMU_CAPS_DEVICE_INTEL_IOMMU },
++    { "ivshmem-plain", QEMU_CAPS_DEVICE_IVSHMEM_PLAIN },
++    { "ivshmem-doorbell", QEMU_CAPS_DEVICE_IVSHMEM_DOORBELL },
+ };
+ 
+ static struct virQEMUCapsStringFlags virQEMUCapsObjectPropsVirtioBalloon[] = {
+diff --git a/src/qemu/qemu_capabilities.h b/src/qemu/qemu_capabilities.h
+index 6949ec8..f6f624d 100644
+--- a/src/qemu/qemu_capabilities.h
++++ b/src/qemu/qemu_capabilities.h
+@@ -376,6 +376,8 @@ typedef enum {
+ 
+     /* 235 */
+     QEMU_CAPS_VIRTIO_NET_RX_QUEUE_SIZE, /* virtio-net-*.rx_queue_size */
++    QEMU_CAPS_DEVICE_IVSHMEM_PLAIN, /* -device ivshmem-plain */
++    QEMU_CAPS_DEVICE_IVSHMEM_DOORBELL, /* -device ivshmem-doorbell */
+ 
+     QEMU_CAPS_LAST /* this must always be the last item */
+ } virQEMUCapsFlags;
+diff --git a/tests/qemucapabilitiesdata/caps_2.6.0-gicv2.aarch64.xml b/tests/qemucapabilitiesdata/caps_2.6.0-gicv2.aarch64.xml
+index 7586269..63b9a30 100644
+--- a/tests/qemucapabilitiesdata/caps_2.6.0-gicv2.aarch64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.6.0-gicv2.aarch64.xml
+@@ -157,6 +157,8 @@
+   <flag name='drive-detect-zeroes'/>
+   <flag name='tls-creds-x509'/>
+   <flag name='smm'/>
++  <flag name='ivshmem-plain'/>
++  <flag name='ivshmem-doorbell'/>
+   <version>2005094</version>
+   <kvmVersion>0</kvmVersion>
+   <package></package>
+diff --git a/tests/qemucapabilitiesdata/caps_2.6.0-gicv3.aarch64.xml b/tests/qemucapabilitiesdata/caps_2.6.0-gicv3.aarch64.xml
+index cc146f6..e2f01ec 100644
+--- a/tests/qemucapabilitiesdata/caps_2.6.0-gicv3.aarch64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.6.0-gicv3.aarch64.xml
+@@ -157,6 +157,8 @@
+   <flag name='drive-detect-zeroes'/>
+   <flag name='tls-creds-x509'/>
+   <flag name='smm'/>
++  <flag name='ivshmem-plain'/>
++  <flag name='ivshmem-doorbell'/>
+   <version>2005094</version>
+   <kvmVersion>0</kvmVersion>
+   <package></package>
+diff --git a/tests/qemucapabilitiesdata/caps_2.6.0.ppc64le.xml b/tests/qemucapabilitiesdata/caps_2.6.0.ppc64le.xml
+index cf77e92..d10a604 100644
+--- a/tests/qemucapabilitiesdata/caps_2.6.0.ppc64le.xml
++++ b/tests/qemucapabilitiesdata/caps_2.6.0.ppc64le.xml
+@@ -151,6 +151,8 @@
+   <flag name='drive-detect-zeroes'/>
+   <flag name='tls-creds-x509'/>
+   <flag name='smm'/>
++  <flag name='ivshmem-plain'/>
++  <flag name='ivshmem-doorbell'/>
+   <version>2005094</version>
+   <kvmVersion>0</kvmVersion>
+   <package></package>
+diff --git a/tests/qemucapabilitiesdata/caps_2.6.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_2.6.0.x86_64.xml
+index 5a2512e..70bf9f4 100644
+--- a/tests/qemucapabilitiesdata/caps_2.6.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.6.0.x86_64.xml
+@@ -194,6 +194,8 @@
+   <flag name='tls-creds-x509'/>
+   <flag name='intel-iommu'/>
+   <flag name='smm'/>
++  <flag name='ivshmem-plain'/>
++  <flag name='ivshmem-doorbell'/>
+   <version>2006000</version>
+   <kvmVersion>0</kvmVersion>
+   <package></package>
+diff --git a/tests/qemucapabilitiesdata/caps_2.7.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_2.7.0.x86_64.xml
+index 8f878fe..78bbaf8 100644
+--- a/tests/qemucapabilitiesdata/caps_2.7.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.7.0.x86_64.xml
+@@ -192,6 +192,8 @@
+   <flag name='intel-iommu'/>
+   <flag name='smm'/>
+   <flag name='query-hotpluggable-cpus'/>
++  <flag name='ivshmem-plain'/>
++  <flag name='ivshmem-doorbell'/>
+   <version>2006091</version>
+   <kvmVersion>0</kvmVersion>
+   <package> (v2.7.0-rc1-52-g42e0d60)</package>
+-- 
+2.10.2
+

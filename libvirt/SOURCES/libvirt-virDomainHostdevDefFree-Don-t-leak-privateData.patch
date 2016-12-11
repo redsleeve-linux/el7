@@ -1,0 +1,51 @@
+From a2a4f11adaa26d9f0d9c04de9f0fb915374536d1 Mon Sep 17 00:00:00 2001
+Message-Id: <a2a4f11adaa26d9f0d9c04de9f0fb915374536d1@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Mon, 25 Jul 2016 12:28:25 -0400
+Subject: [PATCH] virDomainHostdevDefFree: Don't leak privateData
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1357346
+
+After 27726d8c21 a privateData is allocated in
+virDomainHostdevDefAlloc(). However, the counter part - freeing
+them in Free() is missing which leads to the following memory
+leak:
+
+==6489== 24 bytes in 1 blocks are definitely lost in loss record 684 of 1,003
+==6489==    at 0x4C2C070: calloc (vg_replace_malloc.c:623)
+==6489==    by 0x54B7C94: virAllocVar (viralloc.c:560)
+==6489==    by 0x5517BE6: virObjectNew (virobject.c:193)
+==6489==    by 0x1B400121: qemuDomainHostdevPrivateNew (qemu_domain.c:798)
+==6489==    by 0x5557B24: virDomainHostdevDefAlloc (domain_conf.c:2152)
+==6489==    by 0x5575578: virDomainHostdevDefParseXML (domain_conf.c:12709)
+==6489==    by 0x5582292: virDomainDefParseXML (domain_conf.c:16995)
+==6489==    by 0x5583C98: virDomainDefParseNode (domain_conf.c:17470)
+==6489==    by 0x5583B07: virDomainDefParse (domain_conf.c:17417)
+==6489==    by 0x5583B95: virDomainDefParseFile (domain_conf.c:17441)
+==6489==    by 0x55A3F24: virDomainObjListLoadConfig (virdomainobjlist.c:465)
+==6489==    by 0x55A43E6: virDomainObjListLoadAllConfigs (virdomainobjlist.c:596)
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 6fcffcb141fcbd99c82a95ac0b67908bb057d6d0)
+Signed-off-by: John Ferlan <jferlan@redhat.com>
+---
+ src/conf/domain_conf.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index ddeca0d..8b9b623 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -2218,6 +2218,9 @@ void virDomainHostdevDefClear(virDomainHostdevDefPtr def)
+         }
+         break;
+     }
++
++    virObjectUnref(def->privateData);
++    def->privateData = NULL;
+ }
+ 
+ void virDomainTPMDefFree(virDomainTPMDefPtr def)
+-- 
+2.9.2
+

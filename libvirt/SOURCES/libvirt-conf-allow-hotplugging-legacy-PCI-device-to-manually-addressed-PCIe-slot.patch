@@ -1,0 +1,54 @@
+From 58593f4340d766fb7639de542f3b21463d5b98ef Mon Sep 17 00:00:00 2001
+Message-Id: <58593f4340d766fb7639de542f3b21463d5b98ef@dist-git>
+From: Laine Stump <laine@laine.org>
+Date: Mon, 12 Sep 2016 16:25:25 -0400
+Subject: [PATCH] conf: allow hotplugging "legacy PCI" device to manually
+ addressed PCIe slot
+
+In a full domain config, libvirt allows overriding the normal PCI
+vs. PCI Express rules when a device address is explicitly provided
+(so, e.g., you can force a legacy PCI device to plug into a PCIe port,
+although libvirt would never do that on its own). However, due to a
+bug libvirt doesn't give this same leeway when hotplugging devices. On
+top of that, current libvirt assumes that *all* devices are legacy
+PCI. The result of all this is that it's impossible to hotplug a
+device into a PCIe port, even if you manually add the PCI address.
+
+This can all be traced to the function
+virDomainPCIAddressEnsureAddr(), and the fact that it calls
+virDomainPCIaddressReserveSlot() for manually set addresses, and that
+function hardcodes the argument "fromConfig" to false (meaning "this
+address was auto-assigned, so it should be subject to stricter
+validation").
+
+Since virDomainPCIAddressReserveSlot() is just a one line simple
+wrapper around virDomainPCIAddressReserveAddr() (adding in a hardcoded
+reserveEntireSlot = true and fromConfig = false), all that's needed to
+solve the problem with no unwanted side effects is to replace that
+call for virDomainPCIAddressReserveSlot() with a direct call to
+virDomainPCIAddressReserveAddr(), but with reserveEntireSlot = true,
+fromConfig = true. That's what this patch does.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1337490
+(cherry picked from commit b87703cf79559157404667628802d7fe8f9f19a6)
+---
+ src/conf/domain_addr.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/conf/domain_addr.c b/src/conf/domain_addr.c
+index 7f4f4d8..cad1c27 100644
+--- a/src/conf/domain_addr.c
++++ b/src/conf/domain_addr.c
+@@ -507,7 +507,8 @@ virDomainPCIAddressEnsureAddr(virDomainPCIAddressSetPtr addrs,
+                                          addrStr, flags, true))
+             goto cleanup;
+ 
+-        ret = virDomainPCIAddressReserveSlot(addrs, &dev->addr.pci, flags);
++        ret = virDomainPCIAddressReserveAddr(addrs, &dev->addr.pci, flags,
++                                             true, true);
+     } else {
+         ret = virDomainPCIAddressReserveNextSlot(addrs, dev, flags);
+     }
+-- 
+2.10.0
+

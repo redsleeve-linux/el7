@@ -1,0 +1,46 @@
+From cca396b2a3c1042a0825a3f624a71e06ed65a15b Mon Sep 17 00:00:00 2001
+Message-Id: <cca396b2a3c1042a0825a3f624a71e06ed65a15b@dist-git>
+From: Erik Skultety <eskultet@redhat.com>
+Date: Tue, 2 Aug 2016 15:20:54 +0200
+Subject: [PATCH] rpc: virnetserver: Remove dead code checking the client
+ limits
+
+Prior to commit 2737aaaf, we allowed every client to connect successfully,
+however, if accepting a client would eventually lead to an overcommit of the
+limits, we would disconnect it immediately with "Too many active clients,
+dropping connection from...". Recent changes refactored the code in a way, that
+it is not possible for the client-related callback to be dispatched and the
+client to be accepted if the limits wouldn't permit to do so, therefore a check
+if a connection should be dropped due to limits violation has become a dead
+code that could be removed.
+
+Signed-off-by: Erik Skultety <eskultet@redhat.com>
+(cherry picked from commit 238b20b47f4be0299d364ec8907edf81e6b55183)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1357776
+Signed-off-by: Erik Skultety <eskultet@redhat.com>
+---
+ src/rpc/virnetserver.c | 7 -------
+ 1 file changed, 7 deletions(-)
+
+diff --git a/src/rpc/virnetserver.c b/src/rpc/virnetserver.c
+index 5b6bc4a..f06643a 100644
+--- a/src/rpc/virnetserver.c
++++ b/src/rpc/virnetserver.c
+@@ -279,13 +279,6 @@ int virNetServerAddClient(virNetServerPtr srv,
+ {
+     virObjectLock(srv);
+ 
+-    if (srv->nclients >= srv->nclients_max) {
+-        virReportError(VIR_ERR_RPC,
+-                       _("Too many active clients (%zu), dropping connection from %s"),
+-                       srv->nclients_max, virNetServerClientRemoteAddrStringURI(client));
+-        goto error;
+-    }
+-
+     if (virNetServerClientInit(client) < 0)
+         goto error;
+ 
+-- 
+2.9.2
+

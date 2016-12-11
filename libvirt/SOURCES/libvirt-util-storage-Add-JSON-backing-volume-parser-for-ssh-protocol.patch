@@ -1,0 +1,104 @@
+From b3704c6f2dba4017787ded2b7f90bd08d56cead7 Mon Sep 17 00:00:00 2001
+Message-Id: <b3704c6f2dba4017787ded2b7f90bd08d56cead7@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 2 Aug 2016 13:41:56 +0200
+Subject: [PATCH] util: storage: Add JSON backing volume parser for 'ssh'
+ protocol
+
+(cherry picked from commit bc225b1b5fe3e02eac76f12792aac16d00a7de1d)
+https://bugzilla.redhat.com/show_bug.cgi?id=1134878 [JSON backing]
+https://bugzilla.redhat.com/show_bug.cgi?id=1247521 [gluster multi-host]
+---
+ src/util/virstoragefile.c | 38 ++++++++++++++++++++++++++++++++++++++
+ tests/virstoragetest.c    | 19 +++++++++++++++++++
+ 2 files changed, 57 insertions(+)
+
+diff --git a/src/util/virstoragefile.c b/src/util/virstoragefile.c
+index c0172af..1612e66 100644
+--- a/src/util/virstoragefile.c
++++ b/src/util/virstoragefile.c
+@@ -2781,6 +2781,43 @@ virStorageSourceParseBackingJSONSheepdog(virStorageSourcePtr src,
+ }
+ 
+ 
++static int
++virStorageSourceParseBackingJSONSSH(virStorageSourcePtr src,
++                                    virJSONValuePtr json,
++                                    int opaque ATTRIBUTE_UNUSED)
++{
++    const char *path = virJSONValueObjectGetString(json, "path");
++    const char *host = virJSONValueObjectGetString(json, "host");
++    const char *port = virJSONValueObjectGetString(json, "port");
++
++    if (!host || !path) {
++        virReportError(VIR_ERR_INVALID_ARG, "%s",
++                       _("missing host or path of SSH JSON backing "
++                         "volume definition"));
++        return -1;
++    }
++
++    src->type = VIR_STORAGE_TYPE_NETWORK;
++    src->protocol = VIR_STORAGE_NET_PROTOCOL_SSH;
++
++    if (VIR_STRDUP(src->path, path) < 0)
++        return -1;
++
++    if (VIR_ALLOC_N(src->hosts, 1) < 0)
++        return -1;
++    src->nhosts = 1;
++
++    src->hosts[0].transport = VIR_STORAGE_NET_HOST_TRANS_TCP;
++    if (VIR_STRDUP(src->hosts[0].name, host) < 0)
++        return -1;
++
++    if (VIR_STRDUP(src->hosts[0].port, port) < 0)
++        return -1;
++
++    return 0;
++}
++
++
+ struct virStorageSourceJSONDriverParser {
+     const char *drvname;
+     int (*func)(virStorageSourcePtr src, virJSONValuePtr json, int opaque);
+@@ -2800,6 +2837,7 @@ static const struct virStorageSourceJSONDriverParser jsonParsers[] = {
+     {"iscsi", virStorageSourceParseBackingJSONiSCSI, 0},
+     {"nbd", virStorageSourceParseBackingJSONNbd, 0},
+     {"sheepdog", virStorageSourceParseBackingJSONSheepdog, 0},
++    {"ssh", virStorageSourceParseBackingJSONSSH, 0},
+ };
+ 
+ 
+diff --git a/tests/virstoragetest.c b/tests/virstoragetest.c
+index 4ddcac0..3b19f59 100644
+--- a/tests/virstoragetest.c
++++ b/tests/virstoragetest.c
+@@ -1467,6 +1467,25 @@ mymain(void)
+                        "<source protocol='nbd' name='blah'>\n"
+                        "  <host name='example.org' port='6000'/>\n"
+                        "</source>\n");
++    TEST_BACKING_PARSE("json:{\"file\":{\"driver\":\"ssh\","
++                                       "\"host\":\"example.org\","
++                                       "\"port\":\"6000\","
++                                       "\"path\":\"blah\","
++                                       "\"user\":\"user\""
++                                      "}"
++                            "}",
++                       "<source protocol='ssh' name='blah'>\n"
++                       "  <host name='example.org' port='6000'/>\n"
++                       "</source>\n");
++    TEST_BACKING_PARSE("json:{\"file.driver\":\"ssh\","
++                             "\"file.host\":\"example.org\","
++                             "\"file.port\":\"6000\","
++                             "\"file.path\":\"blah\","
++                             "\"file.user\":\"user\""
++                            "}",
++                       "<source protocol='ssh' name='blah'>\n"
++                       "  <host name='example.org' port='6000'/>\n"
++                       "</source>\n");
+ 
+  cleanup:
+     /* Final cleanup */
+-- 
+2.9.2
+

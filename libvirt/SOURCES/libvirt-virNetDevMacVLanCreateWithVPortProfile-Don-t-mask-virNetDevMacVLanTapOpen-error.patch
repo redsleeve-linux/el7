@@ -1,0 +1,41 @@
+From c89a04073228b917f1b9a2804267dcabce16f231 Mon Sep 17 00:00:00 2001
+Message-Id: <c89a04073228b917f1b9a2804267dcabce16f231@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Wed, 10 Aug 2016 17:05:26 +0200
+Subject: [PATCH] virNetDevMacVLanCreateWithVPortProfile: Don't mask
+ virNetDevMacVLanTapOpen error
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1240439
+
+In this function we create a macvtap device and open its tap
+device. Possibly multiple times. Now the thing is, if opening the
+tap device fails, that is virNetDevMacVLanTapOpen() returns a
+negative value, we unroll all the changes BUT return 0 fooling
+caller into thinking everything went okay.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 96e24861564dfdc21b843f00d094d71e696366bd)
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/util/virnetdevmacvlan.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/util/virnetdevmacvlan.c b/src/util/virnetdevmacvlan.c
+index c05c67f..88a0f94 100644
+--- a/src/util/virnetdevmacvlan.c
++++ b/src/util/virnetdevmacvlan.c
+@@ -1120,8 +1120,10 @@ virNetDevMacVLanCreateWithVPortProfile(const char *ifnameRequested,
+     }
+ 
+     if (flags & VIR_NETDEV_MACVLAN_CREATE_WITH_TAP) {
+-        if (virNetDevMacVLanTapOpen(ifnameCreated, tapfd, tapfdSize, 10) < 0)
++        if (virNetDevMacVLanTapOpen(ifnameCreated, tapfd, tapfdSize, 10) < 0) {
++            rc = -1;
+             goto disassociate_exit;
++        }
+ 
+         if (virNetDevMacVLanTapSetup(tapfd, tapfdSize, vnet_hdr) < 0) {
+             VIR_FORCE_CLOSE(rc); /* sets rc to -1 */
+-- 
+2.9.2
+

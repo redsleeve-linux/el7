@@ -1,0 +1,43 @@
+From ea75f6f6363136f9a0ffe4cc03f09f7f984f9546 Mon Sep 17 00:00:00 2001
+Message-Id: <ea75f6f6363136f9a0ffe4cc03f09f7f984f9546@dist-git>
+From: Laine Stump <laine@laine.org>
+Date: Thu, 27 Oct 2016 12:31:33 -0400
+Subject: [PATCH] qemu: allow 32 slots on pcie-expander-bus, not just 1
+
+When I added support for the pcie-expander-bus controller in commit
+bc07251f, I incorrectly thought that it only had a single slot
+available. Actually it has 32 slots, just like the root complex aka
+pcie-root (the part that I *did* get correct is that unlike pcie-root
+a pcie-expander-bus doesn't allow any integrated endpoint devices -
+only pcie-root-ports and dmi-to-pci-controllers are allowed).
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1389369
+
+(cherry picked from commit 22afd44171a2df74fecb7058d146e83adddaae45)
+---
+ src/conf/domain_addr.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/conf/domain_addr.c b/src/conf/domain_addr.c
+index cad1c27..e87fb4b 100644
+--- a/src/conf/domain_addr.c
++++ b/src/conf/domain_addr.c
+@@ -304,13 +304,13 @@ virDomainPCIAddressBusSetModel(virDomainPCIAddressBusPtr bus,
+         bus->maxSlot = VIR_PCI_ADDRESS_SLOT_LAST;
+         break;
+     case VIR_DOMAIN_CONTROLLER_MODEL_PCIE_EXPANDER_BUS:
+-        /* single slot, no hotplug, only accepts pcie-root-port or
++        /* 32 slots, no hotplug, only accepts pcie-root-port or
+          * dmi-to-pci-bridge
+          */
+         bus->flags = (VIR_PCI_CONNECT_TYPE_PCIE_ROOT_PORT |
+                       VIR_PCI_CONNECT_TYPE_DMI_TO_PCI_BRIDGE);
+         bus->minSlot = 0;
+-        bus->maxSlot = 0;
++        bus->maxSlot = VIR_PCI_ADDRESS_SLOT_LAST;
+         break;
+ 
+     default:
+-- 
+2.10.2
+

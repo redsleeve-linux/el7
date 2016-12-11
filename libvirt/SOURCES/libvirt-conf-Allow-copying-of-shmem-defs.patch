@@ -1,0 +1,42 @@
+From 4ee594e8126c8187e933c10f1a24d28df3fd1090 Mon Sep 17 00:00:00 2001
+Message-Id: <4ee594e8126c8187e933c10f1a24d28df3fd1090@dist-git>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Fri, 4 Nov 2016 10:29:34 +0100
+Subject: [PATCH] conf: Allow copying of shmem defs
+
+This way we'll be able to hotplug with both --live and --config in one
+API call.
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit 921ec15fdbf215e74f0898b0b8cf879db63ccb4b)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1392031
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+---
+ src/conf/domain_conf.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index caa9ce0..415ab1c 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -25026,11 +25026,14 @@ virDomainDeviceDefCopy(virDomainDeviceDefPtr src,
+     case VIR_DOMAIN_DEVICE_MEMORY:
+         rc = virDomainMemoryDefFormat(&buf, src->data.memory, flags);
+         break;
++    case VIR_DOMAIN_DEVICE_SHMEM:
++        rc = virDomainShmemDefFormat(&buf, src->data.shmem, flags);
++        break;
++
+     case VIR_DOMAIN_DEVICE_NONE:
+     case VIR_DOMAIN_DEVICE_SMARTCARD:
+     case VIR_DOMAIN_DEVICE_MEMBALLOON:
+     case VIR_DOMAIN_DEVICE_NVRAM:
+-    case VIR_DOMAIN_DEVICE_SHMEM:
+     case VIR_DOMAIN_DEVICE_IOMMU:
+     case VIR_DOMAIN_DEVICE_LAST:
+         virReportError(VIR_ERR_INTERNAL_ERROR,
+-- 
+2.10.2
+

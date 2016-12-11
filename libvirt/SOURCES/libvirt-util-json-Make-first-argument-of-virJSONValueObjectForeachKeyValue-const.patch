@@ -1,0 +1,48 @@
+From c0d35995c15a2c2a341d112cf74bcd943b2dc92f Mon Sep 17 00:00:00 2001
+Message-Id: <c0d35995c15a2c2a341d112cf74bcd943b2dc92f@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 2 Aug 2016 13:41:41 +0200
+Subject: [PATCH] util: json: Make first argument of
+ virJSONValueObjectForeachKeyValue const
+
+The iterator function (second argument) already requires that the object
+is handled as 'const' thus we won't modify the object itself.
+
+(cherry picked from commit bc4339719eb8eb5c83127d6f152f9e77915a7b9c)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1134878 [JSON backing]
+https://bugzilla.redhat.com/show_bug.cgi?id=1247521 [gluster multi-host]
+---
+ src/util/virjson.c | 2 +-
+ src/util/virjson.h | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/util/virjson.c b/src/util/virjson.c
+index 1022cfc..afc98e3 100644
+--- a/src/util/virjson.c
++++ b/src/util/virjson.c
+@@ -1220,7 +1220,7 @@ virJSONValueObjectIsNull(virJSONValuePtr object,
+  * during iteration and -1 on generic errors.
+  */
+ int
+-virJSONValueObjectForeachKeyValue(virJSONValuePtr object,
++virJSONValueObjectForeachKeyValue(const virJSONValue *object,
+                                   virJSONValueObjectIteratorFunc cb,
+                                   void *opaque)
+ {
+diff --git a/src/util/virjson.h b/src/util/virjson.h
+index 66ed48a..a5aef39 100644
+--- a/src/util/virjson.h
++++ b/src/util/virjson.h
+@@ -167,7 +167,7 @@ typedef int (*virJSONValueObjectIteratorFunc)(const char *key,
+                                               const virJSONValue *value,
+                                               void *opaque);
+ 
+-int virJSONValueObjectForeachKeyValue(virJSONValuePtr object,
++int virJSONValueObjectForeachKeyValue(const virJSONValue *object,
+                                       virJSONValueObjectIteratorFunc cb,
+                                       void *opaque);
+ 
+-- 
+2.9.2
+

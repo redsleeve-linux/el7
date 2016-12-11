@@ -1,0 +1,44 @@
+From 883b1800bf6c648abc0287c31421ce75342bb51c Mon Sep 17 00:00:00 2001
+Message-Id: <883b1800bf6c648abc0287c31421ce75342bb51c@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Fri, 26 Aug 2016 15:45:23 -0400
+Subject: [PATCH] virsh: vcpuinfo: Report vcpu number from the structure rather
+ than it's position
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1097930
+https://bugzilla.redhat.com/show_bug.cgi?id=1224341
+
+virVcpuInfo contains the vcpu number that the data refers to. Report
+what's returned by the daemon rather than the sequence number as with
+sparse vcpu topologies they won't match.
+
+(cherry picked from commit 64f26276bfb2c4c01a3fc007e5449c9ca3d93de2)
+---
+ tools/virsh-domain.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/tools/virsh-domain.c b/tools/virsh-domain.c
+index dbdee5b..c820f60 100644
+--- a/tools/virsh-domain.c
++++ b/tools/virsh-domain.c
+@@ -6315,8 +6315,8 @@ cmdVcpuinfo(vshControl *ctl, const vshCmd *cmd)
+     }
+ 
+     for (n = 0; n < ncpus; n++) {
+-        vshPrint(ctl, "%-15s %d\n", _("VCPU:"), n);
+         if (cpuinfo) {
++            vshPrint(ctl, "%-15s %d\n", _("VCPU:"), cpuinfo[n].number);
+             vshPrint(ctl, "%-15s %d\n", _("CPU:"), cpuinfo[n].cpu);
+             vshPrint(ctl, "%-15s %s\n", _("State:"),
+                      virshDomainVcpuStateToString(cpuinfo[n].state));
+@@ -6328,6 +6328,7 @@ cmdVcpuinfo(vshControl *ctl, const vshCmd *cmd)
+                 vshPrint(ctl, "%-15s %.1lfs\n", _("CPU time:"), cpuUsed);
+             }
+         } else {
++            vshPrint(ctl, "%-15s %d\n", _("VCPU:"), n);
+             vshPrint(ctl, "%-15s %s\n", _("CPU:"), _("N/A"));
+             vshPrint(ctl, "%-15s %s\n", _("State:"), _("N/A"));
+             vshPrint(ctl, "%-15s %s\n", _("CPU time"), _("N/A"));
+-- 
+2.10.0
+

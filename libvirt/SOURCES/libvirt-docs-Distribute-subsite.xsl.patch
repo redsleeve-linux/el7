@@ -1,0 +1,50 @@
+From 3070510fac4e5462ede573b2127514483edaef36 Mon Sep 17 00:00:00 2001
+Message-Id: <3070510fac4e5462ede573b2127514483edaef36@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Mon, 8 Aug 2016 13:08:50 +0200
+Subject: [PATCH] docs: Distribute subsite.xsl
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1365004
+
+So, I've ran into very interesting problem lately. When doing the
+following, I've encountered an error:
+
+  libvirt.git $ make dist && tar -xJf libvirt-2.2.0.tar.xz && \
+                cd libvirt-2.2.0 && ./configure && \
+                rm docs/formatdomain.html && make -C docs
+
+  make: Entering directory 'docs'
+  make: *** No rule to make target 'formatdomain.html', needed by 'web'.  Stop.
+  make: Leaving directory 'docs'
+
+I had no idea what was going on, so I've nailed down the commit
+that "broke it" via running git-bisect. It was this one:
+7659bd9221b9dd1cdf. But that shed no more light until I realized
+that the commit might actually just exposed a problem we had. And
+guess what - I've nailed it down. Of course we are not
+distributing subsite.xsl that's why make prints error message.
+Very misleading one I must say.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit e396de03f31d87f3e81c7820739951d50367ddb8)
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ docs/Makefile.am | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/docs/Makefile.am b/docs/Makefile.am
+index 206ef3b..14aad83 100644
+--- a/docs/Makefile.am
++++ b/docs/Makefile.am
+@@ -152,7 +152,7 @@ schema_DATA = $(wildcard $(srcdir)/schemas/*.rng)
+ 
+ EXTRA_DIST=					\
+   apibuild.py genaclperms.pl \
+-  site.xsl newapi.xsl news.xsl page.xsl \
++  site.xsl subsite.xsl newapi.xsl news.xsl page.xsl \
+   hacking1.xsl hacking2.xsl wrapstring.xsl \
+   $(dot_html) $(dot_html_in) $(gif) $(apihtml) $(apipng) \
+   $(devhelphtml) $(devhelppng) $(devhelpcss) $(devhelpxsl) \
+-- 
+2.9.2
+

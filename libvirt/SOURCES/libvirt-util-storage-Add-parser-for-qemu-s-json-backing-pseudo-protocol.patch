@@ -1,0 +1,257 @@
+From 296915a9c0a8de38ed83203f21811ef19465d69e Mon Sep 17 00:00:00 2001
+Message-Id: <296915a9c0a8de38ed83203f21811ef19465d69e@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 2 Aug 2016 13:41:48 +0200
+Subject: [PATCH] util: storage: Add parser for qemu's json backing
+ pseudo-protocol
+
+Add a modular parser that will allow to parse 'json' backing definitions
+that are supported by qemu. The initial implementation adds support for
+the 'file' driver.
+
+Due to the approach qemu took to implement the JSON backing strings it's
+possible to specify them in two approaches.
+
+The object approach:
+    json:{ "file" : { "driver":"file",
+                      "filename":"/path/to/file"
+                    }
+         }
+
+And a partially flattened approach:
+    json:{"file.driver":"file"
+          "file.filename":"/path/to/file"
+         }
+
+Both of the above are supported by qemu and by the code added in this
+commit. The current implementation de-flattens the first level ('file.')
+if possible and required. Other handling may be added later but
+currently only one level was possible anyways.
+
+(cherry picked from commit e91f767c7433d9216c741f441196cd67c1934375)
+https://bugzilla.redhat.com/show_bug.cgi?id=1134878 [JSON backing]
+https://bugzilla.redhat.com/show_bug.cgi?id=1247521 [gluster multi-host]
+---
+ src/util/virstoragefile.c | 161 ++++++++++++++++++++++++++++++++++++++++++++--
+ tests/virstoragetest.c    |  15 +++++
+ 2 files changed, 169 insertions(+), 7 deletions(-)
+
+diff --git a/src/util/virstoragefile.c b/src/util/virstoragefile.c
+index aa5f302..25f363d 100644
+--- a/src/util/virstoragefile.c
++++ b/src/util/virstoragefile.c
+@@ -43,6 +43,7 @@
+ #include "viruri.h"
+ #include "dirname.h"
+ #include "virbuffer.h"
++#include "virjson.h"
+ 
+ #define VIR_FROM_THIS VIR_FROM_STORAGE
+ 
+@@ -2523,10 +2524,154 @@ virStorageSourceParseBackingColon(virStorageSourcePtr src,
+ }
+ 
+ 
++static int
++virStorageSourceParseBackingJSONPath(virStorageSourcePtr src,
++                                     virJSONValuePtr json,
++                                     int type)
++{
++    const char *path;
++
++    if (!(path = virJSONValueObjectGetString(json, "filename"))) {
++        virReportError(VIR_ERR_INVALID_ARG, "%s",
++                       _("missing 'filename' field in JSON backing volume "
++                         "definition"));
++        return -1;
++    }
++
++    if (VIR_STRDUP(src->path, path) < 0)
++        return -1;
++
++    src->type = type;
++    return 0;
++}
++
++
++struct virStorageSourceJSONDriverParser {
++    const char *drvname;
++    int (*func)(virStorageSourcePtr src, virJSONValuePtr json, int opaque);
++    int opaque;
++};
++
++static const struct virStorageSourceJSONDriverParser jsonParsers[] = {
++    {"file", virStorageSourceParseBackingJSONPath, VIR_STORAGE_TYPE_FILE},
++};
++
++
++static int
++virStorageSourceParseBackingJSONDeflattenWorker(const char *key,
++                                                const virJSONValue *value,
++                                                void *opaque)
++{
++    virJSONValuePtr retobj = opaque;
++    virJSONValuePtr newval = NULL;
++    const char *newkey;
++
++    if (!(newkey = STRSKIP(key, "file."))) {
++        virReportError(VIR_ERR_INVALID_ARG, "%s",
++                       _("JSON backing file syntax is neither nested nor "
++                         "flattened"));
++        return -1;
++    }
++
++    if (!(newval = virJSONValueCopy(value)))
++        return -1;
++
++    if (virJSONValueObjectAppend(retobj, newkey, newval) < 0) {
++        virJSONValueFree(newval);
++        return -1;
++    }
++
++    return 0;
++}
++
++
++/**
++ * virStorageSourceParseBackingJSONDeflatten:
++ *
++ * The json: pseudo-protocol syntax in qemu allows multiple approaches to
++ * describe nesting of the values. This is due to the lax handling of the string
++ * in qemu and the fact that internally qemu is flattening the values using '.'.
++ *
++ * This allows to specify nested json strings either using nested json objects
++ * or prefixing object members with the parent object name followed by the dot.
++ *
++ * This function will attempt to reverse the process and provide a nested json
++ * hierarchy so that the parsers can be kept simple and we still can use the
++ * weird syntax some users might use.
++ *
++ * Currently this function will flatten out just the 'file.' prefix into a new
++ * tree. Any other syntax will be rejected.
++ */
++static virJSONValuePtr
++virStorageSourceParseBackingJSONDeflatten(virJSONValuePtr json)
++{
++    virJSONValuePtr ret;
++
++    if (!(ret = virJSONValueNewObject()))
++        return NULL;
++
++    if (virJSONValueObjectForeachKeyValue(json,
++                                          virStorageSourceParseBackingJSONDeflattenWorker,
++                                          ret) < 0) {
++        virJSONValueFree(ret);
++        return NULL;
++    }
++
++    return ret;
++}
++
++
++static int
++virStorageSourceParseBackingJSON(virStorageSourcePtr src,
++                                 const char *json)
++{
++    virJSONValuePtr root = NULL;
++    virJSONValuePtr fixedroot = NULL;
++    virJSONValuePtr file;
++    const char *drvname;
++    size_t i;
++    int ret = -1;
++
++    if (!(root = virJSONValueFromString(json)))
++        return -1;
++
++    if (!(file = virJSONValueObjectGetObject(root, "file"))) {
++        if (!(fixedroot = virStorageSourceParseBackingJSONDeflatten(root)))
++            goto cleanup;
++
++        file = fixedroot;
++    }
++
++    if (!(drvname = virJSONValueObjectGetString(file, "driver"))) {
++        virReportError(VIR_ERR_INVALID_ARG, _("JSON backing volume defintion "
++                                              "'%s' lacks driver name"), json);
++        goto cleanup;
++    }
++
++    for (i = 0; i < ARRAY_CARDINALITY(jsonParsers); i++) {
++        if (STREQ(drvname, jsonParsers[i].drvname)) {
++            ret = jsonParsers[i].func(src, file, jsonParsers[i].opaque);
++            goto cleanup;
++        }
++    }
++
++    virReportError(VIR_ERR_INTERNAL_ERROR,
++                   _("missing parser implementation for JSON backing volume "
++                     "driver '%s'"), drvname);
++
++ cleanup:
++    virJSONValueFree(root);
++    virJSONValueFree(fixedroot);
++    return ret;
++}
++
++
+ virStorageSourcePtr
+ virStorageSourceNewFromBackingAbsolute(const char *path)
+ {
++    const char *json;
+     virStorageSourcePtr ret;
++    int rc;
+ 
+     if (VIR_ALLOC(ret) < 0)
+         return NULL;
+@@ -2540,13 +2685,15 @@ virStorageSourceNewFromBackingAbsolute(const char *path)
+         ret->type = VIR_STORAGE_TYPE_NETWORK;
+ 
+         /* handle URI formatted backing stores */
+-        if (strstr(path, "://")) {
+-            if (virStorageSourceParseBackingURI(ret, path) < 0)
+-                goto error;
+-        } else {
+-            if (virStorageSourceParseBackingColon(ret, path) < 0)
+-                goto error;
+-        }
++        if ((json = STRSKIP(path, "json:")))
++            rc = virStorageSourceParseBackingJSON(ret, json);
++        else if (strstr(path, "://"))
++            rc = virStorageSourceParseBackingURI(ret, path);
++        else
++            rc = virStorageSourceParseBackingColon(ret, path);
++
++        if (rc < 0)
++            goto error;
+     }
+ 
+     return ret;
+diff --git a/tests/virstoragetest.c b/tests/virstoragetest.c
+index 6016a3b..04575f2 100644
+--- a/tests/virstoragetest.c
++++ b/tests/virstoragetest.c
+@@ -1355,6 +1355,21 @@ mymain(void)
+                        "<source protocol='nbd' name='blah'>\n"
+                        "  <host name='example.org' port='6000'/>\n"
+                        "</source>\n");
++    TEST_BACKING_PARSE("json:", NULL);
++    TEST_BACKING_PARSE("json:asdgsdfg", NULL);
++    TEST_BACKING_PARSE("json:{}", NULL);
++    TEST_BACKING_PARSE("json: { \"file.driver\":\"blah\"}", NULL);
++    TEST_BACKING_PARSE("json:{\"file.driver\":\"file\"}", NULL);
++    TEST_BACKING_PARSE("json:{\"file.driver\":\"file\", "
++                             "\"file.filename\":\"/path/to/file\"}",
++                       "<source file='/path/to/file'/>\n");
++    TEST_BACKING_PARSE("json:{\"file.driver\":\"file\", "
++                             "\"filename\":\"/path/to/file\"}", NULL);
++    TEST_BACKING_PARSE("json:{\"file\" : { \"driver\":\"file\","
++                                          "\"filename\":\"/path/to/file\""
++                                        "}"
++                            "}",
++                       "<source file='/path/to/file'/>\n");
+ 
+  cleanup:
+     /* Final cleanup */
+-- 
+2.9.2
+

@@ -1,0 +1,49 @@
+From dc6ab905ea7c40ab3bdb76ecb8b3eb7b088c4a05 Mon Sep 17 00:00:00 2001
+Message-Id: <dc6ab905ea7c40ab3bdb76ecb8b3eb7b088c4a05@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 2 Aug 2016 13:41:43 +0200
+Subject: [PATCH] util: qemu: Add support for user-passed strings in
+ JSON->commandline
+
+Until now the JSON->commandline convertor was used only for objects
+created by qemu. To allow reusing it with disk formatter we'll need to
+escape ',' as usual in qemu commandlines.
+
+(cherry picked from commit 25a272ada48302ea0d7333b4f2e3556a713230a5)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1134878 [JSON backing]
+https://bugzilla.redhat.com/show_bug.cgi?id=1247521 [gluster multi-host]
+---
+ src/util/virqemu.c          | 3 ++-
+ tests/qemucommandutiltest.c | 1 +
+ 2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/util/virqemu.c b/src/util/virqemu.c
+index a5d5385..99c14c2 100644
+--- a/src/util/virqemu.c
++++ b/src/util/virqemu.c
+@@ -46,7 +46,8 @@ virQEMUBuildCommandLineJSONRecurse(const char *key,
+ 
+     switch ((virJSONType) value->type) {
+     case VIR_JSON_TYPE_STRING:
+-        virBufferAsprintf(buf, ",%s=%s", key, value->data.string);
++        virBufferAsprintf(buf, ",%s=", key);
++        virQEMUBuildBufferEscapeComma(buf, value->data.string);
+         break;
+ 
+     case VIR_JSON_TYPE_NUMBER:
+diff --git a/tests/qemucommandutiltest.c b/tests/qemucommandutiltest.c
+index 21fef1c..8299462 100644
+--- a/tests/qemucommandutiltest.c
++++ b/tests/qemucommandutiltest.c
+@@ -100,6 +100,7 @@ mymain(void)
+ 
+     DO_TEST_COMMAND_OBJECT_FROM_JSON("{}", NULL);
+     DO_TEST_COMMAND_OBJECT_FROM_JSON("{\"string\":\"qwer\"}", "string=qwer");
++    DO_TEST_COMMAND_OBJECT_FROM_JSON("{\"string\":\"qw,e,r\"}", "string=qw,,e,,r");
+     DO_TEST_COMMAND_OBJECT_FROM_JSON("{\"number\":1234}", "number=1234");
+     DO_TEST_COMMAND_OBJECT_FROM_JSON("{\"boolean\":true}", "boolean=yes");
+     DO_TEST_COMMAND_OBJECT_FROM_JSON("{\"boolean\":false}", "boolean=no");
+-- 
+2.9.2
+

@@ -1,0 +1,56 @@
+From f2e19ab91dd4c09743bc571862edb23167da607d Mon Sep 17 00:00:00 2001
+Message-Id: <f2e19ab91dd4c09743bc571862edb23167da607d@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 24 Aug 2016 16:11:39 -0400
+Subject: [PATCH] qemu: hotplug: Allow marking unplugged devices by alias
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1097930
+https://bugzilla.redhat.com/show_bug.cgi?id=1224341
+
+Add a overlay function that takes the alias directly rather than
+extracting it from a device info.
+
+(cherry picked from commit 00990d9f4c1792f08a53a9b584b3547f52bf2b2c)
+---
+ src/qemu/qemu_hotplug.c | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/src/qemu/qemu_hotplug.c b/src/qemu/qemu_hotplug.c
+index 51ab7c9..a1a9bd1 100644
+--- a/src/qemu/qemu_hotplug.c
++++ b/src/qemu/qemu_hotplug.c
+@@ -3457,8 +3457,8 @@ qemuDomainRemoveDevice(virQEMUDriverPtr driver,
+ 
+ 
+ static void
+-qemuDomainMarkDeviceForRemoval(virDomainObjPtr vm,
+-                               virDomainDeviceInfoPtr info)
++qemuDomainMarkDeviceAliasForRemoval(virDomainObjPtr vm,
++                                    const char *alias)
+ {
+     qemuDomainObjPrivatePtr priv = vm->privateData;
+ 
+@@ -3467,9 +3467,19 @@ qemuDomainMarkDeviceForRemoval(virDomainObjPtr vm,
+     if (!virQEMUCapsGet(priv->qemuCaps, QEMU_CAPS_DEVICE_DEL_EVENT))
+         return;
+ 
+-    priv->unplug.alias = info->alias;
++    priv->unplug.alias = alias;
+ }
+ 
++
++static void
++qemuDomainMarkDeviceForRemoval(virDomainObjPtr vm,
++                               virDomainDeviceInfoPtr info)
++
++{
++    qemuDomainMarkDeviceAliasForRemoval(vm, info->alias);
++}
++
++
+ static void
+ qemuDomainResetDeviceRemoval(virDomainObjPtr vm)
+ {
+-- 
+2.10.0
+

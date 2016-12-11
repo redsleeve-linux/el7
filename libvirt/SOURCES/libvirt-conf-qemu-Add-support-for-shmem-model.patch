@@ -1,0 +1,296 @@
+From c07ec81488d9bba54d5ea209479c798f005faa47 Mon Sep 17 00:00:00 2001
+Message-Id: <c07ec81488d9bba54d5ea209479c798f005faa47@dist-git>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Fri, 4 Nov 2016 10:29:49 +0100
+Subject: [PATCH] conf, qemu: Add support for shmem model
+
+Just the default one now, new ones will be added in following commits.
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit 64530a9c667e4f875992ec0d85cffd2072b8cfd7)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1392031
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+---
+ docs/formatdomain.html.in                         |  8 +++++
+ docs/schemas/domaincommon.rng                     |  9 +++++
+ src/conf/domain_conf.c                            | 44 +++++++++++++++++------
+ src/conf/domain_conf.h                            |  8 +++++
+ src/libvirt_private.syms                          |  2 ++
+ src/qemu/qemu_command.c                           | 11 +++++-
+ tests/qemuxml2argvdata/qemuxml2argv-shmem.xml     |  2 ++
+ tests/qemuxml2xmloutdata/qemuxml2xmlout-shmem.xml |  8 +++++
+ 8 files changed, 80 insertions(+), 12 deletions(-)
+
+diff --git a/docs/formatdomain.html.in b/docs/formatdomain.html.in
+index 4970d61..a39d730 100644
+--- a/docs/formatdomain.html.in
++++ b/docs/formatdomain.html.in
+@@ -6689,6 +6689,7 @@ qemu-kvm -net nic,model=? /dev/null
+       &lt;size unit='M'&gt;4&lt;/size&gt;
+     &lt;/shmem&gt;
+     &lt;shmem name='shmem_server'&gt;
++      &lt;model type='ivshmem'/&gt;
+       &lt;size unit='M'&gt;2&lt;/size&gt;
+       &lt;server path='/tmp/socket-shmem'/&gt;
+       &lt;msi vectors='32' ioeventfd='on'/&gt;
+@@ -6703,6 +6704,13 @@ qemu-kvm -net nic,model=? /dev/null
+       The <code>shmem</code> element has one mandatory attribute,
+       <code>name</code> to identify the shared memory.
+     </dd>
++    <dt><code>model</code></dt>
++    <dd>
++      Attribute <code>type</code> of the optional element <code>model</code>
++      specifies the model of the underlying device providing the
++      <code>shmem</code> device.  Currently the only supported model is
++      <code>ivshmem</code>.
++    </dd>
+     <dt><code>size</code></dt>
+     <dd>
+       The optional <code>size</code> element specifies the size of the shared
+diff --git a/docs/schemas/domaincommon.rng b/docs/schemas/domaincommon.rng
+index d88ff3e..7d16536 100644
+--- a/docs/schemas/domaincommon.rng
++++ b/docs/schemas/domaincommon.rng
+@@ -3553,6 +3553,15 @@
+       <attribute name="name"/>
+       <interleave>
+         <optional>
++          <element name="model">
++            <attribute name="type">
++              <choice>
++                <value>ivshmem</value>
++              </choice>
++            </attribute>
++          </element>
++        </optional>
++        <optional>
+           <element name="size">
+             <ref name="scaledInteger"/>
+           </element>
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 25e4ba2..25b1c63 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -840,6 +840,9 @@ VIR_ENUM_IMPL(virDomainBlockJob, VIR_DOMAIN_BLOCK_JOB_TYPE_LAST,
+ VIR_ENUM_IMPL(virDomainMemoryModel, VIR_DOMAIN_MEMORY_MODEL_LAST,
+               "", "dimm")
+ 
++VIR_ENUM_IMPL(virDomainShmemModel, VIR_DOMAIN_SHMEM_MODEL_LAST,
++              "ivshmem")
++
+ static virClassPtr virDomainObjClass;
+ static virClassPtr virDomainXMLOptionClass;
+ static void virDomainObjDispose(void *obj);
+@@ -12267,6 +12270,20 @@ virDomainShmemDefParseXML(xmlNodePtr node,
+ 
+     ctxt->node = node;
+ 
++    tmp = virXPathString("string(./model/@type)", ctxt);
++    if (tmp) {
++        /* If there's none, we will automatically have the first one
++         * (as default).  Unfortunately this has to be done for
++         * compatibility reasons. */
++        if ((def->model = virDomainShmemModelTypeFromString(tmp)) < 0) {
++            virReportError(VIR_ERR_XML_ERROR,
++                           _("Unknown shmem model type '%s'"), tmp);
++            goto cleanup;
++        }
++
++        VIR_FREE(tmp);
++    }
++
+     if (!(def->name = virXMLPropString(node, "name"))) {
+         virReportError(VIR_ERR_XML_ERROR, "%s",
+                        _("shmem element must contain 'name' attribute"));
+@@ -14849,6 +14866,9 @@ virDomainShmemDefEquals(virDomainShmemDefPtr src,
+     if (src->size != dst->size)
+         return false;
+ 
++    if (src->model != dst->model)
++        return false;
++
+     if (src->server.enabled != dst->server.enabled)
+         return false;
+ 
+@@ -18828,6 +18848,15 @@ virDomainShmemDefCheckABIStability(virDomainShmemDefPtr src,
+         return false;
+     }
+ 
++    if (src->model != dst->model) {
++        virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
++                       _("Target shared memory model '%s' does not match "
++                         "source model '%s'"),
++                       virDomainShmemModelTypeToString(dst->model),
++                       virDomainShmemModelTypeToString(src->model));
++        return false;
++    }
++
+     if (src->size != dst->size) {
+         virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+                        _("Target shared memory size '%llu' does not match "
+@@ -21849,20 +21878,13 @@ virDomainShmemDefFormat(virBufferPtr buf,
+                         virDomainShmemDefPtr def,
+                         unsigned int flags)
+ {
+-    virBufferEscapeString(buf, "<shmem name='%s'", def->name);
+-
+-    if (!def->size &&
+-        !def->server.enabled &&
+-        !def->msi.enabled &&
+-        !virDomainDeviceInfoNeedsFormat(&def->info, flags)) {
+-        virBufferAddLit(buf, "/>\n");
+-        return 0;
+-    } else {
+-        virBufferAddLit(buf, ">\n");
+-    }
++    virBufferEscapeString(buf, "<shmem name='%s'>\n", def->name);
+ 
+     virBufferAdjustIndent(buf, 2);
+ 
++    virBufferAsprintf(buf, "<model type='%s'/>\n",
++                      virDomainShmemModelTypeToString(def->model));
++
+     if (def->size)
+         virBufferAsprintf(buf, "<size unit='M'>%llu</size>\n", def->size >> 20);
+ 
+diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
+index 594982e..db74d1d 100644
+--- a/src/conf/domain_conf.h
++++ b/src/conf/domain_conf.h
+@@ -1549,9 +1549,16 @@ struct _virDomainNVRAMDef {
+     virDomainDeviceInfo info;
+ };
+ 
++typedef enum {
++    VIR_DOMAIN_SHMEM_MODEL_IVSHMEM,
++
++    VIR_DOMAIN_SHMEM_MODEL_LAST
++} virDomainShmemModel;
++
+ struct _virDomainShmemDef {
+     char *name;
+     unsigned long long size;
++    int model; /* enum virDomainShmemModel */
+     struct {
+         bool enabled;
+         virDomainChrSourceDef chr;
+@@ -3042,6 +3049,7 @@ VIR_ENUM_DECL(virDomainTPMBackend)
+ VIR_ENUM_DECL(virDomainMemoryModel)
+ VIR_ENUM_DECL(virDomainMemoryBackingModel)
+ VIR_ENUM_DECL(virDomainIOMMUModel)
++VIR_ENUM_DECL(virDomainShmemModel)
+ /* from libvirt.h */
+ VIR_ENUM_DECL(virDomainState)
+ VIR_ENUM_DECL(virDomainNostateReason)
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index 9b7c26c..bee5676 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -460,6 +460,8 @@ virDomainShmemDefFind;
+ virDomainShmemDefFree;
+ virDomainShmemDefInsert;
+ virDomainShmemDefRemove;
++virDomainShmemModelTypeFromString;
++virDomainShmemModelTypeToString;
+ virDomainShutdownReasonTypeFromString;
+ virDomainShutdownReasonTypeToString;
+ virDomainShutoffReasonTypeFromString;
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index e668a58..c5d29b4 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -8559,7 +8559,16 @@ qemuBuildShmemCommandLine(virLogManagerPtr logManager,
+         return -1;
+     }
+ 
+-    if (!(devstr = qemuBuildShmemDevLegacyStr(def, shmem, qemuCaps)))
++    switch ((virDomainShmemModel)shmem->model) {
++    case VIR_DOMAIN_SHMEM_MODEL_IVSHMEM:
++        devstr = qemuBuildShmemDevLegacyStr(def, shmem, qemuCaps);
++        break;
++
++    case VIR_DOMAIN_SHMEM_MODEL_LAST:
++        break;
++    }
++
++    if (!devstr)
+         return -1;
+     virCommandAddArgList(cmd, "-device", devstr, NULL);
+     VIR_FREE(devstr);
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-shmem.xml b/tests/qemuxml2argvdata/qemuxml2argv-shmem.xml
+index 5bc4904..b56e9e1 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-shmem.xml
++++ b/tests/qemuxml2argvdata/qemuxml2argv-shmem.xml
+@@ -28,6 +28,7 @@
+       <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/>
+     </shmem>
+     <shmem name='shmem3'>
++      <model type='ivshmem'/>
+       <size unit='M'>512</size>
+       <server/>
+     </shmem>
+@@ -41,6 +42,7 @@
+       <msi ioeventfd='off'/>
+     </shmem>
+     <shmem name='shmem6'>
++      <model type='ivshmem'/>
+       <size unit='M'>4096</size>
+       <server path='/tmp/shmem6-sock'/>
+       <msi vectors='16'/>
+diff --git a/tests/qemuxml2xmloutdata/qemuxml2xmlout-shmem.xml b/tests/qemuxml2xmloutdata/qemuxml2xmlout-shmem.xml
+index 1197f36..5602913 100644
+--- a/tests/qemuxml2xmloutdata/qemuxml2xmlout-shmem.xml
++++ b/tests/qemuxml2xmloutdata/qemuxml2xmlout-shmem.xml
+@@ -22,39 +22,47 @@
+     <input type='keyboard' bus='ps2'/>
+     <memballoon model='none'/>
+     <shmem name='shmem0'>
++      <model type='ivshmem'/>
+       <address type='pci' domain='0x0000' bus='0x00' slot='0x03' function='0x0'/>
+     </shmem>
+     <shmem name='shmem1'>
++      <model type='ivshmem'/>
+       <size unit='M'>128</size>
+       <address type='pci' domain='0x0000' bus='0x00' slot='0x05' function='0x0'/>
+     </shmem>
+     <shmem name='shmem2'>
++      <model type='ivshmem'/>
+       <size unit='M'>256</size>
+       <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/>
+     </shmem>
+     <shmem name='shmem3'>
++      <model type='ivshmem'/>
+       <size unit='M'>512</size>
+       <server/>
+       <address type='pci' domain='0x0000' bus='0x00' slot='0x06' function='0x0'/>
+     </shmem>
+     <shmem name='shmem4'>
++      <model type='ivshmem'/>
+       <size unit='M'>1024</size>
+       <server path='/tmp/shmem4-sock'/>
+       <address type='pci' domain='0x0000' bus='0x00' slot='0x07' function='0x0'/>
+     </shmem>
+     <shmem name='shmem5'>
++      <model type='ivshmem'/>
+       <size unit='M'>2048</size>
+       <server path='/tmp/shmem5-sock'/>
+       <msi ioeventfd='off'/>
+       <address type='pci' domain='0x0000' bus='0x00' slot='0x08' function='0x0'/>
+     </shmem>
+     <shmem name='shmem6'>
++      <model type='ivshmem'/>
+       <size unit='M'>4096</size>
+       <server path='/tmp/shmem6-sock'/>
+       <msi vectors='16'/>
+       <address type='pci' domain='0x0000' bus='0x00' slot='0x09' function='0x0'/>
+     </shmem>
+     <shmem name='shmem7'>
++      <model type='ivshmem'/>
+       <size unit='M'>8192</size>
+       <server path='/tmp/shmem7-sock'/>
+       <msi vectors='32' ioeventfd='on'/>
+-- 
+2.10.2
+

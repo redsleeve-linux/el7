@@ -1,0 +1,221 @@
+From 986f039eddce59d25fb4060e3f12d2960c6ba100 Mon Sep 17 00:00:00 2001
+Message-Id: <986f039eddce59d25fb4060e3f12d2960c6ba100@dist-git>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Thu, 21 Jul 2016 15:57:48 +0200
+Subject: [PATCH] Allow omitting USB port
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+We were requiring a USB port path in the schema, but not enforcing it.
+Omitting the USB port would lead to libvirt formatting it as (null).
+Such domain cannot be started and will disappear after libvirtd restart
+(since it cannot parse back the XML).
+
+Only format the port if it has been specified and mark it as optional
+in the XML schema.
+
+(cherry picked from commit 4f903643186d0a59c4590fc8a6e8d9493c4d3d6b)
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1215968
+
+Conflicts:
+  downstream does not assume QEMU_CAPS_SMP_TOPOLOGY
+---
+ docs/schemas/domaincommon.rng                      |  8 +++--
+ src/conf/domain_conf.c                             |  5 ++-
+ src/qemu/qemu_command.c                            |  3 +-
+ .../qemuxml2argv-usb-port-missing.args             | 26 ++++++++++++++++
+ .../qemuxml2argv-usb-port-missing.xml              | 25 +++++++++++++++
+ tests/qemuxml2argvtest.c                           |  3 ++
+ .../qemuxml2xmlout-usb-port-missing.xml            | 36 ++++++++++++++++++++++
+ tests/qemuxml2xmltest.c                            |  1 +
+ 8 files changed, 100 insertions(+), 7 deletions(-)
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-usb-port-missing.args
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-usb-port-missing.xml
+ create mode 100644 tests/qemuxml2xmloutdata/qemuxml2xmlout-usb-port-missing.xml
+
+diff --git a/docs/schemas/domaincommon.rng b/docs/schemas/domaincommon.rng
+index 563cb3c..0876daa 100644
+--- a/docs/schemas/domaincommon.rng
++++ b/docs/schemas/domaincommon.rng
+@@ -4055,9 +4055,11 @@
+     <attribute name="bus">
+       <ref name="usbAddr"/>
+     </attribute>
+-    <attribute name="port">
+-      <ref name="usbPort"/>
+-    </attribute>
++    <optional>
++      <attribute name="port">
++        <ref name="usbPort"/>
++      </attribute>
++    </optional>
+   </define>
+   <define name="spaprvioaddress">
+     <optional>
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index e6dc23d..0bd8a30 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -4859,9 +4859,8 @@ virDomainDeviceInfoFormat(virBufferPtr buf,
+         break;
+ 
+     case VIR_DOMAIN_DEVICE_ADDRESS_TYPE_USB:
+-        virBufferAsprintf(buf, " bus='%d' port='%s'",
+-                          info->addr.usb.bus,
+-                          info->addr.usb.port);
++        virBufferAsprintf(buf, " bus='%d'", info->addr.usb.bus);
++        virBufferEscapeString(buf, " port='%s'", info->addr.usb.port);
+         break;
+ 
+     case VIR_DOMAIN_DEVICE_ADDRESS_TYPE_SPAPRVIO:
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index 49412c0..af6146f 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -375,7 +375,8 @@ qemuBuildDeviceAddressStr(virBufferPtr buf,
+                                                        VIR_DOMAIN_CONTROLLER_TYPE_USB,
+                                                        info->addr.usb.bus)))
+             goto cleanup;
+-        virBufferAsprintf(buf, ",bus=%s.0,port=%s", contAlias, info->addr.usb.port);
++        virBufferAsprintf(buf, ",bus=%s.0", contAlias);
++        virBufferEscapeString(buf, ",port=%s", info->addr.usb.port);
+     } else if (info->type == VIR_DOMAIN_DEVICE_ADDRESS_TYPE_SPAPRVIO) {
+         if (info->addr.spaprvio.has_reg)
+             virBufferAsprintf(buf, ",reg=0x%llx", info->addr.spaprvio.reg);
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-usb-port-missing.args b/tests/qemuxml2argvdata/qemuxml2argv-usb-port-missing.args
+new file mode 100644
+index 0000000..d43c58d
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-usb-port-missing.args
+@@ -0,0 +1,26 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/home/test \
++USER=test \
++LOGNAME=test \
++QEMU_AUDIO_DRV=none \
++/usr/bin/qemu \
++-name QEMUGuest1 \
++-S \
++-M pc \
++-m 214 \
++-smp 1 \
++-uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
++-nographic \
++-nodefconfig \
++-nodefaults \
++-chardev socket,id=charmonitor,path=/tmp/lib/domain--1-QEMUGuest1/monitor.sock,\
++server,nowait \
++-mon chardev=charmonitor,id=monitor,mode=readline \
++-no-acpi \
++-boot c \
++-usb \
++-device usb-hub,id=hub0,bus=usb.0 \
++-device usb-hub,id=hub1,bus=usb.0 \
++-device usb-mouse,id=input0,bus=usb.0 \
++-device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x3
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-usb-port-missing.xml b/tests/qemuxml2argvdata/qemuxml2argv-usb-port-missing.xml
+new file mode 100644
+index 0000000..593fcd1
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-usb-port-missing.xml
+@@ -0,0 +1,25 @@
++<domain type='qemu'>
++  <name>QEMUGuest1</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219136</memory>
++  <currentMemory unit='KiB'>219136</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='i686' machine='pc'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <devices>
++    <emulator>/usr/bin/qemu</emulator>
++    <controller type='usb' index='0'/>
++    <memballoon model='virtio'/>
++    <input type='mouse' bus='usb'>
++      <address type='usb' bus='0'/>
++    </input>
++    <hub type='usb'>
++      <address type='usb' bus='0'/>
++    </hub>
++    <hub type='usb'>
++      <address type='usb' bus='0'/>
++    </hub>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2argvtest.c b/tests/qemuxml2argvtest.c
+index a73db5e..4389e24 100644
+--- a/tests/qemuxml2argvtest.c
++++ b/tests/qemuxml2argvtest.c
+@@ -1159,6 +1159,9 @@ mymain(void)
+     DO_TEST("usb-hub",
+             QEMU_CAPS_CHARDEV, QEMU_CAPS_USB_HUB,
+             QEMU_CAPS_NODEFCONFIG);
++    DO_TEST("usb-port-missing",
++            QEMU_CAPS_CHARDEV, QEMU_CAPS_USB_HUB,
++            QEMU_CAPS_NODEFCONFIG);
+     DO_TEST("usb-ports",
+             QEMU_CAPS_CHARDEV, QEMU_CAPS_USB_HUB,
+             QEMU_CAPS_NODEFCONFIG);
+diff --git a/tests/qemuxml2xmloutdata/qemuxml2xmlout-usb-port-missing.xml b/tests/qemuxml2xmloutdata/qemuxml2xmlout-usb-port-missing.xml
+new file mode 100644
+index 0000000..2e29cbd
+--- /dev/null
++++ b/tests/qemuxml2xmloutdata/qemuxml2xmlout-usb-port-missing.xml
+@@ -0,0 +1,36 @@
++<domain type='qemu'>
++  <name>QEMUGuest1</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219136</memory>
++  <currentMemory unit='KiB'>219136</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='i686' machine='pc'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++    <emulator>/usr/bin/qemu</emulator>
++    <controller type='usb' index='0'>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x2'/>
++    </controller>
++    <controller type='pci' index='0' model='pci-root'/>
++    <input type='mouse' bus='usb'>
++      <address type='usb' bus='0'/>
++    </input>
++    <input type='mouse' bus='ps2'/>
++    <input type='keyboard' bus='ps2'/>
++    <hub type='usb'>
++      <address type='usb' bus='0'/>
++    </hub>
++    <hub type='usb'>
++      <address type='usb' bus='0'/>
++    </hub>
++    <memballoon model='virtio'>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x03' function='0x0'/>
++    </memballoon>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2xmltest.c b/tests/qemuxml2xmltest.c
+index 7db9cb7..c6ef28c 100644
+--- a/tests/qemuxml2xmltest.c
++++ b/tests/qemuxml2xmltest.c
+@@ -535,6 +535,7 @@ mymain(void)
+     DO_TEST("interface-server");
+     DO_TEST("virtio-lun");
+ 
++    DO_TEST("usb-port-missing");
+     DO_TEST("usb-redir");
+     DO_TEST("usb-redir-filter");
+     DO_TEST("usb-redir-filter-version");
+-- 
+2.9.2
+

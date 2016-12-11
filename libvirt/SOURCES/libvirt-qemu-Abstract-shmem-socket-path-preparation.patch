@@ -1,0 +1,78 @@
+From 2bcbf4e9a10d8db84c212c7815456af6996bc6e9 Mon Sep 17 00:00:00 2001
+Message-Id: <2bcbf4e9a10d8db84c212c7815456af6996bc6e9@dist-git>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Fri, 4 Nov 2016 10:29:41 +0100
+Subject: [PATCH] qemu: Abstract shmem socket path preparation
+
+Put it into qemuDomainPrepareShmemChardev() so it can be used later.
+Also don't fill in the path unless the server option is enabled.
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit 0f61d7b5f2b5d011b58386e7bf1a48f75a15e9d7)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1392031
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+---
+ src/qemu/qemu_command.c |  5 +----
+ src/qemu/qemu_domain.c  | 13 +++++++++++++
+ src/qemu/qemu_domain.h  |  3 +++
+ 3 files changed, 17 insertions(+), 4 deletions(-)
+
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index 3ebfe84..adb743b 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -8513,10 +8513,7 @@ qemuBuildShmemBackendStr(virLogManagerPtr logManager,
+ {
+     char *devstr = NULL;
+ 
+-    if (!shmem->server.chr.data.nix.path &&
+-        virAsprintf(&shmem->server.chr.data.nix.path,
+-                    "/var/lib/libvirt/shmem-%s-sock",
+-                    shmem->name) < 0)
++    if (qemuDomainPrepareShmemChardev(shmem) < 0)
+         return NULL;
+ 
+     devstr = qemuBuildChrChardevStr(logManager, cmd, cfg, def,
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index 8db2ed5..4f99c14 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -5993,6 +5993,19 @@ qemuDomainPrepareChannel(virDomainChrDefPtr channel,
+ }
+ 
+ 
++int
++qemuDomainPrepareShmemChardev(virDomainShmemDefPtr shmem)
++{
++    if (!shmem->server.enabled ||
++        shmem->server.chr.data.nix.path)
++        return 0;
++
++    return virAsprintf(&shmem->server.chr.data.nix.path,
++                       "/var/lib/libvirt/shmem-%s-sock",
++                       shmem->name);
++}
++
++
+ /**
+  * qemuDomainVcpuHotplugIsInOrder:
+  * @def: domain definition
+diff --git a/src/qemu/qemu_domain.h b/src/qemu/qemu_domain.h
+index f94bfc9..66ffe58 100644
+--- a/src/qemu/qemu_domain.h
++++ b/src/qemu/qemu_domain.h
+@@ -724,6 +724,9 @@ int qemuDomainPrepareChannel(virDomainChrDefPtr chr,
+                              const char *domainChannelTargetDir)
+     ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2);
+ 
++int qemuDomainPrepareShmemChardev(virDomainShmemDefPtr shmem)
++    ATTRIBUTE_NONNULL(1);
++
+ bool qemuDomainVcpuHotplugIsInOrder(virDomainDefPtr def)
+     ATTRIBUTE_NONNULL(1);
+ 
+-- 
+2.10.2
+

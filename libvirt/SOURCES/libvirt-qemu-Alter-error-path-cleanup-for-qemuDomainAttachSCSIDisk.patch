@@ -1,0 +1,73 @@
+From 48393066faa3d6af3791e6a0d0fcf79a71b8e9e4 Mon Sep 17 00:00:00 2001
+Message-Id: <48393066faa3d6af3791e6a0d0fcf79a71b8e9e4@dist-git>
+From: John Ferlan <jferlan@redhat.com>
+Date: Mon, 25 Jul 2016 12:42:55 -0400
+Subject: [PATCH] qemu: Alter error path cleanup for qemuDomainAttachSCSIDisk
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1301021
+
+Based on recent review comment - rather than have a spate of goto failxxxx,
+change to a boolean based model. Ensures that the original error can be
+preserved and cleanup is a bit more orderly if more objects are added.
+
+(cherry picked from commit c3b5f22dec05389a8a164761976d4aa64d4c399f)
+Signed-off-by: John Ferlan <jferlan@redhat.com>
+---
+ src/qemu/qemu_hotplug.c | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/qemu/qemu_hotplug.c b/src/qemu/qemu_hotplug.c
+index e21720b..b3fab6a 100644
+--- a/src/qemu/qemu_hotplug.c
++++ b/src/qemu/qemu_hotplug.c
+@@ -547,6 +547,7 @@ qemuDomainAttachSCSIDisk(virConnectPtr conn,
+     qemuDomainObjPrivatePtr priv = vm->privateData;
+     char *drivestr = NULL;
+     char *devstr = NULL;
++    bool driveAdded = false;
+     int ret = -1;
+     virQEMUDriverConfigPtr cfg = virQEMUDriverGetConfig(driver);
+ 
+@@ -588,17 +589,17 @@ qemuDomainAttachSCSIDisk(virConnectPtr conn,
+     if (VIR_REALLOC_N(vm->def->disks, vm->def->ndisks+1) < 0)
+         goto error;
+ 
+-    /* Attach the device - 2 step process */
+     qemuDomainObjEnterMonitor(driver, vm);
+ 
+     if (qemuMonitorAddDrive(priv->mon, drivestr) < 0)
+-        goto failadddrive;
++        goto exit_monitor;
++    driveAdded = true;
+ 
+     if (qemuMonitorAddDevice(priv->mon, devstr) < 0)
+-        goto failadddevice;
++        goto exit_monitor;
+ 
+     if (qemuDomainObjExitMonitor(driver, vm) < 0)
+-        goto failexitmonitor;
++        goto error;
+ 
+     virDomainAuditDisk(vm, NULL, disk->src, "attach", true);
+ 
+@@ -612,14 +613,13 @@ qemuDomainAttachSCSIDisk(virConnectPtr conn,
+     virObjectUnref(cfg);
+     return ret;
+ 
+- failadddevice:
++ exit_monitor:
+     /* XXX should call 'drive_del' on error but this does not exist yet */
+-    VIR_WARN("qemuMonitorAddDevice failed on %s (%s)", drivestr, devstr);
++    if (driveAdded)
++        VIR_WARN("qemuMonitorAddDevice failed on %s (%s)", drivestr, devstr);
+ 
+- failadddrive:
+     ignore_value(qemuDomainObjExitMonitor(driver, vm));
+ 
+- failexitmonitor:
+     virDomainAuditDisk(vm, NULL, disk->src, "attach", false);
+ 
+  error:
+-- 
+2.9.2
+

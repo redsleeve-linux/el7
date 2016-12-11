@@ -1,0 +1,56 @@
+From 2479f664481c9c512b3fb2da21aeaac37f53d584 Mon Sep 17 00:00:00 2001
+Message-Id: <2479f664481c9c512b3fb2da21aeaac37f53d584@dist-git>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Fri, 4 Nov 2016 10:29:42 +0100
+Subject: [PATCH] qemu: Rename qemuBuildShmemBackendStr to
+ qemuBuildShmemBackendChrStr
+
+There will be more backends in the future so let's not complicate it.
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit a0c99e1a0aadbc4ed7e1670d63e29e49b8a7a67a)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1392031
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+---
+ src/qemu/qemu_command.c | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index adb743b..e668a58 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -8504,12 +8504,12 @@ qemuBuildShmemDevLegacyStr(virDomainDefPtr def,
+ }
+ 
+ static char *
+-qemuBuildShmemBackendStr(virLogManagerPtr logManager,
+-                         virCommandPtr cmd,
+-                         virQEMUDriverConfigPtr cfg,
+-                         virDomainDefPtr def,
+-                         virDomainShmemDefPtr shmem,
+-                         virQEMUCapsPtr qemuCaps)
++qemuBuildShmemBackendChrStr(virLogManagerPtr logManager,
++                            virCommandPtr cmd,
++                            virQEMUDriverConfigPtr cfg,
++                            virDomainDefPtr def,
++                            virDomainShmemDefPtr shmem,
++                            virQEMUCapsPtr qemuCaps)
+ {
+     char *devstr = NULL;
+ 
+@@ -8565,8 +8565,8 @@ qemuBuildShmemCommandLine(virLogManagerPtr logManager,
+     VIR_FREE(devstr);
+ 
+     if (shmem->server.enabled) {
+-        if (!(devstr = qemuBuildShmemBackendStr(logManager, cmd, cfg, def,
+-                                                shmem, qemuCaps)))
++        if (!(devstr = qemuBuildShmemBackendChrStr(logManager, cmd, cfg, def,
++                                                   shmem, qemuCaps)))
+             return -1;
+ 
+         virCommandAddArgList(cmd, "-chardev", devstr, NULL);
+-- 
+2.10.2
+

@@ -1,0 +1,375 @@
+From 684d63adc58a29183d7ff4161b3ed93f09896375 Mon Sep 17 00:00:00 2001
+Message-Id: <684d63adc58a29183d7ff4161b3ed93f09896375@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 24 Aug 2016 16:11:25 -0400
+Subject: [PATCH] tests: Add test infrastructure for qemuMonitorGetCPUInfo
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1097930
+https://bugzilla.redhat.com/show_bug.cgi?id=1224341
+
+As the combination algorithm is rather complex and ugly it's necessary
+to make sure it works properly. Add test suite infrastructure for
+testing it along with a basic test based on x86_64 platform.
+
+(cherry picked from commit f8638471d7f203a654e3b157dfd042a2239e2cb0)
+---
+ ...nitorjson-cpuinfo-x86-basic-pluggable-cpus.json |  50 ++++++++
+ ...orjson-cpuinfo-x86-basic-pluggable-hotplug.json |  82 +++++++++++++
+ ...emumonitorjson-cpuinfo-x86-basic-pluggable.data |  39 ++++++
+ tests/qemumonitorjsontest.c                        | 134 +++++++++++++++++++++
+ 4 files changed, 305 insertions(+)
+ create mode 100644 tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-x86-basic-pluggable-cpus.json
+ create mode 100644 tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-x86-basic-pluggable-hotplug.json
+ create mode 100644 tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-x86-basic-pluggable.data
+
+diff --git a/tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-x86-basic-pluggable-cpus.json b/tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-x86-basic-pluggable-cpus.json
+new file mode 100644
+index 0000000..7a49731
+--- /dev/null
++++ b/tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-x86-basic-pluggable-cpus.json
+@@ -0,0 +1,50 @@
++{
++  "return": [
++    {
++      "arch": "x86",
++      "current": true,
++      "CPU": 0,
++      "qom_path": "/machine/unattached/device[0]",
++      "pc": -2130415978,
++      "halted": true,
++      "thread_id": 518291
++    },
++    {
++      "arch": "x86",
++      "current": false,
++      "CPU": 1,
++      "qom_path": "/machine/unattached/device[2]",
++      "pc": -2130415978,
++      "halted": true,
++      "thread_id": 518292
++    },
++    {
++      "arch": "x86",
++      "current": false,
++      "CPU": 2,
++      "qom_path": "/machine/unattached/device[3]",
++      "pc": -2130415978,
++      "halted": true,
++      "thread_id": 518294
++    },
++    {
++      "arch": "x86",
++      "current": false,
++      "CPU": 3,
++      "qom_path": "/machine/unattached/device[4]",
++      "pc": -2130415978,
++      "halted": true,
++      "thread_id": 518295
++    },
++    {
++      "arch": "x86",
++      "current": false,
++      "CPU": 4,
++      "qom_path": "/machine/unattached/device[5]",
++      "pc": -2130415978,
++      "halted": true,
++      "thread_id": 518296
++    }
++  ],
++  "id": "libvirt-22"
++}
+diff --git a/tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-x86-basic-pluggable-hotplug.json b/tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-x86-basic-pluggable-hotplug.json
+new file mode 100644
+index 0000000..3f35018
+--- /dev/null
++++ b/tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-x86-basic-pluggable-hotplug.json
+@@ -0,0 +1,82 @@
++{
++  "return": [
++    {
++      "props": {
++        "core-id": 1,
++        "thread-id": 1,
++        "socket-id": 1
++      },
++      "vcpus-count": 1,
++      "type": "qemu64-x86_64-cpu"
++    },
++    {
++      "props": {
++        "core-id": 1,
++        "thread-id": 0,
++        "socket-id": 1
++      },
++      "vcpus-count": 1,
++      "type": "qemu64-x86_64-cpu"
++    },
++    {
++      "props": {
++        "core-id": 0,
++        "thread-id": 1,
++        "socket-id": 1
++      },
++      "vcpus-count": 1,
++      "type": "qemu64-x86_64-cpu"
++    },
++    {
++      "props": {
++        "core-id": 0,
++        "thread-id": 0,
++        "socket-id": 1
++      },
++      "vcpus-count": 1,
++      "qom-path": "/machine/unattached/device[5]",
++      "type": "qemu64-x86_64-cpu"
++    },
++    {
++      "props": {
++        "core-id": 1,
++        "thread-id": 1,
++        "socket-id": 0
++      },
++      "vcpus-count": 1,
++      "qom-path": "/machine/unattached/device[4]",
++      "type": "qemu64-x86_64-cpu"
++    },
++    {
++      "props": {
++        "core-id": 1,
++        "thread-id": 0,
++        "socket-id": 0
++      },
++      "vcpus-count": 1,
++      "qom-path": "/machine/unattached/device[3]",
++      "type": "qemu64-x86_64-cpu"
++    },
++    {
++      "props": {
++        "core-id": 0,
++        "thread-id": 1,
++        "socket-id": 0
++      },
++      "vcpus-count": 1,
++      "qom-path": "/machine/unattached/device[2]",
++      "type": "qemu64-x86_64-cpu"
++    },
++    {
++      "props": {
++        "core-id": 0,
++        "thread-id": 0,
++        "socket-id": 0
++      },
++      "vcpus-count": 1,
++      "qom-path": "/machine/unattached/device[0]",
++      "type": "qemu64-x86_64-cpu"
++    }
++  ],
++  "id": "libvirt-23"
++}
+diff --git a/tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-x86-basic-pluggable.data b/tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-x86-basic-pluggable.data
+new file mode 100644
+index 0000000..a367a09
+--- /dev/null
++++ b/tests/qemumonitorjsondata/qemumonitorjson-cpuinfo-x86-basic-pluggable.data
+@@ -0,0 +1,39 @@
++[vcpu libvirt-id='0']
++    thread-id='518291'
++    qemu-id='1'
++    type='qemu64-x86_64-cpu'
++    qom_path='/machine/unattached/device[0]'
++    topology: socket='0' core='0' thread='0' vcpus='1'
++[vcpu libvirt-id='1']
++    thread-id='518292'
++    qemu-id='2'
++    type='qemu64-x86_64-cpu'
++    qom_path='/machine/unattached/device[2]'
++    topology: socket='0' core='0' thread='1' vcpus='1'
++[vcpu libvirt-id='2']
++    thread-id='518294'
++    qemu-id='3'
++    type='qemu64-x86_64-cpu'
++    qom_path='/machine/unattached/device[3]'
++    topology: socket='0' core='1' thread='0' vcpus='1'
++[vcpu libvirt-id='3']
++    thread-id='518295'
++    qemu-id='4'
++    type='qemu64-x86_64-cpu'
++    qom_path='/machine/unattached/device[4]'
++    topology: socket='0' core='1' thread='1' vcpus='1'
++[vcpu libvirt-id='4']
++    thread-id='518296'
++    qemu-id='5'
++    type='qemu64-x86_64-cpu'
++    qom_path='/machine/unattached/device[5]'
++    topology: socket='1' core='0' thread='0' vcpus='1'
++[vcpu libvirt-id='5']
++    type='qemu64-x86_64-cpu'
++    topology: socket='1' core='0' thread='1' vcpus='1'
++[vcpu libvirt-id='6']
++    type='qemu64-x86_64-cpu'
++    topology: socket='1' core='1' thread='0' vcpus='1'
++[vcpu libvirt-id='7']
++    type='qemu64-x86_64-cpu'
++    topology: socket='1' core='1' thread='1' vcpus='1'
+diff --git a/tests/qemumonitorjsontest.c b/tests/qemumonitorjsontest.c
+index 8c31005..22b4ccc 100644
+--- a/tests/qemumonitorjsontest.c
++++ b/tests/qemumonitorjsontest.c
+@@ -2336,6 +2336,130 @@ testQemuMonitorJSONGetIOThreads(const void *data)
+     return ret;
+ }
+ 
++struct testCPUInfoData {
++    const char *name;
++    size_t maxvcpus;
++    virDomainXMLOptionPtr xmlopt;
++};
++
++
++static char *
++testQemuMonitorCPUInfoFormat(qemuMonitorCPUInfoPtr vcpus,
++                             size_t nvcpus)
++{
++    virBuffer buf = VIR_BUFFER_INITIALIZER;
++    qemuMonitorCPUInfoPtr vcpu;
++    size_t i;
++
++    for (i = 0; i < nvcpus; i++) {
++        vcpu = vcpus + i;
++
++        virBufferAsprintf(&buf, "[vcpu libvirt-id='%zu']\n", i);
++        virBufferAdjustIndent(&buf, 4);
++
++        if (vcpu->tid)
++            virBufferAsprintf(&buf, "thread-id='%llu'\n",
++                              (unsigned long long) vcpu->tid);
++
++        if (vcpu->id != 0)
++            virBufferAsprintf(&buf, "qemu-id='%d'\n", vcpu->id);
++
++        if (vcpu->type)
++            virBufferAsprintf(&buf, "type='%s'\n", vcpu->type);
++
++        if (vcpu->alias)
++            virBufferAsprintf(&buf, "alias='%s'\n", vcpu->alias);
++        if (vcpu->qom_path)
++            virBufferAsprintf(&buf, "qom_path='%s'\n", vcpu->qom_path);
++
++        if (vcpu->socket_id != -1 || vcpu->core_id != -1 ||
++            vcpu->thread_id != -1 || vcpu->vcpus != 0) {
++            virBufferAddLit(&buf, "topology:");
++            if (vcpu->socket_id != -1)
++                virBufferAsprintf(&buf, " socket='%d'", vcpu->socket_id);
++            if (vcpu->core_id != -1)
++                virBufferAsprintf(&buf, " core='%d'", vcpu->core_id);
++            if (vcpu->thread_id != -1)
++                virBufferAsprintf(&buf, " thread='%d'", vcpu->thread_id);
++            if (vcpu->vcpus != 0)
++                virBufferAsprintf(&buf, " vcpus='%u'", vcpu->vcpus);
++            virBufferAddLit(&buf, "\n");
++        }
++
++        virBufferAdjustIndent(&buf, -4);
++    }
++
++    return virBufferContentAndReset(&buf);
++}
++
++
++static int
++testQemuMonitorCPUInfo(const void *opaque)
++{
++    const struct testCPUInfoData *data = opaque;
++    qemuMonitorTestPtr test = qemuMonitorTestNewSimple(true, data->xmlopt);
++    char *queryCpusFile = NULL;
++    char *queryHotpluggableFile = NULL;
++    char *dataFile = NULL;
++    char *queryCpusStr = NULL;
++    char *queryHotpluggableStr = NULL;
++    char *actual = NULL;
++    qemuMonitorCPUInfoPtr vcpus = NULL;
++    int rc;
++    int ret = -1;
++
++    if (!test)
++        return -1;
++
++    if (virAsprintf(&queryCpusFile,
++                    "%s/qemumonitorjsondata/qemumonitorjson-cpuinfo-%s-cpus.json",
++                    abs_srcdir, data->name) < 0 ||
++        virAsprintf(&queryHotpluggableFile,
++                    "%s/qemumonitorjsondata/qemumonitorjson-cpuinfo-%s-hotplug.json",
++                    abs_srcdir, data->name) < 0 ||
++        virAsprintf(&dataFile,
++                    "%s/qemumonitorjsondata/qemumonitorjson-cpuinfo-%s.data",
++                    abs_srcdir, data->name) < 0)
++        goto cleanup;
++
++    if (virTestLoadFile(queryCpusFile, &queryCpusStr) < 0)
++        goto cleanup;
++
++    if (virTestLoadFile(queryHotpluggableFile, &queryHotpluggableStr) < 0)
++        goto cleanup;
++
++    if (qemuMonitorTestAddItem(test, "query-hotpluggable-cpus",
++                               queryHotpluggableStr) < 0)
++        goto cleanup;
++
++    if (qemuMonitorTestAddItem(test, "query-cpus", queryCpusStr) < 0)
++        goto cleanup;
++
++    rc = qemuMonitorGetCPUInfo(qemuMonitorTestGetMonitor(test),
++                               &vcpus, data->maxvcpus, true);
++
++    if (rc < 0)
++        goto cleanup;
++
++    actual = testQemuMonitorCPUInfoFormat(vcpus, data->maxvcpus);
++
++    if (virTestCompareToFile(actual, dataFile) < 0)
++        goto cleanup;
++
++    ret = 0;
++ cleanup:
++    VIR_FREE(queryCpusFile);
++    VIR_FREE(queryHotpluggableFile);
++    VIR_FREE(dataFile);
++    VIR_FREE(queryCpusStr);
++    VIR_FREE(queryHotpluggableStr);
++    VIR_FREE(actual);
++    qemuMonitorCPUInfoFree(vcpus, data->maxvcpus);
++    qemuMonitorTestFree(test);
++    return ret;
++}
++
++
+ static int
+ mymain(void)
+ {
+@@ -2378,6 +2502,14 @@ mymain(void)
+             ret = -1;                                                     \
+     } while (0)
+ 
++#define DO_TEST_CPU_INFO(name, maxvcpus)                                       \
++    do {                                                                       \
++        struct testCPUInfoData data = {name, maxvcpus, driver.xmlopt};         \
++        if (virTestRun("GetCPUInfo(" name ")", testQemuMonitorCPUInfo,         \
++                       &data) < 0)                                             \
++            ret = -1;                                                          \
++    } while (0)
++
+     DO_TEST(GetStatus);
+     DO_TEST(GetVersion);
+     DO_TEST(GetMachines);
+@@ -2452,6 +2584,8 @@ mymain(void)
+     DO_TEST_CPU_DATA("full");
+     DO_TEST_CPU_DATA("ecx");
+ 
++    DO_TEST_CPU_INFO("x86-basic-pluggable", 8);
++
+     qemuTestDriverFree(&driver);
+ 
+     return (ret == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+-- 
+2.10.0
+

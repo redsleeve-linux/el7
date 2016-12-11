@@ -1,0 +1,40 @@
+From a38c567ff5d47e86e64d451da6a8715d667e3f2e Mon Sep 17 00:00:00 2001
+Message-Id: <a38c567ff5d47e86e64d451da6a8715d667e3f2e@dist-git>
+From: Bjoern Walk <bwalk@linux.vnet.ibm.com>
+Date: Fri, 22 Jul 2016 13:50:59 +0200
+Subject: [PATCH] qemu: hotplug: fix changeable media ejection
+
+Since return code is checked globally at the end of the function, let's
+make sure that we set it correctly at any point.
+
+This fixes a regression introduced in commit 0aa19f35 where the first
+command to eject changeable media would fail unconditionally.
+
+Signed-off-by: Bjoern Walk <bwalk@linux.vnet.ibm.com>
+Reviewed-by: Boris Fiuczynski <fiuczy@linux.vnet.ibm.com>
+(cherry picked from commit 6574a01a439cb86a2e53c72346ada8bc9033d140)
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1359071
+
+Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
+---
+ src/qemu/qemu_hotplug.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_hotplug.c b/src/qemu/qemu_hotplug.c
+index 36885a3..4a56cad 100644
+--- a/src/qemu/qemu_hotplug.c
++++ b/src/qemu/qemu_hotplug.c
+@@ -240,7 +240,8 @@ qemuDomainChangeEjectableMedia(virQEMUDriverPtr driver,
+     /* If the tray is present and tray change event is supported wait for it to open. */
+     if (diskPriv->tray &&
+         virQEMUCapsGet(priv->qemuCaps, QEMU_CAPS_DEVICE_TRAY_MOVED)) {
+-        if (qemuHotplugWaitForTrayEject(driver, vm, disk, driveAlias, force) < 0)
++        rc = qemuHotplugWaitForTrayEject(driver, vm, disk, driveAlias, force);
++        if (rc < 0)
+             goto error;
+     } else  {
+         /* otherwise report possible errors from the attempt to eject the media*/
+-- 
+2.9.2
+

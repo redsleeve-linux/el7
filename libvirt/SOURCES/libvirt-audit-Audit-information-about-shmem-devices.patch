@@ -1,0 +1,134 @@
+From 806108ea6df82f0702a5933feb75691828f9cabe Mon Sep 17 00:00:00 2001
+Message-Id: <806108ea6df82f0702a5933feb75691828f9cabe@dist-git>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Wed, 14 Sep 2016 12:49:18 +0200
+Subject: [PATCH] audit: Audit information about shmem devices
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1218603
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit 94e2be842411b9f8ec9165c8d25c93716c1b30ca)
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+---
+ docs/auditlog.html.in    | 19 +++++++++++++++++++
+ src/conf/domain_audit.c  | 42 ++++++++++++++++++++++++++++++++++++++++++
+ src/conf/domain_audit.h  |  4 ++++
+ src/libvirt_private.syms |  1 +
+ 4 files changed, 66 insertions(+)
+
+diff --git a/docs/auditlog.html.in b/docs/auditlog.html.in
+index 012d068..0c778aa 100644
+--- a/docs/auditlog.html.in
++++ b/docs/auditlog.html.in
+@@ -352,5 +352,24 @@
+       <dd>The name of the cgroup controller</dd>
+     </dl>
+ 
++
++    <h4><a name="typeresourceshmem">Shared memory</a></h4>
++    <p>
++      The <code>msg</code> field will include the following sub-fields
++    </p>
++
++    <dl>
++      <dt><code>resrc</code></dt>
++      <dd>The type of resource assigned. Set to <code>shmem</code></dd>
++      <dt><code>reason</code></dt>
++      <dd>The reason which caused the resource to be assigned to happen</dd>
++      <dt><code>size</code></dt>
++      <dd>The size of the shared memory region</dd>
++      <dt><code>shmem</code></dt>
++      <dd>Name of the shared memory region</dd>
++      <dt><code>source</code></dt>
++      <dd>Path of the backing character device for given emulated device</dd>
++    </dl>
++
+   </body>
+ </html>
+diff --git a/src/conf/domain_audit.c b/src/conf/domain_audit.c
+index 6ad0acb..f0cc49c 100644
+--- a/src/conf/domain_audit.c
++++ b/src/conf/domain_audit.c
+@@ -889,6 +889,9 @@ virDomainAuditStart(virDomainObjPtr vm, const char *reason, bool success)
+     if (vm->def->tpm)
+         virDomainAuditTPM(vm, vm->def->tpm, "start", true);
+ 
++    for (i = 0; i < vm->def->nshmems; i++)
++        virDomainAuditShmem(vm, vm->def->shmems[i], "start", true);
++
+     virDomainAuditMemory(vm, 0, virDomainDefGetMemoryTotal(vm->def),
+                          "start", true);
+     virDomainAuditVcpu(vm, 0, virDomainDefGetVcpus(vm->def), "start", true);
+@@ -963,3 +966,42 @@ virDomainAuditSecurityLabel(virDomainObjPtr vm, bool success)
+ 
+     VIR_FREE(vmname);
+ }
++
++void
++virDomainAuditShmem(virDomainObjPtr vm,
++                    virDomainShmemDefPtr def,
++                    const char *reason, bool success)
++{
++    char uuidstr[VIR_UUID_STRING_BUFLEN];
++    char *vmname = virAuditEncode("vm", vm->def->name);
++    const char *srcpath = virDomainAuditChardevPath(&def->server.chr);
++    char *src = virAuditEncode("server", VIR_AUDIT_STR(srcpath));
++    char *shmem = virAuditEncode("shmem", VIR_AUDIT_STR(def->name));
++    const char *virt = virDomainVirtTypeToString(vm->def->virtType);
++    char *size = NULL;
++
++    virUUIDFormat(vm->def->uuid, uuidstr);
++
++    if (!vmname || !src || !size || !shmem ||
++        virAsprintfQuiet(&size, "%llu", def->size) < 0) {
++        VIR_WARN("OOM while encoding audit message");
++        goto cleanup;
++    }
++
++    if (!virt) {
++        VIR_WARN("Unexpected virt type %d while encoding audit message",
++                 vm->def->virtType);
++        virt = "?";
++    }
++
++    VIR_AUDIT(VIR_AUDIT_RECORD_RESOURCE, success,
++              "virt=%s resrc=shmem reason=%s %s uuid=%s size=%s %s %s",
++              virt, reason, vmname, uuidstr, size ?: "?", shmem, src);
++
++ cleanup:
++    VIR_FREE(vmname);
++    VIR_FREE(src);
++    VIR_FREE(size);
++    VIR_FREE(shmem);
++    return;
++}
+diff --git a/src/conf/domain_audit.h b/src/conf/domain_audit.h
+index 97dadca..8cb585d 100644
+--- a/src/conf/domain_audit.h
++++ b/src/conf/domain_audit.h
+@@ -129,6 +129,10 @@ void virDomainAuditRNG(virDomainObjPtr vm,
+                        const char *reason,
+                        bool success)
+     ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(4);
++void virDomainAuditShmem(virDomainObjPtr vm,
++                         virDomainShmemDefPtr def,
++                         const char *reason, bool success)
++    ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2) ATTRIBUTE_NONNULL(3);
+ 
+ 
+ #endif /* __VIR_DOMAIN_AUDIT_H__ */
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index 92475a2..5878360 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -145,6 +145,7 @@ virDomainAuditNetDevice;
+ virDomainAuditRedirdev;
+ virDomainAuditRNG;
+ virDomainAuditSecurityLabel;
++virDomainAuditShmem;
+ virDomainAuditStart;
+ virDomainAuditStop;
+ virDomainAuditVcpu;
+-- 
+2.10.0
+

@@ -1,0 +1,37 @@
+From 5357b85bd1454127075feb039ae1b3c9216fc77e Mon Sep 17 00:00:00 2001
+Message-Id: <5357b85bd1454127075feb039ae1b3c9216fc77e@dist-git>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Fri, 4 Nov 2016 10:29:47 +0100
+Subject: [PATCH] conf: Don't complicate find loop
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit d7107959c3cd9f113158b9165449f9c7d4754113)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1392031
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+---
+ src/conf/domain_conf.c | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 8afd2b0..25e4ba2 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -14884,12 +14884,9 @@ virDomainShmemDefFind(virDomainDefPtr def,
+ 
+     for (i = 0; i < def->nshmems; i++) {
+         if (virDomainShmemDefEquals(shmem, def->shmems[i]))
+-            break;
++            return i;
+     }
+ 
+-    if (i < def->nshmems)
+-        return i;
+-
+     return -1;
+ }
+ 
+-- 
+2.10.2
+

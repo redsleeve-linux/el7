@@ -1,0 +1,32 @@
+From d6d438826f7f60dcef0307fdfcf919fe8cc28aef Mon Sep 17 00:00:00 2001
+Message-Id: <d6d438826f7f60dcef0307fdfcf919fe8cc28aef@dist-git>
+From: John Ferlan <jferlan@redhat.com>
+Date: Mon, 25 Jul 2016 12:43:03 -0400
+Subject: [PATCH] storage: Fix error path
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1301021
+
+virStorageBackendCreateQemuImgCheckEncryption didn't return -1 if there
+were no secrets.
+
+(cherry picked from commit 9301b46298cba8a1b741249460da9effdf7a0375)
+Signed-off-by: John Ferlan <jferlan@redhat.com>
+---
+ src/storage/storage_backend.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/storage/storage_backend.c b/src/storage/storage_backend.c
+index 84ef4f2..d0eaaf9 100644
+--- a/src/storage/storage_backend.c
++++ b/src/storage/storage_backend.c
+@@ -1063,6 +1063,7 @@ virStorageBackendCreateQemuImgCheckEncryption(int format,
+         if (enc->nsecrets == 0) {
+             virReportError(VIR_ERR_XML_ERROR, "%s",
+                            _("no secret provided for luks encryption"));
++            return -1;
+         }
+     } else {
+         virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+-- 
+2.9.2
+

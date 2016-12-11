@@ -1,0 +1,200 @@
+From 2debcb6bcdca2837ff5b44480d9f6addeaba76bc Mon Sep 17 00:00:00 2001
+Message-Id: <2debcb6bcdca2837ff5b44480d9f6addeaba76bc@dist-git>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Thu, 21 Jul 2016 15:57:49 +0200
+Subject: [PATCH] Store USB port path as an array of integers
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+In preparation to tracking which USB addresses are occupied.
+Introduce two helper functions for printing the port path
+as a string and appending it to a virBuffer.
+
+(cherry picked from commit f820d5bf6fafa2932ee6b21c34fee4c464500ef3)
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1215968
+---
+ src/conf/device_conf.h   |  2 +-
+ src/conf/domain_addr.c   | 33 +++++++++++++++++++++++++++++++++
+ src/conf/domain_addr.h   | 12 ++++++++++++
+ src/conf/domain_conf.c   | 20 ++++++++++----------
+ src/libvirt_private.syms |  3 +++
+ src/qemu/qemu_command.c  |  5 ++++-
+ 6 files changed, 63 insertions(+), 12 deletions(-)
+
+diff --git a/src/conf/device_conf.h b/src/conf/device_conf.h
+index 9b79160..8443de6 100644
+--- a/src/conf/device_conf.h
++++ b/src/conf/device_conf.h
+@@ -84,7 +84,7 @@ typedef struct _virDomainDeviceCcidAddress {
+ 
+ typedef struct _virDomainDeviceUSBAddress {
+     unsigned int bus;
+-    char *port;
++    unsigned int port[VIR_DOMAIN_DEVICE_USB_MAX_PORT_DEPTH];
+ } virDomainDeviceUSBAddress, *virDomainDeviceUSBAddressPtr;
+ 
+ typedef struct _virDomainDeviceSpaprVioAddress {
+diff --git a/src/conf/domain_addr.c b/src/conf/domain_addr.c
+index 794270d..741d045 100644
+--- a/src/conf/domain_addr.c
++++ b/src/conf/domain_addr.c
+@@ -1251,3 +1251,36 @@ virDomainVirtioSerialAddrRelease(virDomainVirtioSerialAddrSetPtr addrs,
+     VIR_FREE(str);
+     return ret;
+ }
++
++
++bool
++virDomainUSBAddressPortIsValid(unsigned int *port)
++{
++    return port[0] != 0;
++}
++
++
++void
++virDomainUSBAddressPortFormatBuf(virBufferPtr buf,
++                                 unsigned int *port)
++{
++    size_t i;
++
++    for (i = 0; i < VIR_DOMAIN_DEVICE_USB_MAX_PORT_DEPTH; i++) {
++        if (port[i] == 0)
++            break;
++        virBufferAsprintf(buf, "%u.", port[i]);
++    }
++    virBufferTrim(buf, ".", -1);
++}
++
++
++char *
++virDomainUSBAddressPortFormat(unsigned int *port)
++{
++    virBuffer buf = VIR_BUFFER_INITIALIZER;
++    virDomainUSBAddressPortFormatBuf(&buf, port);
++    if (virBufferCheckError(&buf) < 0)
++        return NULL;
++    return virBufferContentAndReset(&buf);
++}
+diff --git a/src/conf/domain_addr.h b/src/conf/domain_addr.h
+index f3eda89..cfc74d5 100644
+--- a/src/conf/domain_addr.h
++++ b/src/conf/domain_addr.h
+@@ -237,4 +237,16 @@ virDomainVirtioSerialAddrRelease(virDomainVirtioSerialAddrSetPtr addrs,
+                                  virDomainDeviceInfoPtr info)
+     ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2);
+ 
++bool
++virDomainUSBAddressPortIsValid(unsigned int *port)
++    ATTRIBUTE_NONNULL(1);
++
++void
++virDomainUSBAddressPortFormatBuf(virBufferPtr buf,
++                                 unsigned int *port)
++    ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2);
++char *
++virDomainUSBAddressPortFormat(unsigned int *port)
++    ATTRIBUTE_NONNULL(1);
++
+ #endif /* __DOMAIN_ADDR_H__ */
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 0bd8a30..bc01633 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -32,6 +32,7 @@
+ #include "internal.h"
+ #include "virerror.h"
+ #include "datatypes.h"
++#include "domain_addr.h"
+ #include "domain_conf.h"
+ #include "snapshot_conf.h"
+ #include "viralloc.h"
+@@ -3313,8 +3314,6 @@ virDomainDeviceInfoCopy(virDomainDeviceInfoPtr dst,
+ void virDomainDeviceInfoClear(virDomainDeviceInfoPtr info)
+ {
+     VIR_FREE(info->alias);
+-    if (info->type == VIR_DOMAIN_DEVICE_ADDRESS_TYPE_USB)
+-        VIR_FREE(info->addr.usb.port);
+     memset(&info->addr, 0, sizeof(info->addr));
+     info->type = VIR_DOMAIN_DEVICE_ADDRESS_TYPE_NONE;
+     VIR_FREE(info->romfile);
+@@ -4860,7 +4859,11 @@ virDomainDeviceInfoFormat(virBufferPtr buf,
+ 
+     case VIR_DOMAIN_DEVICE_ADDRESS_TYPE_USB:
+         virBufferAsprintf(buf, " bus='%d'", info->addr.usb.bus);
+-        virBufferEscapeString(buf, " port='%s'", info->addr.usb.port);
++        if (virDomainUSBAddressPortIsValid(info->addr.usb.port)) {
++            virBufferAddLit(buf, " port='");
++            virDomainUSBAddressPortFormatBuf(buf, info->addr.usb.port);
++            virBufferAddLit(buf, "'");
++        }
+         break;
+ 
+     case VIR_DOMAIN_DEVICE_ADDRESS_TYPE_SPAPRVIO:
+@@ -5092,14 +5095,14 @@ virDomainDeviceCcidAddressParseXML(xmlNodePtr node,
+ }
+ 
+ static int
+-virDomainDeviceUSBAddressParsePort(char *port)
++virDomainDeviceUSBAddressParsePort(virDomainDeviceUSBAddressPtr addr,
++                                   char *port)
+ {
+-    unsigned int p;
+     char *tmp = port;
+     size_t i;
+ 
+     for (i = 0; i < VIR_DOMAIN_DEVICE_USB_MAX_PORT_DEPTH; i++) {
+-        if (virStrToLong_uip(tmp, &tmp, 10, &p) < 0)
++        if (virStrToLong_uip(tmp, &tmp, 10, &addr->port[i]) < 0)
+             break;
+ 
+         if (*tmp == '\0')
+@@ -5126,12 +5129,9 @@ virDomainDeviceUSBAddressParseXML(xmlNodePtr node,
+     port = virXMLPropString(node, "port");
+     bus = virXMLPropString(node, "bus");
+ 
+-    if (port && virDomainDeviceUSBAddressParsePort(port) < 0)
++    if (port && virDomainDeviceUSBAddressParsePort(addr, port) < 0)
+         goto cleanup;
+ 
+-    addr->port = port;
+-    port = NULL;
+-
+     if (bus &&
+         virStrToLong_uip(bus, NULL, 10, &addr->bus) < 0) {
+         virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index de620a8..44b78e0 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -107,6 +107,9 @@ virDomainPCIAddressSetGrow;
+ virDomainPCIAddressSlotInUse;
+ virDomainPCIAddressValidate;
+ virDomainPCIControllerModelToConnectType;
++virDomainUSBAddressPortFormat;
++virDomainUSBAddressPortFormatBuf;
++virDomainUSBAddressPortIsValid;
+ virDomainVirtioSerialAddrAssign;
+ virDomainVirtioSerialAddrAutoAssign;
+ virDomainVirtioSerialAddrIsComplete;
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index af6146f..300c01c 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -376,7 +376,10 @@ qemuBuildDeviceAddressStr(virBufferPtr buf,
+                                                        info->addr.usb.bus)))
+             goto cleanup;
+         virBufferAsprintf(buf, ",bus=%s.0", contAlias);
+-        virBufferEscapeString(buf, ",port=%s", info->addr.usb.port);
++        if (virDomainUSBAddressPortIsValid(info->addr.usb.port)) {
++            virBufferAddLit(buf, ",port=");
++            virDomainUSBAddressPortFormatBuf(buf, info->addr.usb.port);
++        }
+     } else if (info->type == VIR_DOMAIN_DEVICE_ADDRESS_TYPE_SPAPRVIO) {
+         if (info->addr.spaprvio.has_reg)
+             virBufferAsprintf(buf, ",reg=0x%llx", info->addr.spaprvio.reg);
+-- 
+2.9.2
+

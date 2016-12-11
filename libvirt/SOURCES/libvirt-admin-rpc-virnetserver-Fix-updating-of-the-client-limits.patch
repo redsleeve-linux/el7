@@ -1,0 +1,40 @@
+From e9c3dd530daa481e2c3e5b63bf19c0360ee225c2 Mon Sep 17 00:00:00 2001
+Message-Id: <e9c3dd530daa481e2c3e5b63bf19c0360ee225c2@dist-git>
+From: Erik Skultety <eskultet@redhat.com>
+Date: Tue, 2 Aug 2016 15:20:53 +0200
+Subject: [PATCH] admin: rpc: virnetserver: Fix updating of the client limits
+
+Commit 2737aaaf changed our policy for accepting new clients in a way, that
+instead of accepting new clients only to disconnect them immediately, since
+that would overcommit the limit, we temporarily disable polling for the
+dedicated file descriptor, so any new connection will queue on the socket.
+Commit 8b1f0469 then added the possibility to change the limits during runtime
+but it didn't re-enable polling for the previously disabled file descriptor,
+thus any new connection would still continue to queue on the socket. This patch
+forces an update of the services each time the limits were changed in some way.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1357776
+
+Signed-off-by: Erik Skultety <eskultet@redhat.com>
+(cherry picked from commit e9ce8a7d24a94f0be19705ae0e63aaa054c39e88)
+Signed-off-by: Erik Skultety <eskultet@redhat.com>
+---
+ src/rpc/virnetserver.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/rpc/virnetserver.c b/src/rpc/virnetserver.c
+index c5caef3..5b6bc4a 100644
+--- a/src/rpc/virnetserver.c
++++ b/src/rpc/virnetserver.c
+@@ -1071,6 +1071,8 @@ virNetServerSetClientLimits(virNetServerPtr srv,
+     if (maxClientsUnauth >= 0)
+         srv->nclients_unauth_max = maxClientsUnauth;
+ 
++    virNetServerCheckLimits(srv);
++
+     ret = 0;
+  cleanup:
+     virObjectUnlock(srv);
+-- 
+2.9.2
+

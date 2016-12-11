@@ -1,0 +1,120 @@
+From 1df0ec24ac710cd5ebeb4c3eb1fd589246e17e78 Mon Sep 17 00:00:00 2001
+Message-Id: <1df0ec24ac710cd5ebeb4c3eb1fd589246e17e78@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 24 Aug 2016 16:11:13 -0400
+Subject: [PATCH] qemu: setvcpus: Extract setting of maximum vcpu count
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1097930
+https://bugzilla.redhat.com/show_bug.cgi?id=1224341
+
+Setting of the maximum vcpu count is slightly semantically different
+thus split it into a self-contained func.
+
+(cherry picked from commit f10da2f55331afee5b302283518b6593e2dc706e)
+---
+ src/qemu/qemu_driver.c | 67 +++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 44 insertions(+), 23 deletions(-)
+
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index 4e703ae..520a628 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -4762,6 +4762,42 @@ qemuDomainSetVcpusAgent(virDomainObjPtr vm,
+ 
+ 
+ static int
++qemuDomainSetVcpusMax(virQEMUDriverPtr driver,
++                      virDomainDefPtr def,
++                      virDomainDefPtr persistentDef,
++                      unsigned int nvcpus)
++{
++    virQEMUDriverConfigPtr cfg = virQEMUDriverGetConfig(driver);
++    int ret = -1;
++
++    if (def) {
++        virReportError(VIR_ERR_OPERATION_UNSUPPORTED, "%s",
++                       _("maximum vcpu count of a live domain can't be modified"));
++        goto cleanup;
++    }
++
++    if (virDomainNumaGetCPUCountTotal(persistentDef->numa) > nvcpus) {
++        virReportError(VIR_ERR_INVALID_ARG, "%s",
++                       _("Number of CPUs in <numa> exceeds the desired "
++                         "maximum vcpu count"));
++        goto cleanup;
++    }
++
++    if (virDomainDefSetVcpusMax(persistentDef, nvcpus, driver->xmlopt) < 0)
++        goto cleanup;
++
++    if (virDomainSaveConfig(cfg->configDir, driver->caps, persistentDef) < 0)
++        goto cleanup;
++
++    ret = 0;
++
++ cleanup:
++    virObjectUnref(cfg);
++    return ret;
++}
++
++
++static int
+ qemuDomainSetVcpusFlags(virDomainPtr dom, unsigned int nvcpus,
+                         unsigned int flags)
+ {
+@@ -4805,14 +4841,12 @@ qemuDomainSetVcpusFlags(virDomainPtr dom, unsigned int nvcpus,
+     if (virDomainObjGetDefs(vm, flags, &def, &persistentDef) < 0)
+         goto endjob;
+ 
+-    if (def) {
+-        if (flags & VIR_DOMAIN_VCPU_MAXIMUM) {
+-            virReportError(VIR_ERR_OPERATION_UNSUPPORTED, "%s",
+-                           _("maximum vcpu count of a live domain can't be "
+-                             "modified"));
+-            goto endjob;
+-        }
++    if (flags & VIR_DOMAIN_VCPU_MAXIMUM) {
++        ret = qemuDomainSetVcpusMax(driver, def, persistentDef, nvcpus);
++        goto endjob;
++    }
+ 
++    if (def) {
+         if (nvcpus > virDomainDefGetVcpusMax(def)) {
+             virReportError(VIR_ERR_INVALID_ARG,
+                            _("requested vcpus is greater than max allowable"
+@@ -4823,8 +4857,7 @@ qemuDomainSetVcpusFlags(virDomainPtr dom, unsigned int nvcpus,
+     }
+ 
+     if (persistentDef) {
+-        if (!(flags & VIR_DOMAIN_VCPU_MAXIMUM) &&
+-            nvcpus > virDomainDefGetVcpusMax(persistentDef)) {
++        if (nvcpus > virDomainDefGetVcpusMax(persistentDef)) {
+             virReportError(VIR_ERR_INVALID_ARG,
+                            _("requested vcpus is greater than max allowable"
+                              " vcpus for the persistent domain: %u > %u"),
+@@ -4868,20 +4901,8 @@ qemuDomainSetVcpusFlags(virDomainPtr dom, unsigned int nvcpus,
+     }
+ 
+     if (persistentDef) {
+-        if (flags & VIR_DOMAIN_VCPU_MAXIMUM) {
+-            if (virDomainNumaGetCPUCountTotal(persistentDef->numa) > nvcpus) {
+-                virReportError(VIR_ERR_INVALID_ARG, "%s",
+-                               _("Number of CPUs in <numa> exceeds the desired "
+-                                 "maximum vcpu count"));
+-                goto endjob;
+-            }
+-
+-            if (virDomainDefSetVcpusMax(persistentDef, nvcpus, driver->xmlopt) < 0)
+-                goto endjob;
+-        } else {
+-            if (virDomainDefSetVcpus(persistentDef, nvcpus) < 0)
+-                goto endjob;
+-        }
++        if (virDomainDefSetVcpus(persistentDef, nvcpus) < 0)
++            goto endjob;
+ 
+         if (virDomainSaveConfig(cfg->configDir, driver->caps,
+                                 persistentDef) < 0)
+-- 
+2.10.0
+

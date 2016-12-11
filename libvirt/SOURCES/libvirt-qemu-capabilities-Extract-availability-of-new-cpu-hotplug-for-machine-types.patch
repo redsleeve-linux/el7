@@ -1,0 +1,228 @@
+From e8f1dbb6bb0d1d34615ccc7ae0a4cbc7b8afbe9f Mon Sep 17 00:00:00 2001
+Message-Id: <e8f1dbb6bb0d1d34615ccc7ae0a4cbc7b8afbe9f@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 24 Aug 2016 16:11:21 -0400
+Subject: [PATCH] qemu: capabilities: Extract availability of new cpu hotplug
+ for machine types
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1097930
+https://bugzilla.redhat.com/show_bug.cgi?id=1224341
+
+QEMU reports whether 'query-hotpluggable-cpus' is supported for a given
+machine type. Extract and cache the information using the capability
+cache.
+
+When copying the capabilities for a new start of qemu, mask out the
+presence of QEMU_CAPS_QUERY_HOTPLUGGABLE_CPUS if the machine type
+doesn't support hotpluggable cpus.
+
+(cherry picked from commit 920bbe5c15007b470a97cdc33353b17a7be5a55e)
+---
+ src/qemu/qemu_capabilities.c                     | 29 ++++++++++++-
+ src/qemu/qemu_capabilities.h                     |  2 +
+ src/qemu/qemu_monitor.h                          |  1 +
+ src/qemu/qemu_monitor_json.c                     |  3 ++
+ tests/qemucapabilitiesdata/caps_2.7.0.x86_64.xml | 54 ++++++++++++------------
+ 5 files changed, 61 insertions(+), 28 deletions(-)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index ffd54c5..5b68271 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -347,6 +347,7 @@ struct virQEMUCapsMachineType {
+     char *name;
+     char *alias;
+     unsigned int maxCpus;
++    bool hotplugCpus;
+ };
+ /*
+  * Update the XML parser/formatter when adding more
+@@ -546,6 +547,7 @@ virQEMUCapsParseMachineTypesStr(const char *output,
+         }
+         /* When parsing from command line we don't have information about maxCpus */
+         qemuCaps->machineTypes[qemuCaps->nmachineTypes-1].maxCpus = 0;
++        qemuCaps->machineTypes[qemuCaps->nmachineTypes-1].hotplugCpus = false;
+     } while ((p = next));
+ 
+ 
+@@ -2041,6 +2043,7 @@ virQEMUCapsPtr virQEMUCapsNewCopy(virQEMUCapsPtr qemuCaps)
+             VIR_STRDUP(ret->machineTypes[i].alias, qemuCaps->machineTypes[i].alias) < 0)
+             goto error;
+         ret->machineTypes[i].maxCpus = qemuCaps->machineTypes[i].maxCpus;
++        ret->machineTypes[i].hotplugCpus = qemuCaps->machineTypes[i].hotplugCpus;
+     }
+ 
+     return ret;
+@@ -2344,6 +2347,20 @@ int virQEMUCapsGetMachineMaxCpus(virQEMUCapsPtr qemuCaps,
+ }
+ 
+ 
++bool virQEMUCapsGetMachineHotplugCpus(virQEMUCapsPtr qemuCaps,
++                                      const char *name)
++{
++    size_t i;
++
++    for (i = 0; i < qemuCaps->nmachineTypes; i++) {
++        if (STREQ_NULLABLE(qemuCaps->machineTypes[i].name, name))
++            return qemuCaps->machineTypes[i].hotplugCpus;
++    }
++
++    return false;
++}
++
++
+ /**
+  * virQEMUCapsSetGICCapabilities:
+  * @qemuCaps: QEMU capabilities
+@@ -2498,6 +2515,7 @@ virQEMUCapsProbeQMPMachineTypes(virQEMUCapsPtr qemuCaps,
+             goto cleanup;
+ 
+         mach->maxCpus = machines[i]->maxCpus;
++        mach->hotplugCpus = machines[i]->hotplugCpus;
+ 
+         if (machines[i]->isDefault)
+             defIdx = qemuCaps->nmachineTypes - 1;
+@@ -2756,7 +2774,7 @@ int virQEMUCapsProbeQMP(virQEMUCapsPtr qemuCaps,
+  *   ...
+  *   <cpu name="pentium3"/>
+  *   ...
+- *   <machine name="pc-1.0" alias="pc" maxCpus="4"/>
++ *   <machine name="pc-1.0" alias="pc" hotplugCpus='yes' maxCpus="4"/>
+  *   ...
+  * </qemuCaps>
+  */
+@@ -2913,6 +2931,11 @@ virQEMUCapsLoadCache(virQEMUCapsPtr qemuCaps, const char *filename,
+                 goto cleanup;
+             }
+             VIR_FREE(str);
++
++            str = virXMLPropString(nodes[i], "hotplugCpus");
++            if (STREQ_NULLABLE(str, "yes"))
++                qemuCaps->machineTypes[i].hotplugCpus = true;
++            VIR_FREE(str);
+         }
+     }
+     VIR_FREE(nodes);
+@@ -3046,6 +3069,8 @@ virQEMUCapsFormatCache(virQEMUCapsPtr qemuCaps,
+         if (qemuCaps->machineTypes[i].alias)
+             virBufferEscapeString(&buf, " alias='%s'",
+                               qemuCaps->machineTypes[i].alias);
++        if (qemuCaps->machineTypes[i].hotplugCpus)
++            virBufferAddLit(&buf, " hotplugCpus='yes'");
+         virBufferAsprintf(&buf, " maxCpus='%u'/>\n",
+                           qemuCaps->machineTypes[i].maxCpus);
+     }
+@@ -3836,6 +3861,8 @@ virQEMUCapsFilterByMachineType(virQEMUCapsPtr qemuCaps,
+             virQEMUCapsClear(qemuCaps, filter->flags[j]);
+     }
+ 
++    if (!virQEMUCapsGetMachineHotplugCpus(qemuCaps, machineType))
++        virQEMUCapsClear(qemuCaps, QEMU_CAPS_QUERY_HOTPLUGGABLE_CPUS);
+ }
+ 
+ 
+diff --git a/src/qemu/qemu_capabilities.h b/src/qemu/qemu_capabilities.h
+index 68d1ea8..e05c178 100644
+--- a/src/qemu/qemu_capabilities.h
++++ b/src/qemu/qemu_capabilities.h
+@@ -427,6 +427,8 @@ const char *virQEMUCapsGetCanonicalMachine(virQEMUCapsPtr qemuCaps,
+                                            const char *name);
+ int virQEMUCapsGetMachineMaxCpus(virQEMUCapsPtr qemuCaps,
+                                  const char *name);
++bool virQEMUCapsGetMachineHotplugCpus(virQEMUCapsPtr qemuCaps,
++                                      const char *name);
+ int virQEMUCapsGetMachineTypesCaps(virQEMUCapsPtr qemuCaps,
+                                    size_t *nmachines,
+                                    virCapsGuestMachinePtr **machines);
+diff --git a/src/qemu/qemu_monitor.h b/src/qemu/qemu_monitor.h
+index 5ec2101..2269d60 100644
+--- a/src/qemu/qemu_monitor.h
++++ b/src/qemu/qemu_monitor.h
+@@ -853,6 +853,7 @@ struct _qemuMonitorMachineInfo {
+     bool isDefault;
+     char *alias;
+     unsigned int maxCpus;
++    bool hotplugCpus;
+ };
+ 
+ int qemuMonitorGetMachines(qemuMonitorPtr mon,
+diff --git a/src/qemu/qemu_monitor_json.c b/src/qemu/qemu_monitor_json.c
+index 5836e1e..8243b52 100644
+--- a/src/qemu/qemu_monitor_json.c
++++ b/src/qemu/qemu_monitor_json.c
+@@ -4979,6 +4979,9 @@ int qemuMonitorJSONGetMachines(qemuMonitorPtr mon,
+                            _("query-machines reply has malformed 'cpu-max' data"));
+             goto cleanup;
+         }
++
++        ignore_value(virJSONValueObjectGetBoolean(child, "hotpluggable-cpus",
++                                                  &info->hotplugCpus));
+     }
+ 
+     ret = n;
+diff --git a/tests/qemucapabilitiesdata/caps_2.7.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_2.7.0.x86_64.xml
+index 0f3c17a..8f878fe 100644
+--- a/tests/qemucapabilitiesdata/caps_2.7.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.7.0.x86_64.xml
+@@ -225,31 +225,31 @@
+   <cpu name='core2duo'/>
+   <cpu name='phenom'/>
+   <cpu name='qemu64'/>
+-  <machine name='pc-i440fx-2.7' alias='pc' maxCpus='255'/>
+-  <machine name='pc-0.12' maxCpus='255'/>
+-  <machine name='pc-i440fx-2.4' maxCpus='255'/>
+-  <machine name='pc-1.3' maxCpus='255'/>
+-  <machine name='pc-q35-2.7' alias='q35' maxCpus='255'/>
+-  <machine name='pc-q35-2.6' maxCpus='255'/>
+-  <machine name='pc-i440fx-1.7' maxCpus='255'/>
+-  <machine name='pc-i440fx-1.6' maxCpus='255'/>
+-  <machine name='pc-0.11' maxCpus='255'/>
+-  <machine name='pc-i440fx-2.3' maxCpus='255'/>
+-  <machine name='pc-0.10' maxCpus='255'/>
+-  <machine name='pc-1.2' maxCpus='255'/>
+-  <machine name='pc-i440fx-2.2' maxCpus='255'/>
+-  <machine name='isapc' maxCpus='1'/>
+-  <machine name='pc-q35-2.5' maxCpus='255'/>
+-  <machine name='pc-0.15' maxCpus='255'/>
+-  <machine name='pc-i440fx-1.5' maxCpus='255'/>
+-  <machine name='pc-0.14' maxCpus='255'/>
+-  <machine name='pc-i440fx-2.6' maxCpus='255'/>
+-  <machine name='pc-i440fx-1.4' maxCpus='255'/>
+-  <machine name='pc-i440fx-2.5' maxCpus='255'/>
+-  <machine name='pc-1.1' maxCpus='255'/>
+-  <machine name='pc-i440fx-2.1' maxCpus='255'/>
+-  <machine name='pc-1.0' maxCpus='255'/>
+-  <machine name='pc-i440fx-2.0' maxCpus='255'/>
+-  <machine name='pc-q35-2.4' maxCpus='255'/>
+-  <machine name='pc-0.13' maxCpus='255'/>
++  <machine name='pc-i440fx-2.7' alias='pc' hotplugCpus='yes' maxCpus='255'/>
++  <machine name='pc-0.12' hotplugCpus='yes' maxCpus='255'/>
++  <machine name='pc-i440fx-2.4' hotplugCpus='yes' maxCpus='255'/>
++  <machine name='pc-1.3' hotplugCpus='yes' maxCpus='255'/>
++  <machine name='pc-q35-2.7' alias='q35' hotplugCpus='yes' maxCpus='255'/>
++  <machine name='pc-q35-2.6' hotplugCpus='yes' maxCpus='255'/>
++  <machine name='pc-i440fx-1.7' hotplugCpus='yes' maxCpus='255'/>
++  <machine name='pc-i440fx-1.6' hotplugCpus='yes' maxCpus='255'/>
++  <machine name='pc-0.11' hotplugCpus='yes' maxCpus='255'/>
++  <machine name='pc-i440fx-2.3' hotplugCpus='yes' maxCpus='255'/>
++  <machine name='pc-0.10' hotplugCpus='yes' maxCpus='255'/>
++  <machine name='pc-1.2' hotplugCpus='yes' maxCpus='255'/>
++  <machine name='pc-i440fx-2.2' hotplugCpus='yes' maxCpus='255'/>
++  <machine name='isapc' hotplugCpus='yes' maxCpus='1'/>
++  <machine name='pc-q35-2.5' hotplugCpus='yes' maxCpus='255'/>
++  <machine name='pc-0.15' hotplugCpus='yes' maxCpus='255'/>
++  <machine name='pc-i440fx-1.5' hotplugCpus='yes' maxCpus='255'/>
++  <machine name='pc-0.14' hotplugCpus='yes' maxCpus='255'/>
++  <machine name='pc-i440fx-2.6' hotplugCpus='yes' maxCpus='255'/>
++  <machine name='pc-i440fx-1.4' hotplugCpus='yes' maxCpus='255'/>
++  <machine name='pc-i440fx-2.5' hotplugCpus='yes' maxCpus='255'/>
++  <machine name='pc-1.1' hotplugCpus='yes' maxCpus='255'/>
++  <machine name='pc-i440fx-2.1' hotplugCpus='yes' maxCpus='255'/>
++  <machine name='pc-1.0' hotplugCpus='yes' maxCpus='255'/>
++  <machine name='pc-i440fx-2.0' hotplugCpus='yes' maxCpus='255'/>
++  <machine name='pc-q35-2.4' hotplugCpus='yes' maxCpus='255'/>
++  <machine name='pc-0.13' hotplugCpus='yes' maxCpus='255'/>
+ </qemuCaps>
+-- 
+2.10.0
+

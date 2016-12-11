@@ -1,0 +1,11 @@
+diff -r 9fca0eafd25a fsg.sh.in
+--- a/fsg.sh.in	Wed Jul 22 22:29:27 2015 +0100
++++ b/fsg.sh.in	Wed Jul 22 23:22:08 2015 +0100
+@@ -90,7 +90,3 @@
+     openjdk/jdk/src/solaris/doc/sun/man/man1/javaws.1 \
+     openjdk/jdk/src/solaris/doc/sun/man/man1/ja/javaws.1
+ 
+-if test "x@ENABLE_NON_NSS_CURVES@" = "xno"; then
+-  echo "Syncing EC list with NSS"
+-  patch -Np0 < @abs_top_srcdir@/patches/pr2125.patch
+-fi

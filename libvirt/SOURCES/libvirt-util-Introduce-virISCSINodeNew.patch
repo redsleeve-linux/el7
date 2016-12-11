@@ -1,0 +1,131 @@
+From 8a7b904aff7216941b5f804d4d84d7163b3b6908 Mon Sep 17 00:00:00 2001
+Message-Id: <8a7b904aff7216941b5f804d4d84d7163b3b6908@dist-git>
+From: John Ferlan <jferlan@redhat.com>
+Date: Mon, 1 Aug 2016 13:31:52 -0400
+Subject: [PATCH] util: Introduce virISCSINodeNew
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1356436
+
+According to RFC 3721 (https://www.ietf.org/rfc/rfc3721.txt), there are
+two ways to "discover" targets in/for the iSCSI environment. Discovery
+is the process which allows the initiator to find the targets to which
+it has access and at least one address at which each target may be
+accessed.
+
+The method currently implemented in libvirt using the virISCSIScanTargets
+API is known as "SendTargets" discovery. This method is more useful when
+the target IP Address and TCP port information are available, e.g. in
+libvirt terms the "portal". It returns a list of targets for the portal.
+>From that list, the target can be found. This operation can also fill an
+iSCSI node table into which iSCSI logins may occur. Commit id '56057900'
+altered that filling by adding the "--op nonpersistent" since it was
+not necessarily desired to perform that for non libvirt related targets.
+
+The second method is "Static Configuration". This method not only needs
+the IP Address and TCP port (e.g. portal), but also the iSCSI target name.
+In libvirt terms this would be the device path field from the iSCSI pool
+<source> XML. This patch implements the second methodology using that
+required device path as the targetname.
+
+(cherry picked from commit ae65c908b7a8a951e0049ff7cd57f03644e1d5b8)
+Signed-off-by: John Ferlan <jferlan@redhat.com>
+---
+ src/libvirt_private.syms |  1 +
+ src/util/viriscsi.c      | 51 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/util/viriscsi.h      |  6 ++++++
+ 3 files changed, 58 insertions(+)
+
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index 4dd93d7..62c9dc5 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -1714,6 +1714,7 @@ iptablesRemoveUdpOutput;
+ virISCSIConnectionLogin;
+ virISCSIConnectionLogout;
+ virISCSIGetSession;
++virISCSINodeNew;
+ virISCSINodeUpdate;
+ virISCSIRescanLUNs;
+ virISCSIScanTargets;
+diff --git a/src/util/viriscsi.c b/src/util/viriscsi.c
+index e705517..504ffbd 100644
+--- a/src/util/viriscsi.c
++++ b/src/util/viriscsi.c
+@@ -444,6 +444,57 @@ virISCSIScanTargets(const char *portal,
+     return ret;
+ }
+ 
++/*
++ * virISCSINodeNew:
++ * @portal: address for iSCSI target
++ * @target: IQN and specific LUN target
++ *
++ * Usage of nonpersistent discovery in virISCSIScanTargets is useful primarily
++ * only when the target IQN is not known; however, since we have the target IQN
++ * usage of the "--op new" can be done. This avoids problems if "--op delete"
++ * had been used wiping out the static nodes determined by the scanning of
++ * all targets.
++ *
++ * NB: If an iSCSI node record is already created for this portal and
++ * target, subsequent "--op new" commands do not return an error.
++ *
++ * Returns 0 on success, -1 w/ error message on error
++ */
++int
++virISCSINodeNew(const char *portal,
++                const char *target)
++{
++    virCommandPtr cmd = NULL;
++    int status;
++    int ret = -1;
++
++    cmd = virCommandNewArgList(ISCSIADM,
++                               "--mode", "node",
++                               "--portal", portal,
++                               "--targetname", target,
++                               "--op", "new",
++                               NULL);
++
++    if (virCommandRun(cmd, &status) < 0) {
++        virReportError(VIR_ERR_INTERNAL_ERROR,
++                       _("Failed new node mode for target '%s'"),
++                       target);
++        goto cleanup;
++    }
++
++    if (status != 0) {
++        virReportError(VIR_ERR_INTERNAL_ERROR,
++                       _("%s failed new mode for target '%s' with status '%d'"),
++                       ISCSIADM, target, status);
++        goto cleanup;
++    }
++
++    ret = 0;
++ cleanup:
++    virCommandFree(cmd);
++    return ret;
++}
++
+ 
+ int
+ virISCSINodeUpdate(const char *portal,
+diff --git a/src/util/viriscsi.h b/src/util/viriscsi.h
+index 459249e..a44beea 100644
+--- a/src/util/viriscsi.h
++++ b/src/util/viriscsi.h
+@@ -54,6 +54,12 @@ virISCSIScanTargets(const char *portal,
+     ATTRIBUTE_NONNULL(1) ATTRIBUTE_RETURN_CHECK;
+ 
+ int
++virISCSINodeNew(const char *portal,
++                const char *target)
++    ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2)
++    ATTRIBUTE_RETURN_CHECK;
++
++int
+ virISCSINodeUpdate(const char *portal,
+                    const char *target,
+                    const char *name,
+-- 
+2.9.2
+

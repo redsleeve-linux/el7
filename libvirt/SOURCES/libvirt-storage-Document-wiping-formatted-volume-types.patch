@@ -1,0 +1,51 @@
+From d47f085cfcfc3913f6a3091488073609af4db61a Mon Sep 17 00:00:00 2001
+Message-Id: <d47f085cfcfc3913f6a3091488073609af4db61a@dist-git>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Tue, 2 Aug 2016 07:10:13 +0200
+Subject: [PATCH] storage: Document wiping formatted volume types
+
+When wiping a volume we just rewrite all the data of the volume, not
+only the content.  Since format gets overridden, we need to recreate the
+volume.  However we can't do that for every possible format out there.
+Since it was only coded for the ploop volume type, let's document what
+might be the consequences instead of forbidding it for every other
+format out there.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=868771
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit fa4eea8063b972a600903e3441bf04415529a7e9)
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+---
+ src/libvirt-storage.c | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/src/libvirt-storage.c b/src/libvirt-storage.c
+index cebe02f..48996ba 100644
+--- a/src/libvirt-storage.c
++++ b/src/libvirt-storage.c
+@@ -1725,11 +1725,16 @@ virStorageVolDelete(virStorageVolPtr vol,
+  * @vol: pointer to storage volume
+  * @flags: extra flags; not used yet, so callers should always pass 0
+  *
+- * Ensure data previously on a volume is not accessible to future
+- * reads. Also note, that depending on the actual volume
+- * representation, this call may not really overwrite the
+- * physical location of the volume. For instance, files stored
+- * journaled, log structured, copy-on-write, versioned, and
++ * Ensure data previously on a volume is not accessible to future reads.
++ *
++ * The data to be wiped may include the format and possibly size information,
++ * so non-raw images might become raw with a different size. It is storage
++ * backend dependent whether the format and size information is regenerated
++ * once the initial volume wipe is completed.
++ *
++ * Depending on the actual volume representation, this call may not
++ * overwrite the physical location of the volume. For instance, files
++ * stored journaled, log structured, copy-on-write, versioned, and
+  * network file systems are known to be problematic.
+  *
+  * Returns 0 on success, or -1 on error
+-- 
+2.9.2
+

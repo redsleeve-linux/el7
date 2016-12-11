@@ -1,0 +1,707 @@
+From 2e6ca604192638d5182bb109fc83590c6d1028ae Mon Sep 17 00:00:00 2001
+Message-Id: <2e6ca604192638d5182bb109fc83590c6d1028ae@dist-git>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Thu, 21 Jul 2016 15:57:55 +0200
+Subject: [PATCH] Assign addresses to USB devices
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Automatically assign addresses to USB devices.
+
+Just like reserving, this is only done for newly defined domains.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1215968
+(cherry picked from commit bf182078d96476c8d5557737c1107241f280a947)
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+---
+ src/conf/domain_addr.c                             | 133 ++++++++++++++++++++-
+ src/conf/domain_addr.h                             |  14 +++
+ src/libvirt_private.syms                           |   3 +
+ src/qemu/qemu_domain_address.c                     |  65 ++++++++++
+ .../qemuxml2argvdata/qemuxml2argv-bios-nvram.args  |   2 +-
+ tests/qemuxml2argvdata/qemuxml2argv-bios.args      |   2 +-
+ .../qemuxml2argv-controller-order.args             |   8 +-
+ .../qemuxml2argv-disk-usb-device-removable.args    |   3 +-
+ .../qemuxml2argv-disk-usb-device.args              |   2 +-
+ .../qemuxml2argv-graphics-spice-timeout.args       |   2 +-
+ .../qemuxml2argv-graphics-spice-usb-redir.args     |   2 +-
+ ...muxml2argv-hostdev-usb-address-device-boot.args |   3 +-
+ .../qemuxml2argv-hostdev-usb-address-device.args   |   2 +-
+ .../qemuxml2argv-hostdev-usb-address.args          |   2 +-
+ .../qemuxml2argv-hugepages-numa.args               |   6 +-
+ .../qemuxml2argv-input-usbmouse.args               |   2 +-
+ .../qemuxml2argv-input-usbtablet.args              |   2 +-
+ .../qemuxml2argv-pseries-usb-kbd.args              |   2 +-
+ .../qemuxml2argv-serial-spiceport.args             |   2 +-
+ .../qemuxml2argv-smartcard-controller.args         |   2 +-
+ .../qemuxml2argv-smartcard-host-certificates.args  |   2 +-
+ .../qemuxml2argv-smartcard-host.args               |   2 +-
+ ...emuxml2argv-smartcard-passthrough-spicevmc.args |   2 +-
+ .../qemuxml2argv-smartcard-passthrough-tcp.args    |   2 +-
+ .../qemuxml2argv-sound-device.args                 |   2 +-
+ .../qemuxml2argv-usb-ich9-autoassign.args          |  10 +-
+ .../qemuxml2argv-usb-port-autoassign.args          |   8 +-
+ .../qemuxml2argv-usb-port-missing.args             |   4 +-
+ .../qemuxml2argv-usb-redir-boot.args               |   2 +-
+ tests/qemuxml2argvdata/qemuxml2argv-usb-redir.args |   2 +-
+ .../qemuxml2argv-usb-xhci-autoassign.args          |  10 +-
+ 31 files changed, 260 insertions(+), 45 deletions(-)
+
+diff --git a/src/conf/domain_addr.c b/src/conf/domain_addr.c
+index bbac399..3b0c205 100644
+--- a/src/conf/domain_addr.c
++++ b/src/conf/domain_addr.c
+@@ -1489,7 +1489,7 @@ virDomainUSBAddressFindPort(virDomainUSBAddressSetPtr addrs,
+ 
+ #define VIR_DOMAIN_USB_HUB_PORTS 8
+ 
+-static int
++int
+ virDomainUSBAddressSetAddHub(virDomainUSBAddressSetPtr addrs,
+                              virDomainHubDefPtr hub)
+ {
+@@ -1564,6 +1564,119 @@ virDomainUSBAddressSetAddControllers(virDomainUSBAddressSetPtr addrs,
+ }
+ 
+ 
++static int
++virDomainUSBAddressFindFreePort(virDomainUSBAddressHubPtr hub,
++                                unsigned int *portpath,
++                                unsigned int level)
++{
++    unsigned int port;
++    ssize_t portIdx;
++    size_t i;
++
++    /* Look for free ports on the current hub */
++    if ((portIdx = virBitmapNextClearBit(hub->portmap, -1)) >= 0) {
++        port = portIdx + 1;
++        VIR_DEBUG("Found a free port %u at level %u", port, level);
++        portpath[level] = port;
++        return 0;
++    }
++
++    VIR_DEBUG("No ports found on hub %p, trying the hubs on it", hub);
++
++    if (level >= VIR_DOMAIN_DEVICE_USB_MAX_PORT_DEPTH - 1)
++        return -1;
++
++    /* Recursively search through the ports that contain another hub */
++    for (i = 0; i < hub->nports; i++) {
++        if (!hub->ports[i])
++            continue;
++
++        port = i + 1;
++        VIR_DEBUG("Looking at USB hub at level: %u port: %u", level, port);
++        if (virDomainUSBAddressFindFreePort(hub->ports[i], portpath,
++                                            level + 1) < 0)
++            continue;
++
++        portpath[level] = port;
++        return 0;
++    }
++    return -1;
++}
++
++
++/* Try to find a free port on bus @bus.
++ *
++ * Returns  0 on success
++ *         -1 on fatal error (OOM)
++ *         -2 if there is no bus at @bus or no free port on this bus
++ */
++static int
++virDomainUSBAddressAssignFromBus(virDomainUSBAddressSetPtr addrs,
++                                 virDomainDeviceInfoPtr info,
++                                 size_t bus)
++{
++    unsigned int portpath[VIR_DOMAIN_DEVICE_USB_MAX_PORT_DEPTH] = { 0 };
++    virDomainUSBAddressHubPtr hub = addrs->buses[bus];
++    char *portStr = NULL;
++    int ret = -1;
++
++    if (!hub)
++        return -2;
++
++    if (virDomainUSBAddressFindFreePort(hub, portpath, 0) < 0)
++        return -2;
++
++    /* we found a free port */
++    if (!(portStr = virDomainUSBAddressPortFormat(portpath)))
++        goto cleanup;
++
++    info->type = VIR_DOMAIN_DEVICE_ADDRESS_TYPE_USB;
++    info->addr.usb.bus = bus;
++    memcpy(info->addr.usb.port, portpath, sizeof(portpath));
++    VIR_DEBUG("Assigning USB addr bus=%u port=%s",
++              info->addr.usb.bus, portStr);
++    if (virDomainUSBAddressReserve(info, addrs) < 0)
++        goto cleanup;
++
++    ret = 0;
++ cleanup:
++    VIR_FREE(portStr);
++    return ret;
++}
++
++
++int
++virDomainUSBAddressAssign(virDomainUSBAddressSetPtr addrs,
++                          virDomainDeviceInfoPtr info)
++{
++    size_t i;
++    int rc;
++
++    if (info->type == VIR_DOMAIN_DEVICE_ADDRESS_TYPE_USB) {
++        VIR_DEBUG("A USB port on bus %u was requested", info->addr.usb.bus);
++        if (!addrs->buses[info->addr.usb.bus]) {
++            virReportError(VIR_ERR_XML_ERROR,
++                           _("USB bus %u requested but no controller "
++                             "with that index is present"), info->addr.usb.bus);
++            return -1;
++        }
++        rc = virDomainUSBAddressAssignFromBus(addrs, info, info->addr.usb.bus);
++        if (rc >= -1)
++            return rc;
++    } else {
++        VIR_DEBUG("Looking for a free USB port on all the buses");
++        for (i = 0; i < addrs->nbuses; i++) {
++            rc = virDomainUSBAddressAssignFromBus(addrs, info, i);
++            if (rc >= -1)
++                return rc;
++        }
++    }
++
++    virReportError(VIR_ERR_INTERNAL_ERROR, "%s", _("No free USB ports"));
++    return -1;
++}
++
++
+ int
+ virDomainUSBAddressReserve(virDomainDeviceInfoPtr info,
+                            void *data)
+@@ -1604,3 +1717,21 @@ virDomainUSBAddressReserve(virDomainDeviceInfoPtr info,
+     VIR_FREE(portStr);
+     return ret;
+ }
++
++
++int
++virDomainUSBAddressEnsure(virDomainUSBAddressSetPtr addrs,
++                          virDomainDeviceInfoPtr info)
++{
++    if (info->type == VIR_DOMAIN_DEVICE_ADDRESS_TYPE_NONE ||
++        (info->type == VIR_DOMAIN_DEVICE_ADDRESS_TYPE_USB &&
++         !virDomainUSBAddressPortIsValid(info->addr.usb.port))) {
++        if (virDomainUSBAddressAssign(addrs, info) < 0)
++            return -1;
++    } else if (info->type == VIR_DOMAIN_DEVICE_ADDRESS_TYPE_USB) {
++        if (virDomainUSBAddressReserve(info, addrs) < 0)
++            return -1;
++    }
++
++    return 0;
++}
+diff --git a/src/conf/domain_addr.h b/src/conf/domain_addr.h
+index a24d216..633aa16 100644
+--- a/src/conf/domain_addr.h
++++ b/src/conf/domain_addr.h
+@@ -273,10 +273,24 @@ virDomainUSBAddressSetPtr virDomainUSBAddressSetCreate(void);
+ int virDomainUSBAddressSetAddControllers(virDomainUSBAddressSetPtr addrs,
+                                          virDomainDefPtr def)
+     ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2);
++int
++virDomainUSBAddressSetAddHub(virDomainUSBAddressSetPtr addrs,
++                             virDomainHubDefPtr hub)
++    ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2);
+ void virDomainUSBAddressSetFree(virDomainUSBAddressSetPtr addrs);
+ 
+ int
+ virDomainUSBAddressReserve(virDomainDeviceInfoPtr info,
+                            void *data)
+     ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2);
++
++int
++virDomainUSBAddressAssign(virDomainUSBAddressSetPtr addrs,
++                          virDomainDeviceInfoPtr info)
++    ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2);
++
++int
++virDomainUSBAddressEnsure(virDomainUSBAddressSetPtr addrs,
++                          virDomainDeviceInfoPtr info)
++    ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2);
+ #endif /* __DOMAIN_ADDR_H__ */
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index f66ccf5..4727d39 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -107,11 +107,14 @@ virDomainPCIAddressSetGrow;
+ virDomainPCIAddressSlotInUse;
+ virDomainPCIAddressValidate;
+ virDomainPCIControllerModelToConnectType;
++virDomainUSBAddressAssign;
++virDomainUSBAddressEnsure;
+ virDomainUSBAddressPortFormat;
+ virDomainUSBAddressPortFormatBuf;
+ virDomainUSBAddressPortIsValid;
+ virDomainUSBAddressReserve;
+ virDomainUSBAddressSetAddControllers;
++virDomainUSBAddressSetAddHub;
+ virDomainUSBAddressSetCreate;
+ virDomainUSBAddressSetFree;
+ virDomainVirtioSerialAddrAssign;
+diff --git a/src/qemu/qemu_domain_address.c b/src/qemu/qemu_domain_address.c
+index f66b2f0..21c2ecf 100644
+--- a/src/qemu/qemu_domain_address.c
++++ b/src/qemu/qemu_domain_address.c
+@@ -1622,6 +1622,63 @@ qemuDomainAssignPCIAddresses(virDomainDefPtr def,
+ }
+ 
+ 
++struct qemuAssignUSBIteratorInfo {
++    virDomainUSBAddressSetPtr addrs;
++    size_t count;
++};
++
++
++static int
++qemuDomainAssignUSBPortsIterator(virDomainDeviceInfoPtr info,
++                                 void *opaque)
++{
++    struct qemuAssignUSBIteratorInfo *data = opaque;
++
++    if (info->type != VIR_DOMAIN_DEVICE_ADDRESS_TYPE_NONE)
++        return 0;
++
++    return virDomainUSBAddressAssign(data->addrs, info);
++}
++
++
++static int
++qemuDomainAssignUSBHubs(virDomainUSBAddressSetPtr addrs,
++                        virDomainDefPtr def)
++{
++    size_t i;
++
++    for (i = 0; i < def->nhubs; i++) {
++        virDomainHubDefPtr hub = def->hubs[i];
++        if (hub->type != VIR_DOMAIN_HUB_TYPE_USB)
++            continue;
++
++        if (hub->info.type == VIR_DOMAIN_DEVICE_ADDRESS_TYPE_USB &&
++            virDomainUSBAddressPortIsValid(hub->info.addr.usb.port))
++            continue;
++        if (virDomainUSBAddressAssign(addrs, &hub->info) < 0)
++            return -1;
++
++        if (virDomainUSBAddressSetAddHub(addrs, hub) < 0)
++            return -1;
++    }
++
++    return 0;
++}
++
++
++static int
++qemuDomainAssignUSBPorts(virDomainUSBAddressSetPtr addrs,
++                         virDomainDefPtr def)
++{
++    struct qemuAssignUSBIteratorInfo data = { .addrs = addrs };
++
++    return virDomainUSBDeviceDefForeach(def,
++                                        qemuDomainAssignUSBPortsIterator,
++                                        &data,
++                                        true);
++}
++
++
+ static int
+ qemuDomainAssignUSBAddresses(virDomainDefPtr def,
+                              virDomainObjPtr obj)
+@@ -1642,6 +1699,14 @@ qemuDomainAssignUSBAddresses(virDomainDefPtr def,
+ 
+     VIR_DEBUG("Existing USB addresses have been reserved");
+ 
++    if (qemuDomainAssignUSBHubs(addrs, def) < 0)
++        goto cleanup;
++
++    if (qemuDomainAssignUSBPorts(addrs, def) < 0)
++        goto cleanup;
++
++    VIR_DEBUG("Finished assigning USB ports");
++
+     if (obj && obj->privateData) {
+         priv = obj->privateData;
+         priv->usbaddrs = addrs;
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-bios-nvram.args b/tests/qemuxml2argvdata/qemuxml2argv-bios-nvram.args
+index fe4e419..848a029 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-bios-nvram.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-bios-nvram.args
+@@ -21,5 +21,5 @@ QEMU_AUDIO_DRV=none \
+ -drive file=/dev/HostVG/QEMUGuest1,format=raw,if=none,id=drive-ide0-0-0 \
+ -device ide-drive,bus=ide.0,unit=0,drive=drive-ide0-0-0,id=ide0-0-0 \
+ -serial pty \
+--device usb-tablet,id=input0 \
++-device usb-tablet,id=input0,bus=usb.0,port=1 \
+ -device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x3
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-bios.args b/tests/qemuxml2argvdata/qemuxml2argv-bios.args
+index 012af85..604b871 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-bios.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-bios.args
+@@ -22,5 +22,5 @@ QEMU_AUDIO_DRV=none \
+ -drive file=/dev/HostVG/QEMUGuest1,format=raw,if=none,id=drive-ide0-0-0 \
+ -device ide-drive,bus=ide.0,unit=0,drive=drive-ide0-0-0,id=ide0-0-0 \
+ -serial pty \
+--device usb-tablet,id=input0 \
++-device usb-tablet,id=input0,bus=usb.0,port=1 \
+ -device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x3
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-controller-order.args b/tests/qemuxml2argvdata/qemuxml2argv-controller-order.args
+index 70f3fdb..7b98beb 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-controller-order.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-controller-order.args
+@@ -19,8 +19,8 @@ nowait \
+ -boot order=cna,menu=off \
+ -device piix3-usb-uhci,id=usb,bus=pci.0,addr=0x1.0x2 \
+ -device virtio-serial-pci,id=virtio-serial0,bus=pci.0,addr=0x7 \
+--device usb-ccid,id=ccid0 \
+--device usb-hub,id=hub0 \
++-device usb-ccid,id=ccid0,bus=usb.0,port=1.1 \
++-device usb-hub,id=hub0,bus=usb.0,port=1 \
+ -drive file=/tmp/fdr.img,format=raw,if=none,id=drive-virtio-disk0,cache=none,\
+ aio=native \
+ -device virtio-blk-pci,bus=pci.0,addr=0x5,drive=drive-virtio-disk0,\
+@@ -37,10 +37,10 @@ media=cdrom,id=drive-ide0-1-0,readonly=on \
+ -chardev spicevmc,id=charchannel0,name=vdagent \
+ -device virtserialport,bus=virtio-serial0.0,nr=1,chardev=charchannel0,\
+ id=channel0,name=com.redhat.spice.0 \
+--device usb-tablet,id=input0 \
++-device usb-tablet,id=input0,bus=usb.0,port=1.2 \
+ -spice port=5901,tls-port=5902,addr=0.0.0.0,x509-dir=/etc/pki/libvirt-spice \
+ -vga cirrus \
+ -device intel-hda,id=sound0,bus=pci.0,addr=0x4 \
+ -device hda-duplex,id=sound0-codec0,bus=sound0.0,cad=0 \
+--device usb-host,hostbus=14,hostaddr=6,id=hostdev0 \
++-device usb-host,hostbus=14,hostaddr=6,id=hostdev0,bus=usb.0,port=2 \
+ -device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x6
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-disk-usb-device-removable.args b/tests/qemuxml2argvdata/qemuxml2argv-disk-usb-device-removable.args
+index 63e2bb2..7cda592 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-disk-usb-device-removable.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-disk-usb-device-removable.args
+@@ -21,5 +21,6 @@ QEMU_AUDIO_DRV=none \
+ -drive file=/dev/HostVG/QEMUGuest1,format=raw,if=none,id=drive-ide0-0-0 \
+ -device ide-drive,bus=ide.0,unit=0,drive=drive-ide0-0-0,id=ide0-0-0 \
+ -drive file=/tmp/usbdisk.img,format=raw,if=none,id=drive-usb-disk0 \
+--device usb-storage,drive=drive-usb-disk0,id=usb-disk0,removable=on \
++-device usb-storage,bus=usb.0,port=1,drive=drive-usb-disk0,id=usb-disk0,\
++removable=on \
+ -device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x3
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-disk-usb-device.args b/tests/qemuxml2argvdata/qemuxml2argv-disk-usb-device.args
+index 5d1ea98..03ef44f 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-disk-usb-device.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-disk-usb-device.args
+@@ -21,5 +21,5 @@ QEMU_AUDIO_DRV=none \
+ -drive file=/dev/HostVG/QEMUGuest1,format=raw,if=none,id=drive-ide0-0-0 \
+ -device ide-drive,bus=ide.0,unit=0,drive=drive-ide0-0-0,id=ide0-0-0 \
+ -drive file=/tmp/usbdisk.img,format=raw,if=none,id=drive-usb-disk0 \
+--device usb-storage,drive=drive-usb-disk0,id=usb-disk0 \
++-device usb-storage,bus=usb.0,port=1,drive=drive-usb-disk0,id=usb-disk0 \
+ -device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x3
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-graphics-spice-timeout.args b/tests/qemuxml2argvdata/qemuxml2argv-graphics-spice-timeout.args
+index c0be4ee..cead7d6 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-graphics-spice-timeout.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-graphics-spice-timeout.args
+@@ -28,7 +28,7 @@ media=cdrom,id=drive-ide0-1-0,readonly=on \
+ -device rtl8139,vlan=0,id=net0,mac=52:54:00:71:70:89,bus=pci.0,addr=0x7 \
+ -net tap,fd=3,vlan=0,name=hostnet0 \
+ -serial pty \
+--device usb-tablet,id=input0 \
++-device usb-tablet,id=input0,bus=usb.0,port=1 \
+ -spice port=5900,addr=127.0.0.1 \
+ -vga std \
+ -device AC97,id=sound0,bus=pci.0,addr=0x3 \
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-graphics-spice-usb-redir.args b/tests/qemuxml2argvdata/qemuxml2argv-graphics-spice-usb-redir.args
+index fa248b3..3f00da4 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-graphics-spice-usb-redir.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-graphics-spice-usb-redir.args
+@@ -30,7 +30,7 @@ zlib-glz-wan-compression=auto,playback-compression=on,streaming-video=filter,\
+ disable-copy-paste \
+ -vga cirrus \
+ -chardev socket,id=charredir0,host=localhost,port=4000 \
+--device usb-redir,chardev=charredir0,id=redir0 \
++-device usb-redir,chardev=charredir0,id=redir0,bus=usb.0,port=1 \
+ -chardev spicevmc,id=charredir1,name=usbredir \
+ -device usb-redir,chardev=charredir1,id=redir1,bus=usb.0,port=4 \
+ -device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x3
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-hostdev-usb-address-device-boot.args b/tests/qemuxml2argvdata/qemuxml2argv-hostdev-usb-address-device-boot.args
+index 8c00055..ddf90c0 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-hostdev-usb-address-device-boot.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-hostdev-usb-address-device-boot.args
+@@ -19,5 +19,6 @@ QEMU_AUDIO_DRV=none \
+ -usb \
+ -drive file=/dev/HostVG/QEMUGuest1,format=raw,if=none,id=drive-ide0-0-0 \
+ -device ide-drive,bus=ide.0,unit=0,drive=drive-ide0-0-0,id=ide0-0-0 \
+--device usb-host,hostbus=14,hostaddr=6,id=hostdev0,bootindex=1 \
++-device usb-host,hostbus=14,hostaddr=6,id=hostdev0,bootindex=1,bus=usb.0,\
++port=1 \
+ -device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x3
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-hostdev-usb-address-device.args b/tests/qemuxml2argvdata/qemuxml2argv-hostdev-usb-address-device.args
+index b5e6834..7883c61 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-hostdev-usb-address-device.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-hostdev-usb-address-device.args
+@@ -20,5 +20,5 @@ QEMU_AUDIO_DRV=none \
+ -usb \
+ -drive file=/dev/HostVG/QEMUGuest1,format=raw,if=none,id=drive-ide0-0-0 \
+ -device ide-drive,bus=ide.0,unit=0,drive=drive-ide0-0-0,id=ide0-0-0 \
+--device usb-host,hostbus=14,hostaddr=6,id=hostdev0 \
++-device usb-host,hostbus=14,hostaddr=6,id=hostdev0,bus=usb.0,port=1 \
+ -device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x3
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-hostdev-usb-address.args b/tests/qemuxml2argvdata/qemuxml2argv-hostdev-usb-address.args
+index bb5d55a..d1c3e8f 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-hostdev-usb-address.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-hostdev-usb-address.args
+@@ -19,4 +19,4 @@ QEMU_AUDIO_DRV=none \
+ -usb \
+ -drive file=/dev/HostVG/QEMUGuest1,format=raw,if=none,id=drive-ide0-0-0 \
+ -device ide-drive,bus=ide.0,unit=0,drive=drive-ide0-0-0,id=ide0-0-0 \
+--device usb-host,hostbus=14,hostaddr=6,id=hostdev0
++-device usb-host,hostbus=14,hostaddr=6,id=hostdev0,bus=usb.0,port=1
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-hugepages-numa.args b/tests/qemuxml2argvdata/qemuxml2argv-hugepages-numa.args
+index c5a9e53..5c356ef 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-hugepages-numa.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-hugepages-numa.args
+@@ -46,7 +46,7 @@ id=channel0,name=org.qemu.guest_agent.0 \
+ -chardev spicevmc,id=charchannel1,name=vdagent \
+ -device virtserialport,bus=virtio-serial0.0,nr=2,chardev=charchannel1,\
+ id=channel1,name=com.redhat.spice.0 \
+--device usb-tablet,id=input0 \
++-device usb-tablet,id=input0,bus=usb.0,port=1 \
+ -spice port=5901,tls-port=5902,addr=127.0.0.1,x509-dir=/etc/pki/libvirt-spice \
+ -vga qxl \
+ -global qxl-vga.ram_size=67108864 \
+@@ -54,7 +54,7 @@ id=channel1,name=com.redhat.spice.0 \
+ -device intel-hda,id=sound0,bus=pci.0,addr=0x4 \
+ -device hda-duplex,id=sound0-codec0,bus=sound0.0,cad=0 \
+ -chardev spicevmc,id=charredir0,name=usbredir \
+--device usb-redir,chardev=charredir0,id=redir0 \
++-device usb-redir,chardev=charredir0,id=redir0,bus=usb.0,port=2 \
+ -chardev spicevmc,id=charredir1,name=usbredir \
+--device usb-redir,chardev=charredir1,id=redir1 \
++-device usb-redir,chardev=charredir1,id=redir1,bus=usb.0,port=3 \
+ -device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x8
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-input-usbmouse.args b/tests/qemuxml2argvdata/qemuxml2argv-input-usbmouse.args
+index bd0e5c6..df96e6a 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-input-usbmouse.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-input-usbmouse.args
+@@ -19,4 +19,4 @@ QEMU_AUDIO_DRV=none \
+ -usb \
+ -drive file=/dev/HostVG/QEMUGuest1,format=raw,if=none,id=drive-ide0-0-0 \
+ -device ide-drive,bus=ide.0,unit=0,drive=drive-ide0-0-0,id=ide0-0-0 \
+--device usb-mouse,id=input0
++-device usb-mouse,id=input0,bus=usb.0,port=1
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-input-usbtablet.args b/tests/qemuxml2argvdata/qemuxml2argv-input-usbtablet.args
+index 294515f..faf21d5 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-input-usbtablet.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-input-usbtablet.args
+@@ -19,4 +19,4 @@ QEMU_AUDIO_DRV=none \
+ -usb \
+ -drive file=/dev/HostVG/QEMUGuest1,format=raw,if=none,id=drive-ide0-0-0 \
+ -device ide-drive,bus=ide.0,unit=0,drive=drive-ide0-0-0,id=ide0-0-0 \
+--device usb-tablet,id=input0
++-device usb-tablet,id=input0,bus=usb.0,port=1
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-pseries-usb-kbd.args b/tests/qemuxml2argvdata/qemuxml2argv-pseries-usb-kbd.args
+index 25c16cb..5887616 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-pseries-usb-kbd.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-pseries-usb-kbd.args
+@@ -22,4 +22,4 @@ server,nowait \
+ -device pci-ohci,id=usb,bus=pci,addr=0x1 \
+ -chardev pty,id=charserial0 \
+ -device spapr-vty,chardev=charserial0,reg=0x30000000 \
+--device usb-kbd,id=input0
++-device usb-kbd,id=input0,bus=usb.0,port=1
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-serial-spiceport.args b/tests/qemuxml2argvdata/qemuxml2argv-serial-spiceport.args
+index 246e854..f05c3f2 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-serial-spiceport.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-serial-spiceport.args
+@@ -23,7 +23,7 @@ server,nowait \
+ -device ide-drive,bus=ide.0,unit=0,drive=drive-ide0-0-0,id=ide0-0-0 \
+ -chardev spiceport,id=charserial0,name=org.qemu.console.serial.0 \
+ -device isa-serial,chardev=charserial0,id=serial0 \
+--device usb-tablet,id=input0 \
++-device usb-tablet,id=input0,bus=usb.0,port=1 \
+ -spice port=5903,tls-port=5904,addr=127.0.0.1,x509-dir=/etc/pki/libvirt-spice \
+ -device qxl-vga,id=video0,ram_size=67108864,vram_size=67108864,bus=pci.0,\
+ addr=0x2 \
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-smartcard-controller.args b/tests/qemuxml2argvdata/qemuxml2argv-smartcard-controller.args
+index d3135c2..beb2935 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-smartcard-controller.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-smartcard-controller.args
+@@ -19,7 +19,7 @@ server,nowait \
+ -mon chardev=charmonitor,id=monitor,mode=readline \
+ -no-acpi \
+ -boot c \
+--device usb-ccid,id=ccid0 \
++-device usb-ccid,id=ccid0,bus=usb.0,port=1 \
+ -usb \
+ -device ccid-card-emulated,backend=nss-emulated,id=smartcard0,bus=ccid0.0 \
+ -device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x3
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-smartcard-host-certificates.args b/tests/qemuxml2argvdata/qemuxml2argv-smartcard-host-certificates.args
+index 09ef26c..72cf24b 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-smartcard-host-certificates.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-smartcard-host-certificates.args
+@@ -19,7 +19,7 @@ server,nowait \
+ -mon chardev=charmonitor,id=monitor,mode=readline \
+ -no-acpi \
+ -boot c \
+--device usb-ccid,id=ccid0 \
++-device usb-ccid,id=ccid0,bus=usb.0,port=1 \
+ -usb \
+ -device ccid-card-emulated,backend=certificates,cert1=cert1,cert2=cert2,\
+ cert3=cert3,db=/etc/pki/nssdb,id=smartcard0,bus=ccid0.0 \
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-smartcard-host.args b/tests/qemuxml2argvdata/qemuxml2argv-smartcard-host.args
+index d3135c2..beb2935 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-smartcard-host.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-smartcard-host.args
+@@ -19,7 +19,7 @@ server,nowait \
+ -mon chardev=charmonitor,id=monitor,mode=readline \
+ -no-acpi \
+ -boot c \
+--device usb-ccid,id=ccid0 \
++-device usb-ccid,id=ccid0,bus=usb.0,port=1 \
+ -usb \
+ -device ccid-card-emulated,backend=nss-emulated,id=smartcard0,bus=ccid0.0 \
+ -device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x3
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-smartcard-passthrough-spicevmc.args b/tests/qemuxml2argvdata/qemuxml2argv-smartcard-passthrough-spicevmc.args
+index b618507..cdca4c4 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-smartcard-passthrough-spicevmc.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-smartcard-passthrough-spicevmc.args
+@@ -19,7 +19,7 @@ server,nowait \
+ -mon chardev=charmonitor,id=monitor,mode=readline \
+ -no-acpi \
+ -boot c \
+--device usb-ccid,id=ccid0 \
++-device usb-ccid,id=ccid0,bus=usb.0,port=1 \
+ -usb \
+ -chardev spicevmc,id=charsmartcard0,name=smartcard \
+ -device ccid-card-passthru,chardev=charsmartcard0,id=smartcard0,bus=ccid0.0 \
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-smartcard-passthrough-tcp.args b/tests/qemuxml2argvdata/qemuxml2argv-smartcard-passthrough-tcp.args
+index e0fcb49..0c526c8 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-smartcard-passthrough-tcp.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-smartcard-passthrough-tcp.args
+@@ -19,7 +19,7 @@ server,nowait \
+ -mon chardev=charmonitor,id=monitor,mode=readline \
+ -no-acpi \
+ -boot c \
+--device usb-ccid,id=ccid0 \
++-device usb-ccid,id=ccid0,bus=usb.0,port=1 \
+ -usb \
+ -chardev socket,id=charsmartcard0,host=127.0.0.1,port=2001,server,nowait \
+ -device ccid-card-passthru,chardev=charsmartcard0,id=smartcard0,bus=ccid0.0 \
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-sound-device.args b/tests/qemuxml2argvdata/qemuxml2argv-sound-device.args
+index 8d846a0..b084f4e 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-sound-device.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-sound-device.args
+@@ -34,5 +34,5 @@ QEMU_AUDIO_DRV=none \
+ -device ich9-intel-hda,id=sound7,bus=pci.0,addr=0x8 \
+ -device hda-micro,id=sound7-codec0,bus=sound7.0,cad=0 \
+ -device hda-duplex,id=sound7-codec1,bus=sound7.0,cad=1 \
+--device usb-audio,id=sound8 \
++-device usb-audio,id=sound8,bus=usb.0,port=1 \
+ -device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x9
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-usb-ich9-autoassign.args b/tests/qemuxml2argvdata/qemuxml2argv-usb-ich9-autoassign.args
+index faaff95..db95851 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-usb-ich9-autoassign.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-usb-ich9-autoassign.args
+@@ -24,9 +24,9 @@ server,nowait \
+ addr=0x4 \
+ -device ich9-usb-uhci2,masterbus=usb.0,firstport=2,bus=pci.0,addr=0x4.0x1 \
+ -device ich9-usb-uhci3,masterbus=usb.0,firstport=4,bus=pci.0,addr=0x4.0x2 \
+--device usb-hub,id=hub0 \
+--device usb-hub,id=hub1 \
+--device usb-mouse,id=input0 \
+--device usb-mouse,id=input1 \
+--device usb-mouse,id=input2 \
++-device usb-hub,id=hub0,bus=usb.0,port=1 \
++-device usb-hub,id=hub1,bus=usb.0,port=2 \
++-device usb-mouse,id=input0,bus=usb.0,port=3 \
++-device usb-mouse,id=input1,bus=usb.0,port=4 \
++-device usb-mouse,id=input2,bus=usb.0,port=5 \
+ -device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x3
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-usb-port-autoassign.args b/tests/qemuxml2argvdata/qemuxml2argv-usb-port-autoassign.args
+index aa80919..ac5cfdd 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-usb-port-autoassign.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-usb-port-autoassign.args
+@@ -21,8 +21,8 @@ server,nowait \
+ -boot c \
+ -usb \
+ -device usb-hub,id=hub0,bus=usb.0,port=1 \
+--device usb-hub,id=hub1 \
+--device usb-mouse,id=input0 \
+--device usb-mouse,id=input1 \
+--device usb-mouse,id=input2 \
++-device usb-hub,id=hub1,bus=usb.0,port=2 \
++-device usb-mouse,id=input0,bus=usb.0,port=1.1 \
++-device usb-mouse,id=input1,bus=usb.0,port=1.2 \
++-device usb-mouse,id=input2,bus=usb.0,port=1.3 \
+ -device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x3
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-usb-port-missing.args b/tests/qemuxml2argvdata/qemuxml2argv-usb-port-missing.args
+index d43c58d..56c0750 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-usb-port-missing.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-usb-port-missing.args
+@@ -20,7 +20,7 @@ server,nowait \
+ -no-acpi \
+ -boot c \
+ -usb \
+--device usb-hub,id=hub0,bus=usb.0 \
+--device usb-hub,id=hub1,bus=usb.0 \
++-device usb-hub,id=hub0,bus=usb.0,port=1 \
++-device usb-hub,id=hub1,bus=usb.0,port=2 \
+ -device usb-mouse,id=input0,bus=usb.0 \
+ -device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x3
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-usb-redir-boot.args b/tests/qemuxml2argvdata/qemuxml2argv-usb-redir-boot.args
+index 53b9040..bc47963 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-usb-redir-boot.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-usb-redir-boot.args
+@@ -24,7 +24,7 @@ addr=0x4 \
+ -device ich9-usb-uhci2,masterbus=usb.0,firstport=2,bus=pci.0,addr=0x4.0x1 \
+ -device ich9-usb-uhci3,masterbus=usb.0,firstport=4,bus=pci.0,addr=0x4.0x2 \
+ -chardev socket,id=charredir0,host=localhost,port=4000 \
+--device usb-redir,chardev=charredir0,id=redir0,bootindex=1 \
++-device usb-redir,chardev=charredir0,id=redir0,bootindex=1,bus=usb.0,port=1 \
+ -chardev spicevmc,id=charredir1,name=usbredir \
+ -device usb-redir,chardev=charredir1,id=redir1,bootindex=2,bus=usb.0,port=4 \
+ -device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x3
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-usb-redir.args b/tests/qemuxml2argvdata/qemuxml2argv-usb-redir.args
+index 08e8f3e..0999c97 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-usb-redir.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-usb-redir.args
+@@ -25,7 +25,7 @@ addr=0x4 \
+ -device ich9-usb-uhci2,masterbus=usb.0,firstport=2,bus=pci.0,addr=0x4.0x1 \
+ -device ich9-usb-uhci3,masterbus=usb.0,firstport=4,bus=pci.0,addr=0x4.0x2 \
+ -chardev socket,id=charredir0,host=localhost,port=4000 \
+--device usb-redir,chardev=charredir0,id=redir0 \
++-device usb-redir,chardev=charredir0,id=redir0,bus=usb.0,port=1 \
+ -chardev spicevmc,id=charredir1,name=usbredir \
+ -device usb-redir,chardev=charredir1,id=redir1,bus=usb.0,port=4 \
+ -device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x3
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-usb-xhci-autoassign.args b/tests/qemuxml2argvdata/qemuxml2argv-usb-xhci-autoassign.args
+index 7c5e6a5..15a9d29 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-usb-xhci-autoassign.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-usb-xhci-autoassign.args
+@@ -20,8 +20,8 @@ server,nowait \
+ -no-acpi \
+ -boot c \
+ -device nec-usb-xhci,p2=8,p3=8,id=usb,bus=pci.0,addr=0x3 \
+--device usb-hub,id=hub0 \
+--device usb-hub,id=hub1 \
+--device usb-mouse,id=input0 \
+--device usb-mouse,id=input1 \
+--device usb-mouse,id=input2
++-device usb-hub,id=hub0,bus=usb.0,port=1 \
++-device usb-hub,id=hub1,bus=usb.0,port=2 \
++-device usb-mouse,id=input0,bus=usb.0,port=3 \
++-device usb-mouse,id=input1,bus=usb.0,port=4 \
++-device usb-mouse,id=input2,bus=usb.0,port=5
+-- 
+2.9.2
+

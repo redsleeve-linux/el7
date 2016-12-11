@@ -1,0 +1,211 @@
+From 85a402fb00157daedc875f1047a2e4fe54db601a Mon Sep 17 00:00:00 2001
+Message-Id: <85a402fb00157daedc875f1047a2e4fe54db601a@dist-git>
+From: Pavel Hrdina <phrdina@redhat.com>
+Date: Mon, 25 Jul 2016 16:26:51 +0200
+Subject: [PATCH] qemu_monitor_json: add support to search QOM device path by
+ device alias
+
+Commit ce745914 introduced detection of actual video ram sizes to fix migration
+if QEMU decide to modify the values provided by libvirt.  This works perfectly
+for domains with number of video devices up to two.
+
+If there are more than two video devices in the guest all the secondary devices
+in the XML will have the same memory values.  This is because our current code
+search for QOM device path only by the device type name and all the secondary
+video devices has the same name "qxl".
+
+This patch introduces a new search function that will try to search a QOM device
+path using also device's alias if the alias is available. After that it will
+fallback to the old recursive code if the alias search found no results.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1358728
+
+Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit 4a585a884fc8cfd11f6206cd6f1a7db824395e86)
+Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
+---
+ src/qemu/qemu_monitor.c      | 11 ++++---
+ src/qemu/qemu_monitor_json.c | 77 ++++++++++++++++++++++++++++++++++++++------
+ src/qemu/qemu_monitor_json.h |  3 +-
+ 3 files changed, 77 insertions(+), 14 deletions(-)
+
+diff --git a/src/qemu/qemu_monitor.c b/src/qemu/qemu_monitor.c
+index 1d3d98a..e3a5e0b 100644
+--- a/src/qemu/qemu_monitor.c
++++ b/src/qemu/qemu_monitor.c
+@@ -1084,10 +1084,11 @@ qemuMonitorInitBalloonObjectPath(qemuMonitorPtr mon)
+     }
+     mon->ballooninit = true;
+ 
+-    flp_ret = qemuMonitorJSONFindLinkPath(mon, "virtio-balloon-pci", &path);
++    flp_ret = qemuMonitorJSONFindLinkPath(mon, "virtio-balloon-pci", NULL, &path);
+     if (flp_ret == -2) {
+         /* pci object was not found retry search for ccw object */
+-        if (qemuMonitorJSONFindLinkPath(mon, "virtio-balloon-ccw", &path) < 0)
++        if (qemuMonitorJSONFindLinkPath(mon, "virtio-balloon-ccw",
++                                        NULL, &path) < 0)
+             return;
+     } else if (flp_ret < 0) {
+         return;
+@@ -1138,7 +1139,8 @@ qemuMonitorUpdateVideoMemorySize(qemuMonitorPtr mon,
+     QEMU_CHECK_MONITOR(mon);
+ 
+     if (mon->json) {
+-        ret = qemuMonitorJSONFindLinkPath(mon, videoName, &path);
++        ret = qemuMonitorJSONFindLinkPath(mon, videoName,
++                                          video->info.alias, &path);
+         if (ret < 0) {
+             if (ret == -2)
+                 virReportError(VIR_ERR_INTERNAL_ERROR,
+@@ -1173,7 +1175,8 @@ qemuMonitorUpdateVideoVram64Size(qemuMonitorPtr mon,
+     QEMU_CHECK_MONITOR(mon);
+ 
+     if (mon->json) {
+-        ret = qemuMonitorJSONFindLinkPath(mon, videoName, &path);
++        ret = qemuMonitorJSONFindLinkPath(mon, videoName,
++                                          video->info.alias, &path);
+         if (ret < 0) {
+             if (ret == -2)
+                 virReportError(VIR_ERR_INTERNAL_ERROR,
+diff --git a/src/qemu/qemu_monitor_json.c b/src/qemu/qemu_monitor_json.c
+index 2890872..74bbf75 100644
+--- a/src/qemu/qemu_monitor_json.c
++++ b/src/qemu/qemu_monitor_json.c
+@@ -6946,7 +6946,58 @@ qemuMonitorJSONGetMemoryDeviceInfo(qemuMonitorPtr mon,
+ 
+ 
+ /**
+- * Recursively search for a QOM object link.
++ * Search for a QOM object link by alias and name.
++ *
++ * For @alias and @name, this function tries to find QOM object named @name
++ * with id @alias in /machine/peripheral.
++ *
++ * Returns:
++ *   0  - Found
++ *  -1  - Error - bail out
++ *  -2  - Not found
++ */
++static int
++qemuMonitorJSONFindObjectPathByAlias(qemuMonitorPtr mon,
++                                     const char *name,
++                                     const char *alias,
++                                     char **path)
++{
++    qemuMonitorJSONListPathPtr *paths = NULL;
++    char *child = NULL;
++    int npaths;
++    int ret = -1;
++    size_t i;
++
++    npaths = qemuMonitorJSONGetObjectListPaths(mon, "/machine/peripheral", &paths);
++    if (npaths < 0)
++        return -1;
++
++    if (virAsprintf(&child, "child<%s>", name) < 0)
++        goto cleanup;
++
++    for (i = 0; i < npaths; i++) {
++        if (STREQ(paths[i]->name, alias) && STREQ(paths[i]->type, child)) {
++            if (virAsprintf(path, "/machine/peripheral/%s", alias) < 0)
++                goto cleanup;
++
++            ret = 0;
++            goto cleanup;
++        }
++    }
++
++    ret = -2;
++
++ cleanup:
++    for (i = 0; i < npaths; i++)
++        qemuMonitorJSONListPathFree(paths[i]);
++    VIR_FREE(paths);
++    VIR_FREE(child);
++    return ret;
++}
++
++
++/**
++ * Recursively search for a QOM object link only by name.
+  *
+  * For @name, this function finds the first QOM object
+  * named @name, recursively going through all the "child<>"
+@@ -6958,10 +7009,10 @@ qemuMonitorJSONGetMemoryDeviceInfo(qemuMonitorPtr mon,
+  *  -2  - Not found
+  */
+ static int
+-qemuMonitorJSONFindObjectPath(qemuMonitorPtr mon,
+-                              const char *curpath,
+-                              const char *name,
+-                              char **path)
++qemuMonitorJSONFindObjectPathByName(qemuMonitorPtr mon,
++                                    const char *curpath,
++                                    const char *name,
++                                    char **path)
+ {
+     ssize_t i, npaths = 0;
+     int ret = -2;
+@@ -6995,7 +7046,7 @@ qemuMonitorJSONFindObjectPath(qemuMonitorPtr mon,
+                 goto cleanup;
+             }
+ 
+-            ret = qemuMonitorJSONFindObjectPath(mon, nextpath, name, path);
++            ret = qemuMonitorJSONFindObjectPathByName(mon, nextpath, name, path);
+             VIR_FREE(nextpath);
+         }
+     }
+@@ -7012,8 +7063,9 @@ qemuMonitorJSONFindObjectPath(qemuMonitorPtr mon,
+ /**
+  * Recursively search for a QOM object link.
+  *
+- * For @name, this function finds the first QOM object
+- * pointed to by a link in the form of 'link<@name>'
++ * For @name and @alias, this function finds the first QOM object.
++ * The search is done at first by @alias and @name and if nothing was found
++ * it continues recursively only with @name.
+  *
+  * Returns:
+  *   0  - Found
+@@ -7023,15 +7075,22 @@ qemuMonitorJSONFindObjectPath(qemuMonitorPtr mon,
+ int
+ qemuMonitorJSONFindLinkPath(qemuMonitorPtr mon,
+                             const char *name,
++                            const char *alias,
+                             char **path)
+ {
+     char *linkname = NULL;
+     int ret = -1;
+ 
++    if (alias) {
++        ret = qemuMonitorJSONFindObjectPathByAlias(mon, name, alias, path);
++        if (ret == -1 || ret == 0)
++            return ret;
++    }
++
+     if (virAsprintf(&linkname, "link<%s>", name) < 0)
+         return -1;
+ 
+-    ret = qemuMonitorJSONFindObjectPath(mon, "/", linkname, path);
++    ret = qemuMonitorJSONFindObjectPathByName(mon, "/", linkname, path);
+     VIR_FREE(linkname);
+     return ret;
+ }
+diff --git a/src/qemu/qemu_monitor_json.h b/src/qemu/qemu_monitor_json.h
+index c573ca2..114b567 100644
+--- a/src/qemu/qemu_monitor_json.h
++++ b/src/qemu/qemu_monitor_json.h
+@@ -487,8 +487,9 @@ int qemuMonitorJSONGetMemoryDeviceInfo(qemuMonitorPtr mon,
+ 
+ int qemuMonitorJSONFindLinkPath(qemuMonitorPtr mon,
+                                 const char *name,
++                                const char *alias,
+                                 char **path)
+-    ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2) ATTRIBUTE_NONNULL(3);
++    ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2) ATTRIBUTE_NONNULL(4);
+ 
+ int qemuMonitorJSONMigrateIncoming(qemuMonitorPtr mon,
+                                    const char *uri)
+-- 
+2.9.2
+

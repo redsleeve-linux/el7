@@ -1,0 +1,203 @@
+From 758b25f47af79cd6da43a4bc13599b0bb64afef1 Mon Sep 17 00:00:00 2001
+Message-Id: <758b25f47af79cd6da43a4bc13599b0bb64afef1@dist-git>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Thu, 21 Jul 2016 15:57:56 +0200
+Subject: [PATCH] Assign addresses on USB device hotplug
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+USB disks, redirected devices, host devices and serial devices
+are supported.
+
+(cherry picked from commit f2a781ceb075073a6033b96649f41501148d3c0c)
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1215968
+---
+ src/conf/domain_addr.c                             | 30 ++++++++++++++++++++++
+ src/conf/domain_addr.h                             |  5 ++++
+ src/libvirt_private.syms                           |  1 +
+ src/qemu/qemu_domain_address.c                     |  5 ++++
+ src/qemu/qemu_hotplug.c                            | 27 +++++++++++++++++++
+ .../qemuhotplug-hotplug-base-live+disk-usb.xml     |  1 +
+ 6 files changed, 69 insertions(+)
+
+diff --git a/src/conf/domain_addr.c b/src/conf/domain_addr.c
+index 3b0c205..365ee40 100644
+--- a/src/conf/domain_addr.c
++++ b/src/conf/domain_addr.c
+@@ -1735,3 +1735,33 @@ virDomainUSBAddressEnsure(virDomainUSBAddressSetPtr addrs,
+ 
+     return 0;
+ }
++
++
++int
++virDomainUSBAddressRelease(virDomainUSBAddressSetPtr addrs,
++                           virDomainDeviceInfoPtr info)
++{
++    virDomainUSBAddressHubPtr targetHub = NULL;
++    char *portStr = NULL;
++    int targetPort;
++    int ret = -1;
++
++    if (info->type != VIR_DOMAIN_DEVICE_ADDRESS_TYPE_USB ||
++        !virDomainUSBAddressPortIsValid(info->addr.usb.port))
++        return 0;
++
++    portStr = virDomainUSBAddressPortFormat(info->addr.usb.port);
++    VIR_DEBUG("Releasing USB addr bus=%u port=%s", info->addr.usb.bus, portStr);
++
++    if (!(targetHub = virDomainUSBAddressFindPort(addrs, info, &targetPort,
++                                                  portStr)))
++        goto cleanup;
++
++    ignore_value(virBitmapClearBit(targetHub->portmap, targetPort));
++
++    ret = 0;
++
++ cleanup:
++    VIR_FREE(portStr);
++    return ret;
++}
+diff --git a/src/conf/domain_addr.h b/src/conf/domain_addr.h
+index 633aa16..cc36aed 100644
+--- a/src/conf/domain_addr.h
++++ b/src/conf/domain_addr.h
+@@ -293,4 +293,9 @@ int
+ virDomainUSBAddressEnsure(virDomainUSBAddressSetPtr addrs,
+                           virDomainDeviceInfoPtr info)
+     ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2);
++
++int
++virDomainUSBAddressRelease(virDomainUSBAddressSetPtr addrs,
++                           virDomainDeviceInfoPtr info)
++    ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2);
+ #endif /* __DOMAIN_ADDR_H__ */
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index 4727d39..e23bfe3 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -112,6 +112,7 @@ virDomainUSBAddressEnsure;
+ virDomainUSBAddressPortFormat;
+ virDomainUSBAddressPortFormatBuf;
+ virDomainUSBAddressPortIsValid;
++virDomainUSBAddressRelease;
+ virDomainUSBAddressReserve;
+ virDomainUSBAddressSetAddControllers;
+ virDomainUSBAddressSetAddHub;
+diff --git a/src/qemu/qemu_domain_address.c b/src/qemu/qemu_domain_address.c
+index 21c2ecf..7499026 100644
+--- a/src/qemu/qemu_domain_address.c
++++ b/src/qemu/qemu_domain_address.c
+@@ -1772,4 +1772,9 @@ qemuDomainReleaseDeviceAddress(virDomainObjPtr vm,
+         virDomainVirtioSerialAddrRelease(priv->vioserialaddrs, info) < 0)
+         VIR_WARN("Unable to release virtio-serial address on %s",
+                  NULLSTR(devstr));
++    if (info->type == VIR_DOMAIN_DEVICE_ADDRESS_TYPE_USB &&
++        priv->usbaddrs &&
++        virDomainUSBAddressRelease(priv->usbaddrs, info) < 0)
++        VIR_WARN("Unable to release USB address on %s",
++                 NULLSTR(devstr));
+ }
+diff --git a/src/qemu/qemu_hotplug.c b/src/qemu/qemu_hotplug.c
+index cba0e8c..36885a3 100644
+--- a/src/qemu/qemu_hotplug.c
++++ b/src/qemu/qemu_hotplug.c
+@@ -640,6 +640,13 @@ qemuDomainAttachUSBMassStorageDevice(virQEMUDriverPtr driver,
+     char *devstr = NULL;
+     virQEMUDriverConfigPtr cfg = virQEMUDriverGetConfig(driver);
+     const char *src = virDomainDiskGetSource(disk);
++    bool releaseaddr = false;
++
++    if (priv->usbaddrs) {
++        if (virDomainUSBAddressEnsure(priv->usbaddrs, &disk->info) < 0)
++            goto cleanup;
++        releaseaddr = true;
++    }
+ 
+     if (qemuDomainPrepareDisk(driver, vm, disk, NULL, false) < 0)
+         goto cleanup;
+@@ -685,6 +692,8 @@ qemuDomainAttachUSBMassStorageDevice(virQEMUDriverPtr driver,
+     virDomainDiskInsertPreAlloced(vm->def, disk);
+ 
+  cleanup:
++    if (ret < 0 && releaseaddr)
++        virDomainUSBAddressRelease(priv->usbaddrs, &disk->info);
+     VIR_FREE(devstr);
+     VIR_FREE(drivestr);
+     virObjectUnref(cfg);
+@@ -1486,6 +1495,12 @@ qemuDomainAttachChrDeviceAssignAddr(qemuDomainObjPrivatePtr priv,
+             return -1;
+         return 1;
+ 
++    } else if (chr->deviceType == VIR_DOMAIN_CHR_DEVICE_TYPE_SERIAL &&
++               chr->targetType == VIR_DOMAIN_CHR_SERIAL_TARGET_TYPE_USB) {
++        if (virDomainUSBAddressEnsure(priv->usbaddrs, &chr->info) < 0)
++            return -1;
++        return 1;
++
+     } else if (chr->deviceType == VIR_DOMAIN_CHR_DEVICE_TYPE_CHANNEL &&
+                chr->targetType == VIR_DOMAIN_CHR_CHANNEL_TARGET_TYPE_VIRTIO) {
+         if (virDomainVirtioSerialAddrAutoAssign(NULL, priv->vioserialaddrs,
+@@ -1804,11 +1819,18 @@ qemuDomainAttachHostUSBDevice(virQEMUDriverPtr driver,
+ {
+     qemuDomainObjPrivatePtr priv = vm->privateData;
+     char *devstr = NULL;
++    bool releaseaddr = false;
+     bool added = false;
+     bool teardowncgroup = false;
+     bool teardownlabel = false;
+     int ret = -1;
+ 
++    if (priv->usbaddrs) {
++        if (virDomainUSBAddressEnsure(priv->usbaddrs, hostdev->info) < 0)
++            goto cleanup;
++        releaseaddr = true;
++    }
++
+     if (qemuHostdevPrepareUSBDevices(driver, vm->def->name, &hostdev, 1, 0) < 0)
+         goto cleanup;
+ 
+@@ -1854,6 +1876,8 @@ qemuDomainAttachHostUSBDevice(virQEMUDriverPtr driver,
+             VIR_WARN("Unable to restore host device labelling on hotplug fail");
+         if (added)
+             qemuHostdevReAttachUSBDevices(driver, vm->def->name, &hostdev, 1);
++        if (releaseaddr)
++            virDomainUSBAddressRelease(priv->usbaddrs, hostdev->info);
+     }
+     VIR_FREE(devstr);
+     return ret;
+@@ -2851,6 +2875,8 @@ qemuDomainRemoveDiskDevice(virQEMUDriverPtr driver,
+     dev.type = VIR_DOMAIN_DEVICE_DISK;
+     dev.data.disk = disk;
+     ignore_value(qemuRemoveSharedDevice(driver, &dev, vm->def->name));
++    if (priv->usbaddrs)
++        virDomainUSBAddressRelease(priv->usbaddrs, &disk->info);
+ 
+     virDomainDiskDefFree(disk);
+     return 0;
+@@ -2947,6 +2973,7 @@ qemuDomainRemoveUSBHostDevice(virQEMUDriverPtr driver,
+                               virDomainHostdevDefPtr hostdev)
+ {
+     qemuHostdevReAttachUSBDevices(driver, vm->def->name, &hostdev, 1);
++    qemuDomainReleaseDeviceAddress(vm, hostdev->info, NULL);
+ }
+ 
+ static void
+diff --git a/tests/qemuhotplugtestdata/qemuhotplug-hotplug-base-live+disk-usb.xml b/tests/qemuhotplugtestdata/qemuhotplug-hotplug-base-live+disk-usb.xml
+index 41039a4..cd686e6 100644
+--- a/tests/qemuhotplugtestdata/qemuhotplug-hotplug-base-live+disk-usb.xml
++++ b/tests/qemuhotplugtestdata/qemuhotplug-hotplug-base-live+disk-usb.xml
+@@ -27,6 +27,7 @@
+       <readonly/>
+       <shareable/>
+       <alias name='usb-disk16'/>
++      <address type='usb' bus='0' port='1'/>
+     </disk>
+     <controller type='usb' index='0'>
+       <alias name='usb'/>
+-- 
+2.9.2
+

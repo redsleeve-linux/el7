@@ -1,0 +1,48 @@
+From e45e5fbf470bc13beada6c5c3f6027b2af3666dd Mon Sep 17 00:00:00 2001
+Message-Id: <e45e5fbf470bc13beada6c5c3f6027b2af3666dd@dist-git>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Fri, 4 Nov 2016 10:29:38 +0100
+Subject: [PATCH] qemu: Rename qemuBuildShmemDevStr to
+ qemuBuildShmemDevLegacyStr
+
+This will make sense after adding support for newer device types.
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit bf854ae3f1e47773d9ea0692e9f056629ac9cde4)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1392031
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+---
+ src/qemu/qemu_command.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index 4b08b81..a3c9c7a 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -8457,9 +8457,9 @@ qemuBuildSmartcardCommandLine(virLogManagerPtr logManager,
+ 
+ 
+ static char *
+-qemuBuildShmemDevStr(virDomainDefPtr def,
+-                     virDomainShmemDefPtr shmem,
+-                     virQEMUCapsPtr qemuCaps)
++qemuBuildShmemDevLegacyStr(virDomainDefPtr def,
++                           virDomainShmemDefPtr shmem,
++                           virQEMUCapsPtr qemuCaps)
+ {
+     virBuffer buf = VIR_BUFFER_INITIALIZER;
+ 
+@@ -8558,7 +8558,7 @@ qemuBuildShmemCommandLine(virLogManagerPtr logManager,
+ {
+     char *devstr = NULL;
+ 
+-    if (!(devstr = qemuBuildShmemDevStr(def, shmem, qemuCaps)))
++    if (!(devstr = qemuBuildShmemDevLegacyStr(def, shmem, qemuCaps)))
+         return -1;
+     virCommandAddArgList(cmd, "-device", devstr, NULL);
+     VIR_FREE(devstr);
+-- 
+2.10.2
+

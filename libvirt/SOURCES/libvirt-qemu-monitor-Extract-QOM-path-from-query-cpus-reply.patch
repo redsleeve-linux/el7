@@ -1,0 +1,154 @@
+From 06dad6304cfc9e14c505f4ea24e8e995776091e2 Mon Sep 17 00:00:00 2001
+Message-Id: <06dad6304cfc9e14c505f4ea24e8e995776091e2@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 24 Aug 2016 16:11:22 -0400
+Subject: [PATCH] qemu: monitor: Extract QOM path from query-cpus reply
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1097930
+https://bugzilla.redhat.com/show_bug.cgi?id=1224341
+
+To allow matching up the data returned by query-cpus to entries in the
+query-hotpluggable-cpus reply for CPU hotplug it's necessary to extract
+the QOM path as it's the only link between the two.
+
+(cherry picked from commit c91be16b9ff0bfb8f6db400db4ae36c8a47842fc)
+---
+ src/qemu/qemu_monitor.c      |  7 ++++++-
+ src/qemu/qemu_monitor.h      |  1 +
+ src/qemu/qemu_monitor_json.c | 16 ++++++++++++++--
+ tests/qemumonitorjsontest.c  | 14 +++++++++-----
+ 4 files changed, 30 insertions(+), 8 deletions(-)
+
+diff --git a/src/qemu/qemu_monitor.c b/src/qemu/qemu_monitor.c
+index d5af7d1..573c94a 100644
+--- a/src/qemu/qemu_monitor.c
++++ b/src/qemu/qemu_monitor.c
+@@ -1663,11 +1663,16 @@ qemuMonitorCPUInfoFree(qemuMonitorCPUInfoPtr cpus,
+ 
+ void
+ qemuMonitorQueryCpusFree(struct qemuMonitorQueryCpusEntry *entries,
+-                         size_t nentries ATTRIBUTE_UNUSED)
++                         size_t nentries)
+ {
++    size_t i;
++
+     if (!entries)
+         return;
+ 
++    for (i = 0; i < nentries; i++)
++        VIR_FREE(entries[i].qom_path);
++
+     VIR_FREE(entries);
+ }
+ 
+diff --git a/src/qemu/qemu_monitor.h b/src/qemu/qemu_monitor.h
+index 2269d60..83396a4 100644
+--- a/src/qemu/qemu_monitor.h
++++ b/src/qemu/qemu_monitor.h
+@@ -392,6 +392,7 @@ int qemuMonitorSystemPowerdown(qemuMonitorPtr mon);
+ 
+ struct qemuMonitorQueryCpusEntry {
+     pid_t tid;
++    char *qom_path;
+ };
+ void qemuMonitorQueryCpusFree(struct qemuMonitorQueryCpusEntry *entries,
+                               size_t nentries);
+diff --git a/src/qemu/qemu_monitor_json.c b/src/qemu/qemu_monitor_json.c
+index 8243b52..a59b195 100644
+--- a/src/qemu/qemu_monitor_json.c
++++ b/src/qemu/qemu_monitor_json.c
+@@ -1325,8 +1325,16 @@ int qemuMonitorJSONSystemReset(qemuMonitorPtr mon)
+ 
+ 
+ /*
+- * [ { "CPU": 0, "current": true, "halted": false, "pc": 3227107138 },
+- *   { "CPU": 1, "current": false, "halted": true, "pc": 7108165 } ]
++ *
++ * [{ "arch": "x86",
++ *    "current": true,
++ *    "CPU": 0,
++ *    "qom_path": "/machine/unattached/device[0]",
++ *    "pc": -2130415978,
++ *    "halted": true,
++ *    "thread_id": 2631237},
++ *    {...}
++ *  ]
+  */
+ static int
+ qemuMonitorJSONExtractCPUInfo(virJSONValuePtr data,
+@@ -1347,6 +1355,7 @@ qemuMonitorJSONExtractCPUInfo(virJSONValuePtr data,
+     for (i = 0; i < ncpus; i++) {
+         virJSONValuePtr entry = virJSONValueArrayGet(data, i);
+         int thread = 0;
++        const char *qom_path;
+         if (!entry) {
+             ret = -2;
+             goto cleanup;
+@@ -1355,8 +1364,11 @@ qemuMonitorJSONExtractCPUInfo(virJSONValuePtr data,
+         /* Some older qemu versions don't report the thread_id so treat this as
+          * non-fatal, simply returning no data */
+         ignore_value(virJSONValueObjectGetNumberInt(entry, "thread_id", &thread));
++        qom_path = virJSONValueObjectGetString(entry, "qom_path");
+ 
+         cpus[i].tid = thread;
++        if (VIR_STRDUP(cpus[i].qom_path, qom_path) < 0)
++            goto cleanup;
+     }
+ 
+     VIR_STEAL_PTR(*entries, cpus);
+diff --git a/tests/qemumonitorjsontest.c b/tests/qemumonitorjsontest.c
+index 3fd4eb6..8c31005 100644
+--- a/tests/qemumonitorjsontest.c
++++ b/tests/qemumonitorjsontest.c
+@@ -1205,7 +1205,8 @@ static bool
+ testQemuMonitorJSONqemuMonitorJSONQueryCPUsEqual(struct qemuMonitorQueryCpusEntry *a,
+                                                  struct qemuMonitorQueryCpusEntry *b)
+ {
+-    if (a->tid != b->tid)
++    if (a->tid != b->tid ||
++        STRNEQ_NULLABLE(a->qom_path, b->qom_path))
+         return false;
+ 
+     return true;
+@@ -1220,10 +1221,10 @@ testQemuMonitorJSONqemuMonitorJSONQueryCPUs(const void *data)
+     int ret = -1;
+     struct qemuMonitorQueryCpusEntry *cpudata = NULL;
+     struct qemuMonitorQueryCpusEntry expect[] = {
+-        {17622},
+-        {17624},
+-        {17626},
+-        {17628},
++        {17622, (char *) "/machine/unattached/device[0]"},
++        {17624, (char *) "/machine/unattached/device[1]"},
++        {17626, (char *) "/machine/unattached/device[2]"},
++        {17628, NULL},
+     };
+     size_t ncpudata = 0;
+     size_t i;
+@@ -1237,6 +1238,7 @@ testQemuMonitorJSONqemuMonitorJSONQueryCPUs(const void *data)
+                                "        {"
+                                "            \"current\": true,"
+                                "            \"CPU\": 0,"
++                               "            \"qom_path\": \"/machine/unattached/device[0]\","
+                                "            \"pc\": -2130530478,"
+                                "            \"halted\": true,"
+                                "            \"thread_id\": 17622"
+@@ -1244,6 +1246,7 @@ testQemuMonitorJSONqemuMonitorJSONQueryCPUs(const void *data)
+                                "        {"
+                                "            \"current\": false,"
+                                "            \"CPU\": 1,"
++                               "            \"qom_path\": \"/machine/unattached/device[1]\","
+                                "            \"pc\": -2130530478,"
+                                "            \"halted\": true,"
+                                "            \"thread_id\": 17624"
+@@ -1251,6 +1254,7 @@ testQemuMonitorJSONqemuMonitorJSONQueryCPUs(const void *data)
+                                "        {"
+                                "            \"current\": false,"
+                                "            \"CPU\": 2,"
++                               "            \"qom_path\": \"/machine/unattached/device[2]\","
+                                "            \"pc\": -2130530478,"
+                                "            \"halted\": true,"
+                                "            \"thread_id\": 17626"
+-- 
+2.10.0
+

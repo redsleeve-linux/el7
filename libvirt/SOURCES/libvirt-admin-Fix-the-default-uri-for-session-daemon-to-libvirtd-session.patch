@@ -1,0 +1,47 @@
+From eb41dae660606b398ee7366829f9f5a41c686887 Mon Sep 17 00:00:00 2001
+Message-Id: <eb41dae660606b398ee7366829f9f5a41c686887@dist-git>
+From: Erik Skultety <eskultet@redhat.com>
+Date: Tue, 9 Aug 2016 16:09:21 +0200
+Subject: [PATCH] admin: Fix the default uri for session daemon to
+ libvirtd:///session
+
+Just like we decide on which URI we go with based on EUID for qemu in remote
+driver, do a similar thing for admin except we do not spawn a daemon in this
+case.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1356858
+
+Signed-off-by: Erik Skultety <eskultet@redhat.com>
+(cherry picked from commit 30ce2f0e2ad1335df6e4c9053eae822963531f97)
+Signed-off-by: Erik Skultety <eskultet@redhat.com>
+
+ Conflicts:
+	src/libvirt-admin.c - conflict caused by commit f5da0d18 which changed
+        the returned type of virAdmGetDefaultURI but was not backported
+---
+ src/libvirt-admin.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/libvirt-admin.c b/src/libvirt-admin.c
+index f07cb10..fb2f7b8 100644
+--- a/src/libvirt-admin.c
++++ b/src/libvirt-admin.c
+@@ -181,9 +181,13 @@ virAdmGetDefaultURI(virConfPtr conf)
+         /* Since we can't probe connecting via any hypervisor driver as libvirt
+          * does, if no explicit URI was given and neither the environment
+          * variable, nor the configuration parameter had previously been set,
+-         * we set the default admin server URI to 'libvirtd://system'.
++         * we set the default admin server URI to 'libvirtd:///system' or
++         * 'libvirtd:///session' depending on the process's EUID.
+          */
+-        uristr = "libvirtd:///system";
++        if (geteuid() == 0)
++            uristr = "libvirtd:///system";
++        else
++            uristr = "libvirtd:///session";
+     }
+ 
+     return uristr;
+-- 
+2.9.2
+

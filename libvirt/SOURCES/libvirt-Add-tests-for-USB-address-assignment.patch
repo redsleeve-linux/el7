@@ -1,0 +1,288 @@
+From c468652ff43b6aa83d8549a9b581da9ecee7563c Mon Sep 17 00:00:00 2001
+Message-Id: <c468652ff43b6aa83d8549a9b581da9ecee7563c@dist-git>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Thu, 21 Jul 2016 15:57:54 +0200
+Subject: [PATCH] Add tests for USB address assignment
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Introduce tests with the ich9, xhci and the default (piix3) usb
+controller to demonstrate the effect of the next patch.
+
+(cherry picked from commit 69f5ce45abd587509d4b5df2428ead79737b6b77)
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1215968
+
+Conflicts:
+  downstream does not assume QEMU_CAPS_SMP_TOPOLOGY in tests
+---
+ .../qemuxml2argv-usb-ich9-autoassign.args          | 32 ++++++++++++++++++
+ .../qemuxml2argv-usb-ich9-autoassign.xml           | 39 ++++++++++++++++++++++
+ .../qemuxml2argv-usb-port-autoassign.args          | 28 ++++++++++++++++
+ .../qemuxml2argv-usb-port-autoassign.xml           | 27 +++++++++++++++
+ .../qemuxml2argv-usb-xhci-autoassign.args          | 27 +++++++++++++++
+ .../qemuxml2argv-usb-xhci-autoassign.xml           | 25 ++++++++++++++
+ tests/qemuxml2argvtest.c                           | 11 ++++++
+ 7 files changed, 189 insertions(+)
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-usb-ich9-autoassign.args
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-usb-ich9-autoassign.xml
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-usb-port-autoassign.args
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-usb-port-autoassign.xml
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-usb-xhci-autoassign.args
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-usb-xhci-autoassign.xml
+
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-usb-ich9-autoassign.args b/tests/qemuxml2argvdata/qemuxml2argv-usb-ich9-autoassign.args
+new file mode 100644
+index 0000000..faaff95
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-usb-ich9-autoassign.args
+@@ -0,0 +1,32 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/home/test \
++USER=test \
++LOGNAME=test \
++QEMU_AUDIO_DRV=none \
++/usr/bin/qemu \
++-name QEMUGuest1 \
++-S \
++-M pc \
++-m 214 \
++-smp 1 \
++-uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
++-nographic \
++-nodefconfig \
++-nodefaults \
++-chardev socket,id=charmonitor,path=/tmp/lib/domain--1-QEMUGuest1/monitor.sock,\
++server,nowait \
++-mon chardev=charmonitor,id=monitor,mode=readline \
++-no-acpi \
++-boot c \
++-device ich9-usb-ehci1,id=usb,bus=pci.0,addr=0x4.0x7 \
++-device ich9-usb-uhci1,masterbus=usb.0,firstport=0,bus=pci.0,multifunction=on,\
++addr=0x4 \
++-device ich9-usb-uhci2,masterbus=usb.0,firstport=2,bus=pci.0,addr=0x4.0x1 \
++-device ich9-usb-uhci3,masterbus=usb.0,firstport=4,bus=pci.0,addr=0x4.0x2 \
++-device usb-hub,id=hub0 \
++-device usb-hub,id=hub1 \
++-device usb-mouse,id=input0 \
++-device usb-mouse,id=input1 \
++-device usb-mouse,id=input2 \
++-device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x3
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-usb-ich9-autoassign.xml b/tests/qemuxml2argvdata/qemuxml2argv-usb-ich9-autoassign.xml
+new file mode 100644
+index 0000000..6425c50
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-usb-ich9-autoassign.xml
+@@ -0,0 +1,39 @@
++<domain type='qemu'>
++  <name>QEMUGuest1</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219136</memory>
++  <currentMemory unit='KiB'>219136</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='i686' machine='pc'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <devices>
++    <emulator>/usr/bin/qemu</emulator>
++    <controller type='usb' index='0' model='ich9-ehci1'>
++      <address type='pci' domain='0' bus='0' slot='4' function='7'/>
++    </controller>
++    <controller type='usb' index='0' model='ich9-uhci1'>
++      <master startport='0'/>
++      <address type='pci' domain='0' bus='0' slot='4' function='0' multifunction='on'/>
++    </controller>
++    <controller type='usb' index='0' model='ich9-uhci2'>
++      <master startport='2'/>
++      <address type='pci' domain='0' bus='0' slot='4' function='1'/>
++    </controller>
++    <controller type='usb' index='0' model='ich9-uhci3'>
++      <master startport='4'/>
++      <address type='pci' domain='0' bus='0' slot='4' function='2'/>
++    </controller>
++    <hub type='usb'/>
++    <input type='mouse' bus='usb'>
++    </input>
++    <hub type='usb'>
++    </hub>
++    <input type='mouse' bus='usb'>
++    </input>
++    <input type='mouse' bus='usb'>
++    </input>
++    <memballoon model='virtio'/>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-usb-port-autoassign.args b/tests/qemuxml2argvdata/qemuxml2argv-usb-port-autoassign.args
+new file mode 100644
+index 0000000..aa80919
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-usb-port-autoassign.args
+@@ -0,0 +1,28 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/home/test \
++USER=test \
++LOGNAME=test \
++QEMU_AUDIO_DRV=none \
++/usr/bin/qemu \
++-name QEMUGuest1 \
++-S \
++-M pc \
++-m 214 \
++-smp 1 \
++-uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
++-nographic \
++-nodefconfig \
++-nodefaults \
++-chardev socket,id=charmonitor,path=/tmp/lib/domain--1-QEMUGuest1/monitor.sock,\
++server,nowait \
++-mon chardev=charmonitor,id=monitor,mode=readline \
++-no-acpi \
++-boot c \
++-usb \
++-device usb-hub,id=hub0,bus=usb.0,port=1 \
++-device usb-hub,id=hub1 \
++-device usb-mouse,id=input0 \
++-device usb-mouse,id=input1 \
++-device usb-mouse,id=input2 \
++-device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x3
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-usb-port-autoassign.xml b/tests/qemuxml2argvdata/qemuxml2argv-usb-port-autoassign.xml
+new file mode 100644
+index 0000000..a2fe34e
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-usb-port-autoassign.xml
+@@ -0,0 +1,27 @@
++<domain type='qemu'>
++  <name>QEMUGuest1</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219136</memory>
++  <currentMemory unit='KiB'>219136</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='i686' machine='pc'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <devices>
++    <emulator>/usr/bin/qemu</emulator>
++    <controller type='usb' index='0'/>
++    <memballoon model='virtio'/>
++    <hub type='usb'>
++      <address type='usb' bus='0' port='1'/>
++    </hub>
++    <input type='mouse' bus='usb'>
++    </input>
++    <hub type='usb'>
++    </hub>
++    <input type='mouse' bus='usb'>
++    </input>
++    <input type='mouse' bus='usb'>
++    </input>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-usb-xhci-autoassign.args b/tests/qemuxml2argvdata/qemuxml2argv-usb-xhci-autoassign.args
+new file mode 100644
+index 0000000..7c5e6a5
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-usb-xhci-autoassign.args
+@@ -0,0 +1,27 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/home/test \
++USER=test \
++LOGNAME=test \
++QEMU_AUDIO_DRV=none \
++/usr/bin/qemu \
++-name QEMUGuest1 \
++-S \
++-M pc \
++-m 214 \
++-smp 1 \
++-uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
++-nographic \
++-nodefconfig \
++-nodefaults \
++-chardev socket,id=charmonitor,path=/tmp/lib/domain--1-QEMUGuest1/monitor.sock,\
++server,nowait \
++-mon chardev=charmonitor,id=monitor,mode=readline \
++-no-acpi \
++-boot c \
++-device nec-usb-xhci,p2=8,p3=8,id=usb,bus=pci.0,addr=0x3 \
++-device usb-hub,id=hub0 \
++-device usb-hub,id=hub1 \
++-device usb-mouse,id=input0 \
++-device usb-mouse,id=input1 \
++-device usb-mouse,id=input2
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-usb-xhci-autoassign.xml b/tests/qemuxml2argvdata/qemuxml2argv-usb-xhci-autoassign.xml
+new file mode 100644
+index 0000000..9c87b5f
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-usb-xhci-autoassign.xml
+@@ -0,0 +1,25 @@
++<domain type='qemu'>
++  <name>QEMUGuest1</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219136</memory>
++  <currentMemory unit='KiB'>219136</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='i686' machine='pc'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <devices>
++    <emulator>/usr/bin/qemu</emulator>
++    <controller type='usb' index='0' model='nec-xhci' ports='8'/>
++    <hub type='usb'/>
++    <input type='mouse' bus='usb'>
++    </input>
++    <hub type='usb'>
++    </hub>
++    <input type='mouse' bus='usb'>
++    </input>
++    <input type='mouse' bus='usb'>
++    </input>
++    <memballoon model='none'/>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2argvtest.c b/tests/qemuxml2argvtest.c
+index 9c18989..e434470 100644
+--- a/tests/qemuxml2argvtest.c
++++ b/tests/qemuxml2argvtest.c
+@@ -1156,6 +1156,10 @@ mymain(void)
+     DO_TEST_PARSE_ERROR("usb-ich9-no-companion",
+             QEMU_CAPS_CHARDEV, QEMU_CAPS_NODEFCONFIG,
+             QEMU_CAPS_PCI_MULTIFUNCTION, QEMU_CAPS_ICH9_USB_EHCI1);
++    DO_TEST("usb-ich9-autoassign",
++            QEMU_CAPS_CHARDEV, QEMU_CAPS_NODEFCONFIG,
++            QEMU_CAPS_PCI_MULTIFUNCTION, QEMU_CAPS_ICH9_USB_EHCI1,
++            QEMU_CAPS_USB_HUB);
+     DO_TEST("usb-hub",
+             QEMU_CAPS_CHARDEV, QEMU_CAPS_USB_HUB,
+             QEMU_CAPS_NODEFCONFIG);
+@@ -1168,6 +1172,9 @@ mymain(void)
+     DO_TEST("usb-ports",
+             QEMU_CAPS_CHARDEV, QEMU_CAPS_USB_HUB,
+             QEMU_CAPS_NODEFCONFIG);
++    DO_TEST("usb-port-autoassign",
++            QEMU_CAPS_CHARDEV, QEMU_CAPS_USB_HUB,
++            QEMU_CAPS_NODEFCONFIG);
+     DO_TEST("usb-redir",
+             QEMU_CAPS_CHARDEV, QEMU_CAPS_NODEFCONFIG,
+             QEMU_CAPS_PCI_MULTIFUNCTION, QEMU_CAPS_USB_HUB,
+@@ -1222,6 +1229,10 @@ mymain(void)
+     DO_TEST("usb-controller-xhci",
+             QEMU_CAPS_CHARDEV, QEMU_CAPS_NODEFCONFIG, QEMU_CAPS_PIIX3_USB_UHCI,
+             QEMU_CAPS_NEC_USB_XHCI, QEMU_CAPS_NEC_USB_XHCI_PORTS);
++    DO_TEST("usb-xhci-autoassign",
++            QEMU_CAPS_CHARDEV, QEMU_CAPS_NODEFCONFIG, QEMU_CAPS_PIIX3_USB_UHCI,
++            QEMU_CAPS_NEC_USB_XHCI, QEMU_CAPS_NEC_USB_XHCI_PORTS,
++            QEMU_CAPS_USB_HUB);
+ 
+     DO_TEST("smbios", QEMU_CAPS_SMBIOS_TYPE);
+     DO_TEST_PARSE_ERROR("smbios-date", QEMU_CAPS_SMBIOS_TYPE);
+-- 
+2.9.2
+

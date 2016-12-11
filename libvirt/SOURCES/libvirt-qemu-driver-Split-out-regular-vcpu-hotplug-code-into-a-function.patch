@@ -1,0 +1,167 @@
+From f76acdb6a03b2a572a552713be49366494d6ae2b Mon Sep 17 00:00:00 2001
+Message-Id: <f76acdb6a03b2a572a552713be49366494d6ae2b@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 24 Aug 2016 16:11:15 -0400
+Subject: [PATCH] qemu: driver: Split out regular vcpu hotplug code into a
+ function
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1097930
+https://bugzilla.redhat.com/show_bug.cgi?id=1224341
+
+All other modes of qemuDomainSetVcpusFlags have helpers so finish the
+work by splitting the regular code into a new function.
+
+This patch also touches up the coding (spacing) style.
+
+(cherry picked from commit c6f26fc207a31fd069779ebdd400196249c9784a)
+---
+ src/qemu/qemu_driver.c | 100 ++++++++++++++++++++++++++-----------------------
+ 1 file changed, 53 insertions(+), 47 deletions(-)
+
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index 224c5d4..1b433f8 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -4864,7 +4864,53 @@ qemuDomainSetVcpusLive(virQEMUDriverPtr driver,
+ 
+ 
+ static int
+-qemuDomainSetVcpusFlags(virDomainPtr dom, unsigned int nvcpus,
++qemuDomainSetVcpusInternal(virQEMUDriverPtr driver,
++                           virDomainObjPtr vm,
++                           virDomainDefPtr def,
++                           virDomainDefPtr persistentDef,
++                           unsigned int nvcpus)
++{
++    virQEMUDriverConfigPtr cfg = virQEMUDriverGetConfig(driver);
++    int ret = -1;
++
++    if (def && nvcpus > virDomainDefGetVcpusMax(def)) {
++        virReportError(VIR_ERR_INVALID_ARG,
++                       _("requested vcpus is greater than max allowable"
++                         " vcpus for the live domain: %u > %u"),
++                       nvcpus, virDomainDefGetVcpusMax(def));
++        goto cleanup;
++    }
++
++    if (persistentDef && nvcpus > virDomainDefGetVcpusMax(persistentDef)) {
++        virReportError(VIR_ERR_INVALID_ARG,
++                       _("requested vcpus is greater than max allowable"
++                         " vcpus for the persistent domain: %u > %u"),
++                       nvcpus, virDomainDefGetVcpusMax(persistentDef));
++        goto cleanup;
++    }
++
++    if (def && qemuDomainSetVcpusLive(driver, cfg, vm, nvcpus) < 0)
++        goto cleanup;
++
++    if (persistentDef) {
++        if (virDomainDefSetVcpus(persistentDef, nvcpus) < 0)
++            goto cleanup;
++
++        if (virDomainSaveConfig(cfg->configDir, driver->caps, persistentDef) < 0)
++            goto cleanup;
++    }
++
++    ret = 0;
++
++ cleanup:
++    virObjectUnref(cfg);
++    return ret;
++}
++
++
++static int
++qemuDomainSetVcpusFlags(virDomainPtr dom,
++                        unsigned int nvcpus,
+                         unsigned int flags)
+ {
+     virQEMUDriverPtr driver = dom->conn->privateData;
+@@ -4872,7 +4918,6 @@ qemuDomainSetVcpusFlags(virDomainPtr dom, unsigned int nvcpus,
+     virDomainDefPtr def;
+     virDomainDefPtr persistentDef;
+     int ret = -1;
+-    virQEMUDriverConfigPtr cfg = NULL;
+ 
+     virCheckFlags(VIR_DOMAIN_AFFECT_LIVE |
+                   VIR_DOMAIN_AFFECT_CONFIG |
+@@ -4882,70 +4927,31 @@ qemuDomainSetVcpusFlags(virDomainPtr dom, unsigned int nvcpus,
+     if (!(vm = qemuDomObjFromDomain(dom)))
+         goto cleanup;
+ 
+-    cfg = virQEMUDriverGetConfig(driver);
+-
+     if (virDomainSetVcpusFlagsEnsureACL(dom->conn, vm->def, flags) < 0)
+         goto cleanup;
+ 
+     if (qemuDomainObjBeginJob(driver, vm, QEMU_JOB_MODIFY) < 0)
+         goto cleanup;
+ 
+-    if (flags & VIR_DOMAIN_VCPU_GUEST) {
+-        ret = qemuDomainSetVcpusAgent(vm, nvcpus);
+-        goto endjob;
+-    }
+-
+     if (virDomainObjGetDefs(vm, flags, &def, &persistentDef) < 0)
+         goto endjob;
+ 
+-    if (flags & VIR_DOMAIN_VCPU_MAXIMUM) {
++    if (flags & VIR_DOMAIN_VCPU_GUEST)
++        ret = qemuDomainSetVcpusAgent(vm, nvcpus);
++    else if (flags & VIR_DOMAIN_VCPU_MAXIMUM)
+         ret = qemuDomainSetVcpusMax(driver, def, persistentDef, nvcpus);
+-        goto endjob;
+-    }
+-
+-    if (def) {
+-        if (nvcpus > virDomainDefGetVcpusMax(def)) {
+-            virReportError(VIR_ERR_INVALID_ARG,
+-                           _("requested vcpus is greater than max allowable"
+-                             " vcpus for the live domain: %u > %u"),
+-                           nvcpus, virDomainDefGetVcpusMax(def));
+-            goto endjob;
+-        }
+-    }
+-
+-    if (persistentDef) {
+-        if (nvcpus > virDomainDefGetVcpusMax(persistentDef)) {
+-            virReportError(VIR_ERR_INVALID_ARG,
+-                           _("requested vcpus is greater than max allowable"
+-                             " vcpus for the persistent domain: %u > %u"),
+-                           nvcpus, virDomainDefGetVcpusMax(persistentDef));
+-            goto endjob;
+-        }
+-    }
+-
+-    if (def && qemuDomainSetVcpusLive(driver, cfg, vm, nvcpus) < 0)
+-        goto endjob;
+-
+-    if (persistentDef) {
+-        if (virDomainDefSetVcpus(persistentDef, nvcpus) < 0)
+-            goto endjob;
+-
+-        if (virDomainSaveConfig(cfg->configDir, driver->caps,
+-                                persistentDef) < 0)
+-            goto endjob;
+-    }
+-
+-    ret = 0;
++    else
++        ret = qemuDomainSetVcpusInternal(driver, vm, def, persistentDef, nvcpus);
+ 
+  endjob:
+     qemuDomainObjEndJob(driver, vm);
+ 
+  cleanup:
+     virDomainObjEndAPI(&vm);
+-    virObjectUnref(cfg);
+     return ret;
+ }
+ 
++
+ static int
+ qemuDomainSetVcpus(virDomainPtr dom, unsigned int nvcpus)
+ {
+-- 
+2.10.0
+

@@ -1,0 +1,64 @@
+From 44efa3d179e355827796930f8d17862029fb9747 Mon Sep 17 00:00:00 2001
+Message-Id: <44efa3d179e355827796930f8d17862029fb9747@dist-git>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Thu, 21 Jul 2016 15:57:46 +0200
+Subject: [PATCH] Add USB addresses to qemuhotplug test cases
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+This test assumes the XML will be the same after formatting.
+Add USB addresses to it to keep it working when we autoassign them.
+
+(cherry picked from commit 3681e0a9feb50b54a4097eb11b5c6cfd48522994)
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1215968
+---
+ .../qemuhotplug-console-compat-2-live+console-virtio.xml              | 1 +
+ tests/qemuxml2argvdata/qemuxml2argv-console-compat-2-live.xml         | 1 +
+ tests/qemuxml2argvdata/qemuxml2argv-console-compat-2.xml              | 4 +++-
+ 3 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/tests/qemuhotplugtestdata/qemuhotplug-console-compat-2-live+console-virtio.xml b/tests/qemuhotplugtestdata/qemuhotplug-console-compat-2-live+console-virtio.xml
+index 3495ee6..7ca36d5 100644
+--- a/tests/qemuhotplugtestdata/qemuhotplug-console-compat-2-live+console-virtio.xml
++++ b/tests/qemuhotplugtestdata/qemuhotplug-console-compat-2-live+console-virtio.xml
+@@ -100,6 +100,7 @@
+     </channel>
+     <input type='tablet' bus='usb'>
+       <alias name='input0'/>
++      <address type='usb' bus='0' port='1'/>
+     </input>
+     <input type='mouse' bus='ps2'>
+       <alias name='input1'/>
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-console-compat-2-live.xml b/tests/qemuxml2argvdata/qemuxml2argv-console-compat-2-live.xml
+index b36af27..f300940 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-console-compat-2-live.xml
++++ b/tests/qemuxml2argvdata/qemuxml2argv-console-compat-2-live.xml
+@@ -95,6 +95,7 @@
+     </channel>
+     <input type='tablet' bus='usb'>
+       <alias name='input0'/>
++      <address type='usb' bus='0' port='1'/>
+     </input>
+     <input type='mouse' bus='ps2'>
+       <alias name='input1'/>
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-console-compat-2.xml b/tests/qemuxml2argvdata/qemuxml2argv-console-compat-2.xml
+index 2ae104e..7b35709 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-console-compat-2.xml
++++ b/tests/qemuxml2argvdata/qemuxml2argv-console-compat-2.xml
+@@ -78,7 +78,9 @@
+       <target type='virtio' name='org.qemu.guest_agent.0'/>
+       <address type='virtio-serial' controller='0' bus='0' port='1'/>
+     </channel>
+-    <input type='tablet' bus='usb'/>
++    <input type='tablet' bus='usb'>
++      <address type='usb' bus='0' port='1'/>
++    </input>
+     <input type='mouse' bus='ps2'/>
+     <input type='keyboard' bus='ps2'/>
+     <graphics type='vnc' port='-1' autoport='yes' listen='0.0.0.0'>
+-- 
+2.9.2
+

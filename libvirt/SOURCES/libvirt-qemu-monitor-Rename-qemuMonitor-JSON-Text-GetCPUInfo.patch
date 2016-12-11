@@ -1,0 +1,133 @@
+From 6a13af86bfba6f91cb86c4c2ff3a8f3e2edde275 Mon Sep 17 00:00:00 2001
+Message-Id: <6a13af86bfba6f91cb86c4c2ff3a8f3e2edde275@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 24 Aug 2016 16:11:07 -0400
+Subject: [PATCH] qemu: monitor: Rename qemuMonitor(JSON|Text)GetCPUInfo
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1097930
+https://bugzilla.redhat.com/show_bug.cgi?id=1224341
+
+Use a name that contains the command used to get the information.
+
+(cherry picked from commit 5965fa759c1b97be7e00369eff285f0af3eb2b15)
+---
+ src/qemu/qemu_monitor.c      | 4 ++--
+ src/qemu/qemu_monitor_json.c | 5 +++--
+ src/qemu/qemu_monitor_json.h | 4 ++--
+ src/qemu/qemu_monitor_text.c | 5 +++--
+ src/qemu/qemu_monitor_text.h | 4 ++--
+ tests/qemumonitorjsontest.c  | 6 +++---
+ 6 files changed, 15 insertions(+), 13 deletions(-)
+
+diff --git a/src/qemu/qemu_monitor.c b/src/qemu/qemu_monitor.c
+index 65e7a11..8a558ca 100644
+--- a/src/qemu/qemu_monitor.c
++++ b/src/qemu/qemu_monitor.c
+@@ -1667,9 +1667,9 @@ qemuMonitorGetCPUInfo(qemuMonitorPtr mon,
+     QEMU_CHECK_MONITOR(mon);
+ 
+     if (mon->json)
+-        return qemuMonitorJSONGetCPUInfo(mon, pids);
++        return qemuMonitorJSONQueryCPUs(mon, pids);
+     else
+-        return qemuMonitorTextGetCPUInfo(mon, pids);
++        return qemuMonitorTextQueryCPUs(mon, pids);
+ }
+ 
+ 
+diff --git a/src/qemu/qemu_monitor_json.c b/src/qemu/qemu_monitor_json.c
+index fae589f..a45772e 100644
+--- a/src/qemu/qemu_monitor_json.c
++++ b/src/qemu/qemu_monitor_json.c
+@@ -1382,8 +1382,9 @@ qemuMonitorJSONExtractCPUInfo(virJSONValuePtr reply,
+ }
+ 
+ 
+-int qemuMonitorJSONGetCPUInfo(qemuMonitorPtr mon,
+-                              int **pids)
++int
++qemuMonitorJSONQueryCPUs(qemuMonitorPtr mon,
++                         int **pids)
+ {
+     int ret = -1;
+     virJSONValuePtr cmd = qemuMonitorJSONMakeCommand("query-cpus",
+diff --git a/src/qemu/qemu_monitor_json.h b/src/qemu/qemu_monitor_json.h
+index 3fe5cf1..ef198b4 100644
+--- a/src/qemu/qemu_monitor_json.h
++++ b/src/qemu/qemu_monitor_json.h
+@@ -58,8 +58,8 @@ int qemuMonitorJSONGetStatus(qemuMonitorPtr mon,
+ int qemuMonitorJSONSystemPowerdown(qemuMonitorPtr mon);
+ int qemuMonitorJSONSystemReset(qemuMonitorPtr mon);
+ 
+-int qemuMonitorJSONGetCPUInfo(qemuMonitorPtr mon,
+-                              int **pids);
++int qemuMonitorJSONQueryCPUs(qemuMonitorPtr mon,
++                             int **pids);
+ int qemuMonitorJSONGetVirtType(qemuMonitorPtr mon,
+                                virDomainVirtType *virtType);
+ int qemuMonitorJSONUpdateVideoMemorySize(qemuMonitorPtr mon,
+diff --git a/src/qemu/qemu_monitor_text.c b/src/qemu/qemu_monitor_text.c
+index 9295219..0b05587 100644
+--- a/src/qemu/qemu_monitor_text.c
++++ b/src/qemu/qemu_monitor_text.c
+@@ -500,8 +500,9 @@ int qemuMonitorTextSystemReset(qemuMonitorPtr mon)
+ }
+ 
+ 
+-int qemuMonitorTextGetCPUInfo(qemuMonitorPtr mon,
+-                              int **pids)
++int
++qemuMonitorTextQueryCPUs(qemuMonitorPtr mon,
++                         int **pids)
+ {
+     char *qemucpus = NULL;
+     char *line;
+diff --git a/src/qemu/qemu_monitor_text.h b/src/qemu/qemu_monitor_text.h
+index eeaca52..b7f0cab 100644
+--- a/src/qemu/qemu_monitor_text.h
++++ b/src/qemu/qemu_monitor_text.h
+@@ -49,8 +49,8 @@ int qemuMonitorTextGetStatus(qemuMonitorPtr mon,
+ int qemuMonitorTextSystemPowerdown(qemuMonitorPtr mon);
+ int qemuMonitorTextSystemReset(qemuMonitorPtr mon);
+ 
+-int qemuMonitorTextGetCPUInfo(qemuMonitorPtr mon,
+-                              int **pids);
++int qemuMonitorTextQueryCPUs(qemuMonitorPtr mon,
++                             int **pids);
+ int qemuMonitorTextGetVirtType(qemuMonitorPtr mon,
+                                virDomainVirtType *virtType);
+ int qemuMonitorTextGetBalloonInfo(qemuMonitorPtr mon,
+diff --git a/tests/qemumonitorjsontest.c b/tests/qemumonitorjsontest.c
+index f698c14..1d245d0 100644
+--- a/tests/qemumonitorjsontest.c
++++ b/tests/qemumonitorjsontest.c
+@@ -1203,7 +1203,7 @@ GEN_TEST_FUNC(qemuMonitorJSONDetachCharDev, "serial1")
+ 
+ 
+ static int
+-testQemuMonitorJSONqemuMonitorJSONGetCPUInfo(const void *data)
++testQemuMonitorJSONqemuMonitorJSONQueryCPUs(const void *data)
+ {
+     virDomainXMLOptionPtr xmlopt = (virDomainXMLOptionPtr)data;
+     qemuMonitorTestPtr test = qemuMonitorTestNewSimple(true, xmlopt);
+@@ -1252,7 +1252,7 @@ testQemuMonitorJSONqemuMonitorJSONGetCPUInfo(const void *data)
+                                "}") < 0)
+         goto cleanup;
+ 
+-    ncpupids = qemuMonitorJSONGetCPUInfo(qemuMonitorTestGetMonitor(test), &cpupids);
++    ncpupids = qemuMonitorJSONQueryCPUs(qemuMonitorTestGetMonitor(test), &cpupids);
+ 
+     if (ncpupids != 4) {
+         virReportError(VIR_ERR_INTERNAL_ERROR,
+@@ -2420,7 +2420,7 @@ mymain(void)
+     DO_TEST(qemuMonitorJSONSetBlockIoThrottle);
+     DO_TEST(qemuMonitorJSONGetTargetArch);
+     DO_TEST(qemuMonitorJSONGetMigrationCapability);
+-    DO_TEST(qemuMonitorJSONGetCPUInfo);
++    DO_TEST(qemuMonitorJSONQueryCPUs);
+     DO_TEST(qemuMonitorJSONGetVirtType);
+     DO_TEST(qemuMonitorJSONSendKey);
+     DO_TEST(qemuMonitorJSONGetDumpGuestMemoryCapability);
+-- 
+2.10.0
+

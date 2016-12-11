@@ -1,0 +1,129 @@
+From 1d8021ecf7909b3d4cd1a3179c3bac8e9ec4d25b Mon Sep 17 00:00:00 2001
+Message-Id: <1d8021ecf7909b3d4cd1a3179c3bac8e9ec4d25b@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 24 Aug 2016 16:11:03 -0400
+Subject: [PATCH] qemu: monitor: Add monitor API for device_add supporting JSON
+ objects
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1097930
+https://bugzilla.redhat.com/show_bug.cgi?id=1224341
+
+Rather than formatting a string and splitting it back to a JSON object
+add API that will take a JSON object directly.
+
+(cherry picked from commit 78806cd21b97aa56f37b0cffd6d4cfe306811107)
+---
+ src/qemu/qemu_monitor.c      | 18 ++++++++++++++++++
+ src/qemu/qemu_monitor.h      |  2 ++
+ src/qemu/qemu_monitor_json.c | 28 ++++++++++++++++++----------
+ src/qemu/qemu_monitor_json.h |  2 ++
+ 4 files changed, 40 insertions(+), 10 deletions(-)
+
+diff --git a/src/qemu/qemu_monitor.c b/src/qemu/qemu_monitor.c
+index e3a5e0b..2931f82 100644
+--- a/src/qemu/qemu_monitor.c
++++ b/src/qemu/qemu_monitor.c
+@@ -2766,6 +2766,24 @@ qemuMonitorAddDevice(qemuMonitorPtr mon,
+ 
+ 
+ /**
++ * qemuMonitorAddDeviceArgs:
++ * @mon: monitor object
++ * @args: arguments for device add, consumed on success or failure
++ *
++ * Adds a device described by @args. Requires JSON monitor.
++ * Returns 0 on success -1 on error.
++ */
++int
++qemuMonitorAddDeviceArgs(qemuMonitorPtr mon,
++                         virJSONValuePtr args)
++{
++    QEMU_CHECK_MONITOR_JSON(mon);
++
++    return qemuMonitorJSONAddDeviceArgs(mon, args);
++}
++
++
++/**
+  * qemuMonitorAddObject:
+  * @mon: Pointer to monitor object
+  * @type: Type name of object to add
+diff --git a/src/qemu/qemu_monitor.h b/src/qemu/qemu_monitor.h
+index 6e4e09d..b2f20e9 100644
+--- a/src/qemu/qemu_monitor.h
++++ b/src/qemu/qemu_monitor.h
+@@ -683,6 +683,8 @@ int qemuMonitorAttachPCIDiskController(qemuMonitorPtr mon,
+                                        const char *bus,
+                                        virPCIDeviceAddress *guestAddr);
+ 
++int qemuMonitorAddDeviceArgs(qemuMonitorPtr mon,
++                             virJSONValuePtr args);
+ int qemuMonitorAddDevice(qemuMonitorPtr mon,
+                          const char *devicestr);
+ 
+diff --git a/src/qemu/qemu_monitor_json.c b/src/qemu/qemu_monitor_json.c
+index 74bbf75..fae589f 100644
+--- a/src/qemu/qemu_monitor_json.c
++++ b/src/qemu/qemu_monitor_json.c
+@@ -3586,20 +3586,15 @@ int qemuMonitorJSONDelDevice(qemuMonitorPtr mon,
+ }
+ 
+ 
+-int qemuMonitorJSONAddDevice(qemuMonitorPtr mon,
+-                             const char *devicestr)
++int
++qemuMonitorJSONAddDeviceArgs(qemuMonitorPtr mon,
++                             virJSONValuePtr args)
+ {
+     int ret = -1;
+-    virJSONValuePtr cmd;
++    virJSONValuePtr cmd = NULL;
+     virJSONValuePtr reply = NULL;
+-    virJSONValuePtr args;
+ 
+-    cmd = qemuMonitorJSONMakeCommand("device_add", NULL);
+-    if (!cmd)
+-        return -1;
+-
+-    args = qemuMonitorJSONKeywordStringToJSON(devicestr, "driver");
+-    if (!args)
++    if (!(cmd = qemuMonitorJSONMakeCommand("device_add", NULL)))
+         goto cleanup;
+ 
+     if (virJSONValueObjectAppend(cmd, "arguments", args) < 0)
+@@ -3621,6 +3616,19 @@ int qemuMonitorJSONAddDevice(qemuMonitorPtr mon,
+ }
+ 
+ 
++int
++qemuMonitorJSONAddDevice(qemuMonitorPtr mon,
++                         const char *devicestr)
++{
++    virJSONValuePtr args;
++
++    if (!(args = qemuMonitorJSONKeywordStringToJSON(devicestr, "driver")))
++        return -1;
++
++    return qemuMonitorJSONAddDeviceArgs(mon, args);
++}
++
++
+ int qemuMonitorJSONAddObject(qemuMonitorPtr mon,
+                              const char *type,
+                              const char *objalias,
+diff --git a/src/qemu/qemu_monitor_json.h b/src/qemu/qemu_monitor_json.h
+index 114b567..3fe5cf1 100644
+--- a/src/qemu/qemu_monitor_json.h
++++ b/src/qemu/qemu_monitor_json.h
+@@ -215,6 +215,8 @@ int qemuMonitorJSONAttachPCIDiskController(qemuMonitorPtr mon,
+                                            const char *bus,
+                                            virPCIDeviceAddress *guestAddr);
+ 
++int qemuMonitorJSONAddDeviceArgs(qemuMonitorPtr mon,
++                                 virJSONValuePtr args);
+ int qemuMonitorJSONAddDevice(qemuMonitorPtr mon,
+                              const char *devicestr);
+ 
+-- 
+2.10.0
+

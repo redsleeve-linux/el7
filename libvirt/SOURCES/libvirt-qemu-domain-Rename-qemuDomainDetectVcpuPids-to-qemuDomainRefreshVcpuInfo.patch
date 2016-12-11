@@ -1,0 +1,116 @@
+From b41d5d32d7d34a4e4de359cdb9725f0ab8c97a0e Mon Sep 17 00:00:00 2001
+Message-Id: <b41d5d32d7d34a4e4de359cdb9725f0ab8c97a0e@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 24 Aug 2016 16:11:06 -0400
+Subject: [PATCH] qemu: domain: Rename qemuDomainDetectVcpuPids to
+ qemuDomainRefreshVcpuInfo
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1097930
+https://bugzilla.redhat.com/show_bug.cgi?id=1224341
+
+The function will eventually do more useful stuff than just detection of
+thread ids.
+
+(cherry picked from commit 8f56b5baaf8c743a10412e1f1df915b3140b0019)
+---
+ src/qemu/qemu_domain.c  | 10 +++++-----
+ src/qemu/qemu_domain.h  |  5 +++--
+ src/qemu/qemu_driver.c  |  4 ++--
+ src/qemu/qemu_process.c |  6 +++---
+ 4 files changed, 13 insertions(+), 12 deletions(-)
+
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index 1148b52..93dd3f6 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -5629,20 +5629,20 @@ qemuDomainGetVcpuPid(virDomainObjPtr vm,
+ 
+ 
+ /**
+- * qemuDomainDetectVcpuPids:
++ * qemuDomainRefreshVcpuInfo:
+  * @driver: qemu driver data
+  * @vm: domain object
+  * @asyncJob: current asynchronous job type
+  *
+- * Updates vCPU thread ids in the private data of @vm.
++ * Updates vCPU information private data of @vm.
+  *
+  * Returns number of detected vCPU threads on success, -1 on error and reports
+  * an appropriate error, -2 if the domain doesn't exist any more.
+  */
+ int
+-qemuDomainDetectVcpuPids(virQEMUDriverPtr driver,
+-                         virDomainObjPtr vm,
+-                         int asyncJob)
++qemuDomainRefreshVcpuInfo(virQEMUDriverPtr driver,
++                          virDomainObjPtr vm,
++                          int asyncJob)
+ {
+     virDomainVcpuDefPtr vcpu;
+     size_t maxvcpus = virDomainDefGetVcpusMax(vm->def);
+diff --git a/src/qemu/qemu_domain.h b/src/qemu/qemu_domain.h
+index 06c3fc2..be61535 100644
+--- a/src/qemu/qemu_domain.h
++++ b/src/qemu/qemu_domain.h
+@@ -649,8 +649,9 @@ int qemuDomainDefValidateMemoryHotplug(const virDomainDef *def,
+ 
+ bool qemuDomainHasVcpuPids(virDomainObjPtr vm);
+ pid_t qemuDomainGetVcpuPid(virDomainObjPtr vm, unsigned int vcpuid);
+-int qemuDomainDetectVcpuPids(virQEMUDriverPtr driver, virDomainObjPtr vm,
+-                             int asyncJob);
++int qemuDomainRefreshVcpuInfo(virQEMUDriverPtr driver,
++                              virDomainObjPtr vm,
++                              int asyncJob);
+ 
+ bool qemuDomainSupportsNicdev(virDomainDefPtr def,
+                               virDomainNetDefPtr net);
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index 57ca522..040c638 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -4645,7 +4645,7 @@ qemuDomainHotplugAddVcpu(virQEMUDriverPtr driver,
+ 
+     vcpuinfo->online = true;
+ 
+-    if ((rc = qemuDomainDetectVcpuPids(driver, vm, QEMU_ASYNC_JOB_NONE)) <= 0) {
++    if ((rc = qemuDomainRefreshVcpuInfo(driver, vm, QEMU_ASYNC_JOB_NONE)) <= 0) {
+         /* vcpu pids were not detected, skip setting of affinity */
+         if (rc == 0)
+             ret = 0;
+@@ -4695,7 +4695,7 @@ qemuDomainHotplugDelVcpu(virQEMUDriverPtr driver,
+         goto cleanup;
+     }
+ 
+-    if ((rc = qemuDomainDetectVcpuPids(driver, vm, QEMU_ASYNC_JOB_NONE)) < 0) {
++    if ((rc = qemuDomainRefreshVcpuInfo(driver, vm, QEMU_ASYNC_JOB_NONE)) < 0) {
+         /* rollback only if domain didn't exit */
+         if (rc == -2)
+             goto cleanup;
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 4cfa81a..6ff5da5 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -5192,8 +5192,8 @@ qemuProcessLaunch(virConnectPtr conn,
+     if (qemuSetupCpusetMems(vm) < 0)
+         goto cleanup;
+ 
+-    VIR_DEBUG("Detecting VCPU PIDs");
+-    if (qemuDomainDetectVcpuPids(driver, vm, asyncJob) < 0)
++    VIR_DEBUG("Refreshing VCPU info");
++    if (qemuDomainRefreshVcpuInfo(driver, vm, asyncJob) < 0)
+         goto cleanup;
+ 
+     VIR_DEBUG("Detecting IOThread PIDs");
+@@ -5987,7 +5987,7 @@ int qemuProcessAttach(virConnectPtr conn ATTRIBUTE_UNUSED,
+     }
+ 
+     VIR_DEBUG("Detecting VCPU PIDs");
+-    if (qemuDomainDetectVcpuPids(driver, vm, QEMU_ASYNC_JOB_NONE) < 0)
++    if (qemuDomainRefreshVcpuInfo(driver, vm, QEMU_ASYNC_JOB_NONE) < 0)
+         goto error;
+ 
+     VIR_DEBUG("Detecting IOThread PIDs");
+-- 
+2.10.0
+
