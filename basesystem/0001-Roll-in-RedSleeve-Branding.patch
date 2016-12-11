@@ -1,0 +1,45 @@
+From 664efe21bd975ec02adb2c98325df9ce8f4dcaa4 Mon Sep 17 00:00:00 2001
+From: Jacco Ligthart <jacco@redsleeve.org>
+Date: Sun, 11 Dec 2016 14:36:30 +0100
+Subject: [PATCH] Roll in RedSleeve Branding
+
+---
+ SPECS/basesystem.spec | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/SPECS/basesystem.spec b/SPECS/basesystem.spec
+index 4fc4a13..9e0bbb8 100644
+--- a/SPECS/basesystem.spec
++++ b/SPECS/basesystem.spec
+@@ -1,7 +1,7 @@
+-Summary: The skeleton package which defines a simple CentOS Linux system
++Summary: The skeleton package which defines a simple RedSleeve Linux system
+ Name: basesystem
+ Version: 10.0
+-Release: 7%{?dist}
++Release: 7%{?dist}.redsleeve
+ License: Public Domain
+ Group: System Environment/Base
+ Requires(pre): setup filesystem
+@@ -9,7 +9,7 @@ BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
+ BuildArch: noarch
+ 
+ %description
+-Basesystem defines the components of a basic CentOS Linux
++Basesystem defines the components of a basic RedSleeve Linux
+ system (for example, the package installation order to use during
+ bootstrapping). Basesystem should be in every installation of a system,
+ and it should never be removed.
+@@ -26,6 +26,9 @@ and it should never be removed.
+ %defattr(-,root,root,-)
+ 
+ %changelog
++* Sun May 17 2015 Jacco Ligthart <jacco@redsleeve.org> 10.0-7.el7.redsleeve
++- Roll in RedSleeve Branding
++
+ * Fri Jun 27 2014 Johnny Hughes <johnny@centos.org> - 10.0-7.el7.centos
+ - Roll in CentOS Branding
+ 
+-- 
+1.8.3.1
+
