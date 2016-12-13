@@ -1,0 +1,28 @@
+diff --git a/ipaplatform/base/paths.py b/ipaplatform/base/paths.py
+index af50262..5090062 100644
+--- a/ipaplatform/base/paths.py
++++ b/ipaplatform/base/paths.py
+@@ -99,6 +99,7 @@ class BasePathNamespace(object):
+     PKI_TOMCAT_ALIAS_DIR = "/etc/pki/pki-tomcat/alias/"
+     PKI_TOMCAT_PASSWORD_CONF = "/etc/pki/pki-tomcat/password.conf"
+     ETC_REDHAT_RELEASE = "/etc/redhat-release"
++    ETC_REDSLEEVE_RELEASE = "/etc/redsleeve-release"
+     RESOLV_CONF = "/etc/resolv.conf"
+     SAMBA_KEYTAB = "/etc/samba/samba.keytab"
+     SMB_CONF = "/etc/samba/smb.conf"
+diff --git a/ipaserver/install/ntpinstance.py b/ipaserver/install/ntpinstance.py
+index c653525..4b0578b 100644
+--- a/ipaserver/install/ntpinstance.py
++++ b/ipaserver/install/ntpinstance.py
+@@ -44,6 +44,8 @@ class NTPInstance(service.Service):
+         os = ""
+         if ipautil.file_exists(paths.ETC_FEDORA_RELEASE):
+             os = "fedora"
++        elif ipautil.file_exists(paths.ETC_REDSLEEVE_RELEASE):
++            os = "redsleeve"
+         elif ipautil.file_exists(paths.ETC_REDHAT_RELEASE):
+             os = "rhel"
+ 
+-- 
+1.8.3.1
+
