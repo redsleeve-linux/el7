@@ -41,6 +41,10 @@
 %ifarch aarch64
     %global kvm_target    aarch64
 %endif
+%ifarch %{arm}
+    %global kvm_target    arm
+%endif
+
 
 #Versions of various parts:
 
@@ -76,7 +80,7 @@ Obsoletes: %1 < %{obsoletes_version}                                      \
 Summary: QEMU is a FAST! processor emulator
 Name: %{pkgname}%{?pkgsuffix}
 Version: 1.5.3
-Release: 126%{?dist}
+Release: 126%{?dist}.redsleeve
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 Epoch: 10
 License: GPLv2+ and LGPLv2+ and BSD
@@ -5680,6 +5684,9 @@ sh %{_sysconfdir}/sysconfig/modules/kvm.modules &> /dev/null || :
 %{_mandir}/man8/qemu-nbd.8*
 
 %changelog
+* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> - 1.5.3-126.el7.redsleeve
+- added kvm_target arm
+
 * Tue Sep 20 2016 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-126.el7
 - kvm-virtio-recalculate-vq-inuse-after-migration.patch [bz#1376542]
 - Resolves: bz#1376542
