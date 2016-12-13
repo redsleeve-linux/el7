@@ -1,6 +1,6 @@
 Name:           nfs4-acl-tools
 Version:        0.3.3
-Release:        15%{?dist}
+Release:        15%{?dist}.redsleeve
 Summary:        The nfs4 ACL tools
 Group:          Applications/System
 License:        BSD
@@ -24,6 +24,8 @@ Patch006: nfs4-acl-tools-0.3.3-fd-leak.patch
 
 Patch100: nfs4acl-0.2.0-compile.patch
 
+Patch10001: ../SOURCES/nfs4acl-0.3.3-libtool.patch
+
 %description
 This package contains commandline and GUI ACL utilities for the Linux
 NFSv4 client.
@@ -42,6 +44,8 @@ NFSv4 client.
 %patch006 -p1
 
 %patch100 -p1
+
+%patch10001 -p1
 
 %build
 %ifarch s390 s390x sparc
@@ -75,6 +79,9 @@ rm -rf %{buildroot}
 %{_mandir}/man5/*
 
 %changelog
+* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> - 0.3.3-15.redsleeve
+- added "--tag=CC" to the make command due to libtool errors
+
 * Tue Apr  5 2016 Steve Dickson <steved@redhat.com> 0.3.3-15
 - Allow spaces in group principal names (bz 1284597)
 - Fixed FD leak in edit_ACL() (bz 1284608)
