@@ -1,0 +1,487 @@
+From 875261673a8663bdbd1b3367341bd7f418c025e4 Mon Sep 17 00:00:00 2001
+From: Jacco Ligthart <jacco@redsleeve.org>
+Date: Tue, 13 Dec 2016 22:02:24 +0100
+Subject: [PATCH] Issue #17998: Fix an internal error in regular expression
+ engine.
+
+---
+ SOURCES/python-2.7.5-Fix-re-engine-redsleeve.patch | 106 ++++++++++++++
+ .../python-2.7.5-Fix-re-engine2-redsleeve.patch    | 160 +++++++++++++++++++++
+ .../python-2.7.5-Fix-re-engine3-redsleeve.patch    |  48 +++++++
+ .../python-2.7.5-Fix-re-engine4-redsleeve.patch    |  44 ++++++
+ .../python-2.7.5-Fix-re-engine5-redsleeve.patch    |  23 +++
+ SPECS/python.spec                                  |  21 ++-
+ 6 files changed, 401 insertions(+), 1 deletion(-)
+ create mode 100644 SOURCES/python-2.7.5-Fix-re-engine-redsleeve.patch
+ create mode 100644 SOURCES/python-2.7.5-Fix-re-engine2-redsleeve.patch
+ create mode 100644 SOURCES/python-2.7.5-Fix-re-engine3-redsleeve.patch
+ create mode 100644 SOURCES/python-2.7.5-Fix-re-engine4-redsleeve.patch
+ create mode 100644 SOURCES/python-2.7.5-Fix-re-engine5-redsleeve.patch
+
+diff --git a/SOURCES/python-2.7.5-Fix-re-engine-redsleeve.patch b/SOURCES/python-2.7.5-Fix-re-engine-redsleeve.patch
+new file mode 100644
+index 0000000..fe7d684
+--- /dev/null
++++ b/SOURCES/python-2.7.5-Fix-re-engine-redsleeve.patch
+@@ -0,0 +1,106 @@
++
++# HG changeset patch
++# User Serhiy Storchaka <storchaka@gmail.com>
++# Date 1375547193 -10800
++# Node ID e5e425fd1e4f7e859abdced43621203cdfa87a16
++# Parent  8205e72b5cfcdb7a3450c80f3368eff610bc650c
++Issue #17998: Fix an internal error in regular expression engine.
++
++diff --git a/Lib/test/test_re.py b/Lib/test/test_re.py
++--- a/Lib/test/test_re.py
+++++ b/Lib/test/test_re.py
++@@ -897,6 +897,16 @@ class ReTests(unittest.TestCase):
++         with self.assertRaisesRegexp(sre_constants.error, '\?foo'):
++             re.compile('(?P<?foo>)')
++ 
+++    def test_issue17998(self):
+++        for reps in '*', '+', '?', '{1}':
+++            for mod in '', '?':
+++                pattern = '.' + reps + mod + 'yz'
+++                self.assertEqual(re.compile(pattern, re.S).findall('xyz'),
+++                                 ['xyz'], msg=pattern)
+++                pattern = pattern.encode()
+++                self.assertEqual(re.compile(pattern, re.S).findall(b'xyz'),
+++                                 [b'xyz'], msg=pattern)
+++
++ 
++ def run_re_tests():
++     from test.re_tests import tests, SUCCEED, FAIL, SYNTAX_ERROR
++diff --git a/Modules/_sre.c b/Modules/_sre.c
++--- a/Modules/_sre.c
+++++ b/Modules/_sre.c
++@@ -1028,7 +1028,7 @@ entrance:
++             TRACE(("|%p|%p|REPEAT_ONE %d %d\n", ctx->pattern, ctx->ptr,
++                    ctx->pattern[1], ctx->pattern[2]));
++ 
++-            if (ctx->pattern[1] > end - ctx->ptr)
+++            if ((Py_ssize_t) ctx->pattern[1] > end - ctx->ptr)
++                 RETURN_FAILURE; /* cannot match */
++ 
++             state->ptr = ctx->ptr;
++@@ -1111,7 +1111,7 @@ entrance:
++             TRACE(("|%p|%p|MIN_REPEAT_ONE %d %d\n", ctx->pattern, ctx->ptr,
++                    ctx->pattern[1], ctx->pattern[2]));
++ 
++-            if (ctx->pattern[1] > end - ctx->ptr)
+++            if ((Py_ssize_t) ctx->pattern[1] > end - ctx->ptr)
++                 RETURN_FAILURE; /* cannot match */
++ 
++             state->ptr = ctx->ptr;
++@@ -1210,7 +1210,7 @@ entrance:
++             TRACE(("|%p|%p|MAX_UNTIL %d\n", ctx->pattern,
++                    ctx->ptr, ctx->count));
++ 
++-            if (ctx->count < ctx->u.rep->pattern[1]) {
+++            if (ctx->count < (Py_ssize_t) ctx->u.rep->pattern[1]) {
++                 /* not enough matches */
++                 ctx->u.rep->count = ctx->count;
++                 DO_JUMP(JUMP_MAX_UNTIL_1, jump_max_until_1,
++@@ -1224,7 +1224,7 @@ entrance:
++                 RETURN_FAILURE;
++             }
++ 
++-            if ((ctx->count < ctx->u.rep->pattern[2] ||
+++            if ((ctx->count < (Py_ssize_t) ctx->u.rep->pattern[2] ||
++                 ctx->u.rep->pattern[2] == SRE_MAXREPEAT) &&
++                 state->ptr != ctx->u.rep->last_ptr) {
++                 /* we may have enough matches, but if we can
++@@ -1273,7 +1273,7 @@ entrance:
++             TRACE(("|%p|%p|MIN_UNTIL %d %p\n", ctx->pattern,
++                    ctx->ptr, ctx->count, ctx->u.rep->pattern));
++ 
++-            if (ctx->count < ctx->u.rep->pattern[1]) {
+++            if (ctx->count < (Py_ssize_t) ctx->u.rep->pattern[1]) {
++                 /* not enough matches */
++                 ctx->u.rep->count = ctx->count;
++                 DO_JUMP(JUMP_MIN_UNTIL_1, jump_min_until_1,
++@@ -1302,7 +1302,7 @@ entrance:
++ 
++             LASTMARK_RESTORE();
++ 
++-            if ((ctx->count >= ctx->u.rep->pattern[2]
+++            if ((ctx->count >= (Py_ssize_t) ctx->u.rep->pattern[2]
++                 && ctx->u.rep->pattern[2] != SRE_MAXREPEAT) ||
++                 state->ptr == ctx->u.rep->last_ptr)
++                 RETURN_FAILURE;
++diff --git a/Modules/sre.h b/Modules/sre.h
++--- a/Modules/sre.h
+++++ b/Modules/sre.h
++@@ -20,14 +20,14 @@
++ # if SIZEOF_SIZE_T > 4
++ #  define SRE_MAXREPEAT (~(SRE_CODE)0)
++ # else
++-#  define SRE_MAXREPEAT ((SRE_CODE)PY_SSIZE_T_MAX + 1u)
+++#  define SRE_MAXREPEAT ((SRE_CODE)PY_SSIZE_T_MAX)
++ # endif
++ #else
++ # define SRE_CODE unsigned long
++ # if SIZEOF_SIZE_T > SIZEOF_LONG
++ #  define SRE_MAXREPEAT (~(SRE_CODE)0)
++ # else
++-#  define SRE_MAXREPEAT ((SRE_CODE)PY_SSIZE_T_MAX + 1u)
+++#  define SRE_MAXREPEAT ((SRE_CODE)PY_SSIZE_T_MAX)
++ # endif
++ #endif
++ 
++
+diff --git a/SOURCES/python-2.7.5-Fix-re-engine2-redsleeve.patch b/SOURCES/python-2.7.5-Fix-re-engine2-redsleeve.patch
+new file mode 100644
+index 0000000..47fba50
+--- /dev/null
++++ b/SOURCES/python-2.7.5-Fix-re-engine2-redsleeve.patch
+@@ -0,0 +1,160 @@
++
++# HG changeset patch
++# User Serhiy Storchaka <storchaka@gmail.com>
++# Date 1436180304 -10800
++# Node ID 0007031e04522cb7be79550bd40972d952b09891
++# Parent  372aa98eb72e2d422ddf77eca839c78ec7d43f9f
++Issue #18684: Fixed reading out of the buffer in the re module.
++
++diff --git a/Modules/_sre.c b/Modules/_sre.c
++--- a/Modules/_sre.c
+++++ b/Modules/_sre.c
++@@ -351,7 +351,7 @@ SRE_AT(SRE_STATE* state, SRE_CHAR* ptr, 
++                 SRE_IS_LINEBREAK((int) ptr[-1]));
++ 
++     case SRE_AT_END:
++-        return (((void*) (ptr+1) == state->end &&
+++        return (((SRE_CHAR *)state->end - ptr == 1 &&
++                  SRE_IS_LINEBREAK((int) ptr[0])) ||
++                 ((void*) ptr == state->end));
++ 
++@@ -1404,9 +1404,9 @@ entrance:
++             /* <ASSERT> <skip> <back> <pattern> */
++             TRACE(("|%p|%p|ASSERT %d\n", ctx->pattern,
++                    ctx->ptr, ctx->pattern[1]));
+++            if (ctx->ptr - (SRE_CHAR *)state->beginning < (Py_ssize_t)ctx->pattern[1])
+++                RETURN_FAILURE;
++             state->ptr = ctx->ptr - ctx->pattern[1];
++-            if (state->ptr < state->beginning)
++-                RETURN_FAILURE;
++             DO_JUMP(JUMP_ASSERT, jump_assert, ctx->pattern+2);
++             RETURN_ON_FAILURE(ret);
++             ctx->pattern += ctx->pattern[0];
++@@ -1417,8 +1417,8 @@ entrance:
++             /* <ASSERT_NOT> <skip> <back> <pattern> */
++             TRACE(("|%p|%p|ASSERT_NOT %d\n", ctx->pattern,
++                    ctx->ptr, ctx->pattern[1]));
++-            state->ptr = ctx->ptr - ctx->pattern[1];
++-            if (state->ptr >= state->beginning) {
+++            if (ctx->ptr - (SRE_CHAR *)state->beginning >= (Py_ssize_t)ctx->pattern[1]) {
+++                state->ptr = ctx->ptr - ctx->pattern[1];
++                 DO_JUMP(JUMP_ASSERT_NOT, jump_assert_not, ctx->pattern+2);
++                 if (ret) {
++                     RETURN_ON_ERROR(ret);
++@@ -1510,12 +1510,20 @@ SRE_SEARCH(SRE_STATE* state, SRE_CODE* p
++     SRE_CODE* overlap = NULL;
++     int flags = 0;
++ 
+++    if (ptr > end)
+++        return 0;
+++
++     if (pattern[0] == SRE_OP_INFO) {
++         /* optimization info block */
++         /* <INFO> <1=skip> <2=flags> <3=min> <4=max> <5=prefix info>  */
++ 
++         flags = pattern[2];
++ 
+++        if (pattern[3] && end - ptr < (Py_ssize_t)pattern[3]) {
+++            TRACE(("reject (got %u chars, need %u)\n",
+++                   (unsigned int)(end - ptr), pattern[3]));
+++            return 0;
+++        }
++         if (pattern[3] > 1) {
++             /* adjust end point (but make sure we leave at least one
++                character in there, so literal search will work) */
++@@ -1614,15 +1622,18 @@ SRE_SEARCH(SRE_STATE* state, SRE_CODE* p
++                 break;
++             ptr++;
++         }
++-    } else
+++    } else {
++         /* general case */
++-        while (ptr <= end) {
+++        assert(ptr <= end);
+++        while (1) {
++             TRACE(("|%p|%p|SEARCH\n", pattern, ptr));
++-            state->start = state->ptr = ptr++;
+++            state->start = state->ptr = ptr;
++             status = SRE_MATCH(state, pattern);
++-            if (status != 0)
+++            if (status != 0 || ptr >= end)
++                 break;
+++            ptr++;
++         }
+++    }
++ 
++     return status;
++ }
++@@ -2295,7 +2306,7 @@ pattern_split(PatternObject* self, PyObj
++         }
++ 
++         if (state.start == state.ptr) {
++-            if (last == state.end)
+++            if (last == state.end || state.ptr == state.end)
++                 break;
++             /* skip one character */
++             state.start = (void*) ((char*) state.ptr + state.charsize);
++@@ -2497,6 +2508,8 @@ pattern_subx(PatternObject* self, PyObje
++ 
++ next:
++         /* move on */
+++        if (state.ptr == state.end)
+++            break;
++         if (state.ptr == state.start)
++             state.start = (void*) ((char*) state.ptr + state.charsize);
++         else
++@@ -3843,6 +3856,9 @@ scanner_match(ScannerObject* self, PyObj
++     PyObject* match;
++     int status;
++ 
+++    if (state->start == NULL)
+++        Py_RETURN_NONE;
+++
++     state_reset(state);
++ 
++     state->ptr = state->start;
++@@ -3860,10 +3876,14 @@ scanner_match(ScannerObject* self, PyObj
++     match = pattern_new_match((PatternObject*) self->pattern,
++                                state, status);
++ 
++-    if (status == 0 || state->ptr == state->start)
+++    if (status == 0)
+++        state->start = NULL;
+++    else if (state->ptr != state->start)
+++        state->start = state->ptr;
+++    else if (state->ptr != state->end)
++         state->start = (void*) ((char*) state->ptr + state->charsize);
++     else
++-        state->start = state->ptr;
+++        state->start = NULL;
++ 
++     return match;
++ }
++@@ -3876,6 +3896,9 @@ scanner_search(ScannerObject* self, PyOb
++     PyObject* match;
++     int status;
++ 
+++    if (state->start == NULL)
+++        Py_RETURN_NONE;
+++
++     state_reset(state);
++ 
++     state->ptr = state->start;
++@@ -3893,10 +3916,14 @@ scanner_search(ScannerObject* self, PyOb
++     match = pattern_new_match((PatternObject*) self->pattern,
++                                state, status);
++ 
++-    if (status == 0 || state->ptr == state->start)
+++    if (status == 0)
+++        state->start = NULL;
+++    else if (state->ptr != state->start)
+++        state->start = state->ptr;
+++    else if (state->ptr != state->end)
++         state->start = (void*) ((char*) state->ptr + state->charsize);
++     else
++-        state->start = state->ptr;
+++        state->start = NULL;
++ 
++     return match;
++ }
++
+diff --git a/SOURCES/python-2.7.5-Fix-re-engine3-redsleeve.patch b/SOURCES/python-2.7.5-Fix-re-engine3-redsleeve.patch
+new file mode 100644
+index 0000000..fb5e589
+--- /dev/null
++++ b/SOURCES/python-2.7.5-Fix-re-engine3-redsleeve.patch
+@@ -0,0 +1,48 @@
++
++# HG changeset patch
++# User Serhiy Storchaka <storchaka@gmail.com>
++# Date 1376942026 -10800
++# Node ID d10c287c200cd5fd5ecc3549dcfb547e5a2d1ca4
++# Parent  5d691723bfbd5a16b7c0646738528c8d606706e6
++Issue #18647: Correctly bound calculated min/max width of a subexpression.
++
++Now max width is MAXREPEAT on 32- and 64-bit platforms when one of
++subexpressions is unbounded repetition.
++
++diff --git a/Lib/sre_parse.py b/Lib/sre_parse.py
++--- a/Lib/sre_parse.py
+++++ b/Lib/sre_parse.py
++@@ -142,12 +142,12 @@ class SubPattern:
++         # determine the width (min, max) for this subpattern
++         if self.width:
++             return self.width
++-        lo = hi = 0L
+++        lo = hi = 0
++         UNITCODES = (ANY, RANGE, IN, LITERAL, NOT_LITERAL, CATEGORY)
++         REPEATCODES = (MIN_REPEAT, MAX_REPEAT)
++         for op, av in self.data:
++             if op is BRANCH:
++-                i = sys.maxint
+++                i = MAXREPEAT - 1
++                 j = 0
++                 for av in av[1]:
++                     l, h = av.getwidth()
++@@ -165,14 +165,14 @@ class SubPattern:
++                 hi = hi + j
++             elif op in REPEATCODES:
++                 i, j = av[2].getwidth()
++-                lo = lo + long(i) * av[0]
++-                hi = hi + long(j) * av[1]
+++                lo = lo + i * av[0]
+++                hi = hi + j * av[1]
++             elif op in UNITCODES:
++                 lo = lo + 1
++                 hi = hi + 1
++             elif op == SUCCESS:
++                 break
++-        self.width = int(min(lo, sys.maxint)), int(min(hi, sys.maxint))
+++        self.width = min(lo, MAXREPEAT - 1), min(hi, MAXREPEAT)
++         return self.width
++ 
++ class Tokenizer:
++
+diff --git a/SOURCES/python-2.7.5-Fix-re-engine4-redsleeve.patch b/SOURCES/python-2.7.5-Fix-re-engine4-redsleeve.patch
+new file mode 100644
+index 0000000..c75c7fd
+--- /dev/null
++++ b/SOURCES/python-2.7.5-Fix-re-engine4-redsleeve.patch
+@@ -0,0 +1,44 @@
++
++# HG changeset patch
++# User Serhiy Storchaka <storchaka@gmail.com>
++# Date 1376943607 -10800
++# Node ID 7b867a46a8b42efa2c6e306695678ab33f3b1188
++# Parent  c2dc99ec46bc2012772b0f817e3547dfac484370
++Issue #2537: Remove breaked check which prevented valid regular expressions.
++Patch by Meador Inge.
++
++See also issue #18647.
++
++diff --git a/Lib/sre_compile.py b/Lib/sre_compile.py
++--- a/Lib/sre_compile.py
+++++ b/Lib/sre_compile.py
++@@ -355,8 +355,6 @@ def _optimize_unicode(charset, fixup):
++ def _simple(av):
++     # check if av is a "simple" operator
++     lo, hi = av[2].getwidth()
++-    if lo == 0 and hi == MAXREPEAT:
++-        raise error, "nothing to repeat"
++     return lo == hi == 1 and av[2][0][0] != SUBPATTERN
++ 
++ def _compile_info(code, pattern, flags):
++diff --git a/Lib/test/test_re.py b/Lib/test/test_re.py
++--- a/Lib/test/test_re.py
+++++ b/Lib/test/test_re.py
++@@ -908,6 +908,16 @@ class ReTests(unittest.TestCase):
++                                  [b'xyz'], msg=pattern)
++ 
++ 
+++    def test_bug_2537(self):
+++        # issue 2537: empty submatches
+++        for outer_op in ('{0,}', '*', '+', '{1,187}'):
+++            for inner_op in ('{0,}', '*', '?'):
+++                r = re.compile("^((x|y)%s)%s" % (inner_op, outer_op))
+++                m = r.match("xyyzy")
+++                self.assertEqual(m.group(0), "xyy")
+++                self.assertEqual(m.group(1), "")
+++                self.assertEqual(m.group(2), "y")
+++
++ def run_re_tests():
++     from test.re_tests import tests, SUCCEED, FAIL, SYNTAX_ERROR
++     if verbose:
++
+diff --git a/SOURCES/python-2.7.5-Fix-re-engine5-redsleeve.patch b/SOURCES/python-2.7.5-Fix-re-engine5-redsleeve.patch
+new file mode 100644
+index 0000000..c019d91
+--- /dev/null
++++ b/SOURCES/python-2.7.5-Fix-re-engine5-redsleeve.patch
+@@ -0,0 +1,23 @@
++
++# HG changeset patch
++# User Serhiy Storchaka <storchaka@gmail.com>
++# Date 1376942692 -10800
++# Node ID c2dc99ec46bc2012772b0f817e3547dfac484370
++# Parent  d10c287c200cd5fd5ecc3549dcfb547e5a2d1ca4
++Issue #18647: A regular expression in the doctest module rewritten so that
++determined minimal width of repeated subexpression is >0 (an empty line was
++not matched in any case).
++
++diff --git a/Lib/doctest.py b/Lib/doctest.py
++--- a/Lib/doctest.py
+++++ b/Lib/doctest.py
++@@ -564,7 +564,7 @@ class DocTestParser:
++         # Want consists of any non-blank lines that do not start with PS1.
++         (?P<want> (?:(?![ ]*$)    # Not a blank line
++                      (?![ ]*>>>)  # Not a line starting with PS1
++-                     .*$\n?       # But any other line
+++                     .+$\n?       # But any other line
++                   )*)
++         ''', re.MULTILINE | re.VERBOSE)
++ 
++
+diff --git a/SPECS/python.spec b/SPECS/python.spec
+index 8e64529..b22db29 100644
+--- a/SPECS/python.spec
++++ b/SPECS/python.spec
+@@ -106,7 +106,7 @@ Summary: An interpreted, interactive, object-oriented programming language
+ Name: %{python}
+ # Remember to also rebase python-docs when changing this:
+ Version: 2.7.5
+-Release: 48%{?dist}
++Release: 48%{?dist}.redsleeve
+ License: Python
+ Group: Development/Languages
+ Requires: %{python}-libs%{?_isa} = %{version}-%{release}
+@@ -1133,6 +1133,12 @@ Patch242: 00242-CVE-2016-1000110-httpoxy.patch
+ # above:
+ Patch5000: 05000-autotool-intermediates.patch
+ 
++Patch6001: python-2.7.5-Fix-re-engine-redsleeve.patch
++Patch6002: python-2.7.5-Fix-re-engine2-redsleeve.patch
++Patch6003: python-2.7.5-Fix-re-engine3-redsleeve.patch
++Patch6004: python-2.7.5-Fix-re-engine4-redsleeve.patch
++Patch6005: python-2.7.5-Fix-re-engine5-redsleeve.patch
++
+ # ======================================================
+ # Additional metadata, and subpackages
+ # ======================================================
+@@ -1522,6 +1528,11 @@ find -name "*~" |xargs rm -f
+ %patch5000 -p0 -b .autotool-intermediates
+ %endif
+ 
++%patch6001 -p1
++%patch6002 -p1
++%patch6003 -p1
++%patch6004 -p1
++%patch6005 -p1
+ 
+ # ======================================================
+ # Configuring and building the code:
+@@ -2380,6 +2391,14 @@ rm -fr %{buildroot}
+ # ======================================================
+ 
+ %changelog
++* Sun Nov 13 2016 Jacco Ligthart <jacco@ligthart.nu> - 2.7.5-48.redsleeve
++- Issue #17998: Fix an internal error in regular expression engine.
++- https://github.com/OpenSCAP/scap-security-guide/issues/1332
++- https://bugs.python.org/issue17998
++- and related issues #18684 and #18647
++- https://bugs.python.org/issue18684
++- https://bugs.python.org/issue18647
++
+ * Mon Aug 01 2016 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-48
+ - Fix for CVE-2016-1000110 HTTPoxy attack
+ Resolves: rhbz#1359164
+-- 
+1.8.3.1
+
