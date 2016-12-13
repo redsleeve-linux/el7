@@ -32,7 +32,7 @@
 Summary:          Network Security Services Softoken Module
 Name:             nss-softokn
 Version:          3.16.2.3
-Release:          14.4%{?dist}
+Release:          14.4%{?dist}.redsleeve
 License:          MPLv2.0
 URL:              http://www.mozilla.org/projects/security/pki/nss/
 Group:            System Environment/Libraries
@@ -116,6 +116,7 @@ Patch204:	limit-create-fipscheck.patch
 Patch205:	nss-softokn-3.16-tls12-mechanisms-fipstest.patch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1053437
 Patch206:   skip-check-fork-in_GetFunctionList.patch
+Patch10001:	nss-softokn-3.16-arm.patch
 
 %description
 Network Security Services Softoken Cryptographic Module
@@ -199,6 +200,7 @@ popd
 pushd nss
 %patch102 -p1 -b .extra_check
 popd
+%patch10001 -p0 -b .arm
 
 %build
 
@@ -511,6 +513,9 @@ done
 %{_includedir}/nss3/shsign.h
 
 %changelog
+* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> - 3.16.2.3-14.4.redsleeve
+- added an arm patch
+
 * Tue Jun 28 2016 Kai Engert <kaie@redhat.com> - 3.16.2.3-14.4
 - escape all percent characters in all changelog comments
 

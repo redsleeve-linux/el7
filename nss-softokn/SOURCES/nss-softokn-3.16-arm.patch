@@ -1,0 +1,12 @@
+diff -ruN nss-orig/lib/freebl/lowhash_vector.c nss/lib/freebl/lowhash_vector.c
+--- nss-orig/lib/freebl/lowhash_vector.c	2015-06-25 23:44:00.547713385 +0200
++++ nss/lib/freebl/lowhash_vector.c	2015-06-25 23:45:21.202553235 +0200
+@@ -99,7 +99,7 @@
+ static PRCallOnceType loadFreeBLOnce;
+ /* remove when NSPR pratom.h is updated. s390 has atomic intrinsics,
+  * but nspr doesn't know it. */
+-#if defined(__s390__) || defined(__s390x__)
++#if defined(__s390__) || defined(__s390x__) || defined(__arm__)
+ #undef PR_ATOMIC_SET
+ #define PR_ATOMIC_SET(val, newval) __sync_lock_test_and_set(val, newval)
+ #endif
