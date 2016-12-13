@@ -125,7 +125,7 @@
 Summary: The GNU libc libraries
 Name: glibc
 Version: %{glibcversion}
-Release: %{glibcrelease}
+Release: %{glibcrelease}.redsleeve
 # GPLv2+ is used in a bunch of programs, LGPLv2+ is used for libraries.
 # Things that are linked directly into dynamically linked programs
 # and shared libraries (e.g. crt files, lib*_nonshared.a) have an additional
@@ -1009,6 +1009,8 @@ Patch2077: glibc-rh1370630.patch
 # End of glibc patches.
 ##############################################################################
 
+Patch3000: glibc-rh1256317-redsleeve.patch
+
 ##############################################################################
 # Continued list of core "glibc" package information:
 ##############################################################################
@@ -1804,6 +1806,8 @@ package or when debugging this package.
 %patch1754 -p1
 %patch1755 -p1
 %patch1756 -p1
+
+%patch3000 -p1
 
 ##############################################################################
 # %%prep - Additional prep required...
@@ -2951,6 +2955,9 @@ rm -f *.filelist*
 %endif
 
 %changelog
+* Sun Dec 11 2016 Jacco Ligthart <jacco@redsleeve.org> 2.17-157.1.redsleeve
+- enhanced the patch for rh1256317 to build on arm
+
 * Thu Oct 27 2016 Carlos O'Donell <carlos@redhat.com> - 2.17-157.1
 - Do not set initgroups in default nsswitch.conf (#1388638)
 - nss_db: Request larger buffers for long group entries (#1388637)
