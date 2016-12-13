@@ -1,0 +1,114 @@
+From c8dae57adb518e1ed27420067245353a8bbb92e3 Mon Sep 17 00:00:00 2001
+From: Jacco Ligthart <jacco@redsleeve.org>
+Date: Tue, 13 Dec 2016 21:43:03 +0100
+Subject: [PATCH] roll in redsleeve branding, based on RHEL
+
+---
+ SOURCES/index.html   |  6 +++---
+ SOURCES/welcome.conf |  4 ----
+ SPECS/httpd.spec     | 16 +++++++++-------
+ 3 files changed, 12 insertions(+), 14 deletions(-)
+
+diff --git a/SOURCES/index.html b/SOURCES/index.html
+index 06ad3fc..9541e5e 100644
+--- a/SOURCES/index.html
++++ b/SOURCES/index.html
+@@ -2,7 +2,7 @@
+ 
+ <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+ 	<head>
+-		<title>Test Page for the Apache HTTP Server on Red Hat Enterprise Linux</title>
++		<title>Test Page for the Apache HTTP Server on Red Sleeve Enterprise Linux</title>
+ 		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+ 		<style type="text/css">
+ 			/*<![CDATA[*/
+@@ -85,7 +85,7 @@
+ 	</head>
+ 
+ 	<body>
+-		<h1>Red Hat Enterprise Linux <strong>Test Page</strong></h1>
++		<h1>Red Sleeve Enterprise Linux <strong>Test Page</strong></h1>
+ 
+ 		<div class="content">
+ 			<div class="content-middle">
+@@ -103,7 +103,7 @@
+ 
+ 					<p>For example, if you experienced problems while visiting www.example.com, you should send e-mail to "webmaster@example.com".</p>
+ 
+-					<p>For information on Red Hat Enterprise Linux, please visit the <a href="http://www.redhat.com/">Red Hat, Inc. website</a>. The documentation for Red Hat Enterprise Linux is <a href="http://www.redhat.com/docs/manuals/enterprise/">available on the Red Hat, Inc. website</a>.</p>
++					<p>For information on Red Sleeve Enterprise Linux, please visit the <a href="http://www.redsleeve.com/">Red Sleeve website</a>.</p>
+ 					<hr />
+ 				</div>
+ 
+diff --git a/SOURCES/welcome.conf b/SOURCES/welcome.conf
+index c1b6c11..5d1e452 100644
+--- a/SOURCES/welcome.conf
++++ b/SOURCES/welcome.conf
+@@ -16,7 +16,3 @@
+ </Directory>
+ 
+ Alias /.noindex.html /usr/share/httpd/noindex/index.html
+-Alias /noindex/css/bootstrap.min.css /usr/share/httpd/noindex/css/bootstrap.min.css
+-Alias /noindex/css/open-sans.css /usr/share/httpd/noindex/css/open-sans.css
+-Alias /images/apache_pb.gif /usr/share/httpd/noindex/images/apache_pb.gif
+-Alias /images/poweredby.png /usr/share/httpd/noindex/images/poweredby.png
+diff --git a/SPECS/httpd.spec b/SPECS/httpd.spec
+index 7ce38f6..a87c824 100644
+--- a/SPECS/httpd.spec
++++ b/SPECS/httpd.spec
+@@ -15,10 +15,10 @@
+ Summary: Apache HTTP Server
+ Name: httpd
+ Version: 2.4.6
+-Release: 45%{?dist}
++Release: 45%{?dist}.redsleeve
+ URL: http://httpd.apache.org/
+ Source0: http://www.apache.org/dist/httpd/httpd-%{version}.tar.bz2
+-Source1: centos-noindex.tar.gz
++Source1: index.html
+ Source2: httpd.logrotate
+ Source3: httpd.sysconf
+ Source4: httpd-ssl-pass-dialog
+@@ -489,9 +489,8 @@ EOF
+ 
+ # Handle contentdir
+ mkdir $RPM_BUILD_ROOT%{contentdir}/noindex
+-tar xzf $RPM_SOURCE_DIR/centos-noindex.tar.gz \
+-        -C $RPM_BUILD_ROOT%{contentdir}/noindex/ \
+-        --strip-components=1
++install -m 644 -p $RPM_SOURCE_DIR/index.html \
++        $RPM_BUILD_ROOT%{contentdir}/noindex/index.html
+ 
+ rm -rf %{contentdir}/htdocs
+ 
+@@ -515,7 +514,7 @@ rm -v $RPM_BUILD_ROOT%{docroot}/html/*.html \
+       $RPM_BUILD_ROOT%{docroot}/cgi-bin/*
+ 
+ # Symlink for the powered-by-$DISTRO image:
+-ln -s ../noindex/images/poweredby.png \
++ln -s ../../pixmaps/poweredby.png \
+         $RPM_BUILD_ROOT%{contentdir}/icons/poweredby.png
+ 
+ # symlinks for /etc/httpd
+@@ -701,7 +700,7 @@ rm -rf $RPM_BUILD_ROOT
+ %{contentdir}/error/README
+ %{contentdir}/error/*.var
+ %{contentdir}/error/include/*.html
+-%{contentdir}/noindex/*
++%{contentdir}/noindex/index.html
+ 
+ %dir %{docroot}
+ %dir %{docroot}/cgi-bin
+@@ -767,6 +766,9 @@ rm -rf $RPM_BUILD_ROOT
+ %{_sysconfdir}/rpm/macros.httpd
+ 
+ %changelog
++* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> - 2.4.6-45.el7.redsleeve
++- roll in redsleeve branding, based on RHEL
++
+ * Thu Nov 03 2016 CentOS Sources <bugs@centos.org> - 2.4.6-45.el7.centos
+ - Remove index.html, add centos-noindex.tar.gz
+ - change vstring
+-- 
+1.8.3.1
+
