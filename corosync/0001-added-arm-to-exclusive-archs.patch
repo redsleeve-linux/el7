@@ -1,0 +1,44 @@
+From 7996efeca8d1f53fe0b046d624e4531e470fef44 Mon Sep 17 00:00:00 2001
+From: Jacco Ligthart <jacco@redsleeve.org>
+Date: Tue, 13 Dec 2016 21:35:23 +0100
+Subject: [PATCH] added arm to exclusive archs
+
+---
+ SPECS/corosync.spec | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/SPECS/corosync.spec b/SPECS/corosync.spec
+index 457df13..f10ebd4 100644
+--- a/SPECS/corosync.spec
++++ b/SPECS/corosync.spec
+@@ -23,7 +23,7 @@
+ Name: corosync
+ Summary: The Corosync Cluster Engine and Application Programming Interfaces
+ Version: 2.4.0
+-Release: 4%{?gitver}%{?dist}
++Release: 4%{?gitver}%{?dist}.redsleeve
+ License: BSD
+ Group: System Environment/Base
+ URL: http://corosync.github.io/corosync/
+@@ -35,7 +35,7 @@ Patch2: bz1367813-2-man-mention-qdevice-incompatibilites-in-votequorum.5.patch
+ Patch3: bz1367813-3-Qnetd-LMS-Fix-two-partition-use-case.patch
+ 
+ %if 0%{?rhel}
+-ExclusiveArch: i686 x86_64 s390x
++ExclusiveArch: i686 x86_64 s390x %{arm}
+ %endif
+ 
+ # Runtime bits
+@@ -519,6 +519,9 @@ fi
+ %endif
+ 
+ %changelog
++* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> 2.4.0-4.redsleeve
++- added arm to exclusive archs
++
+ * Wed Aug 31 2016 Jan Friesse <jfriesse@redhat.com> 2.4.0-4
+ - Resolves: rhbz#1367813
+ 
+-- 
+1.8.3.1
+

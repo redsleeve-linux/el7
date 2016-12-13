@@ -23,7 +23,7 @@
 Name: corosync
 Summary: The Corosync Cluster Engine and Application Programming Interfaces
 Version: 2.4.0
-Release: 4%{?gitver}%{?dist}
+Release: 4%{?gitver}%{?dist}.redsleeve
 License: BSD
 Group: System Environment/Base
 URL: http://corosync.github.io/corosync/
@@ -35,7 +35,7 @@ Patch2: bz1367813-2-man-mention-qdevice-incompatibilites-in-votequorum.5.patch
 Patch3: bz1367813-3-Qnetd-LMS-Fix-two-partition-use-case.patch
 
 %if 0%{?rhel}
-ExclusiveArch: i686 x86_64 s390x
+ExclusiveArch: i686 x86_64 s390x %{arm}
 %endif
 
 # Runtime bits
@@ -519,6 +519,9 @@ fi
 %endif
 
 %changelog
+* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> 2.4.0-4.redsleeve
+- added arm to exclusive archs
+
 * Wed Aug 31 2016 Jan Friesse <jfriesse@redhat.com> 2.4.0-4
 - Resolves: rhbz#1367813
 
