@@ -6,7 +6,7 @@
 Summary:   Package management service
 Name:      PackageKit
 Version:   1.0.7
-Release:   6%{?dist}
+Release:   6%{?dist}.redsleeve
 License:   GPLv2+ and LGPLv2+
 URL:       http://www.freedesktop.org/software/PackageKit/
 Source0:   http://www.freedesktop.org/software/PackageKit/releases/%{name}-%{version}.tar.xz
@@ -21,7 +21,7 @@ Patch2:    0001-yum-Add-support-for-GetDetailsLocal.patch
 
 # Backported from upstream; make BE safe
 Patch3:    0001-Make-pk_console_get_prompt-big-endian-safe.patch
-Patch0:    CentOS-Vendor-Branding.patch
+Patch0:    RedSleeve-Vendor-Branding.patch
 
 Requires: %{name}-glib%{?_isa} = %{version}-%{release}
 Requires: PackageKit-backend
@@ -343,6 +343,9 @@ systemctl disable packagekit-offline-update.service > /dev/null 2>&1 || :
 %{_datadir}/gtk-doc/html/PackageKit
 
 %changelog
+* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> - 1.0.7-6.el7.redsleeve
+- Update Vendor patch to reference Redsleeve
+
 * Thu Nov 03 2016 CentOS Sources <bugs@centos.org> - 1.0.7-6.el7.centos
 - remove old branding patch
 - Update Vendor patch to reference CentOS
