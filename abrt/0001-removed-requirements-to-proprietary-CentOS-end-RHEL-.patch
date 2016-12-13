@@ -1,0 +1,119 @@
+From 6682a61bddc5ceb5f2f960063c479913a4bede49 Mon Sep 17 00:00:00 2001
+From: Jacco Ligthart <jacco@redsleeve.org>
+Date: Tue, 13 Dec 2016 21:31:57 +0100
+Subject: [PATCH] removed requirements to proprietary CentOS end RHEL libreport
+ packages
+
+---
+ SPECS/abrt.spec | 49 ++++++++++++++++++++++++++-----------------------
+ 1 file changed, 26 insertions(+), 23 deletions(-)
+
+diff --git a/SPECS/abrt.spec b/SPECS/abrt.spec
+index 012a7b8..8422db6 100644
+--- a/SPECS/abrt.spec
++++ b/SPECS/abrt.spec
+@@ -33,7 +33,7 @@
+ Summary: Automatic bug detection and reporting tool
+ Name: abrt
+ Version: 2.1.11
+-Release: 45%{?dist}
++Release: 45%{?dist}.redsleeve
+ License: GPLv2+
+ Group: Applications/System
+ URL: https://fedorahosted.org/abrt/
+@@ -326,7 +326,7 @@ Patch256: 0256-Translation-updates.patch
+ 
+ Patch1000: 1000-event-don-t-run-the-reporter-bugzilla-h-on-RHEL-and-.patch
+ #Patch1001: 1001-spec-added-dependency-to-libreport-centos.patch
+-Patch1002: 1002-plugin-set-URL-to-retrace-server.patch
++#Patch1002: 1002-plugin-set-URL-to-retrace-server.patch
+ #Patch1003: 1003-spec-add-dependenci-on-abrt-retrace-client.patch
+ Patch1004: 1004-turn-sosreport-off.patch
+ Patch1005: 1005-cli-list-revert-patch-7966e5737e8d3af43b1ecdd6a82323.patch
+@@ -373,9 +373,9 @@ Requires: python-augeas
+ Requires: python-dbus
+ Requires: python-dmidecode
+ Requires: libreport-plugin-ureport >= %{libreport_ver}
+-%if 0%{?rhel}
+-Requires: libreport-plugin-rhtsupport
+-%endif
++#%if 0%{?rhel}
++#Requires: libreport-plugin-rhtsupport
++#%endif
+ 
+ # we used to have abrt-plugin-bodhi, but we have removed it
+ # and we want allow users to update abrt without necessity to
+@@ -558,14 +558,14 @@ Requires: abrt-addon-ccpp
+ Requires: abrt-addon-python
+ Requires: abrt-addon-xorg
+ %if 0%{?rhel}
+-%if 0%{?centos_ver}
+-Requires: libreport-centos >= %{libreport_ver}
+-Requires: libreport-plugin-mantisbt >= %{libreport_ver}
+-%else
+-Requires: libreport-rhel >= %{libreport_ver}
+-Requires: libreport-plugin-rhtsupport >= %{libreport_ver}
+-%endif
+-%else
++#%if 0%{?centos_ver}
++#Requires: libreport-centos >= %{libreport_ver}
++#Requires: libreport-plugin-mantisbt >= %{libreport_ver}
++#%else
++#Requires: libreport-rhel >= %{libreport_ver}
++#Requires: libreport-plugin-rhtsupport >= %{libreport_ver}
++#%endif
++#%else
+ Requires: abrt-retrace-client
+ Requires: libreport-plugin-bugzilla >= %{libreport_ver}
+ Requires: libreport-plugin-logger >= %{libreport_ver}
+@@ -597,19 +597,19 @@ Requires: elfutils
+ Requires: abrt-gui
+ Requires: gnome-abrt
+ %if 0%{?rhel}
+-%if 0%{?centos_ver}
+-Requires: libreport-centos >= %{libreport_ver}
+-Requires: libreport-plugin-mantisbt >= %{libreport_ver}
+-%else
+-Requires: libreport-rhel >= %{libreport_ver}
+-Requires: libreport-plugin-rhtsupport >= %{libreport_ver}
+-%endif
+-%else
++#%if 0%{?centos_ver}
++#Requires: libreport-centos >= %{libreport_ver}
++#Requires: libreport-plugin-mantisbt >= %{libreport_ver}
++#%else
++#Requires: libreport-rhel >= %{libreport_ver}
++#Requires: libreport-plugin-rhtsupport >= %{libreport_ver}
++#%endif
++#%else
+ Requires: abrt-retrace-client
+ Requires: libreport-plugin-bugzilla >= %{libreport_ver}
+ Requires: libreport-plugin-logger >= %{libreport_ver}
+ Requires: libreport-plugin-ureport >= %{libreport_ver}
+-Requires: libreport-fedora >= %{libreport_ver}
++#Requires: libreport-fedora >= %{libreport_ver}
+ %endif
+ #Requires: abrt-plugin-firefox
+ Provides: bug-buddy = 2.28.0
+@@ -683,7 +683,7 @@ CFLAGS="%{optflags} -Werror" %configure --enable-doxygen-docs --disable-silent-r
+         --enable-native-unwinder \
+ %endif
+         --enable-dump-time-unwind \
+-        --enable-suggest-autoreporting \
++        --enable-suggest-autoreporting
+ make %{?_smp_mflags}
+ 
+ %install
+@@ -1159,6 +1159,9 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
+ %config(noreplace) %{_sysconfdir}/profile.d/abrt-console-notification.sh
+ 
+ %changelog
++* Sat Dec 03 2016 Jacco Ligthart <jacco@redsleeve.org> - 2.1.11-45.el7.redsleeve
++- removed requirements to proprietary CentOS end RHEL libreport packages
++
+ * Thu Nov 03 2016 CentOS Sources <bugs@centos.org> - 2.1.11-45.el7.centos
+ - Drop RHTS hint
+ -  Change by David Mansfield <david@orthanc.cobite.com>
+-- 
+1.8.3.1
+
