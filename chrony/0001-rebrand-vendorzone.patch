@@ -1,0 +1,44 @@
+From 593b253284b2db683e7ce845a017072e2125f17a Mon Sep 17 00:00:00 2001
+From: Jacco Ligthart <jacco@redsleeve.org>
+Date: Tue, 13 Dec 2016 21:33:35 +0100
+Subject: [PATCH] rebrand vendorzone
+
+---
+ SPECS/chrony.spec | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/SPECS/chrony.spec b/SPECS/chrony.spec
+index 02d0598..7181f97 100644
+--- a/SPECS/chrony.spec
++++ b/SPECS/chrony.spec
+@@ -4,7 +4,7 @@
+ 
+ Name:           chrony
+ Version:        2.1.1
+-Release:        4%{?dist}
++Release:        4%{?dist}.redsleeve
+ Summary:        An NTP client/server
+ 
+ Group:          System Environment/Daemons
+@@ -43,7 +43,7 @@ clocks, system real-time clock or manual input as time references.
+ 
+ %if 0%{!?vendorzone:1}
+ %{?fedora: %global vendorzone fedora.}
+-%{?rhel: %global vendorzone centos.}
++%{?rhel: %global vendorzone redsleeve.}
+ %endif
+ 
+ %prep
+@@ -150,6 +150,9 @@ fi
+ %dir %attr(-,chrony,chrony) %{_localstatedir}/log/chrony
+ 
+ %changelog
++* Sun Dec 11 2016 Jacco Ligthart <jacco@redsleeve.org> - 2.1.1-4.el7.redsleeve
++- rebrand vendorzone
++
+ * Tue Dec 06 2016 CentOS Sources <bugs@centos.org> - 2.1.1-4.el7.centos
+ - rebrand vendorzone
+ 
+-- 
+1.8.3.1
+
