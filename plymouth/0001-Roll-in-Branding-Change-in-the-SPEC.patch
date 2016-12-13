@@ -1,0 +1,44 @@
+From af25f1e77334f8b4843feccf264dc7fec6d65163 Mon Sep 17 00:00:00 2001
+From: Jacco Ligthart <jacco@redsleeve.org>
+Date: Tue, 13 Dec 2016 22:00:40 +0100
+Subject: [PATCH] Roll in Branding Change in the SPEC
+
+---
+ SPECS/plymouth.spec | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/SPECS/plymouth.spec b/SPECS/plymouth.spec
+index 846a512..ec16cba 100644
+--- a/SPECS/plymouth.spec
++++ b/SPECS/plymouth.spec
+@@ -7,7 +7,7 @@
+ Summary: Graphical Boot Animation and Logger
+ Name: plymouth
+ Version: 0.8.9
+-Release: 0.26.20140113%{?dist}
++Release: 0.26.20140113%{?dist}.redsleeve
+ License: GPLv2+
+ Group: System Environment/Base
+ Source0: http://freedesktop.org/software/plymouth/releases/%{name}-%{version}.tar.bz2
+@@ -233,7 +233,7 @@ Provides: plymouth(system-theme) = %{version}-%{release}
+ 
+ %description theme-charge
+ This package contains the "charge" boot splash theme for
+-Plymouth. It is the default theme for CentOS Linux.
++Plymouth. It is the default theme for RedSleeve Linux.
+ 
+ %package plugin-script
+ Summary: Plymouth "script" plugin
+@@ -553,6 +553,9 @@ fi
+ %defattr(-, root, root)
+ 
+ %changelog
++* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> 0.8.9-0.26.20140113.el7.redsleeve
++- Roll in Branding Change in the SPEC
++
+ * Thu Nov 03 2016 CentOS Sources <bugs@centos.org> - 0.8.9-0.26.20140113.el7.centos
+ - Roll in Branding Change in the SPEC
+ 
+-- 
+1.8.3.1
+
