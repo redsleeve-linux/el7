@@ -1,0 +1,23 @@
+
+# HG changeset patch
+# User Serhiy Storchaka <storchaka@gmail.com>
+# Date 1376942692 -10800
+# Node ID c2dc99ec46bc2012772b0f817e3547dfac484370
+# Parent  d10c287c200cd5fd5ecc3549dcfb547e5a2d1ca4
+Issue #18647: A regular expression in the doctest module rewritten so that
+determined minimal width of repeated subexpression is >0 (an empty line was
+not matched in any case).
+
+diff --git a/Lib/doctest.py b/Lib/doctest.py
+--- a/Lib/doctest.py
++++ b/Lib/doctest.py
+@@ -564,7 +564,7 @@ class DocTestParser:
+         # Want consists of any non-blank lines that do not start with PS1.
+         (?P<want> (?:(?![ ]*$)    # Not a blank line
+                      (?![ ]*>>>)  # Not a line starting with PS1
+-                     .*$\n?       # But any other line
++                     .+$\n?       # But any other line
+                   )*)
+         ''', re.MULTILINE | re.VERBOSE)
+ 
+
