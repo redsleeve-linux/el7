@@ -1,0 +1,44 @@
+From b7942f36fc9407e85175494fc44ca09f2bba0a07 Mon Sep 17 00:00:00 2001
+From: Jacco Ligthart <jacco@redsleeve.org>
+Date: Tue, 13 Dec 2016 22:06:50 +0100
+Subject: [PATCH] rebrand SPEC file
+
+---
+ SPECS/redhat-rpm-config.spec | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/SPECS/redhat-rpm-config.spec b/SPECS/redhat-rpm-config.spec
+index f258395..d55f4d9 100644
+--- a/SPECS/redhat-rpm-config.spec
++++ b/SPECS/redhat-rpm-config.spec
+@@ -1,7 +1,7 @@
+ Summary: CentOS specific rpm configuration files
+ Name: redhat-rpm-config
+ Version: 9.1.0
+-Release: 72%{?dist}
++Release: 72%{?dist}.redsleeve
+ # No version specified.
+ License: GPL+
+ Group: Development/System
+@@ -110,7 +110,7 @@ Requires: zip
+ Provides: system-rpm-config = %{version}-%{release}
+ 
+ %description
+-CentOS specific rpm configuration files.
++RedSleeve specific rpm configuration files.
+ 
+ %prep
+ %setup -q
+@@ -185,6 +185,9 @@ rm -rf ${RPM_BUILD_ROOT}
+ %{_sysconfdir}/rpm/*
+ 
+ %changelog
++* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> - 9.1.0-72.el7.redsleeve
++- rebrand SPEC file
++
+ * Thu Nov 03 2016 CentOS Sources <bugs@centos.org> - 9.1.0-72.el7.centos
+ - update check_rhl function in dist.sh
+ 
+-- 
+1.8.3.1
+
