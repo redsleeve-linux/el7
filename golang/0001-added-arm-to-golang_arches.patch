@@ -1,0 +1,53 @@
+From 111f0517ea33cedec13382ded42626446169cb18 Mon Sep 17 00:00:00 2001
+From: Jacco Ligthart <jacco@redsleeve.org>
+Date: Tue, 13 Dec 2016 21:41:22 +0100
+Subject: [PATCH] added arm to golang_arches
+
+---
+ SPECS/golang.spec | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/SPECS/golang.spec b/SPECS/golang.spec
+index 080d7fa..26c9a2a 100644
+--- a/SPECS/golang.spec
++++ b/SPECS/golang.spec
+@@ -25,7 +25,7 @@
+ # Define GOROOT macros
+ %global goroot          /usr/lib/%{name}
+ %global gopath          %{_datadir}/gocode
+-%global golang_arches   x86_64 aarch64
++%global golang_arches   x86_64 aarch64 %{arm}
+ 
+ # Golang build options.
+ 
+@@ -72,12 +72,16 @@
+ %global gohostarch  arm64
+ %endif
+ 
++%ifarch %{arm}
++%global gohostarch  arm
++%endif
++
+ %global go_api 1.6
+ %global go_version 1.6.3
+ 
+ Name:           golang
+ Version:        1.6.3
+-Release:        2%{?dist}
++Release:        2%{?dist}.redsleeve
+ Summary:        The Go Programming Language
+ # source tree includes several copies of Mark.Twain-Tom.Sawyer.txt under Public Domain
+ License:        BSD and Public Domain
+@@ -463,6 +467,9 @@ fi
+ %endif
+ 
+ %changelog
++* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> - 1.6.3-2.redsleeve
++- added arm to golang_arches
++
+ * Wed Jul 20 2016 Jakub Čajka <jcajka@redhat.com> - 1.6.3-2
+ - Resolves: rhbz#1358279 - CVE-2016-5386
+ 
+-- 
+1.8.3.1
+

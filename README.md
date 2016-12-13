@@ -27,6 +27,7 @@ Some packages needed some manual love and care to build, but not really a patch:
 | cogl | cogl-1.18.2-12.el7.src.rpm | needs to be build with gtk3-devel-3.8.8-10.el7.armv5tel.rpm **to check**
 | gc | gc-7.2d-7.el7.src.rpm | needs to be build with '-D "check exit 0" -D "debug_package %{nil}"'
 | glassfish-fastinfoset | glassfish-fastinfoset-1.2.12-9.el7.src.rpm | needs to be build with java-1.7.0-openjdk-devel-1.7.0.51
+| golang | golang-1.6.3-2.el7.redsleeve.src.rpm | needs to be build with tzdata-2016f
 | gsl | gsl-1.15-13.el7.src.rpm | needs to be build with '-D "check exit 0"'
 | gutenprint | gutenprint-5.2.9-18.el7.src.rpm | needs to be build with '-D "check exit 0"'
 | irqbalance | irqbalance-1.0.7-6.el7.src.rpm | needs systemd-devel to be installed by hand for successful build
