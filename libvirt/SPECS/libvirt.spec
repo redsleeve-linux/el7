@@ -217,7 +217,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 2.0.0
-Release: 10%{?dist}.2%{?extra_release}
+Release: 10%{?dist}.2%{?extra_release}.redsleeve
 License: LGPLv2+
 Group: Development/Libraries
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
@@ -488,6 +488,7 @@ Patch256: libvirt-qemu-Add-support-for-hot-cold-un-plug-of-shmem-devices.patch
 Patch257: libvirt-qemu-Fix-double-free-when-live-attaching-shmem.patch
 Patch258: libvirt-qemu-Make-sure-shmem-memory-is-shared.patch
 
+Patch1000: libvirt-tests-nsslinktest:-also-build-virAtomic.h-redsleeve.patch
 
 Requires: libvirt-daemon = %{version}-%{release}
 Requires: libvirt-daemon-config-network = %{version}-%{release}
@@ -2129,6 +2130,9 @@ exit 0
 
 
 %changelog
+* Sun Dec 11 2016 Jacco Ligthart <jacco@redsleeve.org> - 2.0.0-10.2.redsleeve
+- add a patch to be able to build the tests
+
 * Thu Nov 10 2016 Jiri Denemark <jdenemar@redhat.com> - 2.0.0-10.el7_3.2
 - qemu: Fix double free when live-attaching shmem (rhbz#1392031)
 - qemu: Make sure shmem memory is shared (rhbz#1392031)
