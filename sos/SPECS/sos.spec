@@ -2,7 +2,7 @@
 Summary: A set of tools to gather troubleshooting information from a system
 Name: sos
 Version: 3.3
-Release: 5%{?dist}
+Release: 5%{?dist}.redsleeve
 Group: Applications/System
 Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
 License: GPLv2+
@@ -27,7 +27,7 @@ Patch7: sos-bz1351647-docker-more-data-expand-options.patch
 Patch8: sos-bz1368393-nodejs-npm-plugins.patch
 Patch9: sos-bz1374152-networking-no-net-tools.patch
 Patch10: sos-bz1392038-network-name-with-quotemark.patch
-Patch11: sos-centos-branding.patch
+Patch11: sos-redsleeve-branding.patch
 
 %description
 Sos is a set of tools that gathers information about system
@@ -72,6 +72,9 @@ rm -rf ${RPM_BUILD_ROOT}
 %config(noreplace) %{_sysconfdir}/sos.conf
 
 %changelog
+* Sun Dec 11 2016 Jacco Ligthart <jacco@redsleeve.org> - 3.3-5.el7.redsleeve
+- Roll in RedSleeve Branding
+
 * Tue Dec 06 2016 CentOS Sources <bugs@centos.org> - 3.3-5.el7.centos
 - Roll in CentOS Branding
 
