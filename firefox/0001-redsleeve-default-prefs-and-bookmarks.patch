@@ -1,0 +1,125 @@
+From 1f1222f5a6db98228ef71e565289c85c721626d5 Mon Sep 17 00:00:00 2001
+From: Jacco Ligthart <jacco@redsleeve.org>
+Date: Fri, 16 Dec 2016 10:32:15 +0100
+Subject: [PATCH] redsleeve default prefs and bookmarks
+
+---
+ SOURCES/firefox-redsleeve-default-bookmarks.html | 17 +++++++++++++++
+ SOURCES/firefox-redsleeve-default-prefs.js       | 27 ++++++++++++++++++++++++
+ SPECS/firefox.spec                               | 14 +++++++-----
+ 3 files changed, 53 insertions(+), 5 deletions(-)
+ create mode 100644 SOURCES/firefox-redsleeve-default-bookmarks.html
+ create mode 100644 SOURCES/firefox-redsleeve-default-prefs.js
+
+diff --git a/SOURCES/firefox-redsleeve-default-bookmarks.html b/SOURCES/firefox-redsleeve-default-bookmarks.html
+new file mode 100644
+index 0000000..59f8da3
+--- /dev/null
++++ b/SOURCES/firefox-redsleeve-default-bookmarks.html
+@@ -0,0 +1,17 @@
++<!DOCTYPE NETSCAPE-Bookmark-file-1>
++<!-- This is an automatically generated file.
++     It will be read and overwritten.
++     DO NOT EDIT! -->
++<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
++<TITLE>Bookmarks</TITLE>
++<H1 LAST_MODIFIED="1433366543">Bookmarks</H1>
++
++<DL><p>
++    <DT><H3 ADD_DATE="1433366538" LAST_MODIFIED="1433366543" PERSONAL_TOOLBAR_FOLDER="true">Personal Toolbar Folder</H3>
++    <DL><p>
++        <DT><A HREF="http://www.redsleeve.org/" ADD_DATE="1433366654" LAST_MODIFIED="1433366654">RedSleeve</A>
++        <DT><A HREF="http://wiki.redsleeve.org/" ADD_DATE="1433366707" LAST_MODIFIED="1433366707">Wiki</A>
++        <DT><A HREF="https://bugs.redsleeve.org/" ADD_DATE="1433366952" LAST_MODIFIED="1433366952">Bug reporting</A>
++        <DT><A HREF="https://lists.redsleeve.org/mailman/listinfo/users" ADD_DATE="1433366921" LAST_MODIFIED="1433366921">Mailinglist</A>
++    </DL><p>
++</DL><p>
+diff --git a/SOURCES/firefox-redsleeve-default-prefs.js b/SOURCES/firefox-redsleeve-default-prefs.js
+new file mode 100644
+index 0000000..8327af8
+--- /dev/null
++++ b/SOURCES/firefox-redsleeve-default-prefs.js
+@@ -0,0 +1,27 @@
++pref("app.update.auto",                     false);
++pref("app.update.enabled",                  false);
++pref("app.update.autoInstallEnabled",       false);
++pref("browser.backspace_action",            2);
++pref("browser.display.use_system_colors",   true);
++pref("browser.download.folderList",         1);
++pref("browser.link.open_external",          3);
++pref("browser.shell.checkDefaultBrowser",   false);
++pref("general.smoothScroll",                true);
++pref("general.useragent.vendor",            "RedSleeve");
++pref("general.useragent.vendorSub",         "FIREFOX_RPM_VR");
++pref("intl.locale.matchOS",                 true);
++pref("storage.nfs_filesystem",              false);
++pref("dom.ipc.plugins.enabled.nswrapper*",  false);
++pref("network.manage-offline-status",       true);
++pref("toolkit.networkmanager.disable",      false);
++pref("browser.startup.homepage",            "data:text/plain,browser.startup.homepage=file:///usr/share/doc/HTML/index.html");
++pref("toolkit.storage.synchronous",         0);
++pref("startup.homepage_override_url",       "http://www.redsleeve.org");
++pref("startup.homepage_welcome_url",        "http://www.redsleeve.org");
++pref("extensions.shownSelectionUI",         true);
++/* Workaround for rhbz#1110291 */
++pref("network.negotiate-auth.allow-insecure-ntlm-v1", true);
++/* Workaround for mozbz#1063315 */
++pref("security.use_mozillapkix_verification", false);
++pref("geo.wifi.uri", "https://location.services.mozilla.com/v1/geolocate?key=%MOZILLA_API_KEY%");
++pref("browser.tabs.remote.autostart",       false);
+diff --git a/SPECS/firefox.spec b/SPECS/firefox.spec
+index 35c024c..4d35e0a 100644
+--- a/SPECS/firefox.spec
++++ b/SPECS/firefox.spec
+@@ -89,7 +89,7 @@ ExcludeArch: ppc ia64
+ Summary:        Mozilla Firefox Web browser
+ Name:           firefox
+ Version:        45.5.1
+-Release:        1%{?dist}
++Release:        1%{?dist}.redsleeve
+ URL:            http://www.mozilla.org/projects/firefox/
+ License:        MPLv1.1 or GPLv2+ or LGPLv2+
+ Group:          Applications/Internet
+@@ -103,7 +103,7 @@ Source0:        firefox-%{version}%{?ext_version}.source.tar.xz
+ Source1:        firefox-langpacks-%{version}%{?ext_version}-20161130.tar.xz
+ %endif
+ Source10:       firefox-mozconfig
+-Source12:       firefox-centos-default-prefs.js
++Source12:       firefox-redsleeve-default-prefs.js
+ Source20:       firefox.desktop
+ Source500:      firefox.sh.in.rhel5
+ Source600:      firefox.sh.in.rhel6
+@@ -116,7 +116,7 @@ Source300:      gcc48-%{gcc_version}.el5.src.rpm
+ Source301:      yasm-1.2.0-3.el5.src.rpm
+ Source302:      devtoolset-2-binutils-2.23.52.0.1-10.el5.src.rpm
+ # RHEL5 bookmarks
+-Source501:       firefox-centos-default-bookmarks.html
++Source501:       firefox-redsleeve-default-bookmarks.html
+ 
+ # Build patches
+ Patch0:         firefox-install-dir.patch
+@@ -702,8 +702,8 @@ MOZ_SMP_FLAGS=-j1
+ [ -z "$RPM_BUILD_NCPUS" ] && \
+      RPM_BUILD_NCPUS="`/usr/bin/getconf _NPROCESSORS_ONLN`"
+ [ "$RPM_BUILD_NCPUS" -ge 2 ] && MOZ_SMP_FLAGS=-j2
+-[ "$RPM_BUILD_NCPUS" -ge 4 ] && MOZ_SMP_FLAGS=-j4
+-[ "$RPM_BUILD_NCPUS" -ge 8 ] && MOZ_SMP_FLAGS=-j8
++#[ "$RPM_BUILD_NCPUS" -ge 4 ] && MOZ_SMP_FLAGS=-j4
++#[ "$RPM_BUILD_NCPUS" -ge 8 ] && MOZ_SMP_FLAGS=-j8
+ 
+ MOZ_APP_DIR=%{_libdir}/%{name}
+ 
+@@ -952,6 +952,10 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
+ #---------------------------------------------------------------------
+ 
+ %changelog
++* Sun Dec 11 2016 Jacco Ligthart <jacco@redsleeve.org> - 45.5.1-1.el7.redsleeve
++- redsleeve default prefs and bookmarks
++- limited the number of CPU's for building to 2 (OOM otherwise)
++
+ * Thu Dec 01 2016 CentOS Sources <bugs@centos.org> - 45.5.1-1.el7.centos
+ - CentOS default prefs
+ 
+-- 
+1.8.3.1
+
