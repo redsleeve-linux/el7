@@ -32,11 +32,11 @@
 Summary: RPM package installer/updater/manager
 Name: yum
 Version: 3.4.3
-Release: 150%{?dist}
+Release: 150%{?dist}.redsleeve
 License: GPLv2+
 Group: System Environment/Base
 Source0: http://yum.baseurl.org/download/3.4/%{name}-%{version}.tar.gz
-Source1: yum.conf.centos
+Source1: yum.conf.redsleeve
 Source2: yum-updatesd.conf.fedora
 Patch1: yum-distro-configs.patch
 Patch5: geode-arch.patch
@@ -92,7 +92,7 @@ Patch164: BZ-1233152-pvm-api-lv_attr.patch
 Patch165: BZ-1244119-fssnapshot-automatic-percentage-manpage.patch
 Patch166: BZ-1259837-igroups-empty-lines.patch
 
-Patch1000: centos-branding-yum.patch
+Patch1000: redsleeve-branding-yum.patch
 
 # rhel-7.3
 Patch200: BZ-1267234-groupinstall-fail-on-non-existent.patch
@@ -583,6 +583,9 @@ exit 0
 %endif
 
 %changelog
+* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> - 3.4.3-150.el7.redsleeve
+- RedSleeve rebranding
+
 * Thu Nov 03 2016 CentOS Sources <bugs@centos.org> - 3.4.3-150.el7.centos
 - CentOS yum config
 -  use the CentOS bug tracker url

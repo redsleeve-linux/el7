@@ -1,0 +1,119 @@
+From 2103738f58a374d515613b3a750c26df94d909f3 Mon Sep 17 00:00:00 2001
+From: Jacco Ligthart <jacco@redsleeve.org>
+Date: Fri, 16 Dec 2016 10:39:43 +0100
+Subject: [PATCH] RedSleeve rebranding
+
+---
+ SOURCES/redsleeve-branding-yum.patch | 28 ++++++++++++++++++++++++++++
+ SOURCES/yum.conf.redsleeve           | 26 ++++++++++++++++++++++++++
+ SPECS/yum.spec                       |  9 ++++++---
+ 3 files changed, 60 insertions(+), 3 deletions(-)
+ create mode 100644 SOURCES/redsleeve-branding-yum.patch
+ create mode 100644 SOURCES/yum.conf.redsleeve
+
+diff --git a/SOURCES/redsleeve-branding-yum.patch b/SOURCES/redsleeve-branding-yum.patch
+new file mode 100644
+index 0000000..a1d3215
+--- /dev/null
++++ b/SOURCES/redsleeve-branding-yum.patch
+@@ -0,0 +1,28 @@
++diff -uNrp yum-3.4.3.orig/yum/constants.py yum-3.4.3/yum/constants.py
++--- yum-3.4.3.orig/yum/constants.py	2015-12-03 09:06:24.365442687 -0600
+++++ yum-3.4.3/yum/constants.py	2015-12-03 09:17:09.268462350 -0600
++@@ -127,18 +127,18 @@ ERRORS_TO_KBASE_ARTICLES = {
++ 
++ https://access.redhat.com/articles/1320623
++ 
++-If above article doesn't help to resolve this issue please open a ticket with Red Hat Support.
+++If above article doesn't help to resolve this issue please create a bug on https://bugs.redsleeve.org/
++ """,
++     403: """To address this issue please refer to the below knowledge base article
++ 
++ https://access.redhat.com/solutions/69319
++ 
++-If above article doesn't help to resolve this issue please open a ticket with Red Hat Support.
+++If above article doesn't help to resolve this issue please create a bug on https://bugs.redsleeve.org/
++ """,
++-    60: """It was impossible to connect to the Red Hat servers.
+++    60: """It was impossible to connect to the RedSleeve servers.
++ This could mean a connectivity issue in your environment, such as the requirement to configure a proxy,
++ or a transparent proxy that tampers with TLS security, or an incorrect system clock.
++ Please collect information about the specific failure that occurs in your environment,
++-using the instructions in: https://access.redhat.com/solutions/1527033 and open a ticket with Red Hat Support.
+++using the instructions in: https://access.redhat.com/solutions/1527033 and create a bug on https://bugs.redsleeve.org/
++ """
++-}
++\ No newline at end of file
+++}
+diff --git a/SOURCES/yum.conf.redsleeve b/SOURCES/yum.conf.redsleeve
+new file mode 100644
+index 0000000..89e64d7
+--- /dev/null
++++ b/SOURCES/yum.conf.redsleeve
+@@ -0,0 +1,26 @@
++[main]
++cachedir=/var/cache/yum/$basearch/$releasever
++keepcache=0
++debuglevel=2
++logfile=/var/log/yum.log
++exactarch=1
++obsoletes=1
++gpgcheck=1
++plugins=1
++installonly_limit=3
++bugtracker_url=https://bugs.redsleeve.org/
++distroverpkg=redsleeve-release
++
++
++#  This is the default, if you make this bigger yum won't see if the metadata
++# is newer on the remote and so you'll "gain" the bandwidth of not having to
++# download the new metadata and "pay" for it by yum not having correct
++# information.
++#  It is esp. important, to have correct metadata, for distributions like
++# Fedora which don't keep old packages around. If you don't like this checking
++# interupting your command line usage, it's much better to have something
++# manually check the metadata once an hour (yum-updatesd will do this).
++# metadata_expire=90m
++
++# PUT YOUR REPOS HERE OR IN separate files named file.repo
++# in /etc/yum.repos.d
+diff --git a/SPECS/yum.spec b/SPECS/yum.spec
+index e4533ec..c75143c 100644
+--- a/SPECS/yum.spec
++++ b/SPECS/yum.spec
+@@ -32,11 +32,11 @@
+ Summary: RPM package installer/updater/manager
+ Name: yum
+ Version: 3.4.3
+-Release: 150%{?dist}
++Release: 150%{?dist}.redsleeve
+ License: GPLv2+
+ Group: System Environment/Base
+ Source0: http://yum.baseurl.org/download/3.4/%{name}-%{version}.tar.gz
+-Source1: yum.conf.centos
++Source1: yum.conf.redsleeve
+ Source2: yum-updatesd.conf.fedora
+ Patch1: yum-distro-configs.patch
+ Patch5: geode-arch.patch
+@@ -92,7 +92,7 @@ Patch164: BZ-1233152-pvm-api-lv_attr.patch
+ Patch165: BZ-1244119-fssnapshot-automatic-percentage-manpage.patch
+ Patch166: BZ-1259837-igroups-empty-lines.patch
+ 
+-Patch1000: centos-branding-yum.patch
++Patch1000: redsleeve-branding-yum.patch
+ 
+ # rhel-7.3
+ Patch200: BZ-1267234-groupinstall-fail-on-non-existent.patch
+@@ -583,6 +583,9 @@ exit 0
+ %endif
+ 
+ %changelog
++* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> - 3.4.3-150.el7.redsleeve
++- RedSleeve rebranding
++
+ * Thu Nov 03 2016 CentOS Sources <bugs@centos.org> - 3.4.3-150.el7.centos
+ - CentOS yum config
+ -  use the CentOS bug tracker url
+-- 
+1.8.3.1
+
