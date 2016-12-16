@@ -14,7 +14,7 @@
 
 Name:           webkitgtk3
 Version:        2.4.9
-Release:        6%{?dist}
+Release:        6%{?dist}.redsleeve
 Summary:        GTK+ Web content engine library
 
 Group:          Development/Libraries
@@ -147,7 +147,7 @@ chmod 644 Source/WebCore/html/canvas/CanvasRenderingContext2D.cpp
 
 %configure                                      \
         --with-gtk=3.0                          \
-%ifarch s390 s390x ppc %{power64} aarch64
+%ifarch s390 s390x ppc %{power64} aarch64 %{arm}
         --disable-jit                           \
 %else
         --enable-jit                            \
@@ -251,6 +251,9 @@ find $RPM_BUILD_ROOT%{_libdir} -name "*.la" -delete
 %{_datadir}/gtk-doc/html/webkitdomgtk
 
 %changelog
+* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> - 2.4.9-6.redsleeve
+- disabled jit for arm
+
 * Thu Jun 23 2016 Tomas Popela <tpopela@redhat.com> - 2.4.9-6
 - Update the translations
 - Resolves: rhbz#1302692
