@@ -158,7 +158,7 @@
 
 Name:    java-%{javaver}-%{origin}
 Version: %{javaver}.%{buildver}
-Release: %{icedteaver}.9%{?dist}
+Release: %{icedteaver}.9%{?dist}.redsleeve
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons,
 # and this change was brought into RHEL-4.  java-1.5.0-ibm packages
 # also included the epoch in their virtual provides.  This created a
@@ -204,6 +204,8 @@ Patch10:  add-final-location-rpaths.patch
 Patch12: pr2808.patch
 # PR2849: wget not required when downloading is disabled
 Patch13: pr2849.patch
+
+Patch100: hotspot-disable-arm32-jit.diff
 
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
@@ -398,6 +400,8 @@ make DISTRIBUTION_PATCHES="patches/add-final-location-rpaths.patch patches/openj
 
 patch -l -p0 < %{PATCH3}
 patch -l -p0 < %{PATCH4}
+
+patch -l -p0 < %{PATCH100}
 
 %if %{debug}
 patch -l -p0 < %{PATCH5}
@@ -898,6 +902,9 @@ exit 0
 %doc %{_javadocdir}/%{name}
 
 %changelog
+* Sun Nov 06 2016 Jacco Ligthart <jacco@redsleeve.org> 1:1.6.0.40-1.13.12.9.redsleeve
+- added a patch to disable ARM32JIT, which breaks the build
+
 * Mon Sep 05 2016 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.6.0.40-1.13.12.9
 - Require a JDK with RH1334465/PR2956 fixed and turn off bootstrapping for Zero architectures.
 - Resolves: rhbz#1350047
