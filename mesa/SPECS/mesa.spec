@@ -48,7 +48,7 @@
 Summary: Mesa graphics libraries
 Name: mesa
 Version: 11.2.2
-Release: 2.%{gitdate}%{?dist}
+Release: 2.%{gitdate}%{?dist}.redsleeve
 License: MIT
 Group: System Environment/Libraries
 URL: http://www.mesa3d.org
@@ -484,6 +484,7 @@ rm -rf $RPM_BUILD_ROOT
 %endif
 %if 0%{?with_freedreno}
 %{_libdir}/dri/kgsl_dri.so
+%{_libdir}/dri/msm_dri.so
 %endif
 %{_libdir}/dri/nouveau_dri.so
 %{_libdir}/dri/virtio_gpu_dri.so
@@ -612,6 +613,9 @@ rm -rf $RPM_BUILD_ROOT
 %endif
 
 %changelog
+* Wed Nov 09 2016 Jacco Ligthart <jacco@redsleeve.org> 11.2.2-2.20160614.redsleeve
+- add msm_dri.so to the %files section
+
 * Tue Aug 09 2016 Rob Clark <rclark@redhat.com> - 11.2.2-2.20160614
 - update kbl pci ids.
 
