@@ -24,19 +24,25 @@ Some packages needed some manual love and care to build, but not really a patch:
 | Package | SRPM | instruction
 |---|---|---
 | base64coder | base64coder-20101219-10.el7.src.rpm | needs to be build with java-1.7.0-openjdk-devel-1.7.0.51
-| cogl | cogl-1.18.2-12.el7.src.rpm | needs to be build with gtk3-devel-3.8.8-10.el7.armv5tel.rpm **to check**
+| dnssec-trigger | dnssec-trigger-0.11-22.el7.src.rpm | needs NetworkManager to be installed by hand for successful build
+| file-roller | file-roller-3.14.2-10.el7.src.rpm | needs to be build with glib2-devel-2.42.2-5.el7.armv5tel.rpm
 | gc | gc-7.2d-7.el7.src.rpm | needs to be build with '-D "check exit 0" -D "debug_package %{nil}"'
+| gedit | gedit-3.14.3-18.el7.src.rpm | needs to be build with glib2-devel-2.42.2-5.el7.armv5tel.rpm
 | glassfish-fastinfoset | glassfish-fastinfoset-1.2.12-9.el7.src.rpm | needs to be build with java-1.7.0-openjdk-devel-1.7.0.51
+| gnome-clocks | gnome-clocks-3.14.1-2.el7.src.rpm | needs to be build with glib2-devel-2.42.2-5.el7.armv5tel.rpm
+| gnome-dictionary | gnome-dictionary-3.14.2-2.el7.src.rpm | needs to be build with glib2-devel-2.42.2-5.el7.armv5tel.rpm
 | golang | golang-1.6.3-2.el7.redsleeve.src.rpm | needs to be build with tzdata-2016f
 | gsl | gsl-1.15-13.el7.src.rpm | needs to be build with '-D "check exit 0"'
 | gutenprint | gutenprint-5.2.9-18.el7.src.rpm | needs to be build with '-D "check exit 0"'
 | irqbalance | irqbalance-1.0.7-6.el7.src.rpm | needs systemd-devel to be installed by hand for successful build
 | jflex | jflex-1.4.3-20.el7.src.rpm | needs to be build with java-1.7.0-openjdk-devel-1.7.0.51
-| libcmis | libcmis-0.5.1-2.el7.src.rpm | needs to be build with '-D "check exit 0"' **to check**
-| libqb | libqb-1.0-1.el7.src.rpm | needs to be build with '-D "check exit 0"' **to check**
+| libcmis | libcmis-0.5.1-2.el7.src.rpm | needs to be build with '-D "check exit 0"'
 | m2crypto | m2crypto-0.21.1-17.el7.src.rpm | needs to be build with '-D "check exit 0" -D "debug_package %{nil}"'
-| pki-core | pki-core-10.3.3-10.el7.src.rpm | needs to be build with java-1.8.0-openjdk-1.8.0.65-2.b17.el7.armv5tel **to check**
-| qdox | qdox-1.12.1-10.el7.src.rpm | needs to be build with java-1.7.0-openjdk-devel-1.7.0.51 **to check**
+| maven | maven-3.0.5-17.el7.src.rpm | needs to be build without java-1.8.0-openjdk
+| msv | msv-2013.5.1-7.el7.src.rpm | needs to be build without java-1.8.0-openjdk
+| nss | nss-3.21.3-2.el7_3.src.rpm | clock needs to be set before 2016-12-16 for the tests to succeed
+| ruby | ruby-2.0.0.648-29.el7.src.rpm | needs to be build with openssl*-1.0.1e-51.el7.5.armv5tel
+| tigervnc | tigervnc-1.3.1-9.el7.src.rpm | needs to be build with xorg-x11-server-source-1.17.2-10.el7.noarch.rpm
 | velocity | velocity-1.7-10.el7.src.rpm | needs to be build with java-1.7.0-openjdk-devel-1.7.0.51
 
 
