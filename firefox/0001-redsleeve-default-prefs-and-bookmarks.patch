@@ -1,6 +1,6 @@
-From 1f1222f5a6db98228ef71e565289c85c721626d5 Mon Sep 17 00:00:00 2001
+From 689d0ab43f889efce12bffbdc5a12513dfa8b8c9 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Fri, 16 Dec 2016 10:32:15 +0100
+Date: Wed, 21 Dec 2016 23:28:11 +0100
 Subject: [PATCH] redsleeve default prefs and bookmarks
 
 ---
@@ -68,20 +68,20 @@ index 0000000..8327af8
 +pref("geo.wifi.uri", "https://location.services.mozilla.com/v1/geolocate?key=%MOZILLA_API_KEY%");
 +pref("browser.tabs.remote.autostart",       false);
 diff --git a/SPECS/firefox.spec b/SPECS/firefox.spec
-index 35c024c..4d35e0a 100644
+index b4c4db5..652f979 100644
 --- a/SPECS/firefox.spec
 +++ b/SPECS/firefox.spec
-@@ -89,7 +89,7 @@ ExcludeArch: ppc ia64
+@@ -88,7 +88,7 @@ ExcludeArch: ppc ia64
  Summary:        Mozilla Firefox Web browser
  Name:           firefox
- Version:        45.5.1
+ Version:        45.6.0
 -Release:        1%{?dist}
 +Release:        1%{?dist}.redsleeve
  URL:            http://www.mozilla.org/projects/firefox/
  License:        MPLv1.1 or GPLv2+ or LGPLv2+
  Group:          Applications/Internet
-@@ -103,7 +103,7 @@ Source0:        firefox-%{version}%{?ext_version}.source.tar.xz
- Source1:        firefox-langpacks-%{version}%{?ext_version}-20161130.tar.xz
+@@ -102,7 +102,7 @@ Source0:        firefox-%{version}%{?ext_version}.source.tar.xz
+ Source1:        firefox-langpacks-%{version}%{?ext_version}-20161211.tar.xz
  %endif
  Source10:       firefox-mozconfig
 -Source12:       firefox-centos-default-prefs.js
@@ -89,7 +89,7 @@ index 35c024c..4d35e0a 100644
  Source20:       firefox.desktop
  Source500:      firefox.sh.in.rhel5
  Source600:      firefox.sh.in.rhel6
-@@ -116,7 +116,7 @@ Source300:      gcc48-%{gcc_version}.el5.src.rpm
+@@ -115,7 +115,7 @@ Source300:      gcc48-%{gcc_version}.el5.src.rpm
  Source301:      yasm-1.2.0-3.el5.src.rpm
  Source302:      devtoolset-2-binutils-2.23.52.0.1-10.el5.src.rpm
  # RHEL5 bookmarks
@@ -98,7 +98,7 @@ index 35c024c..4d35e0a 100644
  
  # Build patches
  Patch0:         firefox-install-dir.patch
-@@ -702,8 +702,8 @@ MOZ_SMP_FLAGS=-j1
+@@ -701,8 +701,8 @@ MOZ_SMP_FLAGS=-j1
  [ -z "$RPM_BUILD_NCPUS" ] && \
       RPM_BUILD_NCPUS="`/usr/bin/getconf _NPROCESSORS_ONLN`"
  [ "$RPM_BUILD_NCPUS" -ge 2 ] && MOZ_SMP_FLAGS=-j2
@@ -109,15 +109,15 @@ index 35c024c..4d35e0a 100644
  
  MOZ_APP_DIR=%{_libdir}/%{name}
  
-@@ -952,6 +952,10 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
+@@ -951,6 +951,10 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
  #---------------------------------------------------------------------
  
  %changelog
-+* Sun Dec 11 2016 Jacco Ligthart <jacco@redsleeve.org> - 45.5.1-1.el7.redsleeve
++* Wed Dec 21 2016 Jacco Ligthart <jacco@redsleeve.org> - 45.6.0-1.el7.redsleeve
 +- redsleeve default prefs and bookmarks
 +- limited the number of CPU's for building to 2 (OOM otherwise)
 +
- * Thu Dec 01 2016 CentOS Sources <bugs@centos.org> - 45.5.1-1.el7.centos
+ * Wed Dec 14 2016 CentOS Sources <bugs@centos.org> - 45.6.0-1.el7.centos
  - CentOS default prefs
  
 -- 
