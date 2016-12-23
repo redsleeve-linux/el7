@@ -92,7 +92,7 @@ ExcludeArch: ppc ia64
 
 Summary:        Mozilla Thunderbird mail/newsgroup client
 Name:           thunderbird
-Version:        45.5.1
+Version:        45.6.0
 Release:        1%{?dist}
 URL:            http://www.mozilla.org/projects/thunderbird/
 License:        MPLv1.1 or GPLv2+ or LGPLv2+
@@ -101,13 +101,13 @@ Group:          Applications/Internet
 ExcludeArch:    ppc ppc64 ia64 s390 s390x
 %endif
 
-%define         tarballdir              thunderbird-45.5.1
+%define         tarballdir              thunderbird-45.6.0
 %define         objdir                  objdir
 
 # From ftp://archive.mozilla.org/pub/thunderbird/releases/%{version}%{?ext_version}/source
 Source0:        https://archive.mozilla.org/pub/thunderbird/releases/%{version}%{?pre_version}/source/thunderbird-%{version}%{?pre_version}.source.tar.xz
 %if %{build_langpacks}
-Source1:        thunderbird-langpacks-%{version}%{?ext_version}-20161201.tar.xz
+Source1:        thunderbird-langpacks-%{version}%{?ext_version}-20161216.tar.xz
 %endif
 # Locales for lightning
 Source2:        l10n-lightning-%{version}.tar.xz
@@ -947,8 +947,11 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 #===============================================================================
 
 %changelog
-* Tue Dec  6 2016 Johnny Hughes <johnny@centos.org> - 45.5.1-1
+* Wed Dec 21 2016 Johnny Hughes <johnny@centos.org> - 45.6.0-1
 - Manual CentOS Debranding
+ 
+* Fri Dec 16 2016 Martin Stransky <stransky@redhat.com> - 45.6.0-1
+- Update to the latest upstream (45.6.0)
 
 * Thu Dec  1 2016 Jan Horak <jhorak@redhat.com> - 45.5.1-1
 - Update to 45.5.1
