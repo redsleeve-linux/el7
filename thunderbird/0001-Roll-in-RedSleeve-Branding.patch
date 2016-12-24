@@ -1,0 +1,157 @@
+From 1c91276963eb9c9b26421e3e1377a9faf7930d57 Mon Sep 17 00:00:00 2001
+From: Jacco Ligthart <jacco@redsleeve.org>
+Date: Sat, 24 Dec 2016 11:41:21 +0100
+Subject: [PATCH] Roll in RedSleeve Branding
+
+---
+ SOURCES/thunderbird-redsleeve-default-prefs.js.el5 | 27 +++++++++++++++++++++
+ SOURCES/thunderbird-redsleeve-default-prefs.js.el6 | 28 ++++++++++++++++++++++
+ SOURCES/thunderbird-redsleeve-default-prefs.js.el7 | 28 ++++++++++++++++++++++
+ SPECS/thunderbird.spec                             | 11 +++++----
+ 4 files changed, 90 insertions(+), 4 deletions(-)
+ create mode 100644 SOURCES/thunderbird-redsleeve-default-prefs.js.el5
+ create mode 100644 SOURCES/thunderbird-redsleeve-default-prefs.js.el6
+ create mode 100644 SOURCES/thunderbird-redsleeve-default-prefs.js.el7
+
+diff --git a/SOURCES/thunderbird-redsleeve-default-prefs.js.el5 b/SOURCES/thunderbird-redsleeve-default-prefs.js.el5
+new file mode 100644
+index 0000000..8321da9
+--- /dev/null
++++ b/SOURCES/thunderbird-redsleeve-default-prefs.js.el5
+@@ -0,0 +1,27 @@
++pref("app.update.enabled", false);
++pref("app.update.autoInstallEnabled", false);
++# Allow users to set custom colors
++# pref("browser.display.use_system_colors",   true);
++pref("general.useragent.vendor", " RedSleeve");
++pref("general.useragent.vendorSub", "THUNDERBIRD_RPM_VR");
++pref("intl.locale.matchOS", true);
++pref("mail.shell.checkDefaultClient", false);
++pref("toolkit.networkmanager.disable", false);
++
++# Make hyperlinks work
++pref("network.protocol-handler.app.http", "COMMAND");
++pref("network.protocol-handler.app.https", "COMMAND");
++pref("network.protocol-handler.app.ftp", "COMMAND");
++
++# Disable global indexing by default
++pref("mailnews.database.global.indexer.enabled", false);
++
++# Do not switch to Smart Folders after upgrade to 3.0b4
++pref("mail.folder.views.version", "1")
++
++/* Workaround for rhbz#1134876 */
++pref("javascript.options.baselinejit",      false);
++/* Workaround for rhbz#1110291 */
++pref("network.negotiate-auth.allow-insecure-ntlm-v1", true);
++/* Workaround for mozbz#1063315 */
++pref("security.use_mozillapkix_verification", false);
+diff --git a/SOURCES/thunderbird-redsleeve-default-prefs.js.el6 b/SOURCES/thunderbird-redsleeve-default-prefs.js.el6
+new file mode 100644
+index 0000000..fa9821b
+--- /dev/null
++++ b/SOURCES/thunderbird-redsleeve-default-prefs.js.el6
+@@ -0,0 +1,28 @@
++pref("app.update.enabled", false);
++pref("app.update.autoInstallEnabled", false);
++# Allow users to set custom colors
++# pref("browser.display.use_system_colors",   true);
++pref("general.useragent.vendor", " RedSleeve");
++pref("general.useragent.vendorSub", "THUNDERBIRD_RPM_VR");
++pref("intl.locale.matchOS", true);
++pref("mail.shell.checkDefaultClient", false);
++pref("toolkit.networkmanager.disable", false);
++pref("offline.autoDetect", true);
++
++# Disable global indexing by default
++pref("mailnews.database.global.indexer.enabled", false);
++
++# Do not switch to Smart Folders after upgrade to 3.0b4
++pref("mail.folder.views.version", "1")
++pref("extensions.shownSelectionUI", true);
++pref("extensions.autoDisableScope", 0);
++
++# For rhbz#1024232
++pref("ui.SpellCheckerUnderlineStyle",       1);
++
++/* Workaround for rhbz#1134876 */
++pref("javascript.options.baselinejit",      false);
++/* Workaround for rhbz#1110291 */
++pref("network.negotiate-auth.allow-insecure-ntlm-v1", true);
++/* Workaround for mozbz#1063315 */
++pref("security.use_mozillapkix_verification", false);
+diff --git a/SOURCES/thunderbird-redsleeve-default-prefs.js.el7 b/SOURCES/thunderbird-redsleeve-default-prefs.js.el7
+new file mode 100644
+index 0000000..fa9821b
+--- /dev/null
++++ b/SOURCES/thunderbird-redsleeve-default-prefs.js.el7
+@@ -0,0 +1,28 @@
++pref("app.update.enabled", false);
++pref("app.update.autoInstallEnabled", false);
++# Allow users to set custom colors
++# pref("browser.display.use_system_colors",   true);
++pref("general.useragent.vendor", " RedSleeve");
++pref("general.useragent.vendorSub", "THUNDERBIRD_RPM_VR");
++pref("intl.locale.matchOS", true);
++pref("mail.shell.checkDefaultClient", false);
++pref("toolkit.networkmanager.disable", false);
++pref("offline.autoDetect", true);
++
++# Disable global indexing by default
++pref("mailnews.database.global.indexer.enabled", false);
++
++# Do not switch to Smart Folders after upgrade to 3.0b4
++pref("mail.folder.views.version", "1")
++pref("extensions.shownSelectionUI", true);
++pref("extensions.autoDisableScope", 0);
++
++# For rhbz#1024232
++pref("ui.SpellCheckerUnderlineStyle",       1);
++
++/* Workaround for rhbz#1134876 */
++pref("javascript.options.baselinejit",      false);
++/* Workaround for rhbz#1110291 */
++pref("network.negotiate-auth.allow-insecure-ntlm-v1", true);
++/* Workaround for mozbz#1063315 */
++pref("security.use_mozillapkix_verification", false);
+diff --git a/SPECS/thunderbird.spec b/SPECS/thunderbird.spec
+index fb4809c..4bf2a40 100644
+--- a/SPECS/thunderbird.spec
++++ b/SPECS/thunderbird.spec
+@@ -93,7 +93,7 @@ ExcludeArch: ppc ia64
+ Summary:        Mozilla Thunderbird mail/newsgroup client
+ Name:           thunderbird
+ Version:        45.6.0
+-Release:        1%{?dist}
++Release:        1%{?dist}.redsleeve
+ URL:            http://www.mozilla.org/projects/thunderbird/
+ License:        MPLv1.1 or GPLv2+ or LGPLv2+
+ Group:          Applications/Internet
+@@ -124,11 +124,11 @@ Source300:      gcc48-%{gcc_version}.el5.src.rpm
+ Source301:      yasm-1.2.0-3.el5.src.rpm
+ Source302:      devtoolset-2-binutils-2.23.52.0.1-10.el5.src.rpm
+ Source500:      thunderbird.sh.in.rhel5
+-Source501:      thunderbird-redhat-default-prefs.js.el5
++Source501:      thunderbird-redsleeve-default-prefs.js.el5
+ Source600:      thunderbird.sh.in.rhel6
+-Source601:      thunderbird-redhat-default-prefs.js.el6
++Source601:      thunderbird-redsleeve-default-prefs.js.el6
+ Source700:      thunderbird.sh.in.rhel7
+-Source701:      thunderbird-redhat-default-prefs.js.el7
++Source701:      thunderbird-redsleeve-default-prefs.js.el7
+ 
+ # Mozilla (XULRunner) patches
+ Patch0:         firefox-install-dir.patch
+@@ -947,6 +947,9 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
+ #===============================================================================
+ 
+ %changelog
++* Fri Dec 23 2016 Jacco Ligthart <jacco@redsleeve.org> - 45.6.0-1.el7.redsleeve
++- Roll in RedSleeve Branding
++
+ * Wed Dec 21 2016 Johnny Hughes <johnny@centos.org> - 45.6.0-1
+ - Manual CentOS Debranding
+  
+-- 
+1.8.3.1
+
