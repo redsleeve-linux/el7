@@ -159,6 +159,7 @@ Some packages that are present upstream are not in Redsleeve for a variety of re
 | mvapich2 | mvapich2-2.2-0.3.rc1.el7.src.rpm | fatal error: asm/timex.h: No such file or directory
 | openssl098e | openssl098e-0.9.8e-29.el7.centos.3.src.rpm | linux-arm not on the supported compiler list
 | perftest | perftest-3.0-7.el7.src.rpm | fatal error: asm/timex.h: No such file or directory
+| prelink | prelink-0.5.0-9.el7.src.rpm | tests fail
 | tbb | tbb-4.1-9.20130314.el7.src.rpm | error: #error Threading Building Blocks ARM port requires an ARMv7-a architecture.
 | tuned | tuned-2.7.1-3.el7_3.1.src.rpm | cannot be installed due to missing deps
 | pcs | pcs-0.9.152-10.el7.centos.src.rpm | depends on pacemaker which doesnt build on arm
