@@ -41,10 +41,6 @@
 %ifarch aarch64
     %global kvm_target    aarch64
 %endif
-%ifarch %{arm}
-    %global kvm_target    arm
-%endif
-
 
 #Versions of various parts:
 
@@ -80,7 +76,7 @@ Obsoletes: %1 < %{obsoletes_version}                                      \
 Summary: QEMU is a FAST! processor emulator
 Name: %{pkgname}%{?pkgsuffix}
 Version: 1.5.3
-Release: 126%{?dist}.redsleeve
+Release: 126%{?dist}.3
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 Epoch: 10
 License: GPLv2+ and LGPLv2+ and BSD
@@ -3392,6 +3388,28 @@ Patch1664: kvm-target-i386-Add-more-Intel-AVX-512-instructions-supp.patch
 Patch1665: kvm-nbd-server-Set-O_NONBLOCK-on-client-fd.patch
 # For bz#1376542 - RHSA-2016-1756 breaks migration of instances
 Patch1666: kvm-virtio-recalculate-vq-inuse-after-migration.patch
+# For bz#1393042 - system_reset should clear pending request for error (IDE)
+Patch1667: kvm-ide-fix-halted-IO-segfault-at-reset.patch
+# For bz#1392027 - shutdown rhel 5.11 guest failed and stop at "system halted"
+Patch1668: kvm-hw-i386-regenerate-checked-in-AML-payload-RHEL-only.patch
+# For bz#1393484 - [RHEL7.3] KVM guest shuts itself down after 128th reboot
+Patch1669: kvm-virtio-introduce-virtqueue_unmap_sg.patch
+# For bz#1393484 - [RHEL7.3] KVM guest shuts itself down after 128th reboot
+Patch1670: kvm-virtio-introduce-virtqueue_discard.patch
+# For bz#1393484 - [RHEL7.3] KVM guest shuts itself down after 128th reboot
+Patch1671: kvm-virtio-decrement-vq-inuse-in-virtqueue_discard.patch
+# For bz#1393484 - [RHEL7.3] KVM guest shuts itself down after 128th reboot
+Patch1672: kvm-balloon-fix-segfault-and-harden-the-stats-queue.patch
+# For bz#1393484 - [RHEL7.3] KVM guest shuts itself down after 128th reboot
+Patch1673: kvm-virtio-balloon-discard-virtqueue-element-on-reset.patch
+# For bz#1393484 - [RHEL7.3] KVM guest shuts itself down after 128th reboot
+Patch1674: kvm-virtio-zero-vq-inuse-in-virtio_reset.patch
+# For bz#1393484 - [RHEL7.3] KVM guest shuts itself down after 128th reboot
+Patch1675: kvm-virtio-add-virtqueue_rewind.patch
+# For bz#1393484 - [RHEL7.3] KVM guest shuts itself down after 128th reboot
+Patch1676: kvm-virtio-balloon-fix-stats-vq-migration.patch
+# For bz#1398217 - CVE-2016-2857 qemu-kvm: Qemu: net: out of bounds read in net_checksum_calculate() [rhel-7.3.z]
+Patch1677: kvm-net-check-packet-payload-length.patch
 
 
 BuildRequires: zlib-devel
@@ -3466,10 +3484,8 @@ BuildRequires: texinfo
 %if 0%{?have_librdma:1}
 BuildRequires: librdmacm-devel
 %endif
-# iasl and cpp for acpi generation (not a hard requirement as we can use
-# pre-compiled files, but it's better to use this)
+# cpp for preprocessing option ROM assembly files
 %ifarch %{ix86} x86_64
-BuildRequires: iasl
 BuildRequires: cpp
 %endif
 %if 0%{!?build_only_sub:1}
@@ -5240,6 +5256,17 @@ cp %{SOURCE18} pc-bios # keep "make check" happy
 %patch1664 -p1
 %patch1665 -p1
 %patch1666 -p1
+%patch1667 -p1
+%patch1668 -p1
+%patch1669 -p1
+%patch1670 -p1
+%patch1671 -p1
+%patch1672 -p1
+%patch1673 -p1
+%patch1674 -p1
+%patch1675 -p1
+%patch1676 -p1
+%patch1677 -p1
 
 %build
 buildarch="%{kvm_target}-softmmu"
@@ -5324,6 +5351,7 @@ dobuild() {
 %endif
         --block-drv-rw-whitelist=qcow2,raw,file,host_device,blkdebug,nbd,iscsi,gluster,rbd \
         --block-drv-ro-whitelist=vmdk,vhdx,vpc,ssh,https \
+        --iasl=/bin/false \
         "$@"
 
     echo "config-host.mak contents:"
@@ -5684,8 +5712,31 @@ sh %{_sysconfdir}/sysconfig/modules/kvm.modules &> /dev/null || :
 %{_mandir}/man8/qemu-nbd.8*
 
 %changelog
-* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> - 1.5.3-126.el7.redsleeve
-- added kvm_target arm
+* Wed Jan 04 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-126.el7_3.3
+- kvm-net-check-packet-payload-length.patch [bz#1398217]
+- Resolves: bz#1398217
+  (CVE-2016-2857 qemu-kvm: Qemu: net: out of bounds read in net_checksum_calculate() [rhel-7.3.z])
+
+* Thu Nov 24 2016 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-126.el7_3.2
+- kvm-virtio-introduce-virtqueue_unmap_sg.patch [bz#1393484]
+- kvm-virtio-introduce-virtqueue_discard.patch [bz#1393484]
+- kvm-virtio-decrement-vq-inuse-in-virtqueue_discard.patch [bz#1393484]
+- kvm-balloon-fix-segfault-and-harden-the-stats-queue.patch [bz#1393484]
+- kvm-virtio-balloon-discard-virtqueue-element-on-reset.patch [bz#1393484]
+- kvm-virtio-zero-vq-inuse-in-virtio_reset.patch [bz#1393484]
+- kvm-virtio-add-virtqueue_rewind.patch [bz#1393484]
+- kvm-virtio-balloon-fix-stats-vq-migration.patch [bz#1393484]
+- Resolves: bz#1393484
+  ([RHEL7.3] KVM guest shuts itself down after 128th reboot)
+
+* Fri Nov 11 2016 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-126.el7_3.1
+- kvm-ide-fix-halted-IO-segfault-at-reset.patch [bz#1393042]
+- kvm-hw-i386-regenerate-checked-in-AML-payload-RHEL-only.patch [bz#1392027]
+- kvm-SPEC-file-flip-the-build-from-IASL-to-checked-in-AML.patch [bz#1392027]
+- Resolves: bz#1392027
+  (shutdown rhel 5.11 guest failed and stop at "system halted")
+- Resolves: bz#1393042
+  (system_reset should clear pending request for error (IDE))
 
 * Tue Sep 20 2016 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-126.el7
 - kvm-virtio-recalculate-vq-inuse-after-migration.patch [bz#1376542]
