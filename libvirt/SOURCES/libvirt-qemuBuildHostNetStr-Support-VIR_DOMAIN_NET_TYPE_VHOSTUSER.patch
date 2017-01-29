@@ -1,0 +1,147 @@
+From e7f4b5ba8ea0fcba470de26fac9fca059253f8c5 Mon Sep 17 00:00:00 2001
+Message-Id: <e7f4b5ba8ea0fcba470de26fac9fca059253f8c5@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Tue, 8 Nov 2016 13:42:12 +0100
+Subject: [PATCH] qemuBuildHostNetStr: Support VIR_DOMAIN_NET_TYPE_VHOSTUSER
+
+RHEL-7.3: https://bugzilla.redhat.com/show_bug.cgi?id=1366108
+RHEL-7.3.z: https://bugzilla.redhat.com/show_bug.cgi?id=1392032
+RHEL-7.4: https://bugzilla.redhat.com/show_bug.cgi?id=1366505
+
+So far, this function lacked support for
+VIR_DOMAIN_NET_TYPE_VHOSTUSER leaving callers to hack around the
+problem by constructing the command line on their own. This is
+not ideal as it blocks hot plug support.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit e1844d85cbdcb3ed8199ae8ae5274ffcc4968aa5)
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_command.c                            | 38 +++++++++++++---------
+ .../qemuxml2argv-net-vhostuser-multiq.args         |  6 ++--
+ .../qemuxml2argv-net-vhostuser.args                |  4 +--
+ 3 files changed, 28 insertions(+), 20 deletions(-)
+
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index aa289ad64..ade9e2524 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -3686,7 +3686,13 @@ qemuBuildHostNetStr(virDomainNetDefPtr net,
+         return NULL;
+ 
+     case VIR_DOMAIN_NET_TYPE_VHOSTUSER:
+-        /* Unsupported yet. */
++        virBufferAsprintf(&buf, "vhost-user%cchardev=char%s",
++                          type_sep,
++                          net->info.alias);
++        type_sep = ',';
++        if (net->driver.virtio.queues > 1)
++            virBufferAsprintf(&buf, ",queues=%u",
++                              net->driver.virtio.queues);
+         break;
+ 
+     case VIR_DOMAIN_NET_TYPE_LAST:
+@@ -7918,7 +7924,7 @@ qemuBuildVhostuserCommandLine(virQEMUDriverPtr driver,
+ {
+     virQEMUDriverConfigPtr cfg = virQEMUDriverGetConfig(driver);
+     char *chardev = NULL;
+-    virBuffer netdev_buf = VIR_BUFFER_INITIALIZER;
++    char *netdev = NULL;
+     unsigned int queues = net->driver.virtio.queues;
+     char *nic = NULL;
+ 
+@@ -7955,25 +7961,27 @@ qemuBuildVhostuserCommandLine(virQEMUDriverPtr driver,
+         goto error;
+     }
+ 
+-    virBufferAsprintf(&netdev_buf, "vhost-user,id=host%s,chardev=char%s",
+-                      net->info.alias, net->info.alias);
+-
+-    if (queues > 1) {
+-        if (!virQEMUCapsGet(qemuCaps, QEMU_CAPS_VHOSTUSER_MULTIQUEUE)) {
+-            virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+-                           _("multi-queue is not supported for vhost-user "
+-                             "with this QEMU binary"));
+-            goto error;
+-        }
+-        virBufferAsprintf(&netdev_buf, ",queues=%u", queues);
++    if (queues > 1 &&
++        !virQEMUCapsGet(qemuCaps, QEMU_CAPS_VHOSTUSER_MULTIQUEUE)) {
++        virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
++                       _("multi-queue is not supported for vhost-user "
++                         "with this QEMU binary"));
++        goto error;
+     }
+ 
++    if (!(netdev = qemuBuildHostNetStr(net, driver,
++                                       ',', -1,
++                                       NULL, 0, NULL, 0)))
++        goto error;
++
++
+     virCommandAddArg(cmd, "-chardev");
+     virCommandAddArg(cmd, chardev);
+     VIR_FREE(chardev);
+ 
+     virCommandAddArg(cmd, "-netdev");
+-    virCommandAddArgBuffer(cmd, &netdev_buf);
++    virCommandAddArg(cmd, netdev);
++    VIR_FREE(netdev);
+ 
+     if (!(nic = qemuBuildNicDevStr(def, net, -1, bootindex,
+                                    queues, qemuCaps))) {
+@@ -7990,8 +7998,8 @@ qemuBuildVhostuserCommandLine(virQEMUDriverPtr driver,
+ 
+  error:
+     virObjectUnref(cfg);
++    VIR_FREE(netdev);
+     VIR_FREE(chardev);
+-    virBufferFreeAndReset(&netdev_buf);
+     VIR_FREE(nic);
+ 
+     return -1;
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-net-vhostuser-multiq.args b/tests/qemuxml2argvdata/qemuxml2argv-net-vhostuser-multiq.args
+index 48930ef16..6664767a1 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-net-vhostuser-multiq.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-net-vhostuser-multiq.args
+@@ -20,16 +20,16 @@ QEMU_AUDIO_DRV=none \
+ -drive file=/dev/HostVG/QEMUGuest1,format=raw,if=none,id=drive-ide0-0-0 \
+ -device ide-drive,bus=ide.0,unit=0,drive=drive-ide0-0-0,id=ide0-0-0 \
+ -chardev socket,id=charnet0,path=/tmp/vhost0.sock,server \
+--netdev vhost-user,id=hostnet0,chardev=charnet0 \
++-netdev vhost-user,chardev=charnet0,id=hostnet0 \
+ -device virtio-net-pci,netdev=hostnet0,id=net0,mac=52:54:00:ee:96:6b,bus=pci.0,\
+ addr=0x3 \
+ -chardev socket,id=charnet1,path=/tmp/vhost1.sock \
+--netdev vhost-user,id=hostnet1,chardev=charnet1 \
++-netdev vhost-user,chardev=charnet1,id=hostnet1 \
+ -device virtio-net-pci,netdev=hostnet1,id=net1,mac=52:54:00:ee:96:6c,bus=pci.0,\
+ addr=0x4 \
+ -netdev socket,listen=:2015,id=hostnet2 \
+ -device rtl8139,netdev=hostnet2,id=net2,mac=52:54:00:95:db:c0,bus=pci.0,addr=0x5 \
+ -chardev socket,id=charnet3,path=/tmp/vhost2.sock \
+--netdev vhost-user,id=hostnet3,chardev=charnet3,queues=4 \
++-netdev vhost-user,chardev=charnet3,queues=4,id=hostnet3 \
+ -device virtio-net-pci,mq=on,vectors=10,netdev=hostnet3,id=net3,\
+ mac=52:54:00:ee:96:6d,bus=pci.0,addr=0x6
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-net-vhostuser.args b/tests/qemuxml2argvdata/qemuxml2argv-net-vhostuser.args
+index f4dc9d573..2415645f7 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-net-vhostuser.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-net-vhostuser.args
+@@ -20,11 +20,11 @@ QEMU_AUDIO_DRV=none \
+ -drive file=/dev/HostVG/QEMUGuest1,format=raw,if=none,id=drive-ide0-0-0 \
+ -device ide-drive,bus=ide.0,unit=0,drive=drive-ide0-0-0,id=ide0-0-0 \
+ -chardev socket,id=charnet0,path=/tmp/vhost0.sock,server \
+--netdev vhost-user,id=hostnet0,chardev=charnet0 \
++-netdev vhost-user,chardev=charnet0,id=hostnet0 \
+ -device virtio-net-pci,netdev=hostnet0,id=net0,mac=52:54:00:ee:96:6b,bus=pci.0,\
+ addr=0x3 \
+ -chardev socket,id=charnet1,path=/tmp/vhost1.sock \
+--netdev vhost-user,id=hostnet1,chardev=charnet1 \
++-netdev vhost-user,chardev=charnet1,id=hostnet1 \
+ -device virtio-net-pci,netdev=hostnet1,id=net1,mac=52:54:00:ee:96:6c,bus=pci.0,\
+ addr=0x4 \
+ -netdev socket,listen=:2015,id=hostnet2 \
+-- 
+2.11.0
+

@@ -1,0 +1,237 @@
+From a9eea9b50f56334046fd21e0bc11fb878d4e6d07 Mon Sep 17 00:00:00 2001
+Message-Id: <a9eea9b50f56334046fd21e0bc11fb878d4e6d07@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Tue, 8 Nov 2016 13:42:02 +0100
+Subject: [PATCH] virDomainNetGetActualType: Return type is virDomainNetType
+
+RHEL-7.3: https://bugzilla.redhat.com/show_bug.cgi?id=1366108
+RHEL-7.3.z: https://bugzilla.redhat.com/show_bug.cgi?id=1392032
+
+This function for some weird reason returns integer instead of
+virDomainNetType type. It is important to return the correct type
+so that we know what values we can expect.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 507032d98d390245047f69474d0671d6b0b12651)
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/bhyve/bhyve_command.c |  2 +-
+ src/bhyve/bhyve_process.c |  2 +-
+ src/conf/domain_conf.c    |  8 ++++----
+ src/conf/domain_conf.h    |  2 +-
+ src/libxl/libxl_domain.c  |  2 +-
+ src/libxl/libxl_driver.c  |  2 +-
+ src/lxc/lxc_driver.c      |  9 +++++++--
+ src/qemu/qemu_command.c   |  2 +-
+ src/qemu/qemu_hotplug.c   |  4 ++--
+ src/qemu/qemu_process.c   | 13 ++++++++++++-
+ 10 files changed, 31 insertions(+), 15 deletions(-)
+
+diff --git a/src/bhyve/bhyve_command.c b/src/bhyve/bhyve_command.c
+index 9ad3f9b52..55ad95076 100644
+--- a/src/bhyve/bhyve_command.c
++++ b/src/bhyve/bhyve_command.c
+@@ -52,7 +52,7 @@ bhyveBuildNetArgStr(const virDomainDef *def,
+     char macaddr[VIR_MAC_STRING_BUFLEN];
+     char *realifname = NULL;
+     char *brname = NULL;
+-    int actualType = virDomainNetGetActualType(net);
++    virDomainNetType actualType = virDomainNetGetActualType(net);
+ 
+     if (actualType == VIR_DOMAIN_NET_TYPE_BRIDGE) {
+         if (VIR_STRDUP(brname, virDomainNetGetActualBridgeName(net)) < 0)
+diff --git a/src/bhyve/bhyve_process.c b/src/bhyve/bhyve_process.c
+index 6db070f6b..9d8097676 100644
+--- a/src/bhyve/bhyve_process.c
++++ b/src/bhyve/bhyve_process.c
+@@ -77,7 +77,7 @@ bhyveNetCleanup(virDomainObjPtr vm)
+ 
+     for (i = 0; i < vm->def->nnets; i++) {
+         virDomainNetDefPtr net = vm->def->nets[i];
+-        int actualType = virDomainNetGetActualType(net);
++        virDomainNetType actualType = virDomainNetGetActualType(net);
+ 
+         if (actualType == VIR_DOMAIN_NET_TYPE_BRIDGE) {
+             if (net->ifname) {
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 23e447a4e..da3de8299 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -20865,7 +20865,7 @@ virDomainActualNetDefContentsFormat(virBufferPtr buf,
+                                     bool inSubelement,
+                                     unsigned int flags)
+ {
+-    int actualType = virDomainNetGetActualType(def);
++    virDomainNetType actualType = virDomainNetGetActualType(def);
+ 
+     if (actualType == VIR_DOMAIN_NET_TYPE_HOSTDEV) {
+         if (virDomainHostdevDefFormatSubsys(buf, virDomainNetGetActualHostdev(def),
+@@ -20945,7 +20945,7 @@ virDomainActualNetDefFormat(virBufferPtr buf,
+                             virDomainNetDefPtr def,
+                             unsigned int flags)
+ {
+-    unsigned int type;
++    virDomainNetType type;
+     const char *typeStr;
+ 
+     if (!def)
+@@ -21100,7 +21100,7 @@ virDomainNetDefFormat(virBufferPtr buf,
+                       char *prefix,
+                       unsigned int flags)
+ {
+-    unsigned int actualType = virDomainNetGetActualType(def);
++    virDomainNetType actualType = virDomainNetGetActualType(def);
+     bool publicActual = false;
+     const char *typeStr;
+     virDomainHostdevDefPtr hostdef = NULL;
+@@ -24804,7 +24804,7 @@ virDomainStateReasonFromString(virDomainState state, const char *reason)
+  * otherwise return the value from the NetDef.
+  */
+ 
+-int
++virDomainNetType
+ virDomainNetGetActualType(virDomainNetDefPtr iface)
+ {
+     if (iface->type != VIR_DOMAIN_NET_TYPE_NETWORK)
+diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
+index b8944cb79..84cda68b6 100644
+--- a/src/conf/domain_conf.h
++++ b/src/conf/domain_conf.h
+@@ -2791,7 +2791,7 @@ int virDomainGraphicsListenAppendSocket(virDomainGraphicsDefPtr def,
+                                         const char *socket)
+             ATTRIBUTE_NONNULL(1);
+ 
+-int virDomainNetGetActualType(virDomainNetDefPtr iface);
++virDomainNetType virDomainNetGetActualType(virDomainNetDefPtr iface);
+ const char *virDomainNetGetActualBridgeName(virDomainNetDefPtr iface);
+ int virDomainNetGetActualBridgeMACTableManager(virDomainNetDefPtr iface);
+ const char *virDomainNetGetActualDirectDev(virDomainNetDefPtr iface);
+diff --git a/src/libxl/libxl_domain.c b/src/libxl/libxl_domain.c
+index ca37a3375..3cd34bee2 100644
+--- a/src/libxl/libxl_domain.c
++++ b/src/libxl/libxl_domain.c
+@@ -916,7 +916,7 @@ libxlNetworkPrepareDevices(virDomainDefPtr def)
+ 
+     for (i = 0; i < def->nnets; i++) {
+         virDomainNetDefPtr net = def->nets[i];
+-        int actualType;
++        virDomainNetType actualType;
+ 
+         /* If appropriate, grab a physical device from the configured
+          * network's pool of devices, or resolve bridge device name
+diff --git a/src/libxl/libxl_driver.c b/src/libxl/libxl_driver.c
+index 711e8013b..0224e68f4 100644
+--- a/src/libxl/libxl_driver.c
++++ b/src/libxl/libxl_driver.c
+@@ -3155,7 +3155,7 @@ libxlDomainAttachNetDevice(libxlDriverPrivatePtr driver,
+                            virDomainNetDefPtr net)
+ {
+     libxlDriverConfigPtr cfg = libxlDriverConfigGet(driver);
+-    int actualType;
++    virDomainNetType actualType;
+     libxl_device_nic nic;
+     int ret = -1;
+     char mac[VIR_MAC_STRING_BUFLEN];
+diff --git a/src/lxc/lxc_driver.c b/src/lxc/lxc_driver.c
+index d47f21589..30e3314cd 100644
+--- a/src/lxc/lxc_driver.c
++++ b/src/lxc/lxc_driver.c
+@@ -3945,7 +3945,7 @@ lxcDomainAttachDeviceNetLive(virConnectPtr conn,
+ {
+     virLXCDomainObjPrivatePtr priv = vm->privateData;
+     int ret = -1;
+-    int actualType;
++    virDomainNetType actualType;
+     virNetDevBandwidthPtr actualBandwidth;
+     char *veth = NULL;
+ 
+@@ -4032,6 +4032,10 @@ lxcDomainAttachDeviceNetLive(virConnectPtr conn,
+         case VIR_DOMAIN_NET_TYPE_DIRECT:
+             ignore_value(virNetDevMacVLanDelete(veth));
+             break;
++
++        default:
++            /* no-op */
++            break;
+         }
+     }
+ 
+@@ -4432,7 +4436,8 @@ static int
+ lxcDomainDetachDeviceNetLive(virDomainObjPtr vm,
+                              virDomainDeviceDefPtr dev)
+ {
+-    int detachidx, actualType, ret = -1;
++    int detachidx, ret = -1;
++    virDomainNetType actualType;
+     virDomainNetDefPtr detach = NULL;
+     virNetDevVPortProfilePtr vport = NULL;
+ 
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index 43e1a9350..8d002ffb2 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -7995,7 +7995,7 @@ qemuBuildInterfaceCommandLine(virCommandPtr cmd,
+     size_t vhostfdSize = 0;
+     char **tapfdName = NULL;
+     char **vhostfdName = NULL;
+-    int actualType = virDomainNetGetActualType(net);
++    virDomainNetType actualType = virDomainNetGetActualType(net);
+     virQEMUDriverConfigPtr cfg = NULL;
+     virNetDevBandwidthPtr actualBandwidth;
+     size_t i;
+diff --git a/src/qemu/qemu_hotplug.c b/src/qemu/qemu_hotplug.c
+index df3764ffe..4a3e97b58 100644
+--- a/src/qemu/qemu_hotplug.c
++++ b/src/qemu/qemu_hotplug.c
+@@ -898,7 +898,7 @@ qemuDomainAttachNetDevice(virQEMUDriverPtr driver,
+     int vlan;
+     bool releaseaddr = false;
+     bool iface_connected = false;
+-    int actualType;
++    virDomainNetType actualType;
+     virNetDevBandwidthPtr actualBandwidth;
+     virQEMUDriverConfigPtr cfg = virQEMUDriverGetConfig(driver);
+     size_t i;
+@@ -2405,7 +2405,7 @@ qemuDomainChangeNet(virQEMUDriverPtr driver,
+     virDomainNetDefPtr newdev = dev->data.net;
+     virDomainNetDefPtr *devslot = NULL;
+     virDomainNetDefPtr olddev;
+-    int oldType, newType;
++    virDomainNetType oldType, newType;
+     bool needReconnect = false;
+     bool needBridgeChange = false;
+     bool needFilterChange = false;
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index e13db3877..3a21b0b90 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -4571,7 +4571,7 @@ qemuProcessNetworkPrepareDevices(virDomainDefPtr def)
+ 
+     for (i = 0; i < def->nnets; i++) {
+         virDomainNetDefPtr net = def->nets[i];
+-        int actualType;
++        virDomainNetType actualType;
+ 
+         /* If appropriate, grab a physical device from the configured
+          * network's pool of devices, or resolve bridge device name
+@@ -5902,6 +5902,17 @@ void qemuProcessStop(virQEMUDriverPtr driver,
+                 ignore_value(virNetDevTapDelete(net->ifname, net->backend.tap));
+ #endif
+             break;
++        case VIR_DOMAIN_NET_TYPE_USER:
++        case VIR_DOMAIN_NET_TYPE_VHOSTUSER:
++        case VIR_DOMAIN_NET_TYPE_SERVER:
++        case VIR_DOMAIN_NET_TYPE_CLIENT:
++        case VIR_DOMAIN_NET_TYPE_MCAST:
++        case VIR_DOMAIN_NET_TYPE_INTERNAL:
++        case VIR_DOMAIN_NET_TYPE_HOSTDEV:
++        case VIR_DOMAIN_NET_TYPE_UDP:
++        case VIR_DOMAIN_NET_TYPE_LAST:
++            /* No special cleanup procedure for these types. */
++            break;
+         }
+         /* release the physical device (or any other resources used by
+          * this interface in the network driver
+-- 
+2.11.0
+

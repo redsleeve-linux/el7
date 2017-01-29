@@ -1,0 +1,94 @@
+From 26de75ae434598a20fb68d4a7a4701f463f6328c Mon Sep 17 00:00:00 2001
+Message-Id: <26de75ae434598a20fb68d4a7a4701f463f6328c@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Tue, 8 Nov 2016 13:42:05 +0100
+Subject: [PATCH] qemuBuildInterfaceCommandLine: Move from if-else forest to
+ switch
+
+RHEL-7.3: https://bugzilla.redhat.com/show_bug.cgi?id=1366108
+RHEL-7.3.z: https://bugzilla.redhat.com/show_bug.cgi?id=1392032
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 0bce012d7f0bbf68c1b42a93d7d1c4e085e2695e)
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_command.c | 34 +++++++++++++++++++++++++++-------
+ 1 file changed, 27 insertions(+), 7 deletions(-)
+
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index a9b91213d..8bebe437a 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -8041,8 +8041,9 @@ qemuBuildInterfaceCommandLine(virCommandPtr cmd,
+ 
+     cfg = virQEMUDriverGetConfig(driver);
+ 
+-    if (actualType == VIR_DOMAIN_NET_TYPE_NETWORK ||
+-        actualType == VIR_DOMAIN_NET_TYPE_BRIDGE) {
++    switch (actualType) {
++    case VIR_DOMAIN_NET_TYPE_NETWORK:
++    case VIR_DOMAIN_NET_TYPE_BRIDGE:
+         tapfdSize = net->driver.virtio.queues;
+         if (!tapfdSize)
+             tapfdSize = 1;
+@@ -8056,7 +8057,9 @@ qemuBuildInterfaceCommandLine(virCommandPtr cmd,
+         if (qemuInterfaceBridgeConnect(def, driver, net,
+                                        tapfd, &tapfdSize) < 0)
+             goto cleanup;
+-    } else if (actualType == VIR_DOMAIN_NET_TYPE_DIRECT) {
++        break;
++
++    case VIR_DOMAIN_NET_TYPE_DIRECT:
+         tapfdSize = net->driver.virtio.queues;
+         if (!tapfdSize)
+             tapfdSize = 1;
+@@ -8070,7 +8073,9 @@ qemuBuildInterfaceCommandLine(virCommandPtr cmd,
+         if (qemuInterfaceDirectConnect(def, driver, net,
+                                        tapfd, tapfdSize, vmop) < 0)
+             goto cleanup;
+-    } else if (actualType == VIR_DOMAIN_NET_TYPE_ETHERNET) {
++        break;
++
++    case VIR_DOMAIN_NET_TYPE_ETHERNET:
+         tapfdSize = net->driver.virtio.queues;
+         if (!tapfdSize)
+             tapfdSize = 1;
+@@ -8082,17 +8087,32 @@ qemuBuildInterfaceCommandLine(virCommandPtr cmd,
+         memset(tapfd, -1, tapfdSize * sizeof(tapfd[0]));
+ 
+         if (qemuInterfaceEthernetConnect(def, driver, net,
+-                                       tapfd, tapfdSize) < 0)
++                                         tapfd, tapfdSize) < 0)
+             goto cleanup;
+-    } else if (actualType == VIR_DOMAIN_NET_TYPE_HOSTDEV) {
++        break;
++
++    case VIR_DOMAIN_NET_TYPE_HOSTDEV:
+         /* NET_TYPE_HOSTDEV devices are really hostdev devices, so
+          * their commandlines are constructed with other hostdevs.
+          */
+         ret = 0;
+         goto cleanup;
+-    } else if (actualType == VIR_DOMAIN_NET_TYPE_VHOSTUSER) {
++        break;
++
++    case VIR_DOMAIN_NET_TYPE_VHOSTUSER:
+         ret = qemuBuildVhostuserCommandLine(cmd, def, net, qemuCaps, bootindex);
+         goto cleanup;
++        break;
++
++    case VIR_DOMAIN_NET_TYPE_USER:
++    case VIR_DOMAIN_NET_TYPE_SERVER:
++    case VIR_DOMAIN_NET_TYPE_CLIENT:
++    case VIR_DOMAIN_NET_TYPE_MCAST:
++    case VIR_DOMAIN_NET_TYPE_INTERNAL:
++    case VIR_DOMAIN_NET_TYPE_UDP:
++    case VIR_DOMAIN_NET_TYPE_LAST:
++        /* nada */
++        break;
+     }
+ 
+     /* For types whose implementations use a netdev on the host, add
+-- 
+2.11.0
+

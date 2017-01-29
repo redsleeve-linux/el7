@@ -1,0 +1,49 @@
+From 3457bed5d7caab62046ae6bc6dc70d152071d1f0 Mon Sep 17 00:00:00 2001
+Message-Id: <3457bed5d7caab62046ae6bc6dc70d152071d1f0@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Tue, 8 Nov 2016 13:42:01 +0100
+Subject: [PATCH] virDomainNetDefParseXML: Realign
+
+RHEL-7.3: https://bugzilla.redhat.com/show_bug.cgi?id=1366108
+RHEL-7.3.z: https://bugzilla.redhat.com/show_bug.cgi?id=1392032
+
+There are couple of formatting issues. No functional change
+though.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 94a10de26b1fa999dbb67cfeea8e3339205d9db6)
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/conf/domain_conf.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 514e50d3b..23e447a4e 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -9202,8 +9202,8 @@ virDomainNetDefParseXML(virDomainXMLOptionPtr xmlopt,
+                 ifname = virXMLPropString(cur, "dev");
+                 if (ifname &&
+                     (flags & VIR_DOMAIN_DEF_PARSE_INACTIVE) &&
+-                     (STRPREFIX(ifname, VIR_NET_GENERATED_PREFIX) ||
+-                      (prefix && STRPREFIX(ifname, prefix)))) {
++                    (STRPREFIX(ifname, VIR_NET_GENERATED_PREFIX) ||
++                     (prefix && STRPREFIX(ifname, prefix)))) {
+                     /* An auto-generated target name, blank it out */
+                     VIR_FREE(ifname);
+                 }
+@@ -9764,9 +9764,9 @@ virDomainNetDefParseXML(virDomainXMLOptionPtr xmlopt,
+             filter = NULL;
+             def->filterparams = filterparams;
+             filterparams = NULL;
+-        break;
++            break;
+         default:
+-        break;
++            break;
+         }
+     }
+ 
+-- 
+2.11.0
+

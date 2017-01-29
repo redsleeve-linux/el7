@@ -1,0 +1,105 @@
+From da8bc106ac11a4b90f1559c3f34a1f0829a61506 Mon Sep 17 00:00:00 2001
+Message-Id: <da8bc106ac11a4b90f1559c3f34a1f0829a61506@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Tue, 8 Nov 2016 13:42:07 +0100
+Subject: [PATCH] qemuDomainAttachNetDevice: Explicitly list allowed types for
+ hotplug
+
+RHEL-7.3: https://bugzilla.redhat.com/show_bug.cgi?id=1366108
+RHEL-7.3.z: https://bugzilla.redhat.com/show_bug.cgi?id=1392032
+
+Instead of blindly claim support for hot-plugging of every
+interface type out there we should copy approach we have for
+device types: white listing supported types and explicitly error
+out on unsupported ones.
+For instance, trying to hotplug vhostuser interface results in
+nothing usable from guest currently. vhostuser typed interfaces
+require additional work on our side.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit c266b6044003ac2f10f4cd15e58164d629508ccb)
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_hotplug.c | 33 +++++++++++++++++++++++++++------
+ 1 file changed, 27 insertions(+), 6 deletions(-)
+
+diff --git a/src/qemu/qemu_hotplug.c b/src/qemu/qemu_hotplug.c
+index ca2d89702..011152762 100644
+--- a/src/qemu/qemu_hotplug.c
++++ b/src/qemu/qemu_hotplug.c
+@@ -940,8 +940,9 @@ qemuDomainAttachNetDevice(virQEMUDriverPtr driver,
+         return -1;
+     }
+ 
+-    if (actualType == VIR_DOMAIN_NET_TYPE_BRIDGE ||
+-        actualType == VIR_DOMAIN_NET_TYPE_NETWORK) {
++    switch (actualType) {
++    case VIR_DOMAIN_NET_TYPE_BRIDGE:
++    case VIR_DOMAIN_NET_TYPE_NETWORK:
+         tapfdSize = vhostfdSize = net->driver.virtio.queues;
+         if (!tapfdSize)
+             tapfdSize = vhostfdSize = 1;
+@@ -958,7 +959,9 @@ qemuDomainAttachNetDevice(virQEMUDriverPtr driver,
+         if (qemuInterfaceOpenVhostNet(vm->def, net, priv->qemuCaps,
+                                       vhostfd, &vhostfdSize) < 0)
+             goto cleanup;
+-    } else if (actualType == VIR_DOMAIN_NET_TYPE_DIRECT) {
++        break;
++
++    case VIR_DOMAIN_NET_TYPE_DIRECT:
+         tapfdSize = vhostfdSize = net->driver.virtio.queues;
+         if (!tapfdSize)
+             tapfdSize = vhostfdSize = 1;
+@@ -976,7 +979,9 @@ qemuDomainAttachNetDevice(virQEMUDriverPtr driver,
+         if (qemuInterfaceOpenVhostNet(vm->def, net, priv->qemuCaps,
+                                       vhostfd, &vhostfdSize) < 0)
+             goto cleanup;
+-    } else if (actualType == VIR_DOMAIN_NET_TYPE_ETHERNET) {
++        break;
++
++    case VIR_DOMAIN_NET_TYPE_ETHERNET:
+         tapfdSize = vhostfdSize = net->driver.virtio.queues;
+         if (!tapfdSize)
+             tapfdSize = vhostfdSize = 1;
+@@ -987,13 +992,15 @@ qemuDomainAttachNetDevice(virQEMUDriverPtr driver,
+             goto cleanup;
+         memset(vhostfd, -1, sizeof(*vhostfd) * vhostfdSize);
+         if (qemuInterfaceEthernetConnect(vm->def, driver, net,
+-                                       tapfd, tapfdSize) < 0)
++                                         tapfd, tapfdSize) < 0)
+             goto cleanup;
+         iface_connected = true;
+         if (qemuInterfaceOpenVhostNet(vm->def, net, priv->qemuCaps,
+                                       vhostfd, &vhostfdSize) < 0)
+             goto cleanup;
+-    } else if (actualType == VIR_DOMAIN_NET_TYPE_HOSTDEV) {
++        break;
++
++    case VIR_DOMAIN_NET_TYPE_HOSTDEV:
+         /* This is really a "smart hostdev", so it should be attached
+          * as a hostdev (the hostdev code will reach over into the
+          * netdev-specific code as appropriate), then also added to
+@@ -1005,6 +1012,20 @@ qemuDomainAttachNetDevice(virQEMUDriverPtr driver,
+         ret = qemuDomainAttachHostDevice(NULL, driver, vm,
+                                          virDomainNetGetActualHostdev(net));
+         goto cleanup;
++        break;
++
++    case VIR_DOMAIN_NET_TYPE_USER:
++    case VIR_DOMAIN_NET_TYPE_VHOSTUSER:
++    case VIR_DOMAIN_NET_TYPE_SERVER:
++    case VIR_DOMAIN_NET_TYPE_CLIENT:
++    case VIR_DOMAIN_NET_TYPE_MCAST:
++    case VIR_DOMAIN_NET_TYPE_INTERNAL:
++    case VIR_DOMAIN_NET_TYPE_UDP:
++    case VIR_DOMAIN_NET_TYPE_LAST:
++        virReportError(VIR_ERR_OPERATION_UNSUPPORTED,
++                       _("hotplug of interface type of %s is not implemented yet"),
++                       virDomainNetTypeToString(actualType));
++        goto cleanup;
+     }
+ 
+     /* Set device online immediately */
+-- 
+2.11.0
+

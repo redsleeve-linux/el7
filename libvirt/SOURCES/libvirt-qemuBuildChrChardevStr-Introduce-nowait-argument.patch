@@ -1,0 +1,165 @@
+From cc05f5db0c1051dc3e1ded20410fce4560b19ea3 Mon Sep 17 00:00:00 2001
+Message-Id: <cc05f5db0c1051dc3e1ded20410fce4560b19ea3@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Tue, 8 Nov 2016 13:42:09 +0100
+Subject: [PATCH] qemuBuildChrChardevStr: Introduce @nowait argument
+
+RHEL-7.3: https://bugzilla.redhat.com/show_bug.cgi?id=1366108
+RHEL-7.3.z: https://bugzilla.redhat.com/show_bug.cgi?id=1392032
+
+This alone makes not much sense. But the aim is to reuse this
+function in qemuBuildVhostuserCommandLine() where 'nowait' is not
+supported for vhost-user devices.
+
+Conflict: Because e3d3c04a is not backported.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 336d4a71feb1cd68df13e1812e86971c61553522)
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+---
+ src/qemu/qemu_command.c | 36 ++++++++++++++++++++----------------
+ 1 file changed, 20 insertions(+), 16 deletions(-)
+
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index d88ee5b6b..d28a367cc 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -4891,7 +4891,8 @@ qemuBuildChrChardevStr(virLogManagerPtr logManager,
+                        const virDomainDef *def,
+                        const virDomainChrSourceDef *dev,
+                        const char *alias,
+-                       virQEMUCapsPtr qemuCaps)
++                       virQEMUCapsPtr qemuCaps,
++                       bool nowait)
+ {
+     virBuffer buf = VIR_BUFFER_INITIALIZER;
+     bool telnet;
+@@ -4964,19 +4965,22 @@ qemuBuildChrChardevStr(virLogManagerPtr logManager,
+     case VIR_DOMAIN_CHR_TYPE_TCP:
+         telnet = dev->data.tcp.protocol == VIR_DOMAIN_CHR_TCP_PROTOCOL_TELNET;
+         virBufferAsprintf(&buf,
+-                          "socket,id=char%s,host=%s,port=%s%s%s",
++                          "socket,id=char%s,host=%s,port=%s%s",
+                           alias,
+                           dev->data.tcp.host,
+                           dev->data.tcp.service,
+-                          telnet ? ",telnet" : "",
+-                          dev->data.tcp.listen ? ",server,nowait" : "");
++                          telnet ? ",telnet" : "");
++
++        if (dev->data.tcp.listen)
++            virBufferAdd(&buf, nowait ? ",server,nowait" : ",server", -1);
++
+         break;
+ 
+     case VIR_DOMAIN_CHR_TYPE_UNIX:
+         virBufferAsprintf(&buf, "socket,id=char%s,path=", alias);
+         virQEMUBuildBufferEscapeComma(&buf, dev->data.nix.path);
+         if (dev->data.nix.listen)
+-            virBufferAddLit(&buf, ",server,nowait");
++            virBufferAdd(&buf, nowait ? ",server,nowait" : ",server", -1);
+         break;
+ 
+     case VIR_DOMAIN_CHR_TYPE_SPICEVMC:
+@@ -5300,7 +5304,7 @@ qemuBuildMonitorCommandLine(virLogManagerPtr logManager,
+ 
+         if (!(chrdev = qemuBuildChrChardevStr(logManager, cmd, cfg, def,
+                                               monitor_chr, "monitor",
+-                                              qemuCaps)))
++                                              qemuCaps, true)))
+             return -1;
+         virCommandAddArg(cmd, "-chardev");
+         virCommandAddArg(cmd, chrdev);
+@@ -5460,7 +5464,7 @@ qemuBuildRNGBackendChrdevStr(virLogManagerPtr logManager,
+     case VIR_DOMAIN_RNG_BACKEND_EGD:
+         if (!(*chr = qemuBuildChrChardevStr(logManager, cmd, cfg, def,
+                                             rng->source.chardev,
+-                                            rng->info.alias, qemuCaps)))
++                                            rng->info.alias, qemuCaps, true)))
+             return -1;
+     }
+ 
+@@ -8461,7 +8465,7 @@ qemuBuildSmartcardCommandLine(virLogManagerPtr logManager,
+         if (!(devstr = qemuBuildChrChardevStr(logManager, cmd, cfg, def,
+                                               &smartcard->data.passthru,
+                                               smartcard->info.alias,
+-                                              qemuCaps))) {
++                                              qemuCaps, true))) {
+             virBufferFreeAndReset(&opt);
+             return -1;
+         }
+@@ -8594,7 +8598,7 @@ qemuBuildShmemBackendChrStr(virLogManagerPtr logManager,
+ 
+     devstr = qemuBuildChrChardevStr(logManager, cmd, cfg, def,
+                                     &shmem->server.chr,
+-                                    shmem->info.alias, qemuCaps);
++                                    shmem->info.alias, qemuCaps, true);
+ 
+     return devstr;
+ }
+@@ -8764,7 +8768,7 @@ qemuBuildSerialCommandLine(virLogManagerPtr logManager,
+             if (!(devstr = qemuBuildChrChardevStr(logManager, cmd, cfg, def,
+                                                   &serial->source,
+                                                   serial->info.alias,
+-                                                  qemuCaps)))
++                                                  qemuCaps, true)))
+                 return -1;
+             virCommandAddArg(cmd, "-chardev");
+             virCommandAddArg(cmd, devstr);
+@@ -8803,7 +8807,7 @@ qemuBuildParallelsCommandLine(virLogManagerPtr logManager,
+             if (!(devstr = qemuBuildChrChardevStr(logManager, cmd, cfg, def,
+                                                   &parallel->source,
+                                                   parallel->info.alias,
+-                                                  qemuCaps)))
++                                                  qemuCaps, true)))
+                 return -1;
+             virCommandAddArg(cmd, "-chardev");
+             virCommandAddArg(cmd, devstr);
+@@ -8849,7 +8853,7 @@ qemuBuildChannelsCommandLine(virLogManagerPtr logManager,
+             if (!(devstr = qemuBuildChrChardevStr(logManager, cmd, cfg, def,
+                                                   &channel->source,
+                                                   channel->info.alias,
+-                                                  qemuCaps)))
++                                                  qemuCaps, true)))
+                 return -1;
+             virCommandAddArg(cmd, "-chardev");
+             virCommandAddArg(cmd, devstr);
+@@ -8872,7 +8876,7 @@ qemuBuildChannelsCommandLine(virLogManagerPtr logManager,
+                 if (!(devstr = qemuBuildChrChardevStr(logManager, cmd, cfg, def,
+                                                       &channel->source,
+                                                       channel->info.alias,
+-                                                      qemuCaps)))
++                                                      qemuCaps, true)))
+                     return -1;
+                 virCommandAddArg(cmd, "-chardev");
+                 virCommandAddArg(cmd, devstr);
+@@ -8915,7 +8919,7 @@ qemuBuildConsoleCommandLine(virLogManagerPtr logManager,
+             if (!(devstr = qemuBuildChrChardevStr(logManager, cmd, cfg, def,
+                                                   &console->source,
+                                                   console->info.alias,
+-                                                  qemuCaps)))
++                                                  qemuCaps, true)))
+                 return -1;
+             virCommandAddArg(cmd, "-chardev");
+             virCommandAddArg(cmd, devstr);
+@@ -8929,7 +8933,7 @@ qemuBuildConsoleCommandLine(virLogManagerPtr logManager,
+             if (!(devstr = qemuBuildChrChardevStr(logManager, cmd, cfg, def,
+                                                   &console->source,
+                                                   console->info.alias,
+-                                                  qemuCaps)))
++                                                  qemuCaps, true)))
+                 return -1;
+             virCommandAddArg(cmd, "-chardev");
+             virCommandAddArg(cmd, devstr);
+@@ -9058,7 +9062,7 @@ qemuBuildRedirdevCommandLine(virLogManagerPtr logManager,
+         if (!(devstr = qemuBuildChrChardevStr(logManager, cmd, cfg, def,
+                                               &redirdev->source.chr,
+                                               redirdev->info.alias,
+-                                              qemuCaps))) {
++                                              qemuCaps, true))) {
+             return -1;
+         }
+ 
+-- 
+2.11.0
+

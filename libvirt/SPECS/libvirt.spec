@@ -217,7 +217,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 2.0.0
-Release: 10%{?dist}.2%{?extra_release}.redsleeve
+Release: 10%{?dist}.4%{?extra_release}
 License: LGPLv2+
 Group: Development/Libraries
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
@@ -487,8 +487,26 @@ Patch255: libvirt-qemu-Support-newer-ivshmem-device-variants.patch
 Patch256: libvirt-qemu-Add-support-for-hot-cold-un-plug-of-shmem-devices.patch
 Patch257: libvirt-qemu-Fix-double-free-when-live-attaching-shmem.patch
 Patch258: libvirt-qemu-Make-sure-shmem-memory-is-shared.patch
+Patch259: libvirt-virDomainNetDefParseXML-Realign.patch
+Patch260: libvirt-virDomainNetGetActualType-Return-type-is-virDomainNetType.patch
+Patch261: libvirt-qemuBuildInterfaceCommandLine-Move-hostdev-handling-a-bit-further.patch
+Patch262: libvirt-qemuBuildInterfaceCommandLine-Move-vhostuser-handling-a-bit-further.patch
+Patch263: libvirt-qemuBuildInterfaceCommandLine-Move-from-if-else-forest-to-switch.patch
+Patch264: libvirt-qemuDomainAttachNetDevice-Move-hostdev-handling-a-bit-further.patch
+Patch265: libvirt-qemuDomainAttachNetDevice-Explicitly-list-allowed-types-for-hotplug.patch
+Patch266: libvirt-qemuBuildHostNetStr-Explicitly-enumerate-net-types.patch
+Patch267: libvirt-qemuBuildChrChardevStr-Introduce-nowait-argument.patch
+Patch268: libvirt-qemuBuildVhostuserCommandLine-Reuse-qemuBuildChrChardevStr.patch
+Patch269: libvirt-qemuBuildVhostuserCommandLine-Unify-netdev-creation.patch
+Patch270: libvirt-qemuBuildHostNetStr-Support-VIR_DOMAIN_NET_TYPE_VHOSTUSER.patch
+Patch271: libvirt-qemu_hotplug-Support-interface-type-of-vhost-user-hotplug.patch
+Patch272: libvirt-qemu-snapshot-Don-t-attempt-to-resume-cpus-if-they-were-not-paused.patch
+Patch273: libvirt-qemuDomainAttachNetDevice-Don-t-overwrite-error-on-rollback.patch
+Patch274: libvirt-qemuDomainAttachNetDevice-Enable-multiqueue-for-vhost-user.patch
+Patch275: libvirt-qemuDomainAttachNetDevice-pass-mq-and-vectors-for-vhost-user-with-multiqueue.patch
+Patch276: libvirt-qemuDomainAttachNetDevice-Avoid-originalError-leak.patch
+Patch277: libvirt-qemu-snapshot-Resume-VM-after-live-snapshot.patch
 
-Patch1000: libvirt-tests-nsslinktest:-also-build-virAtomic.h-redsleeve.patch
 
 Requires: libvirt-daemon = %{version}-%{release}
 Requires: libvirt-daemon-config-network = %{version}-%{release}
@@ -2130,8 +2148,28 @@ exit 0
 
 
 %changelog
-* Sun Dec 11 2016 Jacco Ligthart <jacco@redsleeve.org> - 2.0.0-10.2.redsleeve
-- add a patch to be able to build the tests
+* Thu Jan  5 2017 Jiri Denemark <jdenemar@redhat.com> - 2.0.0-10.el7_3.4
+- qemuDomainAttachNetDevice: Avoid @originalError leak (rhbz#1404186)
+- qemu: snapshot: Resume VM after live snapshot (rhbz#1406765)
+
+* Wed Dec 21 2016 Jiri Denemark <jdenemar@redhat.com> - 2.0.0-10.el7_3.3
+- virDomainNetDefParseXML: Realign (rhbz#1392032)
+- virDomainNetGetActualType: Return type is virDomainNetType (rhbz#1392032)
+- qemuBuildInterfaceCommandLine: Move hostdev handling a bit further (rhbz#1392032)
+- qemuBuildInterfaceCommandLine: Move vhostuser handling a bit further (rhbz#1392032)
+- qemuBuildInterfaceCommandLine: Move from if-else forest to switch (rhbz#1392032)
+- qemuDomainAttachNetDevice: Move hostdev handling a bit further (rhbz#1392032)
+- qemuDomainAttachNetDevice: Explicitly list allowed types for hotplug (rhbz#1392032)
+- qemuBuildHostNetStr: Explicitly enumerate net types (rhbz#1392032)
+- qemuBuildChrChardevStr: Introduce @nowait argument (rhbz#1392032)
+- qemuBuildVhostuserCommandLine: Reuse qemuBuildChrChardevStr (rhbz#1392032)
+- qemuBuildVhostuserCommandLine: Unify -netdev creation (rhbz#1392032)
+- qemuBuildHostNetStr: Support VIR_DOMAIN_NET_TYPE_VHOSTUSER (rhbz#1392032)
+- qemu_hotplug: Support interface type of vhost-user hotplug (rhbz#1392032)
+- qemu: snapshot: Don't attempt to resume cpus if they were not paused (rhbz#1406765)
+- qemuDomainAttachNetDevice: Don't overwrite error on rollback (rhbz#1404186)
+- qemuDomainAttachNetDevice: Enable multiqueue for vhost-user (rhbz#1404186)
+- qemuDomainAttachNetDevice: pass mq and vectors for vhost-user with multiqueue (rhbz#1404186)
 
 * Thu Nov 10 2016 Jiri Denemark <jdenemar@redhat.com> - 2.0.0-10.el7_3.2
 - qemu: Fix double free when live-attaching shmem (rhbz#1392031)
