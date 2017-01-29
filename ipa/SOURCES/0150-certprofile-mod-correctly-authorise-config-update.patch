@@ -1,0 +1,43 @@
+From 59e072eab0d58af195a14d53240de20ee4a3171f Mon Sep 17 00:00:00 2001
+From: Fraser Tweedale <ftweedal@redhat.com>
+Date: Tue, 15 Nov 2016 14:02:54 +1000
+Subject: [PATCH] certprofile-mod: correctly authorise config update
+
+Certificate profiles consist of an FreeIPA object, and a
+corresponding Dogtag configuration object.  When updating profile
+configuration, changes to the Dogtag configuration are not properly
+authorised, allowing unprivileged operators to modify (but not
+create or delete) profiles.  This could result in issuance of
+certificates with fraudulent subject naming information, improper
+key usage, or other badness.
+
+Update certprofile-mod to ensure that the operator has permission to
+modify FreeIPA certprofile objects before modifying the Dogtag
+configuration.
+
+https://fedorahosted.org/freeipa/ticket/6560
+
+Reviewed-By: Jan Cholasta <jcholast@redhat.com>
+---
+ ipaserver/plugins/certprofile.py | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/ipaserver/plugins/certprofile.py b/ipaserver/plugins/certprofile.py
+index f4466077484591c8e941027fa8e4897602384f7c..2bd3311e3b729b768188d537bf7f675a0f9346c2 100644
+--- a/ipaserver/plugins/certprofile.py
++++ b/ipaserver/plugins/certprofile.py
+@@ -310,6 +310,11 @@ class certprofile_mod(LDAPUpdate):
+             raise errors.ProtectedEntryError(label='certprofile', key=keys[0],
+                 reason=_('Certificate profiles cannot be renamed'))
+         if 'file' in options:
++            # ensure operator has permission to update a certprofile
++            if not ldap.can_write(dn, 'ipacertprofilestoreissued'):
++                raise errors.ACIError(info=_(
++                    "Insufficient privilege to modify a certificate profile."))
++
+             with self.api.Backend.ra_certprofile as profile_api:
+                 profile_api.disable_profile(keys[0])
+                 try:
+-- 
+2.7.4
+

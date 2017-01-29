@@ -1,0 +1,64 @@
+From 81a1bdae1743c4cd7aab296cb0a7474b9bd52b33 Mon Sep 17 00:00:00 2001
+From: Ludwig Krispenz <lkrispen@redhat.com>
+Date: Fri, 9 Dec 2016 15:04:21 +0100
+Subject: [PATCH] Check for conflict entries before raising domain level
+
+Checking of conflicts is not only done in topology container as
+tests showed it can occurs elsewhere
+
+https://fedorahosted.org/freeipa/ticket/6534
+
+Reviewed-By: Martin Babinsky <mbabinsk@redhat.com>
+---
+ ipaserver/plugins/domainlevel.py | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)
+
+diff --git a/ipaserver/plugins/domainlevel.py b/ipaserver/plugins/domainlevel.py
+index 23fa2a1b2f0f681ac215e96a651d688294df4b99..d8c508a64dd91a0a18e061d2af3080c8f1b38260 100644
+--- a/ipaserver/plugins/domainlevel.py
++++ b/ipaserver/plugins/domainlevel.py
+@@ -48,6 +48,30 @@ def get_domainlevel_range(master_entry):
+         return DomainLevelRange(0, 0)
+ 
+ 
++def check_conflict_entries(ldap, api, desired_value):
++    """
++    Check if conflict entries exist in topology subtree
++    """
++
++    container_dn = DN(
++        ('cn', 'ipa'),
++        ('cn', 'etc'),
++        api.env.basedn
++    )
++    conflict = "(nsds5replconflict=*)"
++    subentry = "(|(objectclass=ldapsubentry)(objectclass=*))"
++    try:
++        ldap.get_entries(
++            filter="(& %s %s)" % (conflict, subentry),
++            base_dn=container_dn,
++            scope=ldap.SCOPE_SUBTREE)
++        message = _("Domain Level cannot be raised to {0}, "
++                    "existing replication conflicts have to be resolved."
++                    .format(desired_value))
++        raise errors.InvalidDomainLevelError(reason=message)
++    except errors.NotFound:
++        pass
++
+ def get_master_entries(ldap, api):
+     """
+     Returns list of LDAPEntries representing IPA masters.
+@@ -131,6 +155,10 @@ class domainlevel_set(Command):
+                             .format(desired_value, master['cn'][0]))
+                 raise errors.InvalidDomainLevelError(reason=message)
+ 
++        # Check if conflict entries exist in topology subtree
++        # should be resolved first
++        check_conflict_entries(ldap, self.api, desired_value)
++
+         current_entry.single_value['ipaDomainLevel'] = desired_value
+         ldap.update_entry(current_entry)
+ 
+-- 
+2.7.4
+

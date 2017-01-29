@@ -43,7 +43,7 @@
 
 Name:           ipa
 Version:        4.4.0
-Release:        14%{?dist}.redsleeve
+Release:        14%{?dist}.4
 Summary:        The Identity, Policy and Audit system
 
 Group:          System Environment/Base
@@ -203,6 +203,14 @@ Patch0141:      0141-WebUI-services-without-canonical-name-are-shown-corr.patch
 Patch0142:      0142-Fix-missing-file-that-fails-DL1-replica-installation.patch
 Patch0143:      0143-trustdomain-del-fix-the-way-how-subdomain-is-searche.patch
 Patch0144:      0144-spec-file-bump-minimal-required-version-of-389-ds-ba.patch
+Patch0145:      0145-replication-ensure-bind-DN-group-check-interval-is-s.patch
+Patch0146:      0146-bindinstance-use-data-in-named.conf-to-determine-con.patch
+Patch0147:      0147-gracefully-handle-setting-replica-bind-dn-group-on-o.patch
+Patch0148:      0148-add-missing-attribute-to-ipaca-replica-during-CA-top.patch
+Patch0149:      0149-Check-for-conflict-entries-before-raising-domain-lev.patch
+Patch0150:      0150-certprofile-mod-correctly-authorise-config-update.patch
+Patch0151:      0151-password-policy-Add-explicit-default-password-policy.patch
+Patch0152:      0152-ipa-kdb-search-for-password-policies-globally.patch
 
 Patch1001:      1001-Hide-pkinit-functionality-from-production-version.patch
 Patch1002:      1002-Remove-pkinit-plugin.patch
@@ -214,7 +222,7 @@ Patch1007:      1007-Do-not-build-tests.patch
 Patch1008:      1008-RCUE.patch
 Patch1009:      1009-Revert-Increased-mod_wsgi-socket-timeout.patch
 Patch1010:      1010-WebUI-add-API-browser-is-tech-preview-warning.patch
-Patch1011:      ipa-redsleeve-branding.patch
+Patch1011:      ipa-centos-branding.patch
 # RHEL spec file only: END
 
 %if ! %{ONLY_CLIENT}
@@ -1533,11 +1541,40 @@ fi
 
 
 %changelog
-* Sun Dec 11 2016 Jacco Ligthart <jacco@redsleeve.org> - 4.4.0-14.el7.redsleeve
-- Roll in RedSleeve Branding
-
-* Tue Dec 06 2016 CentOS Sources <bugs@centos.org> - 4.4.0-14.el7.centos
+* Tue Jan 17 2017 CentOS Sources <bugs@centos.org> - 4.4.0-14.el7.centos.4
 - Roll in CentOS Branding
+
+* Fri Dec 16 2016 Jan Cholasta <jcholast@redhat.com> - 4.4.0-14.4
+- Resolves: #1370493 CVE-2016-7030 ipa: DoS attack against kerberized services
+  by abusing password policy
+  - ipa-kdb: search for password policies globally
+- Renamed patches 1011 and 1012 to 0151 and 0150, as they were merged upstream
+
+* Tue Dec 13 2016 Jan Cholasta <jcholast@redhat.com> - 4.4.0-14.3
+- Resolves: #1404338 Check IdM Topology for broken record caused by replication
+  conflict before upgrading it
+  - Check for conflict entries before raising domain level
+
+* Tue Dec 13 2016 Jan Cholasta <jcholast@redhat.com> - 4.4.0-14.2
+- Resolves: #1401953 ipa-ca-install on promoted replica hangs on creating a
+  temporary CA admin
+  - replication: ensure bind DN group check interval is set on replica config
+  - add missing attribute to ipaca replica during CA topology update
+- Resolves: #1404169 IPA upgrade of replica without DNS fails during restart of
+  named-pkcs11
+  - bindinstance: use data in named.conf to determine configuration status
+- Resolves: #1404171 Creation of replica for disconnected environment is
+  failing with CA issuance errors; Need good steps.
+  - gracefully handle setting replica bind dn group on old masters
+
+* Mon Dec 12 2016 Jan Cholasta <jcholast@redhat.com> - 4.4.0-14.1
+- Resolves: #1370493 CVE-2016-7030 ipa: DoS attack against kerberized services
+  by abusing password policy
+  - password policy: Add explicit default password policy for hosts and
+    services
+- Resolves: #1395311 CVE-2016-9575 ipa: Insufficient permission check in
+  certprofile-mod
+  - certprofile-mod: correctly authorise config update
 
 * Tue Nov  1 2016 Jan Cholasta <jcholast@redhat.com> - 4.4.0-14
 - Resolves: #1378353 Replica install fails with old IPA master sometimes during

@@ -1,0 +1,93 @@
+From 32b222610532b543d713d4d4b5ce02eed15a66d5 Mon Sep 17 00:00:00 2001
+From: Martin Babinsky <mbabinsk@redhat.com>
+Date: Tue, 6 Dec 2016 18:07:50 +0100
+Subject: [PATCH] gracefully handle setting replica bind dn group on old
+ masters
+
+Pre-3.3 masters do not support setting 'nsds5replicabinddngroup'
+attribute on existing replica entry during setup of initial replication.
+In this case UNWILLING_TO_PERFORM is returned. The code can interpret
+this error as an indication of old master and fall back to just adding
+its LDAP principal to entry's 'nsds5replicabinddn' attribute.
+
+https://fedorahosted.org/freeipa/ticket/6532
+
+Reviewed-By: Florence Blanc-Renaud <frenaud@redhat.com>
+---
+ ipaserver/install/replication.py | 48 ++++++++++++++++++++++++++--------------
+ 1 file changed, 32 insertions(+), 16 deletions(-)
+
+diff --git a/ipaserver/install/replication.py b/ipaserver/install/replication.py
+index e9624894d7d1e745be8072268fa76d51a8c117e3..5f03ddeadfc515255509a1f49d3b38687e561b9f 100644
+--- a/ipaserver/install/replication.py
++++ b/ipaserver/install/replication.py
+@@ -429,6 +429,34 @@ class ReplicationManager(object):
+         return DN(('cn', 'replica'), ('cn', self.db_suffix),
+                   ('cn', 'mapping tree'), ('cn', 'config'))
+ 
++    def set_replica_binddngroup(self, r_conn, entry, replica_groupdn):
++        """
++        Set nsds5replicabinddngroup attribute on remote master's replica entry.
++        Older masters (ipa < 3.3) may not support setting this attribute. In
++        this case log the error and fall back to setting replica's binddn
++        directly.
++        """
++        binddn_groups = {
++            DN(p) for p in entry.get('nsds5replicabinddngroup', [])}
++
++        mod = []
++        if replica_groupdn not in binddn_groups:
++            mod.append((ldap.MOD_ADD, 'nsds5replicabinddngroup',
++                        replica_groupdn))
++
++        if 'nsds5replicabinddngroupcheckinterval' not in entry:
++            mod.append(
++                (ldap.MOD_ADD,
++                 'nsds5replicabinddngroupcheckinterval',
++                 '60'))
++        if mod:
++            try:
++                r_conn.modify_s(entry.dn, mod)
++            except ldap.UNWILLING_TO_PERFORM:
++                root_logger.debug(
++                    "nsds5replicabinddngroup attribute not supported on "
++                    "remote master.")
++
+     def replica_config(self, conn, replica_id, replica_binddn):
+         assert isinstance(replica_binddn, DN)
+         dn = self.replica_dn()
+@@ -440,27 +468,15 @@ class ReplicationManager(object):
+         try:
+             entry = conn.get_entry(dn)
+             managers = {DN(m) for m in entry.get('nsDS5ReplicaBindDN', [])}
+-            binddn_groups = {
+-                DN(p) for p in entry.get('nsds5replicabinddngroup', [])}
+ 
+-            mod = []
+             if replica_binddn not in managers:
+                 # Add the new replication manager
+-                mod.append((ldap.MOD_ADD, 'nsDS5ReplicaBindDN',
+-                            replica_binddn))
+-
+-            if replica_groupdn not in binddn_groups:
+-                mod.append((ldap.MOD_ADD, 'nsds5replicabinddngroup',
+-                            replica_groupdn))
+-
+-            if 'nsds5replicabinddngroupcheckinterval' not in entry:
+-                mod.append(
+-                    (ldap.MOD_ADD,
+-                     'nsds5replicabinddngroupcheckinterval',
+-                     '60'))
+-            if mod:
++                mod = [(ldap.MOD_ADD, 'nsDS5ReplicaBindDN',
++                        replica_binddn)]
+                 conn.modify_s(dn, mod)
+ 
++            self.set_replica_binddngroup(conn, entry, replica_groupdn)
++
+             # replication is already configured
+             return
+         except errors.NotFound:
+-- 
+2.7.4
+
