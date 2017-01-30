@@ -217,7 +217,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 2.0.0
-Release: 10%{?dist}.4%{?extra_release}
+Release: 10%{?dist}.4%{?extra_release}.redsleeve
 License: LGPLv2+
 Group: Development/Libraries
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
@@ -507,6 +507,7 @@ Patch275: libvirt-qemuDomainAttachNetDevice-pass-mq-and-vectors-for-vhost-user-w
 Patch276: libvirt-qemuDomainAttachNetDevice-Avoid-originalError-leak.patch
 Patch277: libvirt-qemu-snapshot-Resume-VM-after-live-snapshot.patch
 
+Patch1000: libvirt-tests-nsslinktest:-also-build-virAtomic.h-redsleeve.patch
 
 Requires: libvirt-daemon = %{version}-%{release}
 Requires: libvirt-daemon-config-network = %{version}-%{release}
@@ -2148,6 +2149,9 @@ exit 0
 
 
 %changelog
+* Sun Jan 29 2017 Jacco Ligthart <jacco@redsleeve.org> - 2.0.0-10.el7.4.redsleeve
+- add a patch to be able to build the tests
+
 * Thu Jan  5 2017 Jiri Denemark <jdenemar@redhat.com> - 2.0.0-10.el7_3.4
 - qemuDomainAttachNetDevice: Avoid @originalError leak (rhbz#1404186)
 - qemu: snapshot: Resume VM after live snapshot (rhbz#1406765)
