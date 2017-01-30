@@ -1,6 +1,6 @@
-From cba7647b76ce624c696e466a764a4d61c548bbc1 Mon Sep 17 00:00:00 2001
+From 10c8c3ee70677a7232988b4c2a483303ca473958 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Tue, 13 Dec 2016 21:44:16 +0100
+Date: Sun, 29 Jan 2017 17:54:28 +0100
 Subject: [PATCH] Roll in RedSleeve Branding
 
 ---
@@ -44,19 +44,19 @@ index 0000000..dbc81ab
 +1.8.3.1
 +
 diff --git a/SPECS/ipa.spec b/SPECS/ipa.spec
-index d46d747..c5ca5a9 100644
+index be4fd8b..738c02e 100644
 --- a/SPECS/ipa.spec
 +++ b/SPECS/ipa.spec
 @@ -43,7 +43,7 @@
  
  Name:           ipa
  Version:        4.4.0
--Release:        14%{?dist}
-+Release:        14%{?dist}.redsleeve
+-Release:        14%{?dist}.4
++Release:        14%{?dist}.4.redsleeve
  Summary:        The Identity, Policy and Audit system
  
  Group:          System Environment/Base
-@@ -214,7 +214,7 @@ Patch1007:      1007-Do-not-build-tests.patch
+@@ -222,7 +222,7 @@ Patch1007:      1007-Do-not-build-tests.patch
  Patch1008:      1008-RCUE.patch
  Patch1009:      1009-Revert-Increased-mod_wsgi-socket-timeout.patch
  Patch1010:      1010-WebUI-add-API-browser-is-tech-preview-warning.patch
@@ -65,14 +65,14 @@ index d46d747..c5ca5a9 100644
  # RHEL spec file only: END
  
  %if ! %{ONLY_CLIENT}
-@@ -1533,6 +1533,9 @@ fi
+@@ -1541,6 +1541,9 @@ fi
  
  
  %changelog
-+* Sun Dec 11 2016 Jacco Ligthart <jacco@redsleeve.org> - 4.4.0-14.el7.redsleeve
++* Sun Jan 29 2017 Jacco Ligthart <jacco@redsleeve.org> - 4.4.0-14.el7.4.redsleeve
 +- Roll in RedSleeve Branding
 +
- * Tue Dec 06 2016 CentOS Sources <bugs@centos.org> - 4.4.0-14.el7.centos
+ * Tue Jan 17 2017 CentOS Sources <bugs@centos.org> - 4.4.0-14.el7.centos.4
  - Roll in CentOS Branding
  
 -- 
