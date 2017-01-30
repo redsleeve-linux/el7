@@ -1,6 +1,6 @@
-From 37551fcbadce7af777a1eae058ca65cae47d20c3 Mon Sep 17 00:00:00 2001
+From 1bbc1c53dea58ac6fefa34da71a5bb8ec5a308bd Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Tue, 13 Dec 2016 21:48:36 +0100
+Date: Sun, 29 Jan 2017 17:36:39 +0100
 Subject: [PATCH] added arm to the ExclusiveArch and nobuildarches lists
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] added arm to the ExclusiveArch and nobuildarches lists
  1 file changed, 11 insertions(+), 3 deletions(-)
 
 diff --git a/SPECS/kernel.spec b/SPECS/kernel.spec
-index 709e5cb..126c068 100644
+index 03a2756..0ee4e25 100644
 --- a/SPECS/kernel.spec
 +++ b/SPECS/kernel.spec
 @@ -190,6 +190,11 @@ Summary: The Linux kernel
@@ -49,10 +49,10 @@ index 709e5cb..126c068 100644
  %kernel_variant_files %{with_kdump} kdump
  
  %changelog
-+* Sun Dec 11 2016 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-514.2.2.el7.redsleeve
++* Sun Jan 29 2017 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-514.6.1.el7.redsleeve
 +- added arm to the ExclusiveArch and nobuildarches lists
 +
- * Tue Dec 06 2016 CentOS Sources <bugs@centos.org> - 3.10.0-514.2.2.el7
+ * Tue Jan 17 2017 CentOS Sources <bugs@centos.org> - 3.10.0-514.6.1.el7
  - Apply debranding changes
  
 -- 
