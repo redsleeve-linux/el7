@@ -1,6 +1,6 @@
-From c5b207b4742d5cea9ef751646e4a014cd3742443 Mon Sep 17 00:00:00 2001
+From 4500f0c1d5cdb2cdec8af7de2eccfa94506cd3f7 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Tue, 13 Dec 2016 22:05:47 +0100
+Date: Sun, 29 Jan 2017 17:01:22 +0100
 Subject: [PATCH] added kvm_target arm
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] added kvm_target arm
  1 file changed, 8 insertions(+), 1 deletion(-)
 
 diff --git a/SPECS/qemu-kvm.spec b/SPECS/qemu-kvm.spec
-index 10713e5..4943192 100644
+index 490bffe..6b7f558 100644
 --- a/SPECS/qemu-kvm.spec
 +++ b/SPECS/qemu-kvm.spec
 @@ -41,6 +41,10 @@
@@ -26,21 +26,21 @@ index 10713e5..4943192 100644
  Summary: QEMU is a FAST! processor emulator
  Name: %{pkgname}%{?pkgsuffix}
  Version: 1.5.3
--Release: 126%{?dist}
-+Release: 126%{?dist}.redsleeve
+-Release: 126%{?dist}.3
++Release: 126%{?dist}.3.redsleeve
  # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
  Epoch: 10
  License: GPLv2+ and LGPLv2+ and BSD
-@@ -5680,6 +5684,9 @@ sh %{_sysconfdir}/sysconfig/modules/kvm.modules &> /dev/null || :
+@@ -5712,6 +5716,9 @@ sh %{_sysconfdir}/sysconfig/modules/kvm.modules &> /dev/null || :
  %{_mandir}/man8/qemu-nbd.8*
  
  %changelog
-+* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> - 1.5.3-126.el7.redsleeve
++* Sun Jan 29 2017 Jacco Ligthart <jacco@redsleeve.org> - 1.5.3-126.el7.3.redsleeve
 +- added kvm_target arm
 +
- * Tue Sep 20 2016 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-126.el7
- - kvm-virtio-recalculate-vq-inuse-after-migration.patch [bz#1376542]
- - Resolves: bz#1376542
+ * Wed Jan 04 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-126.el7_3.3
+ - kvm-net-check-packet-payload-length.patch [bz#1398217]
+ - Resolves: bz#1398217
 -- 
 1.8.3.1
 
