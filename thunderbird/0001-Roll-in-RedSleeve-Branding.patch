@@ -1,6 +1,6 @@
-From 1c91276963eb9c9b26421e3e1377a9faf7930d57 Mon Sep 17 00:00:00 2001
+From 7cef450061385b77df66938a95eaaaae31f4aadf Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sat, 24 Dec 2016 11:41:21 +0100
+Date: Mon, 6 Feb 2017 15:55:18 +0100
 Subject: [PATCH] Roll in RedSleeve Branding
 
 ---
@@ -115,13 +115,13 @@ index 0000000..fa9821b
 +/* Workaround for mozbz#1063315 */
 +pref("security.use_mozillapkix_verification", false);
 diff --git a/SPECS/thunderbird.spec b/SPECS/thunderbird.spec
-index fb4809c..4bf2a40 100644
+index 7a81547..eaf8ff9 100644
 --- a/SPECS/thunderbird.spec
 +++ b/SPECS/thunderbird.spec
 @@ -93,7 +93,7 @@ ExcludeArch: ppc ia64
  Summary:        Mozilla Thunderbird mail/newsgroup client
  Name:           thunderbird
- Version:        45.6.0
+ Version:        45.7.0
 -Release:        1%{?dist}
 +Release:        1%{?dist}.redsleeve
  URL:            http://www.mozilla.org/projects/thunderbird/
@@ -146,12 +146,12 @@ index fb4809c..4bf2a40 100644
  #===============================================================================
  
  %changelog
-+* Fri Dec 23 2016 Jacco Ligthart <jacco@redsleeve.org> - 45.6.0-1.el7.redsleeve
++* Mon Feb 06 2017 Jacco Ligthart <jacco@redsleeve.org> - 45.7.0-1.el7.redsleeve
 +- Roll in RedSleeve Branding
 +
- * Wed Dec 21 2016 Johnny Hughes <johnny@centos.org> - 45.6.0-1
+ * Thu Feb  2 2017 Johnny Hughes <johnny@centos.org> - 45.7.0-1
  - Manual CentOS Debranding
-  
+ 
 -- 
 1.8.3.1
 
