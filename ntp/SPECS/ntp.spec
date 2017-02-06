@@ -1,7 +1,7 @@
 Summary: The NTP daemon and utilities
 Name: ntp
 Version: 4.2.6p5
-Release: 25%{?dist}.redsleeve
+Release: 25%{?dist}.1
 # primary license (COPYRIGHT) : MIT
 # ElectricFence/ (not used) : GPLv2
 # kernel/sys/ppsclock.h (not used) : BSD with advertising
@@ -171,6 +171,16 @@ Patch61: ntp-4.2.6p5-cve-2016-1548.patch
 Patch62: ntp-4.2.6p5-cve-2016-2518.patch
 # ntpbz #2879
 Patch63: ntp-4.2.6p5-cve-2016-1550.patch
+# ntpbz #3071
+Patch64: ntp-4.2.6p5-cve-2016-7426.patch
+# ntpbz #3072
+Patch65: ntp-4.2.6p5-cve-2016-7429.patch
+# ntpbz #3067
+Patch66: ntp-4.2.6p5-cve-2016-7433.patch
+# ntpbz #3118
+Patch67: ntp-4.2.6p5-cve-2016-9310.patch
+# ntpbz #3119
+Patch68: ntp-4.2.6p5-cve-2016-9311.patch
 
 # handle unknown clock types
 Patch100: ntpstat-0.2-clksrc.patch
@@ -254,7 +264,7 @@ This package contains NTP documentation in HTML format.
 # pool.ntp.org vendor zone which will be used in ntp.conf
 %if 0%{!?vendorzone:1}
 %{?fedora: %global vendorzone fedora.}
-%{?rhel: %global vendorzone redsleeve.}
+%{?rhel: %global vendorzone centos.}
 %endif
 
 %prep
@@ -324,6 +334,11 @@ This package contains NTP documentation in HTML format.
 %patch61 -p1 -b .cve-2016-1548
 %patch62 -p1 -b .cve-2016-2518
 %patch63 -p1 -b .cve-2016-1550
+%patch64 -p1 -b .cve-2016-7426
+%patch65 -p1 -b .cve-2016-7429
+%patch66 -p1 -b .cve-2016-7433
+%patch67 -p1 -b .cve-2016-9310
+%patch68 -p1 -b .cve-2016-9311
 
 # ntpstat patches
 %patch100 -p1 -b .clksrc
@@ -542,11 +557,15 @@ popd
 %{ntpdocdir}/html
 
 %changelog
-* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> - 4.2.6p5-25.el7.redsleeve
+* Sun Feb 05 2017 CentOS Sources <bugs@centos.org> - 4.2.6p5-25.el7.centos.1
 - rebrand vendorzone
 
-* Thu Nov 03 2016 CentOS Sources <bugs@centos.org> - 4.2.6p5-25.el7.centos
-- rebrand vendorzone
+* Wed Jan 11 2017 Miroslav Lichvar <mlichvar@redhat.com> 4.2.6p5-25.el7_3.1
+- don't limit rate of packets from sources (CVE-2016-7426)
+- don't change interface from received packets (CVE-2016-7429)
+- fix calculation of root distance again (CVE-2016-7433)
+- require authentication for trap commands (CVE-2016-9310)
+- fix crash when reporting peer event to trappers (CVE-2016-9311)
 
 * Tue May 03 2016 Miroslav Lichvar <mlichvar@redhat.com> 4.2.6p5-25
 - don't allow spoofed packet to enable symmetric interleaved mode
