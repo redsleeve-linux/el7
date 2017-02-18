@@ -130,3 +130,5 @@ else
     echo "Applying ${PR2124}"
     patch -Np0 < $PR2124
 fi;
+echo "Cleaning up after patch application"
+find . -name '*.orig' | xargs rm -vf

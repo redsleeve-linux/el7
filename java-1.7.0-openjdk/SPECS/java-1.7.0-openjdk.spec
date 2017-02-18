@@ -5,7 +5,7 @@
 # conflicting) files in the -debuginfo package
 %undefine _missing_build_ids_terminate_build
 
-%global icedtea_version 2.6.8
+%global icedtea_version 2.6.9
 %global hg_tag icedtea-{icedtea_version}
 
 %global aarch64			aarch64 arm64 armv8
@@ -138,7 +138,7 @@
 
 # Standard JPackage naming and versioning defines.
 %global origin          openjdk
-%global updatever       121
+%global updatever       131
 %global buildver        00
 # Keep priority on 7digits in case updatever>9
 %global priority        1700%{updatever}
@@ -189,7 +189,7 @@ grep -e md5sum -A 20 $specfile  | grep $currentMd5sum
 
 Name:    java-%{javaver}-%{origin}
 Version: %{javaver}.%{updatever}
-Release: %{icedtea_version}.0%{?dist}.redsleeve
+Release: %{icedtea_version}.0%{?dist}
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons,
 # and this change was brought into RHEL-4.  java-1.5.0-ibm packages
 # also included the epoch in their virtual provides.  This created a
@@ -797,7 +797,6 @@ make \
   NSS_CFLAGS="%{NSS_CFLAGS}" \
   ECC_JUST_SUITE_B="true" \
   SYSTEM_GSETTINGS="true" \
-  ARM32JIT="false" \
   %{debugbuild}
 
 popd >& /dev/null
@@ -1119,7 +1118,8 @@ if [ "$1" -gt 1 ]; then
        "${sum}" = '9b517554fffe801f6894dfa0e8169cb1' -o \
        "${sum}" = '795b59e52fe426f59d76d43defafabab' -o \
        "${sum}" = 'ec53f8629ce93fd2d8cdb1a143cbefdf' -o \
-       "${sum}" = '7969a8d2dbc8db1ee232097cd0375d65' ]; then
+       "${sum}" = '7969a8d2dbc8db1ee232097cd0375d65' -o \
+       "${sum}" = '8576d747a8d0811c3df016b421c38d32' ]; then
     if [ -f "${javasecurity}.rpmnew" ]; then
       mv -f "${javasecurity}.rpmnew" "${javasecurity}"
     fi
@@ -1373,6 +1373,7 @@ exit 0
 %config(noreplace) %{_jvmdir}/%{jredir}/lib/security/local_policy.jar
 %config(noreplace) %{_jvmdir}/%{jredir}/lib/security/java.policy
 %config(noreplace) %{_jvmdir}/%{jredir}/lib/security/java.security
+%config(noreplace) %{_jvmdir}/%{jredir}/lib/security/blacklisted.certs
 %config(noreplace) %{_jvmdir}/%{jredir}/lib/logging.properties
 %{_mandir}/man1/java-%{uniquesuffix}.1*
 %{_mandir}/man1/keytool-%{uniquesuffix}.1*
@@ -1471,8 +1472,16 @@ exit 0
 %{_jvmdir}/%{jredir}/lib/accessibility.properties
 
 %changelog
-* Sun Dec 11 2016 Jacco Ligthart <jacco@redsleeve.org> 1:1.7.0.121-2.6.8.0.redsleeve
-- disabled ARM32JIT. the 8032051 security patch was not yet made for arm32.
+* Tue Feb 07 2017 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.7.0.131-2.6.9.0
+- Add blacklisted.certs to installation file list.
+- Resolves: rhbz#1410612
+
+* Tue Feb 07 2017 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.7.0.131-2.6.9.0
+- Bump to 2.6.9 and u131b00.
+- Remove patch application debris in fsg.sh.
+- Re-generate PR2809 and RH1022017 against 2.6.9.
+- Update md5sum list with checksum for the new java.security file.
+- Resolves: rhbz#1410612
 
 * Mon Oct 31 2016 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.7.0.121-2.6.8.0
 - Turn off HotSpot bootstrap to see if it resolves build issues.

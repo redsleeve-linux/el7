@@ -1,63 +1,55 @@
-# HG changeset patch
-# User xuelei
-# Date 1453868482 0
-#      Wed Jan 27 04:21:22 2016 +0000
-# Node ID 8d589911411743fa38badf69c10aa067eaa996b7
-# Parent  ceb95f0d38d7ab09762dd7ff33bb855f3088a6b5
-8076221, PR2809: Disable RC4 cipher suites
-Reviewed-by: wetmore
-
-diff -r 88b089373a3c src/share/lib/security/java.security-linux
---- openjdk/jdk/src/share/lib/security/java.security-linux	Mon Apr 18 06:49:52 2016 +0100
-+++ openjdk/jdk/src/share/lib/security/java.security-linux	Mon Apr 18 07:48:12 2016 +0100
-@@ -437,7 +437,7 @@
+diff --git a/src/share/lib/security/java.security-linux b/src/share/lib/security/java.security-linux
+--- openjdk/jdk/src/share/lib/security/java.security-linux
++++ openjdk/jdk/src/share/lib/security/java.security-linux
+@@ -501,7 +501,7 @@
  #
  # Example:
  #   jdk.tls.disabledAlgorithms=MD5, SSLv3, DSA, RSA keySize < 2048
--jdk.tls.disabledAlgorithms=SSLv3, MD5withRSA, DH keySize < 768
-+jdk.tls.disabledAlgorithms=SSLv3, RC4, MD5withRSA, DH keySize < 768
+-jdk.tls.disabledAlgorithms=SSLv3, MD5withRSA, DH keySize < 768, \
++jdk.tls.disabledAlgorithms=SSLv3, RC4, MD5withRSA, DH keySize < 768, \
+     EC keySize < 224
  
  # Legacy algorithms for Secure Socket Layer/Transport Layer Security (SSL/TLS)
- # processing in JSSE implementation.
-diff -r 88b089373a3c src/share/lib/security/java.security-macosx
---- openjdk/jdk/src/share/lib/security/java.security-macosx	Mon Apr 18 06:49:52 2016 +0100
-+++ openjdk/jdk/src/share/lib/security/java.security-macosx	Mon Apr 18 07:48:12 2016 +0100
-@@ -442,7 +442,7 @@
+diff --git a/src/share/lib/security/java.security-macosx b/src/share/lib/security/java.security-macosx
+--- openjdk/jdk/src/share/lib/security/java.security-macosx
++++ openjdk/jdk/src/share/lib/security/java.security-macosx
+@@ -506,7 +506,7 @@
  #
  # Example:
  #   jdk.tls.disabledAlgorithms=MD5, SSLv3, DSA, RSA keySize < 2048
--jdk.tls.disabledAlgorithms=SSLv3, MD5withRSA, DH keySize < 768
-+jdk.tls.disabledAlgorithms=SSLv3, RC4, MD5withRSA, DH keySize < 768
+-jdk.tls.disabledAlgorithms=SSLv3, MD5withRSA, DH keySize < 768, \
++jdk.tls.disabledAlgorithms=SSLv3, RC4, MD5withRSA, DH keySize < 768, \
+     EC keySize < 224
  
  # Legacy algorithms for Secure Socket Layer/Transport Layer Security (SSL/TLS)
- # processing in JSSE implementation.
-diff -r 88b089373a3c src/share/lib/security/java.security-solaris
---- openjdk/jdk/src/share/lib/security/java.security-solaris	Mon Apr 18 06:49:52 2016 +0100
-+++ openjdk/jdk/src/share/lib/security/java.security-solaris	Mon Apr 18 07:48:12 2016 +0100
-@@ -441,7 +441,7 @@
+diff --git a/src/share/lib/security/java.security-solaris b/src/share/lib/security/java.security-solaris
+--- openjdk/jdk/src/share/lib/security/java.security-solaris
++++ openjdk/jdk/src/share/lib/security/java.security-solaris
+@@ -505,7 +505,7 @@
  #
  # Example:
  #   jdk.tls.disabledAlgorithms=MD5, SSLv3, DSA, RSA keySize < 2048
--jdk.tls.disabledAlgorithms=SSLv3, MD5withRSA, DH keySize < 768
-+jdk.tls.disabledAlgorithms=SSLv3, RC4, MD5withRSA, DH keySize < 768
+-jdk.tls.disabledAlgorithms=SSLv3, MD5withRSA, DH keySize < 768, \
++jdk.tls.disabledAlgorithms=SSLv3, RC4, MD5withRSA, DH keySize < 768, \
+     EC keySize < 224
  
  # Legacy algorithms for Secure Socket Layer/Transport Layer Security (SSL/TLS)
- # processing in JSSE implementation.
-diff -r 88b089373a3c src/share/lib/security/java.security-windows
---- openjdk/jdk/src/share/lib/security/java.security-windows	Mon Apr 18 06:49:52 2016 +0100
-+++ openjdk/jdk/src/share/lib/security/java.security-windows	Mon Apr 18 07:48:12 2016 +0100
-@@ -442,7 +442,7 @@
+diff --git a/src/share/lib/security/java.security-windows b/src/share/lib/security/java.security-windows
+--- openjdk/jdk/src/share/lib/security/java.security-windows
++++ openjdk/jdk/src/share/lib/security/java.security-windows
+@@ -506,7 +506,7 @@
  #
  # Example:
  #   jdk.tls.disabledAlgorithms=MD5, SSLv3, DSA, RSA keySize < 2048
--jdk.tls.disabledAlgorithms=SSLv3, MD5withRSA, DH keySize < 768
-+jdk.tls.disabledAlgorithms=SSLv3, RC4, MD5withRSA, DH keySize < 768
+-jdk.tls.disabledAlgorithms=SSLv3, MD5withRSA, DH keySize < 768, \
++jdk.tls.disabledAlgorithms=SSLv3, RC4, MD5withRSA, DH keySize < 768, \
+     EC keySize < 224
  
  # Legacy algorithms for Secure Socket Layer/Transport Layer Security (SSL/TLS)
- # processing in JSSE implementation.
-diff -r 88b089373a3c test/javax/net/ssl/ciphersuites/DisabledAlgorithms.java
---- /dev/null	Thu Jan 01 00:00:00 1970 +0000
-+++ openjdk/jdk/test/javax/net/ssl/ciphersuites/DisabledAlgorithms.java	Mon Apr 18 07:48:12 2016 +0100
+diff --git a/test/javax/net/ssl/ciphersuites/DisabledAlgorithms.java b/test/javax/net/ssl/ciphersuites/DisabledAlgorithms.java
+new file mode 100644
+--- /dev/null
++++ openjdk/jdk/test/javax/net/ssl/ciphersuites/DisabledAlgorithms.java
 @@ -0,0 +1,362 @@
 +/*
 + * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
@@ -421,9 +413,9 @@ diff -r 88b089373a3c test/javax/net/ssl/ciphersuites/DisabledAlgorithms.java
 +
 +
 +}
-diff -r 88b089373a3c test/sun/security/krb5/auto/SSL.java
---- openjdk/jdk/test/sun/security/krb5/auto/SSL.java	Mon Apr 18 06:49:52 2016 +0100
-+++ openjdk/jdk/test/sun/security/krb5/auto/SSL.java	Mon Apr 18 07:48:12 2016 +0100
+diff --git a/test/sun/security/krb5/auto/SSL.java b/test/sun/security/krb5/auto/SSL.java
+--- openjdk/jdk/test/sun/security/krb5/auto/SSL.java
++++ openjdk/jdk/test/sun/security/krb5/auto/SSL.java
 @@ -1,5 +1,5 @@
  /*
 - * Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
@@ -449,9 +441,9 @@ diff -r 88b089373a3c test/sun/security/krb5/auto/SSL.java
  
          krb5Cipher = args[0];
  
-diff -r 88b089373a3c test/sun/security/ssl/com/sun/net/ssl/internal/ssl/ClientHandshaker/CipherSuiteOrder.java
---- openjdk/jdk/test/sun/security/ssl/com/sun/net/ssl/internal/ssl/ClientHandshaker/CipherSuiteOrder.java	Mon Apr 18 06:49:52 2016 +0100
-+++ openjdk/jdk/test/sun/security/ssl/com/sun/net/ssl/internal/ssl/ClientHandshaker/CipherSuiteOrder.java	Mon Apr 18 07:48:12 2016 +0100
+diff --git a/test/sun/security/ssl/com/sun/net/ssl/internal/ssl/ClientHandshaker/CipherSuiteOrder.java b/test/sun/security/ssl/com/sun/net/ssl/internal/ssl/ClientHandshaker/CipherSuiteOrder.java
+--- openjdk/jdk/test/sun/security/ssl/com/sun/net/ssl/internal/ssl/ClientHandshaker/CipherSuiteOrder.java
++++ openjdk/jdk/test/sun/security/ssl/com/sun/net/ssl/internal/ssl/ClientHandshaker/CipherSuiteOrder.java
 @@ -1,5 +1,5 @@
  /*
 - * Copyright (c) 2001, 2002, Oracle and/or its affiliates. All rights reserved.
@@ -479,11 +471,11 @@ diff -r 88b089373a3c test/sun/security/ssl/com/sun/net/ssl/internal/ssl/ClientHa
          String keyFilename =
              System.getProperty("test.src", "./") + "/" + pathToStores +
                  "/" + keyStoreFile;
-diff -r 88b089373a3c test/sun/security/ssl/com/sun/net/ssl/internal/ssl/DHKeyExchange/DHEKeySizing.java
---- openjdk/jdk/test/sun/security/ssl/com/sun/net/ssl/internal/ssl/DHKeyExchange/DHEKeySizing.java	Mon Apr 18 06:49:52 2016 +0100
-+++ openjdk/jdk/test/sun/security/ssl/com/sun/net/ssl/internal/ssl/DHKeyExchange/DHEKeySizing.java	Mon Apr 18 07:48:12 2016 +0100
-@@ -102,10 +102,10 @@
- import java.nio.*;
+diff --git a/test/sun/security/ssl/com/sun/net/ssl/internal/ssl/DHKeyExchange/DHEKeySizing.java b/test/sun/security/ssl/com/sun/net/ssl/internal/ssl/DHKeyExchange/DHEKeySizing.java
+--- openjdk/jdk/test/sun/security/ssl/com/sun/net/ssl/internal/ssl/DHKeyExchange/DHEKeySizing.java
++++ openjdk/jdk/test/sun/security/ssl/com/sun/net/ssl/internal/ssl/DHKeyExchange/DHEKeySizing.java
+@@ -103,10 +103,10 @@
+ import java.security.Security;
  import java.security.KeyStore;
  import java.security.KeyFactory;
 +import java.security.Security;
@@ -492,11 +484,11 @@ diff -r 88b089373a3c test/sun/security/ssl/com/sun/net/ssl/internal/ssl/DHKeyExc
  import java.security.spec.PKCS8EncodedKeySpec;
 -import java.security.spec.*;
  import java.security.interfaces.*;
- import java.util.Base64;
+ import sun.misc.BASE64Decoder;
  
-diff -r 88b089373a3c test/sun/security/ssl/javax/net/ssl/NewAPIs/SSLEngine/CheckStatus.java
---- openjdk/jdk/test/sun/security/ssl/javax/net/ssl/NewAPIs/SSLEngine/CheckStatus.java	Mon Apr 18 06:49:52 2016 +0100
-+++ openjdk/jdk/test/sun/security/ssl/javax/net/ssl/NewAPIs/SSLEngine/CheckStatus.java	Mon Apr 18 07:48:12 2016 +0100
+diff --git a/test/sun/security/ssl/javax/net/ssl/NewAPIs/SSLEngine/CheckStatus.java b/test/sun/security/ssl/javax/net/ssl/NewAPIs/SSLEngine/CheckStatus.java
+--- openjdk/jdk/test/sun/security/ssl/javax/net/ssl/NewAPIs/SSLEngine/CheckStatus.java
++++ openjdk/jdk/test/sun/security/ssl/javax/net/ssl/NewAPIs/SSLEngine/CheckStatus.java
 @@ -1,5 +1,5 @@
  /*
 - * Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
@@ -514,9 +506,9 @@ diff -r 88b089373a3c test/sun/security/ssl/javax/net/ssl/NewAPIs/SSLEngine/Check
  
          CheckStatus cs;
  
-diff -r 88b089373a3c test/sun/security/ssl/javax/net/ssl/NewAPIs/SSLEngine/ConnectionTest.java
---- openjdk/jdk/test/sun/security/ssl/javax/net/ssl/NewAPIs/SSLEngine/ConnectionTest.java	Mon Apr 18 06:49:52 2016 +0100
-+++ openjdk/jdk/test/sun/security/ssl/javax/net/ssl/NewAPIs/SSLEngine/ConnectionTest.java	Mon Apr 18 07:48:12 2016 +0100
+diff --git a/test/sun/security/ssl/javax/net/ssl/NewAPIs/SSLEngine/ConnectionTest.java b/test/sun/security/ssl/javax/net/ssl/NewAPIs/SSLEngine/ConnectionTest.java
+--- openjdk/jdk/test/sun/security/ssl/javax/net/ssl/NewAPIs/SSLEngine/ConnectionTest.java
++++ openjdk/jdk/test/sun/security/ssl/javax/net/ssl/NewAPIs/SSLEngine/ConnectionTest.java
 @@ -33,6 +33,8 @@
   * The code could certainly be tightened up a lot.
   *
@@ -537,9 +529,9 @@ diff -r 88b089373a3c test/sun/security/ssl/javax/net/ssl/NewAPIs/SSLEngine/Conne
          ConnectionTest ct = new ConnectionTest();
          ct.test();
      }
-diff -r 88b089373a3c test/sun/security/ssl/javax/net/ssl/NewAPIs/SSLEngine/LargeBufs.java
---- openjdk/jdk/test/sun/security/ssl/javax/net/ssl/NewAPIs/SSLEngine/LargeBufs.java	Mon Apr 18 06:49:52 2016 +0100
-+++ openjdk/jdk/test/sun/security/ssl/javax/net/ssl/NewAPIs/SSLEngine/LargeBufs.java	Mon Apr 18 07:48:12 2016 +0100
+diff --git a/test/sun/security/ssl/javax/net/ssl/NewAPIs/SSLEngine/LargeBufs.java b/test/sun/security/ssl/javax/net/ssl/NewAPIs/SSLEngine/LargeBufs.java
+--- openjdk/jdk/test/sun/security/ssl/javax/net/ssl/NewAPIs/SSLEngine/LargeBufs.java
++++ openjdk/jdk/test/sun/security/ssl/javax/net/ssl/NewAPIs/SSLEngine/LargeBufs.java
 @@ -180,6 +180,9 @@
      }
  
@@ -550,9 +542,9 @@ diff -r 88b089373a3c test/sun/security/ssl/javax/net/ssl/NewAPIs/SSLEngine/Large
  
          LargeBufs test;
  
-diff -r 88b089373a3c test/sun/security/ssl/javax/net/ssl/TLSv11/GenericStreamCipher.java
---- openjdk/jdk/test/sun/security/ssl/javax/net/ssl/TLSv11/GenericStreamCipher.java	Mon Apr 18 06:49:52 2016 +0100
-+++ openjdk/jdk/test/sun/security/ssl/javax/net/ssl/TLSv11/GenericStreamCipher.java	Mon Apr 18 07:48:12 2016 +0100
+diff --git a/test/sun/security/ssl/javax/net/ssl/TLSv11/GenericStreamCipher.java b/test/sun/security/ssl/javax/net/ssl/TLSv11/GenericStreamCipher.java
+--- openjdk/jdk/test/sun/security/ssl/javax/net/ssl/TLSv11/GenericStreamCipher.java
++++ openjdk/jdk/test/sun/security/ssl/javax/net/ssl/TLSv11/GenericStreamCipher.java
 @@ -37,7 +37,7 @@
   */
  
