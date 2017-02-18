@@ -189,7 +189,7 @@ grep -e md5sum -A 20 $specfile  | grep $currentMd5sum
 
 Name:    java-%{javaver}-%{origin}
 Version: %{javaver}.%{updatever}
-Release: %{icedtea_version}.0%{?dist}
+Release: %{icedtea_version}.0%{?dist}.redsleeve
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons,
 # and this change was brought into RHEL-4.  java-1.5.0-ibm packages
 # also included the epoch in their virtual provides.  This created a
@@ -797,6 +797,7 @@ make \
   NSS_CFLAGS="%{NSS_CFLAGS}" \
   ECC_JUST_SUITE_B="true" \
   SYSTEM_GSETTINGS="true" \
+  ARM32JIT="false" \
   %{debugbuild}
 
 popd >& /dev/null
@@ -1472,6 +1473,9 @@ exit 0
 %{_jvmdir}/%{jredir}/lib/accessibility.properties
 
 %changelog
+* Sat Feb 18 2017 Jacco Ligthart <jacco@redsleeve.org> 1:1.7.0.131-2.6.9.0.redsleeve
+- disabled ARM32JIT. the 8032051 security patch was not yet made for arm32.
+
 * Tue Feb 07 2017 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.7.0.131-2.6.9.0
 - Add blacklisted.certs to installation file list.
 - Resolves: rhbz#1410612
