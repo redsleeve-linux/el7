@@ -14,10 +14,10 @@ Summary: The Linux kernel
 %global distro_build 514
 
 %define rpmversion 3.10.0
-%define pkgrelease 514.6.1.el7
+%define pkgrelease 514.6.2.el7
 
 # allow pkg_release to have configurable %{?dist} tag
-%define specrelease 514.6.1%{?dist}
+%define specrelease 514.6.2%{?dist}
 
 %define pkg_release %{specrelease}%{?buildid}
 
@@ -190,11 +190,6 @@ Summary: The Linux kernel
 %define with_kdump 1
 %endif
 
-%ifarch %{arm}
-%define asmarch arm
-%define hdrarch arm
-%endif
-
 #cross compile make
 %if %{with_cross}
 %define cross_opts CROSS_COMPILE=%{cross_target}-linux-gnu-
@@ -213,7 +208,7 @@ Summary: The Linux kernel
 # Which is a BadThing(tm).
 
 # We only build kernel-headers on the following...
-%define nobuildarches i686 s390 ppc %{arm}
+%define nobuildarches i686 s390 ppc
 
 %ifarch %nobuildarches
 %define with_default 0
@@ -293,10 +288,10 @@ Group: System Environment/Kernel
 License: GPLv2
 URL: http://www.kernel.org/
 Version: %{rpmversion}
-Release: %{pkg_release}.redsleeve
+Release: %{pkg_release}
 # DO NOT CHANGE THE 'ExclusiveArch' LINE TO TEMPORARILY EXCLUDE AN ARCHITECTURE BUILD.
 # SET %%nobuildarches (ABOVE) INSTEAD
-ExclusiveArch: noarch i686 x86_64 ppc ppc64 ppc64le s390 s390x %{arm}
+ExclusiveArch: noarch i686 x86_64 ppc ppc64 ppc64le s390 s390x
 ExclusiveOS: Linux
 
 %kernel_reqprovconf
@@ -1555,11 +1550,11 @@ fi
 %kernel_variant_files %{with_kdump} kdump
 
 %changelog
-* Sun Jan 29 2017 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-514.6.1.el7.redsleeve
-- added arm to the ExclusiveArch and nobuildarches lists
-
-* Tue Jan 17 2017 CentOS Sources <bugs@centos.org> - 3.10.0-514.6.1.el7
+* Wed Feb 22 2017 CentOS Sources <bugs@centos.org> - 3.10.0-514.6.2.el7
 - Apply debranding changes
+
+* Fri Feb 17 2017 Frantisek Hrbata <fhrbata@hrbata.com> [3.10.0-514.6.2.el7]
+- [net] dccp: fix freeing skb too early for IPV6_RECVPKTINFO (Hannes Frederic Sowa) [1423462 1423463]
 
 * Sat Dec 10 2016 Frantisek Hrbata <fhrbata@hrbata.com> [3.10.0-514.6.1.el7]
 - [net] sctp: validate chunk len before actually using it (Hangbin Liu) [1399458 1399459] {CVE-2016-9555}
