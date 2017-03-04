@@ -41,10 +41,6 @@
 %ifarch aarch64
     %global kvm_target    aarch64
 %endif
-%ifarch %{arm}
-    %global kvm_target    arm
-%endif
-
 
 #Versions of various parts:
 
@@ -80,7 +76,7 @@ Obsoletes: %1 < %{obsoletes_version}                                      \
 Summary: QEMU is a FAST! processor emulator
 Name: %{pkgname}%{?pkgsuffix}
 Version: 1.5.3
-Release: 126%{?dist}.3.redsleeve
+Release: 126%{?dist}.5
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 Epoch: 10
 License: GPLv2+ and LGPLv2+ and BSD
@@ -3414,6 +3410,28 @@ Patch1675: kvm-virtio-add-virtqueue_rewind.patch
 Patch1676: kvm-virtio-balloon-fix-stats-vq-migration.patch
 # For bz#1398217 - CVE-2016-2857 qemu-kvm: Qemu: net: out of bounds read in net_checksum_calculate() [rhel-7.3.z]
 Patch1677: kvm-net-check-packet-payload-length.patch
+# For bz#1420049 - system_reset should clear pending request for error (virtio-blk)
+Patch1678: kvm-virtio-blk-Release-s-rq-queue-at-system_reset.patch
+# For bz#1418232 - CVE-2017-2615 qemu-kvm: Qemu: display: cirrus: oob access while doing bitblt copy backward mode [rhel-7.3.z]
+Patch1679: kvm-cirrus_vga-fix-off-by-one-in-blit_region_is_unsafe.patch
+# For bz#1418232 - CVE-2017-2615 qemu-kvm: Qemu: display: cirrus: oob access while doing bitblt copy backward mode [rhel-7.3.z]
+Patch1680: kvm-display-cirrus-check-vga-bits-per-pixel-bpp-value.patch
+# For bz#1418232 - CVE-2017-2615 qemu-kvm: Qemu: display: cirrus: oob access while doing bitblt copy backward mode [rhel-7.3.z]
+Patch1681: kvm-display-cirrus-ignore-source-pitch-value-as-needed-i.patch
+# For bz#1418232 - CVE-2017-2615 qemu-kvm: Qemu: display: cirrus: oob access while doing bitblt copy backward mode [rhel-7.3.z]
+Patch1682: kvm-cirrus-handle-negative-pitch-in-cirrus_invalidate_re.patch
+# For bz#1418232 - CVE-2017-2615 qemu-kvm: Qemu: display: cirrus: oob access while doing bitblt copy backward mode [rhel-7.3.z]
+Patch1683: kvm-cirrus-allow-zero-source-pitch-in-pattern-fill-rops.patch
+# For bz#1418232 - CVE-2017-2615 qemu-kvm: Qemu: display: cirrus: oob access while doing bitblt copy backward mode [rhel-7.3.z]
+Patch1684: kvm-cirrus-fix-blit-address-mask-handling.patch
+# For bz#1418232 - CVE-2017-2615 qemu-kvm: Qemu: display: cirrus: oob access while doing bitblt copy backward mode [rhel-7.3.z]
+Patch1685: kvm-cirrus-fix-oob-access-issue-CVE-2017-2615.patch
+# For bz#1420490 - EMBARGOED CVE-2017-2620 qemu-kvm: Qemu: display: cirrus: potential arbitrary code execution via cirrus_bitblt_cputovideo [rhel-7.3.z]
+Patch1686: kvm-cirrus-fix-patterncopy-checks.patch
+# For bz#1420490 - EMBARGOED CVE-2017-2620 qemu-kvm: Qemu: display: cirrus: potential arbitrary code execution via cirrus_bitblt_cputovideo [rhel-7.3.z]
+Patch1687: kvm-Revert-cirrus-allow-zero-source-pitch-in-pattern-fil.patch
+# For bz#1420490 - EMBARGOED CVE-2017-2620 qemu-kvm: Qemu: display: cirrus: potential arbitrary code execution via cirrus_bitblt_cputovideo [rhel-7.3.z]
+Patch1688: kvm-cirrus-add-blit_is_unsafe-call-to-cirrus_bitblt_cput.patch
 
 
 BuildRequires: zlib-devel
@@ -5271,6 +5289,17 @@ cp %{SOURCE18} pc-bios # keep "make check" happy
 %patch1675 -p1
 %patch1676 -p1
 %patch1677 -p1
+%patch1678 -p1
+%patch1679 -p1
+%patch1680 -p1
+%patch1681 -p1
+%patch1682 -p1
+%patch1683 -p1
+%patch1684 -p1
+%patch1685 -p1
+%patch1686 -p1
+%patch1687 -p1
+%patch1688 -p1
 
 %build
 buildarch="%{kvm_target}-softmmu"
@@ -5716,8 +5745,26 @@ sh %{_sysconfdir}/sysconfig/modules/kvm.modules &> /dev/null || :
 %{_mandir}/man8/qemu-nbd.8*
 
 %changelog
-* Sun Jan 29 2017 Jacco Ligthart <jacco@redsleeve.org> - 1.5.3-126.el7.3.redsleeve
-- added kvm_target arm
+* Mon Feb 13 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-126.el7_3.5
+- kvm-cirrus-fix-patterncopy-checks.patch [bz#1420490]
+- kvm-Revert-cirrus-allow-zero-source-pitch-in-pattern-fil.patch [bz#1420490]
+- kvm-cirrus-add-blit_is_unsafe-call-to-cirrus_bitblt_cput.patch [bz#1420490]
+- Resolves: bz#1420490
+  (EMBARGOED CVE-2017-2620 qemu-kvm: Qemu: display: cirrus: potential arbitrary code execution via cirrus_bitblt_cputovideo [rhel-7.3.z])
+
+* Fri Feb 10 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-126.el7_3.4
+- kvm-virtio-blk-Release-s-rq-queue-at-system_reset.patch [bz#1420049]
+- kvm-cirrus_vga-fix-off-by-one-in-blit_region_is_unsafe.patch [bz#1418232]
+- kvm-display-cirrus-check-vga-bits-per-pixel-bpp-value.patch [bz#1418232]
+- kvm-display-cirrus-ignore-source-pitch-value-as-needed-i.patch [bz#1418232]
+- kvm-cirrus-handle-negative-pitch-in-cirrus_invalidate_re.patch [bz#1418232]
+- kvm-cirrus-allow-zero-source-pitch-in-pattern-fill-rops.patch [bz#1418232]
+- kvm-cirrus-fix-blit-address-mask-handling.patch [bz#1418232]
+- kvm-cirrus-fix-oob-access-issue-CVE-2017-2615.patch [bz#1418232]
+- Resolves: bz#1418232
+  (CVE-2017-2615 qemu-kvm: Qemu: display: cirrus: oob access while doing bitblt copy backward mode [rhel-7.3.z])
+- Resolves: bz#1420049
+  (system_reset should clear pending request for error (virtio-blk))
 
 * Wed Jan 04 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-126.el7_3.3
 - kvm-net-check-packet-payload-length.patch [bz#1398217]
