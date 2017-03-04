@@ -39,6 +39,7 @@ Some packages needed some manual love and care to build, but not really a patch:
 | libcmis | libcmis-0.5.1-2.el7.src.rpm | needs to be build with '-D "check exit 0"'
 | m2crypto | m2crypto-0.21.1-17.el7.src.rpm | needs to be build with '-D "check exit 0" -D "debug_package %{nil}"'
 | maven | maven-3.0.5-17.el7.src.rpm | needs to be build without java-1.8.0-openjdk
+| mesa-private-llvm | mesa-private-llvm-3.8.x | version to new for armv5, downgraded to 3.7.1 
 | msv | msv-2013.5.1-7.el7.src.rpm | needs to be build without java-1.8.0-openjdk
 | nss | nss-3.21.3-2.el7_3.src.rpm | clock needs to be set before 2016-12-16 for the tests to succeed
 | ruby | ruby-2.0.0.648-29.el7.src.rpm | needs to be build with openssl*-1.0.1e-51.el7.5.armv5tel
