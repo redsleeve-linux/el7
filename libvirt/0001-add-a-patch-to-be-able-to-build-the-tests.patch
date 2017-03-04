@@ -1,6 +1,6 @@
-From 652d61ba1938231e1204617f388aace3db04736e Mon Sep 17 00:00:00 2001
+From 465bc11966548a3dac2bc8b40e516a08ed0a133c Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sun, 29 Jan 2017 17:12:19 +0100
+Date: Sat, 4 Mar 2017 11:07:25 +0100
 Subject: [PATCH] add a patch to be able to build the tests
 
 ---
@@ -59,36 +59,36 @@ index 0000000..363c78a
 +1.7.1
 +
 diff --git a/SPECS/libvirt.spec b/SPECS/libvirt.spec
-index 6eb0a69..1097b37 100644
+index c707107..b2d95a9 100644
 --- a/SPECS/libvirt.spec
 +++ b/SPECS/libvirt.spec
 @@ -217,7 +217,7 @@
  Summary: Library providing a simple virtualization API
  Name: libvirt
  Version: 2.0.0
--Release: 10%{?dist}.4%{?extra_release}
-+Release: 10%{?dist}.4%{?extra_release}.redsleeve
+-Release: 10%{?dist}.5%{?extra_release}
++Release: 10%{?dist}.5%{?extra_release}.redsleeve
  License: LGPLv2+
  Group: Development/Libraries
  BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
-@@ -507,6 +507,7 @@ Patch275: libvirt-qemuDomainAttachNetDevice-pass-mq-and-vectors-for-vhost-user-w
- Patch276: libvirt-qemuDomainAttachNetDevice-Avoid-originalError-leak.patch
- Patch277: libvirt-qemu-snapshot-Resume-VM-after-live-snapshot.patch
+@@ -509,6 +509,7 @@ Patch277: libvirt-qemu-snapshot-Resume-VM-after-live-snapshot.patch
+ Patch278: libvirt-qemu-Add-support-for-using-AES-secret-for-SCSI-hotplug.patch
+ Patch279: libvirt-qemu-Don-t-assume-secret-provided-for-LUKS-encryption.patch
  
 +Patch1000: libvirt-tests-nsslinktest:-also-build-virAtomic.h-redsleeve.patch
  
  Requires: libvirt-daemon = %{version}-%{release}
  Requires: libvirt-daemon-config-network = %{version}-%{release}
-@@ -2148,6 +2149,9 @@ exit 0
+@@ -2150,6 +2151,9 @@ exit 0
  
  
  %changelog
-+* Sun Jan 29 2017 Jacco Ligthart <jacco@redsleeve.org> - 2.0.0-10.el7.4.redsleeve
++* Sat Mar 04 2017 Jacco Ligthart <jacco@redsleeve.org> - 2.0.0-10.el7.5.redsleeve
 +- add a patch to be able to build the tests
 +
- * Thu Jan  5 2017 Jiri Denemark <jdenemar@redhat.com> - 2.0.0-10.el7_3.4
- - qemuDomainAttachNetDevice: Avoid @originalError leak (rhbz#1404186)
- - qemu: snapshot: Resume VM after live snapshot (rhbz#1406765)
+ * Fri Feb 10 2017 Jiri Denemark <jdenemar@redhat.com> - 2.0.0-10.el7_3.5
+ - qemu: Add support for using AES secret for SCSI hotplug (rhbz#1411398)
+ - qemu: Don't assume secret provided for LUKS encryption (rhbz#1411394)
 -- 
 1.8.3.1
 
