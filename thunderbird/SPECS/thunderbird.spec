@@ -92,8 +92,8 @@ ExcludeArch: ppc ia64
 
 Summary:        Mozilla Thunderbird mail/newsgroup client
 Name:           thunderbird
-Version:        45.7.0
-Release:        1%{?dist}.redsleeve
+Version:        45.8.0
+Release:        1%{?dist}
 URL:            http://www.mozilla.org/projects/thunderbird/
 License:        MPLv1.1 or GPLv2+ or LGPLv2+
 Group:          Applications/Internet
@@ -101,13 +101,13 @@ Group:          Applications/Internet
 ExcludeArch:    ppc ppc64 ia64 s390 s390x
 %endif
 
-%define         tarballdir              thunderbird-45.7.0
+%define         tarballdir              thunderbird-45.8.0
 %define         objdir                  objdir
 
 # From ftp://archive.mozilla.org/pub/thunderbird/releases/%{version}%{?ext_version}/source
 Source0:        https://archive.mozilla.org/pub/thunderbird/releases/%{version}%{?pre_version}/source/thunderbird-%{version}%{?pre_version}.source.tar.xz
 %if %{build_langpacks}
-Source1:        thunderbird-langpacks-%{version}%{?ext_version}-20170126.tar.xz
+Source1:        thunderbird-langpacks-%{version}%{?ext_version}-20170307.tar.xz
 %endif
 # Locales for lightning
 Source2:        l10n-lightning-%{version}.tar.xz
@@ -124,11 +124,11 @@ Source300:      gcc48-%{gcc_version}.el5.src.rpm
 Source301:      yasm-1.2.0-3.el5.src.rpm
 Source302:      devtoolset-2-binutils-2.23.52.0.1-10.el5.src.rpm
 Source500:      thunderbird.sh.in.rhel5
-Source501:      thunderbird-redsleeve-default-prefs.js.el5
+Source501:      thunderbird-redhat-default-prefs.js.el5
 Source600:      thunderbird.sh.in.rhel6
-Source601:      thunderbird-redsleeve-default-prefs.js.el6
+Source601:      thunderbird-redhat-default-prefs.js.el6
 Source700:      thunderbird.sh.in.rhel7
-Source701:      thunderbird-redsleeve-default-prefs.js.el7
+Source701:      thunderbird-redhat-default-prefs.js.el7
 
 # Mozilla (XULRunner) patches
 Patch0:         firefox-install-dir.patch
@@ -947,11 +947,11 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 #===============================================================================
 
 %changelog
-* Mon Feb 06 2017 Jacco Ligthart <jacco@redsleeve.org> - 45.7.0-1.el7.redsleeve
-- Roll in RedSleeve Branding
-
-* Thu Feb  2 2017 Johnny Hughes <johnny@centos.org> - 45.7.0-1
+* Wed Mar 15 2017 Johnny Hughes <johnny@centos.org> - 45.8.0-1
 - Manual CentOS Debranding
+
+* Tue Mar  7 2017 Jan Horak <jhorak@redhat.com> - 45.8.0-1
+- Update to 45.8.0
 
 * Thu Jan 26 2017 Jan Horak <jhorak@redhat.com> - 45.7.0-1
 - Update to 45.7.0
