@@ -77,7 +77,7 @@
 Summary:        Mozilla Firefox Web browser
 Name:           firefox
 Version:        52.0
-Release:        5%{?dist}
+Release:        5%{?dist}.redsleeve
 URL:            http://www.mozilla.org/projects/firefox/
 License:        MPLv1.1 or GPLv2+ or LGPLv2+
 Group:          Applications/Internet
@@ -91,7 +91,7 @@ Source0:        firefox-%{version}%{?ext_version}.source.tar.xz
 Source1:        firefox-langpacks-%{version}%{?ext_version}-20170306.tar.xz
 %endif
 Source10:       firefox-mozconfig
-Source12:       firefox-centos-default-prefs.js
+Source12:       firefox-redsleeve-default-prefs.js
 Source20:       firefox.desktop
 Source600:      firefox.sh.in.rhel6
 Source700:      firefox.sh.in.rhel7
@@ -637,8 +637,8 @@ MOZ_SMP_FLAGS=-j1
 [ -z "$RPM_BUILD_NCPUS" ] && \
      RPM_BUILD_NCPUS="`/usr/bin/getconf _NPROCESSORS_ONLN`"
 [ "$RPM_BUILD_NCPUS" -ge 2 ] && MOZ_SMP_FLAGS=-j2
-[ "$RPM_BUILD_NCPUS" -ge 4 ] && MOZ_SMP_FLAGS=-j4
-[ "$RPM_BUILD_NCPUS" -ge 8 ] && MOZ_SMP_FLAGS=-j8
+#[ "$RPM_BUILD_NCPUS" -ge 4 ] && MOZ_SMP_FLAGS=-j4
+#[ "$RPM_BUILD_NCPUS" -ge 8 ] && MOZ_SMP_FLAGS=-j8
 
 MOZ_APP_DIR=%{_libdir}/%{name}
 
@@ -882,6 +882,10 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 #---------------------------------------------------------------------
 
 %changelog
+* Wed Mar 22 2017 Jacco Ligthart <jacco@redsleeve.org> - 52.0-5.el7.redsleeve
+- redsleeve default prefs
+- limited the number of CPU's for building to 2 (OOM otherwise)
+
 * Sat Mar 18 2017 Johnny Hughes <johnny@centos.org> - 52.0-5
 - Manual Debranding after Auto Debranding failed.
 
