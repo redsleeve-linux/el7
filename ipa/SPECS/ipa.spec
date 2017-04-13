@@ -43,7 +43,7 @@
 
 Name:           ipa
 Version:        4.4.0
-Release:        14%{?dist}.7
+Release:        14%{?dist}.7.redsleeve
 Summary:        The Identity, Policy and Audit system
 
 Group:          System Environment/Base
@@ -230,7 +230,7 @@ Patch1007:      1007-Do-not-build-tests.patch
 Patch1008:      1008-RCUE.patch
 Patch1009:      1009-Revert-Increased-mod_wsgi-socket-timeout.patch
 Patch1010:      1010-WebUI-add-API-browser-is-tech-preview-warning.patch
-Patch1011:      ipa-centos-branding.patch
+Patch1011:      ipa-redsleeve-branding.patch
 # RHEL spec file only: END
 
 %if ! %{ONLY_CLIENT}
@@ -1549,6 +1549,9 @@ fi
 
 
 %changelog
+* Fri Apr 14 2017 Jacco Ligthart <jacco@redsleeve.org> - 4.4.0-14.el7.7.redsleeve
+- Roll in RedSleeve Branding
+
 * Wed Apr 12 2017 CentOS Sources <bugs@centos.org> - 4.4.0-14.el7.centos.7
 - Roll in CentOS Branding
 
