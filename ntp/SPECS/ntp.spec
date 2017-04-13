@@ -1,7 +1,7 @@
 Summary: The NTP daemon and utilities
 Name: ntp
 Version: 4.2.6p5
-Release: 25%{?dist}.1.redsleeve
+Release: 25%{?dist}.2
 # primary license (COPYRIGHT) : MIT
 # ElectricFence/ (not used) : GPLv2
 # kernel/sys/ppsclock.h (not used) : BSD with advertising
@@ -264,7 +264,7 @@ This package contains NTP documentation in HTML format.
 # pool.ntp.org vendor zone which will be used in ntp.conf
 %if 0%{!?vendorzone:1}
 %{?fedora: %global vendorzone fedora.}
-%{?rhel: %global vendorzone redsleeve.}
+%{?rhel: %global vendorzone centos.}
 %endif
 
 %prep
@@ -557,11 +557,11 @@ popd
 %{ntpdocdir}/html
 
 %changelog
-* Mon Feb 06 2017 Jacco Ligthart <jacco@redsleeve.org> - 4.2.6p5-25.el7.redsleeve.1
+* Wed Apr 12 2017 CentOS Sources <bugs@centos.org> - 4.2.6p5-25.el7.centos.2
 - rebrand vendorzone
 
-* Sun Feb 05 2017 CentOS Sources <bugs@centos.org> - 4.2.6p5-25.el7.centos.1
-- rebrand vendorzone
+* Tue Feb 28 2017 Miroslav Lichvar <mlichvar@redhat.com> 4.2.6p5-25.el7_3.2
+- fix CVE-2016-7429 patch to work correctly on multicast client (#1427573)
 
 * Wed Jan 11 2017 Miroslav Lichvar <mlichvar@redhat.com> 4.2.6p5-25.el7_3.1
 - don't limit rate of packets from sources (CVE-2016-7426)
