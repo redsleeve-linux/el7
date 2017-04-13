@@ -1,0 +1,29 @@
+From 762573b429c4465aabde8d1a7d8b3bdaa1c3b15b Mon Sep 17 00:00:00 2001
+From: Fraser Tweedale <ftweedal@redhat.com>
+Date: Tue, 20 Dec 2016 23:29:22 +1000
+Subject: [PATCH] Set up DS TLS on replica in CA-less topology
+
+Fixes: https://fedorahosted.org/freeipa/ticket/6226
+Reviewed-By: Tomas Krizek <tkrizek@redhat.com>
+---
+ ipaserver/install/dsinstance.py | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/ipaserver/install/dsinstance.py b/ipaserver/install/dsinstance.py
+index c93b3b4ff58c4102a9de448247966ad3dd8e4e7c..1249a86d2c4c83eb9426885bfed8910aa3274d21 100644
+--- a/ipaserver/install/dsinstance.py
++++ b/ipaserver/install/dsinstance.py
+@@ -382,7 +382,9 @@ class DsInstance(service.Service):
+ 
+         if self.promote:
+             self.step("creating DS keytab", self.__get_ds_keytab)
+-            if self.ca_is_configured:
++            if self.pkcs12_info:
++                self.step("configuring ssl for ds instance", self.__enable_ssl)
++            else:
+                 self.step("retrieving DS Certificate", self.__get_ds_cert)
+             self.step("restarting directory server", self.__restart_instance)
+ 
+-- 
+2.9.3
+

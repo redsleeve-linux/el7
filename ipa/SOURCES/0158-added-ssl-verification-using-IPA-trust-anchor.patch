@@ -1,0 +1,27 @@
+From c9e05427f20f79a8304a9874ae6793a0b5f54987 Mon Sep 17 00:00:00 2001
+From: Thorsten Scherf <tscherf@redhat.com>
+Date: Fri, 24 Feb 2017 11:53:46 +0100
+Subject: [PATCH] added ssl verification using IPA trust anchor
+
+https://fedorahosted.org/freeipa/ticket/6686
+
+Reviewed-By: Christian Heimes <cheimes@redhat.com>
+---
+ ipapython/secrets/client.py | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/ipapython/secrets/client.py b/ipapython/secrets/client.py
+index d9cc7d0f5b066dfd8efba480feb5f271ed1ebe83..f2f14af694df4468b3eedaac0fc762787b62e623 100644
+--- a/ipapython/secrets/client.py
++++ b/ipapython/secrets/client.py
+@@ -94,6 +94,7 @@ class CustodiaClient(object):
+ 
+         # Perform request
+         r = requests.get(url, headers=headers,
++                         verify=paths.IPA_CA_CRT,
+                          params={'type': 'kem', 'value': request})
+         r.raise_for_status()
+         reply = r.json()
+-- 
+2.9.3
+

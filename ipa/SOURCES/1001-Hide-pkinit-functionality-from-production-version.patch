@@ -1,4 +1,4 @@
-From 4651261af43a311d23efa759e61143a6413c5dc5 Mon Sep 17 00:00:00 2001
+From 0ae346b514a1bd093c8ae6166f206138a5035efa Mon Sep 17 00:00:00 2001
 From: Martin Kosek <mkosek@redhat.com>
 Date: Fri, 5 Sep 2014 11:24:27 +0200
 Subject: [PATCH] Hide pkinit functionality from production version
@@ -174,10 +174,10 @@ index b33b0243d4d909a561b59d93f0014c390146b333..c292c4d24bfde1484769698ee2a7ef59
      subject = Knob(BaseServerCA.subject)
      ca_signing_algorithm = Knob(BaseServerCA.ca_signing_algorithm)
 diff --git a/ipaserver/install/server/replicainstall.py b/ipaserver/install/server/replicainstall.py
-index f54ff7da06c57b9c8251429cbdacc5c300805f84..7695adf0d537237b24660e8871011f04f242e744 100644
+index 2a1c290351d8ce1dade5eea2f67539659555af2e..aaa56c4691ae47d764d86b627df913c5e320c411 100644
 --- a/ipaserver/install/server/replicainstall.py
 +++ b/ipaserver/install/server/replicainstall.py
-@@ -1587,7 +1587,6 @@ class Replica(BaseServer):
+@@ -1595,7 +1595,6 @@ class Replica(BaseServer):
      mkhomedir = Knob(BaseServer.mkhomedir)
      no_host_dns = Knob(BaseServer.no_host_dns)
      no_ntp = Knob(BaseServer.no_ntp)

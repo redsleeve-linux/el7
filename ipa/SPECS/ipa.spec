@@ -43,7 +43,7 @@
 
 Name:           ipa
 Version:        4.4.0
-Release:        14%{?dist}.4.redsleeve
+Release:        14%{?dist}.7
 Summary:        The Identity, Policy and Audit system
 
 Group:          System Environment/Base
@@ -211,6 +211,14 @@ Patch0149:      0149-Check-for-conflict-entries-before-raising-domain-lev.patch
 Patch0150:      0150-certprofile-mod-correctly-authorise-config-update.patch
 Patch0151:      0151-password-policy-Add-explicit-default-password-policy.patch
 Patch0152:      0152-ipa-kdb-search-for-password-policies-globally.patch
+Patch0153:      0153-Set-up-DS-TLS-on-replica-in-CA-less-topology.patch
+Patch0154:      0154-wait_for_entry-use-only-DN-as-parameter.patch
+Patch0155:      0155-Wait-until-HTTPS-principal-entry-is-replicated-to-re.patch
+Patch0156:      0156-Use-proper-logging-for-error-messages.patch
+Patch0157:      0157-Do-not-configure-PKI-ajp-redirection-to-use-1.patch
+Patch0158:      0158-added-ssl-verification-using-IPA-trust-anchor.patch
+Patch0159:      0159-ca-correctly-authorise-ca-del-ca-enable-and-ca-disab.patch
+Patch0160:      0160-compat-fix-Any-params-in-batch-and-dnsrecord.patch
 
 Patch1001:      1001-Hide-pkinit-functionality-from-production-version.patch
 Patch1002:      1002-Remove-pkinit-plugin.patch
@@ -222,7 +230,7 @@ Patch1007:      1007-Do-not-build-tests.patch
 Patch1008:      1008-RCUE.patch
 Patch1009:      1009-Revert-Increased-mod_wsgi-socket-timeout.patch
 Patch1010:      1010-WebUI-add-API-browser-is-tech-preview-warning.patch
-Patch1011:      ipa-redsleeve-branding.patch
+Patch1011:      ipa-centos-branding.patch
 # RHEL spec file only: END
 
 %if ! %{ONLY_CLIENT}
@@ -342,8 +350,8 @@ Requires(post): systemd-units
 Requires: selinux-policy >= %{selinux_policy_version}
 Requires(post): selinux-policy-base >= %{selinux_policy_version}
 Requires: slapi-nis >= %{slapi_nis_version}
-Requires: pki-ca >= 10.3.3-7
-Requires: pki-kra >= 10.3.3-7
+Requires: pki-ca >= 10.3.3-17
+Requires: pki-kra >= 10.3.3-17
 Requires(preun): python systemd-units
 Requires(postun): python systemd-units
 Requires: zip
@@ -1541,11 +1549,32 @@ fi
 
 
 %changelog
-* Sun Jan 29 2017 Jacco Ligthart <jacco@redsleeve.org> - 4.4.0-14.el7.4.redsleeve
-- Roll in RedSleeve Branding
-
-* Tue Jan 17 2017 CentOS Sources <bugs@centos.org> - 4.4.0-14.el7.centos.4
+* Wed Apr 12 2017 CentOS Sources <bugs@centos.org> - 4.4.0-14.el7.centos.7
 - Roll in CentOS Branding
+
+* Tue Mar 14 2017 Jan Cholasta <jcholast@redhat.com> - 4.4.0-14.7
+- Resolves: #1429872 ipa-replica-install fails promotecustodia.create_replica
+  with cert errors (untrusted)
+  - added ssl verification using IPA trust anchor
+- Resolves: #1430674 batch param compatibility is incorrect
+  - compat: fix `Any` params in `batch` and `dnsrecord`
+- Renamed patches 1011 and 1012 to 0159 and 0157, as they were merged upstream
+
+* Tue Jan 31 2017 Jan Cholasta <jcholast@redhat.com> - 4.4.0-14.6
+- Resolves: #1416488 replication race condition prevents IPA to install
+  - wait_for_entry: use only DN as parameter
+  - Wait until HTTPS principal entry is replicated to replica
+  - Use proper logging for error messages
+
+* Tue Jan 31 2017 Jan Cholasta <jcholast@redhat.com> - 4.4.0-14.5
+- Resolves: #1410760 ipa-ca-install fails on replica when IPA Master is
+  installed without CA
+  - Set up DS TLS on replica in CA-less topology
+- Resolves: #1413137 CVE-2017-2590 ipa: Insufficient permission check for
+  ca-del, ca-disable and ca-enable commands
+  - ca: correctly authorise ca-del, ca-enable and ca-disable
+- Resolves: #1416481 IPA replica install fails with dirsrv errors.
+  - Do not configure PKI ajp redirection to use "::1"
 
 * Fri Dec 16 2016 Jan Cholasta <jcholast@redhat.com> - 4.4.0-14.4
 - Resolves: #1370493 CVE-2016-7030 ipa: DoS attack against kerberized services

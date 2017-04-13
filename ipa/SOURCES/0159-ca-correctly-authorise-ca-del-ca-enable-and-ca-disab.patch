@@ -1,0 +1,46 @@
+From 61156c5157ec3f8982f4f6efdbf8dfa281cb5a11 Mon Sep 17 00:00:00 2001
+From: Fraser Tweedale <ftweedal@redhat.com>
+Date: Fri, 13 Jan 2017 20:33:45 +1000
+Subject: [PATCH] ca: correctly authorise ca-del, ca-enable and ca-disable
+
+CAs consist of a FreeIPA and a corresponding Dogtag object.  When
+executing ca-del, ca-enable and ca-disable, changes are made to the
+Dogtag object.  In the case of ca-del, the corresponding FreeIPA
+object is deleted after the Dogtag CA is deleted.
+
+These operations were not correctly authorised; the FreeIPA
+permissions are not checked before the Dogtag operations are
+executed.  This allows any user to delete, enable or disable a
+lightweight CA (except the main IPA CA, for which there are
+additional check to prevent deletion or disablement).
+
+Add the proper authorisation checks to the ca-del, ca-enable and
+ca-disable commands.
+
+https://pagure.io/freeipa/issue/6713
+
+Reviewed-By: Jan Cholasta <jcholast@redhat.com>
+---
+ ipaserver/plugins/ca.py | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/ipaserver/plugins/ca.py b/ipaserver/plugins/ca.py
+index 966ae2b1bdb4bb0207dfa58f0e9c951bc930f766..b642a5d1d6e03b415ba562491e8a38569b116563 100644
+--- a/ipaserver/plugins/ca.py
++++ b/ipaserver/plugins/ca.py
+@@ -192,6 +192,12 @@ class ca_del(LDAPDelete):
+     def pre_callback(self, ldap, dn, *keys, **options):
+         ca_enabled_check()
+ 
++        # ensure operator has permission to delete CA
++        # before contacting Dogtag
++        if not ldap.can_delete(dn):
++            raise errors.ACIError(info=_(
++                "Insufficient privilege to delete a CA."))
++
+         if keys[0] == IPA_CA_CN:
+             raise errors.ProtectedEntryError(
+                 label=_("CA"),
+-- 
+2.9.3
+

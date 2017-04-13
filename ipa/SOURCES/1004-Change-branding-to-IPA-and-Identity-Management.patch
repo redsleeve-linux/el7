@@ -1,4 +1,4 @@
-From d9499d8d1a40b96e40c956dca25464fc129a9dec Mon Sep 17 00:00:00 2001
+From 9095fee099069989d93bcb62a4bf6f8e259e4099 Mon Sep 17 00:00:00 2001
 From: Martin Kosek <mkosek@redhat.com>
 Date: Fri, 5 Sep 2014 11:46:59 +0200
 Subject: [PATCH] Change branding to IPA and Identity Management
@@ -736,10 +736,10 @@ index c292c4d24bfde1484769698ee2a7ef59a6fcc52c..101af640d2a990d4f4f99ad2c0bb0826
      print("This includes:")
      if setup_ca:
 diff --git a/ipaserver/install/server/replicainstall.py b/ipaserver/install/server/replicainstall.py
-index 7695adf0d537237b24660e8871011f04f242e744..582df08094335554edffaed21bcaf4ab5a74e899 100644
+index aaa56c4691ae47d764d86b627df913c5e320c411..ad7164c5e2774e448742e6416e40fe9af2dcac83 100644
 --- a/ipaserver/install/server/replicainstall.py
 +++ b/ipaserver/install/server/replicainstall.py
-@@ -673,7 +673,7 @@ def install_check(installer):
+@@ -681,7 +681,7 @@ def install_check(installer):
          above_upper_bound = current > constants.MAX_DOMAIN_LEVEL
  
          if under_lower_bound or above_upper_bound:
