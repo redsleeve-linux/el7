@@ -15,10 +15,10 @@
 Summary: Apache HTTP Server
 Name: httpd
 Version: 2.4.6
-Release: 45%{?dist}.redsleeve
+Release: 45%{?dist}.4
 URL: http://httpd.apache.org/
 Source0: http://www.apache.org/dist/httpd/httpd-%{version}.tar.bz2
-Source1: index.html
+Source1: centos-noindex.tar.gz
 Source2: httpd.logrotate
 Source3: httpd.sysconf
 Source4: httpd-ssl-pass-dialog
@@ -124,6 +124,9 @@ Patch103: httpd-2.4.6-dhparams-free.patch
 Patch104: httpd-2.4.6-r1651658.patch
 Patch105: httpd-2.4.6-r1560093.patch
 Patch106: httpd-2.4.6-r1748212.patch
+Patch107: httpd-2.4.6-r1570327.patch
+Patch108: httpd-2.4.6-r1631119.patch
+Patch109: httpd-2.4.6-r1587053.patch
 # Security fixes
 Patch200: httpd-2.4.6-CVE-2013-6438.patch
 Patch201: httpd-2.4.6-CVE-2014-0098.patch
@@ -137,6 +140,9 @@ Patch208: httpd-2.4.6-CVE-2014-3581.patch
 Patch209: httpd-2.4.6-CVE-2015-3185.patch
 Patch210: httpd-2.4.6-CVE-2015-3183.patch
 Patch211: httpd-2.4.6-CVE-2016-5387.patch
+Patch212: httpd-2.4.6-CVE-2016-8743.patch
+Patch213: httpd-2.4.6-CVE-2016-0736.patch
+Patch214: httpd-2.4.6-CVE-2016-2161.patch
 License: ASL 2.0
 Group: System Environment/Daemons
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
@@ -323,6 +329,9 @@ rm modules/ssl/ssl_engine_dh.c
 %patch104 -p1 -b .r1651658
 %patch105 -p1 -b .r1560093
 %patch106 -p1 -b .r1748212
+%patch107 -p1 -b .r1570327
+%patch108 -p1 -b .r1631119
+%patch109 -p1 -b .r1587053
 
 %patch200 -p1 -b .cve6438
 %patch201 -p1 -b .cve0098
@@ -336,6 +345,9 @@ rm modules/ssl/ssl_engine_dh.c
 %patch209 -p1 -b .cve3185
 %patch210 -p1 -b .cve3183
 %patch211 -p1 -b .cve5387
+%patch212 -p1 -b .cve8743
+%patch213 -p1 -b .cve0736
+%patch214 -p1 -b .cve2161
 
 # Patch in the vendor string and the release string
 sed -i '/^#define PLATFORM/s/Unix/%{vstring}/' os/unix/os.h
@@ -489,8 +501,9 @@ EOF
 
 # Handle contentdir
 mkdir $RPM_BUILD_ROOT%{contentdir}/noindex
-install -m 644 -p $RPM_SOURCE_DIR/index.html \
-        $RPM_BUILD_ROOT%{contentdir}/noindex/index.html
+tar xzf $RPM_SOURCE_DIR/centos-noindex.tar.gz \
+        -C $RPM_BUILD_ROOT%{contentdir}/noindex/ \
+        --strip-components=1
 
 rm -rf %{contentdir}/htdocs
 
@@ -514,7 +527,7 @@ rm -v $RPM_BUILD_ROOT%{docroot}/html/*.html \
       $RPM_BUILD_ROOT%{docroot}/cgi-bin/*
 
 # Symlink for the powered-by-$DISTRO image:
-ln -s ../../pixmaps/poweredby.png \
+ln -s ../noindex/images/poweredby.png \
         $RPM_BUILD_ROOT%{contentdir}/icons/poweredby.png
 
 # symlinks for /etc/httpd
@@ -700,7 +713,7 @@ rm -rf $RPM_BUILD_ROOT
 %{contentdir}/error/README
 %{contentdir}/error/*.var
 %{contentdir}/error/include/*.html
-%{contentdir}/noindex/index.html
+%{contentdir}/noindex/*
 
 %dir %{docroot}
 %dir %{docroot}/cgi-bin
@@ -766,14 +779,26 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/rpm/macros.httpd
 
 %changelog
-* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> - 2.4.6-45.el7.redsleeve
-- roll in redsleeve branding, based on RHEL
-
-* Thu Nov 03 2016 CentOS Sources <bugs@centos.org> - 2.4.6-45.el7.centos
+* Wed Apr 12 2017 CentOS Sources <bugs@centos.org> - 2.4.6-45.el7.centos.4
 - Remove index.html, add centos-noindex.tar.gz
 - change vstring
 - change symlink for poweredby.png
 - update welcome.conf with proper aliases
+
+* Wed Mar 08 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-45.4
+- Resolves: #1396197 - Backport: mod_proxy_wstunnel - AH02447: err/hup
+  on backconn
+
+* Tue Feb 14 2017 Joe Orton <jorton@redhat.com> - 2.4.6-45.3
+- prefork: fix delay completing graceful restart (#1327624)
+- mod_ldap: fix authz regression, failing to rebind (#1415257)
+
+* Tue Feb 14 2017 Joe Orton <jorton@redhat.com> - 2.4.6-45.2
+- updated patch for CVE-2016-8743
+
+* Mon Jan 30 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-45.1
+- Resolves: #1412975 - CVE-2016-0736 CVE-2016-2161 CVE-2016-8743 httpd: various
+  flaws
 
 * Wed Aug 03 2016 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-45
 - RFE: run mod_rewrite external mapping program as non-root (#1316900)

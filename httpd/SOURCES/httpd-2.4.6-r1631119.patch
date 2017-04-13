@@ -1,0 +1,16 @@
+# ./pullrev.sh 1631119
+http://svn.apache.org/viewvc?view=revision&revision=1631119
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1415257
+
+--- httpd-2.4.6/modules/ldap/util_ldap.c
++++ httpd-2.4.6/modules/ldap/util_ldap.c
+@@ -1824,7 +1824,7 @@
+          * combination, which might be reused unintentionally next time this
+          * connection is used from the connection pool.
+          */
+-        ldc->must_rebind = 0;
++        ldc->must_rebind = 1;
+         ap_log_rerror(APLOG_MARK, APLOG_TRACE5, 0, r, "LDC %pp used for authn, must be rebound", ldc);
+     }
+ 
