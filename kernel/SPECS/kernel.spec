@@ -190,6 +190,11 @@ Summary: The Linux kernel
 %define with_kdump 1
 %endif
 
+%ifarch %{arm}
+%define asmarch arm
+%define hdrarch arm
+%endif
+
 #cross compile make
 %if %{with_cross}
 %define cross_opts CROSS_COMPILE=%{cross_target}-linux-gnu-
@@ -208,7 +213,7 @@ Summary: The Linux kernel
 # Which is a BadThing(tm).
 
 # We only build kernel-headers on the following...
-%define nobuildarches i686 s390 ppc
+%define nobuildarches i686 s390 ppc %{arm}
 
 %ifarch %nobuildarches
 %define with_default 0
@@ -288,10 +293,10 @@ Group: System Environment/Kernel
 License: GPLv2
 URL: http://www.kernel.org/
 Version: %{rpmversion}
-Release: %{pkg_release}
+Release: %{pkg_release}.redsleeve
 # DO NOT CHANGE THE 'ExclusiveArch' LINE TO TEMPORARILY EXCLUDE AN ARCHITECTURE BUILD.
 # SET %%nobuildarches (ABOVE) INSTEAD
-ExclusiveArch: noarch i686 x86_64 ppc ppc64 ppc64le s390 s390x
+ExclusiveArch: noarch i686 x86_64 ppc ppc64 ppc64le s390 s390x %{arm}
 ExclusiveOS: Linux
 
 %kernel_reqprovconf
@@ -1550,6 +1555,9 @@ fi
 %kernel_variant_files %{with_kdump} kdump
 
 %changelog
+* Fri Apr 14 2017 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-514.16.1.el7.redsleeve
+- added arm to the ExclusiveArch and nobuildarches lists
+
 * Wed Apr 12 2017 CentOS Sources <bugs@centos.org> - 3.10.0-514.16.1.el7
 - Apply debranding changes
 
