@@ -41,6 +41,10 @@
 %ifarch aarch64
     %global kvm_target    aarch64
 %endif
+%ifarch %{arm}
+    %global kvm_target    arm
+%endif
+
 
 #Versions of various parts:
 
@@ -76,7 +80,7 @@ Obsoletes: %1 < %{obsoletes_version}                                      \
 Summary: QEMU is a FAST! processor emulator
 Name: %{pkgname}%{?pkgsuffix}
 Version: 1.5.3
-Release: 126%{?dist}.6
+Release: 126%{?dist}.6.redsleeve
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 Epoch: 10
 License: GPLv2+ and LGPLv2+ and BSD
@@ -5766,6 +5770,9 @@ sh %{_sysconfdir}/sysconfig/modules/kvm.modules &> /dev/null || :
 %{_mandir}/man8/qemu-nbd.8*
 
 %changelog
+* Thu Apr 20 2017 Jacco Ligthart <jacco@redsleeve.org> - 1.5.3-126.el7.6.redsleeve
+- added kvm_target arm
+
 * Fri Mar 24 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-126.el7_3.6
 - kvm-fix-cirrus_vga-fix-OOB-read-case-qemu-Segmentation-f.patch [bz#1430059]
 - kvm-cirrus-vnc-zap-bitblit-support-from-console-code.patch [bz#1430059]
