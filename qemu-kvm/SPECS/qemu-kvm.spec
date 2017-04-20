@@ -41,10 +41,6 @@
 %ifarch aarch64
     %global kvm_target    aarch64
 %endif
-%ifarch %{arm}
-    %global kvm_target    arm
-%endif
-
 
 #Versions of various parts:
 
@@ -80,7 +76,7 @@ Obsoletes: %1 < %{obsoletes_version}                                      \
 Summary: QEMU is a FAST! processor emulator
 Name: %{pkgname}%{?pkgsuffix}
 Version: 1.5.3
-Release: 126%{?dist}.5.redsleeve
+Release: 126%{?dist}.6
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 Epoch: 10
 License: GPLv2+ and LGPLv2+ and BSD
@@ -3436,6 +3432,20 @@ Patch1686: kvm-cirrus-fix-patterncopy-checks.patch
 Patch1687: kvm-Revert-cirrus-allow-zero-source-pitch-in-pattern-fil.patch
 # For bz#1420490 - EMBARGOED CVE-2017-2620 qemu-kvm: Qemu: display: cirrus: potential arbitrary code execution via cirrus_bitblt_cputovideo [rhel-7.3.z]
 Patch1688: kvm-cirrus-add-blit_is_unsafe-call-to-cirrus_bitblt_cput.patch
+# For bz#1430059 - CVE-2016-9603 qemu-kvm: Qemu: cirrus: heap buffer overflow via vnc connection [rhel-7.3.z]
+Patch1689: kvm-fix-cirrus_vga-fix-OOB-read-case-qemu-Segmentation-f.patch
+# For bz#1430059 - CVE-2016-9603 qemu-kvm: Qemu: cirrus: heap buffer overflow via vnc connection [rhel-7.3.z]
+Patch1690: kvm-cirrus-vnc-zap-bitblit-support-from-console-code.patch
+# For bz#1430059 - CVE-2016-9603 qemu-kvm: Qemu: cirrus: heap buffer overflow via vnc connection [rhel-7.3.z]
+Patch1691: kvm-cirrus-add-option-to-disable-blitter.patch
+# For bz#1430059 - CVE-2016-9603 qemu-kvm: Qemu: cirrus: heap buffer overflow via vnc connection [rhel-7.3.z]
+Patch1692: kvm-cirrus-fix-cirrus_invalidate_region.patch
+# For bz#1430059 - CVE-2016-9603 qemu-kvm: Qemu: cirrus: heap buffer overflow via vnc connection [rhel-7.3.z]
+Patch1693: kvm-cirrus-stop-passing-around-dst-pointers-in-the-blitt.patch
+# For bz#1430059 - CVE-2016-9603 qemu-kvm: Qemu: cirrus: heap buffer overflow via vnc connection [rhel-7.3.z]
+Patch1694: kvm-cirrus-stop-passing-around-src-pointers-in-the-blitt.patch
+# For bz#1430059 - CVE-2016-9603 qemu-kvm: Qemu: cirrus: heap buffer overflow via vnc connection [rhel-7.3.z]
+Patch1695: kvm-cirrus-fix-off-by-one-in-cirrus_bitblt_rop_bkwd_tran.patch
 
 
 BuildRequires: zlib-devel
@@ -5304,6 +5314,13 @@ cp %{SOURCE18} pc-bios # keep "make check" happy
 %patch1686 -p1
 %patch1687 -p1
 %patch1688 -p1
+%patch1689 -p1
+%patch1690 -p1
+%patch1691 -p1
+%patch1692 -p1
+%patch1693 -p1
+%patch1694 -p1
+%patch1695 -p1
 
 %build
 buildarch="%{kvm_target}-softmmu"
@@ -5749,8 +5766,16 @@ sh %{_sysconfdir}/sysconfig/modules/kvm.modules &> /dev/null || :
 %{_mandir}/man8/qemu-nbd.8*
 
 %changelog
-* Sat Mar 04 2017 Jacco Ligthart <jacco@redsleeve.org> - 1.5.3-126.el7.5.redsleeve
-- added kvm_target arm
+* Fri Mar 24 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-126.el7_3.6
+- kvm-fix-cirrus_vga-fix-OOB-read-case-qemu-Segmentation-f.patch [bz#1430059]
+- kvm-cirrus-vnc-zap-bitblit-support-from-console-code.patch [bz#1430059]
+- kvm-cirrus-add-option-to-disable-blitter.patch [bz#1430059]
+- kvm-cirrus-fix-cirrus_invalidate_region.patch [bz#1430059]
+- kvm-cirrus-stop-passing-around-dst-pointers-in-the-blitt.patch [bz#1430059]
+- kvm-cirrus-stop-passing-around-src-pointers-in-the-blitt.patch [bz#1430059]
+- kvm-cirrus-fix-off-by-one-in-cirrus_bitblt_rop_bkwd_tran.patch [bz#1430059]
+- Resolves: bz#1430059
+  (CVE-2016-9603 qemu-kvm: Qemu: cirrus: heap buffer overflow via vnc connection [rhel-7.3.z])
 
 * Mon Feb 13 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-126.el7_3.5
 - kvm-cirrus-fix-patterncopy-checks.patch [bz#1420490]
