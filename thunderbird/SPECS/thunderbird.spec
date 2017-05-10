@@ -1,8 +1,6 @@
-
-# FIXME: HAVE TO USE SYSTEM NSS IN FINAL RELEASE!!!
 %define system_nss              1
-%global nspr_version            4.11.0
-%global nss_version             3.21.0
+%global nspr_version            4.13.1
+%global nss_version             3.28.2
 %define system_sqlite           0
 %define sqlite_version          3.8.4.2
 %define system_ffi              1
@@ -12,15 +10,10 @@
 %define python_version          2.7.8
 %define use_bundled_gcc         0
 %define gcc_version             4.8.2-16
-%define enable_gstreamer        0
 %define system_cairo            0
 %define cairo_version           1.10.2
 %define freetype_version        2.1.9
-%define system_jpeg             1
-%define system_gio              1
-%define system_hunspell         1
 %define system_libatomic        0
-%define use_baselinejit         1
 %define official_branding       1
 %define libnotify_version       0.4
 %define debug_build             0
@@ -47,30 +40,19 @@
 %define use_bundled_gcc         1
 %define use_bundled_yasm        1
 %define system_ffi              0
-%define enable_gstreamer        0
 %define use_bundled_binutils    1
-%endif
-
-# RHEL5
-%if 0%{?rhel} == 5
-%define use_bundled_python      1
-%define use_bundled_gcc         1
-%define use_bundled_yasm        1
-%define system_ffi              0
-%define enable_gstreamer        0
-%define use_bundled_binutils    1
-%define system_jpeg             0
-%define system_gio              0
-%define system_hunspell         0
-%define enable_gnomevfs         1
-# ppc and ia64 no longer supported (rhbz#1214863, rhbz#1214865)
-ExcludeArch: ppc ia64
-%define system_libatomic        1
 %endif
 
 # Require libatomic for ppc
 %ifarch ppc
 %define system_libatomic        1
+%endif
+# Big endian platforms
+%ifarch ppc ppc64 s390 s390x
+# Javascript Intl API is not supported on big endian platforms right now:
+# https://bugzilla.mozilla.org/show_bug.cgi?id=1322212
+%define with_intl_api           1
+%define big_endian              1
 %endif
 
 # ============================================================================
@@ -92,22 +74,19 @@ ExcludeArch: ppc ia64
 
 Summary:        Mozilla Thunderbird mail/newsgroup client
 Name:           thunderbird
-Version:        45.8.0
-Release:        1%{?dist}.redsleeve
+Version:        52.1.0
+Release:        1%{?dist}
 URL:            http://www.mozilla.org/projects/thunderbird/
 License:        MPLv1.1 or GPLv2+ or LGPLv2+
 Group:          Applications/Internet
-%if 0%{?rhel} == 5
-ExcludeArch:    ppc ppc64 ia64 s390 s390x
-%endif
 
-%define         tarballdir              thunderbird-45.8.0
+%define         tarballdir              thunderbird-52.1.0
 %define         objdir                  objdir
 
 # From ftp://archive.mozilla.org/pub/thunderbird/releases/%{version}%{?ext_version}/source
 Source0:        https://archive.mozilla.org/pub/thunderbird/releases/%{version}%{?pre_version}/source/thunderbird-%{version}%{?pre_version}.source.tar.xz
 %if %{build_langpacks}
-Source1:        thunderbird-langpacks-%{version}%{?ext_version}-20170307.tar.xz
+Source1:        thunderbird-langpacks-%{version}%{?ext_version}-20170502.tar.xz
 %endif
 # Locales for lightning
 Source2:        l10n-lightning-%{version}.tar.xz
@@ -117,18 +96,15 @@ Source10:       thunderbird-mozconfig
 Source11:       thunderbird-mozconfig-branded
 Source20:       thunderbird.desktop
 Source21:       thunderbird.sh.in
-Source30:       thunderbird-open-browser.sh
 Source100:      find-external-requires
 Source200:      https://www.python.org/ftp/python/2.7.8/Python-2.7.8.tgz
 Source300:      gcc48-%{gcc_version}.el5.src.rpm
 Source301:      yasm-1.2.0-3.el5.src.rpm
 Source302:      devtoolset-2-binutils-2.23.52.0.1-10.el5.src.rpm
-Source500:      thunderbird.sh.in.rhel5
-Source501:      thunderbird-redsleeve-default-prefs.js.el5
 Source600:      thunderbird.sh.in.rhel6
-Source601:      thunderbird-redsleeve-default-prefs.js.el6
+Source601:      thunderbird-redhat-default-prefs.js.el6
 Source700:      thunderbird.sh.in.rhel7
-Source701:      thunderbird-redsleeve-default-prefs.js.el7
+Source701:      thunderbird-redhat-default-prefs.js.el7
 
 # Mozilla (XULRunner) patches
 Patch0:         firefox-install-dir.patch
@@ -137,40 +113,31 @@ Patch0:         firefox-install-dir.patch
 Patch5:         xulrunner-24.0-jemalloc-ppc.patch
 Patch6:         webrtc-arch-cpu.patch
 Patch8:         firefox-ppc64le.patch
-Patch16:        mozilla-1253216-disable-ion.patch
-Patch17:        build-nss.patch
+Patch9:         build-s390-missing-include.patch
+Patch20:        build-s390-atomic.patch
+Patch21:        build-icu-big-endian.patch
+Patch22:        build-missing-getrandom.patch
+Patch23:        build-nss-version.patch
+Patch24:        build-nss-prbool.patch
 
 # RHEL patches
 Patch103:       rhbz-966424.patch
-Patch109:       aarch64-fix-skia.patch
 Patch110:       mozilla-1170092-etc-conf.patch
 Patch111:       rhbz-1173156.patch
-Patch112:       rhbz-1150082.patch
+Patch112:       mozilla-256180.patch
+Patch113:       rhbz-1414535.patch
+Patch114:       rhbz-1423012.patch
 
 # Upstream patches
-Patch201:       mozilla-1005535.patch
 # Kaie's patch, we'll most likely need this one
 Patch202:       mozilla-1152515.patch
-
-# RHEL5 patches
-Patch500:       build-el5-build-id.patch
-Patch501:       build-el5-sandbox.patch
-Patch502:       build-el5-gtk2-2.10.patch
-Patch503:       build-el5-xlib-header.patch
-Patch504:       build-el5-rt-tgsigqueueinfo.patch
-Patch505:       build-el5-rapl.patch
-Patch506:       build-el5-fontconfig.patch
-Patch507:       build-el5-stdint.patch
-Patch508:       build-el5-nss.patch
-Patch509:       mozilla-694870-backout.patch
-Patch510:       mozilla-1134537-delete-nsgnomevfsservice.patch
-Patch511:       mozilla-1134537-only-support-gio-in-nsioservice.patch
-Patch512:       mozilla-1134537-delete-gnomevfs-extension.patch
+Patch203:       mozilla-1158578-recursion-fix.patch
 
 # Thunderbird patches
 Patch1000:      thunderbird-objdir.patch
 Patch1001:      lightning-bad-langs.patch
 Patch1002:      thunderbird-enable-addons.patch
+Patch1003:       build-fix-dupes.patch
 
 # ---------------------------------------------------
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
@@ -222,17 +189,9 @@ Requires:       sqlite >= %{sqlite_build_version}
 BuildRequires:  libffi-devel >= %{ffi_version}
 Requires:       libffi >= %{ffi_version}
 %endif
-%if %{?enable_gstreamer}
-BuildRequires:  gstreamer1-devel
-BuildRequires:  gstreamer1-plugins-base-devel
-%endif
 BuildRequires:  libpng-devel
-%if %{?system_jpeg}
 BuildRequires:  libjpeg-devel
-%endif
-%if %{?system_hunspell}
 BuildRequires:  hunspell-devel
-%endif
 %if %{system_libatomic}
 BuildRequires:  libatomic
 Requires:       libatomic
@@ -254,13 +213,6 @@ Requires:       gtk2 >= 2.24
 BuildRequires:  pulseaudio-libs-devel
 Requires:       liberation-fonts-common
 Requires:       liberation-sans-fonts
-%endif
-
-# RHEL5 requires
-%if 0%{?rhel} == 5
-BuildRequires:  libXcomposite-devel
-BuildRequires:  libXdamage-devel
-BuildRequires:  xorg-x11-proto-devel
 %endif
 
 Obsoletes:      thunderbird-lightning
@@ -399,46 +351,38 @@ cd mozilla
 # Build patches
 # We have to keep original patch backup extension to go thru configure without problems with tests
 %patch0 -p1 -b .orig
-%patch5 -p2 -b .jemalloc-ppc.patch
+%patch5 -p1 -b .jemalloc-ppc.patch
 %patch6 -p1 -b .webrtc-arch-cpu
 %patch8 -p2 -b .ppc64le
-%patch16 -p2 -b .moz-1253216-disable-ion
-%patch17 -p1 -b .build-nss
+%patch9 -p1 -b .s390-missing-include
+%patch20 -p1 -b .s390-atomic
+%patch22 -p1 -b .missing-getrandom
+%patch23 -p1 -b .nss-version
+%patch24 -p1 -b .nss-prbool
 
 # RPM specific patches
 %patch103 -p1 -b .rhbz-966424
-%patch109 -p1 -b .aarch64
 %patch110 -p1 -b .moz-1170092-etc-conf
 %patch111 -p2 -b .rhbz-1173156
-%patch112 -p1 -b .rhbz-1150082
+%patch112 -p1 -b .mozbz-256180
+%patch113 -p1 -b .rhbz-1414535
+%patch114 -p1 -b .rhbz-1423012
 
 # Upstream patches
-%patch201 -p1 -b .mozbz-1005535
-# FIXME: will require this?: by kai
 %patch202 -p1 -b .mozbz-1152515
 
-
-# RHEL5 only patches
-%if 0%{?rhel} == 5
-%patch500 -p1 -b .gnu-build-id
-%patch501 -p1 -b .build-sandbox
-%patch502 -p1 -b .build-gtk2
-%patch503 -p1 -b .build-xlib-swap
-%patch504 -p1 -b .build-rt-tgsigqueueinfo
-%patch505 -p1 -b .build-el5-rapl
-%patch506 -p1 -b .build-el5-fontconfig
-%patch507 -p1 -b .build-el5-stdint
-%patch508 -p1 -b .build-el5-nss
-%patch509 -p2 -b .moz-694870-backout
-%patch510 -p2 -b .moz-1134537-delete-nsgnomevfsservice
-%patch511 -p1 -R -b .moz-1134537-only-support-gio-in-nsioservice
-%patch512 -p2 -b .moz-1134537-gnomevfsservice
+# Patch for big endian platforms only
+%if 0%{?big_endian}
+%patch21 -p1 -b .big-endian-icu
 %endif
+
 cd ..
 
+%patch203 -p1 -b .mozbz-1158578-recursion-fix
 %patch1000 -p2 -b .objdir
 %patch1001 -p1 -b .badlangs
 %patch1002 -p1 -b .addons
+%patch1003 -p1 -b .fix-dupes
 #%patch301 -p1 -b .ppc64le-build # fixme?
 
 
@@ -478,24 +422,11 @@ function add_to_mozconfig() {
  add_to_mozconfig "without-system-nss"
 %endif
 
-%if %{?enable_gstreamer}
- add_to_mozconfig "enable-gstreamer=1.0"
-%else
- add_to_mozconfig "disable-gstreamer"
-%endif
-
-%if %{?system_jpeg}
- add_to_mozconfig "with-system-jpeg"
-%else
- add_to_mozconfig "without-system-jpeg"
-%endif
-%if %{?system_hunspell}
- add_to_mozconfig "enable-system-hunspell"
-%endif
+add_to_mozconfig "with-system-jpeg"
+add_to_mozconfig "enable-system-hunspell"
 
 # RHEL 7 mozconfig changes:
 %if 0%{?rhel} >= 6
- add_to_mozconfig "enable-libnotify"
  add_to_mozconfig "enable-startup-notification"
  add_to_mozconfig "enable-jemalloc"
 %endif
@@ -504,22 +435,19 @@ function add_to_mozconfig() {
 %if 0%{?rhel} == 6
  # Disable dbus, because we're unable to build with its support in brew
  add_to_mozconfig "disable-dbus"
-%endif
-
-%if 0%{?rhel} == 5
- add_to_mozconfig "disable-pulseaudio"
+ # ctypes require system libffi for these platforms and RHEL6 does not have libffi >= 3.0.9 available
+ %ifarch ppc64 ppc64le ppc s390 s390x
+  add_to_mozconfig "disable-ctypes"
+ %endif
 %endif
 
 %ifarch aarch64
  add_to_mozconfig "disable-ion"
 %endif
 
-%if %{system_gio}
- add_to_mozconfig "enable-gio"
- add_to_mozconfig "disable-gnomevfs"
-%else
- add_to_mozconfig "disable-gio"
- add_to_mozconfig "enable-gnomevfs"
+add_to_mozconfig "enable-gio"
+%ifarch aarch64 ppc ppc64 s390 s390x
+ add_to_mozconfig "disable-skia"
 %endif
 
 # Debug build flags
@@ -530,6 +458,8 @@ function add_to_mozconfig() {
  add_to_mozconfig "disable-debug"
  add_to_mozconfig "enable-optimize"
 %endif
+
+add_to_mozconfig "with-intl-api"
 
 #FIXME RTTI?? RHEL5/6
 # ac_add_options --enable-cpp-rtti
@@ -607,17 +537,7 @@ function build_bundled_package() {
 # Install local GCC if needed
 # ======================================
 %if %{use_bundled_gcc}
-  %if %{rhel} == 5
-    %ifarch ppc64
-      export STRIP="/bin/true"
-    %endif
-  %endif
   build_bundled_package 'gcc48-%{gcc_version}*.rpm' 'gcc48-*.rpm' '%{SOURCE300}'
-  %if %{rhel} == 5
-    %ifarch ppc64
-      unset STRIP
-    %endif
-  %endif
   export CXX=g++
 %endif
 
@@ -655,6 +575,23 @@ function build_bundled_package() {
 echo "Building Thunderbird"; echo "==============================="
 cd %{tarballdir}
 
+# Hack for missing shell when building in brew on RHEL6 and RHEL5
+%if 0%{?rhel} <= 6
+export SHELL=/bin/sh
+%endif
+
+
+echo "Generate big endian version of config/external/icu/data/icud58l.dat"
+%if 0%{?big_endian}
+  echo "Generate big endian version of config/external/icu/data/icud58l.dat"
+  cd mozilla
+  ./mach python intl/icu_sources_data.py .
+  ls -l config/external/icu/data
+  rm -f config/external/icu/data/icudt*l.dat
+  cd ..
+%endif
+
+
 # 1. Mozilla builds with -Wall with exception of a few warnings which show up
 #    everywhere in the code; so, don't override that.
 # 2. -Werror=format-security causes build failures when -Wno-format is explicitly given
@@ -678,16 +615,6 @@ MOZ_LINK_FLAGS="$MOZ_LINK_FLAGS -Wl,--no-keep-memory -Wl,--reduce-memory-overhea
 %if 0%{?rhel} == 6
   %if %{system_libatomic}
     MOZ_LINK_FLAGS="$MOZ_LINK_FLAGS -l:libatomic.so.1"
-  %endif
-%endif
-
-%if 0%{?rhel} == 5
-  %if %{system_libatomic}
-    # Force to use ld.bfd linker instead of ld.gold
-    MOZ_LINK_FLAGS="$MOZ_LINK_FLAGS -fuse-ld=bfd -l:libatomic.so.1"
-  %endif
-  %ifarch i386 i686
-    MOZ_OPT_FLAGS=$(echo "$MOZ_OPT_FLAGS" | %{__sed} -e 's/-march=i386/-march=i586/')
   %endif
 %endif
 
@@ -733,31 +660,24 @@ cd -
 #===============================================================================
 
 %install
+# Hack for missing shell when building in brew on RHEL6 and RHEL5
+%if 0%{?rhel} <= 6
+export SHELL=/bin/sh
+%endif
+
 cd %{tarballdir}
 %{__rm} -rf $RPM_BUILD_ROOT
 
 DESTDIR=$RPM_BUILD_ROOT make -C objdir install
 
-%if 0%{?rhel} == 5
-desktop-file-install --vendor mozilla \
-  --dir $RPM_BUILD_ROOT%{_datadir}/applications \
-  --add-category Network \
-  --add-category Email \
-  %{SOURCE20}
-%else
 desktop-file-install \
   --dir $RPM_BUILD_ROOT%{_datadir}/applications \
   %{SOURCE20}
-%endif
 
 # Set up the thunderbird start script, unfortunatelly it is different for each RHEL
 rm -rf $RPM_BUILD_ROOT%{_bindir}/thunderbird
 THUNDERBIRD_SH_SOURCE=%{SOURCE700}
 THUNDERBIRD_PREF_SOURCE=%{SOURCE701}
-%if 0%{?rhel} == 5
-  THUNDERBIRD_SH_SOURCE=%{SOURCE500}
-  THUNDERBIRD_PREF_SOURCE=%{SOURCE501}
-%endif
 %if 0%{?rhel} == 6
   THUNDERBIRD_SH_SOURCE=%{SOURCE600}
   THUNDERBIRD_PREF_SOURCE=%{SOURCE601}
@@ -772,13 +692,6 @@ cp $THUNDERBIRD_SH_SOURCE $RPM_BUILD_ROOT%{_bindir}/thunderbird
 %{__install} -D $RPM_BUILD_ROOT/rh-default-prefs $RPM_BUILD_ROOT/%{mozappdir}/greprefs/all-redhat.js
 %{__install} -D $RPM_BUILD_ROOT/rh-default-prefs $RPM_BUILD_ROOT/%{mozappdir}/defaults/pref/all-redhat.js
 %{__rm} $RPM_BUILD_ROOT/rh-default-prefs
-
-# Hyperlink opening script for rhel5
-%if 0%{?rhel} == 5
-  install -Dm755 %{SOURCE30} $RPM_BUILD_ROOT/%{mozappdir}/open-browser.sh
-  %{__sed} -i -e 's|LIBDIR|%{_libdir}|g' $RPM_BUILD_ROOT/%{mozappdir}/open-browser.sh
-%endif
-
 
 # install icons
 for s in 16 22 24 32 48 256; do
@@ -854,10 +767,8 @@ install -c -m 644 LICENSE $RPM_BUILD_ROOT%{mozappdir}
 cd -
 
 # Use the system dictionaries for system hunspell
-%if %{system_hunspell}
-  %{__rm} -rf ${RPM_BUILD_ROOT}%{mozappdir}/dictionaries
-  ln -s %{_datadir}/myspell ${RPM_BUILD_ROOT}%{mozappdir}/dictionaries
-%endif
+%{__rm} -rf ${RPM_BUILD_ROOT}%{mozappdir}/dictionaries
+ln -s %{_datadir}/myspell ${RPM_BUILD_ROOT}%{mozappdir}/dictionaries
 
 # ghost files
 %{__mkdir_p} $RPM_BUILD_ROOT%{mozappdir}/components
@@ -897,11 +808,7 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 %files -f %{name}.lang
 %defattr(-,root,root,-)
 %attr(755,root,root) %{_bindir}/thunderbird
-%if 0%{?rhel} == 5
-%attr(644,root,root) %{_datadir}/applications/mozilla-thunderbird.desktop
-%else
 %attr(644,root,root) %{_datadir}/applications/thunderbird.desktop
-%endif
 %dir %{_datadir}/mozilla/extensions/%{thunderbird_app_id}
 %dir %{_libdir}/mozilla/extensions/%{thunderbird_app_id}
 %dir %{mozappdir}
@@ -940,18 +847,26 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 %exclude %{_includedir}/%{name}-%{version}
 %{mozappdir}/dependentlibs.list
 %{mozappdir}/distribution
-%if 0%{?rhel} < 6
-%{mozappdir}/open-browser.sh
+%if 0%{?big_endian}
+%{mozappdir}/icudt58b.dat
+%else
+%{mozappdir}/icudt58l.dat
 %endif
+%{mozappdir}/chrome.manifest
+%{mozappdir}/fonts/EmojiOneMozilla.ttf
+
 
 #===============================================================================
 
 %changelog
-* Wed Mar 22 2017 Jacco Ligthart <jacco@redsleeve.org> - 45.8.0-1.el7.redsleeve
-- Roll in RedSleeve Branding
-
-* Wed Mar 15 2017 Johnny Hughes <johnny@centos.org> - 45.8.0-1
+* Tue May  9 2017 Johnny Hughes <johnny@centos.org> - 52.1.0-1
 - Manual CentOS Debranding
+ 
+* Tue May  2 2017 Jan Horak <jhorak@redhat.com> - 52.1.0-1
+- Update to 52.1.0
+
+* Thu Apr 13 2017 Jan Horak <jhorak@redhat.com> - 52.0.1-1
+- Update to 52.0.1
 
 * Tue Mar  7 2017 Jan Horak <jhorak@redhat.com> - 45.8.0-1
 - Update to 45.8.0
