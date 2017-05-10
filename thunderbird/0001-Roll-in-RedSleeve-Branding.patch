@@ -1,51 +1,16 @@
-From 5d11df51644c4fad3e6afa28fed69c4c75504f2d Mon Sep 17 00:00:00 2001
+From d1efa33cca9b397858adb3c68e9287298f57d25f Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Wed, 22 Mar 2017 12:10:11 +0100
+Date: Wed, 10 May 2017 23:29:35 +0200
 Subject: [PATCH] Roll in RedSleeve Branding
 
 ---
- SOURCES/thunderbird-redsleeve-default-prefs.js.el5 | 27 +++++++++++++++++++++
  SOURCES/thunderbird-redsleeve-default-prefs.js.el6 | 28 ++++++++++++++++++++++
  SOURCES/thunderbird-redsleeve-default-prefs.js.el7 | 28 ++++++++++++++++++++++
- SPECS/thunderbird.spec                             | 11 +++++----
- 4 files changed, 90 insertions(+), 4 deletions(-)
- create mode 100644 SOURCES/thunderbird-redsleeve-default-prefs.js.el5
+ SPECS/thunderbird.spec                             |  9 ++++---
+ 3 files changed, 62 insertions(+), 3 deletions(-)
  create mode 100644 SOURCES/thunderbird-redsleeve-default-prefs.js.el6
  create mode 100644 SOURCES/thunderbird-redsleeve-default-prefs.js.el7
 
-diff --git a/SOURCES/thunderbird-redsleeve-default-prefs.js.el5 b/SOURCES/thunderbird-redsleeve-default-prefs.js.el5
-new file mode 100644
-index 0000000..8321da9
---- /dev/null
-+++ b/SOURCES/thunderbird-redsleeve-default-prefs.js.el5
-@@ -0,0 +1,27 @@
-+pref("app.update.enabled", false);
-+pref("app.update.autoInstallEnabled", false);
-+# Allow users to set custom colors
-+# pref("browser.display.use_system_colors",   true);
-+pref("general.useragent.vendor", " RedSleeve");
-+pref("general.useragent.vendorSub", "THUNDERBIRD_RPM_VR");
-+pref("intl.locale.matchOS", true);
-+pref("mail.shell.checkDefaultClient", false);
-+pref("toolkit.networkmanager.disable", false);
-+
-+# Make hyperlinks work
-+pref("network.protocol-handler.app.http", "COMMAND");
-+pref("network.protocol-handler.app.https", "COMMAND");
-+pref("network.protocol-handler.app.ftp", "COMMAND");
-+
-+# Disable global indexing by default
-+pref("mailnews.database.global.indexer.enabled", false);
-+
-+# Do not switch to Smart Folders after upgrade to 3.0b4
-+pref("mail.folder.views.version", "1")
-+
-+/* Workaround for rhbz#1134876 */
-+pref("javascript.options.baselinejit",      false);
-+/* Workaround for rhbz#1110291 */
-+pref("network.negotiate-auth.allow-insecure-ntlm-v1", true);
-+/* Workaround for mozbz#1063315 */
-+pref("security.use_mozillapkix_verification", false);
 diff --git a/SOURCES/thunderbird-redsleeve-default-prefs.js.el6 b/SOURCES/thunderbird-redsleeve-default-prefs.js.el6
 new file mode 100644
 index 0000000..fa9821b
@@ -115,24 +80,21 @@ index 0000000..fa9821b
 +/* Workaround for mozbz#1063315 */
 +pref("security.use_mozillapkix_verification", false);
 diff --git a/SPECS/thunderbird.spec b/SPECS/thunderbird.spec
-index d14bd30..f27503b 100644
+index 30e892f..2c4006c 100644
 --- a/SPECS/thunderbird.spec
 +++ b/SPECS/thunderbird.spec
-@@ -93,7 +93,7 @@ ExcludeArch: ppc ia64
+@@ -75,7 +75,7 @@
  Summary:        Mozilla Thunderbird mail/newsgroup client
  Name:           thunderbird
- Version:        45.8.0
+ Version:        52.1.0
 -Release:        1%{?dist}
 +Release:        1%{?dist}.redsleeve
  URL:            http://www.mozilla.org/projects/thunderbird/
  License:        MPLv1.1 or GPLv2+ or LGPLv2+
  Group:          Applications/Internet
-@@ -124,11 +124,11 @@ Source300:      gcc48-%{gcc_version}.el5.src.rpm
+@@ -102,9 +102,9 @@ Source300:      gcc48-%{gcc_version}.el5.src.rpm
  Source301:      yasm-1.2.0-3.el5.src.rpm
  Source302:      devtoolset-2-binutils-2.23.52.0.1-10.el5.src.rpm
- Source500:      thunderbird.sh.in.rhel5
--Source501:      thunderbird-redhat-default-prefs.js.el5
-+Source501:      thunderbird-redsleeve-default-prefs.js.el5
  Source600:      thunderbird.sh.in.rhel6
 -Source601:      thunderbird-redhat-default-prefs.js.el6
 +Source601:      thunderbird-redsleeve-default-prefs.js.el6
@@ -142,16 +104,16 @@ index d14bd30..f27503b 100644
  
  # Mozilla (XULRunner) patches
  Patch0:         firefox-install-dir.patch
-@@ -947,6 +947,9 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
+@@ -859,6 +859,9 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
  #===============================================================================
  
  %changelog
-+* Wed Mar 22 2017 Jacco Ligthart <jacco@redsleeve.org> - 45.8.0-1.el7.redsleeve
++* Wed May 10 2017 Jacco Ligthart <jacco@redsleeve.org> - 52.1.0-1.el7.redsleeve
 +- Roll in RedSleeve Branding
 +
- * Wed Mar 15 2017 Johnny Hughes <johnny@centos.org> - 45.8.0-1
+ * Tue May  9 2017 Johnny Hughes <johnny@centos.org> - 52.1.0-1
  - Manual CentOS Debranding
- 
+  
 -- 
 1.8.3.1
 
