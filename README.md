@@ -42,6 +42,7 @@ Some packages needed some manual love and care to build, but not really a patch:
 | mesa-private-llvm | mesa-private-llvm-3.8.x | version to new for armv5, downgraded to 3.7.1 
 | msv | msv-2013.5.1-7.el7.src.rpm | needs to be build without java-1.8.0-openjdk
 | nss | nss-3.21.3-2.el7_3.src.rpm | clock needs to be set before 2016-12-16 for the tests to succeed
+| prelink | prelink-0.5.0-9.el7.src.rpm | needs to be build with older versions of: binutils, cpp, gcc*, glibc*, libgcc, libgomp, libstdc* (the 7.2 versions). Not sure what is wrong with the 7.3 versions
 | ruby | ruby-2.0.0.648-29.el7.src.rpm | needs to be build with openssl*-1.0.1e-51.el7.5.armv5tel
 | tigervnc | tigervnc-1.3.1-9.el7.src.rpm | needs to be build with xorg-x11-server-source-1.17.2-10.el7.noarch.rpm
 | velocity | velocity-1.7-10.el7.src.rpm | needs to be build with java-1.7.0-openjdk-devel-1.7.0.51
@@ -160,7 +161,6 @@ Some packages that are present upstream are not in Redsleeve for a variety of re
 | mvapich2 | mvapich2-2.2-0.3.rc1.el7.src.rpm | fatal error: asm/timex.h: No such file or directory
 | openssl098e | openssl098e-0.9.8e-29.el7.centos.3.src.rpm | linux-arm not on the supported compiler list
 | perftest | perftest-3.0-7.el7.src.rpm | fatal error: asm/timex.h: No such file or directory
-| prelink | prelink-0.5.0-9.el7.src.rpm | tests fail
 | tbb | tbb-4.1-9.20130314.el7.src.rpm | error: #error Threading Building Blocks ARM port requires an ARMv7-a architecture.
 | tuned | tuned-2.7.1-3.el7_3.1.src.rpm | cannot be installed due to missing deps
 | pcs | pcs-0.9.152-10.el7.centos.src.rpm | depends on pacemaker which doesnt build on arm
