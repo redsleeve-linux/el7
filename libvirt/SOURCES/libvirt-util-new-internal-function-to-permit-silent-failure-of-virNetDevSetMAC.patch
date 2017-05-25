@@ -1,0 +1,140 @@
+From 4ebaf75b8d1650d1067483b16ad243cb204ba8dc Mon Sep 17 00:00:00 2001
+Message-Id: <4ebaf75b8d1650d1067483b16ad243cb204ba8dc@dist-git>
+From: Laine Stump <laine@laine.org>
+Date: Thu, 13 Apr 2017 14:29:27 -0400
+Subject: [PATCH] util: new internal function to permit silent failure of
+ virNetDevSetMAC()
+
+We will want to allow silent failure of virNetDevSetMAC() in the case
+that the SIOSIFHWADDR ioctl fails with errno == EADDRNOTAVAIL. (Yes,
+that is very specific, but we really *do* want a logged failure in all
+other circumstances, and don't want to duplicate code in the caller
+for the other possibilities).
+
+This patch renames the 3 different virNetDevSetMAC() functions to
+virNetDevSetMACInternal(), adding a 3rd arg called "quiet" and making
+them static (because this extra control will only be needed within
+virnetdev.c). A new global virNetDevSetMAC() is defined that calls
+whichever of the three *Internal() functions gets compiled with quiet
+= false. Callers in virnetdev.c that want to notice a failure with
+errno == EADDRNOTAVAIL and retry with a different strategy rather than
+immediately failing, can call virNetDevSetMACInternal(..., true).
+
+Resolves: https://bugzilla.redhat.com/1442040 (RHEL 7.3.z)
+Resolves: https://bugzilla.redhat.com/1415609 (RHEL 7.4)
+
+(cherry picked from commit f4ef3a71f8abc83771952604d309b39ca3ea64cf)
+---
+ src/util/virnetdev.c | 51 +++++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 41 insertions(+), 10 deletions(-)
+
+diff --git a/src/util/virnetdev.c b/src/util/virnetdev.c
+index 766638dd3..ffc2fb4e4 100644
+--- a/src/util/virnetdev.c
++++ b/src/util/virnetdev.c
+@@ -222,17 +222,20 @@ int virNetDevExists(const char *ifname)
+ #if defined(SIOCGIFHWADDR) && defined(SIOCSIFHWADDR) && \
+     defined(HAVE_STRUCT_IFREQ)
+ /**
+- * virNetDevSetMAC:
++ * virNetDevSetMACInternal:
+  * @ifname: interface name to set MTU for
+  * @macaddr: MAC address
++ * @quiet: true if a failure to set MAC address with errno == EADDRNOTAVAIL
++ *         should be silent (still returns error, but without log)
+  *
+- * This function sets the @macaddr for a given interface @ifname. This
+- * gets rid of the kernel's automatically assigned random MAC.
++ * This function sets the @macaddr for a given interface @ifname.
+  *
+  * Returns 0 in case of success or -1 on failure
+  */
+-int virNetDevSetMAC(const char *ifname,
+-                    const virMacAddr *macaddr)
++static int
++virNetDevSetMACInternal(const char *ifname,
++                        const virMacAddr *macaddr,
++                        bool quiet)
+ {
+     int fd = -1;
+     int ret = -1;
+@@ -254,6 +257,9 @@ int virNetDevSetMAC(const char *ifname,
+     if (ioctl(fd, SIOCSIFHWADDR, &ifr) < 0) {
+         char macstr[VIR_MAC_STRING_BUFLEN];
+ 
++        if (quiet && errno == EADDRNOTAVAIL)
++            goto cleanup;
++
+         virReportSystemError(errno,
+                              _("Cannot set interface MAC to %s on '%s'"),
+                              virMacAddrFormat(macaddr, macstr), ifname);
+@@ -266,10 +272,16 @@ int virNetDevSetMAC(const char *ifname,
+     VIR_FORCE_CLOSE(fd);
+     return ret;
+ }
+-#elif defined(SIOCSIFLLADDR) && defined(HAVE_STRUCT_IFREQ) && \
++
++
++#elif defined(SIOCSIFLLADDR) && defined(HAVE_STRUCT_IFREQ) &&   \
+     HAVE_DECL_LINK_ADDR
+-int virNetDevSetMAC(const char *ifname,
+-                    const virMacAddr *macaddr)
++
++
++static int
++virNetDevSetMACInternal(const char *ifname,
++                        const virMacAddr *macaddr,
++                        bool quiet)
+ {
+         struct ifreq ifr;
+         struct sockaddr_dl sdl;
+@@ -288,6 +300,9 @@ int virNetDevSetMAC(const char *ifname,
+         ifr.ifr_addr.sa_len = VIR_MAC_BUFLEN;
+ 
+         if (ioctl(s, SIOCSIFLLADDR, &ifr) < 0) {
++            if (quiet && errno == EADDRNOTAVAIL)
++                goto cleanup;
++
+             virReportSystemError(errno,
+                                  _("Cannot set interface MAC to %s on '%s'"),
+                                  mac + 1, ifname);
+@@ -300,18 +315,34 @@ int virNetDevSetMAC(const char *ifname,
+ 
+         return ret;
+ }
++
++
+ #else
+-int virNetDevSetMAC(const char *ifname,
+-                    const virMacAddr *macaddr ATTRIBUTE_UNUSED)
++
++
++static int
++virNetDevSetMACInternal(const char *ifname,
++                        const virMacAddr *macaddr ATTRIBUTE_UNUSED,
++                        bool quiet ATTRIBUTE_UNUSED)
+ {
+     virReportSystemError(ENOSYS,
+                          _("Cannot set interface MAC on '%s'"),
+                          ifname);
+     return -1;
+ }
++
++
+ #endif
+ 
+ 
++int
++virNetDevSetMAC(const char *ifname,
++                const virMacAddr *macaddr)
++{
++    return virNetDevSetMACInternal(ifname, macaddr, false);
++}
++
++
+ #if defined(SIOCGIFHWADDR) && defined(HAVE_STRUCT_IFREQ)
+ /**
+  * virNetDevGetMAC:
+-- 
+2.12.2
+

@@ -1,0 +1,75 @@
+From a45f874c1ba14e839aaa57ba54ec3c6487b93c60 Mon Sep 17 00:00:00 2001
+Message-Id: <a45f874c1ba14e839aaa57ba54ec3c6487b93c60@dist-git>
+From: Laine Stump <laine@laine.org>
+Date: Thu, 13 Apr 2017 14:29:25 -0400
+Subject: [PATCH] util: make virPCIGetDeviceAddressFromSysfsLink() public
+
+This function will be useful in virnetdev.c, so promote it from static.
+
+Resolves: https://bugzilla.redhat.com/1442040 (RHEL 7.3.z)
+Resolves: https://bugzilla.redhat.com/1415609 (RHEL 7.4)
+
+(cherry picked from commit 9a238c16b382f3366bf474a648ff0e4b777b0af8)
+---
+ src/libvirt_private.syms |  1 +
+ src/util/virpci.c        | 10 +++++++++-
+ src/util/virpci.h        |  3 +++
+ 3 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index bee56765e..b9ea1cfe9 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -2123,6 +2123,7 @@ virPCIDeviceSetUsedBy;
+ virPCIDeviceUnbind;
+ virPCIDeviceWaitForCleanup;
+ virPCIEDeviceInfoFree;
++virPCIGetDeviceAddressFromSysfsLink;
+ virPCIGetHeaderType;
+ virPCIGetNetName;
+ virPCIGetPhysicalFunction;
+diff --git a/src/util/virpci.c b/src/util/virpci.c
+index f6d1e48c7..7d9c81167 100644
+--- a/src/util/virpci.c
++++ b/src/util/virpci.c
+@@ -2423,7 +2423,7 @@ virPCIDeviceAddressIsEqual(virPCIDeviceAddressPtr bdf1,
+             (bdf1->function == bdf2->function));
+ }
+ 
+-static virPCIDeviceAddressPtr
++virPCIDeviceAddressPtr
+ virPCIGetDeviceAddressFromSysfsLink(const char *device_link)
+ {
+     virPCIDeviceAddressPtr bdf = NULL;
+@@ -2752,6 +2752,14 @@ virPCIGetVirtualFunctionInfo(const char *vf_sysfs_device_path,
+ #else
+ static const char *unsupported = N_("not supported on non-linux platforms");
+ 
++virPCIDeviceAddressPtr
++virPCIGetDeviceAddressFromSysfsLink(const char *device_link ATTRIBUTE_UNUSED)
++{
++    virReportError(VIR_ERR_INTERNAL_ERROR, "%s", _(unsupported));
++    return -1;
++}
++
++
+ int
+ virPCIGetPhysicalFunction(const char *vf_sysfs_path ATTRIBUTE_UNUSED,
+                           virPCIDeviceAddressPtr *pf ATTRIBUTE_UNUSED)
+diff --git a/src/util/virpci.h b/src/util/virpci.h
+index 5c63eab73..c3cb2d679 100644
+--- a/src/util/virpci.h
++++ b/src/util/virpci.h
+@@ -185,6 +185,9 @@ int virPCIDeviceIsAssignable(virPCIDevicePtr dev,
+                              int strict_acs_check);
+ int virPCIDeviceWaitForCleanup(virPCIDevicePtr dev, const char *matcher);
+ 
++virPCIDeviceAddressPtr
++virPCIGetDeviceAddressFromSysfsLink(const char *device_link);
++
+ int virPCIGetPhysicalFunction(const char *vf_sysfs_path,
+                               virPCIDeviceAddressPtr *pf);
+ 
+-- 
+2.12.2
+

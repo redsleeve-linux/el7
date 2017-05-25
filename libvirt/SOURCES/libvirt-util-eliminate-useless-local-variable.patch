@@ -1,0 +1,60 @@
+From 2e92e9904792f9f69d3d6c51a47eb1238064ee12 Mon Sep 17 00:00:00 2001
+Message-Id: <2e92e9904792f9f69d3d6c51a47eb1238064ee12@dist-git>
+From: Laine Stump <laine@laine.org>
+Date: Thu, 13 Apr 2017 14:29:22 -0400
+Subject: [PATCH] util: eliminate useless local variable
+
+vf in virNetDevMacVLanDeleteWithVPortProfile() is initialized to -1
+and never set. It's not set for a good reason - because it doesn't
+make sense during macvtap device setup to refer to a VF device as
+"PF:VF#". This patch replaces the two uses of "vf" with "-1", and
+removes the local variable, so that it's more clear we are always
+calling the utility functions with vf set to -1.
+
+Resolves: https://bugzilla.redhat.com/1442040 (RHEL 7.3.z)
+Resolves: https://bugzilla.redhat.com/1415609 (RHEL 7.4)
+
+(cherry picked from commit 606a01339563b5371f21a9b2c10ef818c0557fb1)
+---
+ src/util/virnetdevmacvlan.c | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/util/virnetdevmacvlan.c b/src/util/virnetdevmacvlan.c
+index 88a0f9485..61da55415 100644
+--- a/src/util/virnetdevmacvlan.c
++++ b/src/util/virnetdevmacvlan.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (C) 2010-2016 Red Hat, Inc.
++ * Copyright (C) 2010-2017 Red Hat, Inc.
+  * Copyright (C) 2010-2012 IBM Corporation
+  *
+  * This library is free software; you can redistribute it and/or
+@@ -1190,14 +1190,13 @@ int virNetDevMacVLanDeleteWithVPortProfile(const char *ifname,
+                                            char *stateDir)
+ {
+     int ret = 0;
+-    int vf = -1;
+ 
+     if (ifname) {
+         if (virNetDevVPortProfileDisassociate(ifname,
+                                               virtPortProfile,
+                                               macaddr,
+                                               linkdev,
+-                                              vf,
++                                              -1,
+                                               VIR_NETDEV_VPORT_PROFILE_OP_DESTROY) < 0)
+             ret = -1;
+         if (virNetDevMacVLanDelete(ifname) < 0)
+@@ -1210,7 +1209,7 @@ int virNetDevMacVLanDeleteWithVPortProfile(const char *ifname,
+              virtPortProfile->virtPortType == VIR_NETDEV_VPORT_PROFILE_8021QBH)
+             ignore_value(virNetDevRestoreMacAddress(linkdev, stateDir));
+         else
+-            ignore_value(virNetDevRestoreNetConfig(linkdev, vf, stateDir));
++            ignore_value(virNetDevRestoreNetConfig(linkdev, -1, stateDir));
+     }
+ 
+     virNetlinkEventRemoveClient(0, macaddr, NETLINK_ROUTE);
+-- 
+2.12.2
+

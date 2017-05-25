@@ -1,0 +1,120 @@
+From 458aa8587e750e7b368e1a86208841a082242ce5 Mon Sep 17 00:00:00 2001
+Message-Id: <458aa8587e750e7b368e1a86208841a082242ce5@dist-git>
+From: Laine Stump <laine@laine.org>
+Date: Thu, 13 Apr 2017 14:29:36 -0400
+Subject: [PATCH] util: if setting admin MAC to 00:00:00:00:00:00 fails, try
+ 02:00:00:00:00:00
+
+Some PF drivers allow setting the admin MAC (that is the MAC address
+that the VF will be initialized to the next time the VF's driver is
+loaded) to 00:00:00:00:00:00, and some don't. Multiple drivers
+initialize the admin MACs to all 0, but don't allow setting it to that
+very same value. It has been an uphill battle convincing the driver
+people that it's reasonable to expect The argument that's used is
+that an all 0 device MAC address on a device is invalid; however, from
+an outsider's point of view, when the admin MAC is set to 0 at the
+time the VF driver is loaded, the VF's MAC is *not* set to 0, but to a
+random non-0 value. But that's beside the point - even if I could
+convince one or two SRIOV driver maintainers to permit setting the
+admin MAC to 0, there are still several other drivers.
+
+So rather than fighting that losing battle, this patch checks for a
+failure to set the admin MAC due to an all 0 value, and retries it
+with 02:00:00:00:00:00. That won't result in a random value being set
+in the VF MAC at next VF driver init, but that's okay, because we
+always want to set a specific value anyway. Rather, the "almost 0"
+setting makes it easy to visually detect from the output of "ip link
+show" which VFs are currently in use and which are free.
+
+Resolves: https://bugzilla.redhat.com/1442040 (RHEL 7.3.z)
+Resolves: https://bugzilla.redhat.com/1415609 (RHEL 7.4)
+
+(cherry picked from commit d5f4abefc231a71e21e33e0d2eb4da8f22552c70)
+---
+ src/util/virnetdev.c | 42 ++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 38 insertions(+), 4 deletions(-)
+
+diff --git a/src/util/virnetdev.c b/src/util/virnetdev.c
+index 4739f573a..0223877ff 100644
+--- a/src/util/virnetdev.c
++++ b/src/util/virnetdev.c
+@@ -1391,6 +1391,14 @@ virNetDevSysfsFile(char **pf_sysfs_device_link ATTRIBUTE_UNUSED,
+ #if defined(__linux__) && defined(HAVE_LIBNL) && defined(IFLA_VF_MAX)
+ 
+ 
++static virMacAddr zeroMAC = { .addr = { 0, 0, 0, 0, 0, 0 } };
++
++/* if a net driver doesn't allow setting MAC to all 0, try setting
++ * to this (the only bit that is set is the "locally administered" bit")
++ */
++static virMacAddr altZeroMAC = { .addr = { 2, 0, 0, 0, 0, 0 } };
++
++
+ static struct nla_policy ifla_vf_policy[IFLA_VF_MAX+1] = {
+     [IFLA_VF_MAC]       = { .type = NLA_UNSPEC,
+                             .maxlen = sizeof(struct ifla_vf_mac) },
+@@ -1401,7 +1409,8 @@ static struct nla_policy ifla_vf_policy[IFLA_VF_MAX+1] = {
+ 
+ static int
+ virNetDevSetVfConfig(const char *ifname, int vf,
+-                     const virMacAddr *macaddr, int vlanid)
++                     const virMacAddr *macaddr, int vlanid,
++                     bool *allowRetry)
+ {
+     int rc = -1;
+     struct nlmsghdr *resp = NULL;
+@@ -1478,7 +1487,15 @@ virNetDevSetVfConfig(const char *ifname, int vf,
+         if (resp->nlmsg_len < NLMSG_LENGTH(sizeof(*err)))
+             goto malformed_resp;
+ 
+-        if (err->error) {
++        /* if allowRetry is true and the error was EINVAL, then
++         * silently return a failure so the caller can retry with a
++         * different MAC address
++         */
++        if (err->error == -EINVAL && *allowRetry &&
++            macaddr && !virMacAddrCmp(macaddr, &zeroMAC)) {
++            goto cleanup;
++        } else if (err->error) {
++            /* other errors are permanent */
+             char macstr[VIR_MAC_STRING_BUFLEN];
+ 
+             virReportSystemError(-err->error,
+@@ -1490,6 +1507,7 @@ virNetDevSetVfConfig(const char *ifname, int vf,
+                                  vlanid,
+                                  ifname ? ifname : "(unspecified)",
+                                  vf);
++            *allowRetry = false; /* no use retrying */
+             goto cleanup;
+         }
+         break;
+@@ -2126,8 +2144,24 @@ virNetDevSetNetConfig(const char *linkdev, int vf,
+          * guest or host). if there is a vlanTag to set, it will take
+          * effect immediately though.
+          */
+-        if (virNetDevSetVfConfig(pfDevName, vf, adminMAC, vlanTag) < 0)
+-            goto cleanup;
++        bool allowRetry = true;
++
++        if (virNetDevSetVfConfig(pfDevName, vf,
++                                 adminMAC, vlanTag, &allowRetry) < 0) {
++            /* allowRetry will still be true if the failure was due to
++             * trying to set the MAC address to all 0. In that case,
++             * we can retry with "altZeroMAC", which is just an all-0 MAC
++             * with the "locally administered" bit set.
++             */
++            if (!allowRetry)
++                goto cleanup;
++
++            allowRetry = false;
++            if (virNetDevSetVfConfig(pfDevName, vf,
++                                     &altZeroMAC, vlanTag, &allowRetry) < 0) {
++                goto cleanup;
++            }
++        }
+     }
+ 
+     ret = 0;
+-- 
+2.12.2
+

@@ -1,0 +1,628 @@
+From b638d9571e6497978c350e86671d9161c0b4c314 Mon Sep 17 00:00:00 2001
+Message-Id: <b638d9571e6497978c350e86671d9161c0b4c314@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Tue, 25 Apr 2017 19:07:19 +0200
+Subject: [PATCH] qemu: Add support for guest CPU cache
+
+This patch maps /domain/cpu/cache element into -cpu parameters:
+
+- <cache mode='passthrough'/> is translated to host-cache-info=on
+- <cache level='3' mode='emulate'/> is transformed into l3-cache=on
+- <cache mode='disable'/> is turned in host-cache-info=off,l3-cache=off
+
+Any other <cache> element is forbidden.
+
+The tricky part is detecting whether QEMU supports the CPU properties.
+
+The 'host-cache-info' property is introduced in v2.4.0-1389-ge265e3e480,
+earlier QEMU releases enabled host-cache-info by default and had no way
+to disable it. If the property is present, it defaults to 'off' for any
+QEMU until at least 2.9.0.
+
+The 'l3-cache' property was introduced later by v2.7.0-200-g14c985cffa.
+Earlier versions worked as if l3-cache=off was passed. For any QEMU
+until at least 2.9.0 l3-cache is 'off' by default.
+
+QEMU 2.9.0 was the first release which supports probing both properties
+by running device-list-properties with typename=host-x86_64-cpu. Older
+QEMU releases did not support device-list-properties command for CPU
+devices. Thus we can't really rely on probing them and we can just use
+query-cpu-model-expansion QMP command as a witness.
+
+Because the cache property probing is only reliable for QEMU >= 2.9.0
+when both are already supported for quite a few releases, we let QEMU
+report an error if a specific cache mode is explicitly requested. The
+other mode (or both if a user requested CPU cache to be disabled) is
+explicitly turned off for QEMU >= 2.9.0 to avoid any surprises in case
+the QEMU defaults change. Any older QEMU already turns them off so not
+doing so explicitly does not make any harm.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit df13c0b477ffda460eed259c3b8aab7255f11199)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1447612
+
+Conflicts:
+    - mostly context onflicts
+    - qemuDomainDefCPUPostParse did not exist in 7.3
+    - QEMU_CAPS_CPU_CACHE capability was not backported because it
+      depends on non-existent QEMU_CAPS_QUERY_CPU_MODEL_EXPANSION and
+      thus it would never be set anyway; in other words, l3-cache=off
+      and host-cache-info=off will never be used
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_command.c                            | 23 ++++++++
+ src/qemu/qemu_domain.c                             | 67 ++++++++++++++++++++++
+ .../qemuxml2argv-cpu-cache-disable.args            | 21 +++++++
+ .../qemuxml2argv-cpu-cache-disable.xml             | 20 +++++++
+ .../qemuxml2argv-cpu-cache-disable2.args           | 21 +++++++
+ .../qemuxml2argv-cpu-cache-disable2.xml            | 20 +++++++
+ .../qemuxml2argv-cpu-cache-disable3.args           | 22 +++++++
+ .../qemuxml2argv-cpu-cache-disable3.xml            | 20 +++++++
+ .../qemuxml2argv-cpu-cache-emulate-l2.xml          | 20 +++++++
+ .../qemuxml2argv-cpu-cache-emulate-l3.args         | 21 +++++++
+ .../qemuxml2argv-cpu-cache-emulate-l3.xml          | 20 +++++++
+ .../qemuxml2argv-cpu-cache-passthrough-l3.xml      | 20 +++++++
+ .../qemuxml2argv-cpu-cache-passthrough.args        | 21 +++++++
+ .../qemuxml2argv-cpu-cache-passthrough.xml         | 20 +++++++
+ .../qemuxml2argv-cpu-cache-passthrough2.args       | 21 +++++++
+ .../qemuxml2argv-cpu-cache-passthrough2.xml        | 20 +++++++
+ .../qemuxml2argv-cpu-cache-passthrough3.xml        | 20 +++++++
+ tests/qemuxml2argvtest.c                           |  9 +++
+ 18 files changed, 406 insertions(+)
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable.args
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable.xml
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable2.args
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable2.xml
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable3.args
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable3.xml
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-emulate-l2.xml
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-emulate-l3.args
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-emulate-l3.xml
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-passthrough-l3.xml
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-passthrough.args
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-passthrough.xml
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-passthrough2.args
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-passthrough2.xml
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-passthrough3.xml
+
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index bd01a0f76..f5b41257c 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -6854,6 +6854,29 @@ qemuBuildCpuCommandLine(virCommandPtr cmd,
+         have_cpu = true;
+     }
+ 
++    if (def->cpu && def->cpu->cache) {
++        virCPUCacheDefPtr cache = def->cpu->cache;
++
++        if (!have_cpu) {
++            virBufferAdd(&buf, default_model, -1);
++            have_cpu = true;
++        }
++
++        switch (cache->mode) {
++        case VIR_CPU_CACHE_MODE_EMULATE:
++            virBufferAddLit(&buf, ",l3-cache=on");
++            break;
++
++        case VIR_CPU_CACHE_MODE_PASSTHROUGH:
++            virBufferAddLit(&buf, ",host-cache-info=on");
++            break;
++
++        case VIR_CPU_CACHE_MODE_DISABLE:
++        case VIR_CPU_CACHE_MODE_LAST:
++            break;
++        }
++    }
++
+     if (virBufferCheckError(&buf) < 0)
+         goto cleanup;
+ 
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index b91db229f..7aa6de742 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -2328,6 +2328,70 @@ qemuDomainDefVcpusPostParse(virDomainDefPtr def)
+ 
+ 
+ static int
++qemuDomainDefCPUPostParse(virDomainDefPtr def)
++{
++    if (!def->cpu)
++        return 0;
++
++    if (def->cpu->cache) {
++        virCPUCacheDefPtr cache = def->cpu->cache;
++
++        if (!ARCH_IS_X86(def->os.arch)) {
++            virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
++                           _("CPU cache specification is not supported "
++                             "for '%s' architecture"),
++                           virArchToString(def->os.arch));
++            return -1;
++        }
++
++        switch (cache->mode) {
++        case VIR_CPU_CACHE_MODE_EMULATE:
++            if (cache->level != 3) {
++                virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
++                               _("CPU cache mode '%s' can only be used with "
++                                 "level='3'"),
++                               virCPUCacheModeTypeToString(cache->mode));
++                return -1;
++            }
++            break;
++
++        case VIR_CPU_CACHE_MODE_PASSTHROUGH:
++            if (def->cpu->mode != VIR_CPU_MODE_HOST_PASSTHROUGH) {
++                virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
++                               _("CPU cache mode '%s' can only be used with "
++                                 "'%s' CPUs"),
++                               virCPUCacheModeTypeToString(cache->mode),
++                               virCPUModeTypeToString(VIR_CPU_MODE_HOST_PASSTHROUGH));
++                return -1;
++            }
++
++            if (cache->level != -1) {
++                virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
++                               _("unsupported CPU cache level for mode '%s'"),
++                               virCPUCacheModeTypeToString(cache->mode));
++                return -1;
++            }
++            break;
++
++        case VIR_CPU_CACHE_MODE_DISABLE:
++            if (cache->level != -1) {
++                virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
++                               _("unsupported CPU cache level for mode '%s'"),
++                               virCPUCacheModeTypeToString(cache->mode));
++                return -1;
++            }
++            break;
++
++        case VIR_CPU_CACHE_MODE_LAST:
++            break;
++        }
++    }
++
++    return 0;
++}
++
++
++static int
+ qemuDomainDefPostParse(virDomainDefPtr def,
+                        virCapsPtr caps,
+                        unsigned int parseFlags,
+@@ -2385,6 +2449,9 @@ qemuDomainDefPostParse(virDomainDefPtr def,
+     if (qemuDomainDefVcpusPostParse(def) < 0)
+         goto cleanup;
+ 
++    if (qemuDomainDefCPUPostParse(def) < 0)
++        goto cleanup;
++
+     ret = 0;
+  cleanup:
+     virObjectUnref(qemuCaps);
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable.args b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable.args
+new file mode 100644
+index 000000000..9348e01f8
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable.args
+@@ -0,0 +1,21 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/home/test \
++USER=test \
++LOGNAME=test \
++QEMU_AUDIO_DRV=none \
++/usr/bin/kvm \
++-name foo \
++-S \
++-M pc \
++-cpu host \
++-m 214 \
++-smp 1,sockets=1,cores=1,threads=1 \
++-uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
++-nographic \
++-nodefaults \
++-monitor unix:/tmp/lib/domain--1-foo/monitor.sock,server,nowait \
++-no-acpi \
++-boot c \
++-usb \
++-device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x3
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable.xml b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable.xml
+new file mode 100644
+index 000000000..e6f39951c
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable.xml
+@@ -0,0 +1,20 @@
++<domain type='kvm'>
++  <name>foo</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219136</memory>
++  <currentMemory unit='KiB'>219136</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='x86_64' machine='pc'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <cpu mode='host-passthrough'>
++    <cache mode='disable'/>
++  </cpu>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable2.args b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable2.args
+new file mode 100644
+index 000000000..9348e01f8
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable2.args
+@@ -0,0 +1,21 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/home/test \
++USER=test \
++LOGNAME=test \
++QEMU_AUDIO_DRV=none \
++/usr/bin/kvm \
++-name foo \
++-S \
++-M pc \
++-cpu host \
++-m 214 \
++-smp 1,sockets=1,cores=1,threads=1 \
++-uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
++-nographic \
++-nodefaults \
++-monitor unix:/tmp/lib/domain--1-foo/monitor.sock,server,nowait \
++-no-acpi \
++-boot c \
++-usb \
++-device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x3
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable2.xml b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable2.xml
+new file mode 100644
+index 000000000..e6f39951c
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable2.xml
+@@ -0,0 +1,20 @@
++<domain type='kvm'>
++  <name>foo</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219136</memory>
++  <currentMemory unit='KiB'>219136</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='x86_64' machine='pc'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <cpu mode='host-passthrough'>
++    <cache mode='disable'/>
++  </cpu>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable3.args b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable3.args
+new file mode 100644
+index 000000000..bbfd5ba2c
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable3.args
+@@ -0,0 +1,22 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/home/test \
++USER=test \
++LOGNAME=test \
++QEMU_AUDIO_DRV=none \
++/usr/bin/kvm \
++-name foo \
++-S \
++-M pc \
++-cpu core2duo,+ds,+acpi,+ss,+ht,+tm,+pbe,+ds_cpl,+vmx,+est,+tm2,+cx16,+xtpr,\
+++lahf_lm \
++-m 214 \
++-smp 1,sockets=1,cores=1,threads=1 \
++-uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
++-nographic \
++-nodefaults \
++-monitor unix:/tmp/lib/domain--1-foo/monitor.sock,server,nowait \
++-no-acpi \
++-boot c \
++-usb \
++-device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x3
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable3.xml b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable3.xml
+new file mode 100644
+index 000000000..17078a1e8
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable3.xml
+@@ -0,0 +1,20 @@
++<domain type='kvm'>
++  <name>foo</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219136</memory>
++  <currentMemory unit='KiB'>219136</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='x86_64' machine='pc'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <cpu mode='host-model'>
++    <cache mode='disable'/>
++  </cpu>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-emulate-l2.xml b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-emulate-l2.xml
+new file mode 100644
+index 000000000..0d1652e5c
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-emulate-l2.xml
+@@ -0,0 +1,20 @@
++<domain type='kvm'>
++  <name>foo</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219136</memory>
++  <currentMemory unit='KiB'>219136</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='x86_64' machine='pc'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <cpu mode='host-model'>
++    <cache level='2' mode='emulate'/>
++  </cpu>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-emulate-l3.args b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-emulate-l3.args
+new file mode 100644
+index 000000000..0b9fb18e9
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-emulate-l3.args
+@@ -0,0 +1,21 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/home/test \
++USER=test \
++LOGNAME=test \
++QEMU_AUDIO_DRV=none \
++/usr/bin/kvm \
++-name foo \
++-S \
++-M pc \
++-cpu host,l3-cache=on \
++-m 214 \
++-smp 1,sockets=1,cores=1,threads=1 \
++-uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
++-nographic \
++-nodefaults \
++-monitor unix:/tmp/lib/domain--1-foo/monitor.sock,server,nowait \
++-no-acpi \
++-boot c \
++-usb \
++-device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x3
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-emulate-l3.xml b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-emulate-l3.xml
+new file mode 100644
+index 000000000..17019c673
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-emulate-l3.xml
+@@ -0,0 +1,20 @@
++<domain type='kvm'>
++  <name>foo</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219136</memory>
++  <currentMemory unit='KiB'>219136</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='x86_64' machine='pc'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <cpu mode='host-passthrough'>
++    <cache level='3' mode='emulate'/>
++  </cpu>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-passthrough-l3.xml b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-passthrough-l3.xml
+new file mode 100644
+index 000000000..3471115ea
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-passthrough-l3.xml
+@@ -0,0 +1,20 @@
++<domain type='kvm'>
++  <name>foo</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219136</memory>
++  <currentMemory unit='KiB'>219136</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='x86_64' machine='pc'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <cpu mode='host-passthrough'>
++    <cache level='3' mode='passthrough'/>
++  </cpu>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-passthrough.args b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-passthrough.args
+new file mode 100644
+index 000000000..d7863ba2e
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-passthrough.args
+@@ -0,0 +1,21 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/home/test \
++USER=test \
++LOGNAME=test \
++QEMU_AUDIO_DRV=none \
++/usr/bin/kvm \
++-name foo \
++-S \
++-M pc \
++-cpu host,host-cache-info=on \
++-m 214 \
++-smp 1,sockets=1,cores=1,threads=1 \
++-uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
++-nographic \
++-nodefaults \
++-monitor unix:/tmp/lib/domain--1-foo/monitor.sock,server,nowait \
++-no-acpi \
++-boot c \
++-usb \
++-device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x3
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-passthrough.xml b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-passthrough.xml
+new file mode 100644
+index 000000000..74846fdd3
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-passthrough.xml
+@@ -0,0 +1,20 @@
++<domain type='kvm'>
++  <name>foo</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219136</memory>
++  <currentMemory unit='KiB'>219136</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='x86_64' machine='pc'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <cpu mode='host-passthrough'>
++    <cache mode='passthrough'/>
++  </cpu>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-passthrough2.args b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-passthrough2.args
+new file mode 100644
+index 000000000..d7863ba2e
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-passthrough2.args
+@@ -0,0 +1,21 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/home/test \
++USER=test \
++LOGNAME=test \
++QEMU_AUDIO_DRV=none \
++/usr/bin/kvm \
++-name foo \
++-S \
++-M pc \
++-cpu host,host-cache-info=on \
++-m 214 \
++-smp 1,sockets=1,cores=1,threads=1 \
++-uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
++-nographic \
++-nodefaults \
++-monitor unix:/tmp/lib/domain--1-foo/monitor.sock,server,nowait \
++-no-acpi \
++-boot c \
++-usb \
++-device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x3
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-passthrough2.xml b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-passthrough2.xml
+new file mode 100644
+index 000000000..74846fdd3
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-passthrough2.xml
+@@ -0,0 +1,20 @@
++<domain type='kvm'>
++  <name>foo</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219136</memory>
++  <currentMemory unit='KiB'>219136</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='x86_64' machine='pc'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <cpu mode='host-passthrough'>
++    <cache mode='passthrough'/>
++  </cpu>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-passthrough3.xml b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-passthrough3.xml
+new file mode 100644
+index 000000000..6ad65700b
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-passthrough3.xml
+@@ -0,0 +1,20 @@
++<domain type='kvm'>
++  <name>foo</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219136</memory>
++  <currentMemory unit='KiB'>219136</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='x86_64' machine='pc'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <cpu mode='host-model'>
++    <cache mode='passthrough'/>
++  </cpu>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2argvtest.c b/tests/qemuxml2argvtest.c
+index cbf785e1b..3cc798782 100644
+--- a/tests/qemuxml2argvtest.c
++++ b/tests/qemuxml2argvtest.c
+@@ -2117,6 +2117,15 @@ mymain(void)
+ 
+     DO_TEST("cpu-hotplug-startup", QEMU_CAPS_QUERY_HOTPLUGGABLE_CPUS);
+ 
++    DO_TEST("cpu-cache-disable", QEMU_CAPS_KVM);
++    DO_TEST("cpu-cache-disable2", QEMU_CAPS_KVM);
++    DO_TEST("cpu-cache-disable3", QEMU_CAPS_KVM);
++    DO_TEST("cpu-cache-passthrough", QEMU_CAPS_KVM);
++    DO_TEST("cpu-cache-passthrough2", QEMU_CAPS_KVM);
++    DO_TEST("cpu-cache-emulate-l3", QEMU_CAPS_KVM);
++    DO_TEST_PARSE_ERROR("cpu-cache-emulate-l2", QEMU_CAPS_KVM);
++    DO_TEST_PARSE_ERROR("cpu-cache-passthrough3", QEMU_CAPS_KVM);
++    DO_TEST_PARSE_ERROR("cpu-cache-passthrough-l3", QEMU_CAPS_KVM);
+     qemuTestDriverFree(&driver);
+ 
+     return ret == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+-- 
+2.12.2
+

@@ -1,0 +1,388 @@
+From ea48ec29c4f2d53b7aee1db79e63e01a4272c666 Mon Sep 17 00:00:00 2001
+Message-Id: <ea48ec29c4f2d53b7aee1db79e63e01a4272c666@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Mon, 24 Apr 2017 15:40:07 +0200
+Subject: [PATCH] Add support for CPU cache specification
+
+This patch introduces
+
+    <cache level='N' mode='emulate'/>
+    <cache mode='passthrough'/>
+    <cache mode='disable'/>
+
+sub element of /domain/cpu. Currently only a single <cache> element is
+allowed.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit a646a6016a7c62688988f7cfaa22e1340c2ce761)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1447612
+
+Conflicts:
+	docs/formatdomain.html.in -- indentation changes not backported
+	docs/schemas/cputypes.rng -- CPU types were not separated from
+            domaincommon.rng
+	src/conf/cpu_conf.c -- virCPUDefCopyWithoutModel was not
+            separated from virCPUDefCopy
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ docs/formatdomain.html.in                          | 35 +++++++++++++
+ docs/schemas/domaincommon.rng                      | 24 +++++++++
+ src/conf/cpu_conf.c                                | 58 ++++++++++++++++++++++
+ src/conf/cpu_conf.h                                | 19 +++++++
+ src/libvirt_private.syms                           |  2 +
+ .../generic-cpu-cache-disable.xml                  | 20 ++++++++
+ .../generic-cpu-cache-emulate.xml                  | 20 ++++++++
+ .../generic-cpu-cache-passthrough.xml              | 20 ++++++++
+ tests/genericxml2xmltest.c                         |  4 ++
+ 9 files changed, 202 insertions(+)
+ create mode 100644 tests/genericxml2xmlindata/generic-cpu-cache-disable.xml
+ create mode 100644 tests/genericxml2xmlindata/generic-cpu-cache-emulate.xml
+ create mode 100644 tests/genericxml2xmlindata/generic-cpu-cache-passthrough.xml
+
+diff --git a/docs/formatdomain.html.in b/docs/formatdomain.html.in
+index e9b7bad9a..cbaf078ff 100644
+--- a/docs/formatdomain.html.in
++++ b/docs/formatdomain.html.in
+@@ -1175,6 +1175,7 @@
+     &lt;model fallback='allow'&gt;core2duo&lt;/model&gt;
+     &lt;vendor&gt;Intel&lt;/vendor&gt;
+     &lt;topology sockets='1' cores='2' threads='1'/&gt;
++    &lt;cache level='3' mode='emulate'/&gt;
+     &lt;feature policy='disable' name='lahf_lm'/&gt;
+   &lt;/cpu&gt;
+   ...</pre>
+@@ -1188,6 +1189,7 @@
+ 
+ <pre>
+   &lt;cpu mode='host-passthrough'&gt;
++    &lt;cache mode='passthrough'/&gt;
+     &lt;feature policy='disable' name='lahf_lm'/&gt;
+   ...</pre>
+ 
+@@ -1365,6 +1367,39 @@
+         <span class="since">Since 0.8.5</span> the <code>policy</code>
+         attribute can be omitted and will default to <code>require</code>.
+       </dd>
++
++      <dt><code>cache</code></dt>
++      <dd><span class="since">Since 3.3.0</span> the <code>cache</code>
++        element describes the virtual CPU cache. If the element is missing,
++        the hypervisor will use a sensible default.
++
++        <dl>
++          <dt><code>level</code></dt>
++          <dd>This optional attribute specifies which cache level is described
++            by the element. Missing attribute means the element describes all
++            CPU cache levels at once. Mixing <code>cache</code> elements with
++            the <code>level</code> attribute set and those without the
++            attribute is forbidden.</dd>
++
++          <dt><code>mode</code></dt>
++          <dd>
++            The following values are supported:
++            <dl>
++              <dt><code>emulate</code></dt>
++              <dd>The hypervisor will provide a fake CPU cache data.</dd>
++
++              <dt><code>passthrough</code></dt>
++              <dd>The real CPU cache data reported by the host CPU will be
++                passed through to the virtual CPU.</dd>
++
++              <dt><code>disable</code></dt>
++              <dd>The virtual CPU will report no CPU cache of the specified
++                level (or no cache at all if the <code>level</code> attribute
++                is missing).</dd>
++            </dl>
++          </dd>
++        </dl>
++      </dd>
+     </dl>
+ 
+     <p>
+diff --git a/docs/schemas/domaincommon.rng b/docs/schemas/domaincommon.rng
+index 6acc107c3..bd2823ff7 100644
+--- a/docs/schemas/domaincommon.rng
++++ b/docs/schemas/domaincommon.rng
+@@ -4388,6 +4388,9 @@
+         <optional>
+           <ref name="cpuNuma"/>
+         </optional>
++        <optional>
++          <ref name="cpuCache"/>
++        </optional>
+       </interleave>
+     </element>
+   </define>
+@@ -4511,6 +4514,27 @@
+     </element>
+   </define>
+ 
++  <define name="cpuCache">
++    <element name="cache">
++      <optional>
++        <attribute name="level">
++          <choice>
++            <value>1</value>
++            <value>2</value>
++            <value>3</value>
++          </choice>
++        </attribute>
++      </optional>
++      <attribute name="mode">
++        <choice>
++          <value>emulate</value>
++          <value>passthrough</value>
++          <value>disable</value>
++        </choice>
++      </attribute>
++    </element>
++  </define>
++
+   <!--
+       System information specification:
+        Placeholder for system specific informations likes the ones
+diff --git a/src/conf/cpu_conf.c b/src/conf/cpu_conf.c
+index 9ffaf1e95..d16864a9f 100644
+--- a/src/conf/cpu_conf.c
++++ b/src/conf/cpu_conf.c
+@@ -56,6 +56,12 @@ VIR_ENUM_IMPL(virCPUFeaturePolicy, VIR_CPU_FEATURE_LAST,
+               "disable",
+               "forbid")
+ 
++VIR_ENUM_IMPL(virCPUCacheMode, VIR_CPU_CACHE_MODE_LAST,
++              "emulate",
++              "passthrough",
++              "disable")
++
++
+ void ATTRIBUTE_NONNULL(1)
+ virCPUDefFreeModel(virCPUDefPtr def)
+ {
+@@ -77,6 +83,7 @@ virCPUDefFree(virCPUDefPtr def)
+         return;
+ 
+     virCPUDefFreeModel(def);
++    VIR_FREE(def->cache);
+     VIR_FREE(def);
+ }
+ 
+@@ -131,6 +138,13 @@ virCPUDefCopy(const virCPUDef *cpu)
+     copy->threads = cpu->threads;
+     copy->arch = cpu->arch;
+ 
++    if (cpu->cache) {
++        if (VIR_ALLOC(copy->cache) < 0)
++            goto error;
++
++        *copy->cache = *cpu->cache;
++    }
++
+     if (virCPUDefCopyModel(copy, cpu, false) < 0)
+         goto error;
+ 
+@@ -389,6 +403,41 @@ virCPUDefParseXML(xmlNodePtr node,
+         def->features[i].policy = policy;
+     }
+ 
++    if (virXPathInt("count(./cache)", ctxt, &n) < 0) {
++        goto cleanup;
++    } else if (n > 1) {
++        virReportError(VIR_ERR_XML_ERROR, "%s",
++                       _("at most one CPU cache element may be specified"));
++        goto cleanup;
++    } else if (n == 1) {
++        int level = -1;
++        char *strmode;
++        int mode;
++
++        if (virXPathBoolean("boolean(./cache[1]/@level)", ctxt) == 1 &&
++            (virXPathInt("string(./cache[1]/@level)", ctxt, &level) < 0 ||
++             level < 1 || level > 3)) {
++            virReportError(VIR_ERR_XML_ERROR, "%s",
++                           _("invalid CPU cache level, must be in range [1,3]"));
++            goto cleanup;
++        }
++
++        if (!(strmode = virXPathString("string(./cache[1]/@mode)", ctxt)) ||
++            (mode = virCPUCacheModeTypeFromString(strmode)) < 0) {
++            VIR_FREE(strmode);
++            virReportError(VIR_ERR_XML_ERROR, "%s",
++                           _("missing or invalid CPU cache mode"));
++            goto cleanup;
++        }
++        VIR_FREE(strmode);
++
++        if (VIR_ALLOC(def->cache) < 0)
++            goto cleanup;
++
++        def->cache->level = level;
++        def->cache->mode = mode;
++    }
++
+  cleanup:
+     ctxt->node = oldnode;
+     VIR_FREE(fallback);
+@@ -557,6 +606,15 @@ virCPUDefFormatBuf(virBufferPtr buf,
+         virBufferAddLit(buf, "/>\n");
+     }
+ 
++    if (def->cache) {
++        virBufferAddLit(buf, "<cache ");
++        if (def->cache->level != -1)
++            virBufferAsprintf(buf, "level='%d' ", def->cache->level);
++        virBufferAsprintf(buf, "mode='%s'",
++                          virCPUCacheModeTypeToString(def->cache->mode));
++        virBufferAddLit(buf, "/>\n");
++    }
++
+     for (i = 0; i < def->nfeatures; i++) {
+         virCPUFeatureDefPtr feature = def->features + i;
+ 
+diff --git a/src/conf/cpu_conf.h b/src/conf/cpu_conf.h
+index 705ba6d90..53541d15f 100644
+--- a/src/conf/cpu_conf.h
++++ b/src/conf/cpu_conf.h
+@@ -92,6 +92,24 @@ struct _virCPUFeatureDef {
+ };
+ 
+ 
++typedef enum {
++    VIR_CPU_CACHE_MODE_EMULATE,
++    VIR_CPU_CACHE_MODE_PASSTHROUGH,
++    VIR_CPU_CACHE_MODE_DISABLE,
++
++    VIR_CPU_CACHE_MODE_LAST
++} virCPUCacheMode;
++
++VIR_ENUM_DECL(virCPUCacheMode);
++
++typedef struct _virCPUCacheDef virCPUCacheDef;
++typedef virCPUCacheDef *virCPUCacheDefPtr;
++struct _virCPUCacheDef {
++    int level;          /* -1 for unspecified */
++    virCPUCacheMode mode;
++};
++
++
+ typedef struct _virCPUDef virCPUDef;
+ typedef virCPUDef *virCPUDefPtr;
+ struct _virCPUDef {
+@@ -109,6 +127,7 @@ struct _virCPUDef {
+     size_t nfeatures;
+     size_t nfeatures_max;
+     virCPUFeatureDefPtr features;
++    virCPUCacheDefPtr cache;
+ };
+ 
+ 
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index e2dbee92d..bfeb1e58f 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -63,6 +63,8 @@ virCapabilitiesSetNetPrefix;
+ 
+ 
+ # conf/cpu_conf.h
++virCPUCacheModeTypeFromString;
++virCPUCacheModeTypeToString;
+ virCPUDefAddFeature;
+ virCPUDefCopy;
+ virCPUDefCopyModel;
+diff --git a/tests/genericxml2xmlindata/generic-cpu-cache-disable.xml b/tests/genericxml2xmlindata/generic-cpu-cache-disable.xml
+new file mode 100644
+index 000000000..25f65cc6e
+--- /dev/null
++++ b/tests/genericxml2xmlindata/generic-cpu-cache-disable.xml
+@@ -0,0 +1,20 @@
++<domain type='kvm'>
++  <name>foo</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219136</memory>
++  <currentMemory unit='KiB'>219136</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='i686' machine='pc'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <cpu mode='host-passthrough'>
++    <cache mode='disable'/>
++  </cpu>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++  </devices>
++</domain>
+diff --git a/tests/genericxml2xmlindata/generic-cpu-cache-emulate.xml b/tests/genericxml2xmlindata/generic-cpu-cache-emulate.xml
+new file mode 100644
+index 000000000..6ea57cbf6
+--- /dev/null
++++ b/tests/genericxml2xmlindata/generic-cpu-cache-emulate.xml
+@@ -0,0 +1,20 @@
++<domain type='kvm'>
++  <name>foo</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219136</memory>
++  <currentMemory unit='KiB'>219136</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='i686' machine='pc'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <cpu mode='host-passthrough'>
++    <cache level='3' mode='emulate'/>
++  </cpu>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++  </devices>
++</domain>
+diff --git a/tests/genericxml2xmlindata/generic-cpu-cache-passthrough.xml b/tests/genericxml2xmlindata/generic-cpu-cache-passthrough.xml
+new file mode 100644
+index 000000000..8d4c186c9
+--- /dev/null
++++ b/tests/genericxml2xmlindata/generic-cpu-cache-passthrough.xml
+@@ -0,0 +1,20 @@
++<domain type='kvm'>
++  <name>foo</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219136</memory>
++  <currentMemory unit='KiB'>219136</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='i686' machine='pc'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <cpu mode='host-passthrough'>
++    <cache mode='passthrough'/>
++  </cpu>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++  </devices>
++</domain>
+diff --git a/tests/genericxml2xmltest.c b/tests/genericxml2xmltest.c
+index 2ea239648..17afc1dc9 100644
+--- a/tests/genericxml2xmltest.c
++++ b/tests/genericxml2xmltest.c
+@@ -99,6 +99,10 @@ mymain(void)
+ 
+     DO_TEST("vcpus-individual");
+ 
++    DO_TEST("cpu-cache-emulate");
++    DO_TEST("cpu-cache-passthrough");
++    DO_TEST("cpu-cache-disable");
++
+     virObjectUnref(caps);
+     virObjectUnref(xmlopt);
+ 
+-- 
+2.12.2
+

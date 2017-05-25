@@ -1,0 +1,160 @@
+From 5862ba139392fab763092ccffcb109eb8e5b52a9 Mon Sep 17 00:00:00 2001
+Message-Id: <5862ba139392fab763092ccffcb109eb8e5b52a9@dist-git>
+From: Laine Stump <laine@laine.org>
+Date: Thu, 13 Apr 2017 14:29:24 -0400
+Subject: [PATCH] util: change virPCIGetNetName() to not return error if device
+ has no net name
+
+...and cleanup the callers to report it when it *is* an error.
+
+In many cases It's useful for virPCIGetNetName() to not log an error
+and simply return a NULL pointer when the given device isn't bound to
+a net driver (e.g. we're looking at a VF that is permanently bound to
+vfio-pci). The existing code would silently return an error in this
+case, which could eventually lead to the dreaded "An error occurred
+but the cause is unknown" log message.
+
+This patch changes virPCIGetNetName() to still return success if the
+device simply isn't bound to a net driver, and adjusts all the callers
+that require a non-null netname to check for that condition and log an
+error when it happens.
+
+Resolves: https://bugzilla.redhat.com/1442040 (RHEL 7.3.z)
+Resolves: https://bugzilla.redhat.com/1415609 (RHEL 7.4)
+
+(cherry picked from commit d6ee56d723761d408eeef32a96e3c118e0e742c2)
+---
+ src/util/virhostdev.c | 13 +++++++++++++
+ src/util/virnetdev.c  | 19 +++++++++++++++++--
+ src/util/virpci.c     | 32 +++++++++++++++++++++++---------
+ 3 files changed, 53 insertions(+), 11 deletions(-)
+
+diff --git a/src/util/virhostdev.c b/src/util/virhostdev.c
+index 1e4bb1e7d..93b69501c 100644
+--- a/src/util/virhostdev.c
++++ b/src/util/virhostdev.c
+@@ -313,8 +313,21 @@ virHostdevNetDevice(virDomainHostdevDefPtr hostdev, char **linkdev,
+                                          vf) < 0)
+             goto cleanup;
+     } else {
++        /* In practice this should never happen, since we currently
++         * only support assigning SRIOV VFs via <interface
++         * type='hostdev'>, and it is only those devices that should
++         * end up calling this function.
++         */
+         if (virPCIGetNetName(sysfs_path, linkdev) < 0)
+             goto cleanup;
++
++        if (!linkdev) {
++            virReportError(VIR_ERR_INTERNAL_ERROR,
++                           _("The device at %s has no network device name"),
++                             sysfs_path);
++            goto cleanup;
++        }
++
+         *vf = -1;
+     }
+ 
+diff --git a/src/util/virnetdev.c b/src/util/virnetdev.c
+index 30a4a01ee..766638dd3 100644
+--- a/src/util/virnetdev.c
++++ b/src/util/virnetdev.c
+@@ -1162,6 +1162,9 @@ virNetDevGetVirtualFunctions(const char *pfname,
+         }
+ 
+         if (virPCIGetNetName(pci_sysfs_device_link, &((*vfname)[i])) < 0)
++            goto cleanup;
++
++        if (!(*vfname)[i])
+             VIR_INFO("VF does not have an interface name");
+     }
+ 
+@@ -1258,10 +1261,22 @@ virNetDevGetPhysicalFunction(const char *ifname, char **pfname)
+     if (virNetDevSysfsDeviceFile(&physfn_sysfs_path, ifname, "physfn") < 0)
+         return ret;
+ 
+-    ret = virPCIGetNetName(physfn_sysfs_path, pfname);
++    if (virPCIGetNetName(physfn_sysfs_path, pfname) < 0)
++        goto cleanup;
+ 
++    if (!*pfname) {
++        /* this shouldn't be possible. A VF can't exist unless its
++         * PF device is bound to a network driver
++         */
++        virReportError(VIR_ERR_INTERNAL_ERROR,
++                       _("The PF device for VF %s has no network device name"),
++                       ifname);
++        goto cleanup;
++    }
++
++    ret = 0;
++ cleanup:
+     VIR_FREE(physfn_sysfs_path);
+-
+     return ret;
+ }
+ 
+diff --git a/src/util/virpci.c b/src/util/virpci.c
+index 132948d32..f6d1e48c7 100644
+--- a/src/util/virpci.c
++++ b/src/util/virpci.c
+@@ -2683,8 +2683,11 @@ virPCIGetNetName(char *device_link_sysfs_path, char **netname)
+         return -1;
+     }
+ 
+-    if (virDirOpenQuiet(&dir, pcidev_sysfs_net_path) < 0)
++    if (virDirOpenQuiet(&dir, pcidev_sysfs_net_path) < 0) {
++        /* this *isn't* an error - caller needs to check for netname == NULL */
++        ret = 0;
+         goto out;
++    }
+ 
+     while (virDirRead(dir, &entry, pcidev_sysfs_net_path) > 0) {
+         /* Assume a single directory entry */
+@@ -2710,24 +2713,35 @@ virPCIGetVirtualFunctionInfo(const char *vf_sysfs_device_path,
+     int ret = -1;
+ 
+     if (virPCIGetPhysicalFunction(vf_sysfs_device_path, &pf_config_address) < 0)
+-        return ret;
++        goto cleanup;
+ 
+     if (!pf_config_address)
+-        return ret;
++        goto cleanup;
+ 
+     if (virPCIDeviceAddressGetSysfsFile(pf_config_address,
+                                         &pf_sysfs_device_path) < 0) {
+-
+-        VIR_FREE(pf_config_address);
+-        return ret;
++        goto cleanup;
+     }
+ 
+-    if (virPCIGetVirtualFunctionIndex(pf_sysfs_device_path, vf_sysfs_device_path,
+-                                      vf_index) < 0)
++    if (virPCIGetVirtualFunctionIndex(pf_sysfs_device_path,
++                                      vf_sysfs_device_path, vf_index) < 0) {
++        goto cleanup;
++    }
++
++    if (virPCIGetNetName(pf_sysfs_device_path, pfname) < 0)
+         goto cleanup;
+ 
+-    ret = virPCIGetNetName(pf_sysfs_device_path, pfname);
++    if (!*pfname) {
++        /* this shouldn't be possible. A VF can't exist unless its
++         * PF device is bound to a network driver
++         */
++        virReportError(VIR_ERR_INTERNAL_ERROR,
++                       _("The PF device for VF %s has no network device name"),
++                       vf_sysfs_device_path);
++        goto cleanup;
++    }
+ 
++    ret = 0;
+  cleanup:
+     VIR_FREE(pf_config_address);
+     VIR_FREE(pf_sysfs_device_path);
+-- 
+2.12.2
+

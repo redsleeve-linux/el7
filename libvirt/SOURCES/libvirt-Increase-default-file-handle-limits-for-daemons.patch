@@ -1,0 +1,81 @@
+From a5ceaa8601794b7a60726c7fed5bf29dde15c9b2 Mon Sep 17 00:00:00 2001
+Message-Id: <a5ceaa8601794b7a60726c7fed5bf29dde15c9b2@dist-git>
+From: "Daniel P. Berrange" <berrange@redhat.com>
+Date: Thu, 13 Apr 2017 13:36:31 -0400
+Subject: [PATCH] Increase default file handle limits for daemons
+
+Linux still defaults to a 1024 open file handle limit. This causes
+scalability problems for libvirtd / virtlockd / virtlogd on large
+hosts which might want > 1024 guest to be running. In fact if each
+guest needs > 1 FD, we can't even get to 500 guests. This is not
+good enough when we see machines with 100's of physical cores and
+TBs of RAM.
+
+In comparison to other memory requirements of libvirtd & related
+daemons, the resource usage associated with open file handles
+is essentially line noise. It is thus reasonable to increase the
+limits unconditionally for all installs.
+
+Resolves: https://bugzilla.redhat.com/1442043 (RHEL7.3.z)
+Resolves: https://bugzilla.redhat.com/1429551 (RHEL7.4)
+
+Signed-off-by: Daniel P. Berrange <berrange@redhat.com>
+(cherry picked from commit 27cd76350021d36b9bd8b187ce5c8919659e3806)
+---
+ daemon/libvirtd.service.in       | 7 +++++--
+ src/locking/virtlockd.service.in | 4 ++++
+ src/logging/virtlogd.service.in  | 5 +++++
+ 3 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/daemon/libvirtd.service.in b/daemon/libvirtd.service.in
+index bbf27dae9..5f5d35edb 100644
+--- a/daemon/libvirtd.service.in
++++ b/daemon/libvirtd.service.in
+@@ -23,8 +23,11 @@ ExecStart=@sbindir@/libvirtd $LIBVIRTD_ARGS
+ ExecReload=/bin/kill -HUP $MAINPID
+ KillMode=process
+ Restart=on-failure
+-# Override the maximum number of opened files
+-#LimitNOFILE=2048
++# At least 1 FD per guest, often 2 (eg qemu monitor + qemu agent).
++# eg if we want to support 4096 guests, we'll typically need 8192 FDs
++# If changing this, also consider virtlogd.service & virtlockd.service
++# limits which are also related to number of guests
++LimitNOFILE=8192
+ 
+ [Install]
+ WantedBy=multi-user.target
+diff --git a/src/locking/virtlockd.service.in b/src/locking/virtlockd.service.in
+index 57089b046..4907e3290 100644
+--- a/src/locking/virtlockd.service.in
++++ b/src/locking/virtlockd.service.in
+@@ -12,6 +12,10 @@ ExecReload=/bin/kill -USR1 $MAINPID
+ # cause the machine to be fenced (rebooted), so make
+ # sure we discourage OOM killer
+ OOMScoreAdjust=-900
++# Needs to allow for max guests * average disks per guest
++# libvirtd.service written to expect 4096 guests, so if we
++# allow for 4 disks per guest, we get:
++LimitNOFILE=16384
+ 
+ [Install]
+ Also=virtlockd.socket
+diff --git a/src/logging/virtlogd.service.in b/src/logging/virtlogd.service.in
+index 09e074014..8b67317cb 100644
+--- a/src/logging/virtlogd.service.in
++++ b/src/logging/virtlogd.service.in
+@@ -13,6 +13,11 @@ ExecReload=/bin/kill -USR1 $MAINPID
+ # cause the machine to be fenced (rebooted), so make
+ # sure we discourage OOM killer
+ OOMScoreAdjust=-900
++# Need to have at least one file open per guest (eg QEMU
++# stdio log), but might be more (eg serial console logs)
++# libvirtd.service written to expect 4096 guests, so if we
++# guess at 2 log files per guest here (stdio + 1 serial):
++LimitNOFILE=8192
+ 
+ [Install]
+ Also=virtlogd.socket
+-- 
+2.12.2
+

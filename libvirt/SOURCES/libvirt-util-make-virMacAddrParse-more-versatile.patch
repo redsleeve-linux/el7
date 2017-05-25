@@ -1,0 +1,34 @@
+From 4ff07d06055d17b19f5f43bfbefcda58931a08a5 Mon Sep 17 00:00:00 2001
+Message-Id: <4ff07d06055d17b19f5f43bfbefcda58931a08a5@dist-git>
+From: Laine Stump <laine@laine.org>
+Date: Thu, 13 Apr 2017 14:29:23 -0400
+Subject: [PATCH] util: make virMacAddrParse more versatile
+
+Previously the MAC address text was required to be terminated with a
+NULL. After this, it can be terminated with a space or any control
+character.
+
+Resolves: https://bugzilla.redhat.com/1442040 (RHEL 7.3.z)
+Resolves: https://bugzilla.redhat.com/1415609 (RHEL 7.4)
+
+(cherry picked from commit 30b07a425d7b5b3ac7ca68d3574692ac6415ccbe)
+---
+ src/util/virmacaddr.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/util/virmacaddr.c b/src/util/virmacaddr.c
+index 612a409d0..7afe032b9 100644
+--- a/src/util/virmacaddr.c
++++ b/src/util/virmacaddr.c
+@@ -169,7 +169,7 @@ virMacAddrParse(const char* str, virMacAddrPtr addr)
+ 
+         addr->addr[i] = (unsigned char) result;
+ 
+-        if ((i == 5) && (*end_ptr == '\0'))
++        if ((i == 5) && (*end_ptr <= ' '))
+             return 0;
+         if (*end_ptr != ':')
+             break;
+-- 
+2.12.2
+

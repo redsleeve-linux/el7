@@ -1,0 +1,37 @@
+From eb83a2ac219b229580faaae38422b7129076b70a Mon Sep 17 00:00:00 2001
+Message-Id: <eb83a2ac219b229580faaae38422b7129076b70a@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Thu, 4 May 2017 10:41:43 +0200
+Subject: [PATCH] RHEL: qemuxml2argvtest: Properly reset host CPU arch
+
+RHEL-only, upstream reworked the way host CPUs and architectures are
+set.
+
+driver.caps->host.cpu->arch and cpuDefault point to the same structure
+and the line did not really do anything leaving the host CPU arch set to
+VIR_ARCH_AARCH64. Without this fix qemuxml2argvtest would segfault after
+the following patch.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1447612
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ tests/qemuxml2argvtest.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tests/qemuxml2argvtest.c b/tests/qemuxml2argvtest.c
+index dc5580e02..cbf785e1b 100644
+--- a/tests/qemuxml2argvtest.c
++++ b/tests/qemuxml2argvtest.c
+@@ -1956,7 +1956,7 @@ mymain(void)
+     DO_TEST_FAILURE("aarch64-kvm-32-on-64",
+             QEMU_CAPS_NODEFCONFIG, QEMU_CAPS_DEVICE_VIRTIO_MMIO,
+             QEMU_CAPS_KVM);
+-    driver.caps->host.cpu->arch = cpuDefault->arch;
++    driver.caps->host.cpu->arch = VIR_ARCH_X86_64;
+ 
+     DO_TEST("kvm-pit-device", QEMU_CAPS_KVM_PIT_TICK_POLICY);
+     DO_TEST("kvm-pit-delay", QEMU_CAPS_NO_KVM_PIT);
+-- 
+2.12.2
+

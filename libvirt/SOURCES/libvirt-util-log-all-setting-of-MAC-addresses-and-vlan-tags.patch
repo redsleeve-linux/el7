@@ -1,0 +1,93 @@
+From 243d1e0bc40312d06b967a1d4800a69cc518777f Mon Sep 17 00:00:00 2001
+Message-Id: <243d1e0bc40312d06b967a1d4800a69cc518777f@dist-git>
+From: Laine Stump <laine@laine.org>
+Date: Thu, 13 Apr 2017 14:29:38 -0400
+Subject: [PATCH] util: log all setting of MAC addresses and vlan tags
+
+Having this information available will make it easier to determine the
+culprit when MAC or vlan tag appear to not be set, eg.:
+
+  https://bugzilla.redhat.com/1364073
+
+(This patch doesn't fix that bug, just makes it easier to diagnose)
+
+(cherry picked from commit 6ec36b06999cad155b75ed07ef656905b8a45180)
+
+https://bugzilla.redhat.com/1442040
+---
+ src/util/virnetdev.c | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/src/util/virnetdev.c b/src/util/virnetdev.c
+index a510ebc2e..37e47d165 100644
+--- a/src/util/virnetdev.c
++++ b/src/util/virnetdev.c
+@@ -241,6 +241,7 @@ virNetDevSetMACInternal(const char *ifname,
+     int fd = -1;
+     int ret = -1;
+     struct ifreq ifr;
++    char macstr[VIR_MAC_STRING_BUFLEN];
+ 
+     if ((fd = virNetDevSetupControl(ifname, &ifr)) < 0)
+         return -1;
+@@ -256,7 +257,6 @@ virNetDevSetMACInternal(const char *ifname,
+     virMacAddrGetRaw(macaddr, (unsigned char *)ifr.ifr_hwaddr.sa_data);
+ 
+     if (ioctl(fd, SIOCSIFHWADDR, &ifr) < 0) {
+-        char macstr[VIR_MAC_STRING_BUFLEN];
+ 
+         if (quiet && errno == EADDRNOTAVAIL)
+             goto cleanup;
+@@ -270,6 +270,10 @@ virNetDevSetMACInternal(const char *ifname,
+     ret = 0;
+ 
+  cleanup:
++    VIR_DEBUG("SIOCSIFHWADDR %s MAC=%s - %s",
++              ifname, virMacAddrFormat(macaddr, macstr),
++              ret < 0 ? "Fail" : "Success");
++
+     VIR_FORCE_CLOSE(fd);
+     return ret;
+ }
+@@ -312,6 +316,9 @@ virNetDevSetMACInternal(const char *ifname,
+ 
+         ret = 0;
+  cleanup:
++        VIR_DEBUG("SIOCSIFLLADDR %s MAC=%s - %s", ifname, mac + 1),
++                  ret < 0 ? "Fail" : "Success");
++
+         VIR_FORCE_CLOSE(s);
+ 
+         return ret;
+@@ -1439,6 +1446,7 @@ virNetDevSetVfConfig(const char *ifname, int vf,
+                      bool *allowRetry)
+ {
+     int rc = -1;
++    char macstr[VIR_MAC_STRING_BUFLEN];
+     struct nlmsghdr *resp = NULL;
+     struct nlmsgerr *err;
+     unsigned int recvbuflen = 0;
+@@ -1522,8 +1530,6 @@ virNetDevSetVfConfig(const char *ifname, int vf,
+             goto cleanup;
+         } else if (err->error) {
+             /* other errors are permanent */
+-            char macstr[VIR_MAC_STRING_BUFLEN];
+-
+             virReportSystemError(-err->error,
+                                  _("Cannot set interface MAC/vlanid to %s/%d "
+                                    "for ifname %s vf %d"),
+@@ -1547,6 +1553,11 @@ virNetDevSetVfConfig(const char *ifname, int vf,
+ 
+     rc = 0;
+  cleanup:
++    VIR_DEBUG("RTM_SETLINK %s vf %d MAC=%s vlanid=%d - %s",
++              ifname, vf,
++              macaddr ? virMacAddrFormat(macaddr, macstr) : "(unchanged)",
++              vlanid, rc < 0 ? "Fail" : "Success");
++
+     nlmsg_free(nl_msg);
+     VIR_FREE(resp);
+     return rc;
+-- 
+2.12.2
+

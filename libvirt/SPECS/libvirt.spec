@@ -217,7 +217,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 2.0.0
-Release: 10%{?dist}.5%{?extra_release}.redsleeve
+Release: 10%{?dist}.9%{?extra_release}
 License: LGPLv2+
 Group: Development/Libraries
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
@@ -508,8 +508,36 @@ Patch276: libvirt-qemuDomainAttachNetDevice-Avoid-originalError-leak.patch
 Patch277: libvirt-qemu-snapshot-Resume-VM-after-live-snapshot.patch
 Patch278: libvirt-qemu-Add-support-for-using-AES-secret-for-SCSI-hotplug.patch
 Patch279: libvirt-qemu-Don-t-assume-secret-provided-for-LUKS-encryption.patch
+Patch280: libvirt-qemu-Allow-empty-script-path-to-interface.patch
+Patch281: libvirt-Increase-default-file-handle-limits-for-daemons.patch
+Patch282: libvirt-util-permit-querying-a-VF-MAC-address-or-VLAN-tag-by-itself.patch
+Patch283: libvirt-util-remove-unused-args-from-virNetDevSetVfConfig.patch
+Patch284: libvirt-util-use-cleanup-label-consistently-in-virHostdevNetConfigReplace.patch
+Patch285: libvirt-util-eliminate-useless-local-variable.patch
+Patch286: libvirt-util-make-virMacAddrParse-more-versatile.patch
+Patch287: libvirt-util-change-virPCIGetNetName-to-not-return-error-if-device-has-no-net-name.patch
+Patch288: libvirt-util-make-virPCIGetDeviceAddressFromSysfsLink-public.patch
+Patch289: libvirt-util-new-function-virPCIDeviceRebind.patch
+Patch290: libvirt-util-new-internal-function-to-permit-silent-failure-of-virNetDevSetMAC.patch
+Patch291: libvirt-util-new-function-virNetDevPFGetVF.patch
+Patch292: libvirt-util-new-functions-virNetDev-Save-Read-Set-NetConfig.patch
+Patch293: libvirt-util-use-new-virNetDev-NetConfig-functions-for-macvtap-setup-teardown.patch
+Patch294: libvirt-util-use-new-virNetDev-NetConfig-functions-for-hostdev-setup-teardown.patch
+Patch295: libvirt-util-replace-virHostdevNetConfigReplace-with-.-Save-Set-NetConfig.patch
+Patch296: libvirt-util-save-hostdev-network-device-config-before-unbinding-from-host-driver.patch
+Patch297: libvirt-util-after-hostdev-assignment-restore-VF-MAC-address-via-setting-admin-MAC.patch
+Patch298: libvirt-util-remove-unused-functions-from-virnetdev.c.patch
+Patch299: libvirt-util-if-setting-admin-MAC-to-00-00-00-00-00-00-fails-try-02-00-00-00-00-00.patch
+Patch300: libvirt-util-try-really-hard-to-set-the-MAC-address-of-an-SRIOV-VF.patch
+Patch301: libvirt-util-log-all-setting-of-MAC-addresses-and-vlan-tags.patch
+Patch302: libvirt-util-rename-virHostdevNetConfigRestore-to-virHostdevRestoreNetConfig.patch
+Patch303: libvirt-util-allow-ignoring-SIOCSIFHWADDR-when-errno-is-EPERM.patch
+Patch304: libvirt-qemuDomainAttachNetDevice-Support-attach-of-type-user.patch
+Patch305: libvirt-conf-Rename-mode-parameter-in-virCPUDefParseXML.patch
+Patch306: libvirt-Add-support-for-CPU-cache-specification.patch
+Patch307: libvirt-RHEL-qemuxml2argvtest-Properly-reset-host-CPU-arch.patch
+Patch308: libvirt-qemu-Add-support-for-guest-CPU-cache.patch
 
-Patch1000: libvirt-tests-nsslinktest:-also-build-virAtomic.h-redsleeve.patch
 
 Requires: libvirt-daemon = %{version}-%{release}
 Requires: libvirt-daemon-config-network = %{version}-%{release}
@@ -2151,8 +2179,42 @@ exit 0
 
 
 %changelog
-* Sat Mar 04 2017 Jacco Ligthart <jacco@redsleeve.org> - 2.0.0-10.el7.5.redsleeve
-- add a patch to be able to build the tests
+* Thu May  4 2017 Jiri Denemark <jdenemar@redhat.com> - 2.0.0-10.el7_3.9
+- qemuDomainAttachNetDevice: Support attach of type="user" (rhbz#1445231)
+- conf: Rename mode parameter in virCPUDefParseXML (rhbz#1447612)
+- Add support for CPU cache specification (rhbz#1447612)
+- RHEL: qemuxml2argvtest: Properly reset host CPU arch (rhbz#1447612)
+- qemu: Add support for guest CPU cache (rhbz#1447612)
+
+* Mon Apr 24 2017 Jiri Denemark <jdenemar@redhat.com> - 2.0.0-10.el7_3.8
+- util: allow ignoring SIOCSIFHWADDR when errno is EPERM (rhbz#1442040)
+
+* Wed Apr 19 2017 Jiri Denemark <jdenemar@redhat.com> - 2.0.0-10.el7_3.7
+- Increase default file handle limits for daemons (rhbz#1442043)
+- util: permit querying a VF MAC address or VLAN tag by itself (rhbz#1442040)
+- util: remove unused args from virNetDevSetVfConfig() (rhbz#1442040)
+- util: use cleanup label consistently in virHostdevNetConfigReplace() (rhbz#1442040)
+- util: eliminate useless local variable (rhbz#1442040)
+- util: make virMacAddrParse more versatile (rhbz#1442040)
+- util: change virPCIGetNetName() to not return error if device has no net name (rhbz#1442040)
+- util: make virPCIGetDeviceAddressFromSysfsLink() public (rhbz#1442040)
+- util: new function virPCIDeviceRebind() (rhbz#1442040)
+- util: new internal function to permit silent failure of virNetDevSetMAC() (rhbz#1442040)
+- util: new function virNetDevPFGetVF() (rhbz#1442040)
+- util: new functions virNetDev(Save|Read|Set)NetConfig() (rhbz#1442040)
+- util: use new virNetDev*NetConfig() functions for macvtap setup/teardown (rhbz#1442040)
+- util: use new virNetDev*NetConfig() functions for hostdev setup/teardown (rhbz#1442040)
+- util: replace virHostdevNetConfigReplace with ...(Save|Set)NetConfig() (rhbz#1442040)
+- util: save hostdev network device config before unbinding from host driver (rhbz#1442040)
+- util: after hostdev assignment, restore VF MAC address via setting admin MAC (rhbz#1442040)
+- util: remove unused functions from virnetdev.c (rhbz#1442040)
+- util: if setting admin MAC to 00:00:00:00:00:00 fails, try 02:00:00:00:00:00 (rhbz#1442040)
+- util: try *really* hard to set the MAC address of an SRIOV VF (rhbz#1442040)
+- util: log all setting of MAC addresses and vlan tags (rhbz#1442040)
+- util: rename virHostdevNetConfigRestore() to virHostdevRestoreNetConfig() (rhbz#1442040)
+
+* Fri Mar 31 2017 Jiri Denemark <jdenemar@redhat.com> - 2.0.0-10.el7_3.6
+- qemu: Allow empty script path to <interface/> (rhbz#1429510)
 
 * Fri Feb 10 2017 Jiri Denemark <jdenemar@redhat.com> - 2.0.0-10.el7_3.5
 - qemu: Add support for using AES secret for SCSI hotplug (rhbz#1411398)
