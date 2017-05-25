@@ -1,6 +1,6 @@
 %define glibcsrcdir glibc-2.17-c758a686
 %define glibcversion 2.17
-%define glibcrelease 157%{?dist}.1
+%define glibcrelease 157%{?dist}.2
 ##############################################################################
 # We support the following options:
 # --with/--without,
@@ -125,7 +125,7 @@
 Summary: The GNU libc libraries
 Name: glibc
 Version: %{glibcversion}
-Release: %{glibcrelease}.redsleeve
+Release: %{glibcrelease}
 # GPLv2+ is used in a bunch of programs, LGPLv2+ is used for libraries.
 # Things that are linked directly into dynamically linked programs
 # and shared libraries (e.g. crt files, lib*_nonshared.a) have an additional
@@ -1005,11 +1005,13 @@ Patch2075: glibc-rh1318890.patch
 Patch2076: glibc-rh1213603.patch
 Patch2077: glibc-rh1370630.patch
 
+# getaddrinfo with nscd fixes
+Patch2078: glibc-rh1436312.patch
+
+
 ##############################################################################
 # End of glibc patches.
 ##############################################################################
-
-Patch3000: glibc-rh1256317-redsleeve.patch
 
 ##############################################################################
 # Continued list of core "glibc" package information:
@@ -1619,6 +1621,7 @@ package or when debugging this package.
 %patch2075 -p1
 %patch2076 -p1
 %patch2077 -p1
+%patch2078 -p1
 # Rebase of microbenchmarks.
 %patch1607 -p1
 %patch1609 -p1
@@ -1806,8 +1809,6 @@ package or when debugging this package.
 %patch1754 -p1
 %patch1755 -p1
 %patch1756 -p1
-
-%patch3000 -p1
 
 ##############################################################################
 # %%prep - Additional prep required...
@@ -2955,8 +2956,8 @@ rm -f *.filelist*
 %endif
 
 %changelog
-* Sun Dec 11 2016 Jacco Ligthart <jacco@redsleeve.org> 2.17-157.1.redsleeve
-- enhanced the patch for rh1256317 to build on arm
+* Tue Mar 28 2017 DJ Delorie <dj@redhat.com> - 2.17-157.2
+- Fix use of uninitialized data in getaddrinfo with nscd (#1436312)
 
 * Thu Oct 27 2016 Carlos O'Donell <carlos@redhat.com> - 2.17-157.1
 - Do not set initgroups in default nsswitch.conf (#1388638)
