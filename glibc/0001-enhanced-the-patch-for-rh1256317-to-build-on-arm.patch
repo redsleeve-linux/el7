@@ -1,6 +1,6 @@
-From 49566721f2806242891ab51e1a4e16d618b3ba95 Mon Sep 17 00:00:00 2001
+From c462078675a86d5ada4f0ca19b84fc70e5701a3c Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Tue, 13 Dec 2016 21:40:11 +0100
+Date: Fri, 26 May 2017 00:53:52 +0200
 Subject: [PATCH] enhanced the patch for rh1256317 to build on arm
 
 ---
@@ -27,7 +27,7 @@ index 0000000..d9a61a1
 + 	cfi_register (lr, ip)
 + 	mov r1, r0
 diff --git a/SPECS/glibc.spec b/SPECS/glibc.spec
-index eb8e8d5..e692aa2 100644
+index 51d4a3a..8f6d7bf 100644
 --- a/SPECS/glibc.spec
 +++ b/SPECS/glibc.spec
 @@ -125,7 +125,7 @@
@@ -39,7 +39,7 @@ index eb8e8d5..e692aa2 100644
  # GPLv2+ is used in a bunch of programs, LGPLv2+ is used for libraries.
  # Things that are linked directly into dynamically linked programs
  # and shared libraries (e.g. crt files, lib*_nonshared.a) have an additional
-@@ -1009,6 +1009,8 @@ Patch2077: glibc-rh1370630.patch
+@@ -1013,6 +1013,8 @@ Patch2078: glibc-rh1436312.patch
  # End of glibc patches.
  ##############################################################################
  
@@ -48,7 +48,7 @@ index eb8e8d5..e692aa2 100644
  ##############################################################################
  # Continued list of core "glibc" package information:
  ##############################################################################
-@@ -1805,6 +1807,8 @@ package or when debugging this package.
+@@ -1810,6 +1812,8 @@ package or when debugging this package.
  %patch1755 -p1
  %patch1756 -p1
  
@@ -57,16 +57,16 @@ index eb8e8d5..e692aa2 100644
  ##############################################################################
  # %%prep - Additional prep required...
  ##############################################################################
-@@ -2951,6 +2955,9 @@ rm -f *.filelist*
+@@ -2956,6 +2960,9 @@ rm -f *.filelist*
  %endif
  
  %changelog
-+* Sun Dec 11 2016 Jacco Ligthart <jacco@redsleeve.org> 2.17-157.1.redsleeve
++* Thu May 25 2017 Jacco Ligthart <jacco@redsleeve.org> 2.17-157.2.redsleeve
 +- enhanced the patch for rh1256317 to build on arm
 +
- * Thu Oct 27 2016 Carlos O'Donell <carlos@redhat.com> - 2.17-157.1
- - Do not set initgroups in default nsswitch.conf (#1388638)
- - nss_db: Request larger buffers for long group entries (#1388637)
+ * Tue Mar 28 2017 DJ Delorie <dj@redhat.com> - 2.17-157.2
+ - Fix use of uninitialized data in getaddrinfo with nscd (#1436312)
+ 
 -- 
 1.8.3.1
 
