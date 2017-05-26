@@ -217,7 +217,7 @@
 Summary: Library providing a simple virtualization API
 Name: libvirt
 Version: 2.0.0
-Release: 10%{?dist}.9%{?extra_release}
+Release: 10%{?dist}.9%{?extra_release}.redsleeve
 License: LGPLv2+
 Group: Development/Libraries
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
@@ -538,6 +538,7 @@ Patch306: libvirt-Add-support-for-CPU-cache-specification.patch
 Patch307: libvirt-RHEL-qemuxml2argvtest-Properly-reset-host-CPU-arch.patch
 Patch308: libvirt-qemu-Add-support-for-guest-CPU-cache.patch
 
+Patch1000: libvirt-tests-nsslinktest:-also-build-virAtomic.h-redsleeve.patch
 
 Requires: libvirt-daemon = %{version}-%{release}
 Requires: libvirt-daemon-config-network = %{version}-%{release}
@@ -2179,6 +2180,9 @@ exit 0
 
 
 %changelog
+* Thu May 25 2017 Jacco Ligthart <jacco@redsleeve.org> - 2.0.0-10.el7.9.redsleeve
+- add a patch to be able to build the tests
+
 * Thu May  4 2017 Jiri Denemark <jdenemar@redhat.com> - 2.0.0-10.el7_3.9
 - qemuDomainAttachNetDevice: Support attach of type="user" (rhbz#1445231)
 - conf: Rename mode parameter in virCPUDefParseXML (rhbz#1447612)
