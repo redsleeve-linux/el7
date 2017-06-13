@@ -41,10 +41,6 @@
 %ifarch aarch64
     %global kvm_target    aarch64
 %endif
-%ifarch %{arm}
-    %global kvm_target    arm
-%endif
-
 
 #Versions of various parts:
 
@@ -80,7 +76,7 @@ Obsoletes: %1 < %{obsoletes_version}                                      \
 Summary: QEMU is a FAST! processor emulator
 Name: %{pkgname}%{?pkgsuffix}
 Version: 1.5.3
-Release: 126%{?dist}.6.redsleeve
+Release: 126%{?dist}.9
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 Epoch: 10
 License: GPLv2+ and LGPLv2+ and BSD
@@ -3450,6 +3446,46 @@ Patch1693: kvm-cirrus-stop-passing-around-dst-pointers-in-the-blitt.patch
 Patch1694: kvm-cirrus-stop-passing-around-src-pointers-in-the-blitt.patch
 # For bz#1430059 - CVE-2016-9603 qemu-kvm: Qemu: cirrus: heap buffer overflow via vnc connection [rhel-7.3.z]
 Patch1695: kvm-cirrus-fix-off-by-one-in-cirrus_bitblt_rop_bkwd_tran.patch
+# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1696: kvm-char-serial-cosmetic-fixes.patch
+# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1697: kvm-char-serial-Use-generic-Fifo8.patch
+# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1698: kvm-char-serial-serial_ioport_write-Factor-out-common-co.patch
+# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1699: kvm-char-serial-fix-copy-paste-error-fifo8_is_full-vs-em.patch
+# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1700: kvm-char-serial-Fix-emptyness-check.patch
+# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1701: kvm-char-serial-Fix-emptyness-handling.patch
+# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1702: kvm-serial-poll-the-serial-console-with-G_IO_HUP.patch
+# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1703: kvm-serial-change-retry-logic-to-avoid-concurrency.patch
+# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1704: kvm-qemu-char-ignore-flow-control-if-a-PTY-s-slave-is-no.patch
+# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1705: kvm-serial-check-if-backed-by-a-physical-serial-port-at-.patch
+# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1706: kvm-serial-reset-thri_pending-on-IER-writes-with-THRI-0.patch
+# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1707: kvm-serial-clean-up-THRE-TEMT-handling.patch
+# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1708: kvm-serial-update-LSR-on-enabling-disabling-FIFOs.patch
+# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1709: kvm-serial-only-resample-THR-interrupt-on-rising-edge-of.patch
+# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1710: kvm-serial-make-tsr_retry-unsigned.patch
+# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1711: kvm-serial-simplify-tsr_retry-reset.patch
+# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1712: kvm-serial-separate-serial_xmit-and-serial_watch_cb.patch
+# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1713: kvm-serial-remove-watch-on-reset.patch
+# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1714: kvm-char-change-qemu_chr_fe_add_watch-to-return-unsigned.patch
+# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1715: kvm-spice-fix-spice_chr_add_watch-pre-condition.patch
 
 
 BuildRequires: zlib-devel
@@ -5325,6 +5361,26 @@ cp %{SOURCE18} pc-bios # keep "make check" happy
 %patch1693 -p1
 %patch1694 -p1
 %patch1695 -p1
+%patch1696 -p1
+%patch1697 -p1
+%patch1698 -p1
+%patch1699 -p1
+%patch1700 -p1
+%patch1701 -p1
+%patch1702 -p1
+%patch1703 -p1
+%patch1704 -p1
+%patch1705 -p1
+%patch1706 -p1
+%patch1707 -p1
+%patch1708 -p1
+%patch1709 -p1
+%patch1710 -p1
+%patch1711 -p1
+%patch1712 -p1
+%patch1713 -p1
+%patch1714 -p1
+%patch1715 -p1
 
 %build
 buildarch="%{kvm_target}-softmmu"
@@ -5770,8 +5826,37 @@ sh %{_sysconfdir}/sysconfig/modules/kvm.modules &> /dev/null || :
 %{_mandir}/man8/qemu-nbd.8*
 
 %changelog
-* Thu Apr 20 2017 Jacco Ligthart <jacco@redsleeve.org> - 1.5.3-126.el7.6.redsleeve
-- added kvm_target arm
+* Tue Jun 06 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-126.el7_3.9
+- kvm-spice-fix-spice_chr_add_watch-pre-condition.patch [bz#1452332]
+- Resolves: bz#1452332
+  (RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop)
+
+* Wed May 24 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-126.el7_3.8
+- kvm-char-change-qemu_chr_fe_add_watch-to-return-unsigned.patch [bz#1452332]
+- Resolves: bz#1452332
+  (RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop)
+
+* Mon May 22 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-126.el7_3.7
+- kvm-char-serial-cosmetic-fixes.patch [bz#1452332]
+- kvm-char-serial-Use-generic-Fifo8.patch [bz#1452332]
+- kvm-char-serial-serial_ioport_write-Factor-out-common-co.patch [bz#1452332]
+- kvm-char-serial-fix-copy-paste-error-fifo8_is_full-vs-em.patch [bz#1452332]
+- kvm-char-serial-Fix-emptyness-check.patch [bz#1452332]
+- kvm-char-serial-Fix-emptyness-handling.patch [bz#1452332]
+- kvm-serial-poll-the-serial-console-with-G_IO_HUP.patch [bz#1452332]
+- kvm-serial-change-retry-logic-to-avoid-concurrency.patch [bz#1452332]
+- kvm-qemu-char-ignore-flow-control-if-a-PTY-s-slave-is-no.patch [bz#1452332]
+- kvm-serial-check-if-backed-by-a-physical-serial-port-at-.patch [bz#1452332]
+- kvm-serial-reset-thri_pending-on-IER-writes-with-THRI-0.patch [bz#1452332]
+- kvm-serial-clean-up-THRE-TEMT-handling.patch [bz#1452332]
+- kvm-serial-update-LSR-on-enabling-disabling-FIFOs.patch [bz#1452332]
+- kvm-serial-only-resample-THR-interrupt-on-rising-edge-of.patch [bz#1452332]
+- kvm-serial-make-tsr_retry-unsigned.patch [bz#1452332]
+- kvm-serial-simplify-tsr_retry-reset.patch [bz#1452332]
+- kvm-serial-separate-serial_xmit-and-serial_watch_cb.patch [bz#1452332]
+- kvm-serial-remove-watch-on-reset.patch [bz#1452332]
+- Resolves: bz#1452332
+  (RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop)
 
 * Fri Mar 24 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-126.el7_3.6
 - kvm-fix-cirrus_vga-fix-OOB-read-case-qemu-Segmentation-f.patch [bz#1430059]

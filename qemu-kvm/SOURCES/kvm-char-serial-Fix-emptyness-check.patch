@@ -1,0 +1,46 @@
+From c9b0af3739fc5b79a20bf2492b5e8c1dea055dc0 Mon Sep 17 00:00:00 2001
+From: Fam Zheng <famz@redhat.com>
+Date: Fri, 19 May 2017 00:35:10 +0200
+Subject: [PATCH 05/18] char/serial: Fix emptyness check
+
+RH-Author: Fam Zheng <famz@redhat.com>
+Message-id: <20170519003523.21163-6-famz@redhat.com>
+Patchwork-id: 75361
+O-Subject: [RHEL-7.3.z qemu-kvm PATCH 05/18] char/serial: Fix emptyness check
+Bugzilla: 1452332
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Eduardo Habkost <ehabkost@redhat.com>
+
+From: Peter Crosthwaite <peter.crosthwaite@xilinx.com>
+
+This was guarding against a full fifo rather than an empty fifo when
+popping. Fix.
+
+Signed-off-by: Peter Crosthwaite <peter.crosthwaite@xilinx.com>
+Reviewed-by: Martin Kletzander <mkletzan@redhat.com>
+Reviewed-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+Signed-off-by: Michael Tokarev <mjt@tls.msk.ru>
+(cherry picked from commit 88c1ee73d3231c74ff90bcfc084a7589670ec244)
+Signed-off-by: Fam Zheng <famz@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/char/serial.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/hw/char/serial.c b/hw/char/serial.c
+index 3345de1..489a885 100644
+--- a/hw/char/serial.c
++++ b/hw/char/serial.c
+@@ -225,7 +225,7 @@ static gboolean serial_xmit(GIOChannel *chan, GIOCondition cond, void *opaque)
+ 
+     if (s->tsr_retry <= 0) {
+         if (s->fcr & UART_FCR_FE) {
+-            s->tsr = fifo8_is_full(&s->xmit_fifo) ?
++            s->tsr = fifo8_is_empty(&s->xmit_fifo) ?
+                         0 : fifo8_pop(&s->xmit_fifo);
+             if (!s->xmit_fifo.num) {
+                 s->lsr |= UART_LSR_THRE;
+-- 
+1.8.3.1
+

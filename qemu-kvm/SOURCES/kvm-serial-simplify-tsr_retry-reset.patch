@@ -1,0 +1,49 @@
+From 4a5819d1786be74df4b2393f72d6901e05d0eb4a Mon Sep 17 00:00:00 2001
+From: Fam Zheng <famz@redhat.com>
+Date: Fri, 19 May 2017 00:35:21 +0200
+Subject: [PATCH 16/18] serial: simplify tsr_retry reset
+
+RH-Author: Fam Zheng <famz@redhat.com>
+Message-id: <20170519003523.21163-17-famz@redhat.com>
+Patchwork-id: 75372
+O-Subject: [RHEL-7.3.z qemu-kvm PATCH 16/18] serial: simplify tsr_retry reset
+Bugzilla: 1452332
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Eduardo Habkost <ehabkost@redhat.com>
+
+From: Paolo Bonzini <pbonzini@redhat.com>
+
+Move common code outside the if, and reset tsr_retry even in loopback mode.
+Right now it cannot become non-zero, but it will be possible as soon as
+we start respecting the baud rate.
+
+Tested-by: Bret Ketchum <bcketchum@gmail.com>
+Reviewed-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit bce933b85a34514fe34fa559be1d8ccd1f39f954)
+Signed-off-by: Fam Zheng <famz@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/char/serial.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/hw/char/serial.c b/hw/char/serial.c
+index afa1932..fdda802 100644
+--- a/hw/char/serial.c
++++ b/hw/char/serial.c
+@@ -254,10 +254,8 @@ static gboolean serial_xmit(GIOChannel *chan, GIOCondition cond, void *opaque)
+                 s->tsr_retry++;
+                 return FALSE;
+             }
+-            s->tsr_retry = 0;
+-        } else {
+-            s->tsr_retry = 0;
+         }
++        s->tsr_retry = 0;
+ 
+         /* Transmit another byte if it is already available. It is only
+            possible when FIFO is enabled and not empty. */
+-- 
+1.8.3.1
+
