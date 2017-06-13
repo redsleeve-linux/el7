@@ -41,6 +41,10 @@
 %ifarch aarch64
     %global kvm_target    aarch64
 %endif
+%ifarch %{arm}
+    %global kvm_target    arm
+%endif
+
 
 #Versions of various parts:
 
@@ -76,7 +80,7 @@ Obsoletes: %1 < %{obsoletes_version}                                      \
 Summary: QEMU is a FAST! processor emulator
 Name: %{pkgname}%{?pkgsuffix}
 Version: 1.5.3
-Release: 126%{?dist}.9
+Release: 126%{?dist}.9.redsleeve
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 Epoch: 10
 License: GPLv2+ and LGPLv2+ and BSD
@@ -5826,6 +5830,9 @@ sh %{_sysconfdir}/sysconfig/modules/kvm.modules &> /dev/null || :
 %{_mandir}/man8/qemu-nbd.8*
 
 %changelog
+* Tue Jun 13 2017 Jacco Ligthart <jacco@redsleeve.org> - 1.5.3-126.el7.9.redsleeve
+- added kvm_target arm
+
 * Tue Jun 06 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-126.el7_3.9
 - kvm-spice-fix-spice_chr_add_watch-pre-condition.patch [bz#1452332]
 - Resolves: bz#1452332
