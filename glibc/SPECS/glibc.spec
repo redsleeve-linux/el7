@@ -125,7 +125,7 @@
 Summary: The GNU libc libraries
 Name: glibc
 Version: %{glibcversion}
-Release: %{glibcrelease}
+Release: %{glibcrelease}.redsleeve
 # GPLv2+ is used in a bunch of programs, LGPLv2+ is used for libraries.
 # Things that are linked directly into dynamically linked programs
 # and shared libraries (e.g. crt files, lib*_nonshared.a) have an additional
@@ -1017,6 +1017,8 @@ Patch2082: glibc-rh1452720-4.patch
 # End of glibc patches.
 ##############################################################################
 
+Patch3000: glibc-rh1256317-redsleeve.patch
+
 ##############################################################################
 # Continued list of core "glibc" package information:
 ##############################################################################
@@ -1818,6 +1820,8 @@ package or when debugging this package.
 %patch1754 -p1
 %patch1755 -p1
 %patch1756 -p1
+
+%patch3000 -p1
 
 ##############################################################################
 # %%prep - Additional prep required...
@@ -2965,6 +2969,9 @@ rm -f *.filelist*
 %endif
 
 %changelog
+* Tue Jun 20 2017 Jacco Ligthart <jacco@redsleeve.org> 2.17-157.4.redsleeve
+- enhanced the patch for rh1256317 to build on arm
+
 * Fri May 26 2017 Florian Weimer <fweimer@redhat.com> - 2.17-157.4
 - Avoid large allocas in the dynamic linker (#1452720)
 

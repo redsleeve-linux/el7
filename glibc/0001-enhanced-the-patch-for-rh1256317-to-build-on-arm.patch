@@ -1,6 +1,6 @@
-From c462078675a86d5ada4f0ca19b84fc70e5701a3c Mon Sep 17 00:00:00 2001
+From 25ef736b1575682a1a401c52cc4f7bf8e7bac51f Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Fri, 26 May 2017 00:53:52 +0200
+Date: Tue, 20 Jun 2017 19:39:55 +0200
 Subject: [PATCH] enhanced the patch for rh1256317 to build on arm
 
 ---
@@ -27,7 +27,7 @@ index 0000000..d9a61a1
 + 	cfi_register (lr, ip)
 + 	mov r1, r0
 diff --git a/SPECS/glibc.spec b/SPECS/glibc.spec
-index 51d4a3a..8f6d7bf 100644
+index a069c89..630bda9 100644
 --- a/SPECS/glibc.spec
 +++ b/SPECS/glibc.spec
 @@ -125,7 +125,7 @@
@@ -39,7 +39,7 @@ index 51d4a3a..8f6d7bf 100644
  # GPLv2+ is used in a bunch of programs, LGPLv2+ is used for libraries.
  # Things that are linked directly into dynamically linked programs
  # and shared libraries (e.g. crt files, lib*_nonshared.a) have an additional
-@@ -1013,6 +1013,8 @@ Patch2078: glibc-rh1436312.patch
+@@ -1017,6 +1017,8 @@ Patch2082: glibc-rh1452720-4.patch
  # End of glibc patches.
  ##############################################################################
  
@@ -48,7 +48,7 @@ index 51d4a3a..8f6d7bf 100644
  ##############################################################################
  # Continued list of core "glibc" package information:
  ##############################################################################
-@@ -1810,6 +1812,8 @@ package or when debugging this package.
+@@ -1819,6 +1821,8 @@ package or when debugging this package.
  %patch1755 -p1
  %patch1756 -p1
  
@@ -57,15 +57,15 @@ index 51d4a3a..8f6d7bf 100644
  ##############################################################################
  # %%prep - Additional prep required...
  ##############################################################################
-@@ -2956,6 +2960,9 @@ rm -f *.filelist*
+@@ -2965,6 +2969,9 @@ rm -f *.filelist*
  %endif
  
  %changelog
-+* Thu May 25 2017 Jacco Ligthart <jacco@redsleeve.org> 2.17-157.2.redsleeve
++* Tue Jun 20 2017 Jacco Ligthart <jacco@redsleeve.org> 2.17-157.4.redsleeve
 +- enhanced the patch for rh1256317 to build on arm
 +
- * Tue Mar 28 2017 DJ Delorie <dj@redhat.com> - 2.17-157.2
- - Fix use of uninitialized data in getaddrinfo with nscd (#1436312)
+ * Fri May 26 2017 Florian Weimer <fweimer@redhat.com> - 2.17-157.4
+ - Avoid large allocas in the dynamic linker (#1452720)
  
 -- 
 1.8.3.1
