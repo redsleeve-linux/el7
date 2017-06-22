@@ -1,6 +1,6 @@
 %define system_nss              1
 %global nspr_version            4.13.1
-%global nss_version             3.28.2
+%global nss_version             3.28.4
 %define system_sqlite           0
 %define sqlite_version          3.8.4.2
 %define system_ffi              1
@@ -74,19 +74,19 @@
 
 Summary:        Mozilla Thunderbird mail/newsgroup client
 Name:           thunderbird
-Version:        52.1.0
-Release:        1%{?dist}.redsleeve
+Version:        52.2.0
+Release:        1%{?dist}
 URL:            http://www.mozilla.org/projects/thunderbird/
 License:        MPLv1.1 or GPLv2+ or LGPLv2+
 Group:          Applications/Internet
 
-%define         tarballdir              thunderbird-52.1.0
+%define         tarballdir              thunderbird-52.2.0
 %define         objdir                  objdir
 
 # From ftp://archive.mozilla.org/pub/thunderbird/releases/%{version}%{?ext_version}/source
 Source0:        https://archive.mozilla.org/pub/thunderbird/releases/%{version}%{?pre_version}/source/thunderbird-%{version}%{?pre_version}.source.tar.xz
 %if %{build_langpacks}
-Source1:        thunderbird-langpacks-%{version}%{?ext_version}-20170502.tar.xz
+Source1:        thunderbird-langpacks-%{version}%{?ext_version}-20170615.tar.xz
 %endif
 # Locales for lightning
 Source2:        l10n-lightning-%{version}.tar.xz
@@ -102,9 +102,9 @@ Source300:      gcc48-%{gcc_version}.el5.src.rpm
 Source301:      yasm-1.2.0-3.el5.src.rpm
 Source302:      devtoolset-2-binutils-2.23.52.0.1-10.el5.src.rpm
 Source600:      thunderbird.sh.in.rhel6
-Source601:      thunderbird-redsleeve-default-prefs.js.el6
+Source601:      thunderbird-redhat-default-prefs.js.el6
 Source700:      thunderbird.sh.in.rhel7
-Source701:      thunderbird-redsleeve-default-prefs.js.el7
+Source701:      thunderbird-redhat-default-prefs.js.el7
 
 # Mozilla (XULRunner) patches
 Patch0:         firefox-install-dir.patch
@@ -131,7 +131,6 @@ Patch114:       rhbz-1423012.patch
 # Upstream patches
 # Kaie's patch, we'll most likely need this one
 Patch202:       mozilla-1152515.patch
-Patch203:       mozilla-1158578-recursion-fix.patch
 
 # Thunderbird patches
 Patch1000:      thunderbird-objdir.patch
@@ -378,7 +377,6 @@ cd mozilla
 
 cd ..
 
-%patch203 -p1 -b .mozbz-1158578-recursion-fix
 %patch1000 -p2 -b .objdir
 %patch1001 -p1 -b .badlangs
 %patch1002 -p1 -b .addons
@@ -859,12 +857,12 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 #===============================================================================
 
 %changelog
-* Wed May 10 2017 Jacco Ligthart <jacco@redsleeve.org> - 52.1.0-1.el7.redsleeve
-- Roll in RedSleeve Branding
-
-* Tue May  9 2017 Johnny Hughes <johnny@centos.org> - 52.1.0-1
+* Wed Jun 21 2017 Johnny Hughes <johnny@centos.org> - 52.2.0-1
 - Manual CentOS Debranding
- 
+
+* Thu Jun 15 2017 Jan Horak <jhorak@redhat.com> - 52.2.0-1
+- Update to 52.2.0
+
 * Tue May  2 2017 Jan Horak <jhorak@redhat.com> - 52.1.0-1
 - Update to 52.1.0
 
