@@ -1,3 +1,6 @@
 */.gitignore
 */.*.metadata
 */SRPMS
+sclo/*/.gitignore
+sclo/*/.*.metadata
+sclo/*/SRPMS
