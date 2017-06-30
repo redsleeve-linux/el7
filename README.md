@@ -47,6 +47,7 @@ Some packages needed some manual love and care to build, but not really a patch:
 | ruby | ruby-2.0.0.648-29.el7.src.rpm | needs to be build with openssl*-1.0.1e-51.el7.5.armv5tel
 | tigervnc | tigervnc-1.3.1-9.el7.src.rpm | needs to be build with xorg-x11-server-source-1.17.2-10.el7.noarch.rpm
 | velocity | velocity-1.7-10.el7.src.rpm | needs to be build with java-1.7.0-openjdk-devel-1.7.0.51
+| xmvn | xmvn-1.3.0-6.el7_3.src.rpm | needs to be build without java-1.8.0-openjdk
 
 
 ## Packages not included in RedSleeve
