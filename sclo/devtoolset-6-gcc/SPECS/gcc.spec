@@ -82,7 +82,7 @@ Summary: GCC version 6
 Name: %{?scl_prefix}gcc
 #Name: %{?scl_prefix}gcc%{!?scl:5}
 Version: %{gcc_version}
-Release: %{gcc_release}.1%{?dist}
+Release: %{gcc_release}.1%{?dist}.redsleeve
 # libgcc, libgfortran, libmudflap, libgomp, libstdc++ and crtstuff have
 # GCC Runtime Exception.
 License: GPLv3+ and GPLv3+ with exceptions and GPLv2+ with exceptions and LGPLv2+ and BSD
@@ -255,6 +255,11 @@ Patch2001: doxygen-1.7.1-config.patch
 Patch2002: doxygen-1.7.5-timestamp.patch
 Patch2003: doxygen-1.8.0-rh856725.patch
 
+Patch10001: gcc6-decimal-rtti-arm.patch
+Patch10002: gcc6-nonshared11-arm.patch
+Patch10003: gcc6-future-arm.patch
+Patch10004: gcc6-nonshared98-arm.patch
+
 %if 0%{?rhel} >= 7
 %global nonsharedver 48
 %else
@@ -272,7 +277,10 @@ Patch2003: doxygen-1.8.0-rh856725.patch
 %ifarch ppc
 %global gcc_target_platform ppc64-%{_vendor}-%{_target_os}%{?_gnu}
 %endif
-%ifnarch sparcv9 ppc
+%ifarch %{arm}
+%global gcc_target_platform armv5tel-%{_vendor}-%{_target_os}-gnueabi
+%endif
+%ifnarch sparcv9 ppc %{arm}
 %global gcc_target_platform %{_target_platform}
 %endif
 
@@ -629,6 +637,13 @@ cd doxygen-%{doxygen_version}
 %patch2003 -p1 -b .rh856725~
 cd ..
 %endif
+%endif
+
+%ifarch %{arm}
+%patch10001 -p1 -b .arm1
+%patch10002 -p1 -b .arm2
+%patch10003 -p1 -b .arm3
+%patch10004 -p1 -b .arm4
 %endif
 
 echo 'Red Hat %{version}-%{gcc_release}' > gcc/DEV-PHASE
@@ -2630,6 +2645,13 @@ fi
 %doc rpm.doc/changelogs/libcc1/ChangeLog*
 
 %changelog
+* Fri Jun 30 2017 Jacco Ligthart <jacco@redsleeve.org> 6.3.1-3.1.redsleeve
+- added gcc_target_platform for armv5tel
+- added gcc6-decimal-rtti-arm.patch
+- added gcc6-nonshared11-arm.patch
+- added gcc6-future-arm.patch
+- added gcc6-nonshared98-arm.patch
+
 * Mon Feb 20 2017 Marek Polacek <polacek@redhat.com> 6.3.1-3.1
 - use "export" when setting LD_LIBRARY_PATH (#1421107)
 

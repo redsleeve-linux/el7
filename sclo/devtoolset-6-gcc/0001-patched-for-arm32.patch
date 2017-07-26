@@ -1,0 +1,388 @@
+From c721b93030c1f32e021ea8afb4790026d7800011 Mon Sep 17 00:00:00 2001
+From: Jacco Ligthart <jacco@redsleeve.org>
+Date: Mon, 3 Jul 2017 15:58:11 +0200
+Subject: [PATCH] patched for arm32
+
+---
+ SOURCES/gcc6-decimal-rtti-arm.patch | 105 ++++++++++++++++++++++++++++++++++++
+ SOURCES/gcc6-future-arm.patch       |  57 ++++++++++++++++++++
+ SOURCES/gcc6-nonshared11-arm.patch  | 105 ++++++++++++++++++++++++++++++++++++
+ SOURCES/gcc6-nonshared98-arm.patch  |  12 +++++
+ SPECS/gcc.spec                      |  26 ++++++++-
+ 5 files changed, 303 insertions(+), 2 deletions(-)
+ create mode 100644 SOURCES/gcc6-decimal-rtti-arm.patch
+ create mode 100644 SOURCES/gcc6-future-arm.patch
+ create mode 100644 SOURCES/gcc6-nonshared11-arm.patch
+ create mode 100644 SOURCES/gcc6-nonshared98-arm.patch
+
+diff --git a/SOURCES/gcc6-decimal-rtti-arm.patch b/SOURCES/gcc6-decimal-rtti-arm.patch
+new file mode 100644
+index 0000000..8e82bde
+--- /dev/null
++++ b/SOURCES/gcc6-decimal-rtti-arm.patch
+@@ -0,0 +1,105 @@
++diff -ru gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared11/locale-inst-asm.S gcc-6.3.1-20170216/libstdc++-v3/src/nonshared11/locale-inst-asm.S
++--- gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared11/locale-inst-asm.S	2017-07-03 12:35:38.145446630 +0200
+++++ gcc-6.3.1-20170216/libstdc++-v3/src/nonshared11/locale-inst-asm.S	2017-07-03 14:18:18.262272416 +0200
++@@ -22,6 +22,11 @@
++ 
++ #ifdef __i386__
++ #define ALIGN1	.align 4
+++#elif defined __arm__
+++#define ALIGN1	.align 4
+++#define OBJECT %object
+++#define SECTION1(x).section .gnu.linkonce.d.rel.ro.x,"aw",%progbits
+++#define SECTION3(x).section .gnu.linkonce.r.x,"a",%progbits
++ #elif defined __x86_64__
++ #define ALIGN1	.align 32
++ #define ALIGN2	.align 16
++@@ -288,4 +293,4 @@
++ 	POINTER	SYM(_ZTISt16__numpunct_cacheIwE)
++ 	VPTR(_ZNSt16__numpunct_cacheIwED1Ev)
++ 	VPTR(_ZNSt16__numpunct_cacheIwED0Ev)
++-	.section	.note.GNU-stack,"",@progbits
+++	.section	.note.GNU-stack,"",%progbits
++diff -ru gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared98/decimal-rtti.S gcc-6.3.1-20170216/libstdc++-v3/src/nonshared98/decimal-rtti.S
++--- gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared98/decimal-rtti.S	2017-07-03 14:43:40.511082860 +0200
+++++ gcc-6.3.1-20170216/libstdc++-v3/src/nonshared98/decimal-rtti.S	2017-07-03 14:14:14.138216542 +0200
++@@ -21,9 +21,14 @@
++    <http://www.gnu.org/licenses/>.  */
++ 
++ #if defined __x86_64__ || defined __powerpc64__ || defined __s390x__ || defined __ia64__ || defined __aarch64__ \
++-    || defined __i386__ || defined __powerpc__ || defined __s390__
+++    || defined __i386__ || defined __powerpc__ || defined __s390__ || defined __arm__
++ #ifdef __i386__
++ #define ALIGN1	.align 4
+++#elif defined __arm__
+++#define ALIGN1	.align 4
+++#define OBJECT %object
+++#define SECTION1(x).section .gnu.linkonce.d.rel.ro.x,"aw",%progbits
+++#define SECTION3(x).section .gnu.linkonce.r.x,"a",%progbits
++ #elif defined __x86_64__
++ #define ALIGN1	.align 32
++ #define ALIGN2	.align 16
++@@ -271,4 +276,4 @@
++ _ZTSDf:
++ 	STRING	"Df"
++ #endif
++-	.section	.note.GNU-stack,"",@progbits
+++	.section	.note.GNU-stack,"",%progbits
++diff -ru gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared98/float128.S gcc-6.3.1-20170216/libstdc++-v3/src/nonshared98/float128.S
++--- gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared98/float128.S	2017-07-03 14:43:46.011059614 +0200
+++++ gcc-6.3.1-20170216/libstdc++-v3/src/nonshared98/float128.S	2017-07-03 14:16:20.767726815 +0200
++@@ -20,9 +20,14 @@
++    see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
++    <http://www.gnu.org/licenses/>.  */
++ 
++-#if defined __x86_64__ || defined __i386__ || defined __ia64__
+++#if defined __x86_64__ || defined __i386__ || defined __ia64__ || defined __arm__
++ #ifdef __i386__
++ #define ALIGN1	.align 4
+++#elif defined __arm__
+++#define ALIGN1	.align 4
+++#define OBJECT %object
+++#define SECTION1(x).section .gnu.linkonce.d.rel.ro.x,"aw",%progbits
+++#define SECTION3(x).section .gnu.linkonce.r.x,"a",%progbits
++ #elif defined __x86_64__
++ #define ALIGN1	.align 32
++ #define ALIGN2	.align 16
++@@ -159,4 +164,4 @@
++ _ZTSg:
++ 	STRING	"g"
++ #endif
++-	.section	.note.GNU-stack,"",@progbits
+++	.section	.note.GNU-stack,"",%progbits
++diff -ru gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared98/int128.S gcc-6.3.1-20170216/libstdc++-v3/src/nonshared98/int128.S
++--- gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared98/int128.S	2017-07-03 14:43:51.191037720 +0200
+++++ gcc-6.3.1-20170216/libstdc++-v3/src/nonshared98/int128.S	2017-07-03 13:49:53.148806566 +0200
++@@ -213,4 +213,4 @@
++ _ZTSo:
++ 	STRING	"o"
++ #endif
++-	.section	.note.GNU-stack,"",@progbits
+++	.section	.note.GNU-stack,"",%progbits
++diff -ru gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared98/nullptr-rtti.S gcc-6.3.1-20170216/libstdc++-v3/src/nonshared98/nullptr-rtti.S
++--- gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared98/nullptr-rtti.S	2017-07-03 14:43:56.011017348 +0200
+++++ gcc-6.3.1-20170216/libstdc++-v3/src/nonshared98/nullptr-rtti.S	2017-07-03 13:51:34.473432976 +0200
++@@ -21,9 +21,14 @@
++    <http://www.gnu.org/licenses/>.  */
++ 
++ #if defined __x86_64__ || defined __powerpc64__ || defined __s390x__ || defined __ia64__ || defined __aarch64__ \
++-    || defined __i386__ || defined __powerpc__ || defined __s390__
+++    || defined __i386__ || defined __powerpc__ || defined __s390__ || defined __arm__
++ #ifdef __i386__
++ #define ALIGN1	.align 4
+++#elif defined __arm__
+++#define ALIGN1	.align 4
+++#define OBJECT	%object
+++#define SECTION1(x).section .gnu.linkonce.d.rel.ro.x,"aw",%progbits
+++#define SECTION3(x).section .gnu.linkonce.r.x,"a",%progbits
++ #elif defined __x86_64__
++ #define ALIGN1	.align 32
++ #define ALIGN2	.align 16
++@@ -163,4 +168,4 @@
++ _ZTSDn:
++ 	STRING	"Dn"
++ #endif
++-	.section	.note.GNU-stack,"",@progbits
+++	.section	.note.GNU-stack,"",%progbits
+diff --git a/SOURCES/gcc6-future-arm.patch b/SOURCES/gcc6-future-arm.patch
+new file mode 100644
+index 0000000..04c9b33
+--- /dev/null
++++ b/SOURCES/gcc6-future-arm.patch
+@@ -0,0 +1,57 @@
++diff -ru gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared11/future.cc gcc-6.3.1-20170216/libstdc++-v3/src/nonshared11/future.cc
++--- gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared11/future.cc	2017-07-04 21:33:38.894761081 +0200
+++++ gcc-6.3.1-20170216/libstdc++-v3/src/nonshared11/future.cc	2017-07-04 21:34:13.149730547 +0200
++@@ -24,11 +24,11 @@
++ #undef _GLIBCXX_HAVE_AS_SYMVER_DIRECTIVE
++ #include "../c++11/future.cc"
++ const std::error_category* _ZSt15future_category = &__future_category_instance();
++-asm (".hidden _ZNSt13__future_base11_State_base15_M_run_deferredEv");
++-asm (".hidden _ZTSNSt13__future_base11_State_baseE");
++-asm (".hidden _ZTSNSt13__future_base12_Result_baseE");
++-asm (".hidden _ZNSt15_Sp_counted_ptrIDnLN9__gnu_cxx12_Lock_policyE2EE10_M_disposeEv");
++-asm (".hidden _ZNSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE2EE10_M_destroyEv");
++-asm (".hidden _ZNSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE2EE10_M_releaseEv");
+++asm (".weak _ZNSt13__future_base11_State_base15_M_run_deferredEv");
+++asm (".weak _ZTSNSt13__future_base11_State_baseE");
+++asm (".weak _ZTSNSt13__future_base12_Result_baseE");
+++asm (".hidden _ZNSt15_Sp_counted_ptrIDnLN9__gnu_cxx12_Lock_policyE1EE10_M_disposeEv");
+++asm (".hidden _ZNSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE1EE10_M_destroyEv");
+++asm (".hidden _ZNSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE1EE10_M_releaseEv");
++ asm (".hidden _ZSt16__at_thread_exitPSt20__at_thread_exit_elt");
++-asm (".hidden _ZNSt13__future_base13_State_baseV211_Make_ready6_S_runEPv");
+++asm (".weak _ZNSt13__future_base13_State_baseV211_Make_ready6_S_runEPv");
++diff -ru gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared11/future48.cc gcc-6.3.1-20170216/libstdc++-v3/src/nonshared11/future48.cc
++--- gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared11/future48.cc	2017-07-04 21:33:38.894761081 +0200
+++++ gcc-6.3.1-20170216/libstdc++-v3/src/nonshared11/future48.cc	2017-07-04 21:34:13.149730547 +0200
++@@ -23,4 +23,4 @@
++ #define _GLIBCXX_NONSHARED_CXX11_48
++ #include "../c++11/future.cc"
++ asm (".hidden _ZSt16__at_thread_exitPSt20__at_thread_exit_elt");
++-asm (".hidden _ZNSt13__future_base13_State_baseV211_Make_ready6_S_runEPv");
+++asm (".weak _ZNSt13__future_base13_State_baseV211_Make_ready6_S_runEPv");
++diff -ru gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared11/thread44.cc gcc-6.3.1-20170216/libstdc++-v3/src/nonshared11/thread44.cc
++--- gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared11/thread44.cc	2017-07-04 21:33:38.894761081 +0200
+++++ gcc-6.3.1-20170216/libstdc++-v3/src/nonshared11/thread44.cc	2017-07-04 21:34:50.774697009 +0200
++@@ -22,6 +22,6 @@
++ 
++ #define _GLIBCXX_NONSHARED_CXX11_44
++ #include "../c++11/thread.cc"
++-asm (".hidden _ZNSt15_Sp_counted_ptrIDnLN9__gnu_cxx12_Lock_policyE2EE10_M_disposeEv");
++-asm (".hidden _ZNSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE2EE10_M_destroyEv");
++-asm (".hidden _ZNSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE2EE10_M_releaseEv");
+++asm (".hidden _ZNSt15_Sp_counted_ptrIDnLN9__gnu_cxx12_Lock_policyE1EE10_M_disposeEv");
+++asm (".hidden _ZNSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE1EE10_M_destroyEv");
+++asm (".hidden _ZNSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE1EE10_M_releaseEv");
++diff -ru gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared11/thread48.cc gcc-6.3.1-20170216/libstdc++-v3/src/nonshared11/thread48.cc
++--- gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared11/thread48.cc	2017-07-04 21:33:38.894761081 +0200
+++++ gcc-6.3.1-20170216/libstdc++-v3/src/nonshared11/thread48.cc	2017-07-04 21:34:31.499714190 +0200
++@@ -23,6 +23,6 @@
++ #define _GLIBCXX_NONSHARED_CXX11_44
++ #define _GLIBCXX_NONSHARED_CXX11_48
++ #include "../c++11/thread.cc"
++-asm (".hidden _ZNSt15_Sp_counted_ptrIDnLN9__gnu_cxx12_Lock_policyE2EE10_M_disposeEv");
++-asm (".hidden _ZNSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE2EE10_M_destroyEv");
++-asm (".hidden _ZNSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE2EE10_M_releaseEv");
+++asm (".hidden _ZNSt15_Sp_counted_ptrIDnLN9__gnu_cxx12_Lock_policyE1EE10_M_disposeEv");
+++asm (".hidden _ZNSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE1EE10_M_destroyEv");
+++asm (".hidden _ZNSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE1EE10_M_releaseEv");
+diff --git a/SOURCES/gcc6-nonshared11-arm.patch b/SOURCES/gcc6-nonshared11-arm.patch
+new file mode 100644
+index 0000000..95d68b9
+--- /dev/null
++++ b/SOURCES/gcc6-nonshared11-arm.patch
+@@ -0,0 +1,105 @@
++diff -ru gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared11/cow-shim_facets.cc gcc-6.3.1-20170216/libstdc++-v3/src/nonshared11/cow-shim_facets.cc
++--- gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared11/cow-shim_facets.cc	2017-07-03 20:44:15.375137096 +0200
+++++ gcc-6.3.1-20170216/libstdc++-v3/src/nonshared11/cow-shim_facets.cc	2017-07-03 21:51:43.270512105 +0200
++@@ -168,7 +168,7 @@
++ asm (".hidden _ZTVNSt13__facet_shims12_GLOBAL__N_115moneypunct_shimIwLb1EEE");
++ asm (".hidden _ZNSt13__facet_shims21__numpunct_fill_cacheIcEEvSt17integral_constantIbLb0EEPKNSt6locale5facetEPSt16__numpunct_cacheIT_E");
++ asm (".hidden _ZNSt13__facet_shims21__numpunct_fill_cacheIwEEvSt17integral_constantIbLb0EEPKNSt6locale5facetEPSt16__numpunct_cacheIT_E");
++-#if defined(__i386__) || (defined(__powerpc__) && !defined(__powerpc64__))
+++#if defined(__i386__) || defined(__arm__) || (defined(__powerpc__) && !defined(__powerpc64__))
++ asm (".hidden _ZNSt13__facet_shims14__messages_getIcEEvSt17integral_constantIbLb0EEPKNSt6locale5facetERNS_12__any_stringEiiiPKT_j");
++ asm (".hidden _ZNSt13__facet_shims14__messages_getIwEEvSt17integral_constantIbLb0EEPKNSt6locale5facetERNS_12__any_stringEiiiPKT_j");
++ asm (".hidden _ZNSt13__facet_shims15__messages_openIcEEiSt17integral_constantIbLb0EEPKNSt6locale5facetEPKcjRKS3_");
++diff -ru gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared11/cow-stdexcept.cc gcc-6.3.1-20170216/libstdc++-v3/src/nonshared11/cow-stdexcept.cc
++--- gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared11/cow-stdexcept.cc	2017-07-03 20:44:15.425136949 +0200
+++++ gcc-6.3.1-20170216/libstdc++-v3/src/nonshared11/cow-stdexcept.cc	2017-07-03 21:51:48.600488066 +0200
++@@ -35,7 +35,7 @@
++ asm (".hidden _ZNSt12__cow_stringaSERKS_");
++ asm (".hidden _ZNSt12__sso_stringC1ERKSs");
++ asm (".hidden _ZNSt12__sso_stringC2ERKSs");
++-#if defined(__i386__) || (defined(__powerpc__) && !defined(__powerpc64__))
+++#if defined(__i386__) || defined(__arm__) || (defined(__powerpc__) && !defined(__powerpc64__))
++ asm (".hidden _ZNSt12__cow_stringC1EPKcj");
++ asm (".hidden _ZNSt12__cow_stringC2EPKcj");
++ #else
++diff -ru gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared11/cxx11-shim_facets.cc gcc-6.3.1-20170216/libstdc++-v3/src/nonshared11/cxx11-shim_facets.cc
++--- gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared11/cxx11-shim_facets.cc	2017-07-03 20:44:15.470136818 +0200
+++++ gcc-6.3.1-20170216/libstdc++-v3/src/nonshared11/cxx11-shim_facets.cc	2017-07-03 21:51:54.210462764 +0200
++@@ -168,7 +168,7 @@
++ asm (".hidden _ZTVNSt13__facet_shims12_GLOBAL__N_115moneypunct_shimIcLb1EEE");
++ asm (".hidden _ZTVNSt13__facet_shims12_GLOBAL__N_115moneypunct_shimIwLb0EEE");
++ asm (".hidden _ZTVNSt13__facet_shims12_GLOBAL__N_115moneypunct_shimIwLb1EEE");
++-#if defined(__i386__) || (defined(__powerpc__) && !defined(__powerpc64__))
+++#if defined(__i386__) || defined(__arm__) || (defined(__powerpc__) && !defined(__powerpc64__))
++ asm (".hidden _ZNSt13__facet_shims14__messages_getIcEEvSt17integral_constantIbLb1EEPKNSt6locale5facetERNS_12__any_stringEiiiPKT_j");
++ asm (".hidden _ZNSt13__facet_shims14__messages_getIwEEvSt17integral_constantIbLb1EEPKNSt6locale5facetERNS_12__any_stringEiiiPKT_j");
++ asm (".hidden _ZNSt13__facet_shims15__messages_openIcEEiSt17integral_constantIbLb1EEPKNSt6locale5facetEPKcjRKS3_");
++diff -ru gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared11/cxx11-wlocale-inst.cc gcc-6.3.1-20170216/libstdc++-v3/src/nonshared11/cxx11-wlocale-inst.cc
++--- gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared11/cxx11-wlocale-inst.cc	2017-07-03 20:44:15.520136671 +0200
+++++ gcc-6.3.1-20170216/libstdc++-v3/src/nonshared11/cxx11-wlocale-inst.cc	2017-07-03 21:52:00.745433290 +0200
++@@ -38,7 +38,7 @@
++ asm (".hidden _ZNKSt17__gnu_cxx_ldbl1287num_getIwSt19istreambuf_iteratorIwSt11char_traitsIwEEE14_M_extract_intB5cxx11IxEES4_S4_S4_RSt8ios_baseRSt12_Ios_IostateRT_");
++ asm (".hidden _ZNKSt17__gnu_cxx_ldbl1287num_getIwSt19istreambuf_iteratorIwSt11char_traitsIwEEE14_M_extract_intB5cxx11IyEES4_S4_S4_RSt8ios_baseRSt12_Ios_IostateRT_");
++ #endif
++-#if defined(__i386__) || (defined(__powerpc__) && !defined(__powerpc64__))
+++#if defined(__i386__) || defined(__arm__) || (defined(__powerpc__) && !defined(__powerpc64__))
++ asm (".hidden _ZNSt15time_put_bynameIwSt19ostreambuf_iteratorIwSt11char_traitsIwEEEC1ERKNSt7__cxx1112basic_stringIcS1_IcESaIcEEEj");
++ asm (".hidden _ZNSt15time_put_bynameIwSt19ostreambuf_iteratorIwSt11char_traitsIwEEEC2ERKNSt7__cxx1112basic_stringIcS1_IcESaIcEEEj");
++ #else
++diff -ru gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared11/locale-inst.cc gcc-6.3.1-20170216/libstdc++-v3/src/nonshared11/locale-inst.cc
++--- gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared11/locale-inst.cc	2017-07-03 20:44:15.565136539 +0200
+++++ gcc-6.3.1-20170216/libstdc++-v3/src/nonshared11/locale-inst.cc	2017-07-03 21:52:07.815401403 +0200
++@@ -78,14 +78,14 @@
++ asm (".hidden _ZTSSt9time_base");
++ #ifdef C_is_char
++ asm (".hidden _ZNSt19istreambuf_iteratorIcSt11char_traitsIcEEppEv");
++-#if defined(__i386__) || (defined(__powerpc__) && !defined(__powerpc64__))
+++#if defined(__i386__) || defined(__arm__) || (defined(__powerpc__) && !defined(__powerpc64__))
++ asm (".hidden _ZSt14__add_groupingIcEPT_S1_S0_PKcjPKS0_S5_");
++ #else
++ asm (".hidden _ZSt14__add_groupingIcEPT_S1_S0_PKcmPKS0_S5_");
++ #endif
++ #else
++ asm (".hidden _ZNSt19istreambuf_iteratorIwSt11char_traitsIwEEppEv");
++-#if defined(__i386__) || (defined(__powerpc__) && !defined(__powerpc64__))
+++#if defined(__i386__) || defined(__arm__) || (defined(__powerpc__) && !defined(__powerpc64__))
++ asm (".hidden _ZSt14__add_groupingIwEPT_S1_S0_PKcjPKS0_S5_");
++ #else
++ asm (".hidden _ZSt14__add_groupingIwEPT_S1_S0_PKcmPKS0_S5_");
++diff -ru gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared11/snprintf_lite.cc gcc-6.3.1-20170216/libstdc++-v3/src/nonshared11/snprintf_lite.cc
++--- gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared11/snprintf_lite.cc	2017-07-03 20:44:15.615136393 +0200
+++++ gcc-6.3.1-20170216/libstdc++-v3/src/nonshared11/snprintf_lite.cc	2017-07-03 22:00:30.333166823 +0200
++@@ -30,6 +30,9 @@
++ #elif defined(__powerpc__)
++ asm (".hidden _ZN9__gnu_cxx15__concat_size_tEPcjj");
++ asm (".hidden _ZN9__gnu_cxx15__snprintf_liteEPcjPKcP13__va_list_tag");
+++#elif defined(__arm__)
+++asm (".hidden _ZN9__gnu_cxx15__concat_size_tEPcjj");
+++asm (".hidden _ZN9__gnu_cxx15__snprintf_liteEPcjPKcSt9__va_list");
++ #elif defined(__aarch64__)
++ asm (".hidden _ZN9__gnu_cxx15__concat_size_tEPcmm");
++ asm (".hidden _ZN9__gnu_cxx15__snprintf_liteEPcmPKcSt9__va_list");
++diff -ru gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared11/system_error44.cc gcc-6.3.1-20170216/libstdc++-v3/src/nonshared11/system_error44.cc
++--- gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared11/system_error44.cc	2017-07-03 20:44:15.660136261 +0200
+++++ gcc-6.3.1-20170216/libstdc++-v3/src/nonshared11/system_error44.cc	2017-07-03 21:52:30.665298348 +0200
++@@ -37,7 +37,7 @@
++ asm (".hidden _ZNSt12__sso_stringaSEOS_");
++ asm (".hidden _ZNSt12__sso_stringaSERKS_");
++ asm (".hidden _ZTSNSt3_V214error_categoryE");
++-#if defined(__i386__) || (defined(__powerpc__) && !defined(__powerpc64__))
+++#if defined(__i386__) || defined(__arm__) || (defined(__powerpc__) && !defined(__powerpc64__))
++ asm (".hidden _ZNSt12__sso_stringC1EPKcj");
++ asm (".hidden _ZNSt12__sso_stringC2EPKcj");
++ #else
++diff -ru gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared11/system_error48.cc gcc-6.3.1-20170216/libstdc++-v3/src/nonshared11/system_error48.cc
++--- gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared11/system_error48.cc	2017-07-03 20:44:15.710136115 +0200
+++++ gcc-6.3.1-20170216/libstdc++-v3/src/nonshared11/system_error48.cc	2017-07-03 21:52:39.995256269 +0200
++@@ -37,7 +37,7 @@
++ asm (".hidden _ZNSt12__sso_stringaSEOS_");
++ asm (".hidden _ZNSt12__sso_stringaSERKS_");
++ asm (".hidden _ZTSNSt3_V214error_categoryE");
++-#if defined(__i386__) || (defined(__powerpc__) && !defined(__powerpc64__))
+++#if defined(__i386__) || defined(__arm__) || (defined(__powerpc__) && !defined(__powerpc64__))
++ asm (".hidden _ZNSt12__sso_stringC1EPKcj");
++ asm (".hidden _ZNSt12__sso_stringC2EPKcj");  
++ #else
+diff --git a/SOURCES/gcc6-nonshared98-arm.patch b/SOURCES/gcc6-nonshared98-arm.patch
+new file mode 100644
+index 0000000..a9e31d5
+--- /dev/null
++++ b/SOURCES/gcc6-nonshared98-arm.patch
+@@ -0,0 +1,12 @@
++diff -ru gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared98/locale_facets.cc gcc-6.3.1-20170216/libstdc++-v3/src/nonshared98/locale_facets.cc
++--- gcc-6.3.1-20170216-orig/libstdc++-v3/src/nonshared98/locale_facets.cc	2017-07-06 16:24:59.002668108 +0200
+++++ gcc-6.3.1-20170216/libstdc++-v3/src/nonshared98/locale_facets.cc	2017-07-06 16:25:38.332524176 +0200
++@@ -22,7 +22,7 @@
++ 
++ #define _GLIBCXX_NONSHARED_CXX11
++ #include "../c++98/locale_facets.cc"
++-#if defined(__i386__) || (defined(__powerpc__) && !defined(__powerpc64__))
+++#if defined(__i386__) || defined(__arm__) || (defined(__powerpc__) && !defined(__powerpc64__))
++ asm (".hidden _ZSt22__verify_grouping_implPKcjS0_j");
++ #else
++ asm (".hidden _ZSt22__verify_grouping_implPKcmS0_m");
+diff --git a/SPECS/gcc.spec b/SPECS/gcc.spec
+index 16f3599..a8e30e5 100644
+--- a/SPECS/gcc.spec
++++ b/SPECS/gcc.spec
+@@ -82,7 +82,7 @@ Summary: GCC version 6
+ Name: %{?scl_prefix}gcc
+ #Name: %{?scl_prefix}gcc%{!?scl:5}
+ Version: %{gcc_version}
+-Release: %{gcc_release}.1%{?dist}
++Release: %{gcc_release}.1%{?dist}.redsleeve
+ # libgcc, libgfortran, libmudflap, libgomp, libstdc++ and crtstuff have
+ # GCC Runtime Exception.
+ License: GPLv3+ and GPLv3+ with exceptions and GPLv2+ with exceptions and LGPLv2+ and BSD
+@@ -255,6 +255,11 @@ Patch2001: doxygen-1.7.1-config.patch
+ Patch2002: doxygen-1.7.5-timestamp.patch
+ Patch2003: doxygen-1.8.0-rh856725.patch
+ 
++Patch10001: gcc6-decimal-rtti-arm.patch
++Patch10002: gcc6-nonshared11-arm.patch
++Patch10003: gcc6-future-arm.patch
++Patch10004: gcc6-nonshared98-arm.patch
++
+ %if 0%{?rhel} >= 7
+ %global nonsharedver 48
+ %else
+@@ -272,7 +277,10 @@ Patch2003: doxygen-1.8.0-rh856725.patch
+ %ifarch ppc
+ %global gcc_target_platform ppc64-%{_vendor}-%{_target_os}%{?_gnu}
+ %endif
+-%ifnarch sparcv9 ppc
++%ifarch %{arm}
++%global gcc_target_platform armv5tel-%{_vendor}-%{_target_os}-gnueabi
++%endif
++%ifnarch sparcv9 ppc %{arm}
+ %global gcc_target_platform %{_target_platform}
+ %endif
+ 
+@@ -631,6 +639,13 @@ cd ..
+ %endif
+ %endif
+ 
++%ifarch %{arm}
++%patch10001 -p1 -b .arm1
++%patch10002 -p1 -b .arm2
++%patch10003 -p1 -b .arm3
++%patch10004 -p1 -b .arm4
++%endif
++
+ echo 'Red Hat %{version}-%{gcc_release}' > gcc/DEV-PHASE
+ 
+ %if 0%{?rhel} == 6
+@@ -2630,6 +2645,13 @@ fi
+ %doc rpm.doc/changelogs/libcc1/ChangeLog*
+ 
+ %changelog
++* Fri Jun 30 2017 Jacco Ligthart <jacco@redsleeve.org> 6.3.1-3.1.redsleeve
++- added gcc_target_platform for armv5tel
++- added gcc6-decimal-rtti-arm.patch
++- added gcc6-nonshared11-arm.patch
++- added gcc6-future-arm.patch
++- added gcc6-nonshared98-arm.patch
++
+ * Mon Feb 20 2017 Marek Polacek <polacek@redhat.com> 6.3.1-3.1
+ - use "export" when setting LD_LIBRARY_PATH (#1421107)
+ 
+-- 
+1.8.3.1
+
