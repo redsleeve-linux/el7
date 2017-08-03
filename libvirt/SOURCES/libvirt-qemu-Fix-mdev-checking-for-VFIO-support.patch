@@ -1,0 +1,56 @@
+From 0642cb0d5040df1e483752e15ba724fe04b3afca Mon Sep 17 00:00:00 2001
+Message-Id: <0642cb0d5040df1e483752e15ba724fe04b3afca@dist-git>
+From: Erik Skultety <eskultet@redhat.com>
+Date: Wed, 12 Apr 2017 13:07:14 +0200
+Subject: [PATCH] qemu: Fix mdev checking for VFIO support
+
+Commit a4a39d90 added a check that checks for VFIO support with mediated
+devices. The problem is that the hostdev preparing functions behave like
+a fallthrough if device of that specific type doesn't exist. However,
+the check for VFIO support was independent of the existence of a mdev
+device which caused the guest to fail to start with any device to be
+directly assigned if VFIO was disabled/unavailable in the kernel.
+The proposed change first ensures that it makes sense to check for VFIO
+support in the first place, and only then performs the VFIO support check
+itself.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1441291
+
+(cherry picked from commit b4c2ac8d56124428d9329643a68625465094c5a7)
+Signed-off-by: Erik Skultety <eskultet@redhat.com>
+---
+ src/qemu/qemu_hostdev.c | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/src/qemu/qemu_hostdev.c b/src/qemu/qemu_hostdev.c
+index 685bf5b59..73d26f4c6 100644
+--- a/src/qemu/qemu_hostdev.c
++++ b/src/qemu/qemu_hostdev.c
+@@ -330,11 +330,20 @@ qemuHostdevPrepareMediatedDevices(virQEMUDriverPtr driver,
+                                   int nhostdevs)
+ {
+     virHostdevManagerPtr hostdev_mgr = driver->hostdevMgr;
++    bool supportsVFIO = qemuHostdevHostSupportsPassthroughVFIO();
++    size_t i;
+ 
+-    if (!qemuHostdevHostSupportsPassthroughVFIO()) {
+-        virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+-                       _("host doesn't support VFIO PCI interface"));
+-        return -1;
++    for (i = 0; i < nhostdevs; i++) {
++        if (hostdevs[i]->mode == VIR_DOMAIN_HOSTDEV_MODE_SUBSYS &&
++            hostdevs[i]->source.subsys.type == VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_MDEV) {
++            if (!supportsVFIO) {
++                virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
++                               _("Mediated host device assignment requires "
++                                 "VFIO support"));
++                return -1;
++            }
++            break;
++        }
+     }
+ 
+     return virHostdevPrepareMediatedDevices(hostdev_mgr, QEMU_DRIVER_NAME,
+-- 
+2.12.2
+

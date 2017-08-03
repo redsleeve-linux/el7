@@ -1,0 +1,31 @@
+From 8405ec82963c74f0505455fa2be35208dafbf907 Mon Sep 17 00:00:00 2001
+Message-Id: <8405ec82963c74f0505455fa2be35208dafbf907@dist-git>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Tue, 25 Apr 2017 13:41:19 +0200
+Subject: [PATCH] Don't leak str in virDomainNetDefCoalesceParseXML
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1414627
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit f08e26a19a5ba1cb434627554ee037e5a1b97e83)
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/conf/domain_conf.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index f2801ec84..47022c329 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -6798,6 +6798,7 @@ virDomainNetDefCoalesceParseXML(xmlNodePtr node,
+     ret->rx_max_coalesced_frames = tmp;
+ 
+  cleanup:
++    VIR_FREE(str);
+     ctxt->node = save;
+     return ret;
+ 
+-- 
+2.12.2
+

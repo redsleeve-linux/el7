@@ -1,0 +1,401 @@
+From be9562bdb0bef5b3e8db7dd22104631f13188f3a Mon Sep 17 00:00:00 2001
+Message-Id: <be9562bdb0bef5b3e8db7dd22104631f13188f3a@dist-git>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Tue, 16 May 2017 10:44:53 +0200
+Subject: [PATCH] qemu: format kernel_irqchip on the command line
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Add kernel_irqchip=split/on to the QEMU command line
+and a capability that looks for it in query-command-line-options
+output. For the 'split' option, use a version check
+since it cannot be reasonably probed.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1427005
+(cherry picked from commit 6b5c6314b2f7a3b54c94a591e6b0dcd13ef1c6ce)
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+
+Conflicts:
+        tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml
+          - downstream did not update the qemu version to 2.9.0
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_capabilities.c                       |  8 +++++++
+ src/qemu/qemu_capabilities.h                       |  4 ++++
+ src/qemu/qemu_command.c                            | 25 ++++++++++++++++++++++
+ src/qemu/qemu_domain.c                             | 19 ++++++++++++++++
+ tests/qemucapabilitiesdata/caps_1.5.3.x86_64.xml   |  1 +
+ tests/qemucapabilitiesdata/caps_1.6.0.x86_64.xml   |  1 +
+ tests/qemucapabilitiesdata/caps_1.7.0.x86_64.xml   |  1 +
+ tests/qemucapabilitiesdata/caps_2.1.1.x86_64.xml   |  1 +
+ tests/qemucapabilitiesdata/caps_2.4.0.x86_64.xml   |  1 +
+ tests/qemucapabilitiesdata/caps_2.5.0.x86_64.xml   |  1 +
+ .../caps_2.6.0-gicv2.aarch64.xml                   |  2 ++
+ .../caps_2.6.0-gicv3.aarch64.xml                   |  2 ++
+ tests/qemucapabilitiesdata/caps_2.6.0.ppc64le.xml  |  2 ++
+ tests/qemucapabilitiesdata/caps_2.6.0.x86_64.xml   |  2 ++
+ tests/qemucapabilitiesdata/caps_2.7.0.s390x.xml    |  2 ++
+ tests/qemucapabilitiesdata/caps_2.7.0.x86_64.xml   |  2 ++
+ tests/qemucapabilitiesdata/caps_2.8.0.s390x.xml    |  2 ++
+ tests/qemucapabilitiesdata/caps_2.8.0.x86_64.xml   |  2 ++
+ tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml   |  2 ++
+ .../qemuxml2argv-intel-iommu-ioapic.args           | 19 ++++++++++++++++
+ tests/qemuxml2argvtest.c                           |  5 +++++
+ 21 files changed, 104 insertions(+)
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-intel-iommu-ioapic.args
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index 49fb52e03..f27fe0a24 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -366,6 +366,9 @@ VIR_ENUM_IMPL(virQEMUCaps, QEMU_CAPS_LAST,
+               "query-named-block-nodes",
+               "cpu-cache",
+               "qemu-xhci",
++
++              "kernel-irqchip", /* 255 */
++              "kernel-irqchip.split",
+     );
+ 
+ 
+@@ -3128,6 +3131,7 @@ static struct virQEMUCapsCommandLineProps virQEMUCapsCommandLine[] = {
+     { "drive", "throttling.bps-total-max-length", QEMU_CAPS_DRIVE_IOTUNE_MAX_LENGTH },
+     { "drive", "throttling.group", QEMU_CAPS_DRIVE_IOTUNE_GROUP },
+     { "spice", "rendernode", QEMU_CAPS_SPICE_RENDERNODE },
++    { "machine", "kernel_irqchip", QEMU_CAPS_MACHINE_KERNEL_IRQCHIP },
+ };
+ 
+ static int
+@@ -4743,6 +4747,10 @@ virQEMUCapsInitQMPMonitor(virQEMUCapsPtr qemuCaps,
+     if (qemuCaps->version >= 2004050)
+         virQEMUCapsSet(qemuCaps, QEMU_CAPS_MACH_VIRT_GIC_VERSION);
+ 
++    /* no way to query if -machine kernel_irqchip supports split */
++    if (qemuCaps->version >= 2006000)
++        virQEMUCapsSet(qemuCaps, QEMU_CAPS_MACHINE_KERNEL_IRQCHIP_SPLIT);
++
+     if (virQEMUCapsProbeQMPCommands(qemuCaps, mon) < 0)
+         goto cleanup;
+ 
+diff --git a/src/qemu/qemu_capabilities.h b/src/qemu/qemu_capabilities.h
+index 1cd3ec37d..a6cdf2c3d 100644
+--- a/src/qemu/qemu_capabilities.h
++++ b/src/qemu/qemu_capabilities.h
+@@ -404,6 +404,10 @@ typedef enum {
+     QEMU_CAPS_CPU_CACHE, /* -cpu supports host-cache-info and l3-cache properties */
+     QEMU_CAPS_DEVICE_QEMU_XHCI, /* -device qemu-xhci */
+ 
++    /* 255 */
++    QEMU_CAPS_MACHINE_KERNEL_IRQCHIP, /* -machine kernel_irqchip */
++    QEMU_CAPS_MACHINE_KERNEL_IRQCHIP_SPLIT, /* -machine kernel_irqchip=split */
++
+     QEMU_CAPS_LAST /* this must always be the last item */
+ } virQEMUCapsFlags;
+ 
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index b27b9f8ad..7151b1843 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -7429,6 +7429,31 @@ qemuBuildMachineCommandLine(virCommandPtr cmd,
+             }
+         }
+ 
++        if (def->features[VIR_DOMAIN_FEATURE_IOAPIC] == VIR_TRISTATE_SWITCH_ON) {
++            if (!virQEMUCapsGet(qemuCaps, QEMU_CAPS_MACHINE_KERNEL_IRQCHIP)) {
++                virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
++                               _("I/O APIC tuning is not supported by this "
++                                 "QEMU binary"));
++                goto cleanup;
++            }
++            switch (def->ioapic) {
++            case VIR_DOMAIN_IOAPIC_QEMU:
++                if (!virQEMUCapsGet(qemuCaps, QEMU_CAPS_MACHINE_KERNEL_IRQCHIP_SPLIT)) {
++                    virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
++                                   _("split I/O APIC is not supported by this "
++                                     "QEMU binary"));
++                    goto cleanup;
++                }
++                virBufferAddLit(&buf, ",kernel_irqchip=split");
++                break;
++            case VIR_DOMAIN_IOAPIC_KVM:
++                virBufferAddLit(&buf, ",kernel_irqchip=on");
++                break;
++            case VIR_DOMAIN_IOAPIC_LAST:
++                break;
++            }
++        }
++
+         virCommandAddArgBuffer(cmd, &buf);
+     }
+ 
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index 04d1b39db..a8a68aedd 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -2776,6 +2776,22 @@ qemuDomainDefCPUPostParse(virDomainDefPtr def)
+ 
+ 
+ static int
++qemuDomainDefVerifyFeatures(const virDomainDef *def)
++{
++    if (def->features[VIR_DOMAIN_FEATURE_IOAPIC] == VIR_TRISTATE_SWITCH_ON &&
++        !ARCH_IS_X86(def->os.arch)) {
++        virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
++                       _("I/O APIC tuning is not supported "
++                         "for '%s' architecture"),
++                       virArchToString(def->os.arch));
++        return -1;
++    }
++
++    return 0;
++}
++
++
++static int
+ qemuDomainDefPostParse(virDomainDefPtr def,
+                        virCapsPtr caps,
+                        unsigned int parseFlags,
+@@ -2830,6 +2846,9 @@ qemuDomainDefPostParse(virDomainDefPtr def,
+ 
+     qemuDomainDefEnableDefaultFeatures(def, qemuCaps);
+ 
++    if (qemuDomainDefVerifyFeatures(def) < 0)
++        goto cleanup;
++
+     if (qemuDomainRecheckInternalPaths(def, cfg, parseFlags) < 0)
+         goto cleanup;
+ 
+diff --git a/tests/qemucapabilitiesdata/caps_1.5.3.x86_64.xml b/tests/qemucapabilitiesdata/caps_1.5.3.x86_64.xml
+index a68c13bbd..14f34b277 100644
+--- a/tests/qemucapabilitiesdata/caps_1.5.3.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_1.5.3.x86_64.xml
+@@ -140,6 +140,7 @@
+   <flag name='display'/>
+   <flag name='vhost-scsi'/>
+   <flag name='query-cpu-definitions'/>
++  <flag name='kernel-irqchip'/>
+   <version>1005003</version>
+   <kvmVersion>0</kvmVersion>
+   <package></package>
+diff --git a/tests/qemucapabilitiesdata/caps_1.6.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_1.6.0.x86_64.xml
+index 365b3a650..8fc23d6aa 100644
+--- a/tests/qemucapabilitiesdata/caps_1.6.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_1.6.0.x86_64.xml
+@@ -145,6 +145,7 @@
+   <flag name='display'/>
+   <flag name='vhost-scsi'/>
+   <flag name='query-cpu-definitions'/>
++  <flag name='kernel-irqchip'/>
+   <version>1006000</version>
+   <kvmVersion>0</kvmVersion>
+   <package></package>
+diff --git a/tests/qemucapabilitiesdata/caps_1.7.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_1.7.0.x86_64.xml
+index 689fbf82c..47c8956b4 100644
+--- a/tests/qemucapabilitiesdata/caps_1.7.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_1.7.0.x86_64.xml
+@@ -147,6 +147,7 @@
+   <flag name='display'/>
+   <flag name='vhost-scsi'/>
+   <flag name='query-cpu-definitions'/>
++  <flag name='kernel-irqchip'/>
+   <version>1007000</version>
+   <kvmVersion>0</kvmVersion>
+   <package></package>
+diff --git a/tests/qemucapabilitiesdata/caps_2.1.1.x86_64.xml b/tests/qemucapabilitiesdata/caps_2.1.1.x86_64.xml
+index e092dd254..afe7d53ff 100644
+--- a/tests/qemucapabilitiesdata/caps_2.1.1.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.1.1.x86_64.xml
+@@ -163,6 +163,7 @@
+   <flag name='vhost-scsi'/>
+   <flag name='query-cpu-definitions'/>
+   <flag name='query-named-block-nodes'/>
++  <flag name='kernel-irqchip'/>
+   <version>2001001</version>
+   <kvmVersion>0</kvmVersion>
+   <package></package>
+diff --git a/tests/qemucapabilitiesdata/caps_2.4.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_2.4.0.x86_64.xml
+index ea03f2e66..5bdc1a2bd 100644
+--- a/tests/qemucapabilitiesdata/caps_2.4.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.4.0.x86_64.xml
+@@ -185,6 +185,7 @@
+   <flag name='query-cpu-definitions'/>
+   <flag name='block-write-threshold'/>
+   <flag name='query-named-block-nodes'/>
++  <flag name='kernel-irqchip'/>
+   <version>2004000</version>
+   <kvmVersion>0</kvmVersion>
+   <package></package>
+diff --git a/tests/qemucapabilitiesdata/caps_2.5.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_2.5.0.x86_64.xml
+index 164605f20..36bc1342b 100644
+--- a/tests/qemucapabilitiesdata/caps_2.5.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.5.0.x86_64.xml
+@@ -191,6 +191,7 @@
+   <flag name='query-cpu-definitions'/>
+   <flag name='block-write-threshold'/>
+   <flag name='query-named-block-nodes'/>
++  <flag name='kernel-irqchip'/>
+   <version>2005000</version>
+   <kvmVersion>0</kvmVersion>
+   <package></package>
+diff --git a/tests/qemucapabilitiesdata/caps_2.6.0-gicv2.aarch64.xml b/tests/qemucapabilitiesdata/caps_2.6.0-gicv2.aarch64.xml
+index af3a8e7cb..33bc46208 100644
+--- a/tests/qemucapabilitiesdata/caps_2.6.0-gicv2.aarch64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.6.0-gicv2.aarch64.xml
+@@ -168,6 +168,8 @@
+   <flag name='query-cpu-definitions'/>
+   <flag name='block-write-threshold'/>
+   <flag name='query-named-block-nodes'/>
++  <flag name='kernel-irqchip'/>
++  <flag name='kernel-irqchip.split'/>
+   <version>2006000</version>
+   <kvmVersion>0</kvmVersion>
+   <package></package>
+diff --git a/tests/qemucapabilitiesdata/caps_2.6.0-gicv3.aarch64.xml b/tests/qemucapabilitiesdata/caps_2.6.0-gicv3.aarch64.xml
+index 4402ffa6f..a8ce6b03b 100644
+--- a/tests/qemucapabilitiesdata/caps_2.6.0-gicv3.aarch64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.6.0-gicv3.aarch64.xml
+@@ -168,6 +168,8 @@
+   <flag name='query-cpu-definitions'/>
+   <flag name='block-write-threshold'/>
+   <flag name='query-named-block-nodes'/>
++  <flag name='kernel-irqchip'/>
++  <flag name='kernel-irqchip.split'/>
+   <version>2006000</version>
+   <kvmVersion>0</kvmVersion>
+   <package></package>
+diff --git a/tests/qemucapabilitiesdata/caps_2.6.0.ppc64le.xml b/tests/qemucapabilitiesdata/caps_2.6.0.ppc64le.xml
+index 3f05169c8..425992f0d 100644
+--- a/tests/qemucapabilitiesdata/caps_2.6.0.ppc64le.xml
++++ b/tests/qemucapabilitiesdata/caps_2.6.0.ppc64le.xml
+@@ -162,6 +162,8 @@
+   <flag name='query-cpu-definitions'/>
+   <flag name='block-write-threshold'/>
+   <flag name='query-named-block-nodes'/>
++  <flag name='kernel-irqchip'/>
++  <flag name='kernel-irqchip.split'/>
+   <version>2006000</version>
+   <kvmVersion>0</kvmVersion>
+   <package></package>
+diff --git a/tests/qemucapabilitiesdata/caps_2.6.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_2.6.0.x86_64.xml
+index 1d823eac2..97e71ec4f 100644
+--- a/tests/qemucapabilitiesdata/caps_2.6.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.6.0.x86_64.xml
+@@ -200,6 +200,8 @@
+   <flag name='query-cpu-definitions'/>
+   <flag name='block-write-threshold'/>
+   <flag name='query-named-block-nodes'/>
++  <flag name='kernel-irqchip'/>
++  <flag name='kernel-irqchip.split'/>
+   <version>2006000</version>
+   <kvmVersion>0</kvmVersion>
+   <package></package>
+diff --git a/tests/qemucapabilitiesdata/caps_2.7.0.s390x.xml b/tests/qemucapabilitiesdata/caps_2.7.0.s390x.xml
+index 38d36b3e6..70cce6417 100644
+--- a/tests/qemucapabilitiesdata/caps_2.7.0.s390x.xml
++++ b/tests/qemucapabilitiesdata/caps_2.7.0.s390x.xml
+@@ -130,6 +130,8 @@
+   <flag name='query-cpu-definitions'/>
+   <flag name='block-write-threshold'/>
+   <flag name='query-named-block-nodes'/>
++  <flag name='kernel-irqchip'/>
++  <flag name='kernel-irqchip.split'/>
+   <version>2007000</version>
+   <kvmVersion>0</kvmVersion>
+   <package></package>
+diff --git a/tests/qemucapabilitiesdata/caps_2.7.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_2.7.0.x86_64.xml
+index 24d7cb438..6c2ea59c6 100644
+--- a/tests/qemucapabilitiesdata/caps_2.7.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.7.0.x86_64.xml
+@@ -202,6 +202,8 @@
+   <flag name='query-cpu-definitions'/>
+   <flag name='block-write-threshold'/>
+   <flag name='query-named-block-nodes'/>
++  <flag name='kernel-irqchip'/>
++  <flag name='kernel-irqchip.split'/>
+   <version>2007000</version>
+   <kvmVersion>0</kvmVersion>
+   <package> (v2.7.0)</package>
+diff --git a/tests/qemucapabilitiesdata/caps_2.8.0.s390x.xml b/tests/qemucapabilitiesdata/caps_2.8.0.s390x.xml
+index 42c92c567..51be9bce4 100644
+--- a/tests/qemucapabilitiesdata/caps_2.8.0.s390x.xml
++++ b/tests/qemucapabilitiesdata/caps_2.8.0.s390x.xml
+@@ -132,6 +132,8 @@
+   <flag name='query-cpu-definitions'/>
+   <flag name='block-write-threshold'/>
+   <flag name='query-named-block-nodes'/>
++  <flag name='kernel-irqchip'/>
++  <flag name='kernel-irqchip.split'/>
+   <version>2007093</version>
+   <kvmVersion>0</kvmVersion>
+   <package></package>
+diff --git a/tests/qemucapabilitiesdata/caps_2.8.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_2.8.0.x86_64.xml
+index 0bc13683e..9c8c79ab0 100644
+--- a/tests/qemucapabilitiesdata/caps_2.8.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.8.0.x86_64.xml
+@@ -203,6 +203,8 @@
+   <flag name='query-cpu-definitions'/>
+   <flag name='block-write-threshold'/>
+   <flag name='query-named-block-nodes'/>
++  <flag name='kernel-irqchip'/>
++  <flag name='kernel-irqchip.split'/>
+   <version>2008000</version>
+   <kvmVersion>0</kvmVersion>
+   <package> (v2.8.0)</package>
+diff --git a/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml
+index 83ed0f1c6..e4cdca89a 100644
+--- a/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml
+@@ -209,6 +209,8 @@
+   <flag name='query-named-block-nodes'/>
+   <flag name='cpu-cache'/>
+   <flag name='qemu-xhci'/>
++  <flag name='kernel-irqchip'/>
++  <flag name='kernel-irqchip.split'/>
+   <version>2008090</version>
+   <kvmVersion>0</kvmVersion>
+   <package> (v2.9.0-rc0-142-g940a8ce)</package>
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-intel-iommu-ioapic.args b/tests/qemuxml2argvdata/qemuxml2argv-intel-iommu-ioapic.args
+new file mode 100644
+index 000000000..43d71adfc
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-intel-iommu-ioapic.args
+@@ -0,0 +1,19 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/home/test \
++USER=test \
++LOGNAME=test \
++QEMU_AUDIO_DRV=none \
++/usr/bin/qemu-system-x86_64 \
++-name QEMUGuest1 \
++-S \
++-machine q35,accel=kvm,kernel_irqchip=split \
++-m 214 \
++-smp 1,sockets=1,cores=1,threads=1 \
++-uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
++-nographic \
++-nodefaults \
++-monitor unix:/tmp/lib/domain--1-QEMUGuest1/monitor.sock,server,nowait \
++-no-acpi \
++-boot c \
++-device intel-iommu
+diff --git a/tests/qemuxml2argvtest.c b/tests/qemuxml2argvtest.c
+index 406fbfea4..c7aad297c 100644
+--- a/tests/qemuxml2argvtest.c
++++ b/tests/qemuxml2argvtest.c
+@@ -2517,6 +2517,11 @@ mymain(void)
+     DO_TEST("intel-iommu-machine",
+             QEMU_CAPS_MACHINE_OPT,
+             QEMU_CAPS_MACHINE_IOMMU);
++    DO_TEST("intel-iommu-ioapic",
++            QEMU_CAPS_MACHINE_OPT,
++            QEMU_CAPS_MACHINE_KERNEL_IRQCHIP,
++            QEMU_CAPS_MACHINE_KERNEL_IRQCHIP_SPLIT,
++            QEMU_CAPS_DEVICE_INTEL_IOMMU);
+ 
+     DO_TEST("cpu-hotplug-startup", QEMU_CAPS_QUERY_HOTPLUGGABLE_CPUS);
+ 
+-- 
+2.13.0
+

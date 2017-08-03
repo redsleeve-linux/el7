@@ -1,0 +1,36 @@
+From 71bdd999481b2feaecceb39dd3cfb7dfa61de3af Mon Sep 17 00:00:00 2001
+Message-Id: <71bdd999481b2feaecceb39dd3cfb7dfa61de3af@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Thu, 25 May 2017 14:33:25 +0200
+Subject: [PATCH] qemu: Use correct variable in qemuDomainSetBlockIoTune
+
+'param' contains the correct element from 'params'.
+
+If the group name would not be the first parameter libvirtd would crash.
+
+Introduced in c53bd25b13.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1455510
+(cherry picked from commit 0d3aff58e7ed190c97b40ee92f58cb0180cef6fe)
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_driver.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index 3241de4cb..c31d07a65 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -17445,7 +17445,7 @@ qemuDomainSetBlockIoTune(virDomainPtr dom,
+ 
+         /* NB: Cannot use macro since this is a value.s not a value.ul */
+         if (STREQ(param->field, VIR_DOMAIN_BLOCK_IOTUNE_GROUP_NAME)) {
+-            if (VIR_STRDUP(info.group_name, params->value.s) < 0)
++            if (VIR_STRDUP(info.group_name, param->value.s) < 0)
+                 goto endjob;
+             set_fields |= QEMU_BLOCK_IOTUNE_SET_GROUP_NAME;
+             if (virTypedParamsAddString(&eventParams, &eventNparams,
+-- 
+2.13.0
+

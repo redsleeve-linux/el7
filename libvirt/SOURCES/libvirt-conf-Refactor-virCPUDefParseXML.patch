@@ -1,0 +1,413 @@
+From 7bdac52dd6979f76f9a75a404a76e79f7da11a06 Mon Sep 17 00:00:00 2001
+Message-Id: <7bdac52dd6979f76f9a75a404a76e79f7da11a06@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Tue, 23 May 2017 09:29:36 +0200
+Subject: [PATCH] conf: Refactor virCPUDefParseXML
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit 702013f3b3ad8bd28c326058e2dd9ea8afbd1e61)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1441662
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/conf/cpu_conf.c    | 109 +++++++++++++++++++++++++++----------------------
+ src/conf/cpu_conf.h    |   9 ++--
+ src/conf/domain_conf.c |  12 +-----
+ src/cpu/cpu.c          |   5 +--
+ tests/cputest.c        |   5 +--
+ 5 files changed, 72 insertions(+), 68 deletions(-)
+
+diff --git a/src/conf/cpu_conf.c b/src/conf/cpu_conf.c
+index ffb2e83d67..da40e9ba97 100644
+--- a/src/conf/cpu_conf.c
++++ b/src/conf/cpu_conf.c
+@@ -245,12 +245,25 @@ virCPUDefCopy(const virCPUDef *cpu)
+ }
+ 
+ 
+-virCPUDefPtr
+-virCPUDefParseXML(xmlNodePtr node,
+-                  xmlXPathContextPtr ctxt,
+-                  virCPUType type)
++/*
++ * Parses CPU definition XML from a node pointed to by @xpath. If @xpath is
++ * NULL, the current node of @ctxt is used (i.e., it is a shortcut to ".").
++ *
++ * Missing <cpu> element in the XML document is not considered an error unless
++ * @xpath is NULL in which case the function expects it was provided with a
++ * valid <cpu> element already. In other words, the function returns success
++ * and sets @cpu to NULL if @xpath is not NULL and the node pointed to by
++ * @xpath is not found.
++ *
++ * Returns 0 on success, -1 on error.
++ */
++int
++virCPUDefParseXML(xmlXPathContextPtr ctxt,
++                  const char *xpath,
++                  virCPUType type,
++                  virCPUDefPtr *cpu)
+ {
+-    virCPUDefPtr def;
++    virCPUDefPtr def = NULL;
+     xmlNodePtr *nodes = NULL;
+     xmlNodePtr oldnode = ctxt->node;
+     int n;
+@@ -258,15 +271,23 @@ virCPUDefParseXML(xmlNodePtr node,
+     char *cpuMode;
+     char *fallback = NULL;
+     char *vendor_id = NULL;
++    int ret = -1;
+ 
+-    if (!xmlStrEqual(node->name, BAD_CAST "cpu")) {
++    *cpu = NULL;
++
++    if (xpath && !(ctxt->node = virXPathNode(xpath, ctxt))) {
++        ret = 0;
++        goto cleanup;
++    }
++
++    if (!xmlStrEqual(ctxt->node->name, BAD_CAST "cpu")) {
+         virReportError(VIR_ERR_XML_ERROR, "%s",
+                        _("XML does not contain expected 'cpu' element"));
+-        return NULL;
++        goto cleanup;
+     }
+ 
+     if (VIR_ALLOC(def) < 0)
+-        return NULL;
++        goto cleanup;
+ 
+     if (type == VIR_CPU_TYPE_AUTO) {
+         if (virXPathBoolean("boolean(./arch)", ctxt)) {
+@@ -274,7 +295,7 @@ virCPUDefParseXML(xmlNodePtr node,
+                 virReportError(VIR_ERR_XML_ERROR, "%s",
+                                _("'arch' element cannot be used inside 'cpu'"
+                                  " element with 'match' attribute'"));
+-                goto error;
++                goto cleanup;
+             }
+             def->type = VIR_CPU_TYPE_HOST;
+         } else {
+@@ -284,12 +305,12 @@ virCPUDefParseXML(xmlNodePtr node,
+         def->type = type;
+     }
+ 
+-    if ((cpuMode = virXMLPropString(node, "mode"))) {
++    if ((cpuMode = virXMLPropString(ctxt->node, "mode"))) {
+         if (def->type == VIR_CPU_TYPE_HOST) {
+             VIR_FREE(cpuMode);
+             virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                            _("Attribute mode is only allowed for guest CPU"));
+-            goto error;
++            goto cleanup;
+         } else {
+             def->mode = virCPUModeTypeFromString(cpuMode);
+ 
+@@ -298,7 +319,7 @@ virCPUDefParseXML(xmlNodePtr node,
+                                _("Invalid mode attribute '%s'"),
+                                cpuMode);
+                 VIR_FREE(cpuMode);
+-                goto error;
++                goto cleanup;
+             }
+             VIR_FREE(cpuMode);
+         }
+@@ -310,7 +331,7 @@ virCPUDefParseXML(xmlNodePtr node,
+     }
+ 
+     if (def->type == VIR_CPU_TYPE_GUEST) {
+-        char *match = virXMLPropString(node, "match");
++        char *match = virXMLPropString(ctxt->node, "match");
+         char *check;
+ 
+         if (!match) {
+@@ -326,11 +347,11 @@ virCPUDefParseXML(xmlNodePtr node,
+                 virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                                _("Invalid match attribute for CPU "
+                                  "specification"));
+-                goto error;
++                goto cleanup;
+             }
+         }
+ 
+-        if ((check = virXMLPropString(node, "check"))) {
++        if ((check = virXMLPropString(ctxt->node, "check"))) {
+             int value = virCPUCheckTypeFromString(check);
+             VIR_FREE(check);
+ 
+@@ -338,7 +359,7 @@ virCPUDefParseXML(xmlNodePtr node,
+                 virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                                _("Invalid check attribute for CPU "
+                                  "specification"));
+-                goto error;
++                goto cleanup;
+             }
+             def->check = value;
+         }
+@@ -349,13 +370,13 @@ virCPUDefParseXML(xmlNodePtr node,
+         if (!arch) {
+             virReportError(VIR_ERR_XML_ERROR, "%s",
+                            _("Missing CPU architecture"));
+-            goto error;
++            goto cleanup;
+         }
+         if ((def->arch = virArchFromString(arch)) == VIR_ARCH_NONE) {
+             virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+                            _("Unknown architecture %s"), arch);
+             VIR_FREE(arch);
+-            goto error;
++            goto cleanup;
+         }
+         VIR_FREE(arch);
+     }
+@@ -364,7 +385,7 @@ virCPUDefParseXML(xmlNodePtr node,
+         def->type == VIR_CPU_TYPE_HOST) {
+         virReportError(VIR_ERR_XML_ERROR, "%s",
+                         _("Missing CPU model name"));
+-        goto error;
++        goto cleanup;
+     }
+ 
+     if (def->type == VIR_CPU_TYPE_GUEST &&
+@@ -374,7 +395,7 @@ virCPUDefParseXML(xmlNodePtr node,
+             if ((def->fallback = virCPUFallbackTypeFromString(fallback)) < 0) {
+                 virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                                _("Invalid fallback attribute"));
+-                goto error;
++                goto cleanup;
+             }
+         }
+ 
+@@ -384,14 +405,14 @@ virCPUDefParseXML(xmlNodePtr node,
+                 virReportError(VIR_ERR_XML_ERROR,
+                                _("vendor_id must be exactly %d characters long"),
+                                VIR_CPU_VENDOR_ID_LENGTH);
+-                goto error;
++                goto cleanup;
+             }
+ 
+             /* ensure that the string can be passed to qemu*/
+             if (strchr(vendor_id, ',')) {
+                     virReportError(VIR_ERR_XML_ERROR, "%s",
+                                    _("vendor id is invalid"));
+-                    goto error;
++                    goto cleanup;
+             }
+ 
+             def->vendor_id = vendor_id;
+@@ -403,61 +424,54 @@ virCPUDefParseXML(xmlNodePtr node,
+     if (def->vendor && !def->model) {
+         virReportError(VIR_ERR_XML_ERROR, "%s",
+                        _("CPU vendor specified without CPU model"));
+-        goto error;
++        goto cleanup;
+     }
+ 
+     if (virXPathNode("./topology[1]", ctxt)) {
+-        int ret;
+         unsigned long ul;
+ 
+-        ret = virXPathULong("string(./topology[1]/@sockets)",
+-                            ctxt, &ul);
+-        if (ret < 0) {
++        if (virXPathULong("string(./topology[1]/@sockets)", ctxt, &ul) < 0) {
+             virReportError(VIR_ERR_XML_ERROR, "%s",
+                            _("Missing 'sockets' attribute in CPU topology"));
+-            goto error;
++            goto cleanup;
+         }
+         def->sockets = (unsigned int) ul;
+ 
+-        ret = virXPathULong("string(./topology[1]/@cores)",
+-                            ctxt, &ul);
+-        if (ret < 0) {
++        if (virXPathULong("string(./topology[1]/@cores)", ctxt, &ul) < 0) {
+             virReportError(VIR_ERR_XML_ERROR, "%s",
+                            _("Missing 'cores' attribute in CPU topology"));
+-            goto error;
++            goto cleanup;
+         }
+         def->cores = (unsigned int) ul;
+ 
+-        ret = virXPathULong("string(./topology[1]/@threads)",
+-                            ctxt, &ul);
+-        if (ret < 0) {
++        if (virXPathULong("string(./topology[1]/@threads)", ctxt, &ul) < 0) {
+             virReportError(VIR_ERR_XML_ERROR, "%s",
+                            _("Missing 'threads' attribute in CPU topology"));
+-            goto error;
++            goto cleanup;
+         }
+         def->threads = (unsigned int) ul;
+ 
+         if (!def->sockets || !def->cores || !def->threads) {
+             virReportError(VIR_ERR_XML_ERROR, "%s",
+                            _("Invalid CPU topology"));
+-            goto error;
++            goto cleanup;
+         }
+     }
+ 
+     if ((n = virXPathNodeSet("./feature", ctxt, &nodes)) < 0)
+-        goto error;
++        goto cleanup;
+ 
+     if (n > 0) {
+         if (!def->model && def->mode == VIR_CPU_MODE_CUSTOM) {
+             virReportError(VIR_ERR_XML_ERROR, "%s",
+                            _("Non-empty feature list specified without "
+                              "CPU model"));
+-            goto error;
++            goto cleanup;
+         }
+ 
+         if (VIR_RESIZE_N(def->features, def->nfeatures_max,
+                          def->nfeatures, n) < 0)
+-            goto error;
++            goto cleanup;
+ 
+         def->nfeatures = n;
+     }
+@@ -480,7 +494,7 @@ virCPUDefParseXML(xmlNodePtr node,
+             if (policy < 0) {
+                 virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                                _("Invalid CPU feature policy"));
+-                goto error;
++                goto cleanup;
+             }
+         } else {
+             policy = -1;
+@@ -490,7 +504,7 @@ virCPUDefParseXML(xmlNodePtr node,
+             VIR_FREE(name);
+             virReportError(VIR_ERR_XML_ERROR, "%s",
+                            _("Invalid CPU feature name"));
+-            goto error;
++            goto cleanup;
+         }
+ 
+         for (j = 0; j < i; j++) {
+@@ -499,7 +513,7 @@ virCPUDefParseXML(xmlNodePtr node,
+                                _("CPU feature '%s' specified more than once"),
+                                name);
+                 VIR_FREE(name);
+-                goto error;
++                goto cleanup;
+             }
+         }
+ 
+@@ -542,17 +556,16 @@ virCPUDefParseXML(xmlNodePtr node,
+         def->cache->mode = mode;
+     }
+ 
++    VIR_STEAL_PTR(*cpu, def);
++    ret = 0;
++
+  cleanup:
+     ctxt->node = oldnode;
+     VIR_FREE(fallback);
+     VIR_FREE(vendor_id);
+     VIR_FREE(nodes);
+-    return def;
+-
+- error:
+     virCPUDefFree(def);
+-    def = NULL;
+-    goto cleanup;
++    return ret;
+ }
+ 
+ 
+diff --git a/src/conf/cpu_conf.h b/src/conf/cpu_conf.h
+index b0d891552a..b44974f47e 100644
+--- a/src/conf/cpu_conf.h
++++ b/src/conf/cpu_conf.h
+@@ -182,10 +182,11 @@ virCPUDefCopy(const virCPUDef *cpu);
+ virCPUDefPtr
+ virCPUDefCopyWithoutModel(const virCPUDef *cpu);
+ 
+-virCPUDefPtr
+-virCPUDefParseXML(xmlNodePtr node,
+-                  xmlXPathContextPtr ctxt,
+-                  virCPUType mode);
++int
++virCPUDefParseXML(xmlXPathContextPtr ctxt,
++                  const char *xpath,
++                  virCPUType mode,
++                  virCPUDefPtr *cpu);
+ 
+ bool
+ virCPUDefIsEqual(virCPUDefPtr src,
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 2197330a22..395dcc0531 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -17418,16 +17418,8 @@ virDomainDefParseXML(xmlDocPtr xml,
+     }
+     VIR_FREE(nodes);
+ 
+-    /* analysis of cpu handling */
+-    if ((node = virXPathNode("./cpu[1]", ctxt)) != NULL) {
+-        xmlNodePtr oldnode = ctxt->node;
+-        ctxt->node = node;
+-        def->cpu = virCPUDefParseXML(node, ctxt, VIR_CPU_TYPE_GUEST);
+-        ctxt->node = oldnode;
+-
+-        if (def->cpu == NULL)
+-            goto error;
+-    }
++    if (virCPUDefParseXML(ctxt, "./cpu[1]", VIR_CPU_TYPE_GUEST, &def->cpu) < 0)
++        goto error;
+ 
+     if (virDomainNumaDefCPUParseXML(def->numa, ctxt) < 0)
+         goto error;
+diff --git a/src/cpu/cpu.c b/src/cpu/cpu.c
+index 702b14dbb7..96160901e1 100644
+--- a/src/cpu/cpu.c
++++ b/src/cpu/cpu.c
+@@ -130,7 +130,7 @@ virCPUCompareXML(virArch arch,
+     if (!(doc = virXMLParseStringCtxt(xml, _("(CPU_definition)"), &ctxt)))
+         goto cleanup;
+ 
+-    if (!(cpu = virCPUDefParseXML(ctxt->node, ctxt, VIR_CPU_TYPE_AUTO)))
++    if (virCPUDefParseXML(ctxt, NULL, VIR_CPU_TYPE_AUTO, &cpu) < 0)
+         goto cleanup;
+ 
+     ret = virCPUCompare(arch, host, cpu, failIncompatible);
+@@ -562,8 +562,7 @@ cpuBaselineXML(const char **xmlCPUs,
+         if (!(doc = virXMLParseStringCtxt(xmlCPUs[i], _("(CPU_definition)"), &ctxt)))
+             goto error;
+ 
+-        cpus[i] = virCPUDefParseXML(ctxt->node, ctxt, VIR_CPU_TYPE_HOST);
+-        if (cpus[i] == NULL)
++        if (virCPUDefParseXML(ctxt, NULL, VIR_CPU_TYPE_HOST, &cpus[i]) < 0)
+             goto error;
+ 
+         xmlXPathFreeContext(ctxt);
+diff --git a/tests/cputest.c b/tests/cputest.c
+index efa891dc18..97b34de9ed 100644
+--- a/tests/cputest.c
++++ b/tests/cputest.c
+@@ -88,7 +88,7 @@ cpuTestLoadXML(virArch arch, const char *name)
+     if (!(doc = virXMLParseFileCtxt(xml, &ctxt)))
+         goto cleanup;
+ 
+-    cpu = virCPUDefParseXML(ctxt->node, ctxt, VIR_CPU_TYPE_AUTO);
++    virCPUDefParseXML(ctxt, NULL, VIR_CPU_TYPE_AUTO, &cpu);
+ 
+  cleanup:
+     xmlXPathFreeContext(ctxt);
+@@ -126,8 +126,7 @@ cpuTestLoadMultiXML(virArch arch,
+ 
+     for (i = 0; i < n; i++) {
+         ctxt->node = nodes[i];
+-        cpus[i] = virCPUDefParseXML(nodes[i], ctxt, VIR_CPU_TYPE_HOST);
+-        if (!cpus[i])
++        if (virCPUDefParseXML(ctxt, NULL, VIR_CPU_TYPE_HOST, &cpus[i]) < 0)
+             goto cleanup_cpus;
+     }
+ 
+-- 
+2.13.1
+

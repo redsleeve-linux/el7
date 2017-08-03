@@ -1,0 +1,37 @@
+From e7091fc939b7b7a1c23f4e95220e343ca21958ad Mon Sep 17 00:00:00 2001
+From: Jan Cholasta <jcholast@redhat.com>
+Date: Wed, 29 Mar 2017 07:14:24 +0000
+Subject: [PATCH] spec file: bump libsss_nss_idmap-devel BuildRequires
+
+Bump BuildRequires on libsss_nss_idmap-devel to the version which
+introduces the sss_nss_getlistbycert function.
+
+This fixes RPM build failure when an older version of
+libsss_nss_idmap-devel was installed.
+
+https://pagure.io/freeipa/issue/6828
+
+Reviewed-By: Tomas Krizek <tkrizek@redhat.com>
+Reviewed-By: Alexander Bokovoy <abokovoy@redhat.com>
+---
+ freeipa.spec.in | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/freeipa.spec.in b/freeipa.spec.in
+index e7e39e87bef39653d660a345793750f59c8dd715..829c3f0b2898de1ecbf0cfb769fde5cd978c241c 100644
+--- a/freeipa.spec.in
++++ b/freeipa.spec.in
+@@ -121,8 +121,8 @@ BuildRequires:  libtevent-devel
+ BuildRequires:  libuuid-devel
+ BuildRequires:  libsss_idmap-devel
+ BuildRequires:  libsss_certmap-devel
+-# 1.14.0: sss_nss_getnamebycert (https://fedorahosted.org/sssd/ticket/2897)
+-BuildRequires:  libsss_nss_idmap-devel >= 1.14.0
++# 1.15.3: sss_nss_getlistbycert (https://pagure.io/SSSD/sssd/issue/3050)
++BuildRequires:  libsss_nss_idmap-devel >= 1.15.3
+ BuildRequires:  rhino
+ BuildRequires:  libverto-devel
+ BuildRequires:  libunistring-devel
+-- 
+2.12.2
+

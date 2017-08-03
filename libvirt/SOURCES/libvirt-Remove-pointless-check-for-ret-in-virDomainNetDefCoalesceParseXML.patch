@@ -1,0 +1,36 @@
+From 25fbc5c619a4277086b0bce0e3a55dd4099d4ab2 Mon Sep 17 00:00:00 2001
+Message-Id: <25fbc5c619a4277086b0bce0e3a55dd4099d4ab2@dist-git>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Tue, 25 Apr 2017 13:41:20 +0200
+Subject: [PATCH] Remove pointless check for !ret in
+ virDomainNetDefCoalesceParseXML
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1414627
+
+It was left there after removing a macro it was part of in first
+version or so.  Now it will always be NULL.
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit b2763f189c5b306a685021b4fede9e2cee8528de)
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/conf/domain_conf.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 47022c329..2d5d00cf2 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -6776,7 +6776,7 @@ virDomainNetDefCoalesceParseXML(xmlNodePtr node,
+     if (!str)
+         goto cleanup;
+ 
+-    if (!ret && VIR_ALLOC(ret) < 0)
++    if (VIR_ALLOC(ret) < 0)
+         goto cleanup;
+ 
+     if (virStrToLong_ullp(str, NULL, 10, &tmp) < 0) {
+-- 
+2.12.2
+

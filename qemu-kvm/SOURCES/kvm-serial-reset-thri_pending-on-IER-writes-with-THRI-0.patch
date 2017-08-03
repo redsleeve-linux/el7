@@ -1,15 +1,15 @@
-From 6d2a5ef7994e753197bb9653872601db4e6cff5d Mon Sep 17 00:00:00 2001
+From 09ff2706109ce647d1fe59e99f44f96810d80b7c Mon Sep 17 00:00:00 2001
 From: Fam Zheng <famz@redhat.com>
-Date: Fri, 19 May 2017 00:35:16 +0200
+Date: Thu, 18 May 2017 09:21:24 +0200
 Subject: [PATCH 11/18] serial: reset thri_pending on IER writes with THRI=0
 
 RH-Author: Fam Zheng <famz@redhat.com>
-Message-id: <20170519003523.21163-12-famz@redhat.com>
-Patchwork-id: 75365
-O-Subject: [RHEL-7.3.z qemu-kvm PATCH 11/18] serial: reset thri_pending on IER writes with THRI=0
-Bugzilla: 1452332
+Message-id: <20170518092131.16571-12-famz@redhat.com>
+Patchwork-id: 75302
+O-Subject: [RHEL-7.4 qemu-kvm PATCH v3 11/18] serial: reset thri_pending on IER writes with THRI=0
+Bugzilla: 1451470
 RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
-RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
 RH-Acked-by: Eduardo Habkost <ehabkost@redhat.com>
 
 From: Paolo Bonzini <pbonzini@redhat.com>

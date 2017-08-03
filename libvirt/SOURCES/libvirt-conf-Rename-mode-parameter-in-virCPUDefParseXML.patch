@@ -1,5 +1,5 @@
-From 199cd8f7c434fb1248ba3338bd9e402ffe7bc57b Mon Sep 17 00:00:00 2001
-Message-Id: <199cd8f7c434fb1248ba3338bd9e402ffe7bc57b@dist-git>
+From 46761b7fdb0707036482c98eb3a80279753df484 Mon Sep 17 00:00:00 2001
+Message-Id: <46761b7fdb0707036482c98eb3a80279753df484@dist-git>
 From: Jiri Denemark <jdenemar@redhat.com>
 Date: Mon, 24 Apr 2017 15:38:41 +0200
 Subject: [PATCH] conf: Rename mode parameter in virCPUDefParseXML
@@ -10,7 +10,7 @@ strange, 'type' is a much better name.
 Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
 (cherry picked from commit e841a41169dd726af13f29cb57fbafe658b7011a)
 
-https://bugzilla.redhat.com/show_bug.cgi?id=1447612
+https://bugzilla.redhat.com/show_bug.cgi?id=1428952
 
 Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
 ---
@@ -18,10 +18,10 @@ Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
  1 file changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/src/conf/cpu_conf.c b/src/conf/cpu_conf.c
-index b71528ef5..9ffaf1e95 100644
+index b78531e60..623b1699f 100644
 --- a/src/conf/cpu_conf.c
 +++ b/src/conf/cpu_conf.c
-@@ -144,7 +144,7 @@ virCPUDefCopy(const virCPUDef *cpu)
+@@ -230,7 +230,7 @@ virCPUDefCopy(const virCPUDef *cpu)
  virCPUDefPtr
  virCPUDefParseXML(xmlNodePtr node,
                    xmlXPathContextPtr ctxt,
@@ -30,7 +30,7 @@ index b71528ef5..9ffaf1e95 100644
  {
      virCPUDefPtr def;
      xmlNodePtr *nodes = NULL;
-@@ -164,7 +164,7 @@ virCPUDefParseXML(xmlNodePtr node,
+@@ -250,7 +250,7 @@ virCPUDefParseXML(xmlNodePtr node,
      if (VIR_ALLOC(def) < 0)
          return NULL;
  
@@ -39,7 +39,7 @@ index b71528ef5..9ffaf1e95 100644
          if (virXPathBoolean("boolean(./arch)", ctxt)) {
              if (virXPathBoolean("boolean(./@match)", ctxt)) {
                  virReportError(VIR_ERR_XML_ERROR, "%s",
-@@ -177,7 +177,7 @@ virCPUDefParseXML(xmlNodePtr node,
+@@ -263,7 +263,7 @@ virCPUDefParseXML(xmlNodePtr node,
              def->type = VIR_CPU_TYPE_GUEST;
          }
      } else {

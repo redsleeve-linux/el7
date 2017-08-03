@@ -1,0 +1,40 @@
+From 0ae37bb09bc282c6bca9e425990685cef6a9b1b6 Mon Sep 17 00:00:00 2001
+Message-Id: <0ae37bb09bc282c6bca9e425990685cef6a9b1b6@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Thu, 8 Jun 2017 16:58:35 +0200
+Subject: [PATCH] qemu: Set iface MTU on hotplug
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1408701
+
+While implementing MTU (572eda12ad and friends), I've forgotten
+to actually set MTU on the host NIC in case of hotplug. We
+correctly tell qemu on the monitor what the MTU should be, but we
+are not actually setting it on the host NIC.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Laine Stump <laine@laine.org>
+(cherry picked from commit f00e6f8bc9081f158b7d6a1dcfa82218b1dbfb4d)
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_hotplug.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/qemu/qemu_hotplug.c b/src/qemu/qemu_hotplug.c
+index 094a5644e0..ab23a575d8 100644
+--- a/src/qemu/qemu_hotplug.c
++++ b/src/qemu/qemu_hotplug.c
+@@ -1134,6 +1134,10 @@ qemuDomainAttachNetDevice(virQEMUDriverPtr driver,
+         }
+     }
+ 
++    if (net->mtu &&
++        virNetDevSetMTU(net->ifname, net->mtu) < 0)
++        goto cleanup;
++
+     for (i = 0; i < tapfdSize; i++) {
+         if (qemuSecuritySetTapFDLabel(driver->securityManager,
+                                       vm->def, tapfd[i]) < 0)
+-- 
+2.13.1
+

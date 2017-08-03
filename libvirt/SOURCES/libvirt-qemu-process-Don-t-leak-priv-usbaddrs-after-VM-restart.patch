@@ -1,0 +1,45 @@
+From 197373d62cfb74faf62e0b1334afcb73fcf25550 Mon Sep 17 00:00:00 2001
+Message-Id: <197373d62cfb74faf62e0b1334afcb73fcf25550@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Fri, 28 Apr 2017 10:45:17 +0200
+Subject: [PATCH] qemu: process: Don't leak priv->usbaddrs after VM restart
+
+Since the private data structure is not freed upon stopping a VM, the
+usbaddrs pointer would be leaked:
+
+==15388== 136 (16 direct, 120 indirect) bytes in 1 blocks are definitely lost in loss record 893 of 1,019
+==15388==    at 0x4C2CF55: calloc (vg_replace_malloc.c:711)
+==15388==    by 0x54BF64A: virAlloc (viralloc.c:144)
+==15388==    by 0x5547588: virDomainUSBAddressSetCreate (domain_addr.c:1608)
+==15388==    by 0x144D38A2: qemuDomainAssignUSBAddresses (qemu_domain_address.c:2458)
+==15388==    by 0x144D38A2: qemuDomainAssignAddresses (qemu_domain_address.c:2515)
+==15388==    by 0x144ED1E3: qemuProcessPrepareDomain (qemu_process.c:5398)
+==15388==    by 0x144F51FF: qemuProcessStart (qemu_process.c:5979)
+[...]
+
+(cherry picked from commit 3ab802d689796ebac6545267d5db248e13a9a0e6)
+https://bugzilla.redhat.com/show_bug.cgi?id=1445627
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_process.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 5d2d0662b..c23982db6 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -6439,6 +6439,10 @@ void qemuProcessStop(virQEMUDriverPtr driver,
+     virBitmapFree(priv->autoCpuset);
+     priv->autoCpuset = NULL;
+ 
++    /* remove address data */
++    virDomainUSBAddressSetFree(priv->usbaddrs);
++    priv->usbaddrs = NULL;
++
+     /* The "release" hook cleans up additional resources */
+     if (virHookPresent(VIR_HOOK_DRIVER_QEMU)) {
+         char *xml = qemuDomainDefFormatXML(driver, vm->def, 0);
+-- 
+2.12.2
+

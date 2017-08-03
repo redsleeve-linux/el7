@@ -1,4 +1,4 @@
-From c24e1c927bad95d84e0ffab665baff98d91fb916 Mon Sep 17 00:00:00 2001
+From bf7aa4bb11e9991a3d5a1007dbe52dd0ac6dae99 Mon Sep 17 00:00:00 2001
 From: Ladi Prosek <lprosek@redhat.com>
 Date: Wed, 5 Oct 2016 17:22:25 +0200
 Subject: [PATCH 3/8] virtio: decrement vq->inuse in virtqueue_discard()
@@ -7,7 +7,7 @@ RH-Author: Ladi Prosek <lprosek@redhat.com>
 Message-id: <1475666548-9186-4-git-send-email-lprosek@redhat.com>
 Patchwork-id: 72482
 O-Subject: [RHEL-7.4 qemu-kvm v2 PATCH 3/6] virtio: decrement vq->inuse in virtqueue_discard()
-Bugzilla: 1393484
+Bugzilla: 1377968
 RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
 RH-Acked-by: Michael S. Tsirkin <mst@redhat.com>
 RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>

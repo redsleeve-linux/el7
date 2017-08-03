@@ -1,0 +1,96 @@
+From c2cf1aadf957daddd0f7f44aa11d9e2d3f5883c2 Mon Sep 17 00:00:00 2001
+Message-Id: <c2cf1aadf957daddd0f7f44aa11d9e2d3f5883c2@dist-git>
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Mon, 5 Jun 2017 09:35:24 +0200
+Subject: [PATCH] virQEMUDriverDomainABIStability: Check for memoryBacking
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1450349
+
+Problem is, qemu fails to load guest memory image if these
+attribute change on migration/restore from an image.
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+(cherry picked from commit 7b4e9b2c55a1105dd96a608d7ee111394da0befc)
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/libvirt_private.syms |  2 ++
+ src/qemu/qemu_conf.c     |  2 +-
+ src/qemu/qemu_domain.c   | 22 ++++++++++++++++++++++
+ src/qemu/qemu_domain.h   |  1 +
+ 4 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index 343966cd0e..a578dfba34 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -407,6 +407,8 @@ virDomainMemoryFindByDef;
+ virDomainMemoryFindInactiveByDef;
+ virDomainMemoryInsert;
+ virDomainMemoryRemove;
++virDomainMemorySourceTypeFromString;
++virDomainMemorySourceTypeToString;
+ virDomainNetAppendIPAddress;
+ virDomainNetDefClear;
+ virDomainNetDefFormat;
+diff --git a/src/qemu/qemu_conf.c b/src/qemu/qemu_conf.c
+index e73a7b3781..76eed25277 100644
+--- a/src/qemu/qemu_conf.c
++++ b/src/qemu/qemu_conf.c
+@@ -908,7 +908,7 @@ virQEMUDriverCreateXMLConf(virQEMUDriverPtr driver)
+     return virDomainXMLOptionNew(&virQEMUDriverDomainDefParserConfig,
+                                  &virQEMUDriverPrivateDataCallbacks,
+                                  &virQEMUDriverDomainXMLNamespace,
+-                                 NULL);
++                                 &virQEMUDriverDomainABIStability);
+ }
+ 
+ 
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index e5da82aacc..11be085801 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -5792,6 +5792,28 @@ qemuDomainUpdateMemoryDeviceInfo(virQEMUDriverPtr driver,
+ }
+ 
+ 
++static bool
++qemuDomainABIStabilityCheck(const virDomainDef *src,
++                            const virDomainDef *dst)
++{
++    if (src->mem.source != dst->mem.source) {
++        virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
++                       _("Target memoryBacking source '%s' doesn't "
++                         "match source memoryBacking source'%s'"),
++                       virDomainMemorySourceTypeToString(dst->mem.source),
++                       virDomainMemorySourceTypeToString(src->mem.source));
++        return false;
++    }
++
++    return true;
++}
++
++
++virDomainABIStability virQEMUDriverDomainABIStability = {
++    .domain = qemuDomainABIStabilityCheck,
++};
++
++
+ bool
+ qemuDomainDefCheckABIStability(virQEMUDriverPtr driver,
+                                virDomainDefPtr src,
+diff --git a/src/qemu/qemu_domain.h b/src/qemu/qemu_domain.h
+index f503304879..2994398a9e 100644
+--- a/src/qemu/qemu_domain.h
++++ b/src/qemu/qemu_domain.h
+@@ -638,6 +638,7 @@ void qemuDomainCleanupRun(virQEMUDriverPtr driver,
+ extern virDomainXMLPrivateDataCallbacks virQEMUDriverPrivateDataCallbacks;
+ extern virDomainXMLNamespace virQEMUDriverDomainXMLNamespace;
+ extern virDomainDefParserConfig virQEMUDriverDomainDefParserConfig;
++extern virDomainABIStability virQEMUDriverDomainABIStability;
+ 
+ int qemuDomainUpdateDeviceList(virQEMUDriverPtr driver,
+                                virDomainObjPtr vm, int asyncJob);
+-- 
+2.13.1
+

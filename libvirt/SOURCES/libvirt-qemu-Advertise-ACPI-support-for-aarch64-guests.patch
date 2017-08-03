@@ -1,0 +1,139 @@
+From 2106b821cd1eef809853f7424edf8660732b1303 Mon Sep 17 00:00:00 2001
+Message-Id: <2106b821cd1eef809853f7424edf8660732b1303@dist-git>
+From: Andrea Bolognani <abologna@redhat.com>
+Date: Tue, 4 Apr 2017 14:59:30 +0200
+Subject: [PATCH] qemu: Advertise ACPI support for aarch64 guests
+
+So far, libvirt has assumed that only x86 supports ACPI,
+but that's inaccurate since aarch64 supports it too.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1429509
+
+(cherry picked from commit 560335c35c830344329c16cb1f25f887344bdfd8)
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+---
+ src/qemu/qemu_capabilities.c                       | 28 ++++++++++++++++------
+ .../caps_2.6.0-gicv2.aarch64.xml                   |  1 +
+ .../caps_2.6.0-gicv3.aarch64.xml                   |  1 +
+ .../qemuxml2argv-aarch64-gic-host.args             |  1 +
+ .../qemuxml2argv-aarch64-gic-v2.args               |  1 +
+ .../qemuxml2argv-aarch64-gic-v3.args               |  1 +
+ 6 files changed, 26 insertions(+), 7 deletions(-)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index 9d0a29732..a8125102c 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -1043,13 +1043,17 @@ virQEMUCapsInitGuestFromBinary(virCapsPtr caps,
+ 
+         machines = NULL;
+         nmachines = 0;
++    }
+ 
++    if ((ARCH_IS_X86(guestarch) || guestarch == VIR_ARCH_AARCH64) &&
++        virCapabilitiesAddGuestFeature(guest, "acpi", true, true) == NULL) {
++        goto cleanup;
+     }
+ 
+     if (ARCH_IS_X86(guestarch) &&
+-        (virCapabilitiesAddGuestFeature(guest, "acpi", true, true) == NULL ||
+-         virCapabilitiesAddGuestFeature(guest, "apic", true, false) == NULL))
++        virCapabilitiesAddGuestFeature(guest, "apic", true, false) == NULL) {
+         goto cleanup;
++    }
+ 
+     if ((guestarch == VIR_ARCH_I686) &&
+         (virCapabilitiesAddGuestFeature(guest, "pae", true, false) == NULL ||
+@@ -4181,10 +4185,15 @@ virQEMUCapsInitHelp(virQEMUCapsPtr qemuCaps, uid_t runUid, gid_t runGid, const c
+                                 qmperr) < 0)
+         goto cleanup;
+ 
+-    /* -no-acpi is not supported on non-x86
+-     * even if qemu reports it in -help */
+-    if (!ARCH_IS_X86(qemuCaps->arch))
++    /* Older QEMU versions reported -no-acpi in the output of -help even
++     * though it was not supported by the architecture. The issue has since
++     * been fixed, but to maintain compatibility with all release we still
++     * need to filter out the capability for architectures that we know
++     * don't support the feature, eg. anything but x86 and aarch64 */
++    if (!ARCH_IS_X86(qemuCaps->arch) &&
++        qemuCaps->arch != VIR_ARCH_AARCH64) {
+         virQEMUCapsClear(qemuCaps, QEMU_CAPS_NO_ACPI);
++    }
+ 
+     /* virQEMUCapsExtractDeviceStr will only set additional caps if qemu
+      * understands the 0.13.0+ notion of "-device driver,".  */
+@@ -4305,9 +4314,14 @@ virQEMUCapsInitQMPArch(virQEMUCapsPtr qemuCaps,
+ void
+ virQEMUCapsInitQMPBasicArch(virQEMUCapsPtr qemuCaps)
+ {
+-    /* ACPI/HPET/KVM PIT are x86 specific */
+-    if (ARCH_IS_X86(qemuCaps->arch)) {
++    /* ACPI only works on x86 and aarch64 */
++    if (ARCH_IS_X86(qemuCaps->arch) ||
++        qemuCaps->arch == VIR_ARCH_AARCH64) {
+         virQEMUCapsSet(qemuCaps, QEMU_CAPS_NO_ACPI);
++    }
++
++    /* HPET and KVM PIT are x86 specific */
++    if (ARCH_IS_X86(qemuCaps->arch)) {
+         virQEMUCapsSet(qemuCaps, QEMU_CAPS_NO_HPET);
+         virQEMUCapsSet(qemuCaps, QEMU_CAPS_NO_KVM_PIT);
+     }
+diff --git a/tests/qemucapabilitiesdata/caps_2.6.0-gicv2.aarch64.xml b/tests/qemucapabilitiesdata/caps_2.6.0-gicv2.aarch64.xml
+index c1e46794a..af3a8e7cb 100644
+--- a/tests/qemucapabilitiesdata/caps_2.6.0-gicv2.aarch64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.6.0-gicv2.aarch64.xml
+@@ -40,6 +40,7 @@
+   <flag name='no-shutdown'/>
+   <flag name='cache-unsafe'/>
+   <flag name='ich9-ahci'/>
++  <flag name='no-acpi'/>
+   <flag name='fsdev-readonly'/>
+   <flag name='virtio-blk-pci.scsi'/>
+   <flag name='drive-copy-on-read'/>
+diff --git a/tests/qemucapabilitiesdata/caps_2.6.0-gicv3.aarch64.xml b/tests/qemucapabilitiesdata/caps_2.6.0-gicv3.aarch64.xml
+index 20dfda216..4402ffa6f 100644
+--- a/tests/qemucapabilitiesdata/caps_2.6.0-gicv3.aarch64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.6.0-gicv3.aarch64.xml
+@@ -40,6 +40,7 @@
+   <flag name='no-shutdown'/>
+   <flag name='cache-unsafe'/>
+   <flag name='ich9-ahci'/>
++  <flag name='no-acpi'/>
+   <flag name='fsdev-readonly'/>
+   <flag name='virtio-blk-pci.scsi'/>
+   <flag name='drive-copy-on-read'/>
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-gic-host.args b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-gic-host.args
+index 5fdaa08ef..23276ad71 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-gic-host.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-gic-host.args
+@@ -15,4 +15,5 @@ QEMU_AUDIO_DRV=none \
+ -nographic \
+ -nodefaults \
+ -monitor unix:/tmp/lib/domain--1-aarch64test/monitor.sock,server,nowait \
++-no-acpi \
+ -boot c
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-gic-v2.args b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-gic-v2.args
+index 2caf1b92c..f79c1c60e 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-gic-v2.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-gic-v2.args
+@@ -15,4 +15,5 @@ QEMU_AUDIO_DRV=none \
+ -nographic \
+ -nodefaults \
+ -monitor unix:/tmp/lib/domain--1-aarch64test/monitor.sock,server,nowait \
++-no-acpi \
+ -boot c
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-gic-v3.args b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-gic-v3.args
+index 3ae8e5f86..fce9308b0 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-gic-v3.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-gic-v3.args
+@@ -15,4 +15,5 @@ QEMU_AUDIO_DRV=none \
+ -nographic \
+ -nodefaults \
+ -monitor unix:/tmp/lib/domain--1-aarch64test/monitor.sock,server,nowait \
++-no-acpi \
+ -boot c
+-- 
+2.12.2
+

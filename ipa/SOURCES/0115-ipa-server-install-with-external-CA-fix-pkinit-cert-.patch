@@ -1,0 +1,62 @@
+From 23030ef4f4faa9bf3ee13d13dedb2e0a21da1f2a Mon Sep 17 00:00:00 2001
+From: Florence Blanc-Renaud <flo@redhat.com>
+Date: Wed, 3 May 2017 10:21:12 +0200
+Subject: [PATCH] ipa-server-install with external CA: fix pkinit cert issuance
+
+ipa-server-install with external CA fails to issue pkinit certs.
+This happens because the installer calls
+krb = krbinstance.KrbInstance(fstore)
+then
+krb.enable_ssl()
+and in this code path self.config_pkinit is set to None, leading to a wrong
+code path.
+
+The fix initializes the required fields of the krbinstance before calling
+krb.enable_ssl.
+
+https://pagure.io/freeipa/issue/6921
+
+Reviewed-By: Stanislav Laznicka <slaznick@redhat.com>
+Reviewed-By: Abhijeet Kasurde <akasurde@redhat.com>
+---
+ ipaserver/install/krbinstance.py    | 8 ++++++++
+ ipaserver/install/server/install.py | 4 ++++
+ 2 files changed, 12 insertions(+)
+
+diff --git a/ipaserver/install/krbinstance.py b/ipaserver/install/krbinstance.py
+index 76ac3029ca6d1cbdd85c6ced6272c6f9a21f04a1..2f14ff592064d3446f73b31e615b2de88d6d786c 100644
+--- a/ipaserver/install/krbinstance.py
++++ b/ipaserver/install/krbinstance.py
+@@ -108,6 +108,14 @@ class KrbInstance(service.Service):
+     suffix = ipautil.dn_attribute_property('_suffix')
+     subject_base = ipautil.dn_attribute_property('_subject_base')
+ 
++    def init_info(self, realm_name, host_name, setup_pkinit=False,
++                  subject_base=None):
++        self.fqdn = host_name
++        self.realm = realm_name
++        self.suffix = ipautil.realm_to_suffix(realm_name)
++        self.subject_base = subject_base
++        self.config_pkinit = setup_pkinit
++
+     def get_realm_suffix(self):
+         return DN(('cn', self.realm), ('cn', 'kerberos'), self.suffix)
+ 
+diff --git a/ipaserver/install/server/install.py b/ipaserver/install/server/install.py
+index b360e0532ce1b9b729be1cc2398cb2b46620901c..0ce60e964cb210708e56fb43a5b70f8e3405caf2 100644
+--- a/ipaserver/install/server/install.py
++++ b/ipaserver/install/server/install.py
+@@ -768,6 +768,10 @@ def install(installer):
+                             setup_pkinit=not options.no_pkinit,
+                             pkcs12_info=pkinit_pkcs12_info,
+                             subject_base=options.subject_base)
++    else:
++        krb.init_info(realm_name, host_name,
++                      setup_pkinit=not options.no_pkinit,
++                      subject_base=options.subject_base)
+ 
+     if setup_ca:
+         if not options.external_cert_files and options.external_ca:
+-- 
+2.12.2
+

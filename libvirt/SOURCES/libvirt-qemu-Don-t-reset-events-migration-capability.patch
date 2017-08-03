@@ -1,0 +1,42 @@
+From e94894df02d97bac7169433fdcf595bd526eafd1 Mon Sep 17 00:00:00 2001
+Message-Id: <e94894df02d97bac7169433fdcf595bd526eafd1@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Fri, 28 Apr 2017 15:56:44 +0200
+Subject: [PATCH] qemu: Don't reset "events" migration capability
+
+When creating v3.2.0-77-g8be3ccd04 commit, I completely forgot that one
+migration capability is very special. It's the "events" capability which
+tells QEMU to report "MIGRATION" events. Since libvirt always wants the
+events, it is enabled in qemuConnectMonitor and the rest of the code
+should not touch it.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1439841
+https://bugzilla.redhat.com/show_bug.cgi?id=1441165
+
+Messed-up-by: Jiri Denemark <jdenemar@redhat.com>
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit fc48fc7930f560c4341f4afe1285848dfdb60278)
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_migration.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/qemu/qemu_migration.c b/src/qemu/qemu_migration.c
+index cadbf9b97..ac7e27319 100644
+--- a/src/qemu/qemu_migration.c
++++ b/src/qemu/qemu_migration.c
+@@ -5888,6 +5888,11 @@ qemuMigrationReset(virQEMUDriverPtr driver,
+         goto cleanup;
+ 
+     for (cap = 0; cap < QEMU_MONITOR_MIGRATION_CAPS_LAST; cap++) {
++        /* "events" capability is set (when supported) in qemuConnectMonitor
++         * and should never be cleared */
++        if (cap == QEMU_MONITOR_MIGRATION_CAPS_EVENTS)
++            continue;
++
+         if (qemuMigrationSetOption(driver, vm, cap, false, job) < 0)
+             goto cleanup;
+     }
+-- 
+2.12.2
+

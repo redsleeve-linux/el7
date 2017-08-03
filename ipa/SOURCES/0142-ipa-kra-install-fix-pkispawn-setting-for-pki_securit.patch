@@ -1,0 +1,45 @@
+From 58a9bd7ec98de555db23159e614b2021ec91b2e3 Mon Sep 17 00:00:00 2001
+From: Florence Blanc-Renaud <flo@redhat.com>
+Date: Thu, 11 May 2017 14:53:09 +0200
+Subject: [PATCH] ipa-kra-install: fix pkispawn setting for
+ pki_security_domain_hostname
+
+During ipa-kra-install, the installer prepares a configuration file
+provided to pkispawn. This configuration file defines
+pki_security_domain_hostname=(first master)
+
+but when we are installing a clone, it should be set to the local hostname
+instead, see man page pki_default.cfg:
+      pki_security_domain_hostname, pki_security_domain_https_port
+              Location  of  the security domain.  Required for KRA, OCSP, TKS,
+              and TPS subsystems and for  CA  subsystems  joining  a  security
+              domain.  Defaults to the location of the CA subsystem within the
+              same instance.
+
+When pki_security_domain_hostname points to the 1st master, and this first
+master is decommissioned, ipa-kra-install fails on new replicas because pkispawn
+tries to connect to this (non-existing) host.
+
+https://pagure.io/freeipa/issue/6895
+
+Reviewed-By: Stanislav Laznicka <slaznick@redhat.com>
+---
+ ipaserver/install/krainstance.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ipaserver/install/krainstance.py b/ipaserver/install/krainstance.py
+index abb81897a404613e20be10d348096402ef08624b..cdd25b9d05bcb1a30260475cc2341a258a3cf93c 100644
+--- a/ipaserver/install/krainstance.py
++++ b/ipaserver/install/krainstance.py
+@@ -252,7 +252,7 @@ class KRAInstance(DogtagInstance):
+             os.chown(p12_tmpfile_name, pent.pw_uid, pent.pw_gid)
+ 
+             # Security domain registration
+-            config.set("KRA", "pki_security_domain_hostname", self.master_host)
++            config.set("KRA", "pki_security_domain_hostname", self.fqdn)
+             config.set("KRA", "pki_security_domain_https_port", "443")
+             config.set("KRA", "pki_security_domain_user", self.admin_user)
+             config.set("KRA", "pki_security_domain_password",
+-- 
+2.9.4
+

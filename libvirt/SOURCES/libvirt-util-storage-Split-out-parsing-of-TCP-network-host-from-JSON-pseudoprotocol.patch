@@ -1,0 +1,84 @@
+From 663456f9a380912ee4659616074c091cb973a330 Mon Sep 17 00:00:00 2001
+Message-Id: <663456f9a380912ee4659616074c091cb973a330@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 20 Jun 2017 10:22:39 +0200
+Subject: [PATCH] util: storage: Split out parsing of TCP network host from
+ JSON pseudoprotocol
+
+Few backing protocols support only TCP. Split out the function which
+will correspond to parsing qemu's InetSocketAddressBase.
+
+(cherry picked from commit 49ed98a4579744568b5c57f65ae08034d5c9568f)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1461638
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+---
+ src/util/virstoragefile.c | 38 +++++++++++++++++++++++++-------------
+ 1 file changed, 25 insertions(+), 13 deletions(-)
+
+diff --git a/src/util/virstoragefile.c b/src/util/virstoragefile.c
+index 3c06685d6b..f67e714e3c 100644
+--- a/src/util/virstoragefile.c
++++ b/src/util/virstoragefile.c
+@@ -2800,12 +2800,34 @@ virStorageSourceParseBackingJSONUri(virStorageSourcePtr src,
+ 
+ 
+ static int
++virStorageSourceParseBackingJSONInetSocketAddress(virStorageNetHostDefPtr host,
++                                                  virJSONValuePtr json)
++{
++    const char *hostname = virJSONValueObjectGetString(json, "host");
++    const char *port = virJSONValueObjectGetString(json, "port");
++
++    if (!hostname) {
++        virReportError(VIR_ERR_INVALID_ARG, "%s",
++                       _("missing hostname for tcp backing server in "
++                         "JSON backing volume definition"));
++        return -1;
++    }
++
++    host->transport = VIR_STORAGE_NET_HOST_TRANS_TCP;
++
++    if (VIR_STRDUP(host->name, hostname) < 0 ||
++        VIR_STRDUP(host->port, port) < 0)
++        return -1;
++
++    return 0;
++}
++
++
++static int
+ virStorageSourceParseBackingJSONSocketAddress(virStorageNetHostDefPtr host,
+                                               virJSONValuePtr json)
+ {
+     const char *type = virJSONValueObjectGetString(json, "type");
+-    const char *hostname = virJSONValueObjectGetString(json, "host");
+-    const char *port = virJSONValueObjectGetString(json, "port");
+     const char *socket = virJSONValueObjectGetString(json, "socket");
+ 
+     if (!type) {
+@@ -2816,18 +2838,8 @@ virStorageSourceParseBackingJSONSocketAddress(virStorageNetHostDefPtr host,
+     }
+ 
+     if (STREQ(type, "tcp") || STREQ(type, "inet")) {
+-        host->transport = VIR_STORAGE_NET_HOST_TRANS_TCP;
++        return virStorageSourceParseBackingJSONInetSocketAddress(host, json);
+ 
+-        if (!hostname) {
+-            virReportError(VIR_ERR_INVALID_ARG, "%s",
+-                           _("missing hostname for tcp backing server in "
+-                             "JSON backing volume definition"));
+-            return -1;
+-        }
+-
+-        if (VIR_STRDUP(host->name, hostname) < 0 ||
+-            VIR_STRDUP(host->port, port) < 0)
+-            return -1;
+     } else if (STREQ(type, "unix")) {
+         host->transport = VIR_STORAGE_NET_HOST_TRANS_UNIX;
+ 
+-- 
+2.13.1
+

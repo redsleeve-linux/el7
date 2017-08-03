@@ -1,0 +1,35 @@
+From 1216aaa3c5f5e3dc3a81de81633eaade15df1129 Mon Sep 17 00:00:00 2001
+From: Christian Heimes <cheimes@redhat.com>
+Date: Mon, 20 Mar 2017 08:47:41 +0100
+Subject: [PATCH] Use connection keep-alive
+
+Do not forcefully close the connection after every request. This enables
+HTTP connection keep-alive, also known as persistent TCP and TLS/SSL
+connection. Keep-alive speed up consecutive HTTP requests by 15% (for
+local, low-latency network connections to a fast server) to multiple
+times (high latency connections or remote peers).
+
+https://pagure.io/freeipa/issue/6641
+
+Signed-off-by: Christian Heimes <cheimes@redhat.com>
+Reviewed-By: Tomas Krizek <tkrizek@redhat.com>
+---
+ ipalib/rpc.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ipalib/rpc.py b/ipalib/rpc.py
+index 16ffb8b541107e3ce1a84d143db007a1105b49b5..8d587180a65bd06b644c6df23ac9fb26eb7e97dd 100644
+--- a/ipalib/rpc.py
++++ b/ipalib/rpc.py
+@@ -686,7 +686,7 @@ class KerbTransport(SSLTransport):
+                 return self.parse_response(response)
+         except gssapi.exceptions.GSSError as e:
+             self._handle_exception(e)
+-        finally:
++        except BaseException:
+             self.close()
+ 
+     if six.PY3:
+-- 
+2.12.1
+

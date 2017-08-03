@@ -1,5 +1,5 @@
-From b638d9571e6497978c350e86671d9161c0b4c314 Mon Sep 17 00:00:00 2001
-Message-Id: <b638d9571e6497978c350e86671d9161c0b4c314@dist-git>
+From b34dc87751a8667f22ea78730a5b678f5bd469a4 Mon Sep 17 00:00:00 2001
+Message-Id: <b34dc87751a8667f22ea78730a5b678f5bd469a4@dist-git>
 From: Jiri Denemark <jdenemar@redhat.com>
 Date: Tue, 25 Apr 2017 19:07:19 +0200
 Subject: [PATCH] qemu: Add support for guest CPU cache
@@ -40,37 +40,32 @@ doing so explicitly does not make any harm.
 Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
 (cherry picked from commit df13c0b477ffda460eed259c3b8aab7255f11199)
 
-https://bugzilla.redhat.com/show_bug.cgi?id=1447612
-
-Conflicts:
-    - mostly context onflicts
-    - qemuDomainDefCPUPostParse did not exist in 7.3
-    - QEMU_CAPS_CPU_CACHE capability was not backported because it
-      depends on non-existent QEMU_CAPS_QUERY_CPU_MODEL_EXPANSION and
-      thus it would never be set anyway; in other words, l3-cache=off
-      and host-cache-info=off will never be used
+https://bugzilla.redhat.com/show_bug.cgi?id=1428952
 
 Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
 ---
- src/qemu/qemu_command.c                            | 23 ++++++++
- src/qemu/qemu_domain.c                             | 67 ++++++++++++++++++++++
- .../qemuxml2argv-cpu-cache-disable.args            | 21 +++++++
- .../qemuxml2argv-cpu-cache-disable.xml             | 20 +++++++
- .../qemuxml2argv-cpu-cache-disable2.args           | 21 +++++++
- .../qemuxml2argv-cpu-cache-disable2.xml            | 20 +++++++
- .../qemuxml2argv-cpu-cache-disable3.args           | 22 +++++++
- .../qemuxml2argv-cpu-cache-disable3.xml            | 20 +++++++
- .../qemuxml2argv-cpu-cache-emulate-l2.xml          | 20 +++++++
- .../qemuxml2argv-cpu-cache-emulate-l3.args         | 21 +++++++
- .../qemuxml2argv-cpu-cache-emulate-l3.xml          | 20 +++++++
- .../qemuxml2argv-cpu-cache-passthrough-l3.xml      | 20 +++++++
- .../qemuxml2argv-cpu-cache-passthrough.args        | 21 +++++++
- .../qemuxml2argv-cpu-cache-passthrough.xml         | 20 +++++++
- .../qemuxml2argv-cpu-cache-passthrough2.args       | 21 +++++++
- .../qemuxml2argv-cpu-cache-passthrough2.xml        | 20 +++++++
- .../qemuxml2argv-cpu-cache-passthrough3.xml        | 20 +++++++
- tests/qemuxml2argvtest.c                           |  9 +++
- 18 files changed, 406 insertions(+)
+ src/qemu/qemu_capabilities.c                       |  5 ++
+ src/qemu/qemu_capabilities.h                       |  1 +
+ src/qemu/qemu_command.c                            | 39 ++++++++++++++++
+ src/qemu/qemu_domain.c                             | 54 ++++++++++++++++++++++
+ tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml   |  1 +
+ .../qemuxml2argv-cpu-cache-disable.args            | 21 +++++++++
+ .../qemuxml2argv-cpu-cache-disable.xml             | 20 ++++++++
+ .../qemuxml2argv-cpu-cache-disable2.args           | 21 +++++++++
+ .../qemuxml2argv-cpu-cache-disable2.xml            | 20 ++++++++
+ .../qemuxml2argv-cpu-cache-disable3.args           | 22 +++++++++
+ .../qemuxml2argv-cpu-cache-disable3.xml            | 20 ++++++++
+ .../qemuxml2argv-cpu-cache-emulate-l2.xml          | 20 ++++++++
+ .../qemuxml2argv-cpu-cache-emulate-l3.args         | 21 +++++++++
+ .../qemuxml2argv-cpu-cache-emulate-l3.xml          | 20 ++++++++
+ .../qemuxml2argv-cpu-cache-passthrough-l3.xml      | 20 ++++++++
+ .../qemuxml2argv-cpu-cache-passthrough.args        | 21 +++++++++
+ .../qemuxml2argv-cpu-cache-passthrough.xml         | 20 ++++++++
+ .../qemuxml2argv-cpu-cache-passthrough2.args       | 21 +++++++++
+ .../qemuxml2argv-cpu-cache-passthrough2.xml        | 20 ++++++++
+ .../qemuxml2argv-cpu-cache-passthrough3.xml        | 20 ++++++++
+ tests/qemuxml2argvtest.c                           | 10 ++++
+ 21 files changed, 417 insertions(+)
  create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable.args
  create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable.xml
  create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable2.args
@@ -87,16 +82,53 @@ Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
  create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-passthrough2.xml
  create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-passthrough3.xml
 
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index 950a42bae..2c845853a 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -364,6 +364,7 @@ VIR_ENUM_IMPL(virQEMUCaps, QEMU_CAPS_LAST,
+               "query-cpu-definitions", /* 250 */
+               "block-write-threshold",
+               "query-named-block-nodes",
++              "cpu-cache",
+     );
+ 
+ 
+@@ -4648,6 +4649,10 @@ virQEMUCapsInitQMPMonitor(virQEMUCapsPtr qemuCaps,
+         virQEMUCapsGet(qemuCaps, QEMU_CAPS_DEVICE_NVDIMM))
+         virQEMUCapsClear(qemuCaps, QEMU_CAPS_DEVICE_NVDIMM);
+ 
++    if (ARCH_IS_X86(qemuCaps->arch) &&
++        virQEMUCapsGet(qemuCaps, QEMU_CAPS_QUERY_CPU_MODEL_EXPANSION))
++        virQEMUCapsSet(qemuCaps, QEMU_CAPS_CPU_CACHE);
++
+     ret = 0;
+  cleanup:
+     return ret;
+diff --git a/src/qemu/qemu_capabilities.h b/src/qemu/qemu_capabilities.h
+index 24e2f38ee..c466a63e7 100644
+--- a/src/qemu/qemu_capabilities.h
++++ b/src/qemu/qemu_capabilities.h
+@@ -401,6 +401,7 @@ typedef enum {
+     QEMU_CAPS_QUERY_CPU_DEFINITIONS, /* qmp query-cpu-definitions */
+     QEMU_CAPS_BLOCK_WRITE_THRESHOLD, /* BLOCK_WRITE_THRESHOLD event */
+     QEMU_CAPS_QUERY_NAMED_BLOCK_NODES, /* qmp query-named-block-nodes */
++    QEMU_CAPS_CPU_CACHE, /* -cpu supports host-cache-info and l3-cache properties */
+ 
+     QEMU_CAPS_LAST /* this must always be the last item */
+ } virQEMUCapsFlags;
 diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
-index bd01a0f76..f5b41257c 100644
+index ff7f47e06..2105cde58 100644
 --- a/src/qemu/qemu_command.c
 +++ b/src/qemu/qemu_command.c
-@@ -6854,6 +6854,29 @@ qemuBuildCpuCommandLine(virCommandPtr cmd,
+@@ -7071,6 +7071,45 @@ qemuBuildCpuCommandLine(virCommandPtr cmd,
          have_cpu = true;
      }
  
 +    if (def->cpu && def->cpu->cache) {
 +        virCPUCacheDefPtr cache = def->cpu->cache;
++        bool hostOff = false;
++        bool l3Off = false;
 +
 +        if (!have_cpu) {
 +            virBufferAdd(&buf, default_model, -1);
@@ -106,34 +138,43 @@ index bd01a0f76..f5b41257c 100644
 +        switch (cache->mode) {
 +        case VIR_CPU_CACHE_MODE_EMULATE:
 +            virBufferAddLit(&buf, ",l3-cache=on");
++            hostOff = true;
 +            break;
 +
 +        case VIR_CPU_CACHE_MODE_PASSTHROUGH:
 +            virBufferAddLit(&buf, ",host-cache-info=on");
++            l3Off = true;
 +            break;
 +
 +        case VIR_CPU_CACHE_MODE_DISABLE:
++            hostOff = l3Off = true;
++            break;
++
 +        case VIR_CPU_CACHE_MODE_LAST:
 +            break;
 +        }
++
++        if (hostOff &&
++            def->cpu->mode == VIR_CPU_MODE_HOST_PASSTHROUGH &&
++            virQEMUCapsGet(qemuCaps, QEMU_CAPS_CPU_CACHE))
++            virBufferAddLit(&buf, ",host-cache-info=off");
++
++        if (l3Off &&
++            virQEMUCapsGet(qemuCaps, QEMU_CAPS_CPU_CACHE))
++            virBufferAddLit(&buf, ",l3-cache=off");
 +    }
 +
      if (virBufferCheckError(&buf) < 0)
          goto cleanup;
  
 diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
-index b91db229f..7aa6de742 100644
+index 9c09ced0c..d31645fd1 100644
 --- a/src/qemu/qemu_domain.c
 +++ b/src/qemu/qemu_domain.c
-@@ -2328,6 +2328,70 @@ qemuDomainDefVcpusPostParse(virDomainDefPtr def)
+@@ -2688,6 +2688,60 @@ qemuDomainDefCPUPostParse(virDomainDefPtr def)
+     if (!def->cpu)
+         return 0;
  
- 
- static int
-+qemuDomainDefCPUPostParse(virDomainDefPtr def)
-+{
-+    if (!def->cpu)
-+        return 0;
-+
 +    if (def->cpu->cache) {
 +        virCPUCacheDefPtr cache = def->cpu->cache;
 +
@@ -188,27 +229,24 @@ index b91db229f..7aa6de742 100644
 +        }
 +    }
 +
-+    return 0;
-+}
-+
-+
-+static int
- qemuDomainDefPostParse(virDomainDefPtr def,
-                        virCapsPtr caps,
-                        unsigned int parseFlags,
-@@ -2385,6 +2449,9 @@ qemuDomainDefPostParse(virDomainDefPtr def,
-     if (qemuDomainDefVcpusPostParse(def) < 0)
-         goto cleanup;
- 
-+    if (qemuDomainDefCPUPostParse(def) < 0)
-+        goto cleanup;
-+
-     ret = 0;
-  cleanup:
-     virObjectUnref(qemuCaps);
+     /* Nothing to be done if only CPU topology is specified. */
+     if (def->cpu->mode == VIR_CPU_MODE_CUSTOM &&
+         !def->cpu->model)
+diff --git a/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml
+index 6386c4ed0..496c9ceb8 100644
+--- a/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml
+@@ -207,6 +207,7 @@
+   <flag name='query-cpu-definitions'/>
+   <flag name='block-write-threshold'/>
+   <flag name='query-named-block-nodes'/>
++  <flag name='cpu-cache'/>
+   <version>2008090</version>
+   <kvmVersion>0</kvmVersion>
+   <package> (v2.9.0-rc0-142-g940a8ce)</package>
 diff --git a/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable.args b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable.args
 new file mode 100644
-index 000000000..9348e01f8
+index 000000000..386e38d37
 --- /dev/null
 +++ b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable.args
 @@ -0,0 +1,21 @@
@@ -222,7 +260,7 @@ index 000000000..9348e01f8
 +-name foo \
 +-S \
 +-M pc \
-+-cpu host \
++-cpu host,host-cache-info=off,l3-cache=off \
 +-m 214 \
 +-smp 1,sockets=1,cores=1,threads=1 \
 +-uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
@@ -314,7 +352,7 @@ index 000000000..e6f39951c
 +</domain>
 diff --git a/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable3.args b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable3.args
 new file mode 100644
-index 000000000..bbfd5ba2c
+index 000000000..b882710c1
 --- /dev/null
 +++ b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-disable3.args
 @@ -0,0 +1,22 @@
@@ -329,7 +367,7 @@ index 000000000..bbfd5ba2c
 +-S \
 +-M pc \
 +-cpu core2duo,+ds,+acpi,+ss,+ht,+tm,+pbe,+ds_cpl,+vmx,+est,+tm2,+cx16,+xtpr,\
-++lahf_lm \
+++lahf_lm,l3-cache=off \
 +-m 214 \
 +-smp 1,sockets=1,cores=1,threads=1 \
 +-uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
@@ -368,7 +406,7 @@ index 000000000..17078a1e8
 +</domain>
 diff --git a/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-emulate-l2.xml b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-emulate-l2.xml
 new file mode 100644
-index 000000000..0d1652e5c
+index 000000000..4757e85ea
 --- /dev/null
 +++ b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-emulate-l2.xml
 @@ -0,0 +1,20 @@
@@ -382,7 +420,7 @@ index 000000000..0d1652e5c
 +    <type arch='x86_64' machine='pc'>hvm</type>
 +    <boot dev='hd'/>
 +  </os>
-+  <cpu mode='host-model'>
++  <cpu mode='host-model' check='full'>
 +    <cache level='2' mode='emulate'/>
 +  </cpu>
 +  <clock offset='utc'/>
@@ -394,7 +432,7 @@ index 000000000..0d1652e5c
 +</domain>
 diff --git a/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-emulate-l3.args b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-emulate-l3.args
 new file mode 100644
-index 000000000..0b9fb18e9
+index 000000000..c2f5d19e1
 --- /dev/null
 +++ b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-emulate-l3.args
 @@ -0,0 +1,21 @@
@@ -408,7 +446,7 @@ index 000000000..0b9fb18e9
 +-name foo \
 +-S \
 +-M pc \
-+-cpu host,l3-cache=on \
++-cpu host,l3-cache=on,host-cache-info=off \
 +-m 214 \
 +-smp 1,sockets=1,cores=1,threads=1 \
 +-uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
@@ -473,7 +511,7 @@ index 000000000..3471115ea
 +</domain>
 diff --git a/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-passthrough.args b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-passthrough.args
 new file mode 100644
-index 000000000..d7863ba2e
+index 000000000..1d824f6dd
 --- /dev/null
 +++ b/tests/qemuxml2argvdata/qemuxml2argv-cpu-cache-passthrough.args
 @@ -0,0 +1,21 @@
@@ -487,7 +525,7 @@ index 000000000..d7863ba2e
 +-name foo \
 +-S \
 +-M pc \
-+-cpu host,host-cache-info=on \
++-cpu host,host-cache-info=on,l3-cache=off \
 +-m 214 \
 +-smp 1,sockets=1,cores=1,threads=1 \
 +-uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
@@ -604,22 +642,23 @@ index 000000000..6ad65700b
 +  </devices>
 +</domain>
 diff --git a/tests/qemuxml2argvtest.c b/tests/qemuxml2argvtest.c
-index cbf785e1b..3cc798782 100644
+index 94be771d3..81cd2a6ec 100644
 --- a/tests/qemuxml2argvtest.c
 +++ b/tests/qemuxml2argvtest.c
-@@ -2117,6 +2117,15 @@ mymain(void)
+@@ -2521,6 +2521,16 @@ mymain(void)
+     DO_TEST("cpu-check-default-partial", QEMU_CAPS_KVM);
+     DO_TEST("cpu-check-default-partial2", QEMU_CAPS_KVM);
  
-     DO_TEST("cpu-hotplug-startup", QEMU_CAPS_QUERY_HOTPLUGGABLE_CPUS);
- 
-+    DO_TEST("cpu-cache-disable", QEMU_CAPS_KVM);
++    DO_TEST("cpu-cache-disable", QEMU_CAPS_KVM, QEMU_CAPS_CPU_CACHE);
 +    DO_TEST("cpu-cache-disable2", QEMU_CAPS_KVM);
-+    DO_TEST("cpu-cache-disable3", QEMU_CAPS_KVM);
-+    DO_TEST("cpu-cache-passthrough", QEMU_CAPS_KVM);
++    DO_TEST("cpu-cache-disable3", QEMU_CAPS_KVM, QEMU_CAPS_CPU_CACHE);
++    DO_TEST("cpu-cache-passthrough", QEMU_CAPS_KVM, QEMU_CAPS_CPU_CACHE);
 +    DO_TEST("cpu-cache-passthrough2", QEMU_CAPS_KVM);
-+    DO_TEST("cpu-cache-emulate-l3", QEMU_CAPS_KVM);
++    DO_TEST("cpu-cache-emulate-l3", QEMU_CAPS_KVM, QEMU_CAPS_CPU_CACHE);
 +    DO_TEST_PARSE_ERROR("cpu-cache-emulate-l2", QEMU_CAPS_KVM);
 +    DO_TEST_PARSE_ERROR("cpu-cache-passthrough3", QEMU_CAPS_KVM);
 +    DO_TEST_PARSE_ERROR("cpu-cache-passthrough-l3", QEMU_CAPS_KVM);
++
      qemuTestDriverFree(&driver);
  
      return ret == 0 ? EXIT_SUCCESS : EXIT_FAILURE;

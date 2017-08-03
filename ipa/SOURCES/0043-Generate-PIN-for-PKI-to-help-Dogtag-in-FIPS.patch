@@ -1,0 +1,68 @@
+From 036605789d6b34f5592d2ef38723eeb87e6ae21a Mon Sep 17 00:00:00 2001
+From: Stanislav Laznicka <slaznick@redhat.com>
+Date: Tue, 28 Mar 2017 13:54:16 +0200
+Subject: [PATCH] Generate PIN for PKI to help Dogtag in FIPS
+
+Dogtag is currently unable to generate a PIN it could use for
+an NSS database creation in FIPS. Generate it for them so that
+we don't fail.
+
+https://pagure.io/freeipa/issue/6824
+
+Reviewed-By: Tomas Krizek <tkrizek@redhat.com>
+---
+ ipaserver/install/cainstance.py  | 6 +++++-
+ ipaserver/install/krainstance.py | 6 +++++-
+ 2 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/ipaserver/install/cainstance.py b/ipaserver/install/cainstance.py
+index f0d3c236810d01f08192b239c0edb362ed78e071..92bb760d39d23fedb40b7e3c5bea53381f1c87ad 100644
+--- a/ipaserver/install/cainstance.py
++++ b/ipaserver/install/cainstance.py
+@@ -541,6 +541,10 @@ class CAInstance(DogtagInstance):
+         # CA key algorithm
+         config.set("CA", "pki_ca_signing_key_algorithm", self.ca_signing_algorithm)
+ 
++        # generate pin which we know can be used for FIPS NSS database
++        pki_pin = ipautil.ipa_generate_password()
++        config.set("CA", "pki_pin", pki_pin)
++
+         if self.clone:
+ 
+             if self.no_db_setup:
+@@ -613,7 +617,7 @@ class CAInstance(DogtagInstance):
+         try:
+             DogtagInstance.spawn_instance(
+                 self, cfg_file,
+-                nolog_list=(self.dm_password, self.admin_password)
++                nolog_list=(self.dm_password, self.admin_password, pki_pin)
+             )
+         finally:
+             os.remove(cfg_file)
+diff --git a/ipaserver/install/krainstance.py b/ipaserver/install/krainstance.py
+index b41ccb6fa6517f53ad1f83389b45795f0cd135bc..34d667857a8055752e258a591af983190f33daa5 100644
+--- a/ipaserver/install/krainstance.py
++++ b/ipaserver/install/krainstance.py
+@@ -235,6 +235,10 @@ class KRAInstance(DogtagInstance):
+             "KRA", "pki_share_dbuser_dn",
+             str(DN(('uid', 'pkidbuser'), ('ou', 'people'), ('o', 'ipaca'))))
+ 
++        # generate pin which we know can be used for FIPS NSS database
++        pki_pin = ipautil.ipa_generate_password()
++        config.set("KRA", "pki_pin", pki_pin)
++
+         _p12_tmpfile_handle, p12_tmpfile_name = tempfile.mkstemp(dir=paths.TMP)
+ 
+         if self.clone:
+@@ -275,7 +279,7 @@ class KRAInstance(DogtagInstance):
+         try:
+             DogtagInstance.spawn_instance(
+                 self, cfg_file,
+-                nolog_list=(self.dm_password, self.admin_password)
++                nolog_list=(self.dm_password, self.admin_password, pki_pin)
+             )
+         finally:
+             os.remove(p12_tmpfile_name)
+-- 
+2.12.1
+

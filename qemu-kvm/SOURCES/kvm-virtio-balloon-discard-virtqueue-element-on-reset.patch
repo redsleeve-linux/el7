@@ -1,4 +1,4 @@
-From a1c91f04449eea0e678aeef78914213f092b7a19 Mon Sep 17 00:00:00 2001
+From 2c71eba27413f9b34610cee3f6b16b0678f4d102 Mon Sep 17 00:00:00 2001
 From: Ladi Prosek <lprosek@redhat.com>
 Date: Wed, 5 Oct 2016 17:22:27 +0200
 Subject: [PATCH 5/8] virtio-balloon: discard virtqueue element on reset
@@ -7,7 +7,7 @@ RH-Author: Ladi Prosek <lprosek@redhat.com>
 Message-id: <1475666548-9186-6-git-send-email-lprosek@redhat.com>
 Patchwork-id: 72484
 O-Subject: [RHEL-7.4 qemu-kvm v2 PATCH 5/6] virtio-balloon: discard virtqueue element on reset
-Bugzilla: 1393484
+Bugzilla: 1377968
 RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
 RH-Acked-by: Michael S. Tsirkin <mst@redhat.com>
 RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>

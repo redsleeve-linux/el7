@@ -1,0 +1,196 @@
+From ea2fc433d3f72364340919345805c667ce0d7524 Mon Sep 17 00:00:00 2001
+From: Pavel Vomacka <pvomacka@redhat.com>
+Date: Thu, 1 Jun 2017 09:56:16 +0200
+Subject: [PATCH] Turn off OCSP check
+
+The OCSP check was previously turned on but it introduced several
+issues. Therefore the check will be turned off by default.
+
+For turning on should be used ipa advise command with correct recipe.
+The solution is tracked here: https://pagure.io/freeipa/issue/6982
+
+Fixes: https://pagure.io/freeipa/issue/6981
+Reviewed-By: Martin Babinsky <mbabinsk@redhat.com>
+---
+ install/restart_scripts/restart_httpd | 15 +-----------
+ ipaserver/install/httpinstance.py     | 43 +++++++++++++++++++----------------
+ ipaserver/install/server/upgrade.py   | 25 +++-----------------
+ 3 files changed, 28 insertions(+), 55 deletions(-)
+
+diff --git a/install/restart_scripts/restart_httpd b/install/restart_scripts/restart_httpd
+index cd7f12024ea3cab16e9c664687cd854e666c9570..d1684812904a9d32842a0ca548ec6b9df5a5a0b7 100644
+--- a/install/restart_scripts/restart_httpd
++++ b/install/restart_scripts/restart_httpd
+@@ -21,24 +21,11 @@
+ 
+ import syslog
+ import traceback
+-from ipalib import api
+ from ipaplatform import services
+-from ipaplatform.paths import paths
+-from ipapython.certdb import TRUSTED_PEER_TRUST_FLAGS
+-from ipaserver.install import certs, installutils
++from ipaserver.install import certs
+ 
+ 
+ def _main():
+-
+-    api.bootstrap(in_server=True, context='restart', confdir=paths.ETC_IPA)
+-    api.finalize()
+-
+-    db = certs.CertDB(api.env.realm, nssdir=paths.HTTPD_ALIAS_DIR)
+-    nickname = installutils.get_directive(paths.HTTPD_NSS_CONF, "NSSNickname")
+-
+-    # Add trust flag which set certificate trusted for SSL connections.
+-    db.trust_root_cert(nickname, TRUSTED_PEER_TRUST_FLAGS)
+-
+     syslog.syslog(syslog.LOG_NOTICE, 'certmonger restarted httpd')
+ 
+     try:
+diff --git a/ipaserver/install/httpinstance.py b/ipaserver/install/httpinstance.py
+index 12fdddccc26b0c1132bcdca7fe2249a85997892e..f637b97db8f21ddbc00c4f70e18e836d300b2f33 100644
+--- a/ipaserver/install/httpinstance.py
++++ b/ipaserver/install/httpinstance.py
+@@ -34,8 +34,7 @@ from augeas import Augeas
+ from ipalib.install import certmonger
+ from ipapython import ipaldap
+ from ipapython.certdb import (IPA_CA_TRUST_FLAGS,
+-                              EXTERNAL_CA_TRUST_FLAGS,
+-                              TRUSTED_PEER_TRUST_FLAGS)
++                              EXTERNAL_CA_TRUST_FLAGS)
+ from ipaserver.install import replication
+ from ipaserver.install import service
+ from ipaserver.install import certs
+@@ -74,6 +73,10 @@ NSS_CIPHER_SUITE = [
+ ]
+ NSS_CIPHER_REVISION = '20160129'
+ 
++OCSP_DIRECTIVE = 'NSSOCSP'
++
++NSS_OCSP_ENABLED = 'nss_ocsp_enabled'
++
+ 
+ def httpd_443_configured():
+     """
+@@ -163,7 +166,7 @@ class HTTPInstance(service.Service):
+                   self.set_mod_nss_protocol)
+         self.step("setting mod_nss password file", self.__set_mod_nss_passwordfile)
+         self.step("enabling mod_nss renegotiate", self.enable_mod_nss_renegotiate)
+-        self.step("enabling mod_nss OCSP", self.enable_mod_nss_ocsp)
++        self.step("disabling mod_nss OCSP", self.disable_mod_nss_ocsp)
+         self.step("adding URL rewriting rules", self.__add_include)
+         self.step("configuring httpd", self.__configure_http)
+         self.step("setting up httpd keytab", self.request_service_keytab)
+@@ -270,7 +273,12 @@ class HTTPInstance(service.Service):
+         installutils.set_directive(paths.HTTPD_NSS_CONF, 'NSSRenegotiation', 'on', False)
+         installutils.set_directive(paths.HTTPD_NSS_CONF, 'NSSRequireSafeNegotiation', 'on', False)
+ 
+-    def enable_mod_nss_ocsp(self):
++    def disable_mod_nss_ocsp(self):
++        if sysupgrade.get_upgrade_state('http', NSS_OCSP_ENABLED) is None:
++            self.__disable_mod_nss_ocsp()
++            sysupgrade.set_upgrade_state('http', NSS_OCSP_ENABLED, False)
++
++    def __disable_mod_nss_ocsp(self):
+         aug = Augeas(flags=Augeas.NO_LOAD | Augeas.NO_MODL_AUTOLOAD)
+ 
+         aug.set('/augeas/load/Httpd/lens', 'Httpd.lns')
+@@ -278,22 +286,21 @@ class HTTPInstance(service.Service):
+         aug.load()
+ 
+         path = '/files{}/VirtualHost'.format(paths.HTTPD_NSS_CONF)
++        ocsp_path = '{}/directive[.="{}"]'.format(path, OCSP_DIRECTIVE)
++        ocsp_arg = '{}/arg'.format(ocsp_path)
++        ocsp_comment = '{}/#comment[.="{}"]'.format(path, OCSP_DIRECTIVE)
+ 
+-        ocsp_comment = aug.get(
+-                        '{}/#comment[.=~regexp("NSSOCSP .*")]'.format(path))
+-        ocsp_dir = aug.get('{}/directive[.="NSSOCSP"]'.format(path))
++        ocsp_dir = aug.get(ocsp_path)
+ 
+-        if ocsp_dir is None and ocsp_comment is not None:
+-            # Directive is missing, comment is present
+-            aug.set('{}/#comment[.=~regexp("NSSOCSP .*")]'.format(path),
+-                    'NSSOCSP')
+-            aug.rename('{}/#comment[.="NSSOCSP"]'.format(path), 'directive')
+-        elif ocsp_dir is None:
+-            # Directive is missing and comment is missing
+-            aug.set('{}/directive[last()+1]'.format(path), "NSSOCSP")
++        # there is NSSOCSP directive in nss.conf file, comment it
++        # otherwise just do nothing
++        if ocsp_dir is not None:
++            ocsp_state = aug.get(ocsp_arg)
++            aug.remove(ocsp_arg)
++            aug.rename(ocsp_path, '#comment')
++            aug.set(ocsp_comment, '{} {}'.format(OCSP_DIRECTIVE, ocsp_state))
++            aug.save()
+ 
+-        aug.set('{}/directive[. = "NSSOCSP"]/arg'.format(path), 'on')
+-        aug.save()
+ 
+     def set_mod_nss_cipher_suite(self):
+         ciphers = ','.join(NSS_CIPHER_SUITE)
+@@ -412,8 +419,6 @@ class HTTPInstance(service.Service):
+             self.__set_mod_nss_nickname(nickname)
+             self.add_cert_to_service()
+ 
+-            db.trust_root_cert(nickname, TRUSTED_PEER_TRUST_FLAGS)
+-
+         else:
+             if not self.promote:
+                 ca_args = [
+diff --git a/ipaserver/install/server/upgrade.py b/ipaserver/install/server/upgrade.py
+index b1f59d3e29d69bffc11935ec22d4b5f510293355..732776f2cf513a4bb11d8f3f0dfaac78217e460f 100644
+--- a/ipaserver/install/server/upgrade.py
++++ b/ipaserver/install/server/upgrade.py
+@@ -1395,24 +1395,6 @@ def fix_trust_flags():
+     sysupgrade.set_upgrade_state('http', 'fix_trust_flags', True)
+ 
+ 
+-def fix_server_cert_trust_flags():
+-    root_logger.info(
+-        '[Fixing server certificate trust flags in %s]' %
+-        paths.HTTPD_ALIAS_DIR)
+-
+-    if sysupgrade.get_upgrade_state('http', 'fix_serv_cert_trust_flags'):
+-        root_logger.info("Trust flags already processed")
+-        return
+-
+-    db = certs.CertDB(api.env.realm, nssdir=paths.HTTPD_ALIAS_DIR)
+-    sc_nickname = installutils.get_directive(paths.HTTPD_NSS_CONF,
+-                                             "NSSNickname")
+-    # Add trust flag which set certificate trusted for SSL connections.
+-    db.trust_root_cert(sc_nickname, certdb.TRUSTED_PEER_TRUST_FLAGS)
+-
+-    sysupgrade.set_upgrade_state('http', 'fix_serv_cert_trust_flags', True)
+-
+-
+ def update_mod_nss_protocol(http):
+     root_logger.info('[Updating mod_nss protocol versions]')
+ 
+@@ -1425,9 +1407,9 @@ def update_mod_nss_protocol(http):
+     sysupgrade.set_upgrade_state('nss.conf', 'protocol_updated_tls12', True)
+ 
+ 
+-def enable_mod_nss_ocsp(http):
++def disable_mod_nss_ocsp(http):
+     root_logger.info('[Updating mod_nss enabling OCSP]')
+-    http.enable_mod_nss_ocsp()
++    http.disable_mod_nss_ocsp()
+ 
+ 
+ def update_mod_nss_cipher_suite(http):
+@@ -1721,9 +1703,8 @@ def upgrade_configuration():
+     update_ipa_httpd_service_conf(http)
+     update_mod_nss_protocol(http)
+     update_mod_nss_cipher_suite(http)
+-    enable_mod_nss_ocsp(http)
++    disable_mod_nss_ocsp(http)
+     fix_trust_flags()
+-    fix_server_cert_trust_flags()
+     update_http_keytab(http)
+     http.configure_gssproxy()
+     http.start()
+-- 
+2.9.4
+

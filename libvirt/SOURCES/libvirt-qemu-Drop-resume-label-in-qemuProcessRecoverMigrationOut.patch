@@ -1,0 +1,86 @@
+From 7e2bb20a6318c5e7a42b0fe417b6e12862c65d64 Mon Sep 17 00:00:00 2001
+Message-Id: <7e2bb20a6318c5e7a42b0fe417b6e12862c65d64@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Tue, 4 Apr 2017 20:54:57 +0200
+Subject: [PATCH] qemu: Drop resume label in qemuProcessRecoverMigrationOut
+
+Let's use a bool variable to create a single shared path returning 0.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit 3e803176a3d9242f6833687e305aebd7353ffaa3)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1425003
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_process.c | 31 ++++++++++++++++---------------
+ 1 file changed, 16 insertions(+), 15 deletions(-)
+
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 0b9b4f76a..70b06a28f 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -2998,6 +2998,7 @@ qemuProcessRecoverMigrationOut(virQEMUDriverPtr driver,
+     bool postcopy = state == VIR_DOMAIN_PAUSED &&
+                     (reason == VIR_DOMAIN_PAUSED_POSTCOPY ||
+                      reason == VIR_DOMAIN_PAUSED_POSTCOPY_FAILED);
++    bool resume = false;
+ 
+     switch (phase) {
+     case QEMU_MIGRATION_PHASE_NONE:
+@@ -3028,7 +3029,7 @@ qemuProcessRecoverMigrationOut(virQEMUDriverPtr driver,
+                 VIR_WARN("Could not cancel ongoing migration of domain %s",
+                          vm->def->name);
+             }
+-            goto resume;
++            resume = true;
+         }
+         break;
+ 
+@@ -3051,7 +3052,7 @@ qemuProcessRecoverMigrationOut(virQEMUDriverPtr driver,
+         } else {
+             VIR_DEBUG("Resuming domain %s after failed migration",
+                       vm->def->name);
+-            goto resume;
++            resume = true;
+         }
+         break;
+ 
+@@ -3061,21 +3062,21 @@ qemuProcessRecoverMigrationOut(virQEMUDriverPtr driver,
+         return -1;
+     }
+ 
+-    return 0;
+-
+- resume:
+-    /* resume the domain but only if it was paused as a result of
+-     * migration
+-     */
+-    if (state == VIR_DOMAIN_PAUSED &&
+-        (reason == VIR_DOMAIN_PAUSED_MIGRATION ||
+-         reason == VIR_DOMAIN_PAUSED_UNKNOWN)) {
+-        if (qemuProcessStartCPUs(driver, vm, conn,
+-                                 VIR_DOMAIN_RUNNING_UNPAUSED,
+-                                 QEMU_ASYNC_JOB_NONE) < 0) {
+-            VIR_WARN("Could not resume domain %s", vm->def->name);
++    if (resume) {
++        /* resume the domain but only if it was paused as a result of
++         * migration
++         */
++        if (state == VIR_DOMAIN_PAUSED &&
++            (reason == VIR_DOMAIN_PAUSED_MIGRATION ||
++             reason == VIR_DOMAIN_PAUSED_UNKNOWN)) {
++            if (qemuProcessStartCPUs(driver, vm, conn,
++                                     VIR_DOMAIN_RUNNING_UNPAUSED,
++                                     QEMU_ASYNC_JOB_NONE) < 0) {
++                VIR_WARN("Could not resume domain %s", vm->def->name);
++            }
+         }
+     }
++
+     return 0;
+ }
+ 
+-- 
+2.12.2
+

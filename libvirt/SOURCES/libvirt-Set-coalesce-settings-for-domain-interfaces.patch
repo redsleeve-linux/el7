@@ -1,0 +1,142 @@
+From 7fadd91380ce1000f3aa5b6e5c4b928f883fbb33 Mon Sep 17 00:00:00 2001
+Message-Id: <7fadd91380ce1000f3aa5b6e5c4b928f883fbb33@dist-git>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Tue, 25 Apr 2017 13:41:17 +0200
+Subject: [PATCH] Set coalesce settings for domain interfaces
+
+This patch makes use of the virNetDevSetCoalesce() function to make
+appropriate settings effective for devices that support them.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1414627
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit fcef44728dff9cb708d00d17f5e0b44aa513f27b)
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/bhyve/bhyve_command.c   | 2 +-
+ src/network/bridge_driver.c | 2 +-
+ src/qemu/qemu_interface.c   | 2 +-
+ src/uml/uml_conf.c          | 2 +-
+ src/util/virnetdevtap.c     | 5 +++++
+ src/util/virnetdevtap.h     | 2 ++
+ tests/bhyvexml2argvmock.c   | 1 +
+ 7 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/src/bhyve/bhyve_command.c b/src/bhyve/bhyve_command.c
+index e0528ed77..e9c072b9f 100644
+--- a/src/bhyve/bhyve_command.c
++++ b/src/bhyve/bhyve_command.c
+@@ -100,7 +100,7 @@ bhyveBuildNetArgStr(virConnectPtr conn,
+                                            def->uuid, NULL, NULL, 0,
+                                            virDomainNetGetActualVirtPortProfile(net),
+                                            virDomainNetGetActualVlan(net),
+-                                           0, NULL,
++                                           NULL, 0, NULL,
+                                            VIR_NETDEV_TAP_CREATE_IFUP | VIR_NETDEV_TAP_CREATE_PERSIST) < 0) {
+             goto cleanup;
+         }
+diff --git a/src/network/bridge_driver.c b/src/network/bridge_driver.c
+index 41bce794a..b0026ab17 100644
+--- a/src/network/bridge_driver.c
++++ b/src/network/bridge_driver.c
+@@ -2315,7 +2315,7 @@ networkStartNetworkVirtual(virNetworkDriverStatePtr driver,
+         if (virNetDevTapCreateInBridgePort(network->def->bridge,
+                                            &macTapIfName, &network->def->mac,
+                                            NULL, NULL, &tapfd, 1, NULL, NULL,
+-                                           network->def->mtu, NULL,
++                                           NULL, network->def->mtu, NULL,
+                                            VIR_NETDEV_TAP_CREATE_USE_MAC_FOR_BRIDGE |
+                                            VIR_NETDEV_TAP_CREATE_IFUP |
+                                            VIR_NETDEV_TAP_CREATE_PERSIST) < 0) {
+diff --git a/src/qemu/qemu_interface.c b/src/qemu/qemu_interface.c
+index c5dca60f1..2057ac929 100644
+--- a/src/qemu/qemu_interface.c
++++ b/src/qemu/qemu_interface.c
+@@ -545,7 +545,7 @@ qemuInterfaceBridgeConnect(virDomainDefPtr def,
+                                            def->uuid, tunpath, tapfd, *tapfdSize,
+                                            virDomainNetGetActualVirtPortProfile(net),
+                                            virDomainNetGetActualVlan(net),
+-                                           net->mtu, mtu,
++                                           net->coalesce, net->mtu, mtu,
+                                            tap_create_flags) < 0) {
+             virDomainAuditNetDevice(def, net, tunpath, false);
+             goto cleanup;
+diff --git a/src/uml/uml_conf.c b/src/uml/uml_conf.c
+index 871653c5a..bdef78324 100644
+--- a/src/uml/uml_conf.c
++++ b/src/uml/uml_conf.c
+@@ -125,7 +125,7 @@ umlConnectTapDevice(virDomainDefPtr vm,
+                                        vm->uuid, net->backend.tap, &tapfd, 1,
+                                        virDomainNetGetActualVirtPortProfile(net),
+                                        virDomainNetGetActualVlan(net),
+-                                       0, NULL,
++                                       NULL, 0, NULL,
+                                        VIR_NETDEV_TAP_CREATE_IFUP |
+                                        VIR_NETDEV_TAP_CREATE_PERSIST) < 0) {
+         if (template_ifname)
+diff --git a/src/util/virnetdevtap.c b/src/util/virnetdevtap.c
+index 93002b929..c8dacfe27 100644
+--- a/src/util/virnetdevtap.c
++++ b/src/util/virnetdevtap.c
+@@ -584,6 +584,7 @@ virNetDevTapAttachBridge(const char *tapname,
+  * @tapfd: array of file descriptor return value for the new tap device
+  * @tapfdSize: number of file descriptors in @tapfd
+  * @virtPortProfile: bridge/port specific configuration
++ * @coalesce: optional coalesce parameters
+  * @mtu: requested MTU for port (or 0 for "default")
+  * @actualMTU: MTU actually set for port (after accounting for bridge's MTU)
+  * @flags: OR of virNetDevTapCreateFlags:
+@@ -616,6 +617,7 @@ int virNetDevTapCreateInBridgePort(const char *brname,
+                                    size_t tapfdSize,
+                                    virNetDevVPortProfilePtr virtPortProfile,
+                                    virNetDevVlanPtr virtVlan,
++                                   virNetDevCoalescePtr coalesce,
+                                    unsigned int mtu,
+                                    unsigned int *actualMTU,
+                                    unsigned int flags)
+@@ -661,6 +663,9 @@ int virNetDevTapCreateInBridgePort(const char *brname,
+     if (virNetDevSetOnline(*ifname, !!(flags & VIR_NETDEV_TAP_CREATE_IFUP)) < 0)
+         goto error;
+ 
++    if (virNetDevSetCoalesce(*ifname, coalesce) < 0)
++        goto error;
++
+     return 0;
+ 
+  error:
+diff --git a/src/util/virnetdevtap.h b/src/util/virnetdevtap.h
+index 6bb3b8891..bd5ec14d4 100644
+--- a/src/util/virnetdevtap.h
++++ b/src/util/virnetdevtap.h
+@@ -24,6 +24,7 @@
+ # define __VIR_NETDEV_TAP_H__
+ 
+ # include "internal.h"
++# include "virnetdev.h"
+ # include "virnetdevvportprofile.h"
+ # include "virnetdevvlan.h"
+ 
+@@ -83,6 +84,7 @@ int virNetDevTapCreateInBridgePort(const char *brname,
+                                    size_t tapfdSize,
+                                    virNetDevVPortProfilePtr virtPortProfile,
+                                    virNetDevVlanPtr virtVlan,
++                                   virNetDevCoalescePtr coalesce,
+                                    unsigned int mtu,
+                                    unsigned int *actualMTU,
+                                    unsigned int flags)
+diff --git a/tests/bhyvexml2argvmock.c b/tests/bhyvexml2argvmock.c
+index fd714694f..7afa0e34c 100644
+--- a/tests/bhyvexml2argvmock.c
++++ b/tests/bhyvexml2argvmock.c
+@@ -28,6 +28,7 @@ int virNetDevTapCreateInBridgePort(const char *brname ATTRIBUTE_UNUSED,
+                                    size_t tapfdSize ATTRIBUTE_UNUSED,
+                                    virNetDevVPortProfilePtr virtPortProfile ATTRIBUTE_UNUSED,
+                                    virNetDevVlanPtr virtVlan ATTRIBUTE_UNUSED,
++                                   virNetDevCoalescePtr coalesce ATTRIBUTE_UNUSED,
+                                    unsigned int mtu ATTRIBUTE_UNUSED,
+                                    unsigned int *actualMTU ATTRIBUTE_UNUSED,
+                                    unsigned int fakeflags ATTRIBUTE_UNUSED)
+-- 
+2.12.2
+

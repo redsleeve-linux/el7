@@ -1,5 +1,5 @@
-From 0c8ec3bc6be11a4043f6f4bb697fbca4bc46e448 Mon Sep 17 00:00:00 2001
-Message-Id: <0c8ec3bc6be11a4043f6f4bb697fbca4bc46e448@dist-git>
+From 26d33ed184f16a57b412360e4e75dbbcb9807c76 Mon Sep 17 00:00:00 2001
+Message-Id: <26d33ed184f16a57b412360e4e75dbbcb9807c76@dist-git>
 From: Jiri Denemark <jdenemar@redhat.com>
 Date: Fri, 27 Mar 2015 12:48:40 +0100
 Subject: [PATCH] RHEL: Hack around changed Broadwell/Haswell CPUs
@@ -11,7 +11,7 @@ removing rtm and hle features from the corresponding CPU models for new
 machine types. Then they reverted this and introduced new *-noTSX models
 instead. However, the original fix was backported to RHEL.
 
-This patch makes sue Broadwell and Haswell will always contain rtm and
+This patch makes sure Broadwell and Haswell will always contain rtm and
 hle features regardless on RHEL version or machine type used.
 
 https://bugzilla.redhat.com/show_bug.cgi?id=1199446
@@ -20,52 +20,58 @@ Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
 ---
  src/qemu/qemu_command.c                             | 21 +++++++++++++++++++++
  .../qemuxml2argvdata/qemuxml2argv-cpu-Haswell.args  |  2 +-
- .../qemuxml2argvdata/qemuxml2argv-cpu-Haswell3.args |  2 +-
- 3 files changed, 23 insertions(+), 2 deletions(-)
+ .../qemuxml2argv-cpu-host-model-cmt.args            |  3 ++-
+ .../qemuxml2argv-cpu-tsc-frequency.args             |  2 +-
+ 4 files changed, 25 insertions(+), 3 deletions(-)
 
 diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
-index 71e9e63..5b2f041 100644
+index 64d2d7105..1a2984e56 100644
 --- a/src/qemu/qemu_command.c
 +++ b/src/qemu/qemu_command.c
-@@ -6251,6 +6251,8 @@ qemuBuildCpuModelArgStr(virQEMUDriverPtr driver,
-     virCPUCompareResult cmp;
-     const char *preferred;
+@@ -6768,6 +6768,8 @@ qemuBuildCpuModelArgStr(virQEMUDriverPtr driver,
+     size_t i;
      virCapsPtr caps = NULL;
+     virCPUDefPtr cpu = def->cpu;
 +    bool hle = false;
 +    bool rtm = false;
-     bool compareAgainstHost = ((def->virtType == VIR_DOMAIN_VIRT_KVM ||
-                                 def->cpu->mode != VIR_CPU_MODE_CUSTOM) &&
-                                def->cpu->mode != VIR_CPU_MODE_HOST_PASSTHROUGH);
-@@ -6404,8 +6406,27 @@ qemuBuildCpuModelArgStr(virQEMUDriverPtr driver,
-             else
-                 sign = '+';
  
-+            if (STREQ("rtm", featCpu->features[i].name))
-+                rtm = true;
-+            if (STREQ("hle", featCpu->features[i].name))
-+                hle = true;
+     if (!(caps = virQEMUDriverGetCapabilities(driver, false)))
+         goto cleanup;
+@@ -6822,6 +6824,11 @@ qemuBuildCpuModelArgStr(virQEMUDriverPtr driver,
+         virBufferAsprintf(buf, ",vendor=%s", cpu->vendor_id);
+ 
+     for (i = 0; i < cpu->nfeatures; i++) {
++        if (STREQ("rtm", cpu->features[i].name))
++            rtm = true;
++        if (STREQ("hle", cpu->features[i].name))
++            hle = true;
 +
-             virBufferAsprintf(buf, ",%c%s", sign, featCpu->features[i].name);
+         switch ((virCPUFeaturePolicy) cpu->features[i].policy) {
+         case VIR_CPU_FEATURE_FORCE:
+         case VIR_CPU_FEATURE_REQUIRE:
+@@ -6845,6 +6852,20 @@ qemuBuildCpuModelArgStr(virQEMUDriverPtr driver,
          }
-+
-+        /* Some versions of qemu-kvm in RHEL provide Broadwell and Haswell CPU
-+         * models which lack rtm and hle features when used with some machine
-+         * types. Let's make sure Broadwell and Haswell will always have these
-+         * features. But only if the features were not explicitly mentioned in
-+         * the guest CPU definition.
-+         */
-+        if (STREQ_NULLABLE(featCpu->model, "Broadwell") ||
-+            STREQ_NULLABLE(featCpu->model, "Haswell")) {
-+            if (!rtm)
-+                virBufferAddLit(buf, ",+rtm");
-+            if (!hle)
-+                virBufferAddLit(buf, ",+hle");
-+        }
      }
  
++    /* Some versions of qemu-kvm in RHEL provide Broadwell and Haswell CPU
++     * models which lack rtm and hle features when used with some machine
++     * types. Let's make sure Broadwell and Haswell will always have these
++     * features. But only if the features were not explicitly mentioned in
++     * the guest CPU definition.
++     */
++    if (STREQ_NULLABLE(cpu->model, "Broadwell") ||
++        STREQ_NULLABLE(cpu->model, "Haswell")) {
++        if (!rtm)
++            virBufferAddLit(buf, ",+rtm");
++        if (!hle)
++            virBufferAddLit(buf, ",+hle");
++    }
++
      ret = 0;
+  cleanup:
+     virObjectUnref(caps);
 diff --git a/tests/qemuxml2argvdata/qemuxml2argv-cpu-Haswell.args b/tests/qemuxml2argvdata/qemuxml2argv-cpu-Haswell.args
-index d00a619..29cf688 100644
+index ef0e68b14..2e74a6703 100644
 --- a/tests/qemuxml2argvdata/qemuxml2argv-cpu-Haswell.args
 +++ b/tests/qemuxml2argvdata/qemuxml2argv-cpu-Haswell.args
 @@ -8,7 +8,7 @@ QEMU_AUDIO_DRV=none \
@@ -75,21 +81,35 @@ index d00a619..29cf688 100644
 --cpu Haswell \
 +-cpu Haswell,+rtm,+hle \
  -m 214 \
- -smp 6 \
+ -smp 6,sockets=6,cores=1,threads=1 \
  -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
-diff --git a/tests/qemuxml2argvdata/qemuxml2argv-cpu-Haswell3.args b/tests/qemuxml2argvdata/qemuxml2argv-cpu-Haswell3.args
-index d00a619..29cf688 100644
---- a/tests/qemuxml2argvdata/qemuxml2argv-cpu-Haswell3.args
-+++ b/tests/qemuxml2argvdata/qemuxml2argv-cpu-Haswell3.args
-@@ -8,7 +8,7 @@ QEMU_AUDIO_DRV=none \
- -name QEMUGuest1 \
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-cpu-host-model-cmt.args b/tests/qemuxml2argvdata/qemuxml2argv-cpu-host-model-cmt.args
+index 7ae4ac5ad..e02f996ee 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-cpu-host-model-cmt.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-cpu-host-model-cmt.args
+@@ -9,7 +9,8 @@ QEMU_AUDIO_DRV=none \
  -S \
  -M pc \
---cpu Haswell \
-+-cpu Haswell,+rtm,+hle \
+ -cpu Haswell,+vme,+ds,+acpi,+ss,+ht,+tm,+pbe,+dtes64,+monitor,+ds_cpl,+vmx,\
+-+smx,+est,+tm2,+xtpr,+pdcm,+osxsave,+f16c,+rdrand,+pdpe1gb,+abm,+lahf_lm \
+++smx,+est,+tm2,+xtpr,+pdcm,+osxsave,+f16c,+rdrand,+pdpe1gb,+abm,+lahf_lm,+rtm,\
+++hle \
  -m 214 \
- -smp 6 \
+ -smp 6,sockets=6,cores=1,threads=1 \
+ -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-cpu-tsc-frequency.args b/tests/qemuxml2argvdata/qemuxml2argv-cpu-tsc-frequency.args
+index 50223fab2..cd9a3ef16 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-cpu-tsc-frequency.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-cpu-tsc-frequency.args
+@@ -10,7 +10,7 @@ QEMU_AUDIO_DRV=none \
+ -M pc \
+ -cpu Haswell,+vme,+ds,+acpi,+ss,+ht,+tm,+pbe,+dtes64,+monitor,+ds_cpl,+vmx,\
+ +smx,+est,+tm2,+xtpr,+pdcm,+osxsave,+f16c,+rdrand,+pdpe1gb,+abm,+lahf_lm,\
+-+invtsc,tsc-frequency=3504000000 \
+++invtsc,+rtm,+hle,tsc-frequency=3504000000 \
+ -m 214 \
+ -smp 1,sockets=1,cores=1,threads=1 \
  -uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
 -- 
-2.9.0
+2.12.2
 

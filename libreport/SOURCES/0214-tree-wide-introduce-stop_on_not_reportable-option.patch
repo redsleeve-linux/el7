@@ -1,0 +1,303 @@
+From 8ee8cf6d0467241d2886a095be25c2885d3a8666 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Wed, 23 Nov 2016 16:22:51 +0100
+Subject: [PATCH] tree-wide: introduce 'stop_on_not_reportable' option
+
+Make it possible to ignore existence of not-reportable file and continue
+in reporting.
+
+The new configuration option is not yet persistent and can be configured
+via an environment variable.
+
+Related to #1257159
+Related to abrt/abrt#1166
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/cli/cli-report.c               |  3 +-
+ src/gui-wizard-gtk/wizard.c        | 21 ++++++++----
+ src/include/global_configuration.h | 28 ++++++++++++++++
+ src/include/internal_libreport.h   |  1 +
+ src/include/report.h               |  3 ++
+ src/lib/global_configuration.c     | 22 +++++++++++++
+ src/lib/report.c                   |  6 ++++
+ src/report-newt/report-newt.c      |  4 ++-
+ src/report-python/reportmodule.c   |  1 +
+ tests/global_config.at             | 67 ++++++++++++++++++++++++++++++++++++++
+ 10 files changed, 148 insertions(+), 8 deletions(-)
+
+diff --git a/src/cli/cli-report.c b/src/cli/cli-report.c
+index 68baa8b..adb58a7 100644
+--- a/src/cli/cli-report.c
++++ b/src/cli/cli-report.c
+@@ -525,7 +525,8 @@ static int is_not_reportable(problem_data_t *problem_data)
+     if (not_reportable)
+     {
+         printf("%s\n", not_reportable);
+-        return 1;
++        if (get_global_stop_on_not_reportable())
++            return 1;
+     }
+     return 0;
+ }
+diff --git a/src/gui-wizard-gtk/wizard.c b/src/gui-wizard-gtk/wizard.c
+index 31861a1..35c6fc3 100644
+--- a/src/gui-wizard-gtk/wizard.c
++++ b/src/gui-wizard-gtk/wizard.c
+@@ -2039,7 +2039,7 @@ static gboolean consume_cmd_output(GIOChannel *source, GIOCondition condition, g
+             dd_sanitize_mode_and_owner(dd);
+     }
+ 
+-    if (retval == 0 && !g_expert_mode)
++    if (retval == 0 && !g_expert_mode && get_global_stop_on_not_reportable())
+     {
+         /* Check whether NOT_REPORTABLE element appeared. If it did, we'll stop
+          * even if exit code is "success".
+@@ -3103,16 +3103,25 @@ static gint select_next_page_no(gint current_page_no, gpointer data)
+ 
+             if (problem_data_get_content_or_NULL(g_cd, FILENAME_NOT_REPORTABLE))
+             {
+-                free(event);
+ 
+                 char *msg = xasprintf(_("This problem should not be reported "
+                                 "(it is likely a known problem). %s"),
+                                 problem_data_get_content_or_NULL(g_cd, FILENAME_NOT_REPORTABLE)
+                 );
+-                cancel_processing(g_lbl_event_log, msg, TERMINATE_NOFLAGS);
+-                free(msg);
+-                current_page_no = pages[PAGENO_EVENT_PROGRESS].page_no - 1;
+-                goto again;
++
++                if (get_global_stop_on_not_reportable())
++                {
++                    free(event);
++                    cancel_processing(g_lbl_event_log, msg, TERMINATE_NOFLAGS);
++                    free(msg);
++                    current_page_no = pages[PAGENO_EVENT_PROGRESS].page_no - 1;
++                    goto again;
++                }
++                else
++                {
++                    log(msg);
++                    free(msg);
++                }
+             }
+ 
+             /* must set g_event_selected otherwise if the event was not
+diff --git a/src/include/global_configuration.h b/src/include/global_configuration.h
+index bc5513d..0eb18c6 100644
+--- a/src/include/global_configuration.h
++++ b/src/include/global_configuration.h
+@@ -53,6 +53,34 @@ bool get_global_create_private_ticket(void);
+ #define set_global_create_private_ticket libreport_set_global_create_private_ticket
+ void set_global_create_private_ticket(bool enabled, int flags);
+ 
++/**
++ * Returns logical true if the reporting process shall not start or contine if
++ * the not-reportable files exists.
++ *
++ * The option can be enabled by ABRT_STOP_ON_NOT_REPORTABLE environment
++ * variable.
++ *
++ * @return true if the process shall stop; otherwise the function returns
++ * false.
++ */
++#define get_global_stop_on_not_reportable libreport_get_global_stop_on_not_reportable
++bool get_global_stop_on_not_reportable(void);
++
++/**
++ * Configures the stop on not reportable global option
++ *
++ * The function changes the configuration only for the current process by
++ * default.
++ *
++ * The option can be enabled by ABRT_STOP_ON_NOT_REPORTABLE environment
++ * variable.
++ *
++ * @param enabled The option's value
++ * @param flags For future needs (enable persistent configuration)
++ */
++#define set_global_stop_on_not_reportable libreport_set_global_stop_on_not_reportable
++void set_global_stop_on_not_reportable(bool enabled, int flags);
++
+ #ifdef __cplusplus
+ }
+ #endif
+diff --git a/src/include/internal_libreport.h b/src/include/internal_libreport.h
+index cf5730c..23cdfa0 100644
+--- a/src/include/internal_libreport.h
++++ b/src/include/internal_libreport.h
+@@ -87,6 +87,7 @@ int vdprintf(int d, const char *format, va_list ap);
+ 
+ /* consts used across whole libreport */
+ #define CREATE_PRIVATE_TICKET "ABRT_CREATE_PRIVATE_TICKET"
++#define STOP_ON_NOT_REPORTABLE "ABRT_STOP_ON_NOT_REPORTABLE"
+ 
+ /* Pull in entire public libreport API */
+ #include "dump_dir.h"
+diff --git a/src/include/report.h b/src/include/report.h
+index d31eb0a..03f3dc6 100644
+--- a/src/include/report.h
++++ b/src/include/report.h
+@@ -35,6 +35,9 @@ enum {
+     LIBREPORT_DEL_DIR     = (1 << 6), /* delete directory after reporting (passes --delete to child) */
+     LIBREPORT_RUN_CLI     = (1 << 7), /* run 'cli' instead of 'gui' */
+     LIBREPORT_RUN_NEWT    = (1 << 8), /* run 'report-newt' */
++    LIBREPORT_IGNORE_NOT_REPORTABLE = (1 << 9), /* do not terminate the
++                                                  reporting process if the
++                                                  not-repotrable file exits. */
+ };
+ 
+ int report_problem_in_dir(const char *dirname, int flags);
+diff --git a/src/lib/global_configuration.c b/src/lib/global_configuration.c
+index ef921e9..46b9a63 100644
+--- a/src/lib/global_configuration.c
++++ b/src/lib/global_configuration.c
+@@ -163,3 +163,25 @@ void set_global_create_private_ticket(bool enabled, int flags/*unused - persiste
+     else
+         safe_unsetenv(CREATE_PRIVATE_TICKET);
+ }
++
++bool get_global_stop_on_not_reportable(void)
++{
++    assert_global_configuration_initialized();
++
++    char *env_create_private = getenv(STOP_ON_NOT_REPORTABLE);
++
++    if (env_create_private == NULL)
++        return true;
++
++    return string_to_bool(env_create_private);
++}
++
++void set_global_stop_on_not_reportable(bool enabled, int flags/*unused - persistent*/)
++{
++    assert_global_configuration_initialized();
++
++    if (enabled)
++        xsetenv(STOP_ON_NOT_REPORTABLE, "1");
++    else
++        xsetenv(STOP_ON_NOT_REPORTABLE, "0");
++}
+diff --git a/src/lib/report.c b/src/lib/report.c
+index 7a655fd..3380a52 100644
+--- a/src/lib/report.c
++++ b/src/lib/report.c
+@@ -26,6 +26,12 @@ int report_problem_in_dir(const char *dirname, int flags)
+     if (prgname)
+         prgname = xasprintf("LIBREPORT_PRGNAME=%s", prgname);
+ 
++    if (flags & LIBREPORT_IGNORE_NOT_REPORTABLE)
++    {
++        load_global_configuration();
++        set_global_stop_on_not_reportable(false, 0);
++    }
++
+     fflush(NULL);
+ 
+     pid_t pid = fork();
+diff --git a/src/report-newt/report-newt.c b/src/report-newt/report-newt.c
+index f5fca76..278cfb7 100644
+--- a/src/report-newt/report-newt.c
++++ b/src/report-newt/report-newt.c
+@@ -336,7 +336,9 @@ static int report(const char *dump_dir_name)
+         dd_close(dd);
+         newtWinMessage(_("Error"), _("Ok"), (char *)"%s", t);
+         free(t);
+-        return -1;
++
++        if (get_global_stop_on_not_reportable())
++            return -1;
+     }
+ 
+     dd_close(dd);
+diff --git a/src/report-python/reportmodule.c b/src/report-python/reportmodule.c
+index b8154ae..4491fd4 100644
+--- a/src/report-python/reportmodule.c
++++ b/src/report-python/reportmodule.c
+@@ -98,6 +98,7 @@ init_pyreport(void)
+     PyModule_AddObject(m, "LIBREPORT_DEL_DIR"    , Py_BuildValue("i", LIBREPORT_DEL_DIR    ));
+     PyModule_AddObject(m, "LIBREPORT_RUN_CLI"    , Py_BuildValue("i", LIBREPORT_RUN_CLI    ));
+     PyModule_AddObject(m, "LIBREPORT_RUN_NEWT"   , Py_BuildValue("i", LIBREPORT_RUN_NEWT  ));
++    PyModule_AddObject(m, "LIBREPORT_IGNORE_NOT_REPORTABLE", Py_BuildValue("i", LIBREPORT_IGNORE_NOT_REPORTABLE));
+     PyModule_AddObject(m, "EXIT_CANCEL_BY_USER", Py_BuildValue("i", EXIT_CANCEL_BY_USER));
+     PyModule_AddObject(m, "EXIT_STOP_EVENT_RUN", Py_BuildValue("i", EXIT_STOP_EVENT_RUN));
+ }
+diff --git a/tests/global_config.at b/tests/global_config.at
+index 05a0ffa..1067128 100644
+--- a/tests/global_config.at
++++ b/tests/global_config.at
+@@ -169,3 +169,70 @@ TS_MAIN
+ }
+ TS_RETURN_MAIN
+ ]])
++
++
++## ---------------------- ##
++## stop_on_not_reportable ##
++## ---------------------- ##
++
++AT_TESTFUN([stop_on_not_reportable], [[
++#include "testsuite.h"
++
++TS_MAIN
++{
++    char cwd_buf[PATH_MAX + 1];
++    static const char *dirs[] = {
++        NULL,
++        NULL,
++    };
++    dirs[0] = getcwd(cwd_buf, sizeof(cwd_buf));
++
++    static int dir_flags[] = {
++        CONF_DIR_FLAG_NONE,
++        -1,
++    };
++
++    unlink("libreport.conf");
++    FILE *lrf = fopen("libreport.conf", "wx");
++    assert(lrf != NULL);
++    fclose(lrf);
++
++    assert(load_global_configuration_from_dirs(dirs, dir_flags));
++
++    TS_ASSERT_TRUE_MESSAGE(get_global_stop_on_not_reportable(), "True by default");
++
++    set_global_stop_on_not_reportable(true, 0);
++
++    TS_ASSERT_TRUE_MESSAGE(get_global_stop_on_not_reportable(), "Still true");
++
++    set_global_stop_on_not_reportable(false, 0);
++
++    TS_ASSERT_FALSE_MESSAGE(get_global_stop_on_not_reportable(), "Configuration accepted");
++    TS_ASSERT_STRING_EQ(getenv(STOP_ON_NOT_REPORTABLE), "0", "Correct ENVIRONMENT value");
++
++    set_global_stop_on_not_reportable(true, 0);
++
++    TS_ASSERT_TRUE_MESSAGE(get_global_stop_on_not_reportable(), "Configuration sanity");
++    TS_ASSERT_STRING_EQ(getenv(STOP_ON_NOT_REPORTABLE), "1", "Correct ENVIRONMENT value");
++
++    set_global_stop_on_not_reportable(false, 0);
++
++    TS_ASSERT_FALSE_MESSAGE(get_global_stop_on_not_reportable(), "Reverted back to False");
++    TS_ASSERT_STRING_EQ(getenv(STOP_ON_NOT_REPORTABLE), "0", "Correct ENVIRONMENT value");
++
++    xsetenv(STOP_ON_NOT_REPORTABLE, "1");
++
++    TS_ASSERT_TRUE_MESSAGE(get_global_stop_on_not_reportable(), "Loaded from environment");
++
++    unsetenv(STOP_ON_NOT_REPORTABLE);
++
++    TS_ASSERT_TRUE_MESSAGE(get_global_stop_on_not_reportable(), "Reflects environment");
++
++    xsetenv(STOP_ON_NOT_REPORTABLE, "0");
++
++    TS_ASSERT_FALSE_MESSAGE(get_global_stop_on_not_reportable(), "Zero is false");
++
++    free_global_configuration();
++}
++TS_RETURN_MAIN
++]])
+-- 
+1.8.3.1
+

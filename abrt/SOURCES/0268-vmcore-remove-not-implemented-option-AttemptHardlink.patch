@@ -1,0 +1,31 @@
+From 2276aa793be4a54c9a1e31ec4837d7cf02eb8ba3 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Wed, 8 Feb 2017 11:24:57 +0100
+Subject: [PATCH] vmcore: remove not implemented option AttemptHardlink
+
+The commit removes not implemented option 'AttemptHardlink' from vmconre.conf
+file.
+
+Related to #1416586
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/hooks/vmcore.conf | 5 -----
+ 1 file changed, 5 deletions(-)
+
+diff --git a/src/hooks/vmcore.conf b/src/hooks/vmcore.conf
+index ed7556f..cff35d8 100644
+--- a/src/hooks/vmcore.conf
++++ b/src/hooks/vmcore.conf
+@@ -1,8 +1,3 @@
+ # Do you want vmcore to be copied, or moved from /var/crash to /var/tmp/abrt?
+ # (default is to copy, but it may duplicate way too much data)
+ CopyVMcore = yes
+-
+-#Not implemented yet. TODO?
+-# If you selected copying above, consider setting this to 'yes'
+-# to save on disk space (default: no)
+-#AttemptHardlink = yes
+-- 
+1.8.3.1
+

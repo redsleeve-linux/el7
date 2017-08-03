@@ -1,0 +1,42 @@
+From 7babbc316dd636daa4dc16126cb72b2f27d71317 Mon Sep 17 00:00:00 2001
+Message-Id: <7babbc316dd636daa4dc16126cb72b2f27d71317@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 24 May 2017 14:06:54 +0200
+Subject: [PATCH] rpc: Bump maximum message size to 32M
+
+While most of the APIs are okay with 16M messages, the bulk stats API
+can run into the limit in big configurations. Before we devise a new
+plan for this, bump this limit slightly to accomodate some more configs.
+
+(cherry picked from commit 97863780e8846277842e746186a54c4d2941755b)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1440683
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/rpc/virnetprotocol.x | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/rpc/virnetprotocol.x b/src/rpc/virnetprotocol.x
+index 9ce33b073..ce4525be6 100644
+--- a/src/rpc/virnetprotocol.x
++++ b/src/rpc/virnetprotocol.x
+@@ -40,13 +40,13 @@ const VIR_NET_MESSAGE_INITIAL = 65536;
+ const VIR_NET_MESSAGE_LEGACY_PAYLOAD_MAX = 262120;
+ 
+ /* Maximum total message size (serialised). */
+-const VIR_NET_MESSAGE_MAX = 16777216;
++const VIR_NET_MESSAGE_MAX = 33554432;
+ 
+ /* Size of struct virNetMessageHeader (serialised)*/
+ const VIR_NET_MESSAGE_HEADER_MAX = 24;
+ 
+ /* Size of message payload */
+-const VIR_NET_MESSAGE_PAYLOAD_MAX = 16777192;
++const VIR_NET_MESSAGE_PAYLOAD_MAX = 33554408;
+ 
+ /* Size of message length field. Not counted in VIR_NET_MESSAGE_MAX
+  * and VIR_NET_MESSAGE_INITIAL.
+-- 
+2.13.0
+

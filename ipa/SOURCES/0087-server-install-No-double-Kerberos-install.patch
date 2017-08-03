@@ -1,0 +1,42 @@
+From fabf804e7351b546310cc1f50164785099ff1811 Mon Sep 17 00:00:00 2001
+From: Stanislav Laznicka <slaznick@redhat.com>
+Date: Tue, 18 Apr 2017 17:14:27 +0200
+Subject: [PATCH] server-install: No double Kerberos install
+
+When we're installing server with an external CA, the installation
+would have failed in the second step where it's passed the required
+CA cert file because it would have tried to perform the Kerberos
+installation for the second time.
+
+https://pagure.io/freeipa/issue/6757
+
+Reviewed-By: Jan Cholasta <jcholast@redhat.com>
+---
+ ipaserver/install/server/install.py | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/ipaserver/install/server/install.py b/ipaserver/install/server/install.py
+index b899b4be4028e6cdfd95bb9868fba8be25a07b65..b360e0532ce1b9b729be1cc2398cb2b46620901c 100644
+--- a/ipaserver/install/server/install.py
++++ b/ipaserver/install/server/install.py
+@@ -762,11 +762,12 @@ def install(installer):
+             options.subject_base, options.ca_subject, 1101, 1100, None)
+ 
+     krb = krbinstance.KrbInstance(fstore)
+-    krb.create_instance(realm_name, host_name, domain_name,
+-                        dm_password, master_password,
+-                        setup_pkinit=not options.no_pkinit,
+-                        pkcs12_info=pkinit_pkcs12_info,
+-                        subject_base=options.subject_base)
++    if not options.external_cert_files:
++        krb.create_instance(realm_name, host_name, domain_name,
++                            dm_password, master_password,
++                            setup_pkinit=not options.no_pkinit,
++                            pkcs12_info=pkinit_pkcs12_info,
++                            subject_base=options.subject_base)
+ 
+     if setup_ca:
+         if not options.external_cert_files and options.external_ca:
+-- 
+2.12.2
+

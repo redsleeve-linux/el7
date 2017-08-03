@@ -1,7 +1,7 @@
-From 2386cc610a24c88e45741f04bc63445b3542a512 Mon Sep 17 00:00:00 2001
-Message-Id: <2386cc610a24c88e45741f04bc63445b3542a512@dist-git>
+From e8dcdd23e5f77d0207203da165d6ba0c561a51e2 Mon Sep 17 00:00:00 2001
+Message-Id: <e8dcdd23e5f77d0207203da165d6ba0c561a51e2@dist-git>
 From: Laine Stump <laine@redhat.com>
-Date: Sun, 23 Apr 2017 21:33:53 -0400
+Date: Sun, 23 Apr 2017 21:32:05 -0400
 Subject: [PATCH] util: allow ignoring SIOCSIFHWADDR when errno is EPERM
 
 Commit f4ef3a71 made a variation of virNetDevSetMAC that would return
@@ -18,8 +18,8 @@ During testing of Bug 1442040 it was discovered that the ixgbe driver
 returns EPERM in this situation, so this patch changes the exception
 case for silent+non-terminal failure to account for this difference.
 
-Completes resolution to: https://bugzilla.redhat.com/1442040 (RHEL 7.3.z)
-                         https://bugzilla.redhat.com/1415609 (RHEL 7.4)
+Completes resolution to: https://bugzilla.redhat.com/1415609 (RHEL 7.4)
+                         https://bugzilla.redhat.com/1442040 (RHEL 7.3.z)
 
 (cherry picked from commit 997134fb8b17eef6eba439303b382b239996208b)
 ---
@@ -27,7 +27,7 @@ Completes resolution to: https://bugzilla.redhat.com/1442040 (RHEL 7.3.z)
  1 file changed, 9 insertions(+), 5 deletions(-)
 
 diff --git a/src/util/virnetdev.c b/src/util/virnetdev.c
-index 37e47d165..6f933740a 100644
+index 170e34827..9aa9c9f88 100644
 --- a/src/util/virnetdev.c
 +++ b/src/util/virnetdev.c
 @@ -226,7 +226,8 @@ int virNetDevExists(const char *ifname)
@@ -60,7 +60,7 @@ index 37e47d165..6f933740a 100644
                  goto cleanup;
  
              virReportSystemError(errno,
-@@ -2150,11 +2153,12 @@ virNetDevSetNetConfig(const char *linkdev, int vf,
+@@ -2229,11 +2232,12 @@ virNetDevSetNetConfig(const char *linkdev, int vf,
              int retries = 100;
  
              /* if pfDevOrig == NULL, this isn't a VF, so we've failed */

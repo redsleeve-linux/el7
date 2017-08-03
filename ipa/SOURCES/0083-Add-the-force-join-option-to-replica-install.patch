@@ -1,0 +1,55 @@
+From 8af160743817054289d1fff9aa904168e9606061 Mon Sep 17 00:00:00 2001
+From: Stanislav Laznicka <slaznick@redhat.com>
+Date: Wed, 5 Apr 2017 09:49:57 +0200
+Subject: [PATCH] Add the force-join option to replica install
+
+When installing client from inside replica installation on DL1,
+it's possible that the client installation would fail and recommend
+using --force-join option which is not available in replica installer.
+Add the option there.
+
+https://pagure.io/freeipa/issue/6183
+
+Reviewed-By: Tomas Krizek <tkrizek@redhat.com>
+Reviewed-By: Jan Cholasta <jcholast@redhat.com>
+---
+ ipaserver/install/server/__init__.py       | 2 +-
+ ipaserver/install/server/replicainstall.py | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/ipaserver/install/server/__init__.py b/ipaserver/install/server/__init__.py
+index 89444f21fefc902931b7ecfaba861a18ecc28dbe..028a4aa60feccf5af85f76d443dcb42b01684406 100644
+--- a/ipaserver/install/server/__init__.py
++++ b/ipaserver/install/server/__init__.py
+@@ -166,7 +166,6 @@ class ServerInstallInterface(ServerCertificateInstallInterface,
+     """
+     description = "Server"
+ 
+-    force_join = False
+     kinit_attempts = 1
+     fixed_primary = True
+     ntp_servers = None
+@@ -526,6 +525,7 @@ class ServerMasterInstall(ServerMasterInstallInterface):
+     Server master installer
+     """
+ 
++    force_join = False
+     servers = None
+     no_wait_for_dns = True
+     host_password = None
+diff --git a/ipaserver/install/server/replicainstall.py b/ipaserver/install/server/replicainstall.py
+index b82d7b474640e24da7d978e9546ebd7a8e602c29..383932b39b9ee99a7a5ce3275a5a7e02581b85b7 100644
+--- a/ipaserver/install/server/replicainstall.py
++++ b/ipaserver/install/server/replicainstall.py
+@@ -935,6 +935,8 @@ def ensure_enrolled(installer):
+             args.append("--no-sshd")
+         if installer.mkhomedir:
+             args.append("--mkhomedir")
++        if installer.force_join:
++            args.append("--force-join")
+ 
+         ipautil.run(args, stdin=stdin, nolog=nolog, redirect_output=True)
+         print()
+-- 
+2.12.2
+

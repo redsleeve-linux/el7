@@ -1,0 +1,122 @@
+From 899f9b980afba02cfdf80155905354a7371ad871 Mon Sep 17 00:00:00 2001
+From: Stanislav Laznicka <slaznick@redhat.com>
+Date: Wed, 19 Apr 2017 11:42:40 +0200
+Subject: [PATCH] Fix RA cert import during DL0 replication
+
+Previous versions of FreeIPA add password to the ra.p12 file
+contained in the password-protected tarball. This was forgotten
+about in the recent changes and fixed now.
+
+https://pagure.io/freeipa/issue/6878
+
+Reviewed-By: Jan Cholasta <jcholast@redhat.com>
+---
+ ipaserver/install/cainstance.py          | 43 +++++++++++++++++++-------------
+ ipaserver/install/ipa_replica_prepare.py | 17 +++++++------
+ 2 files changed, 35 insertions(+), 25 deletions(-)
+
+diff --git a/ipaserver/install/cainstance.py b/ipaserver/install/cainstance.py
+index e2070e39f7e162fcff6e1f8cca41218e440b5f58..640d2884130dd152012e50dde45514f5ca26a523 100644
+--- a/ipaserver/install/cainstance.py
++++ b/ipaserver/install/cainstance.py
+@@ -338,6 +338,7 @@ class CAInstance(DogtagInstance):
+             self.clone = True
+         self.master_host = master_host
+         self.master_replication_port = master_replication_port
++        self.ra_p12 = ra_p12
+ 
+         self.subject_base = \
+             subject_base or installutils.default_subject_base(self.realm)
+@@ -400,7 +401,7 @@ class CAInstance(DogtagInstance):
+                     self.step("Importing RA key", self.__import_ra_key)
+                 else:
+                     self.step("importing RA certificate from PKCS #12 file",
+-                              lambda: self.import_ra_cert(ra_p12))
++                              self.__import_ra_cert)
+ 
+             if not ra_only:
+                 self.step("setting up signing cert profile", self.__setup_sign_profile)
+@@ -673,28 +674,36 @@ class CAInstance(DogtagInstance):
+                                    'NSS_ENABLE_PKIX_VERIFY', '1',
+                                    quotes=False, separator='=')
+ 
+-    def import_ra_cert(self, rafile):
++    def __import_ra_cert(self):
++        """
++        Helper method for IPA domain level 0 replica install
++        """
++        self.import_ra_cert(self.ra_p12, self.dm_password)
++
++    def import_ra_cert(self, rafile, password=''):
+         """
+         Cloned RAs will use the same RA agent cert as the master so we
+         need to import from a PKCS#12 file.
+ 
+         Used when setting up replication
+         """
+-        # get the private key from the file
+-        ipautil.run([paths.OPENSSL,
+-                     "pkcs12",
+-                     "-in", rafile,
+-                     "-nocerts", "-nodes",
+-                     "-out", paths.RA_AGENT_KEY,
+-                     "-passin", "pass:"])
+-
+-        # get the certificate from the pkcs12 file
+-        ipautil.run([paths.OPENSSL,
+-                     "pkcs12",
+-                     "-in", rafile,
+-                     "-clcerts", "-nokeys",
+-                     "-out", paths.RA_AGENT_PEM,
+-                     "-passin", "pass:"])
++        with ipautil.write_tmp_file(password) as f:
++            pwdarg = 'file:{file}'.format(file=f.name)
++            # get the private key from the file
++            ipautil.run([paths.OPENSSL,
++                         "pkcs12",
++                         "-in", rafile,
++                         "-nocerts", "-nodes",
++                         "-out", paths.RA_AGENT_KEY,
++                         "-passin", pwdarg])
++
++            # get the certificate from the pkcs12 file
++            ipautil.run([paths.OPENSSL,
++                         "pkcs12",
++                         "-in", rafile,
++                         "-clcerts", "-nokeys",
++                         "-out", paths.RA_AGENT_PEM,
++                         "-passin", pwdarg])
+         self.__set_ra_cert_perms()
+ 
+         self.configure_agent_renewal()
+diff --git a/ipaserver/install/ipa_replica_prepare.py b/ipaserver/install/ipa_replica_prepare.py
+index 95c3818a9fc34c937f8b418e91a1bfc28352b02e..d4456dd796167c3717be013d2378413519a3b366 100644
+--- a/ipaserver/install/ipa_replica_prepare.py
++++ b/ipaserver/install/ipa_replica_prepare.py
+@@ -571,14 +571,15 @@ class ReplicaPrepare(admintool.AdminTool):
+     def export_ra_pkcs12(self):
+         if (os.path.exists(paths.RA_AGENT_PEM) and
+            os.path.exists(paths.RA_AGENT_KEY)):
+-            ipautil.run([
+-                paths.OPENSSL,
+-                "pkcs12", "-export",
+-                "-inkey", paths.RA_AGENT_KEY,
+-                "-in", paths.RA_AGENT_PEM,
+-                "-out", os.path.join(self.dir, "ra.p12"),
+-                "-passout", "pass:"
+-            ])
++            with ipautil.write_tmp_file(self.dirman_password) as f:
++                ipautil.run([
++                    paths.OPENSSL,
++                    "pkcs12", "-export",
++                    "-inkey", paths.RA_AGENT_KEY,
++                    "-in", paths.RA_AGENT_PEM,
++                    "-out", os.path.join(self.dir, "ra.p12"),
++                    "-passout", "file:{pwfile}".format(pwfile=f.name)
++                ])
+ 
+     def update_pki_admin_password(self):
+         dn = DN('uid=admin', 'ou=people', 'o=ipaca')
+-- 
+2.12.2
+

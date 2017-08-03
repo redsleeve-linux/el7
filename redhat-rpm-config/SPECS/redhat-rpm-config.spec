@@ -1,7 +1,7 @@
 Summary: CentOS specific rpm configuration files
 Name: redhat-rpm-config
 Version: 9.1.0
-Release: 72%{?dist}.redsleeve
+Release: 76%{?dist}
 # No version specified.
 License: GPL+
 Group: Development/System
@@ -110,7 +110,7 @@ Requires: zip
 Provides: system-rpm-config = %{version}-%{release}
 
 %description
-RedSleeve specific rpm configuration files.
+CentOS specific rpm configuration files.
 
 %prep
 %setup -q
@@ -185,11 +185,20 @@ rm -rf ${RPM_BUILD_ROOT}
 %{_sysconfdir}/rpm/*
 
 %changelog
-* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> - 9.1.0-72.el7.redsleeve
-- rebrand SPEC file
-
-* Thu Nov 03 2016 CentOS Sources <bugs@centos.org> - 9.1.0-72.el7.centos
+* Mon Jul 31 2017 CentOS Sources <bugs@centos.org> - 9.1.0-76.el7.centos
 - update check_rhl function in dist.sh
+
+* Tue Feb 14 2017 Yaakov Selkowitz <yselkowi@redhat.com> - 9.1.0-76
+- Add aarch64/ppc64le/s390x to nodejs_arches (#1417800)
+
+* Thu Jan 12 2017 Panu Matilainen <pmatilai@redhat.com> - 9.1.0-75
+- _pkgdocdir macro is supposed to be versioned on RHEL-7 (#1392354)
+
+* Fri Dec 16 2016 Florian Festi <ffesti@redhat.com> - 9.1.0-74
+- Temporarily disable hardening again (#1387475)
+
+* Wed Nov 30 2016 Florian Festi <ffesti@redhat.com> - 9.1.0-73
+- Enable hardening (#1387475)
 
 * Mon Aug 29 2016 Florian Festi <ffesti@redhat.com> - 9.1.0-72
 - Rebuild for fixed _docdir_fmt

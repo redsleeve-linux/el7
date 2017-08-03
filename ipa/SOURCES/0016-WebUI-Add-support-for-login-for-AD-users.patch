@@ -1,0 +1,341 @@
+From 18e9bc2399af788399e66c3f4b28e6a7f0378b78 Mon Sep 17 00:00:00 2001
+From: Pavel Vomacka <pvomacka@redhat.com>
+Date: Wed, 22 Mar 2017 16:54:33 +0100
+Subject: [PATCH] WebUI: Add support for login for AD users
+
+After login, method user-find --whoami was called which cannot be
+called for AD users. That method was replaced by ipa whoami command
+and sequential command according to result of ipa whoami. AD user
+can now be logged in.
+
+AD users have new menu definition which contains only list of IPA
+users and profile page of AD user - "User ID Override".
+
+This commit also fixes several places where IPA.whoami object was
+used, because its structure was also changed. It now contains two
+objects. First one is stored in 'metadata' property and stores
+result from ipa whoami (type of object, command which should be
+called for showing detailed data about currently logged entity, etc).
+The second one is stored in 'data' property which stores result of
+_show command for currently logged entity.
+
+https://pagure.io/freeipa/issue/3242
+
+Reviewed-By: Petr Vobornik <pvoborni@redhat.com>
+Reviewed-By: Alexander Bokovoy <abokovoy@redhat.com>
+---
+ install/ui/src/freeipa/Application_controller.js | 52 +++++++++++++++++++-----
+ install/ui/src/freeipa/idviews.js                | 21 +++++++++-
+ install/ui/src/freeipa/ipa.js                    | 47 +++++++++++++--------
+ install/ui/src/freeipa/navigation/menu_spec.js   | 10 +++++
+ install/ui/src/freeipa/otptoken.js               |  2 +-
+ install/ui/src/freeipa/user.js                   |  5 ++-
+ ipaserver/plugins/internal.py                    |  1 +
+ 7 files changed, 108 insertions(+), 30 deletions(-)
+
+diff --git a/install/ui/src/freeipa/Application_controller.js b/install/ui/src/freeipa/Application_controller.js
+index d809c1f2662609e390609270ef3ddc42f0727936..5eb4e7a5104b780761b9a5179dbfd1501a8d1478 100644
+--- a/install/ui/src/freeipa/Application_controller.js
++++ b/install/ui/src/freeipa/Application_controller.js
+@@ -31,6 +31,7 @@ define([
+         './widgets/App',
+         './widgets/FacetContainer',
+         './ipa',
++        './rpc',
+         './reg',
+         './config',
+         './widget',
+@@ -41,7 +42,7 @@ define([
+         './plugins/load_page'
+        ],
+        function(declare, array, Deferred, on, topic, query, dom_class, auth,
+-            JSON, App_widget, FacetContainer, IPA, reg, config, widget_mod,
++            JSON, App_widget, FacetContainer, IPA, rpc, reg, config, widget_mod,
+             Menu, Router, routing, menu_spec) {
+ 
+     /**
+@@ -156,7 +157,7 @@ define([
+         /**
+          * Turns off one item in user dropdown menu and remove its listener.
+          * @param {string} name of the user menu item which should be disabled
+-         * @param {Object} listener disable this listener
++         * @param {Object} listener disable di
+          */
+         disable_user_menu_item: function(name, listener) {
+             this.app_widget.disable_user_menu_item(name);
+@@ -179,16 +180,22 @@ define([
+          */
+         choose_profile: function() {
+ 
+-            // TODO: change IPA.whoami.cn[0] to something readable
+-            this.update_logged_in(true, IPA.whoami.cn[0]);
++            this.update_logged_in(true);
+             var selfservice = this.is_selfservice();
+ 
+ 
+             this.app_widget.menu_widget.ignore_changes = true;
+ 
+             if (selfservice) {
+-                this.menu.name = menu_spec.self_service.name;
+-                this.menu.add_items(menu_spec.self_service.items);
++                if (this.is_aduser_selfservice()) {
++                    this.menu.name = menu_spec.ad_self_service.name;
++                    this.menu.add_items(menu_spec.ad_self_service.items);
++                    this.disable_user_menu_item('password_reset',
++                            this.on_passwd_reset_listener);
++                } else {
++                    this.menu.name = menu_spec.self_service.name;
++                    this.menu.add_items(menu_spec.self_service.items);
++                }
+             } else {
+                 this.menu.name = menu_spec.admin.name;
+                 this.menu.add_items(menu_spec.admin.items);
+@@ -232,10 +239,9 @@ define([
+         },
+ 
+         is_selfservice: function() {
+-            var whoami = IPA.whoami;
++            var whoami = IPA.whoami.data;
+             var self_service = true;
+ 
+-
+             if (whoami.hasOwnProperty('memberof_group') &&
+                 whoami.memberof_group.indexOf('admins') !== -1) {
+                 self_service = false;
+@@ -255,13 +261,39 @@ define([
+             return self_service;
+         },
+ 
+-        update_logged_in: function(logged_in, fullname) {
++        is_aduser_selfservice: function() {
++            var selfservice = IPA.whoami.metadata.object === 'idoverrideuser';
++            // quite ugly, needed for users and iduseroverride to hide breadcrumb
++            IPA.is_aduser_selfservice = selfservice;
++
++            return selfservice;
++        },
++
++        update_logged_in: function(logged_in) {
+             this.app_widget.set('logged', logged_in);
++
++            var whoami = IPA.whoami;
++            var fullname = '';
++            var entity = whoami.metadata.object;
++
++            if (whoami.data.cn) {
++                fullname = whoami.data.cn[0];
++            } else if (whoami.data.displayname) {
++                fullname = whoami.data.displayname[0];
++            } else if (whoami.data.gecos) {
++                fullname = whoami.data.gecos[0];
++            } else if (whoami.data.krbprincipalname) {
++                fullname = whoami.data.krbprincipalname[0];
++            } else if (whoami.data.ipaoriginaluid) {
++                fullname = whoami.data.ipaoriginaluid[0];
++            }
++
+             this.app_widget.set('fullname', fullname);
+         },
+ 
+         on_profile: function() {
+-            routing.navigate(['entity', 'user', 'details', [IPA.whoami.uid[0]]]);
++            routing.navigate(['entity', IPA.whoami.metadata.object, 'details',
++                 IPA.whoami.metadata.arguments]);
+         },
+ 
+         on_logout: function(event) {
+diff --git a/install/ui/src/freeipa/idviews.js b/install/ui/src/freeipa/idviews.js
+index f383ab3be4c4ed997fb209da2da4d04835236d8a..d9133a13c2ed8970e7919bb28d06f818d832170a 100644
+--- a/install/ui/src/freeipa/idviews.js
++++ b/install/ui/src/freeipa/idviews.js
+@@ -452,6 +452,21 @@ idviews.id_override_user_details_facet = function(spec) {
+     return that;
+ };
+ 
++
++idviews.aduser_idoverrideuser_pre_op = function(spec, context) {
++    spec = spec || [];
++
++    if (!IPA.is_aduser_selfservice) return spec;
++
++    var facet = spec.facets[0];
++    facet.label = '@i18n:objects.idoverrideuser.profile';
++    facet.actions = [];
++    facet.header_actions = [];
++    facet.disable_breadcrumb = true;
++
++    return spec;
++};
++
+ /**
+  * @extends IPA.cert.certs_widget
+  */
+@@ -948,7 +963,11 @@ idviews.register = function() {
+     var w = reg.widget;
+ 
+     e.register({type: 'idview', spec: idviews.spec});
+-    e.register({type: 'idoverrideuser', spec: idviews.idoverrideuser_spec});
++    e.register({
++        type: 'idoverrideuser',
++        spec: idviews.idoverrideuser_spec,
++        pre_ops: [idviews.aduser_idoverrideuser_pre_op]
++    });
+     e.register({type: 'idoverridegroup', spec: idviews.idoverridegroup_spec});
+     f.copy('attribute', 'idview_appliedtohosts', {
+         factory: idviews.appliedtohosts_facet
+diff --git a/install/ui/src/freeipa/ipa.js b/install/ui/src/freeipa/ipa.js
+index 0ddbd0744d699cacddb3970e5ec7cb72b9dbf4f4..2538001c94141b823d634ca63327a66fd148129f 100644
+--- a/install/ui/src/freeipa/ipa.js
++++ b/install/ui/src/freeipa/ipa.js
+@@ -86,7 +86,8 @@ var IPA = function () {
+     /**
+      * User information
+      *
+-     * - output of ipa user-find --whoami
++     * - output of ipa whoami in that.whoami.metadata and then object_show method
++     * in that.whoami.data
+      */
+     that.whoami = {};
+ 
+@@ -263,19 +264,33 @@ var IPA = function () {
+      */
+     that.get_whoami_command = function(batch) {
+         return rpc.command({
+-            entity: 'user',
+-            method: 'find',
+-            options: {
+-                whoami: true,
+-                all: true
+-            },
++            method: 'whoami',
+             on_success: function(data, text_status, xhr) {
+-                that.whoami = batch ? data.result[0] : data.result.result[0];
+-                var cn = that.whoami.krbcanonicalname;
+-                if (cn) that.principal = cn[0];
+-                if (!that.principal) {
+-                    that.principal = that.whoami.krbprincipalname[0];
+-                }
++                that.whoami.metadata = data;
++
++                rpc.command({
++                    method: data.details || data.command,
++                    args: data.arguments,
++                    options: function() {
++                        var options = data.options || [];
++                        $.extend(options, {all: true});
++                        return options;
++                    }(),
++                    on_success: function(data, text_status, xhr) {
++                        that.whoami.data = false ? data.result[0] : data.result.result;
++                        var entity = that.whoami.metadata.object;
++
++                        if (entity === 'user') {
++                            var cn = that.whoami.data.krbcanonicalname;
++                            if (cn) that.principal = cn[0];
++                            if (!that.principal) {
++                                that.principal = that.whoami.data.krbprincipalname[0];
++                            }
++                        } else if (entity === 'idoverrideuser') {
++                            that.principal = that.whoami.data.ipaoriginaluid[0];
++                        }
++                    }
++                }).execute();
+             }
+         });
+     };
+@@ -616,7 +631,7 @@ IPA.update_password_expiration = function() {
+ 
+     var now, expires, notify_days, diff, message, container, notify;
+ 
+-    expires = rpc.extract_objects(IPA.whoami.krbpasswordexpiration);
++    expires = rpc.extract_objects(IPA.whoami.data.krbpasswordexpiration);
+     expires = expires ? datetime.parse(expires[0]) : null;
+ 
+     notify_days = IPA.server_config.ipapwdexpadvnotify;
+@@ -650,13 +665,13 @@ IPA.update_password_expiration = function() {
+ IPA.password_selfservice = function() {
+     var reset_dialog = builder.build('dialog', {
+         $type: 'user_password',
+-        args: [IPA.whoami.uid[0]]
++        args: [IPA.whoami.data.uid[0]]
+     });
+     reset_dialog.succeeded.attach(function() {
+         var command = IPA.get_whoami_command();
+         var orig_on_success = command.on_success;
+         command.on_success = function(data, text_status, xhr) {
+-            orig_on_success.call(this, data, text_status, xhr);
++            orig_on_success.call(this, data.result, text_status, xhr);
+             IPA.update_password_expiration();
+         };
+         command.execute();
+diff --git a/install/ui/src/freeipa/navigation/menu_spec.js b/install/ui/src/freeipa/navigation/menu_spec.js
+index 4f78e4bf9ba25bf2f7585e38086b1cbc6db34026..9329694c14a47cbe1ec244554327b40743044d7b 100644
+--- a/install/ui/src/freeipa/navigation/menu_spec.js
++++ b/install/ui/src/freeipa/navigation/menu_spec.js
+@@ -353,5 +353,15 @@ nav.self_service = {
+     ]
+ };
+ 
++nav.ad_self_service = {
++    name: 'ad_self_service',
++    items: [
++        {
++            entity: 'idoverrideuser',
++            label: 'Profile'
++        }
++    ]
++};
++
+ return nav;
+ });
+diff --git a/install/ui/src/freeipa/otptoken.js b/install/ui/src/freeipa/otptoken.js
+index caa7a85523d6e63db629a3a518e8611d511f7952..1f6f20d801042a5424ecf5894658df9411723bcc 100644
+--- a/install/ui/src/freeipa/otptoken.js
++++ b/install/ui/src/freeipa/otptoken.js
+@@ -361,7 +361,7 @@ otptoken.adder_dialog = function(spec) {
+ 
+         var command = that.entity_adder_dialog_create_add_command(record);
+         if (that.self_service) {
+-            command.set_option('ipatokenowner', IPA.whoami.uid[0]);
++            command.set_option('ipatokenowner', IPA.whoami.data.uid[0]);
+         }
+         return command;
+     };
+diff --git a/install/ui/src/freeipa/user.js b/install/ui/src/freeipa/user.js
+index 4bb04488b51dd43a437ab3759eb3f530afe62550..6b2bf196c31e7891d3389eb2e2774f56d88ac2ba 100644
+--- a/install/ui/src/freeipa/user.js
++++ b/install/ui/src/freeipa/user.js
+@@ -735,7 +735,7 @@ IPA.user.password_dialog = function(spec) {
+     var that = dialogs.command_dialog(spec);
+ 
+     that.is_self_service = function() {
+-        var self_service = that.args[0] === IPA.whoami.uid[0];
++        var self_service = that.args[0] === IPA.whoami.data.uid[0];
+         return self_service;
+     };
+ 
+@@ -895,7 +895,8 @@ IPA.user.self_service_other_user_evaluator = function(spec) {
+         that.state = [];
+ 
+         var value = that.adapter.load(data);
+-        if (IPA.is_selfservice && IPA.whoami.uid[0] !== value[0]) {
++        if (IPA.is_aduser_selfservice ||
++            (IPA.is_selfservice && IPA.whoami.data.uid[0] !== value[0])) {
+             that.state.push('self-service-other');
+         }
+ 
+diff --git a/ipaserver/plugins/internal.py b/ipaserver/plugins/internal.py
+index 9fa1b6de857cf7e21210f557befabff32da0d4ff..6feefa5941506f38f01b8016a22cad14a831e3fc 100644
+--- a/ipaserver/plugins/internal.py
++++ b/ipaserver/plugins/internal.py
+@@ -625,6 +625,7 @@ class i18n_messages(Command):
+                 "anchor_label": _("User to override"),
+                 "anchor_tooltip": _("Enter trusted or IPA user login. Note: search doesn't list users from trusted domains."),
+                 "anchor_tooltip_ad": _("Enter trusted user login."),
++                "profile": _("Profile"),
+             },
+             "idoverridegroup": {
+                 "anchor_label": _("Group to override"),
+-- 
+2.12.1
+

@@ -1,15 +1,15 @@
-From 462caff619f890c56194ac50b70b095c26cd133e Mon Sep 17 00:00:00 2001
+From 18e92ed681383c787912d0cd4b8164d8e7df26d4 Mon Sep 17 00:00:00 2001
 From: Fam Zheng <famz@redhat.com>
-Date: Fri, 19 May 2017 00:35:07 +0200
+Date: Thu, 18 May 2017 09:21:15 +0200
 Subject: [PATCH 02/18] char/serial: Use generic Fifo8
 
 RH-Author: Fam Zheng <famz@redhat.com>
-Message-id: <20170519003523.21163-3-famz@redhat.com>
-Patchwork-id: 75358
-O-Subject: [RHEL-7.3.z qemu-kvm PATCH 02/18] char/serial: Use generic Fifo8
-Bugzilla: 1452332
+Message-id: <20170518092131.16571-3-famz@redhat.com>
+Patchwork-id: 75292
+O-Subject: [RHEL-7.4 qemu-kvm PATCH v3 02/18] char/serial: Use generic Fifo8
+Bugzilla: 1451470
 RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
-RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
 RH-Acked-by: Eduardo Habkost <ehabkost@redhat.com>
 
 From: Peter Crosthwaite <peter.crosthwaite@xilinx.com>

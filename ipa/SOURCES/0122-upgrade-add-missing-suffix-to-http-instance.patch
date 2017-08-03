@@ -1,0 +1,31 @@
+From b16fba6f07455cc62284f0a225e2cd6aa6253efb Mon Sep 17 00:00:00 2001
+From: Tomas Krizek <tkrizek@redhat.com>
+Date: Tue, 2 May 2017 19:26:04 +0200
+Subject: [PATCH] upgrade: add missing suffix to http instance
+
+During an upgrade, http.suffix is used to identify ldap entry when
+configuring kdc proxy. When the suffix is missing, the script crashed
+when enabling KDC proxy, because it used invalid DN.
+
+Fixes https://pagure.io/freeipa/issue/6920
+
+Reviewed-By: Martin Babinsky <mbabinsk@redhat.com>
+---
+ ipaserver/install/server/upgrade.py | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/ipaserver/install/server/upgrade.py b/ipaserver/install/server/upgrade.py
+index 4d8fd666dfd4e918103b449d4c31bb7661727115..9aec2d857aee1a601f351218e253d44b14f6d4ec 100644
+--- a/ipaserver/install/server/upgrade.py
++++ b/ipaserver/install/server/upgrade.py
+@@ -1638,6 +1638,7 @@ def upgrade_configuration():
+     http = httpinstance.HTTPInstance(fstore)
+     http.fqdn = fqdn
+     http.realm = api.env.realm
++    http.suffix = ipautil.realm_to_suffix(api.env.realm)
+     http.configure_selinux_for_httpd()
+     http.change_mod_nss_port_from_http()
+ 
+-- 
+2.9.3
+

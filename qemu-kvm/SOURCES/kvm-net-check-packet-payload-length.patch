@@ -1,13 +1,13 @@
-From 6d126da8f958c57413a4505d98cb4a3ff48cbbfe Mon Sep 17 00:00:00 2001
+From fa1aaeeab2f10d7f107dd45a2c06e40e71bde1c3 Mon Sep 17 00:00:00 2001
 From: "wexu@redhat.com" <wexu@redhat.com>
 Date: Wed, 21 Dec 2016 06:04:24 +0100
-Subject: [PATCH] net: check packet payload length
+Subject: [PATCH 3/4] net: check packet payload length
 
 RH-Author: wexu@redhat.com
 Message-id: <1482300264-29708-2-git-send-email-wexu@redhat.com>
 Patchwork-id: 73088
 O-Subject: [RHEL-7.4/7.3.z qemu-kvm Patch v2] net: check packet payload length
-Bugzilla: 1398217
+Bugzilla: 1398218
 RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
 RH-Acked-by: Michael S. Tsirkin <mst@redhat.com>
 RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>

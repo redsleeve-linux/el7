@@ -1,0 +1,91 @@
+From 333f0a462446edf67253a38ee1c194a4a44b411a Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Mon, 30 Mar 2015 15:30:32 +0200
+Subject: [PATCH] lib: don't expect kernel's version '2.6.*' or '3.*.*'
+
+The function parsing kernel's version was expecting one of the strings
+mentioned in Summary. Unfortunately, none of them appears in oopses for
+kernel-4.*.*
+
+I am not sure why the previous version didn't search for 'kernel-'
+string, but I hope the previous authors know the reason. I can only
+guess that 'kernel-' string is not always present, so I must not use it
+in this commit. Hence, this commit switches to search by a regular
+expression where I want to match a version string "\d.\d.\d" with
+expectation of a release string in form of "-[^ )]+".
+
+Resolves #1378469
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/lib/kernel.c | 44 ++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 34 insertions(+), 10 deletions(-)
+
+diff --git a/src/lib/kernel.c b/src/lib/kernel.c
+index 799463d..4e27d05 100644
+--- a/src/lib/kernel.c
++++ b/src/lib/kernel.c
+@@ -19,6 +19,8 @@
+ #include <satyr/stacktrace.h>
+ #include <satyr/thread.h>
+ 
++#include <regex.h>
++
+ #define _GNU_SOURCE 1 /* for strcasestr */
+ #include "libabrt.h"
+ 
+@@ -532,19 +534,41 @@ char *koops_extract_version(const char *linepointer)
+      || strstr(linepointer, "REGS")
+      || strstr(linepointer, "EFLAGS")
+     ) {
+-        char* start;
+-        char* end;
++        const char *regexp = "([0-9]+\\.[0-9]+\\.[0-9]+-[^ \\)]+)[ \\)]";
++        regex_t re;
++        int r = regcomp(&re, regexp, REG_EXTENDED);
++        if (r != 0)
++        {
++            char buf[LINE_MAX];
++            regerror(r, &re, buf, sizeof(buf));
++            error_msg("BUG: invalid kernel version regexp: %s", buf);
++            return NULL;
++        }
+ 
+-        start = strstr(linepointer, "2.6.");
+-        if (!start)
+-            start = strstr(linepointer, "3.");
+-        if (start)
++        regmatch_t matchptr[2];
++        r = regexec(&re, linepointer, 2, matchptr, 0);
++        if (r != 0)
+         {
+-            end = strchr(start, ')');
+-            if (!end)
+-                end = strchrnul(start, ' ');
+-            return xstrndup(start, end-start);
++            if (r != REG_NOMATCH)
++            {
++                char buf[LINE_MAX];
++                regerror(r, &re, buf, sizeof(buf));
++                error_msg("BUG: kernel version regexp failed: %s", buf);
++            }
++            else
++            {
++                log_debug("A kernel version candidate line didn't match kernel oops regexp:");
++                log_debug("\t'%s'", linepointer);
++            }
++
++            regfree(&re);
++            return NULL;
+         }
++
++        char *ret = xstrndup(linepointer + matchptr[1].rm_so, matchptr[1].rm_eo - matchptr[1].rm_so);
++
++        regfree(&re);
++        return ret;
+     }
+ 
+     return NULL;
+-- 
+1.8.3.1
+

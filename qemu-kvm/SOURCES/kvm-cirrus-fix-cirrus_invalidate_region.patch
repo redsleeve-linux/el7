@@ -1,16 +1,16 @@
-From 6c17f6355cac0bc40bae876acf4d31e32978991f Mon Sep 17 00:00:00 2001
+From 8396435dbcd13dc27c7f1c7576499354be48d2c7 Mon Sep 17 00:00:00 2001
 From: Gerd Hoffmann <kraxel@redhat.com>
-Date: Tue, 21 Mar 2017 09:58:04 +0100
+Date: Mon, 27 Mar 2017 10:01:19 +0200
 Subject: [PATCH 4/7] cirrus: fix cirrus_invalidate_region
 
 RH-Author: Gerd Hoffmann <kraxel@redhat.com>
-Message-id: <1490090287-1503-5-git-send-email-kraxel@redhat.com>
-Patchwork-id: 74423
-O-Subject: [RHEL-7.4 qemu-kvm PATCH 4/7] cirrus: fix cirrus_invalidate_region
-Bugzilla: 1430059
+Message-id: <1490608882-10242-5-git-send-email-kraxel@redhat.com>
+Patchwork-id: 74552
+O-Subject: [RHEL-7.4 qemu-kvm PATCH v2 4/7] cirrus: fix cirrus_invalidate_region
+Bugzilla: 1430060
 RH-Acked-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
 RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
-RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
 
 off_cur_end is exclusive, so off_cur_end == cirrus_addr_mask is valid.
 Fix calculation to make sure to allow that, otherwise the assert added

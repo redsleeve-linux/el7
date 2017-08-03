@@ -1,0 +1,99 @@
+From 0f6008b1fa9b236f673163a123b71aeebb6b4454 Mon Sep 17 00:00:00 2001
+Message-Id: <0f6008b1fa9b236f673163a123b71aeebb6b4454@dist-git>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Fri, 9 Jun 2017 12:48:52 +0200
+Subject: [PATCH] Use a separate buffer for <disk><driver>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Eliminate the big condition at the start.
+Instead use a buffer and only format the element if the buffer
+is non-empty.
+
+(cherry picked from commit d89803d27c3088aff6f4d062a578fc9938a80e04)
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1283251
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/conf/domain_conf.c | 55 +++++++++++++++++++++++++-------------------------
+ 1 file changed, 27 insertions(+), 28 deletions(-)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 4228cad610..d5c5a7030b 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -21088,6 +21088,7 @@ virDomainDiskDefFormat(virBufferPtr buf,
+     const char *sgio = virDomainDeviceSGIOTypeToString(def->sgio);
+     const char *discard = virDomainDiskDiscardTypeToString(def->discard);
+     const char *detect_zeroes = virDomainDiskDetectZeroesTypeToString(def->detect_zeroes);
++    virBuffer driverBuf = VIR_BUFFER_INITIALIZER;
+ 
+     if (!type || !def->src->type) {
+         virReportError(VIR_ERR_INTERNAL_ERROR,
+@@ -21139,35 +21140,33 @@ virDomainDiskDefFormat(virBufferPtr buf,
+     virBufferAddLit(buf, ">\n");
+     virBufferAdjustIndent(buf, 2);
+ 
+-    if (def->src->driverName || def->src->format > 0 || def->cachemode ||
+-        def->error_policy || def->rerror_policy || def->iomode ||
+-        def->ioeventfd || def->event_idx || def->copy_on_read ||
+-        def->discard || def->iothread || def->detect_zeroes) {
++    virBufferEscapeString(&driverBuf, " name='%s'", def->src->driverName);
++    if (def->src->format > 0)
++        virBufferAsprintf(&driverBuf, " type='%s'",
++                          virStorageFileFormatTypeToString(def->src->format));
++    if (def->cachemode)
++        virBufferAsprintf(&driverBuf, " cache='%s'", cachemode);
++    if (def->error_policy)
++        virBufferAsprintf(&driverBuf, " error_policy='%s'", error_policy);
++    if (def->rerror_policy)
++        virBufferAsprintf(&driverBuf, " rerror_policy='%s'", rerror_policy);
++    if (def->iomode)
++        virBufferAsprintf(&driverBuf, " io='%s'", iomode);
++    if (def->ioeventfd)
++        virBufferAsprintf(&driverBuf, " ioeventfd='%s'", ioeventfd);
++    if (def->event_idx)
++        virBufferAsprintf(&driverBuf, " event_idx='%s'", event_idx);
++    if (def->copy_on_read)
++        virBufferAsprintf(&driverBuf, " copy_on_read='%s'", copy_on_read);
++    if (def->discard)
++        virBufferAsprintf(&driverBuf, " discard='%s'", discard);
++    if (def->iothread)
++        virBufferAsprintf(&driverBuf, " iothread='%u'", def->iothread);
++    if (def->detect_zeroes)
++        virBufferAsprintf(&driverBuf, " detect_zeroes='%s'", detect_zeroes);
++    if (virBufferUse(&driverBuf)) {
+         virBufferAddLit(buf, "<driver");
+-        virBufferEscapeString(buf, " name='%s'", def->src->driverName);
+-        if (def->src->format > 0)
+-            virBufferAsprintf(buf, " type='%s'",
+-                              virStorageFileFormatTypeToString(def->src->format));
+-        if (def->cachemode)
+-            virBufferAsprintf(buf, " cache='%s'", cachemode);
+-        if (def->error_policy)
+-            virBufferAsprintf(buf, " error_policy='%s'", error_policy);
+-        if (def->rerror_policy)
+-            virBufferAsprintf(buf, " rerror_policy='%s'", rerror_policy);
+-        if (def->iomode)
+-            virBufferAsprintf(buf, " io='%s'", iomode);
+-        if (def->ioeventfd)
+-            virBufferAsprintf(buf, " ioeventfd='%s'", ioeventfd);
+-        if (def->event_idx)
+-            virBufferAsprintf(buf, " event_idx='%s'", event_idx);
+-        if (def->copy_on_read)
+-            virBufferAsprintf(buf, " copy_on_read='%s'", copy_on_read);
+-        if (def->discard)
+-            virBufferAsprintf(buf, " discard='%s'", discard);
+-        if (def->iothread)
+-            virBufferAsprintf(buf, " iothread='%u'", def->iothread);
+-        if (def->detect_zeroes)
+-            virBufferAsprintf(buf, " detect_zeroes='%s'", detect_zeroes);
++        virBufferAddBuffer(buf, &driverBuf);
+         virBufferAddLit(buf, "/>\n");
+     }
+ 
+-- 
+2.13.1
+

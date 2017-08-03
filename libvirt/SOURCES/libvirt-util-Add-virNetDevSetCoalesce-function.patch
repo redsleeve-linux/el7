@@ -1,0 +1,201 @@
+From 40bd6c3ac6e183b504b38192938d0178438d3966 Mon Sep 17 00:00:00 2001
+Message-Id: <40bd6c3ac6e183b504b38192938d0178438d3966@dist-git>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Tue, 25 Apr 2017 13:41:15 +0200
+Subject: [PATCH] util: Add virNetDevSetCoalesce function
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1414627
+
+That function is able to configure coalesce settings for an interface,
+similarly to 'ethtool -C'.  This function also updates back the
+structure so that it contains actual data on the device (if the device
+doesn't support some settings kernel might just return 0 and not set
+whatever is not supported), so this way we'll have up-to-date
+information in the live domain XML.
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit 652ef9bc8c72a7118436a8c95c5742ec6a6d12a3)
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ configure.ac             |  3 +-
+ src/libvirt_private.syms |  1 +
+ src/util/virnetdev.c     | 83 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/util/virnetdev.h     | 34 ++++++++++++++++++++
+ 4 files changed, 120 insertions(+), 1 deletion(-)
+
+diff --git a/configure.ac b/configure.ac
+index 08051d53a..d9dc21aa9 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -347,7 +347,8 @@ AC_CHECK_TYPE([struct sockpeercred],
+   ]])
+ 
+ AC_CHECK_DECLS([ETH_FLAG_TXVLAN, ETH_FLAG_NTUPLE, ETH_FLAG_RXHASH, ETH_FLAG_LRO,
+-                ETHTOOL_GGSO, ETHTOOL_GGRO, ETHTOOL_GFLAGS, ETHTOOL_GFEATURES],
++                ETHTOOL_GGSO, ETHTOOL_GGRO, ETHTOOL_GFLAGS, ETHTOOL_GFEATURES,
++                ETHTOOL_SCOALESCE, ETHTOOL_GCOALESCE],
+   [], [], [[#include <linux/ethtool.h>
+   ]])
+ 
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index d802e7598..134d4a832 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -2064,6 +2064,7 @@ virNetDevRxFilterModeTypeFromString;
+ virNetDevRxFilterModeTypeToString;
+ virNetDevRxFilterNew;
+ virNetDevSaveNetConfig;
++virNetDevSetCoalesce;
+ virNetDevSetMAC;
+ virNetDevSetMTU;
+ virNetDevSetMTUFromDevice;
+diff --git a/src/util/virnetdev.c b/src/util/virnetdev.c
+index 9aa9c9f88..f14286f62 100644
+--- a/src/util/virnetdev.c
++++ b/src/util/virnetdev.c
+@@ -3082,6 +3082,89 @@ virNetDevGetEthtoolGFeatures(virBitmapPtr bitmap ATTRIBUTE_UNUSED,
+ # endif
+ 
+ 
++# if HAVE_DECL_ETHTOOL_SCOALESCE && HAVE_DECL_ETHTOOL_GCOALESCE
++/**
++ * virNetDevSetCoalesce:
++ * @ifname: interface name to modify
++ * @coalesce: Coalesce settings to set and update
++ *
++ * This function sets the various coalesce settings for a given interface
++ * @ifname and updates them back into @coalesce.
++ *
++ * Returns 0 in case of success or -1 on failure
++ */
++int virNetDevSetCoalesce(const char *ifname,
++                         virNetDevCoalescePtr coalesce)
++{
++    int fd = -1;
++    int ret = -1;
++    struct ifreq ifr;
++    struct ethtool_coalesce coal = {0};
++
++    if (!coalesce)
++        return 0;
++
++    coal = (struct ethtool_coalesce) {
++        .cmd = ETHTOOL_SCOALESCE,
++        .rx_max_coalesced_frames = coalesce->rx_max_coalesced_frames,
++        .rx_coalesce_usecs_irq = coalesce->rx_coalesce_usecs_irq,
++        .rx_max_coalesced_frames_irq = coalesce->rx_max_coalesced_frames_irq,
++        .tx_coalesce_usecs = coalesce->tx_coalesce_usecs,
++        .tx_max_coalesced_frames = coalesce->tx_max_coalesced_frames,
++        .tx_coalesce_usecs_irq = coalesce->tx_coalesce_usecs_irq,
++        .tx_max_coalesced_frames_irq = coalesce->tx_max_coalesced_frames_irq,
++        .stats_block_coalesce_usecs = coalesce->stats_block_coalesce_usecs,
++        .use_adaptive_rx_coalesce = coalesce->use_adaptive_rx_coalesce,
++        .use_adaptive_tx_coalesce = coalesce->use_adaptive_tx_coalesce,
++        .pkt_rate_low = coalesce->pkt_rate_low,
++        .rx_coalesce_usecs_low = coalesce->rx_coalesce_usecs_low,
++        .rx_max_coalesced_frames_low = coalesce->rx_max_coalesced_frames_low,
++        .tx_coalesce_usecs_low = coalesce->tx_coalesce_usecs_low,
++        .tx_max_coalesced_frames_low = coalesce->tx_max_coalesced_frames_low,
++        .pkt_rate_high = coalesce->pkt_rate_high,
++        .rx_coalesce_usecs_high = coalesce->rx_coalesce_usecs_high,
++        .rx_max_coalesced_frames_high = coalesce->rx_max_coalesced_frames_high,
++        .tx_coalesce_usecs_high = coalesce->tx_coalesce_usecs_high,
++        .tx_max_coalesced_frames_high = coalesce->tx_max_coalesced_frames_high,
++        .rate_sample_interval = coalesce->rate_sample_interval,
++    };
++
++    if ((fd = virNetDevSetupControl(ifname, &ifr)) < 0)
++        return -1;
++
++    ifr.ifr_data = (void *) &coal;
++
++    if (virNetDevSendEthtoolIoctl(fd, &ifr) < 0) {
++        virReportSystemError(errno,
++                             _("Cannot set coalesce info on '%s'"),
++                             ifname);
++        goto cleanup;
++    }
++
++    coal = (struct ethtool_coalesce) {
++        .cmd = ETHTOOL_GCOALESCE,
++    };
++
++    /* Don't fail if the update itself fails */
++    virNetDevSendEthtoolIoctl(fd, &ifr);
++
++    ret = 0;
++ cleanup:
++    VIR_FORCE_CLOSE(fd);
++    return ret;
++}
++# else
++int virNetDevSetCoalesce(const char *ifname,
++                         virNetDevCoalescePtr coalesce ATTRIBUTE_UNUSED)
++{
++    virReportSystemError(ENOSYS,
++                         _("Cannot set coalesce info on interface '%s'"),
++                         ifname);
++    return -1;
++}
++# endif
++
++
+ /**
+  * virNetDevGetFeatures:
+  * This function gets the nic offloads features available for ifname
+diff --git a/src/util/virnetdev.h b/src/util/virnetdev.h
+index 437a77625..cff8cb51c 100644
+--- a/src/util/virnetdev.h
++++ b/src/util/virnetdev.h
+@@ -112,6 +112,36 @@ typedef enum {
+ 
+ VIR_ENUM_DECL(virNetDevFeature)
+ 
++/* Modeled after struct ethtool_coalesce, see linux/ethtool.h for explanations
++ * of particular fields */
++typedef struct _virNetDevCoalesce virNetDevCoalesce;
++typedef virNetDevCoalesce *virNetDevCoalescePtr;
++struct _virNetDevCoalesce {
++    uint32_t rx_coalesce_usecs;
++    uint32_t rx_max_coalesced_frames;
++    uint32_t rx_coalesce_usecs_irq;
++    uint32_t rx_max_coalesced_frames_irq;
++    uint32_t tx_coalesce_usecs;
++    uint32_t tx_max_coalesced_frames;
++    uint32_t tx_coalesce_usecs_irq;
++    uint32_t tx_max_coalesced_frames_irq;
++    uint32_t stats_block_coalesce_usecs;
++    uint32_t use_adaptive_rx_coalesce;
++    uint32_t use_adaptive_tx_coalesce;
++    uint32_t pkt_rate_low;
++    uint32_t rx_coalesce_usecs_low;
++    uint32_t rx_max_coalesced_frames_low;
++    uint32_t tx_coalesce_usecs_low;
++    uint32_t tx_max_coalesced_frames_low;
++    uint32_t pkt_rate_high;
++    uint32_t rx_coalesce_usecs_high;
++    uint32_t rx_max_coalesced_frames_high;
++    uint32_t tx_coalesce_usecs_high;
++    uint32_t tx_max_coalesced_frames_high;
++    uint32_t rate_sample_interval;
++};
++
++
+ int virNetDevSetupControl(const char *ifname,
+                           virIfreq *ifr)
+     ATTRIBUTE_RETURN_CHECK;
+@@ -144,6 +174,10 @@ int virNetDevRestoreMacAddress(const char *linkdev,
+                                const char *stateDir)
+     ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2) ATTRIBUTE_RETURN_CHECK;
+ 
++int virNetDevSetCoalesce(const char *ifname,
++                         virNetDevCoalescePtr coalesce)
++    ATTRIBUTE_NONNULL(1) ATTRIBUTE_RETURN_CHECK;
++
+ int virNetDevSetMTU(const char *ifname,
+                     int mtu)
+     ATTRIBUTE_NONNULL(1) ATTRIBUTE_RETURN_CHECK;
+-- 
+2.12.2
+

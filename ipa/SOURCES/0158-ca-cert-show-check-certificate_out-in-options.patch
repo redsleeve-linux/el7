@@ -1,0 +1,73 @@
+From c1258d68268bc93536ba66921d65a2550bdf475e Mon Sep 17 00:00:00 2001
+From: Stanislav Laznicka <slaznick@redhat.com>
+Date: Tue, 9 May 2017 17:45:20 +0200
+Subject: [PATCH] ca/cert-show: check certificate_out in options
+
+If --certificate-out was specified on the command line, it will appear
+among the options. If it was empty, it will be None.
+
+This check was done properly in the ca plugin. Lets' just unify how this
+is handled and improve user experience by announcing which option causes
+the failure.
+
+https://pagure.io/freeipa/issue/6885
+
+Reviewed-By: Fraser Tweedale <ftweedal@redhat.com>
+Reviewed-By: Jan Cholasta <jcholast@redhat.com>
+---
+ ipaclient/plugins/ca.py   |  8 ++++++--
+ ipaclient/plugins/cert.py | 12 +++++++++---
+ 2 files changed, 15 insertions(+), 5 deletions(-)
+
+diff --git a/ipaclient/plugins/ca.py b/ipaclient/plugins/ca.py
+index fcdf484635c7611d905f28629a380a0152c7bde1..fe9c55f4c07b4682de1ad882b6c5651dafece716 100644
+--- a/ipaclient/plugins/ca.py
++++ b/ipaclient/plugins/ca.py
+@@ -4,7 +4,7 @@
+ 
+ import base64
+ from ipaclient.frontend import MethodOverride
+-from ipalib import util, x509, Str
++from ipalib import errors, util, x509, Str
+ from ipalib.plugable import Registry
+ from ipalib.text import _
+ 
+@@ -26,7 +26,11 @@ class WithCertOutArgs(MethodOverride):
+         filename = None
+         if 'certificate_out' in options:
+             filename = options.pop('certificate_out')
+-            util.check_writable_file(filename)
++            try:
++                util.check_writable_file(filename)
++            except errors.FileError as e:
++                raise errors.ValidationError(name='certificate-out',
++                                             error=str(e))
+ 
+         result = super(WithCertOutArgs, self).forward(*keys, **options)
+         if filename:
+diff --git a/ipaclient/plugins/cert.py b/ipaclient/plugins/cert.py
+index 9ec6970b18d0cdc3863259faee3a697f63799c3f..93cd3cef1a14925bc0795b32e97e44d69897be5c 100644
+--- a/ipaclient/plugins/cert.py
++++ b/ipaclient/plugins/cert.py
+@@ -50,9 +50,15 @@ class CertRetrieveOverride(MethodOverride):
+     )
+ 
+     def forward(self, *args, **options):
+-        certificate_out = options.pop('certificate_out', None)
+-        if certificate_out is not None:
+-            util.check_writable_file(certificate_out)
++        if 'certificate_out' in options:
++            certificate_out = options.pop('certificate_out')
++            try:
++                util.check_writable_file(certificate_out)
++            except errors.FileError as e:
++                raise errors.ValidationError(name='certificate-out',
++                                             error=str(e))
++        else:
++            certificate_out = None
+ 
+         result = super(CertRetrieveOverride, self).forward(*args, **options)
+ 
+-- 
+2.9.4
+

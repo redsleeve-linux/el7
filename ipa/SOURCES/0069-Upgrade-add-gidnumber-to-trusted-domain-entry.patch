@@ -1,0 +1,104 @@
+From 54422d3c58ace8496b0bd2fc536365159e6666e6 Mon Sep 17 00:00:00 2001
+From: Florence Blanc-Renaud <flo@redhat.com>
+Date: Mon, 3 Apr 2017 15:57:47 +0200
+Subject: [PATCH] Upgrade: add gidnumber to trusted domain entry
+
+The trusted domain entries created in earlier versions are missing gidnumber.
+During upgrade, a new plugin will read the gidnumber of the fallback group
+cn=Default SMB Group and add this value to trusted domain entries which do
+not have a gidNumber.
+
+https://pagure.io/freeipa/issue/6827
+
+Reviewed-By: Alexander Bokovoy <abokovoy@redhat.com>
+---
+ install/updates/90-post_upgrade_plugins.update |  1 +
+ ipaserver/install/plugins/adtrust.py           | 56 ++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+)
+
+diff --git a/install/updates/90-post_upgrade_plugins.update b/install/updates/90-post_upgrade_plugins.update
+index 34069e7457dd9690a14c5c055c6d05ad76004d16..8477199e07d6729d5847e58bfa67d061bd1410c2 100644
+--- a/install/updates/90-post_upgrade_plugins.update
++++ b/install/updates/90-post_upgrade_plugins.update
+@@ -10,6 +10,7 @@ plugin: update_sigden_extdom_broken_config
+ plugin: update_sids
+ plugin: update_default_range
+ plugin: update_default_trust_view
++plugin: update_tdo_gidnumber
+ plugin: update_ca_renewal_master
+ plugin: update_idrange_type
+ plugin: update_pacs
+diff --git a/ipaserver/install/plugins/adtrust.py b/ipaserver/install/plugins/adtrust.py
+index 42968089f547f61edd2f1223d088a22762a33b70..075f197780edc2aadf42fa82b71e9e2b29e66ea9 100644
+--- a/ipaserver/install/plugins/adtrust.py
++++ b/ipaserver/install/plugins/adtrust.py
+@@ -22,6 +22,7 @@ from ipalib import Updater
+ from ipapython.dn import DN
+ from ipapython.ipa_log_manager import root_logger
+ from ipaserver.install import sysupgrade
++from ipaserver.install.adtrustinstance import ADTRUSTInstance
+ 
+ register = Registry()
+ 
+@@ -316,3 +317,58 @@ class update_sids(Updater):
+ 
+         sysupgrade.set_upgrade_state('sidgen', 'update_sids', False)
+         return False, ()
++
++
++@register()
++class update_tdo_gidnumber(Updater):
++    """
++    Create a gidNumber attribute for Trusted Domain Objects.
++
++    The value is taken from the fallback group defined in cn=Default SMB Group.
++    """
++    def execute(self, **options):
++        ldap = self.api.Backend.ldap2
++
++        # Read the gidnumber of the fallback group
++        dn = DN(('cn', ADTRUSTInstance.FALLBACK_GROUP_NAME),
++                self.api.env.container_group,
++                self.api.env.basedn)
++
++        try:
++            entry = ldap.get_entry(dn, ['gidnumber'])
++            gidNumber = entry.get('gidnumber')
++        except errors.NotFound:
++            self.log.error("{0} not found".format(
++                ADTRUSTInstance.FALLBACK_GROUP_NAME))
++            return False, ()
++
++        if not gidNumber:
++            self.log.error("{0} does not have a gidnumber".format(
++                ADTRUSTInstance.FALLBACK_GROUP_NAME))
++            return False, ()
++
++        # For each trusted domain object, add gidNumber
++        try:
++            tdos = ldap.get_entries(
++                DN(self.api.env.container_adtrusts, self.api.env.basedn),
++                scope=ldap.SCOPE_ONELEVEL,
++                filter="(objectclass=ipaNTTrustedDomain)",
++                attrs_list=['gidnumber'])
++            for tdo in tdos:
++                # if the trusted domain object does not contain gidnumber,
++                # add the default fallback group gidnumber
++                if not tdo.get('gidnumber'):
++                    try:
++                        tdo['gidnumber'] = gidNumber
++                        ldap.update_entry(tdo)
++                        self.log.debug("Added gidnumber {0} to {1}".format(
++                            gidNumber, tdo.dn))
++                    except Exception:
++                        self.log.warning(
++                            "Failed to add gidnumber to {0}".format(tdo.dn))
++
++        except errors.NotFound:
++            self.log.debug("No trusted domain object to update")
++            return False, ()
++
++        return False, ()
+-- 
+2.9.3
+

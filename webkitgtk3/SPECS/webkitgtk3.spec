@@ -13,25 +13,17 @@
 %define _binary_payload w8.xzdio
 
 Name:           webkitgtk3
-Version:        2.4.9
-Release:        6%{?dist}.redsleeve
+Version:        2.4.11
+Release:        2%{?dist}
 Summary:        GTK+ Web content engine library
 
 Group:          Development/Libraries
 License:        LGPLv2+ and BSD
-URL:            http://www.webkitgtk.org/
+URL:            http://www.webkitgtk.org
 
 Source0:        http://webkitgtk.org/releases/webkitgtk-%{version}.tar.xz
 
-Patch0:         webkit-1.1.14-nspluginwrapper.patch
-Patch1:         webkitgtk-aarch64.patch
-Patch2:         webkitgtk-2.4.1-cloop_fix.patch
-Patch3:         webkitgtk-2.4.5-cloop_fix_32.patch
-Patch4:         webkitgtk-2.4.1-ppc64_align.patch
-Patch5:         webkitgtk-2.4.9-translations.patch
-Patch6:         webkitgtk-2.4.9-disable_deprecated_get_set_id.patch
-# http://trac.webkit.org/changeset/169665
-Patch7:         webkitgtk-2.4.9-sql_initialize_string.patch
+Patch0:         webkitgtk-2.4.9-disable_deprecated_get_set_id.patch
 
 BuildRequires:  at-spi2-core-devel
 BuildRequires:  bison
@@ -76,23 +68,12 @@ GTK+ platform.
 
 This package contains WebKitGTK+ for GTK+ 3.
 
-%package -n     libwebkit2gtk
-Summary:        The libwebkit2gtk library
-Group:          Development/Libraries
-Requires:       %{name} = %{version}-%{release}
-Requires:       geoclue2
-
-%description -n libwebkit2gtk
-The libwebkit2gtk package contains the libwebkit2gtk library
-that is part of %{name}.
-
 %package        devel
 Summary:        Development files for %{name}
 Group:          Development/Libraries
 Requires:       %{name}%{?_isa} = %{version}-%{release}
 Requires:       pkgconfig
 Requires:       gtk3-devel
-Requires:       libwebkit2gtk%{?_isa} = %{version}-%{release}
 
 %description    devel
 The %{name}-devel package contains libraries, build data, and header
@@ -109,18 +90,7 @@ This package contains developer documentation for %{name}.
 
 %prep
 %setup -qn "webkitgtk-%{version}"
-%patch0 -p1 -b .nspluginwrapper
-%patch1 -p1 -b .aarch64
-%patch2 -p1 -b .cloop_fix
-%patch5 -p1 -b .translations
-%patch6 -p1 -b .disable_deprecated_get_id
-%patch7 -p1 -b .sql_initialize_string
-%ifarch ppc s390
-%patch3 -p1 -b .cloop_fix_32
-%endif
-%ifarch %{power64} aarch64 ppc
-%patch4 -p1 -b .ppc64_align
-%endif
+%patch0 -p1 -b .disable_deprecated_get_id
 
 # Fix the permissions
 chmod 644 Source/WebCore/html/canvas/CanvasRenderingContext2D.cpp
@@ -137,7 +107,7 @@ chmod 644 Source/WebCore/html/canvas/CanvasRenderingContext2D.cpp
 %endif
 
 %ifarch ppc
-# Use linker flag -relax to get WebKit2 build under ppc(32) with JIT disabled
+# Use linker flag -relax to get WebKit build under ppc(32) with JIT disabled
 %global optflags %{optflags} -Wl,-relax -latomic
 %endif
 
@@ -147,7 +117,8 @@ chmod 644 Source/WebCore/html/canvas/CanvasRenderingContext2D.cpp
 
 %configure                                      \
         --with-gtk=3.0                          \
-%ifarch s390 s390x ppc %{power64} aarch64 %{arm}
+        --disable-webkit2                       \
+%ifarch s390 s390x ppc %{power64} aarch64
         --disable-jit                           \
 %else
         --enable-jit                            \
@@ -164,25 +135,19 @@ mkdir -p DerivedSources/Platform
 
 # Disable the parallel compilation as it fails to compile in brew.
 # https://bugs.webkit.org/show_bug.cgi?id=34846
-# make -j1 V=1
-make %{_smp_mflags} V=1
+# make %{_smp_mflags} V=1
+make -j1 V=1
 
 %install
 make install DESTDIR=%{buildroot}
 
 install -d -m 755 %{buildroot}%{_libexecdir}/%{name}
 install -m 755 Programs/GtkLauncher %{buildroot}%{_libexecdir}/%{name}
-install -m 755 Programs/MiniBrowser %{buildroot}%{_libexecdir}/%{name}
 
 # Remove lib64 rpaths
 chrpath --delete %{buildroot}%{_bindir}/jsc-3
 chrpath --delete %{buildroot}%{_libdir}/libwebkitgtk-3.0.so
-chrpath --delete %{buildroot}%{_libdir}/libwebkit2gtk-3.0.so
 chrpath --delete %{buildroot}%{_libexecdir}/%{name}/GtkLauncher
-chrpath --delete %{buildroot}%{_libexecdir}/%{name}/MiniBrowser
-chrpath --delete %{buildroot}%{_libexecdir}/WebKitNetworkProcess
-chrpath --delete %{buildroot}%{_libexecdir}/WebKitPluginProcess
-chrpath --delete %{buildroot}%{_libexecdir}/WebKitWebProcess
 
 # Remove .la files
 find $RPM_BUILD_ROOT%{_libdir} -name "*.la" -delete
@@ -205,9 +170,6 @@ find $RPM_BUILD_ROOT%{_libdir} -name "*.la" -delete
 %post -p /sbin/ldconfig
 %postun -p /sbin/ldconfig
 
-%post -n libwebkit2gtk -p /sbin/ldconfig
-%postun -n libwebkit2gtk -p /sbin/ldconfig
-
 %files -f WebKitGTK-3.0.lang
 %doc %{_pkgdocdir}/
 %{_libdir}/libwebkitgtk-3.0.so.*
@@ -218,41 +180,30 @@ find $RPM_BUILD_ROOT%{_libdir} -name "*.la" -delete
 %{_libexecdir}/%{name}/GtkLauncher
 %{_datadir}/webkitgtk-3.0
 
-%files -n libwebkit2gtk
-%{_libdir}/libwebkit2gtk-3.0.so.*
-%{_libdir}/webkit2gtk-3.0/
-%{_libdir}/girepository-1.0/WebKit2-3.0.typelib
-%{_libdir}/girepository-1.0/WebKit2WebExtension-3.0.typelib
-%{_libexecdir}/%{name}/MiniBrowser
-%{_libexecdir}/WebKitNetworkProcess
-%{_libexecdir}/WebKitPluginProcess
-%{_libexecdir}/WebKitWebProcess
-
 %files  devel
 %{_bindir}/jsc-3
 %{_includedir}/webkitgtk-3.0
 %{_libdir}/libwebkitgtk-3.0.so
-%{_libdir}/libwebkit2gtk-3.0.so
 %{_libdir}/libjavascriptcoregtk-3.0.so
 %{_libdir}/pkgconfig/webkitgtk-3.0.pc
-%{_libdir}/pkgconfig/webkit2gtk-3.0.pc
-%{_libdir}/pkgconfig/webkit2gtk-web-extension-3.0.pc
 %{_libdir}/pkgconfig/javascriptcoregtk-3.0.pc
 %{_datadir}/gir-1.0/WebKit-3.0.gir
-%{_datadir}/gir-1.0/WebKit2-3.0.gir
-%{_datadir}/gir-1.0/WebKit2WebExtension-3.0.gir
 %{_datadir}/gir-1.0/JavaScriptCore-3.0.gir
 
 %files doc
 %dir %{_datadir}/gtk-doc
 %dir %{_datadir}/gtk-doc/html
 %{_datadir}/gtk-doc/html/webkitgtk
-%{_datadir}/gtk-doc/html/webkit2gtk
 %{_datadir}/gtk-doc/html/webkitdomgtk
 
 %changelog
-* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> - 2.4.9-6.redsleeve
-- disabled jit for arm
+* Mon Feb 27 2017 Tomas Popela <tpopela@redhat.com> - 2.4.11-2
+- Don't build WebKit2 as it's build in webkitgtk4 package
+- Resolves: rhbz#1383614
+
+* Mon Feb 13 2017 Tomas Popela <tpopela@redhat.com> - 2.4.11-1
+- Update to 2.4.11
+- Resolves: rhbz#1326714
 
 * Thu Jun 23 2016 Tomas Popela <tpopela@redhat.com> - 2.4.9-6
 - Update the translations

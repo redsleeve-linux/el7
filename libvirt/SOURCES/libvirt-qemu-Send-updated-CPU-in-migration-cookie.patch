@@ -1,0 +1,157 @@
+From f33ea433e58c5fbd356d4085446a64f8a67496e5 Mon Sep 17 00:00:00 2001
+Message-Id: <f33ea433e58c5fbd356d4085446a64f8a67496e5@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Fri, 26 May 2017 17:06:56 +0200
+Subject: [PATCH] qemu: Send updated CPU in migration cookie
+
+Since the domain XML send during migration uses the original guest CPU
+definition but we still want the destination to enforce ABI if it is new
+enough, we send the live updated CPU definition in a migration cookie.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit 48bc3053b8f2bfa3adc93d3c316d48d0f482cde4)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1441662
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_migration.c        |  6 +++++-
+ src/qemu/qemu_migration_cookie.c | 31 ++++++++++++++++++++++++++++++-
+ src/qemu/qemu_migration_cookie.h |  5 +++++
+ 3 files changed, 40 insertions(+), 2 deletions(-)
+
+diff --git a/src/qemu/qemu_migration.c b/src/qemu/qemu_migration.c
+index a7c90a09e8..c03f1be575 100644
+--- a/src/qemu/qemu_migration.c
++++ b/src/qemu/qemu_migration.c
+@@ -1989,6 +1989,9 @@ qemuMigrationBeginPhase(virQEMUDriverPtr driver,
+          vm->newDef && !qemuDomainVcpuHotplugIsInOrder(vm->newDef)))
+         cookieFlags |= QEMU_MIGRATION_COOKIE_CPU_HOTPLUG;
+ 
++    if (priv->origCPU)
++        cookieFlags |= QEMU_MIGRATION_COOKIE_CPU;
++
+     if (!(mig = qemuMigrationEatCookie(driver, vm, NULL, 0, 0)))
+         goto cleanup;
+ 
+@@ -2613,7 +2616,8 @@ qemuMigrationPrepareAny(virQEMUDriverPtr driver,
+                                        QEMU_MIGRATION_COOKIE_LOCKSTATE |
+                                        QEMU_MIGRATION_COOKIE_NBD |
+                                        QEMU_MIGRATION_COOKIE_MEMORY_HOTPLUG |
+-                                       QEMU_MIGRATION_COOKIE_CPU_HOTPLUG)))
++                                       QEMU_MIGRATION_COOKIE_CPU_HOTPLUG |
++                                       QEMU_MIGRATION_COOKIE_CPU)))
+         goto cleanup;
+ 
+     if (STREQ_NULLABLE(protocol, "rdma") &&
+diff --git a/src/qemu/qemu_migration_cookie.c b/src/qemu/qemu_migration_cookie.c
+index 559b1f0c15..af0ac03418 100644
+--- a/src/qemu/qemu_migration_cookie.c
++++ b/src/qemu/qemu_migration_cookie.c
+@@ -48,7 +48,8 @@ VIR_ENUM_IMPL(qemuMigrationCookieFlag,
+               "nbd",
+               "statistics",
+               "memory-hotplug",
+-              "cpu-hotplug");
++              "cpu-hotplug",
++              "cpu");
+ 
+ 
+ static void
+@@ -109,6 +110,7 @@ qemuMigrationCookieFree(qemuMigrationCookiePtr mig)
+     VIR_FREE(mig->lockState);
+     VIR_FREE(mig->lockDriver);
+     VIR_FREE(mig->jobInfo);
++    virCPUDefFree(mig->cpu);
+     VIR_FREE(mig);
+ }
+ 
+@@ -519,6 +521,22 @@ qemuMigrationCookieAddStatistics(qemuMigrationCookiePtr mig,
+ }
+ 
+ 
++static int
++qemuMigrationCookieAddCPU(qemuMigrationCookiePtr mig,
++                          virDomainObjPtr vm)
++{
++    if (mig->cpu)
++        return 0;
++
++    if (!(mig->cpu = virCPUDefCopy(vm->def->cpu)))
++        return -1;
++
++    mig->flags |= QEMU_MIGRATION_COOKIE_CPU;
++
++    return 0;
++}
++
++
+ static void
+ qemuMigrationCookieGraphicsXMLFormat(virBufferPtr buf,
+                                      qemuMigrationCookieGraphicsPtr grap)
+@@ -755,6 +773,9 @@ qemuMigrationCookieXMLFormat(virQEMUDriverPtr driver,
+     if (mig->flags & QEMU_MIGRATION_COOKIE_STATS && mig->jobInfo)
+         qemuMigrationCookieStatisticsXMLFormat(buf, mig->jobInfo);
+ 
++    if (mig->flags & QEMU_MIGRATION_COOKIE_CPU && mig->cpu)
++        virCPUDefFormatBufFull(buf, mig->cpu, NULL, false);
++
+     virBufferAdjustIndent(buf, -2);
+     virBufferAddLit(buf, "</qemu-migration>\n");
+     return 0;
+@@ -1198,6 +1219,10 @@ qemuMigrationCookieXMLParse(qemuMigrationCookiePtr mig,
+         (!(mig->jobInfo = qemuMigrationCookieStatisticsXMLParse(ctxt))))
+         goto error;
+ 
++    if (flags & QEMU_MIGRATION_COOKIE_CPU &&
++        virCPUDefParseXML(ctxt, "./cpu[1]", VIR_CPU_TYPE_GUEST, &mig->cpu) < 0)
++        goto error;
++
+     virObjectUnref(caps);
+     return 0;
+ 
+@@ -1274,6 +1299,10 @@ qemuMigrationBakeCookie(qemuMigrationCookiePtr mig,
+     if (flags & QEMU_MIGRATION_COOKIE_CPU_HOTPLUG)
+         mig->flagsMandatory |= QEMU_MIGRATION_COOKIE_CPU_HOTPLUG;
+ 
++    if (flags & QEMU_MIGRATION_COOKIE_CPU &&
++        qemuMigrationCookieAddCPU(mig, dom) < 0)
++        return -1;
++
+     if (!(*cookieout = qemuMigrationCookieXMLFormatStr(driver, mig)))
+         return -1;
+ 
+diff --git a/src/qemu/qemu_migration_cookie.h b/src/qemu/qemu_migration_cookie.h
+index b009d5bf5d..e5f3d75a95 100644
+--- a/src/qemu/qemu_migration_cookie.h
++++ b/src/qemu/qemu_migration_cookie.h
+@@ -28,6 +28,7 @@ typedef enum {
+     QEMU_MIGRATION_COOKIE_FLAG_STATS,
+     QEMU_MIGRATION_COOKIE_FLAG_MEMORY_HOTPLUG,
+     QEMU_MIGRATION_COOKIE_FLAG_CPU_HOTPLUG,
++    QEMU_MIGRATION_COOKIE_FLAG_CPU,
+ 
+     QEMU_MIGRATION_COOKIE_FLAG_LAST
+ } qemuMigrationCookieFlags;
+@@ -43,6 +44,7 @@ typedef enum {
+     QEMU_MIGRATION_COOKIE_STATS = (1 << QEMU_MIGRATION_COOKIE_FLAG_STATS),
+     QEMU_MIGRATION_COOKIE_MEMORY_HOTPLUG = (1 << QEMU_MIGRATION_COOKIE_FLAG_MEMORY_HOTPLUG),
+     QEMU_MIGRATION_COOKIE_CPU_HOTPLUG = (1 << QEMU_MIGRATION_COOKIE_FLAG_CPU_HOTPLUG),
++    QEMU_MIGRATION_COOKIE_CPU = (1 << QEMU_MIGRATION_COOKIE_FLAG_CPU),
+ } qemuMigrationCookieFeatures;
+ 
+ typedef struct _qemuMigrationCookieGraphics qemuMigrationCookieGraphics;
+@@ -122,6 +124,9 @@ struct _qemuMigrationCookie {
+ 
+     /* If (flags & QEMU_MIGRATION_COOKIE_STATS) */
+     qemuDomainJobInfoPtr jobInfo;
++
++    /* If flags & QEMU_MIGRATION_COOKIE_CPU */
++    virCPUDefPtr cpu;
+ };
+ 
+ 
+-- 
+2.13.1
+

@@ -1,0 +1,74 @@
+From 7aca75a7142eba58d9cb3ab5d40f3224e53e2243 Mon Sep 17 00:00:00 2001
+From: Jan Cholasta <jcholast@redhat.com>
+Date: Wed, 3 May 2017 06:17:32 +0000
+Subject: [PATCH] cacert manage: support PKINIT
+
+Allow installing 3rd party CA certificates trusted to issue PKINIT KDC
+and/or client certificates.
+
+https://pagure.io/freeipa/issue/6831
+
+Reviewed-By: Stanislav Laznicka <slaznick@redhat.com>
+Reviewed-By: Martin Babinsky <mbabinsk@redhat.com>
+---
+ install/tools/man/ipa-cacert-manage.1  |  2 +-
+ ipaserver/install/ipa_cacert_manage.py | 21 +++++++++++++++++----
+ 2 files changed, 18 insertions(+), 5 deletions(-)
+
+diff --git a/install/tools/man/ipa-cacert-manage.1 b/install/tools/man/ipa-cacert-manage.1
+index e36258d0f96aa1050fe88b05f4fe9a1a8f9a7978..03172814ffb603b656952ce5e9ad6af9c8238ab3 100644
+--- a/install/tools/man/ipa-cacert-manage.1
++++ b/install/tools/man/ipa-cacert-manage.1
+@@ -90,7 +90,7 @@ File containing the IPA CA certificate and the external CA certificate chain. Th
+ Nickname for the certificate.
+ .TP
+ \fB\-t\fR \fITRUST_FLAGS\fR, \fB\-\-trust\-flags\fR=\fITRUST_FLAGS\fR
+-Trust flags for the certificate in certutil format. Trust flags are of the form "X,Y,Z" where X is for SSL, Y is for S/MIME, and Z is for code signing. Use ",," for no explicit trust.
++Trust flags for the certificate in certutil format. Trust flags are of the form "A,B,C" or "A,B,C,D" where A is for SSL, B is for S/MIME, C is for code signing, and D is for PKINIT. Use ",," for no explicit trust.
+ .sp
+ The supported trust flags are:
+ .RS
+diff --git a/ipaserver/install/ipa_cacert_manage.py b/ipaserver/install/ipa_cacert_manage.py
+index d28a5966f054141819463cdb1dfef48ee1e46e92..e88e8b63ae94759ac835f3b3b31b0735d68a67b0 100644
+--- a/ipaserver/install/ipa_cacert_manage.py
++++ b/ipaserver/install/ipa_cacert_manage.py
+@@ -28,6 +28,7 @@ from ipalib.install import certmonger, certstore
+ from ipapython import admintool, ipautil
+ from ipapython.certdb import (EMPTY_TRUST_FLAGS,
+                               EXTERNAL_CA_TRUST_FLAGS,
++                              TrustFlags,
+                               parse_trust_flags)
+ from ipapython.dn import DN
+ from ipaplatform.paths import paths
+@@ -363,12 +364,24 @@ class CACertManage(admintool.AdminTool):
+                     "http://www.freeipa.org/page/Troubleshooting for "
+                     "troubleshooting guide)" % e)
+ 
+-        trust_flags = options.trust_flags
+-        if ((set(trust_flags) - set(',CPTcgpuw')) or
+-            len(trust_flags.split(',')) != 3):
++        trust_flags = options.trust_flags.split(',')
++        if (set(options.trust_flags) - set(',CPTcgpuw') or
++                len(trust_flags) not in [3, 4]):
+             raise admintool.ScriptError("Invalid trust flags")
+ 
+-        trust_flags = parse_trust_flags(trust_flags)
++        extra_flags = trust_flags[3:]
++        extra_usages = set()
++        if extra_flags:
++            if 'C' in extra_flags[0]:
++                extra_usages.add(x509.EKU_PKINIT_KDC)
++            if 'T' in extra_flags[0]:
++                extra_usages.add(x509.EKU_PKINIT_CLIENT_AUTH)
++
++        trust_flags = parse_trust_flags(','.join(trust_flags[:3]))
++        trust_flags = TrustFlags(trust_flags.has_key,
++                                 trust_flags.trusted,
++                                 trust_flags.ca,
++                                 trust_flags.usages | extra_usages)
+ 
+         try:
+             certstore.put_ca_cert_nss(
+-- 
+2.9.4
+

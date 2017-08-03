@@ -1,0 +1,181 @@
+From 997ebc0f56963769bdcbeda60a2dca222c884b1e Mon Sep 17 00:00:00 2001
+From: Jan Cholasta <jcholast@redhat.com>
+Date: Thu, 27 Apr 2017 09:57:45 +0200
+Subject: [PATCH] certdb, certs: make trust flags argument mandatory
+
+Make the trust flags argument mandatory in all functions in `certdb` and
+`certs`.
+
+https://pagure.io/freeipa/issue/6831
+
+Reviewed-By: Stanislav Laznicka <slaznick@redhat.com>
+Reviewed-By: Martin Babinsky <mbabinsk@redhat.com>
+---
+ ipapython/certdb.py                        |  4 +---
+ ipaserver/install/certs.py                 | 11 +++++------
+ ipaserver/install/dsinstance.py            |  2 +-
+ ipaserver/install/httpinstance.py          |  6 ++++--
+ ipaserver/install/installutils.py          |  5 +++--
+ ipaserver/install/server/replicainstall.py |  4 ++--
+ 6 files changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/ipapython/certdb.py b/ipapython/certdb.py
+index 44c7bf3197c198295035742e6db48527d76e85a6..88dcae750de5881ae7b4921ca1ae23daa9c5d4b0 100644
+--- a/ipapython/certdb.py
++++ b/ipapython/certdb.py
+@@ -471,14 +471,12 @@ class NSSDatabase(object):
+ 
+             self.import_pkcs12(out_file.name, out_password)
+ 
+-    def trust_root_cert(self, root_nickname, trust_flags=None):
++    def trust_root_cert(self, root_nickname, trust_flags):
+         if root_nickname[:7] == "Builtin":
+             root_logger.debug(
+                 "No need to add trust for built-in root CAs, skipping %s" %
+                 root_nickname)
+         else:
+-            if trust_flags is None:
+-                trust_flags = EXTERNAL_CA_TRUST_FLAGS
+             try:
+                 self.run_certutil(["-M", "-n", root_nickname,
+                                    "-t", trust_flags])
+diff --git a/ipaserver/install/certs.py b/ipaserver/install/certs.py
+index f87e00eb5e9c14ed30d39ef9f6e86b6f24bb1c61..17b9ebad4a128e292e453af44ca9d63cfb1e6ea2 100644
+--- a/ipaserver/install/certs.py
++++ b/ipaserver/install/certs.py
+@@ -550,7 +550,7 @@ class CertDB(object):
+ 
+         return root_nicknames
+ 
+-    def trust_root_cert(self, root_nickname, trust_flags=None):
++    def trust_root_cert(self, root_nickname, trust_flags):
+         if root_nickname is None:
+             root_logger.debug("Unable to identify root certificate to trust. Continuing but things are likely to fail.")
+             return
+@@ -600,14 +600,13 @@ class CertDB(object):
+         self.create_certdbs()
+         self.load_cacert(cacert_fname, IPA_CA_TRUST_FLAGS)
+ 
+-    def create_from_pkcs12(self, pkcs12_fname, pkcs12_passwd, passwd=None,
+-                           ca_file=None, trust_flags=None):
++    def create_from_pkcs12(self, pkcs12_fname, pkcs12_passwd,
++                           ca_file, trust_flags):
+         """Create a new NSS database using the certificates in a PKCS#12 file.
+ 
+            pkcs12_fname: the filename of the PKCS#12 file
+            pkcs12_pwd_fname: the file containing the pin for the PKCS#12 file
+            nickname: the nickname/friendly-name of the cert we are loading
+-           passwd: The password to use for the new NSS database we are creating
+ 
+            The global CA may be added as well in case it wasn't included in the
+            PKCS#12 file. Extra certs won't hurt in any case.
+@@ -615,7 +614,7 @@ class CertDB(object):
+            The global CA may be specified in ca_file, as a PEM filename.
+         """
+         self.create_noise_file()
+-        self.create_passwd_file(passwd)
++        self.create_passwd_file()
+         self.create_certdbs()
+         self.init_from_pkcs12(
+             pkcs12_fname,
+@@ -624,7 +623,7 @@ class CertDB(object):
+             trust_flags=trust_flags)
+ 
+     def init_from_pkcs12(self, pkcs12_fname, pkcs12_passwd,
+-                         ca_file=None, trust_flags=None):
++                         ca_file, trust_flags):
+         self.import_pkcs12(pkcs12_fname, pkcs12_passwd)
+         server_certs = self.find_server_certs()
+         if len(server_certs) == 0:
+diff --git a/ipaserver/install/dsinstance.py b/ipaserver/install/dsinstance.py
+index 0db0368fa4b48495718afd779291ce164d1687c8..0e4ae4bfe6f1445de167df8fe5328d6a421e416f 100644
+--- a/ipaserver/install/dsinstance.py
++++ b/ipaserver/install/dsinstance.py
+@@ -769,7 +769,7 @@ class DsInstance(service.Service):
+             if self.ca_is_configured:
+                 trust_flags = IPA_CA_TRUST_FLAGS
+             else:
+-                trust_flags = None
++                trust_flags = EXTERNAL_CA_TRUST_FLAGS
+             dsdb.create_from_pkcs12(self.pkcs12_info[0], self.pkcs12_info[1],
+                                     ca_file=self.ca_file,
+                                     trust_flags=trust_flags)
+diff --git a/ipaserver/install/httpinstance.py b/ipaserver/install/httpinstance.py
+index a6aeb21edc73783ff9a3f9b526409ea525aa66dd..c76a1a4e484c5777ced92761916c1c586e8b2d5d 100644
+--- a/ipaserver/install/httpinstance.py
++++ b/ipaserver/install/httpinstance.py
+@@ -32,7 +32,9 @@ import six
+ from augeas import Augeas
+ 
+ from ipalib.install import certmonger
+-from ipapython.certdb import IPA_CA_TRUST_FLAGS, TRUSTED_PEER_TRUST_FLAGS
++from ipapython.certdb import (IPA_CA_TRUST_FLAGS,
++                              EXTERNAL_CA_TRUST_FLAGS,
++                              TRUSTED_PEER_TRUST_FLAGS)
+ from ipaserver.install import service
+ from ipaserver.install import certs
+ from ipaserver.install import installutils
+@@ -384,7 +386,7 @@ class HTTPInstance(service.Service):
+             if self.ca_is_configured:
+                 trust_flags = IPA_CA_TRUST_FLAGS
+             else:
+-                trust_flags = None
++                trust_flags = EXTERNAL_CA_TRUST_FLAGS
+             db.init_from_pkcs12(self.pkcs12_info[0], self.pkcs12_info[1],
+                                 ca_file=self.ca_file,
+                                 trust_flags=trust_flags)
+diff --git a/ipaserver/install/installutils.py b/ipaserver/install/installutils.py
+index b6f01489ccc65dcbc360929e0a7b315b074df8ce..0445a1d3c403fab690e5afb7c8801ed85773b1e0 100644
+--- a/ipaserver/install/installutils.py
++++ b/ipaserver/install/installutils.py
+@@ -49,6 +49,7 @@ from ipalib.install.kinit import kinit_password
+ import ipaplatform
+ from ipapython import ipautil, admintool, version
+ from ipapython.admintool import ScriptError
++from ipapython.certdb import EXTERNAL_CA_TRUST_FLAGS
+ from ipapython.ipa_log_manager import root_logger
+ from ipapython.ipaldap import DIRMAN_DN, LDAPClient
+ from ipalib.util import validate_hostname
+@@ -1036,7 +1037,7 @@ def load_pkcs12(cert_files, key_password, key_nickname, ca_cert_files,
+             if 'u' in trust_flags:
+                 key_nickname = nickname
+                 continue
+-            nssdb.trust_root_cert(nickname)
++            nssdb.trust_root_cert(nickname, EXTERNAL_CA_TRUST_FLAGS)
+ 
+         # Check we have the whole cert chain & the CA is in it
+         trust_chain = list(reversed(nssdb.get_trust_chain(key_nickname)))
+@@ -1176,7 +1177,7 @@ def load_external_cert(files, ca_subject):
+             cache[nickname] = (cert, subject, issuer)
+             if subject == ca_subject:
+                 ca_nickname = nickname
+-            nssdb.trust_root_cert(nickname)
++            nssdb.trust_root_cert(nickname, EXTERNAL_CA_TRUST_FLAGS)
+ 
+         if ca_nickname is None:
+             raise ScriptError(
+diff --git a/ipaserver/install/server/replicainstall.py b/ipaserver/install/server/replicainstall.py
+index 5e78e6faf51ded2fe7634f230c66aa15ae84bad4..fb738cb9f590f3f9595de92ef025c6032e9343f8 100644
+--- a/ipaserver/install/server/replicainstall.py
++++ b/ipaserver/install/server/replicainstall.py
+@@ -23,7 +23,7 @@ import ipaclient.install.ntpconf
+ from ipalib.install import certstore, sysrestore
+ from ipalib.install.kinit import kinit_keytab
+ from ipapython import ipaldap, ipautil
+-from ipapython.certdb import IPA_CA_TRUST_FLAGS
++from ipapython.certdb import IPA_CA_TRUST_FLAGS, EXTERNAL_CA_TRUST_FLAGS
+ from ipapython.dn import DN
+ from ipapython.ipa_log_manager import root_logger
+ from ipapython.admintool import ScriptError
+@@ -740,7 +740,7 @@ def install_check(installer):
+             if ca_enabled:
+                 trust_flags = IPA_CA_TRUST_FLAGS
+             else:
+-                trust_flags = None
++                trust_flags = EXTERNAL_CA_TRUST_FLAGS
+             tmp_db.create_from_pkcs12(pkcs12_info[0], pkcs12_info[1],
+                                       ca_file=cafile,
+                                       trust_flags=trust_flags)
+-- 
+2.9.4
+

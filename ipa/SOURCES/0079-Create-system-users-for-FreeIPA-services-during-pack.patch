@@ -1,0 +1,414 @@
+From a4a85c69a945b023b4017ecf4285f9f5e97d5f20 Mon Sep 17 00:00:00 2001
+From: David Kupka <dkupka@redhat.com>
+Date: Tue, 11 Apr 2017 11:43:40 +0200
+Subject: [PATCH] Create system users for FreeIPA services during package
+ installation
+
+Previously system users needed by FreeIPA server services was created during
+ipa-server-install. This led to problem when DBus policy was configured during
+package installation but the user specified in the policy didn't exist yet
+(and potentionally similar ones). Now the users will be created in package %pre
+section so all users freeipa-server package needs exist before any installation
+or configuration begins.
+Another possibility would be using systemd-sysusers(8) for this purpose but
+given that systemd is not available during container build the traditional
+approach is superior.
+Also dirsrv and pkiuser users are no longer created by FreeIPA instead it
+depends on 389ds and dogtag to create those users.
+
+https://pagure.io/freeipa/issue/6743
+
+Reviewed-By: Jan Cholasta <jcholast@redhat.com>
+Reviewed-By: Christian Heimes <cheimes@redhat.com>
+Reviewed-By: Stanislav Laznicka <slaznick@redhat.com>
+---
+ freeipa.spec.in                            |  9 +++++
+ ipaplatform/base/tasks.py                  | 53 ------------------------------
+ ipaplatform/redhat/tasks.py                | 26 ---------------
+ ipaserver/install/cainstance.py            | 12 -------
+ ipaserver/install/dsinstance.py            | 11 -------
+ ipaserver/install/httpinstance.py          | 13 --------
+ ipaserver/install/installutils.py          | 13 --------
+ ipaserver/install/ipa_restore.py           |  7 ----
+ ipaserver/install/server/install.py        |  6 +---
+ ipaserver/install/server/replicainstall.py |  6 +---
+ ipaserver/install/server/upgrade.py        |  2 --
+ 11 files changed, 11 insertions(+), 147 deletions(-)
+
+diff --git a/freeipa.spec.in b/freeipa.spec.in
+index 829c3f0b2898de1ecbf0cfb769fde5cd978c241c..978ebb184f7d051b303940560f44c7a094b071a1 100644
+--- a/freeipa.spec.in
++++ b/freeipa.spec.in
+@@ -1030,6 +1030,15 @@ if [ -e /usr/sbin/ipa_kpasswd ]; then
+ # END
+ fi
+ 
++# create users and groups
++# create kdcproxy group and user
++getent group kdcproxy >/dev/null || groupadd -f -r kdcproxy
++getent passwd kdcproxy >/dev/null || useradd -r -g kdcproxy -s /sbin/nologin -d / -c "IPA KDC Proxy User" kdcproxy
++# create ipaapi group and user
++getent group ipaapi >/dev/null || groupadd -f -r ipaapi
++getent passwd ipaapi >/dev/null || useradd -r -g ipaapi -s /sbin/nologin -d / -c "IPA Framework User" ipaapi
++# add apache to ipaaapi group
++id -Gn apache | grep '\bipaapi\b' >/dev/null || usermod apache -a -G ipaapi
+ 
+ %postun server-trust-ad
+ if [ "$1" -ge "1" ]; then
+diff --git a/ipaplatform/base/tasks.py b/ipaplatform/base/tasks.py
+index 9f91fef2b572a29bf876641fd9ad879604054a2f..3358b7d257cc60ceaecfbbac5155d79b0e63de2e 100644
+--- a/ipaplatform/base/tasks.py
++++ b/ipaplatform/base/tasks.py
+@@ -22,9 +22,6 @@
+ This module contains default platform-specific implementations of system tasks.
+ '''
+ 
+-import pwd
+-import grp
+-
+ from pkg_resources import parse_version
+ 
+ from ipaplatform.paths import paths
+@@ -186,56 +183,6 @@ class BaseTaskNamespace(object):
+ 
+         raise NotImplementedError()
+ 
+-    def create_system_user(self, name, group, homedir, shell,
+-                           uid=None, gid=None, comment=None,
+-                           create_homedir=False, groups=None):
+-        """Create a system user with a corresponding group"""
+-        try:
+-            grp.getgrnam(group)
+-        except KeyError:
+-            log.debug('Adding group %s', group)
+-            args = [paths.GROUPADD, '-r', group]
+-            if gid:
+-                args += ['-g', str(gid)]
+-            try:
+-                ipautil.run(args)
+-                log.debug('Done adding group')
+-            except ipautil.CalledProcessError as e:
+-                log.critical('Failed to add group: %s', e)
+-                raise
+-        else:
+-            log.debug('group %s exists', group)
+-
+-        try:
+-            pwd.getpwnam(name)
+-        except KeyError:
+-            log.debug('Adding user %s', name)
+-            args = [
+-                paths.USERADD,
+-                '-g', group,
+-                '-d', homedir,
+-                '-s', shell,
+-                '-r', name,
+-            ]
+-            if uid:
+-                args += ['-u', str(uid)]
+-            if comment:
+-                args += ['-c', comment]
+-            if create_homedir:
+-                args += ['-m']
+-            else:
+-                args += ['-M']
+-            if groups is not None:
+-                args += ['-G', groups.join(',')]
+-            try:
+-                ipautil.run(args)
+-                log.debug('Done adding user')
+-            except ipautil.CalledProcessError as e:
+-                log.critical('Failed to add user: %s', e)
+-                raise
+-        else:
+-            log.debug('user %s exists', name)
+-
+     @staticmethod
+     def parse_ipa_version(version):
+         """
+diff --git a/ipaplatform/redhat/tasks.py b/ipaplatform/redhat/tasks.py
+index d0ef5fbd1ceb8110dd417dda44a74dc63898456a..07efebab97eabcf2dc39bd345920a1c7be56e9f5 100644
+--- a/ipaplatform/redhat/tasks.py
++++ b/ipaplatform/redhat/tasks.py
+@@ -431,32 +431,6 @@ class RedHatTaskNamespace(BaseTaskNamespace):
+ 
+         return True
+ 
+-    def create_system_user(self, name, group, homedir, shell,
+-                           uid=None, gid=None, comment=None,
+-                           create_homedir=False, groups=None):
+-        """
+-        Create a system user with a corresponding group
+-
+-        According to https://fedoraproject.org/wiki/Packaging:UsersAndGroups?rd=Packaging/UsersAndGroups#Soft_static_allocation
+-        some system users should have fixed UID, GID and other parameters set.
+-        This values should be constant and may be hardcoded.
+-        Add other values for other users when needed.
+-        """
+-        if name == constants.PKI_USER:
+-            if uid is None:
+-                uid = 17
+-            if gid is None:
+-                gid = 17
+-            if comment is None:
+-                comment = 'CA System User'
+-        if name == constants.DS_USER:
+-            if comment is None:
+-                comment = 'DS System User'
+-
+-        super(RedHatTaskNamespace, self).create_system_user(
+-            name, group, homedir, shell, uid, gid, comment, create_homedir,
+-            groups)
+-
+     def parse_ipa_version(self, version):
+         """
+         :param version: textual version
+diff --git a/ipaserver/install/cainstance.py b/ipaserver/install/cainstance.py
+index 3980e412603437b0db5804623f6626d11e52c009..ac5d9e2fc633c5ad732670245b72bee0f03268a6 100644
+--- a/ipaserver/install/cainstance.py
++++ b/ipaserver/install/cainstance.py
+@@ -46,7 +46,6 @@ from ipalib import errors
+ import ipalib.constants
+ from ipalib.install import certmonger
+ from ipaplatform import services
+-from ipaplatform.constants import constants
+ from ipaplatform.paths import paths
+ from ipaplatform.tasks import tasks
+ 
+@@ -263,16 +262,6 @@ def is_ca_installed_locally():
+     return os.path.exists(paths.CA_CS_CFG_PATH)
+ 
+ 
+-def create_ca_user():
+-    """Create PKI user/group if it doesn't exist yet."""
+-    tasks.create_system_user(
+-        name=constants.PKI_USER,
+-        group=constants.PKI_GROUP,
+-        homedir=paths.VAR_LIB,
+-        shell=paths.NOLOGIN,
+-    )
+-
+-
+ class CAInstance(DogtagInstance):
+     """
+     When using a dogtag CA the DS database contains just the
+@@ -382,7 +371,6 @@ class CAInstance(DogtagInstance):
+             has_ra_cert = False
+ 
+         if not ra_only:
+-            self.step("creating certificate server user", create_ca_user)
+             if promote:
+                 # Setup Database
+                 self.step("creating certificate server db", self.__create_ds_db)
+diff --git a/ipaserver/install/dsinstance.py b/ipaserver/install/dsinstance.py
+index 72fcb65f2eb699d0077d3c5cc02a3fcaaad9b8e5..99a1781ca4475805e9bf3b2bac3f26b5fb107a43 100644
+--- a/ipaserver/install/dsinstance.py
++++ b/ipaserver/install/dsinstance.py
+@@ -158,16 +158,6 @@ def is_ds_running(server_id=''):
+     return services.knownservices.dirsrv.is_running(instance_name=server_id)
+ 
+ 
+-def create_ds_user():
+-    """Create DS user/group if it doesn't exist yet."""
+-    tasks.create_system_user(
+-        name=DS_USER,
+-        group=DS_USER,
+-        homedir=paths.VAR_LIB_DIRSRV,
+-        shell=paths.NOLOGIN,
+-    )
+-
+-
+ def get_domain_level(api=api):
+     ldap_uri = ipaldap.get_ldap_uri(protocol='ldapi', realm=api.env.realm)
+     conn = ipaldap.LDAPClient(ldap_uri)
+@@ -258,7 +248,6 @@ class DsInstance(service.Service):
+ 
+     def __common_setup(self):
+ 
+-        self.step("creating directory server user", create_ds_user)
+         self.step("creating directory server instance", self.__create_instance)
+         self.step("enabling ldapi", self.__enable_ldapi)
+         self.step("configure autobind for root", self.__root_autobind)
+diff --git a/ipaserver/install/httpinstance.py b/ipaserver/install/httpinstance.py
+index 45bf479d1088c3b3396d955bf2592c4bce1e886f..8e444be2d23ec5e7890d221508bc866de2854c89 100644
+--- a/ipaserver/install/httpinstance.py
++++ b/ipaserver/install/httpinstance.py
+@@ -102,18 +102,6 @@ def httpd_443_configured():
+     return False
+ 
+ 
+-def create_kdcproxy_user():
+-    """Create KDC proxy user/group if it doesn't exist yet."""
+-    tasks.create_system_user(
+-        name=KDCPROXY_USER,
+-        group=KDCPROXY_USER,
+-        homedir=paths.VAR_LIB_KDCPROXY,
+-        shell=paths.NOLOGIN,
+-        comment="IPA KDC Proxy User",
+-        create_homedir=True,
+-    )
+-
+-
+ class WebGuiInstance(service.SimpleServiceInstance):
+     def __init__(self):
+         service.SimpleServiceInstance.__init__(self, "ipa_webgui")
+@@ -183,7 +171,6 @@ class HTTPInstance(service.Service):
+                   self.remove_httpd_ccaches)
+         self.step("configuring SELinux for httpd", self.configure_selinux_for_httpd)
+         if not self.is_kdcproxy_configured():
+-            self.step("create KDC proxy user", create_kdcproxy_user)
+             self.step("create KDC proxy config", self.create_kdcproxy_conf)
+             self.step("enable KDC proxy", self.enable_kdcproxy)
+         self.step("starting httpd", self.start)
+diff --git a/ipaserver/install/installutils.py b/ipaserver/install/installutils.py
+index ef6a399ad28ae8b8646864baea9965f762050484..9230e70056b1a773246a0d95e6ecb943cada953c 100644
+--- a/ipaserver/install/installutils.py
++++ b/ipaserver/install/installutils.py
+@@ -44,7 +44,6 @@ import six
+ from six.moves.configparser import SafeConfigParser, NoOptionError
+ # pylint: enable=import-error
+ 
+-from ipalib.constants import IPAAPI_USER, IPAAPI_GROUP
+ from ipalib.install import sysrestore
+ from ipalib.install.kinit import kinit_password
+ import ipaplatform
+@@ -56,7 +55,6 @@ from ipalib import api, errors, x509
+ from ipapython.dn import DN
+ from ipaserver.install import certs, service, sysupgrade
+ from ipaplatform import services
+-from ipaplatform.constants import constants
+ from ipaplatform.paths import paths
+ from ipaplatform.tasks import tasks
+ 
+@@ -1515,14 +1513,3 @@ def default_subject_base(realm_name):
+ 
+ def default_ca_subject_dn(subject_base):
+     return DN(('CN', 'Certificate Authority'), subject_base)
+-
+-
+-def create_ipaapi_user():
+-    """Create IPA API user/group if it doesn't exist yet."""
+-    tasks.create_system_user(
+-        name=IPAAPI_USER,
+-        group=IPAAPI_GROUP,
+-        homedir=paths.VAR_LIB,
+-        shell=paths.NOLOGIN
+-    )
+-    tasks.add_user_to_group(constants.HTTPD_USER, IPAAPI_GROUP)
+diff --git a/ipaserver/install/ipa_restore.py b/ipaserver/install/ipa_restore.py
+index 2552bbdef36f653f1c377ea096ca227d09e5f3e6..378c013b6f4a4656768d7a484d2014a0f9eef3c0 100644
+--- a/ipaserver/install/ipa_restore.py
++++ b/ipaserver/install/ipa_restore.py
+@@ -36,8 +36,6 @@ from ipapython import version, ipautil
+ from ipapython.ipautil import run, user_input
+ from ipapython import admintool
+ from ipapython.dn import DN
+-from ipaserver.install.dsinstance import create_ds_user
+-from ipaserver.install.cainstance import create_ca_user
+ from ipaserver.install.replication import (wait_for_task, ReplicationManager,
+                                            get_cs_replication_manager)
+ from ipaserver.install import installutils
+@@ -296,7 +294,6 @@ class Restore(admintool.AdminTool):
+                     not user_input("Continue to restore?", False)):
+                 raise admintool.ScriptError("Aborted")
+ 
+-        create_ds_user()
+         pent = pwd.getpwnam(constants.DS_USER)
+ 
+         # Temporary directory for decrypting files before restoring
+@@ -379,15 +376,11 @@ class Restore(admintool.AdminTool):
+             # We do either a full file restore or we restore data.
+             if restore_type == 'FULL':
+                 self.remove_old_files()
+-                if 'CA' in self.backup_services:
+-                    create_ca_user()
+                 self.cert_restore_prepare()
+                 self.file_restore(options.no_logs)
+                 self.cert_restore()
+                 if 'CA' in self.backup_services:
+                     self.__create_dogtag_log_dirs()
+-                if http.is_kdcproxy_configured():
+-                    httpinstance.create_kdcproxy_user()
+ 
+             # Always restore the data from ldif
+             # We need to restore both userRoot and ipaca.
+diff --git a/ipaserver/install/server/install.py b/ipaserver/install/server/install.py
+index bf2e248dceaae36ba0030d3eaa47976f51ce60ba..197f01ccef58bb3564eb4c6b5b4d615bff1e523d 100644
+--- a/ipaserver/install/server/install.py
++++ b/ipaserver/install/server/install.py
+@@ -39,7 +39,7 @@ from ipaserver.install import (
+ from ipaserver.install.installutils import (
+     IPA_MODULES, BadHostError, get_fqdn, get_server_ip_address,
+     is_ipa_configured, load_pkcs12, read_password, verify_fqdn,
+-    update_hosts_file, create_ipaapi_user)
++    update_hosts_file)
+ 
+ if six.PY3:
+     unicode = str
+@@ -721,12 +721,8 @@ def install(installer):
+         update_hosts_file(ip_addresses, host_name, fstore)
+ 
+     # Make sure tmpfiles dir exist before installing components
+-    create_ipaapi_user()
+     tasks.create_tmpfiles_dirs()
+ 
+-    # Create DS user/group if it doesn't exist yet
+-    dsinstance.create_ds_user()
+-
+     # Create a directory server instance
+     if not options.external_cert_files:
+         # Configure ntpd
+diff --git a/ipaserver/install/server/replicainstall.py b/ipaserver/install/server/replicainstall.py
+index 6f1a0d6d29b20d53986205a63382a385e75f80ea..b82d7b474640e24da7d978e9546ebd7a8e602c29 100644
+--- a/ipaserver/install/server/replicainstall.py
++++ b/ipaserver/install/server/replicainstall.py
+@@ -41,8 +41,7 @@ from ipaserver.install import (
+     installutils, kra, krbinstance,
+     ntpinstance, otpdinstance, custodiainstance, service)
+ from ipaserver.install.installutils import (
+-    create_replica_config, ReplicaConfig, load_pkcs12, is_ipa_configured,
+-    create_ipaapi_user)
++    create_replica_config, ReplicaConfig, load_pkcs12, is_ipa_configured)
+ from ipaserver.install.replication import (
+     ReplicationManager, replica_conn_check)
+ import SSSDConfig
+@@ -1347,7 +1346,6 @@ def install(installer):
+     ccache = os.environ['KRB5CCNAME']
+ 
+     # Make sure tmpfiles dir exist before installing components
+-    create_ipaapi_user()
+     tasks.create_tmpfiles_dirs()
+ 
+     if promote:
+@@ -1376,8 +1374,6 @@ def install(installer):
+         ntp = ntpinstance.NTPInstance()
+         ntp.create_instance()
+ 
+-    dsinstance.create_ds_user()
+-
+     try:
+         if promote:
+             conn.connect(ccache=ccache)
+diff --git a/ipaserver/install/server/upgrade.py b/ipaserver/install/server/upgrade.py
+index 25b86297af3ae9d5f21cebb93f493b90670dcfc3..927acb011172de926773196eb1d032af8376f3d9 100644
+--- a/ipaserver/install/server/upgrade.py
++++ b/ipaserver/install/server/upgrade.py
+@@ -1652,7 +1652,6 @@ def upgrade_configuration():
+ 
+     if not http.is_kdcproxy_configured():
+         root_logger.info('[Enabling KDC Proxy]')
+-        httpinstance.create_kdcproxy_user()
+         http.create_kdcproxy_conf()
+         http.enable_kdcproxy()
+ 
+@@ -1837,7 +1836,6 @@ def upgrade_check(options):
+ 
+ def upgrade():
+     # Do this early so that any code depending on these dirs will not fail
+-    installutils.create_ipaapi_user()
+     tasks.create_tmpfiles_dirs()
+     tasks.configure_tmpfiles()
+ 
+-- 
+2.9.3
+

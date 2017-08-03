@@ -1,0 +1,68 @@
+From 963c75c28dcda3f5a01df2d13d0a42186adbc2de Mon Sep 17 00:00:00 2001
+Message-Id: <963c75c28dcda3f5a01df2d13d0a42186adbc2de@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 20 Jun 2017 10:22:37 +0200
+Subject: [PATCH] util: storage: make
+ virStorageSourceParseBackingJSONGlusterHost universal
+
+The same json strucutre is used for NBD and sheepdog volumes for
+specifying of the host. Rename the function and fix up error messages to
+be more universal.
+
+(cherry picked from commit 6402f402d4577b5eacf00debe5e59c328bb58f75)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1461638
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+---
+ src/util/virstoragefile.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/util/virstoragefile.c b/src/util/virstoragefile.c
+index c86cd2fc0a..b8aced5055 100644
+--- a/src/util/virstoragefile.c
++++ b/src/util/virstoragefile.c
+@@ -2800,8 +2800,8 @@ virStorageSourceParseBackingJSONUri(virStorageSourcePtr src,
+ 
+ 
+ static int
+-virStorageSourceParseBackingJSONGlusterHost(virStorageNetHostDefPtr host,
+-                                            virJSONValuePtr json)
++virStorageSourceParseBackingJSONSocketAddress(virStorageNetHostDefPtr host,
++                                              virJSONValuePtr json)
+ {
+     const char *type = virJSONValueObjectGetString(json, "type");
+     const char *hostname = virJSONValueObjectGetString(json, "host");
+@@ -2822,7 +2822,7 @@ virStorageSourceParseBackingJSONGlusterHost(virStorageNetHostDefPtr host,
+         if (!hostname) {
+             virReportError(VIR_ERR_INVALID_ARG, "%s",
+                            _("missing hostname for tcp backing server in "
+-                             "JSON backing definition for gluster volume"));
++                             "JSON backing volume definition"));
+             return -1;
+         }
+ 
+@@ -2835,7 +2835,7 @@ virStorageSourceParseBackingJSONGlusterHost(virStorageNetHostDefPtr host,
+         if (!socket) {
+             virReportError(VIR_ERR_INVALID_ARG, "%s",
+                            _("missing socket path for udp backing server in "
+-                             "JSON backing definition for gluster volume"));
++                             "JSON backing volume definition"));
+             return -1;
+         }
+ 
+@@ -2902,8 +2902,8 @@ virStorageSourceParseBackingJSONGluster(virStorageSourcePtr src,
+     src->nhosts = nservers;
+ 
+     for (i = 0; i < nservers; i++) {
+-        if (virStorageSourceParseBackingJSONGlusterHost(src->hosts + i,
+-                                                        virJSONValueArrayGet(server, i)) < 0)
++        if (virStorageSourceParseBackingJSONSocketAddress(src->hosts + i,
++                                                          virJSONValueArrayGet(server, i)) < 0)
+             return -1;
+     }
+ 
+-- 
+2.13.1
+

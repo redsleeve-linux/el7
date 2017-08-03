@@ -1,0 +1,251 @@
+From 49f9421cddc176e39cbb062f26e80ec93341ef0d Mon Sep 17 00:00:00 2001
+Message-Id: <49f9421cddc176e39cbb062f26e80ec93341ef0d@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Fri, 2 Jun 2017 00:27:33 +0200
+Subject: [PATCH] conf: Pass xmlopt to virDomainSnapshotDefFormat
+
+This will be used later when a save cookie will become part of the
+snapshot XML using new driver specific parser/formatter functions.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit 957cd268a98043fe061227a8e829c622a6fb4b86)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1441662
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/conf/snapshot_conf.c          |  1 +
+ src/conf/snapshot_conf.h          |  1 +
+ src/esx/esx_driver.c              |  2 +-
+ src/qemu/qemu_domain.c            |  4 +++-
+ src/qemu/qemu_domain.h            |  1 +
+ src/qemu/qemu_driver.c            | 16 ++++++++++++----
+ src/test/test_driver.c            |  1 +
+ src/vbox/vbox_common.c            |  4 ++--
+ src/vz/vz_driver.c                |  1 +
+ tests/domainsnapshotxml2xmltest.c |  1 +
+ 10 files changed, 24 insertions(+), 8 deletions(-)
+
+diff --git a/src/conf/snapshot_conf.c b/src/conf/snapshot_conf.c
+index 7daa9b22ad..e3bba985d7 100644
+--- a/src/conf/snapshot_conf.c
++++ b/src/conf/snapshot_conf.c
+@@ -691,6 +691,7 @@ char *
+ virDomainSnapshotDefFormat(const char *domain_uuid,
+                            virDomainSnapshotDefPtr def,
+                            virCapsPtr caps,
++                           virDomainXMLOptionPtr xmlopt ATTRIBUTE_UNUSED,
+                            unsigned int flags,
+                            int internal)
+ {
+diff --git a/src/conf/snapshot_conf.h b/src/conf/snapshot_conf.h
+index da904f9460..2ce526fa6b 100644
+--- a/src/conf/snapshot_conf.h
++++ b/src/conf/snapshot_conf.h
+@@ -114,6 +114,7 @@ void virDomainSnapshotDefFree(virDomainSnapshotDefPtr def);
+ char *virDomainSnapshotDefFormat(const char *domain_uuid,
+                                  virDomainSnapshotDefPtr def,
+                                  virCapsPtr caps,
++                                 virDomainXMLOptionPtr xmlopt,
+                                  unsigned int flags,
+                                  int internal);
+ int virDomainSnapshotAlignDisks(virDomainSnapshotDefPtr snapshot,
+diff --git a/src/esx/esx_driver.c b/src/esx/esx_driver.c
+index 166d4bcfcc..c4e1f58a0b 100644
+--- a/src/esx/esx_driver.c
++++ b/src/esx/esx_driver.c
+@@ -4282,7 +4282,7 @@ esxDomainSnapshotGetXMLDesc(virDomainSnapshotPtr snapshot,
+ 
+     virUUIDFormat(snapshot->domain->uuid, uuid_string);
+ 
+-    xml = virDomainSnapshotDefFormat(uuid_string, &def, priv->caps,
++    xml = virDomainSnapshotDefFormat(uuid_string, &def, priv->caps, priv->xmlopt,
+                                      virDomainDefFormatConvertXMLFlags(flags),
+                                      0);
+ 
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index 11be085801..09903bdd5f 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -4794,6 +4794,7 @@ int
+ qemuDomainSnapshotWriteMetadata(virDomainObjPtr vm,
+                                 virDomainSnapshotObjPtr snapshot,
+                                 virCapsPtr caps,
++                                virDomainXMLOptionPtr xmlopt,
+                                 char *snapshotDir)
+ {
+     char *newxml = NULL;
+@@ -4804,7 +4805,7 @@ qemuDomainSnapshotWriteMetadata(virDomainObjPtr vm,
+ 
+     virUUIDFormat(vm->def->uuid, uuidstr);
+     newxml = virDomainSnapshotDefFormat(
+-        uuidstr, snapshot->def, caps,
++        uuidstr, snapshot->def, caps, xmlopt,
+         virDomainDefFormatConvertXMLFlags(QEMU_DOMAIN_FORMAT_LIVE_FLAGS),
+         1);
+     if (newxml == NULL)
+@@ -4965,6 +4966,7 @@ qemuDomainSnapshotDiscard(virQEMUDriverPtr driver,
+             } else {
+                 parentsnap->def->current = true;
+                 if (qemuDomainSnapshotWriteMetadata(vm, parentsnap, driver->caps,
++                                                    driver->xmlopt,
+                                                     cfg->snapshotDir) < 0) {
+                     VIR_WARN("failed to set parent snapshot '%s' as current",
+                              snap->def->parent);
+diff --git a/src/qemu/qemu_domain.h b/src/qemu/qemu_domain.h
+index 2994398a9e..4db92fac8a 100644
+--- a/src/qemu/qemu_domain.h
++++ b/src/qemu/qemu_domain.h
+@@ -557,6 +557,7 @@ const char *qemuFindQemuImgBinary(virQEMUDriverPtr driver);
+ int qemuDomainSnapshotWriteMetadata(virDomainObjPtr vm,
+                                     virDomainSnapshotObjPtr snapshot,
+                                     virCapsPtr caps,
++                                    virDomainXMLOptionPtr xmlopt,
+                                     char *snapshotDir);
+ 
+ int qemuDomainSnapshotForEachQcow2(virQEMUDriverPtr driver,
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index 354329fe64..2688c3eec7 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -14650,7 +14650,7 @@ qemuDomainSnapshotCreateXML(virDomainPtr domain,
+         if (update_current) {
+             vm->current_snapshot->def->current = false;
+             if (qemuDomainSnapshotWriteMetadata(vm, vm->current_snapshot,
+-                                                driver->caps,
++                                                driver->caps, driver->xmlopt,
+                                                 cfg->snapshotDir) < 0)
+                 goto endjob;
+             vm->current_snapshot = NULL;
+@@ -14700,6 +14700,7 @@ qemuDomainSnapshotCreateXML(virDomainPtr domain,
+  endjob:
+     if (snapshot && !(flags & VIR_DOMAIN_SNAPSHOT_CREATE_NO_METADATA)) {
+         if (qemuDomainSnapshotWriteMetadata(vm, snap, driver->caps,
++                                            driver->xmlopt,
+                                             cfg->snapshotDir) < 0) {
+             /* if writing of metadata fails, error out rather than trying
+              * to silently carry on without completing the snapshot */
+@@ -15037,7 +15038,8 @@ qemuDomainSnapshotGetXMLDesc(virDomainSnapshotPtr snapshot,
+ 
+     virUUIDFormat(snapshot->domain->uuid, uuidstr);
+ 
+-    xml = virDomainSnapshotDefFormat(uuidstr, snap->def, driver->caps,
++    xml = virDomainSnapshotDefFormat(uuidstr, snap->def,
++                                     driver->caps, driver->xmlopt,
+                                      virDomainDefFormatConvertXMLFlags(flags),
+                                      0);
+ 
+@@ -15219,7 +15221,8 @@ qemuDomainRevertToSnapshot(virDomainSnapshotPtr snapshot,
+     if (vm->current_snapshot) {
+         vm->current_snapshot->def->current = false;
+         if (qemuDomainSnapshotWriteMetadata(vm, vm->current_snapshot,
+-                                            driver->caps, cfg->snapshotDir) < 0)
++                                            driver->caps, driver->xmlopt,
++                                            cfg->snapshotDir) < 0)
+             goto endjob;
+         vm->current_snapshot = NULL;
+         /* XXX Should we restore vm->current_snapshot after this point
+@@ -15459,6 +15462,7 @@ qemuDomainRevertToSnapshot(virDomainSnapshotPtr snapshot,
+  cleanup:
+     if (ret == 0) {
+         if (qemuDomainSnapshotWriteMetadata(vm, snap, driver->caps,
++                                            driver->xmlopt,
+                                             cfg->snapshotDir) < 0)
+             ret = -1;
+         else
+@@ -15495,6 +15499,7 @@ struct _virQEMUSnapReparent {
+     virDomainSnapshotObjPtr parent;
+     virDomainObjPtr vm;
+     virCapsPtr caps;
++    virDomainXMLOptionPtr xmlopt;
+     int err;
+     virDomainSnapshotObjPtr last;
+ };
+@@ -15523,7 +15528,8 @@ qemuDomainSnapshotReparentChildren(void *payload,
+     if (!snap->sibling)
+         rep->last = snap;
+ 
+-    rep->err = qemuDomainSnapshotWriteMetadata(rep->vm, snap, rep->caps,
++    rep->err = qemuDomainSnapshotWriteMetadata(rep->vm, snap,
++                                               rep->caps, rep->xmlopt,
+                                                rep->cfg->snapshotDir);
+     return 0;
+ }
+@@ -15594,6 +15600,7 @@ qemuDomainSnapshotDelete(virDomainSnapshotPtr snapshot,
+             if (flags & VIR_DOMAIN_SNAPSHOT_DELETE_CHILDREN_ONLY) {
+                 snap->def->current = true;
+                 if (qemuDomainSnapshotWriteMetadata(vm, snap, driver->caps,
++                                                    driver->xmlopt,
+                                                     cfg->snapshotDir) < 0) {
+                     virReportError(VIR_ERR_INTERNAL_ERROR,
+                                    _("failed to set snapshot '%s' as current"),
+@@ -15611,6 +15618,7 @@ qemuDomainSnapshotDelete(virDomainSnapshotPtr snapshot,
+         rep.err = 0;
+         rep.last = NULL;
+         rep.caps = driver->caps;
++        rep.xmlopt = driver->xmlopt;
+         virDomainSnapshotForEachChild(snap,
+                                       qemuDomainSnapshotReparentChildren,
+                                       &rep);
+diff --git a/src/test/test_driver.c b/src/test/test_driver.c
+index 39df646260..c8085dd797 100644
+--- a/src/test/test_driver.c
++++ b/src/test/test_driver.c
+@@ -6348,6 +6348,7 @@ testDomainSnapshotGetXMLDesc(virDomainSnapshotPtr snapshot,
+     virUUIDFormat(snapshot->domain->uuid, uuidstr);
+ 
+     xml = virDomainSnapshotDefFormat(uuidstr, snap->def, privconn->caps,
++                                     privconn->xmlopt,
+                                      virDomainDefFormatConvertXMLFlags(flags),
+                                      0);
+ 
+diff --git a/src/vbox/vbox_common.c b/src/vbox/vbox_common.c
+index dcc64b579c..c739031660 100644
+--- a/src/vbox/vbox_common.c
++++ b/src/vbox/vbox_common.c
+@@ -5115,7 +5115,7 @@ vboxSnapshotRedefine(virDomainPtr dom,
+         VIR_FREE(currentSnapshotXmlFilePath);
+         if (virAsprintf(&currentSnapshotXmlFilePath, "%s%s.xml", machineLocationPath, snapshotMachineDesc->currentSnapshot) < 0)
+             goto cleanup;
+-        char *snapshotContent = virDomainSnapshotDefFormat(NULL, def, data->caps, VIR_DOMAIN_DEF_FORMAT_SECURE, 0);
++        char *snapshotContent = virDomainSnapshotDefFormat(NULL, def, data->caps, data->xmlopt, VIR_DOMAIN_DEF_FORMAT_SECURE, 0);
+         if (snapshotContent == NULL) {
+             virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+                            _("Unable to get snapshot content"));
+@@ -6037,7 +6037,7 @@ static char *vboxDomainSnapshotGetXMLDesc(virDomainSnapshotPtr snapshot,
+ 
+     virUUIDFormat(dom->uuid, uuidstr);
+     memcpy(def->dom->uuid, dom->uuid, VIR_UUID_BUFLEN);
+-    ret = virDomainSnapshotDefFormat(uuidstr, def, data->caps,
++    ret = virDomainSnapshotDefFormat(uuidstr, def, data->caps, data->xmlopt,
+                                       virDomainDefFormatConvertXMLFlags(flags),
+                                       0);
+ 
+diff --git a/src/vz/vz_driver.c b/src/vz/vz_driver.c
+index 26c4f48459..f0b6722a6e 100644
+--- a/src/vz/vz_driver.c
++++ b/src/vz/vz_driver.c
+@@ -2309,6 +2309,7 @@ vzDomainSnapshotGetXMLDesc(virDomainSnapshotPtr snapshot, unsigned int flags)
+     virUUIDFormat(snapshot->domain->uuid, uuidstr);
+ 
+     xml = virDomainSnapshotDefFormat(uuidstr, snap->def, privconn->driver->caps,
++                                     privconn->driver->xmlopt,
+                                      virDomainDefFormatConvertXMLFlags(flags),
+                                      0);
+ 
+diff --git a/tests/domainsnapshotxml2xmltest.c b/tests/domainsnapshotxml2xmltest.c
+index f5fec47520..df204f9f16 100644
+--- a/tests/domainsnapshotxml2xmltest.c
++++ b/tests/domainsnapshotxml2xmltest.c
+@@ -101,6 +101,7 @@ testCompareXMLToXMLFiles(const char *inxml,
+         goto cleanup;
+ 
+     if (!(actual = virDomainSnapshotDefFormat(uuid, def, driver.caps,
++                                              driver.xmlopt,
+                                               VIR_DOMAIN_DEF_FORMAT_SECURE,
+                                               internal)))
+         goto cleanup;
+-- 
+2.13.1
+

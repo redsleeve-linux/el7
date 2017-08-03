@@ -1,0 +1,181 @@
+diff -up chrony-3.1/configure.timestamping chrony-3.1/configure
+--- chrony-3.1/configure.timestamping	2017-01-31 11:22:11.000000000 +0100
++++ chrony-3.1/configure	2017-02-03 12:09:22.911633573 +0100
+@@ -651,8 +651,8 @@ if [ $feat_timestamping = "1" ] && [ $tr
+   test_code 'SW/HW timestamping' 'sys/types.h sys/socket.h linux/net_tstamp.h
+                                   linux/errqueue.h linux/ptp_clock.h' '' '' '
+     int val = SOF_TIMESTAMPING_SOFTWARE | SOF_TIMESTAMPING_RX_SOFTWARE |
+-              SOF_TIMESTAMPING_RAW_HARDWARE | SOF_TIMESTAMPING_OPT_CMSG;
+-    return sizeof (struct scm_timestamping) + SCM_TSTAMP_SND + PTP_SYS_OFFSET +
++              SOF_TIMESTAMPING_RAW_HARDWARE | 1;
++    return 3 * sizeof (struct timespec) + 0 + PTP_SYS_OFFSET +
+            setsockopt(0, SOL_SOCKET, SO_SELECT_ERR_QUEUE + SO_TIMESTAMPING,
+                       &val, sizeof (val));'
+ then
+diff -up chrony-3.1/doc/chrony.conf.man.in.timestamping chrony-3.1/doc/chrony.conf.man.in
+--- chrony-3.1/doc/chrony.conf.man.in.timestamping	2017-01-31 11:34:16.000000000 +0100
++++ chrony-3.1/doc/chrony.conf.man.in	2017-02-03 12:09:22.911633573 +0100
+@@ -3065,7 +3065,7 @@ timestamping. If the server or peer supp
+ be enabled by the \fBxleave\fP option in the \fBserver\fP or the
+ \fBpeer\fP directive.
+ .sp
+-This directive is supported on Linux 3.19 and newer. The NIC must support HW
++This directive is supported on Linux. The NIC must support HW
+ timestamping, which can be verified with the \fBethtool \-T\fP command. The list of
+ capabilities should include \fISOF_TIMESTAMPING_RAW_HARDWARE\fP,
+ \fISOF_TIMESTAMPING_TX_HARDWARE\fP, \fISOF_TIMESTAMPING_RX_HARDWARE\fP, and the filter
+diff -up chrony-3.1/ntp_io_linux.c.timestamping chrony-3.1/ntp_io_linux.c
+--- chrony-3.1/ntp_io_linux.c.timestamping	2017-01-31 11:22:11.000000000 +0100
++++ chrony-3.1/ntp_io_linux.c	2017-02-03 12:10:10.720767667 +0100
+@@ -36,6 +36,10 @@
+ #include <linux/sockios.h>
+ #include <net/if.h>
+ 
++/* Missing in older kernel headers */
++#define SOF_TIMESTAMPING_OPT_CMSG (1<<10)
++#define SCM_TSTAMP_SND 0
++
+ #include "array.h"
+ #include "conf.h"
+ #include "hwclock.h"
+@@ -95,6 +99,10 @@ static int ts_tx_flags;
+ /* Flag indicating the socket options can't be changed in control messages */
+ static int permanent_ts_options;
+ 
++/* Index of a HW-timestamping interface, but only if the machine has not more
++   than one */
++static int single_hwts_if_index;
++
+ /* ================================================== */
+ 
+ static int
+@@ -253,6 +261,84 @@ update_interface_speed(struct Interface
+ 
+ /* ================================================== */
+ 
++static int
++check_sof_opt_cmsg()
++{
++  int sock_fd, flags;
++
++  sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
++  if (sock_fd < 0)
++    return 0;
++
++  flags = SOF_TIMESTAMPING_OPT_CMSG;
++
++  if (setsockopt(sock_fd, SOL_SOCKET, SO_TIMESTAMPING, &flags, sizeof (flags)) < 0) {
++    DEBUG_LOG(LOGF_NtpIOLinux, "SOF_TIMESTAMPING_OPT_CMSG not supported");
++    close(sock_fd);
++    return 0;
++  }
++
++  close(sock_fd);
++  return 1;
++}
++
++/* ================================================== */
++
++static int
++get_single_hwts_index()
++{
++  struct ifaddrs *ifaddr, *ifa;
++  struct ethtool_ts_info ts_info;
++  struct ifreq req;
++  int sock_fd, if_index, hwts_if_index = INVALID_IF_INDEX;
++
++  sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
++  if (sock_fd < 0)
++    return INVALID_IF_INDEX;
++
++  if (getifaddrs(&ifaddr)) {
++    DEBUG_LOG(LOGF_NtpIOLinux, "getifaddrs() failed : %s", strerror(errno));
++    close(sock_fd);
++    return INVALID_IF_INDEX;
++  }
++
++  for (ifa = ifaddr; ifa; ifa = ifa->ifa_next) {
++    memset(&req, 0, sizeof (req));
++    memset(&ts_info, 0, sizeof (ts_info));
++
++    if (snprintf(req.ifr_name, sizeof (req.ifr_name), "%s", ifa->ifa_name) >=
++        sizeof (req.ifr_name))
++      break;
++
++    if (ioctl(sock_fd, SIOCGIFINDEX, &req))
++      break;
++
++    if_index = req.ifr_ifindex;
++    ts_info.cmd = ETHTOOL_GET_TS_INFO;
++    req.ifr_data = (char *)&ts_info;
++
++    if (ioctl(sock_fd, SIOCETHTOOL, &req))
++      break;
++
++    if (ts_info.phc_index < 0)
++      continue;
++
++    if (hwts_if_index != INVALID_IF_INDEX && hwts_if_index != if_index)
++      break;
++
++    hwts_if_index = if_index;
++  }
++
++  close(sock_fd);
++  freeifaddrs(ifaddr);
++
++  if (ifa)
++    return INVALID_IF_INDEX;
++
++  return hwts_if_index;
++}
++
++/* ================================================== */
+ void
+ NIO_Linux_Initialise(void)
+ {
+@@ -289,8 +375,20 @@ NIO_Linux_Initialise(void)
+     ts_tx_flags = SOF_TIMESTAMPING_TX_SOFTWARE;
+   }
+ 
+-  /* Enable IP_PKTINFO in messages looped back to the error queue */
+-  ts_flags |= SOF_TIMESTAMPING_OPT_CMSG;
++  single_hwts_if_index = INVALID_IF_INDEX;
++
++  /* Enable IP_PKTINFO in messages looped back to the error queue if possible.
++     If not, HW timestamping of IPv4 packets can be supported only with one
++     interface capable of HW timestamping. */
++  if (check_sof_opt_cmsg()) {
++    ts_flags |= SOF_TIMESTAMPING_OPT_CMSG;
++  } else if (ARR_GetSize(interfaces) > 0) {
++    single_hwts_if_index = get_single_hwts_index();
++    if (single_hwts_if_index == INVALID_IF_INDEX)
++      LOG(LOGS_WARN, LOGF_NtpIOLinux, "Missing SOF_TIMESTAMPING_OPT_CMSG option for HW timestamping with multiple HW-timestamping interfaces");
++    else
++      LOG(LOGS_INFO, LOGF_NtpIOLinux, "Enabled single-interface HW-timestamping mode");
++  }
+ 
+   /* Kernels before 4.7 ignore timestamping flags set in control messages */
+   permanent_ts_options = !SYS_Linux_CheckKernelVersion(4, 7);
+@@ -499,7 +597,9 @@ NIO_Linux_ProcessMessage(NTP_Remote_Addr
+ 
+   for (cmsg = CMSG_FIRSTHDR(hdr); cmsg; cmsg = CMSG_NXTHDR(hdr, cmsg)) {
+     if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_TIMESTAMPING) {
+-      struct scm_timestamping ts3;
++      struct {
++        struct timespec ts[3];
++      } ts3;
+ 
+       memcpy(&ts3, CMSG_DATA(cmsg), sizeof (ts3));
+ 
+@@ -507,6 +607,10 @@ NIO_Linux_ProcessMessage(NTP_Remote_Addr
+         LCL_CookTime(&ts3.ts[0], &local_ts->ts, &local_ts->err);
+         local_ts->source = NTP_TS_KERNEL;
+       } else if (!UTI_IsZeroTimespec(&ts3.ts[2])) {
++        if (local_addr->if_index == INVALID_IF_INDEX &&
++            single_hwts_if_index != INVALID_IF_INDEX)
++          local_addr->if_index = single_hwts_if_index;
++
+         iface = get_interface(local_addr->if_index);
+         if (iface) {
+           process_hw_timestamp(iface, &ts3.ts[2], local_ts, !is_tx ? length : 0,

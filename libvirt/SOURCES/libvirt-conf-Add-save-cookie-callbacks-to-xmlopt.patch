@@ -1,0 +1,427 @@
+From 7cf2eee78e7e0e08eb1203f7fdb5705aba6b0e42 Mon Sep 17 00:00:00 2001
+Message-Id: <7cf2eee78e7e0e08eb1203f7fdb5705aba6b0e42@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Fri, 2 Jun 2017 00:44:46 +0200
+Subject: [PATCH] conf: Add save cookie callbacks to xmlopt
+
+virDomainXMLOption gains driver specific callbacks for parsing and
+formatting save cookies.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit 25af7e950a9e35a6cffeed32bbcdd95dd7e01035)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1441662
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/bhyve/bhyve_domain.c      |  2 +-
+ src/conf/domain_conf.c        | 16 +++++++++++++++-
+ src/conf/domain_conf.h        |  7 ++++++-
+ src/conf/snapshot_conf.c      | 11 ++++++++++-
+ src/conf/snapshot_conf.h      |  2 ++
+ src/libvirt_private.syms      |  1 +
+ src/libxl/libxl_conf.c        |  2 +-
+ src/lxc/lxc_conf.c            |  2 +-
+ src/openvz/openvz_driver.c    |  2 +-
+ src/phyp/phyp_driver.c        |  2 +-
+ src/qemu/qemu_capabilities.c  |  2 +-
+ src/qemu/qemu_conf.c          |  3 ++-
+ src/security/virt-aa-helper.c |  2 +-
+ src/test/test_driver.c        |  2 +-
+ src/uml/uml_driver.c          |  2 +-
+ src/vbox/vbox_common.c        |  2 +-
+ src/vmware/vmware_driver.c    |  3 ++-
+ src/vmx/vmx.c                 |  2 +-
+ src/vz/vz_driver.c            |  2 +-
+ src/xen/xen_driver.c          |  2 +-
+ src/xenapi/xenapi_driver.c    |  2 +-
+ tests/bhyveargv2xmltest.c     |  2 +-
+ tests/testutils.c             |  2 +-
+ 23 files changed, 54 insertions(+), 21 deletions(-)
+
+diff --git a/src/bhyve/bhyve_domain.c b/src/bhyve/bhyve_domain.c
+index 0a99550afa..20c82937b5 100644
+--- a/src/bhyve/bhyve_domain.c
++++ b/src/bhyve/bhyve_domain.c
+@@ -144,7 +144,7 @@ virBhyveDriverCreateXMLConf(bhyveConnPtr driver)
+     virBhyveDriverDomainDefParserConfig.priv = driver;
+     return virDomainXMLOptionNew(&virBhyveDriverDomainDefParserConfig,
+                                  &virBhyveDriverPrivateDataCallbacks,
+-                                 NULL, NULL);
++                                 NULL, NULL, NULL);
+ }
+ 
+ virDomainDefParserConfig virBhyveDriverDomainDefParserConfig = {
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 395dcc0531..b473ce6b1e 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -79,6 +79,9 @@ struct _virDomainXMLOption {
+ 
+     /* ABI stability callbacks */
+     virDomainABIStability abi;
++
++    /* Private data for save image stored in snapshot XML */
++    virSaveCookieCallbacks saveCookie;
+ };
+ 
+ #define VIR_DOMAIN_DEF_FORMAT_COMMON_FLAGS             \
+@@ -1054,7 +1057,8 @@ virDomainXMLOptionPtr
+ virDomainXMLOptionNew(virDomainDefParserConfigPtr config,
+                       virDomainXMLPrivateDataCallbacksPtr priv,
+                       virDomainXMLNamespacePtr xmlns,
+-                      virDomainABIStabilityPtr abi)
++                      virDomainABIStabilityPtr abi,
++                      virSaveCookieCallbacksPtr saveCookie)
+ {
+     virDomainXMLOptionPtr xmlopt;
+ 
+@@ -1076,6 +1080,9 @@ virDomainXMLOptionNew(virDomainDefParserConfigPtr config,
+     if (abi)
+         xmlopt->abi = *abi;
+ 
++    if (saveCookie)
++        xmlopt->saveCookie = *saveCookie;
++
+     /* Technically this forbids to use one of Xerox's MAC address prefixes in
+      * our hypervisor drivers. This shouldn't ever be a problem.
+      *
+@@ -1106,6 +1113,13 @@ virDomainXMLOptionGetNamespace(virDomainXMLOptionPtr xmlopt)
+ }
+ 
+ 
++virSaveCookieCallbacksPtr
++virDomainXMLOptionGetSaveCookie(virDomainXMLOptionPtr xmlopt)
++{
++    return &xmlopt->saveCookie;
++}
++
++
+ void
+ virBlkioDeviceArrayClear(virBlkioDevicePtr devices,
+                          int ndevices)
+diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
+index d64ef1b6e9..706d106ad9 100644
+--- a/src/conf/domain_conf.h
++++ b/src/conf/domain_conf.h
+@@ -55,6 +55,7 @@
+ # include "virgic.h"
+ # include "virperf.h"
+ # include "virtypedparam.h"
++# include "virsavecookie.h"
+ 
+ /* forward declarations of all device types, required by
+  * virDomainDeviceDef
+@@ -2549,7 +2550,11 @@ struct _virDomainABIStability {
+ virDomainXMLOptionPtr virDomainXMLOptionNew(virDomainDefParserConfigPtr config,
+                                             virDomainXMLPrivateDataCallbacksPtr priv,
+                                             virDomainXMLNamespacePtr xmlns,
+-                                            virDomainABIStabilityPtr abi);
++                                            virDomainABIStabilityPtr abi,
++                                            virSaveCookieCallbacksPtr saveCookie);
++
++virSaveCookieCallbacksPtr
++virDomainXMLOptionGetSaveCookie(virDomainXMLOptionPtr xmlopt);
+ 
+ void virDomainNetGenerateMAC(virDomainXMLOptionPtr xmlopt, virMacAddrPtr mac);
+ 
+diff --git a/src/conf/snapshot_conf.c b/src/conf/snapshot_conf.c
+index e3bba985d7..6330f7d1f9 100644
+--- a/src/conf/snapshot_conf.c
++++ b/src/conf/snapshot_conf.c
+@@ -102,6 +102,7 @@ void virDomainSnapshotDefFree(virDomainSnapshotDefPtr def)
+         virDomainSnapshotDiskDefClear(&def->disks[i]);
+     VIR_FREE(def->disks);
+     virDomainDefFree(def->dom);
++    virObjectUnref(def->cookie);
+     VIR_FREE(def);
+ }
+ 
+@@ -214,6 +215,7 @@ virDomainSnapshotDefParse(xmlXPathContextPtr ctxt,
+     char *memorySnapshot = NULL;
+     char *memoryFile = NULL;
+     bool offline = !!(flags & VIR_DOMAIN_SNAPSHOT_PARSE_OFFLINE);
++    virSaveCookieCallbacksPtr saveCookie = virDomainXMLOptionGetSaveCookie(xmlopt);
+ 
+     if (VIR_ALLOC(def) < 0)
+         goto cleanup;
+@@ -365,6 +367,9 @@ virDomainSnapshotDefParse(xmlXPathContextPtr ctxt,
+         def->current = active != 0;
+     }
+ 
++    if (!offline && virSaveCookieParse(ctxt, &def->cookie, saveCookie) < 0)
++        goto cleanup;
++
+     ret = def;
+ 
+  cleanup:
+@@ -691,7 +696,7 @@ char *
+ virDomainSnapshotDefFormat(const char *domain_uuid,
+                            virDomainSnapshotDefPtr def,
+                            virCapsPtr caps,
+-                           virDomainXMLOptionPtr xmlopt ATTRIBUTE_UNUSED,
++                           virDomainXMLOptionPtr xmlopt,
+                            unsigned int flags,
+                            int internal)
+ {
+@@ -751,6 +756,10 @@ virDomainSnapshotDefFormat(const char *domain_uuid,
+         virBufferAddLit(&buf, "</domain>\n");
+     }
+ 
++    if (virSaveCookieFormatBuf(&buf, def->cookie,
++                               virDomainXMLOptionGetSaveCookie(xmlopt)) < 0)
++        goto error;
++
+     if (internal)
+         virBufferAsprintf(&buf, "<active>%d</active>\n", def->current);
+ 
+diff --git a/src/conf/snapshot_conf.h b/src/conf/snapshot_conf.h
+index 2ce526fa6b..1d663c77bc 100644
+--- a/src/conf/snapshot_conf.h
++++ b/src/conf/snapshot_conf.h
+@@ -76,6 +76,8 @@ struct _virDomainSnapshotDef {
+ 
+     virDomainDefPtr dom;
+ 
++    virObjectPtr cookie;
++
+     /* Internal use.  */
+     bool current; /* At most one snapshot in the list should have this set */
+ };
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index b4769080e8..88e3f4b8ac 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -533,6 +533,7 @@ virDomainWatchdogActionTypeToString;
+ virDomainWatchdogModelTypeFromString;
+ virDomainWatchdogModelTypeToString;
+ virDomainXMLOptionGetNamespace;
++virDomainXMLOptionGetSaveCookie;
+ virDomainXMLOptionNew;
+ 
+ 
+diff --git a/src/libxl/libxl_conf.c b/src/libxl/libxl_conf.c
+index dd345c22cf..28d31db158 100644
+--- a/src/libxl/libxl_conf.c
++++ b/src/libxl/libxl_conf.c
+@@ -2147,5 +2147,5 @@ libxlCreateXMLConf(void)
+ {
+     return virDomainXMLOptionNew(&libxlDomainDefParserConfig,
+                                  &libxlDomainXMLPrivateDataCallbacks,
+-                                 NULL, NULL);
++                                 NULL, NULL, NULL);
+ }
+diff --git a/src/lxc/lxc_conf.c b/src/lxc/lxc_conf.c
+index b46fbc58ff..8adc408c32 100644
+--- a/src/lxc/lxc_conf.c
++++ b/src/lxc/lxc_conf.c
+@@ -213,7 +213,7 @@ lxcDomainXMLConfInit(void)
+     return virDomainXMLOptionNew(&virLXCDriverDomainDefParserConfig,
+                                  &virLXCDriverPrivateDataCallbacks,
+                                  &virLXCDriverDomainXMLNamespace,
+-                                 NULL);
++                                 NULL, NULL);
+ }
+ 
+ 
+diff --git a/src/openvz/openvz_driver.c b/src/openvz/openvz_driver.c
+index 44a6631a99..4392aa64c0 100644
+--- a/src/openvz/openvz_driver.c
++++ b/src/openvz/openvz_driver.c
+@@ -1493,7 +1493,7 @@ static virDrvOpenStatus openvzConnectOpen(virConnectPtr conn,
+         goto cleanup;
+ 
+     if (!(driver->xmlopt = virDomainXMLOptionNew(&openvzDomainDefParserConfig,
+-                                                 NULL, NULL, NULL)))
++                                                 NULL, NULL, NULL, NULL)))
+         goto cleanup;
+ 
+     if (openvzLoadDomains(driver) < 0)
+diff --git a/src/phyp/phyp_driver.c b/src/phyp/phyp_driver.c
+index e85f66ffab..32cb681c75 100644
+--- a/src/phyp/phyp_driver.c
++++ b/src/phyp/phyp_driver.c
+@@ -1199,7 +1199,7 @@ phypConnectOpen(virConnectPtr conn,
+         goto failure;
+ 
+     if (!(phyp_driver->xmlopt = virDomainXMLOptionNew(&virPhypDriverDomainDefParserConfig,
+-                                                      NULL, NULL, NULL)))
++                                                      NULL, NULL, NULL, NULL)))
+         goto failure;
+ 
+     conn->privateData = phyp_driver;
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index 72d3f25763..29bb9949af 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -5027,7 +5027,7 @@ virQEMUCapsInitQMPCommandRun(virQEMUCapsInitQMPCommandPtr cmd,
+         goto ignore;
+     }
+ 
+-    if (!(xmlopt = virDomainXMLOptionNew(NULL, NULL, NULL, NULL)) ||
++    if (!(xmlopt = virDomainXMLOptionNew(NULL, NULL, NULL, NULL, NULL)) ||
+         !(cmd->vm = virDomainObjNew(xmlopt)))
+         goto cleanup;
+ 
+diff --git a/src/qemu/qemu_conf.c b/src/qemu/qemu_conf.c
+index 76eed25277..96956b7779 100644
+--- a/src/qemu/qemu_conf.c
++++ b/src/qemu/qemu_conf.c
+@@ -908,7 +908,8 @@ virQEMUDriverCreateXMLConf(virQEMUDriverPtr driver)
+     return virDomainXMLOptionNew(&virQEMUDriverDomainDefParserConfig,
+                                  &virQEMUDriverPrivateDataCallbacks,
+                                  &virQEMUDriverDomainXMLNamespace,
+-                                 &virQEMUDriverDomainABIStability);
++                                 &virQEMUDriverDomainABIStability,
++                                 NULL);
+ }
+ 
+ 
+diff --git a/src/security/virt-aa-helper.c b/src/security/virt-aa-helper.c
+index 48201d5b8c..97436e5dc7 100644
+--- a/src/security/virt-aa-helper.c
++++ b/src/security/virt-aa-helper.c
+@@ -667,7 +667,7 @@ get_definition(vahControl * ctl, const char *xmlStr)
+         goto exit;
+     }
+ 
+-    if (!(ctl->xmlopt = virDomainXMLOptionNew(NULL, NULL, NULL, NULL))) {
++    if (!(ctl->xmlopt = virDomainXMLOptionNew(NULL, NULL, NULL, NULL, NULL))) {
+         vah_error(ctl, 0, _("Failed to create XML config object"));
+         goto exit;
+     }
+diff --git a/src/test/test_driver.c b/src/test/test_driver.c
+index c8085dd797..4fd14ddee6 100644
+--- a/src/test/test_driver.c
++++ b/src/test/test_driver.c
+@@ -414,7 +414,7 @@ testDriverNew(void)
+         goto error;
+     }
+ 
+-    if (!(ret->xmlopt = virDomainXMLOptionNew(NULL, NULL, &ns, NULL)) ||
++    if (!(ret->xmlopt = virDomainXMLOptionNew(NULL, NULL, &ns, NULL, NULL)) ||
+         !(ret->eventState = virObjectEventStateNew()) ||
+         !(ret->domains = virDomainObjListNew()) ||
+         !(ret->networks = virNetworkObjListNew()))
+diff --git a/src/uml/uml_driver.c b/src/uml/uml_driver.c
+index ae75daa596..f91ee2961e 100644
+--- a/src/uml/uml_driver.c
++++ b/src/uml/uml_driver.c
+@@ -533,7 +533,7 @@ umlStateInitialize(bool privileged,
+         goto out_of_memory;
+ 
+     if (!(uml_driver->xmlopt = virDomainXMLOptionNew(&umlDriverDomainDefParserConfig,
+-                                                     &privcb, NULL, NULL)))
++                                                     &privcb, NULL, NULL, NULL)))
+         goto error;
+ 
+     if ((uml_driver->inotifyFD = inotify_init()) < 0) {
+diff --git a/src/vbox/vbox_common.c b/src/vbox/vbox_common.c
+index c739031660..4a79c43a1a 100644
+--- a/src/vbox/vbox_common.c
++++ b/src/vbox/vbox_common.c
+@@ -139,7 +139,7 @@ vboxDriverObjNew(void)
+ 
+     if (!(driver->caps = vboxCapsInit()) ||
+         !(driver->xmlopt = virDomainXMLOptionNew(&vboxDomainDefParserConfig,
+-                                                 NULL, NULL, NULL)))
++                                                 NULL, NULL, NULL, NULL)))
+         goto cleanup;
+ 
+     return driver;
+diff --git a/src/vmware/vmware_driver.c b/src/vmware/vmware_driver.c
+index 24e97a4969..525c85edc8 100644
+--- a/src/vmware/vmware_driver.c
++++ b/src/vmware/vmware_driver.c
+@@ -114,7 +114,8 @@ vmwareDomainXMLConfigInit(void)
+     virDomainXMLPrivateDataCallbacks priv = { .alloc = vmwareDataAllocFunc,
+                                               .free = vmwareDataFreeFunc };
+ 
+-    return virDomainXMLOptionNew(&vmwareDomainDefParserConfig, &priv, NULL, NULL);
++    return virDomainXMLOptionNew(&vmwareDomainDefParserConfig, &priv,
++                                 NULL, NULL, NULL);
+ }
+ 
+ static virDrvOpenStatus
+diff --git a/src/vmx/vmx.c b/src/vmx/vmx.c
+index 3289a20026..96507f10f3 100644
+--- a/src/vmx/vmx.c
++++ b/src/vmx/vmx.c
+@@ -591,7 +591,7 @@ virDomainXMLOptionPtr
+ virVMXDomainXMLConfInit(void)
+ {
+     return virDomainXMLOptionNew(&virVMXDomainDefParserConfig, NULL,
+-                                 &virVMXDomainXMLNamespace, NULL);
++                                 &virVMXDomainXMLNamespace, NULL, NULL);
+ }
+ 
+ char *
+diff --git a/src/vz/vz_driver.c b/src/vz/vz_driver.c
+index f0b6722a6e..532a6841f3 100644
+--- a/src/vz/vz_driver.c
++++ b/src/vz/vz_driver.c
+@@ -326,7 +326,7 @@ vzDriverObjNew(void)
+     if (!(driver->caps = vzBuildCapabilities()) ||
+         !(driver->xmlopt = virDomainXMLOptionNew(&vzDomainDefParserConfig,
+                                                  &vzDomainXMLPrivateDataCallbacksPtr,
+-                                                 NULL, NULL)) ||
++                                                 NULL, NULL, NULL)) ||
+         !(driver->domains = virDomainObjListNew()) ||
+         !(driver->domainEventState = virObjectEventStateNew()) ||
+         (vzInitVersion(driver) < 0) ||
+diff --git a/src/xen/xen_driver.c b/src/xen/xen_driver.c
+index 0c160f8370..ab74ba9928 100644
+--- a/src/xen/xen_driver.c
++++ b/src/xen/xen_driver.c
+@@ -401,7 +401,7 @@ virDomainXMLOptionPtr
+ xenDomainXMLConfInit(void)
+ {
+     return virDomainXMLOptionNew(&xenDomainDefParserConfig,
+-                                 NULL, NULL, NULL);
++                                 NULL, NULL, NULL, NULL);
+ }
+ 
+ 
+diff --git a/src/xenapi/xenapi_driver.c b/src/xenapi/xenapi_driver.c
+index 5623ddb507..c94fd422f9 100644
+--- a/src/xenapi/xenapi_driver.c
++++ b/src/xenapi/xenapi_driver.c
+@@ -200,7 +200,7 @@ xenapiConnectOpen(virConnectPtr conn, virConnectAuthPtr auth,
+     }
+ 
+     if (!(privP->xmlopt = virDomainXMLOptionNew(&xenapiDomainDefParserConfig,
+-                                                NULL, NULL, NULL))) {
++                                                NULL, NULL, NULL, NULL))) {
+         xenapiSessionErrorHandler(conn, VIR_ERR_INTERNAL_ERROR,
+                                   _("Failed to create XML conf object"));
+         goto error;
+diff --git a/tests/bhyveargv2xmltest.c b/tests/bhyveargv2xmltest.c
+index 5d7261a45b..43ef76a594 100644
+--- a/tests/bhyveargv2xmltest.c
++++ b/tests/bhyveargv2xmltest.c
+@@ -131,7 +131,7 @@ mymain(void)
+         return EXIT_FAILURE;
+ 
+     if ((driver.xmlopt = virDomainXMLOptionNew(NULL, NULL,
+-                                               NULL, NULL)) == NULL)
++                                               NULL, NULL, NULL)) == NULL)
+         return EXIT_FAILURE;
+ 
+ # define DO_TEST_FULL(name, flags)                            \
+diff --git a/tests/testutils.c b/tests/testutils.c
+index b7dc8d8408..0823469068 100644
+--- a/tests/testutils.c
++++ b/tests/testutils.c
+@@ -1136,7 +1136,7 @@ virDomainXMLOptionPtr virTestGenericDomainXMLConfInit(void)
+ {
+     return virDomainXMLOptionNew(&virTestGenericDomainDefParserConfig,
+                                  &virTestGenericPrivateDataCallbacks,
+-                                 NULL, NULL);
++                                 NULL, NULL, NULL);
+ }
+ 
+ 
+-- 
+2.13.1
+

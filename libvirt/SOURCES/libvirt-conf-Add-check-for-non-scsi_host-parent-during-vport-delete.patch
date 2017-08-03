@@ -1,0 +1,46 @@
+From aa337656da6b3e44ccaae85ec64538dee80000cf Mon Sep 17 00:00:00 2001
+Message-Id: <aa337656da6b3e44ccaae85ec64538dee80000cf@dist-git>
+From: John Ferlan <jferlan@redhat.com>
+Date: Thu, 13 Apr 2017 10:38:35 -0400
+Subject: [PATCH] conf: Add check for non scsi_host parent during vport delete
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1420740
+
+If the parent is not a scsi_host, then we can just happily return since
+we won't be removing a vport.
+
+Fixes a bug with the following output:
+
+$ virsh pool-destroy host4_hba_pool
+error: Failed to destroy pool host4_hba_pool
+error: internal error: Invalid adapter name 'pci_0000_10_00_1' for SCSI pool
+
+$
+
+(cherry picked from commit 84f178bdc7ab38011cc1f76759b0a41335285a4f)
+Signed-off-by: John Ferlan <jferlan@redhat.com>
+---
+ src/conf/node_device_conf.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/src/conf/node_device_conf.c b/src/conf/node_device_conf.c
+index 7d0baa9d1..cc3fad8b9 100644
+--- a/src/conf/node_device_conf.c
++++ b/src/conf/node_device_conf.c
+@@ -2074,6 +2074,13 @@ virNodeDeviceDeleteVport(virConnectPtr conn,
+         if (!(vhba_parent = virNodeDeviceGetParentName(conn, scsi_host_name)))
+             goto cleanup;
+ 
++        /* If the parent is not a scsi_host, then this is a pool backed
++         * directly to an HBA and there's no vHBA to remove - so we're done */
++        if (!STRPREFIX(vhba_parent, "scsi_host")) {
++            ret = 0;
++            goto cleanup;
++        }
++
+         if (virSCSIHostGetNumber(vhba_parent, &parent_host) < 0)
+             goto cleanup;
+     }
+-- 
+2.12.2
+

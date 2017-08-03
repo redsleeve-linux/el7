@@ -1,0 +1,28 @@
+From 895f884671924f4c259911eb6d4a4207ab215596 Mon Sep 17 00:00:00 2001
+From: Amit Upadhye <upadhyeammit@gmail.com>
+Date: Wed, 4 Jan 2017 14:36:34 +0530
+Subject: [PATCH] Fix for 'history package-list'
+
+---
+ yum/history.py | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/yum/history.py b/yum/history.py
+index f1295de..5e2c035 100644
+--- a/yum/history.py
++++ b/yum/history.py
+@@ -1471,9 +1471,9 @@ class YumHistory:
+         params = list(pkgtupids)
+         tids = set()
+         if len(params) > yum.constants.PATTERNS_INDEXED_MAX:
+-            executeSQL(cur, """SELECT tid FROM trans_data_pkgs""")
++            executeSQL(cur, """SELECT tid,pkgtupid FROM trans_data_pkgs""")
+             for row in cur:
+-                if row[0] in params:
++                if row[1] in params:
+                     tids.add(row[0])
+             return tids
+         if not params:
+-- 
+2.4.11
+

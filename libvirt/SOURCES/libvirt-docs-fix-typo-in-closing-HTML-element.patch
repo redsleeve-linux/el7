@@ -1,0 +1,32 @@
+From 3983bc29326d6f247d4dc3517ca42896042c02e0 Mon Sep 17 00:00:00 2001
+Message-Id: <3983bc29326d6f247d4dc3517ca42896042c02e0@dist-git>
+From: "Daniel P. Berrange" <berrange@redhat.com>
+Date: Tue, 25 Apr 2017 13:41:18 +0200
+Subject: [PATCH] docs: fix typo in closing HTML element
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1414627
+
+Signed-off-by: Daniel P. Berrange <berrange@redhat.com>
+(cherry picked from commit dfda3a8ed988e6542294b85b78e816d593b22dc3)
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ docs/formatdomain.html.in | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/docs/formatdomain.html.in b/docs/formatdomain.html.in
+index 7374cb243..c82cd69a2 100644
+--- a/docs/formatdomain.html.in
++++ b/docs/formatdomain.html.in
+@@ -5457,7 +5457,7 @@ qemu-kvm -net nic,model=? /dev/null
+       This element provides means of setting coalesce settings for
+       some interface devices (currently only type <code>network</code>
+       and <code>bridge</code>.  Currently there is just one attribute,
+-      <code>max</code>, to tweak, in element <code>frames<code> for
++      <code>max</code>, to tweak, in element <code>frames</code> for
+       the <code>rx</code> group, which accepts a non-negative integer
+       that specifies the maximum number of packets that will be
+       received before an interrupt.
+-- 
+2.12.2
+

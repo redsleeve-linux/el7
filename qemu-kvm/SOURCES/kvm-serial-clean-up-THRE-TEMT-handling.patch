@@ -1,15 +1,15 @@
-From 9afba2b1b9f8c2af3165fb0d9b68888996fe2330 Mon Sep 17 00:00:00 2001
+From 1b37b298fc1f0d69e24229191e4bbe741e4d96ab Mon Sep 17 00:00:00 2001
 From: Fam Zheng <famz@redhat.com>
-Date: Fri, 19 May 2017 00:35:17 +0200
+Date: Thu, 18 May 2017 09:21:25 +0200
 Subject: [PATCH 12/18] serial: clean up THRE/TEMT handling
 
 RH-Author: Fam Zheng <famz@redhat.com>
-Message-id: <20170519003523.21163-13-famz@redhat.com>
-Patchwork-id: 75367
-O-Subject: [RHEL-7.3.z qemu-kvm PATCH 12/18] serial: clean up THRE/TEMT handling
-Bugzilla: 1452332
+Message-id: <20170518092131.16571-13-famz@redhat.com>
+Patchwork-id: 75303
+O-Subject: [RHEL-7.4 qemu-kvm PATCH v3 12/18] serial: clean up THRE/TEMT handling
+Bugzilla: 1451470
 RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
-RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
 RH-Acked-by: Eduardo Habkost <ehabkost@redhat.com>
 
 From: Paolo Bonzini <pbonzini@redhat.com>

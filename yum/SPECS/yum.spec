@@ -32,11 +32,11 @@
 Summary: RPM package installer/updater/manager
 Name: yum
 Version: 3.4.3
-Release: 150%{?dist}.redsleeve
+Release: 154%{?dist}
 License: GPLv2+
 Group: System Environment/Base
 Source0: http://yum.baseurl.org/download/3.4/%{name}-%{version}.tar.gz
-Source1: yum.conf.redsleeve
+Source1: yum.conf.centos
 Source2: yum-updatesd.conf.fedora
 Patch1: yum-distro-configs.patch
 Patch5: geode-arch.patch
@@ -92,8 +92,6 @@ Patch164: BZ-1233152-pvm-api-lv_attr.patch
 Patch165: BZ-1244119-fssnapshot-automatic-percentage-manpage.patch
 Patch166: BZ-1259837-igroups-empty-lines.patch
 
-Patch1000: redsleeve-branding-yum.patch
-
 # rhel-7.3
 Patch200: BZ-1267234-groupinstall-fail-on-non-existent.patch
 Patch201: BZ-1274211-skip-missing-names.patch
@@ -135,6 +133,22 @@ Patch236: BZ-1335250-fssnapshot-handle-lvm-errors.patch
 Patch237: BZ-1356797-silent-exception.patch
 Patch238: BZ-1377328-_metadata_cache_req.patch
 
+# rhel-7.4
+Patch250: BZ-1389816-include-repoid-in-timestamp-error.patch
+Patch251: BZ-1369389-dont-recommend-makecache-if-running.patch
+Patch252: BZ-1194915-add-logging-for-bad-notice-dupes.patch
+Patch253: BZ1410326-Fix-for-history-package-list.patch
+Patch254: BZ-1399628-updateinfo-fix-wrong-pkg-count.patch
+Patch255: BZ-1391507-fix-filelist-queries-for-dup-pkgs.patch
+Patch256: BZ-1343690-add-payload-gpgcheck-opt.patch
+Patch257: BZ-1357083-clean-all-add-hint-rm-rf.patch
+Patch258: BZ-1370134-yum-check-ignore-self-conflicts.patch
+Patch259: BZ-1352585-detect-installed-provide.patch
+Patch260: BZ-1397829-fix-reget-simple-md-fnames.patch
+
+#CentOS Branding
+Patch1000: centos-branding-yum.patch
+
 URL: http://yum.baseurl.org/
 BuildArchitectures: noarch
 BuildRequires: python
@@ -153,7 +167,7 @@ BuildRequires: pygpgme
 Conflicts: pirut < 1.1.4
 Requires: python >= 2.4
 Requires: yum-plugin-fastestmirror
-Requires: rpm-python, rpm >= 0:4.4.2
+Requires: rpm-python, rpm >= 0:4.11.3-22
 Requires: python-iniparse
 Requires: python-sqlite
 Requires: python-urlgrabber >= 3.10-8
@@ -350,6 +364,19 @@ Install this package if you want auto yum updates nightly via cron.
 %patch236 -p1
 %patch237 -p1
 %patch238 -p1
+
+# rhel-7.4
+%patch250 -p1
+%patch251 -p1
+%patch252 -p1
+%patch253 -p1
+%patch254 -p1
+%patch255 -p1
+%patch256 -p1
+%patch257 -p1
+%patch258 -p1
+%patch259 -p1
+%patch260 -p1
 
 %patch1000 -p1
 
@@ -583,15 +610,42 @@ exit 0
 %endif
 
 %changelog
-* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> - 3.4.3-150.el7.redsleeve
-- RedSleeve rebranding
-
-* Thu Nov 03 2016 CentOS Sources <bugs@centos.org> - 3.4.3-150.el7.centos
+* Tue Aug 01 2017 CentOS Sources <bugs@centos.org> - 3.4.3-154.el7.centos
 - CentOS yum config
 -  use the CentOS bug tracker url
 -  retain installonly limit of 5
 -  ensure distrover is always from centos-release
 - Make yum require yum-plugin-fastestmirror
+
+* Mon Mar 27 2017 Valentina Mukhamedzhanova <vmukhame@redhat.com> - 3.4.3-154
+- Add payload_gpgcheck option.
+- Resolves: bug#1343690
+- Add hint about rm -rf for yum clean all.
+- Resolves: bug#1357083
+- Have "yum check" ignore self conflicts.
+- Resolves: bug#1370134
+- Detect installed virtual provide in install().
+- Resolves: bug#1352585
+- Fix reget problems with simple md filenames.
+- Resolves: bug#1397829
+
+* Thu Mar 02 2017 Valentina Mukhamedzhanova <vmukhame@redhat.com> - 3.4.3-153
+- Filter duplicates when counting security updates.
+- Resolves: bug#1399628
+- sqlitesack: fix filelist queries for duplicate pkgs.
+- Resolves: bug#1391507
+
+* Mon Feb 06 2017 Valentina Mukhamedzhanova <vmukhame@redhat.com> - 3.4.3-152
+- Fix 'history package-list'.
+- Resolves: bug#1410326
+
+* Thu Feb 02 2017 Valentina Mukhamedzhanova <vmukhame@redhat.com> - 3.4.3-151
+- Add repo-id to repomd timestamp error message.
+- Resolves: bug#1389816
+- Don't recommend makecache if just running.
+- Resolves: bug#1369389
+- Add logging of bad update notice duplicates.
+- Resolves: bug#1194915
 
 * Mon Sep 19 2016 Valentina Mukhamedzhanova <vmukhame@redhat.com> - 3.4.3-150
 - Check for _metadata_cache_req properly.

@@ -1,0 +1,40 @@
+From 9897f81c5182ee11e55d350f48968d608ef79f8b Mon Sep 17 00:00:00 2001
+From: Stanislav Laznicka <slaznick@redhat.com>
+Date: Fri, 24 Mar 2017 14:47:38 +0100
+Subject: [PATCH] Bump samba version for FIPS and priv. separation
+
+With the latest Samba, adding trusts to AD under FIPS should now work
+as well as adding trusts as a whole after the privilege separation
+rework.
+
+https://pagure.io/freeipa/issue/6671
+https://pagure.io/freeipa/issue/6697
+
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+---
+ freeipa.spec.in | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/freeipa.spec.in b/freeipa.spec.in
+index 18291a5793a6b69dcd719f42e80e1652169e5e1d..5419ed10723fc7aa3ecc1b3f66b3ef1c8b38b12f 100644
+--- a/freeipa.spec.in
++++ b/freeipa.spec.in
+@@ -36,11 +36,13 @@
+ 
+ %global alt_name ipa
+ %if 0%{?rhel}
+-%global samba_version 4.0.5-1
++# Require 4.6.0-4 which brings RC4 for FIPS + trust fixes to priv. separation
++%global samba_version 4.6.0-4
+ %global selinux_policy_version 3.12.1-153
+ %global slapi_nis_version 0.56.0-4
+ %else
+-%global samba_version 2:4.0.5-1
++# Require 4.6.0-4 which brings RC4 for FIPS + trust fixes to priv. separation
++%global samba_version 2:4.6.0-4
+ %global selinux_policy_version 3.13.1-158.4
+ %global slapi_nis_version 0.56.1
+ %endif
+-- 
+2.12.1
+

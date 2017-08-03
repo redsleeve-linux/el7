@@ -1,4 +1,4 @@
-From 6d5c0e0e98907244d72e7828337d7ff6160b6b80 Mon Sep 17 00:00:00 2001
+From 92a638cb3b0601746d47b4a443762fe71bb21431 Mon Sep 17 00:00:00 2001
 From: Ladi Prosek <lprosek@redhat.com>
 Date: Thu, 10 Nov 2016 23:00:51 +0100
 Subject: [PATCH 8/8] virtio-balloon: fix stats vq migration
@@ -7,7 +7,7 @@ RH-Author: Ladi Prosek <lprosek@redhat.com>
 Message-id: <1478797251-10302-2-git-send-email-lprosek@redhat.com>
 Patchwork-id: 72819
 O-Subject: [PATCH v2 8/6] virtio-balloon: fix stats vq migration
-Bugzilla: 1393484
+Bugzilla: 1377968
 RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
 RH-Acked-by: Michael S. Tsirkin <mst@redhat.com>
 RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>

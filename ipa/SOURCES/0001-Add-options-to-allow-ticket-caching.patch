@@ -1,0 +1,39 @@
+From 6c4d53f843575d5e69a0c310cdb2e5026751faa4 Mon Sep 17 00:00:00 2001
+From: Simo Sorce <simo@redhat.com>
+Date: Mon, 6 Mar 2017 13:46:44 -0500
+Subject: [PATCH] Add options to allow ticket caching
+
+This new option (planned to land in gssproxy 0.7) we cache the ldap
+ticket properly and avoid a ticket lookup to the KDC on each and every
+ldap connection. (Also requires krb5 libs 1.15.1 to benefit from caching).
+
+Ticket: https://pagure.io/freeipa/issue/6771
+
+Signed-off-by: Simo Sorce <simo@redhat.com>
+Reviewed-By: Martin Babinsky <mbabinsk@redhat.com>
+---
+ install/share/gssproxy.conf.template | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/install/share/gssproxy.conf.template b/install/share/gssproxy.conf.template
+index fbb158a689a430168ea9841d59cb558755371968..9d111009f5a5ba24dd474be336bf0cb27ab59aab 100644
+--- a/install/share/gssproxy.conf.template
++++ b/install/share/gssproxy.conf.template
+@@ -4,6 +4,7 @@
+   cred_store = keytab:$HTTP_KEYTAB
+   cred_store = client_keytab:$HTTP_KEYTAB
+   allow_protocol_transition = true
++  allow_client_ccache_sync = true
+   cred_usage = both
+   euid = $HTTPD_USER
+ 
+@@ -12,5 +13,6 @@
+   cred_store = keytab:$HTTP_KEYTAB
+   cred_store = client_keytab:$HTTP_KEYTAB
+   allow_constrained_delegation = true
++  allow_client_ccache_sync = true
+   cred_usage = initiate
+   euid = $IPAAPI_USER
+-- 
+2.12.0
+

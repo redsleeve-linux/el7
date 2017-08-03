@@ -1,0 +1,31 @@
+From 348fdfd66d9b3ab0214af91d193ae93b9969610e Mon Sep 17 00:00:00 2001
+From: Stanislav Laznicka <slaznick@redhat.com>
+Date: Tue, 9 May 2017 17:49:56 +0200
+Subject: [PATCH] cert-show: writable files does not mean dirs
+
+ipalib.util.check_writable_file didn't check whether the argument
+is an actual file which is now fixed.
+
+https://pagure.io/freeipa/issue/6883
+
+Reviewed-By: Fraser Tweedale <ftweedal@redhat.com>
+---
+ ipalib/util.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ipalib/util.py b/ipalib/util.py
+index 8973a19abf56d1d1c5ba04f6edb4228dd2329e65..713fc107e9374eefe7805bc4e1abc40b6d150c32 100644
+--- a/ipalib/util.py
++++ b/ipalib/util.py
+@@ -170,7 +170,7 @@ def check_writable_file(filename):
+     if filename is None:
+         raise errors.FileError(reason=_('Filename is empty'))
+     try:
+-        if os.path.exists(filename):
++        if os.path.isfile(filename):
+             if not os.access(filename, os.W_OK):
+                 raise errors.FileError(reason=_('Permission denied: %(file)s') % dict(file=filename))
+         else:
+-- 
+2.9.3
+

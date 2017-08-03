@@ -1,0 +1,129 @@
+diff -up yum-3.4.3/docs/yum.conf.5.orig yum-3.4.3/docs/yum.conf.5
+--- yum-3.4.3/docs/yum.conf.5.orig	2017-03-23 13:48:19.700471026 +0100
++++ yum-3.4.3/docs/yum.conf.5	2017-03-23 13:48:21.455461060 +0100
+@@ -105,6 +105,31 @@ signature check on the repodata. When th
+ default for all repositories. The default is `0'.
+ 
+ .IP
++\fBpayload_gpgcheck\fR
++Either `1' or `0'. This tells yum whether or not it should also perform a GPG
++signature check on the payload (part of a package holding the actual files that
++comprise the package).
++
++By default, yum only performs GPG signature checks on package headers.
++Thus, if the payload data has been tampered with or corrupted, yum will fail in
++the middle of the transaction due to an RPM unpacking error, after some
++unverified scriptlets might have already run, and possibly leave the package in
++question partly installed.
++
++To prevent all of that, you can enable this option to extend the signature
++check to also include the payload, so that yum can avoid running the
++transaction in case of payload corruption.
++This slightly improves security, however at the expense of significantly
++increased transaction time, so you may want to only use this option when
++package corruption is a concern.
++
++For this option to have effect, make sure to also enable gpgcheck (or
++localpkg_gpgcheck for local packages).
++
++When this option is set in the [main] section it sets the default for all
++repositories. The default is `0'.
++
++.IP
+ \fBskip_broken\fR
+ Either `1' or `0'. Resolve depsolve problems by removing packages that
+ are causing problems from the transaction.
+diff -up yum-3.4.3/rpmUtils/miscutils.py.orig yum-3.4.3/rpmUtils/miscutils.py
+--- yum-3.4.3/rpmUtils/miscutils.py.orig	2011-06-28 22:27:22.000000000 +0200
++++ yum-3.4.3/rpmUtils/miscutils.py	2017-03-23 13:48:21.455461060 +0100
+@@ -58,11 +58,16 @@ def compareVerOnly(v1, v2):
+     """compare version strings only using rpm vercmp"""
+     return compareEVR(('', v1, ''), ('', v2, ''))
+     
+-def checkSig(ts, package):
+-    """Takes a transaction set and a package, check it's sigs, 
++def checkSig(ts, package, payload=False):
++    """Takes a transaction set and a package, check it's sigs.
++
++    By default, only RPMv4 sigs (header-only) will be verified (faster).  By
++    setting payload to True, RPMv3 sigs (header+payload) will also be verified
++    (slower).
++
+     return 0 if they are all fine
+     return 1 if the gpg key can't be found
+-    return 2 if the header is in someway damaged
++    return 2 if the header or payload is in someway damaged
+     return 3 if the key is not trusted 
+     return 4 if the pkg is not gpg or pgp signed"""
+     
+@@ -89,6 +94,24 @@ def checkSig(ts, package):
+         else:
+             del hdr
+ 
++    # Don't perform the payload check if the header check failed, otherwise we
++    # could mask the reason stored in "value" (we only return one integer from
++    # this function and shouldn't change that).
++    if payload and value == 0:
++        os.lseek(fdno, 0, 0)
++        # We don't want the OK message to pollute the output but we do want the
++        # BAD message (verbose version) in case of a failure, which is only
++        # possible by running _verifySigs() twice (temporary hack until we have
++        # the proper API for payload verification in RPM).
++        rpm.setVerbosity(rpm.RPMLOG_WARNING)
++        valid = ts._verifySigs(fdno, package)
++        if not valid:
++            value = 2
++            os.lseek(fdno, 0, 0)
++            rpm.setVerbosity(rpm.RPMLOG_INFO)
++            ts._verifySigs(fdno, package)
++        rpm.setVerbosity(rpm.RPMLOG_NOTICE)
++
+     try:
+         os.close(fdno)
+     except OSError, e: # if we're not opened, don't scream about it
+diff -up yum-3.4.3/rpmUtils/transaction.py.orig yum-3.4.3/rpmUtils/transaction.py
+--- yum-3.4.3/rpmUtils/transaction.py.orig	2017-03-23 13:48:19.441472497 +0100
++++ yum-3.4.3/rpmUtils/transaction.py	2017-03-23 13:48:21.455461060 +0100
+@@ -35,7 +35,8 @@ class TransactionWrapper:
+                          'setProbFilter',
+                          'hdrFromFdno',
+                          'next',
+-                         'clean']
++                         'clean',
++                         '_verifySigs']
+         self.tsflags = []
+         self.open = True
+ 
+diff -up yum-3.4.3/yum/config.py.orig yum-3.4.3/yum/config.py
+--- yum-3.4.3/yum/config.py.orig	2017-03-23 13:48:19.701471020 +0100
++++ yum-3.4.3/yum/config.py	2017-03-23 13:48:21.456461055 +0100
+@@ -46,6 +46,7 @@ from misc import get_uuid, read_in_items
+ # Alter/patch these to change the default checking...
+ __pkgs_gpgcheck_default__ = False
+ __repo_gpgcheck_default__ = False
++__payload_gpgcheck_default__ = False
+ __main_multilib_policy_default__ = 'all'
+ __main_failovermethod_default__ = 'roundrobin'
+ __main_installonly_limit_default__ = 0
+@@ -786,6 +787,7 @@ class YumConf(StartupConf):
+     gpgcheck = BoolOption(__pkgs_gpgcheck_default__)
+     repo_gpgcheck = BoolOption(__repo_gpgcheck_default__)
+     localpkg_gpgcheck = BoolOption(__pkgs_gpgcheck_default__)
++    payload_gpgcheck = BoolOption(__payload_gpgcheck_default__)
+     obsoletes = BoolOption(True)
+     showdupesfromrepos = BoolOption(False)
+     enabled = BoolOption(True)
+diff -up yum-3.4.3/yum/__init__.py.orig yum-3.4.3/yum/__init__.py
+--- yum-3.4.3/yum/__init__.py.orig	2017-03-23 13:48:19.731470850 +0100
++++ yum-3.4.3/yum/__init__.py	2017-03-23 13:48:21.456461055 +0100
+@@ -2755,7 +2755,9 @@ much more problems).
+         
+         if check:
+             ts = self.rpmdb.readOnlyTS()
+-            sigresult = rpmUtils.miscutils.checkSig(ts, po.localPkg())
++            sigresult = rpmUtils.miscutils.checkSig(
++                ts, po.localPkg(), payload=self.conf.payload_gpgcheck,
++            )
+             localfn = os.path.basename(po.localPkg())
+             
+             if sigresult == 0:

@@ -1,0 +1,93 @@
+From 4df20255c1738526696ea72af6fc70e9c6aa6694 Mon Sep 17 00:00:00 2001
+From: Alexander Bokovoy <abokovoy@redhat.com>
+Date: Mon, 12 Jun 2017 11:05:06 +0300
+Subject: [PATCH] trust-mod: allow modifying list of UPNs of a trusted forest
+
+There are two ways for maintaining user principal names (UPNs) in Active
+Directory:
+ - associate UPN suffixes with the forest root and then allow for each
+   user account to choose UPN suffix for logon
+ - directly modify userPrincipalName attribute in LDAP
+
+Both approaches lead to the same result: AD DC accepts user@UPN-Suffix
+as a proper principal in AS-REQ and TGS-REQ.
+
+The latter (directly modify userPrincipalName) case has a consequence
+that this UPN suffix is not visible via netr_DsRGetForestTrustInformation
+DCE RPC call. As result, FreeIPA KDC will not know that a particular UPN
+suffix does belong to a trusted Active Directory forest. As result, SSSD
+will not be able to authenticate and validate this user from a trusted
+Active Directory forest.
+
+This is especially true for one-word UPNs which otherwise wouldn't work
+properly on Kerberos level for both FreeIPA and Active Directory.
+
+Administrators are responsible for amending the list of UPNs associated
+with the forest in this case. With this commit, an option is added to
+'ipa trust-mod' that allows specifying arbitrary UPN suffixes to a
+trusted forest root.
+
+As with all '-mod' commands, the change replaces existing UPNs when
+applied, so administrators are responsible to specify all of them:
+
+  ipa trust-mod ad.test --upn-suffixes={existing.upn,another_upn,new}
+
+Fixes: https://pagure.io/freeipa/issue/7015
+Reviewed-By: Martin Babinsky <mbabinsk@redhat.com>
+---
+ API.txt                    | 3 ++-
+ VERSION.m4                 | 4 ++--
+ ipaserver/plugins/trust.py | 3 ++-
+ 3 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/API.txt b/API.txt
+index 6511ad8d1cb4dc9079628fc058312f31aaec624d..86229156adfba829a46b6a831ad6843cc1a17d6a 100644
+--- a/API.txt
++++ b/API.txt
+@@ -5769,11 +5769,12 @@ output: ListOfEntries('result')
+ output: Output('summary', type=[<type 'unicode'>, <type 'NoneType'>])
+ output: Output('truncated', type=[<type 'bool'>])
+ command: trust_mod/1
+-args: 1,9,3
++args: 1,10,3
+ arg: Str('cn', cli_name='realm')
+ option: Str('addattr*', cli_name='addattr')
+ option: Flag('all', autofill=True, cli_name='all', default=False)
+ option: Str('delattr*', cli_name='delattr')
++option: Str('ipantadditionalsuffixes*', autofill=False, cli_name='upn_suffixes')
+ option: Str('ipantsidblacklistincoming*', autofill=False, cli_name='sid_blacklist_incoming')
+ option: Str('ipantsidblacklistoutgoing*', autofill=False, cli_name='sid_blacklist_outgoing')
+ option: Flag('raw', autofill=True, cli_name='raw', default=False)
+diff --git a/VERSION.m4 b/VERSION.m4
+index 8aa3ef03f352cd176579c5d5848ed9550f22105d..25aaa1dd0e3c2868e63300dec7fe9228f1ebcb43 100644
+--- a/VERSION.m4
++++ b/VERSION.m4
+@@ -73,8 +73,8 @@ define(IPA_DATA_VERSION, 20100614120000)
+ #                                                      #
+ ########################################################
+ define(IPA_API_VERSION_MAJOR, 2)
+-define(IPA_API_VERSION_MINOR, 227)
+-# Last change: Add `pkinit-status` command
++define(IPA_API_VERSION_MINOR, 228)
++# Last change: Expose ipaNTAdditionalSuffixes in trust-mod
+ 
+ 
+ ########################################################
+diff --git a/ipaserver/plugins/trust.py b/ipaserver/plugins/trust.py
+index 075b39dcc33a79f3e73e8e1e9e31ebbef17618fe..d0bbfbc47ca65c9c5229685fc9d202c293fe41cd 100644
+--- a/ipaserver/plugins/trust.py
++++ b/ipaserver/plugins/trust.py
+@@ -553,8 +553,9 @@ class trust(LDAPObject):
+             flags={'virtual_attribute', 'no_create', 'no_update', 'no_search'},
+         ),
+         Str('ipantadditionalsuffixes*',
++            cli_name='upn_suffixes',
+             label=_('UPN suffixes'),
+-            flags={'no_create', 'no_update', 'no_search'},
++            flags={'no_create', 'no_search'},
+         ),
+     )
+ 
+-- 
+2.9.4
+

@@ -1185,6 +1185,18 @@ diff -uNrp sos-3.0.orig/po/zu.po sos-3.0/po/zu.po
  msgstr ""
  
  #: ../sos/policyredhat.py:401
+diff -uNrp sos-3.2.orig/sos/plugins/cluster.py sos-3.2/sos/plugins/cluster.py
+--- sos-3.2.orig/sos/plugins/cluster.py	2014-09-30 12:38:28.000000000 -0500
++++ sos-3.2/sos/plugins/cluster.py	2015-03-09 14:58:02.982869116 -0500
+@@ -19,7 +19,7 @@ from datetime import datetime, timedelta
+ 
+ 
+ class Cluster(Plugin, RedHatPlugin):
+-    """Red Hat Cluster Suite and GFS
++    """Cluster Suite and GFS
+     """
+ 
+     plugin_name = 'cluster'
 diff -uNrp sos-3.2.orig/sos/plugins/cs.py sos-3.2/sos/plugins/cs.py
 --- sos-3.2.orig/sos/plugins/cs.py	2014-09-30 12:38:28.000000000 -0500
 +++ sos-3.2/sos/plugins/cs.py	2015-03-09 14:58:20.085778645 -0500
@@ -1197,6 +1209,30 @@ diff -uNrp sos-3.2.orig/sos/plugins/cs.py sos-3.2/sos/plugins/cs.py
              return
          if csversion == 71:
              self.add_copy_spec([
+diff -uNrp sos-3.2.orig/sos/plugins/hts.py sos-3.2/sos/plugins/hts.py
+--- sos-3.2.orig/sos/plugins/hts.py	2014-09-30 12:38:28.000000000 -0500
++++ sos-3.2/sos/plugins/hts.py	2015-03-09 14:58:36.973689309 -0500
+@@ -16,7 +16,7 @@ from sos.plugins import Plugin, RedHatPl
+ 
+ 
+ class HardwareTestSuite(Plugin, RedHatPlugin):
+-    """Red Hat Hardware Test Suite
++    """Hardware Test Suite
+     """
+ 
+     plugin_name = 'hardwaretestsuite'
+diff -uNrp sos-3.2.orig/sos/plugins/__init__.py sos-3.2/sos/plugins/__init__.py
+--- sos-3.2.orig/sos/plugins/__init__.py	2015-03-09 14:50:34.162237962 -0500
++++ sos-3.2/sos/plugins/__init__.py	2015-03-09 14:58:56.861584108 -0500
+@@ -732,7 +732,7 @@ class Plugin(object):
+ 
+ 
+ class RedHatPlugin(object):
+-    """Tagging class to indicate that this plugin works with Red Hat Linux"""
++    """Tagging class to indicate that this plugin works with CentOS Linux"""
+     pass
+ 
+ 
 diff -uNrp sos-3.2.orig/sos/plugins/rhui.py sos-3.2/sos/plugins/rhui.py
 --- sos-3.2.orig/sos/plugins/rhui.py	2014-09-30 12:38:28.000000000 -0500
 +++ sos-3.2/sos/plugins/rhui.py	2015-03-09 14:59:16.909478057 -0500
@@ -1209,124 +1245,10 @@ diff -uNrp sos-3.2.orig/sos/plugins/rhui.py sos-3.2/sos/plugins/rhui.py
      """
  
      plugin_name = 'rhui'
-diff -uNrp sos-3.3.orig/sos/plugins/apache.py sos-3.3/sos/plugins/apache.py
---- sos-3.3.orig/sos/plugins/apache.py	2016-06-29 18:24:47.000000000 +0000
-+++ sos-3.3/sos/plugins/apache.py	2016-11-29 17:52:51.172397399 +0000
-@@ -47,7 +47,7 @@ class RedHatApache(Apache, RedHatPlugin)
-             # JBoss Enterprise Web Server 2.x
-             "/etc/httpd22/conf/httpd.conf",
-             "/etc/httpd22/conf.d/*.conf",
--            # Red Hat JBoss Web Server 3.x
-+            # JBoss Web Server 3.x
-             "/etc/httpd24/conf/httpd.conf",
-             "/etc/httpd24/conf.d/*.conf",
-             "/etc/httpd24/conf.modules.d/*.conf",
-@@ -65,7 +65,7 @@ class RedHatApache(Apache, RedHatPlugin)
-         self.add_copy_spec_limit("/var/log/httpd22/error_log", 5)
-         self.add_copy_spec_limit("/var/log/httpd22/ssl_access_log", 5)
-         self.add_copy_spec_limit("/var/log/httpd22/ssl_error_log", 5)
--        # Red Hat JBoss Web Server 3.x
-+        # JBoss Web Server 3.x
-         self.add_copy_spec_limit("/var/log/httpd24/access_log", 5)
-         self.add_copy_spec_limit("/var/log/httpd24/error_log", 5)
-         self.add_copy_spec_limit("/var/log/httpd24/ssl_access_log", 5)
-@@ -75,7 +75,7 @@ class RedHatApache(Apache, RedHatPlugin)
-                 "/var/log/httpd/*",
-                 # JBoss Enterprise Web Server 2.x
-                 "/var/log/httpd22/*",
--                # Red Hat JBoss Web Server 3.x
-+                # JBoss Web Server 3.x
-                 "/var/log/httpd24/*"
-             ])
- 
-diff -uNrp sos-3.3.orig/sos/plugins/cman.py sos-3.3/sos/plugins/cman.py
---- sos-3.3.orig/sos/plugins/cman.py	2016-06-29 18:24:47.000000000 +0000
-+++ sos-3.3/sos/plugins/cman.py	2016-11-29 17:53:16.213291435 +0000
-@@ -18,7 +18,7 @@ from glob import glob
- 
- 
- class Cman(Plugin, RedHatPlugin):
--    """cman based Red Hat Cluster High Availability
-+    """cman based Cluster High Availability
-     """
- 
-     plugin_name = "cman"
-diff -uNrp sos-3.3.orig/sos/plugins/hts.py sos-3.3/sos/plugins/hts.py
---- sos-3.3.orig/sos/plugins/hts.py	2016-06-29 18:24:47.000000000 +0000
-+++ sos-3.3/sos/plugins/hts.py	2016-11-29 17:53:37.484205901 +0000
-@@ -16,7 +16,7 @@ from sos.plugins import Plugin, RedHatPl
- 
- 
- class HardwareTestSuite(Plugin, RedHatPlugin):
--    """Red Hat Hardware Test Suite
-+    """Hardware Test Suite
-     """
- 
-     plugin_name = 'hts'
-diff -uNrp sos-3.3.orig/sos/plugins/__init__.py sos-3.3/sos/plugins/__init__.py
---- sos-3.3.orig/sos/plugins/__init__.py	2016-11-29 17:50:21.145173306 +0000
-+++ sos-3.3/sos/plugins/__init__.py	2016-11-29 17:54:05.412099267 +0000
-@@ -948,7 +948,7 @@ class Plugin(object):
- 
- 
- class RedHatPlugin(object):
--    """Tagging class for Red Hat's Linux distributions"""
-+    """Tagging class for CentOS Linux distributions"""
-     pass
- 
- 
-diff -uNrp sos-3.3.orig/sos/plugins/insights.py sos-3.3/sos/plugins/insights.py
---- sos-3.3.orig/sos/plugins/insights.py	2016-06-29 18:24:47.000000000 +0000
-+++ sos-3.3/sos/plugins/insights.py	2016-11-29 17:54:28.404015881 +0000
-@@ -16,7 +16,7 @@ from sos.plugins import Plugin, RedHatPl
- 
- 
- class RedHatAccessInsights(Plugin, RedHatPlugin):
--    '''Collect config and log for Red Hat Access Insights
-+    '''Collect config and log for Access Insights
-     '''
-     plugin_name = 'insights'
-     packages = ['redhat-access-insights']
-diff -uNrp sos-3.3.orig/sos/plugins/kubernetes.py sos-3.3/sos/plugins/kubernetes.py
---- sos-3.3.orig/sos/plugins/kubernetes.py	2016-06-29 18:24:47.000000000 +0000
-+++ sos-3.3/sos/plugins/kubernetes.py	2016-11-29 17:54:48.946944417 +0000
-@@ -23,7 +23,7 @@ class kubernetes(Plugin, RedHatPlugin):
-     """Kubernetes plugin
-     """
- 
--    # Red Hat Atomic Platform and OpenShift Enterprise use the
-+    # Atomic Platform and OpenShift Enterprise use the
-     # atomic-openshift-master package to provide kubernetes
-     packages = ('kubernetes', 'kubernetes-master', 'atomic-openshift-master')
-     files = ("/etc/origin/master/master-config.yaml",)
-diff -uNrp sos-3.3.orig/sos/plugins/networking.py sos-3.3/sos/plugins/networking.py
---- sos-3.3.orig/sos/plugins/networking.py	2016-11-29 17:50:21.158173284 +0000
-+++ sos-3.3/sos/plugins/networking.py	2016-11-29 17:55:11.772878627 +0000
-@@ -310,7 +310,7 @@ class RedHatNetworking(Networking, RedHa
-     trace_host = "rhn.redhat.com"
- 
-     def setup(self):
--        # Handle change from -T to -W in Red Hat netstat 2.0 and greater.
-+        # Handle change from -T to -W in netstat 2.0 and greater.
-         try:
-             netstat_pkg = self.policy().package_manager.all_pkgs()['net-tools']
-             # major version
-diff -uNrp sos-3.3.orig/sos/plugins/openstack_sahara.py sos-3.3/sos/plugins/openstack_sahara.py
---- sos-3.3.orig/sos/plugins/openstack_sahara.py	2016-06-29 18:24:47.000000000 +0000
-+++ sos-3.3/sos/plugins/openstack_sahara.py	2016-11-29 17:55:39.243807483 +0000
-@@ -65,7 +65,7 @@ class DebianSahara(OpenStackSahara, Debi
- 
- 
- class RedHatSahara(OpenStackSahara, RedHatPlugin):
--    """OpenStack sahara related information for Red Hat distributions."""
-+    """OpenStack sahara related information for CentOS distributions."""
- 
-     packages = (
-         'openstack-sahara',
-diff -uNrp sos-3.3.orig/sos/policies/redhat.py sos-3.3/sos/policies/redhat.py
---- sos-3.3.orig/sos/policies/redhat.py	2016-06-29 18:24:47.000000000 +0000
-+++ sos-3.3/sos/policies/redhat.py	2016-11-29 17:58:36.427534650 +0000
-@@ -34,9 +34,9 @@ except:
+diff -uNrp sos-3.2.orig/sos/policies/redhat.py sos-3.2/sos/policies/redhat.py
+--- sos-3.2.orig/sos/policies/redhat.py	2014-09-30 12:38:28.000000000 -0500
++++ sos-3.2/sos/policies/redhat.py	2015-03-09 14:56:04.383496495 -0500
+@@ -33,9 +33,9 @@ except:
  
  
  class RedHatPolicy(LinuxPolicy):
@@ -1336,10 +1258,10 @@ diff -uNrp sos-3.3.orig/sos/policies/redhat.py sos-3.3/sos/policies/redhat.py
 +    distro = "CentOS"
 +    vendor = "CentOS"
 +    vendor_url = "http://www.centos.org/"
-     _redhat_release = '/etc/redhat-release'
      _tmp_dir = "/var/tmp"
-     _rpmq_cmd = 'rpm -qa --queryformat "%{NAME}|%{VERSION}\\n"'
-@@ -74,9 +74,9 @@ class RedHatPolicy(LinuxPolicy):
+ 
+     def __init__(self):
+@@ -57,9 +57,9 @@ class RedHatPolicy(LinuxPolicy):
  
      @classmethod
      def check(self):
@@ -1347,34 +1269,20 @@ diff -uNrp sos-3.3.orig/sos/policies/redhat.py sos-3.3/sos/policies/redhat.py
 +        """This method checks to see if we are running on CentOS. It must be
          overriden by concrete subclasses to return True when running on a
 -        Fedora, RHEL or other Red Hat distribution or False otherwise."""
-+        Fedora, RHEL or other CentOS distribution or False otherwise."""
++        CentOS or False otherwise."""
          return False
  
-     def _container_init(self):
-@@ -124,14 +124,14 @@ class RedHatPolicy(LinuxPolicy):
-     def get_local_name(self):
-         return self.host_name()
- 
--# Container environment variables on Red Hat systems.
-+# Container environment variables on CentOS systems.
- ENV_CONTAINER = 'container'
- ENV_HOST_SYSROOT = 'HOST'
+     def runlevel_by_service(self, name):
+@@ -94,9 +94,9 @@ class RedHatPolicy(LinuxPolicy):
  
  
  class RHELPolicy(RedHatPolicy):
 -    distro = "Red Hat Enterprise Linux"
 -    vendor = "Red Hat"
+-    vendor_url = "https://access.redhat.com/support/"
 +    distro = "CentOS Linux"
 +    vendor = "CentOS"
-     vendor_url = "https://access.redhat.com/support/"
++    vendor_url = "https://www.centos.org/"
      msg = _("""\
  This command will collect diagnostic and configuration \
-@@ -196,7 +196,7 @@ No changes will be made to system config
- 
- 
- class RedHatAtomicPolicy(RHELPolicy):
--    distro = "Red Hat Atomic Host"
-+    distro = "CentOS Atomic Host"
-     msg = _("""\
- This command will collect diagnostic and configuration \
- information from this %(distro)s system.
+ information from this %(distro)s system and installed \

@@ -1,0 +1,46 @@
+From 2d8e0d2cc979534be0149841e8bed07c0a4ba048 Mon Sep 17 00:00:00 2001
+Message-Id: <2d8e0d2cc979534be0149841e8bed07c0a4ba048@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Thu, 27 Apr 2017 10:38:41 +0200
+Subject: [PATCH] qemu: Ignore missing query-migrate-parameters
+
+Migration with old QEMU which does not support query-migrate-parameters
+would fail because the QMP command is called unconditionally since the
+introduction of TLS migration. Previously it was only called if the user
+explicitly requested a feature which uses QEMU migration parameters. And
+even then the situation was not ideal, instead of reporting an
+unsupported feature we'd just complain about missing QMP command.
+
+Trivially no migration parameters are supported when
+query-migrate-parameters QMP command is missing. There's no need to
+report an error if it is missing, the callers will report better error
+if needed.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1441934
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit ac58c036065ff1d53bc05b796093287c27c71762)
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_monitor_json.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/qemu/qemu_monitor_json.c b/src/qemu/qemu_monitor_json.c
+index 405f79fec..601aa3e74 100644
+--- a/src/qemu/qemu_monitor_json.c
++++ b/src/qemu/qemu_monitor_json.c
+@@ -2666,6 +2666,11 @@ qemuMonitorJSONGetMigrationParams(qemuMonitorPtr mon,
+     if (qemuMonitorJSONCommand(mon, cmd, &reply) < 0)
+         goto cleanup;
+ 
++    if (qemuMonitorJSONHasError(reply, "CommandNotFound")) {
++        ret = 0;
++        goto cleanup;
++    }
++
+     if (qemuMonitorJSONCheckError(cmd, reply) < 0)
+         goto cleanup;
+ 
+-- 
+2.12.2
+

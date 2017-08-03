@@ -1,7 +1,7 @@
-%global nspr_version 4.10.8
+%global nspr_version 4.13.1
 %global nss_name nss
-%global nss_util_version 3.21.0
-%global nss_util_build -2.2
+%global nss_util_version 3.28.3
+%global nss_util_build -2
 %global unsupported_tools_directory %{_libdir}/nss/unsupported-tools
 %global saved_files_dir %{_libdir}/nss/saved
 %global prelink_conf_dir %{_sysconfdir}/prelink.conf.d/
@@ -31,8 +31,8 @@
 
 Summary:          Network Security Services Softoken Module
 Name:             nss-softokn
-Version:          3.16.2.3
-Release:          14.4%{?dist}.redsleeve
+Version:          3.28.3
+Release:          6%{?dist}
 License:          MPLv2.0
 URL:              http://www.mozilla.org/projects/security/pki/nss/
 Group:            System Environment/Libraries
@@ -67,9 +67,6 @@ Source4:	  nss-softokn-prelink.conf
 Source5:	  nss-softokn-dracut-module-setup.sh
 Source6:	  nss-softokn-dracut.conf
 
-Patch1:           build-nss-softoken-only.patch
-# Build only the softoken and freebl related tools
-Patch8:           softoken-minimal-test-dependencies.patch
 # Select the tests to run based on the type of build
 # This patch uses the gcc-iquote dir option documented at
 # http://gcc.gnu.org/onlinedocs/gcc/Directory-Options.html#Directory-Options
@@ -79,44 +76,23 @@ Patch8:           softoken-minimal-test-dependencies.patch
 # NSSUTIL_INCLUDE_DIR, after all, contains both util and freebl headers. 
 # Once has been bootstapped the patch may be removed, but it doesn't hurt to keep it.
 Patch10:           iquote.patch
-Patch11:           nss-softokn-allow-level1.patch
-Patch12:           additional-covscan-fixes.patch
-Patch13:           nss-softokn-3.16-tls12-mechanisms.patch
-# Upstream: https://bugzilla.mozilla.org/show_bug.cgi?id=923089
-# Upstream: https://bugzilla.mozilla.org/show_bug.cgi?id=951455
-Patch14:	   nss-softokn-3.16-sha384-key-derive.patch
 
-# Patch related to CVE-2015-2730
-# Upstream: https://bugzilla.mozilla.org/show_bug.cgi?id=1125025
-# from https://hg.mozilla.org/projects/nss/rev/2c05e861ce07
-Patch102:           CheckForPeqQ-or-PnoteqQ-before-adding-P-and-Q.patch
+# Patch from Fedora, to fix issues in basicutil/secutil splitting
+# Upstream: https://bugzilla.mozilla.org/show_bug.cgi?id=1300109
+Patch12:           nss-softokn-basicutil-dependency.patch
 
+Patch97:	   nss-softokn-3.16-add_encrypt_derive.patch
 
-# FIPS update
-# Upstream: https://bugzilla.mozilla.org/show_bug.cgi?id=1181814
-Patch80:	nss-softokn-3.16-fips-post.patch
-Patch81:	nss-softokn-3.16-fips.patch
-Patch82:	nss-softokn-3.16-fips-rem-old-test.patch
-Patch83:	nss-softokn-3.16-lowhash-test.patch
-Patch90:	nss-softokn-3.16-addG.patch
-Patch94:	nss-softokn-3.16-rsa-fips-186.patch
-Patch95:	nss-softokn-3.16-ppc-no-init_support.patch
-Patch97:	nss-softokn-3.16-add_encrypt_derive.patch
-Patch98:	nss-softokn-3.16.allow_level1_init.patch
-Patch99:	nss-softokn-3.16-fips_user_slots.patch
-Patch100:	nss-softokn-3.16-block-sigchld.patch
-Patch200:	nss-softokn-3.16-fipstest.patch
-Patch201:	nss-softokn-3.16-fipstest-186-4.patch
-Patch202:	nss-softokn-fix-error-handling.patch
-Patch203:	nss-softokn-3.16-freebl_dyload.patch
-# Upstream: https://bugzilla.mozilla.org/show_bug.cgi?id=1113632
-Patch204:	limit-create-fipscheck.patch
-# Upstream: https://bugzilla.mozilla.org/show_bug.cgi?id=923089
-# Upstream: https://bugzilla.mozilla.org/show_bug.cgi?id=951455
-Patch205:	nss-softokn-3.16-tls12-mechanisms-fipstest.patch
-# https://bugzilla.redhat.com/show_bug.cgi?id=1053437
-Patch206:   skip-check-fork-in_GetFunctionList.patch
-Patch10001:	nss-softokn-3.16-arm.patch
+# Upstream: https://bugzilla.mozilla.org/show_bug.cgi?id=1334474
+Patch100:          nss-softokn-pss-modulus-bits.patch
+Patch101:          nss-softokn-pkcs12-sha2.patch
+Patch102:          nss-softokn-tls-abi-fix.patch
+Patch103:          nss-softokn-pkcs12-rsa-pss.patch
+Patch104:          nss-softokn-ec-derive-pubkey-check.patch
+# Not upstreamed: https://bugzilla.redhat.com/show_bug.cgi?id=1390154
+Patch105:	   nss-softokn-3.28-fix-fips-login.patch
+# Upstream: https://bugzilla.mozilla.org/show_bug.cgi?id=1345089
+Patch106:	   nss-softokn-fix-drbg.patch
 
 %description
 Network Security Services Softoken Cryptographic Module
@@ -166,41 +142,23 @@ Header and library files for doing development with Network Security Services.
 %prep
 %setup -q
 
-%patch1 -p0 -b .softokenonly
-%patch8 -p0 -b .crypto
 # activate if needed when doing a major update with new apis
 #%patch10 -p0 -b .iquote
-%patch11 -p0 -b .allow_level1
 
-#fips
-%patch80 -p0 -b .fips-post
-%patch81 -p0 -b .fips
-%patch82 -p0 -b .rm-old-test
-%patch83 -p0 -b .lowhash-test
-%patch90 -p0 -b .addG
-%patch94 -p1 -b .fips-186-4
-%patch95 -p0 -b .ppc_no_init_support
 %patch97 -p0 -b .add_encrypt_derive
-%patch98 -p0 -b .allow_level1_init
-%patch99 -p0 -b .fips_user_slots
-%patch100 -p0 -b .block_sigchld
-%patch200 -p0 -b .fipstest
-%patch201 -p0 -b .fipstest-186-4
-%patch202 -p0 -b .1154764
-%patch203 -p0 -b .freebl-dyload
-%patch204 -p0 -b .limit_create_fips_check
-%patch205 -p0 -b .1212106
-# https://bugzilla.redhat.com/show_bug.cgi?id=1053437
-%patch206 -p3 -b .skipcheckfork
-%patch12 -p0 -b .1154764extras
+
 pushd nss
-%patch13 -p1 -b .1212106
+%patch12 -p1 -b .basicutil-dependency
+%patch100 -p1 -b .pss-modulus-bits
 popd
-%patch14 -p1 -b .sha384_key_derive
+%patch101 -p1 -b .pkcs12-sha2
+%patch102 -p1 -b .tls-abi-fix
+%patch103 -p1 -b .pkcs12-rsa-pss
+%patch104 -p1 -b .ec-derive-pubkey-check
+%patch105 -p1 -b .fix-fips-login
 pushd nss
-%patch102 -p1 -b .extra_check
+%patch106 -p1 -b .fix-drbg
 popd
-%patch10001 -p0 -b .arm
 
 %build
 
@@ -264,6 +222,8 @@ export IN_TREE_FREEBL_HEADERS_FIRST=1
 # Use only the basicutil subset for sectools.a
 export NSS_BUILD_SOFTOKEN_ONLY=1
 
+export NSS_DISABLE_GTESTS=1
+
 # display processor information
 CPU_INFO=`cat /proc/cpuinfo`
 echo "############## CPU INFO ##################"
@@ -273,6 +233,12 @@ echo "##########################################"
 # Compile softokn plus needed support
 %{__make} -C ./nss/coreconf
 %{__make} -C ./nss/lib/dbm
+
+# ldvector.c, pkcs11.c, and lginit.c include nss/lib/util/verref.h, 
+# which is private export, move it to where it can be found.
+%{__mkdir_p} ./dist/private/nss
+%{__mv} ./nss/lib/util/verref.h ./dist/private/nss/verref.h
+
 %{__make} -C ./nss
 
 # Set up our package file
@@ -491,6 +457,8 @@ done
 %{_includedir}/nss3/blapi.h
 %{_includedir}/nss3/blapit.h
 %{_includedir}/nss3/alghmac.h
+%{_includedir}/nss3/lowkeyi.h
+%{_includedir}/nss3/lowkeyti.h
 
 %files devel
 %defattr(-,root,root)
@@ -513,8 +481,27 @@ done
 %{_includedir}/nss3/shsign.h
 
 %changelog
-* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> - 3.16.2.3-14.4.redsleeve
-- added an arm patch
+* Fri May 26 2017 Daiki Ueno <dueno@redhat.com> - 3.28.3-6
+- restore nss-softokn-3.16-add_encrypt_derive.patch
+
+* Wed May 17 2017 Daiki Ueno <dueno@redhat.com> - 3.28.3-5
+- fix login handling for FIPS slots, patch from rhbz#1390154
+- backport upstream fix for CVE-2017-5462 (DRBG leak)
+
+* Thu Mar 23 2017 Bob Relyea <rrelyea@redhat.com> - 3.28.3-4
+- include new PKCS12 NSS specific mechanisms.
+- alias CKM_TLS_KDF to CKM_TLS_MAC to preserve ABI
+- add RSA PSS oid to decrypting PKCS #5 key blobs.
+- move ec public key check from softokn to freebl so apps like Java can benefit.
+
+* Tue Mar  7 2017 Daiki Ueno <dueno@redhat.com> - 3.28.3-3
+- Fix RSA-PSS corner case when the modulus is not of size multiple of 8
+
+* Mon Mar  6 2017 Daiki Ueno <dueno@redhat.com> - 3.28.3-2
+- Update to NSS 3.28.3
+- Remove upstreamed patches for the previous FIPS validation
+- Package lowkeyi.h and lowkeyti.h in freebl-devel
+- Pick up a patch in the Fedora package to fix build issue
 
 * Tue Jun 28 2016 Kai Engert <kaie@redhat.com> - 3.16.2.3-14.4
 - escape all percent characters in all changelog comments

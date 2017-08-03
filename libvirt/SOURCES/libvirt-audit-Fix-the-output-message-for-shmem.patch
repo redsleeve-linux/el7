@@ -1,0 +1,70 @@
+From c71f920357ffb17cd13aaf9a12e8d77d1b29b08c Mon Sep 17 00:00:00 2001
+Message-Id: <c71f920357ffb17cd13aaf9a12e8d77d1b29b08c@dist-git>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Mon, 5 Jun 2017 17:02:03 +0200
+Subject: [PATCH] audit: Fix the output message for shmem
+
+After some discussion on and off the linux-audit mailing list, we
+should use different fields for the audit messages.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1218603
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit 6d12a1cb2fb0e0152a19518423dceafa7cf088fb)
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/conf/domain_audit.c | 24 +++++++++++++-----------
+ 1 file changed, 13 insertions(+), 11 deletions(-)
+
+diff --git a/src/conf/domain_audit.c b/src/conf/domain_audit.c
+index 2d9ff5e3ff..1e667af73c 100644
+--- a/src/conf/domain_audit.c
++++ b/src/conf/domain_audit.c
+@@ -983,15 +983,13 @@ virDomainAuditShmem(virDomainObjPtr vm,
+     char uuidstr[VIR_UUID_STRING_BUFLEN];
+     char *vmname = virAuditEncode("vm", vm->def->name);
+     const char *srcpath = virDomainAuditChardevPath(&def->server.chr);
+-    char *src = virAuditEncode("server", VIR_AUDIT_STR(srcpath));
+-    char *shmem = virAuditEncode("shmem", VIR_AUDIT_STR(def->name));
+     const char *virt = virDomainVirtTypeToString(vm->def->virtType);
+-    char *size = NULL;
++    char *shmpath = NULL;
+ 
+     virUUIDFormat(vm->def->uuid, uuidstr);
+ 
+-    if (!vmname || !src || !shmem ||
+-        virAsprintfQuiet(&size, "%llu", def->size) < 0) {
++    if (!vmname ||
++        virAsprintfQuiet(&shmpath, "/dev/shm/%s", def->name) < 0) {
+         VIR_WARN("OOM while encoding audit message");
+         goto cleanup;
+     }
+@@ -1002,14 +1000,18 @@ virDomainAuditShmem(virDomainObjPtr vm,
+         virt = "?";
+     }
+ 
+-    VIR_AUDIT(VIR_AUDIT_RECORD_RESOURCE, success,
+-              "virt=%s resrc=shmem reason=%s %s uuid=%s size=%s %s %s",
+-              virt, reason, vmname, uuidstr, size, shmem, src);
++    if (def->server.enabled) {
++        VIR_AUDIT(VIR_AUDIT_RECORD_RESOURCE, success,
++                  "virt=%s resrc=ivshmem-socket reason=%s %s uuid=%s path=%s",
++                  virt, reason, vmname, uuidstr, VIR_AUDIT_STR(srcpath));
++    } else {
++        VIR_AUDIT(VIR_AUDIT_RECORD_RESOURCE, success,
++                  "virt=%s resrc=shmem reason=%s %s uuid=%s size=%llu path=%s",
++                  virt, reason, vmname, uuidstr, def->size, VIR_AUDIT_STR(shmpath));
++   }
+ 
+  cleanup:
+     VIR_FREE(vmname);
+-    VIR_FREE(src);
+-    VIR_FREE(size);
+-    VIR_FREE(shmem);
++    VIR_FREE(shmpath);
+     return;
+ }
+-- 
+2.13.1
+

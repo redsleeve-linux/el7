@@ -106,7 +106,7 @@ Summary: An interpreted, interactive, object-oriented programming language
 Name: %{python}
 # Remember to also rebase python-docs when changing this:
 Version: 2.7.5
-Release: 48%{?dist}.redsleeve
+Release: 58%{?dist}
 License: Python
 Group: Development/Languages
 Requires: %{python}-libs%{?_isa} = %{version}-%{release}
@@ -191,8 +191,7 @@ Source4: systemtap-example.stp
 # Written by dmalcolm; not yet sent upstream
 Source5: pyfuntop.stp
 
-# Supply various useful macros for building python 2 modules:
-#  __python2, python2_sitelib, python2_sitearch, python2_version
+# Supply various useful macros for building Python 2 components:
 Source6: macros.python2
 
 Source7: pynche
@@ -203,6 +202,16 @@ Source8: cert-verification.cfg
 
 # configuration for systemd's tmpfiles
 Source9: python.conf
+
+# Supply various useful macros for building Python components:
+# NOTE: The %%python_provide macro is copied directly from Fedora/EPEL, but the
+# %{python3_pkgversion} and %{python3_other_pkgversion} macros used within it
+# are missing in RHEL. However, in their absence the lua code will run fine for
+# Python 2 packages and will print an error only if invoked for Python 3
+# packages (unless the python-srpm-macros package from EPEL is installed). That
+# is a desirable behaviour as RHEL without EPEL does not support building
+# Python 3 packages.
+Source10: macros.python
 
 # Modules/Setup.dist is ultimately used by the "makesetup" script to construct
 # the Makefile and config.c
@@ -1061,6 +1070,9 @@ Patch233: 00233-Computed-Goto-dispatch.patch
 # Combined usage explained:
 # https://www.python.org/dev/peps/pep-0493/#recommendation-for-combined-feature-backports
 # Resolves: rhbz#1315758
+# Patch was modified to enable the certificate verification globally as the platform default
+# See also patch224
+# Resolves: rhbz#1219110
 Patch234: 00234-PEP493-updated-implementation.patch
 
 # 0235 #
@@ -1108,6 +1120,56 @@ Patch241: 00241-CVE-2016-5636-buffer-overflow-in-zipimport-module-fix.patch
 # Resolves: rhbz#1359164
 Patch242: 00242-CVE-2016-1000110-httpoxy.patch
 
+# 00255 #
+# Fix Python's failure to decode X.509 certificates
+# with a GEN_RID general name in subject alternative names.
+# FIXED UPSTREAM: http://bugs.python.org/issue27691
+# Resolves: rhbz#1364444
+Patch255: 00255-Fix-ssl-module-parsing-of-GEN_RID-subject-alternative-name-fields-in-X.509-certs.patch
+
+# 00256 #
+# Fix Python's incorrect parsing of certain regular expressions
+# FIXED UPSTREAM: http://bugs.python.org/issue18647
+# Resolves: rhbz#1373363
+Patch256: 00256-fix-incorrect-parsing-of-regular-expressions.patch
+
+# 00257 #
+# Python's threading library doesn't use the monotonic clock when handling wait timeouts,
+# so when the system clock is set backwards, the wait doesn't return after the timeout,
+# causing deadlocks.
+# This patch works around the issue.
+# Resolves: rhbz#1368076
+# DOWNSTREAM ONLY PATCH
+Patch257: 00257-threading-wait-clamp-remaining-time.patch
+
+# 00263 #
+# Fix reference leaks of certfile_bytes and keyfile_bytes at _ssl.c
+# FIXED UPSTREAM: http://bugs.python.org/issue27267
+# https://github.com/python/cpython/commit/b3e073cbb3af2999e6e589f55ec2fc8a109fdc14
+# https://github.com/python/cpython/commit/3b91de5a76aad471476f5bc5943e44bf386c0e6d
+# Resolves: rhbz#1272562
+Patch263: 00263-fix-ssl-reference-leaks.patch
+
+# 00265 #
+# Protect the key list during fork() in order for the forked process to not inherit an inconsistent key list.
+# Reported upstream: http://bugs.python.org/issue29640
+# Resolves: rhbz#1268226
+Patch265: 00265-protect-key-list-during-fork.patch
+
+# 00266 #
+# Make shutil.make_archive() to not ingore empty directories when creating a zip file.
+# Also refactor and extend the shutil test suite.
+# FIXED UPSTREAM: https://bugs.python.org/issue24982
+# https://github.com/python/cpython/commit/04861dc82f595e3e2f0ab4b1a62de2f812c8fa37
+# Resolves: rhbz#1439734
+Patch266: 00266-fix-shutil.make_archive-ignoring-empty-dirs.patch
+
+# 00268 #
+# Set stream to None in case an _open() fails.
+# FIXED UPSTREAM: https://bugs.python.org/issue21742
+# Resolves: rhbz#1432003
+Patch268: 00268-set-stream-name-to-None.patch
+
 # (New patches go here ^^^)
 #
 # When adding new patches to "python" and "python3" in Fedora 17 onwards,
@@ -1132,12 +1194,6 @@ Patch242: 00242-CVE-2016-1000110-httpoxy.patch
 #   %{regenerate_autotooling_patch}
 # above:
 Patch5000: 05000-autotool-intermediates.patch
-
-Patch6001: python-2.7.5-Fix-re-engine-redsleeve.patch
-Patch6002: python-2.7.5-Fix-re-engine2-redsleeve.patch
-Patch6003: python-2.7.5-Fix-re-engine3-redsleeve.patch
-Patch6004: python-2.7.5-Fix-re-engine4-redsleeve.patch
-Patch6005: python-2.7.5-Fix-re-engine5-redsleeve.patch
 
 # ======================================================
 # Additional metadata, and subpackages
@@ -1517,6 +1573,13 @@ mv Modules/cryptmodule.c Modules/_cryptmodule.c
 %patch238 -p1
 %patch241 -p1
 %patch242 -p1
+%patch255 -p1
+%patch256 -p1
+%patch257 -p1
+%patch263 -p1
+%patch265 -p1
+%patch266 -p1
+%patch268 -p1
 
 
 # This shouldn't be necesarry, but is right now (2.2a3)
@@ -1528,11 +1591,6 @@ find -name "*~" |xargs rm -f
 %patch5000 -p0 -b .autotool-intermediates
 %endif
 
-%patch6001 -p1
-%patch6002 -p1
-%patch6003 -p1
-%patch6004 -p1
-%patch6005 -p1
 
 # ======================================================
 # Configuring and building the code:
@@ -1891,6 +1949,7 @@ sed -i -e "s/'pyconfig.h'/'%{_pyconfig_h}'/" \
 # Install macros for rpm:
 mkdir -p %{buildroot}/%{_sysconfdir}/rpm
 install -m 644 %{SOURCE6} %{buildroot}/%{_sysconfdir}/rpm
+install -m 644 %{SOURCE10} %{buildroot}/%{_sysconfdir}/rpm
 
 # Make python folder for config files under /etc
 mkdir -p %{buildroot}/%{_sysconfdir}/python
@@ -2210,6 +2269,7 @@ rm -fr %{buildroot}
 %endif
 %{_bindir}/python%{pybasever}-config
 %{_libdir}/libpython%{pybasever}.so
+%{_sysconfdir}/rpm/macros.python
 %{_sysconfdir}/rpm/macros.python2
 
 %files tools
@@ -2391,13 +2451,45 @@ rm -fr %{buildroot}
 # ======================================================
 
 %changelog
-* Sun Nov 13 2016 Jacco Ligthart <jacco@ligthart.nu> - 2.7.5-48.redsleeve
-- Issue #17998: Fix an internal error in regular expression engine.
-- https://github.com/OpenSCAP/scap-security-guide/issues/1332
-- https://bugs.python.org/issue17998
-- and related issues #18684 and #18647
-- https://bugs.python.org/issue18684
-- https://bugs.python.org/issue18647
+* Wed May 03 2017 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-58
+- Set stream to None in case an _open() fails.
+Resolves: rhbz#1432003
+
+* Tue Apr 11 2017 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-57
+- Fix implicit declaration warnings of functions added by patches 147 and 265
+Resolves: rhbz#1441237
+
+* Mon Apr 10 2017 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-56
+- Fix shutil.make_archive ignoring empty directories when creating zip files
+Resolves: rhbz#1439734
+
+* Thu Mar 23 2017 Tomas Orsava <torsava@redhat.com> - 2.7.5-55
+- Update Python RPM macros with new ones from EPEL7 to simplify packaging
+Resolves: rhbz#1297522
+
+* Wed Mar 22 2017 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-54
+- Protect key list during fork()
+Resolves: rhbz#1268226
+
+* Mon Mar 13 2017 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-53
+- Fix _ssl.c reference leaks
+Resolves: rhbz#1272562
+
+* Mon Feb 27 2017 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-52
+- Workaround Python's threading library issue with non returning wait, for signals with timeout
+Resolves: rhbz#1368076
+
+* Mon Jan 23 2017 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-51
+- Enable certificate verification by default
+Resolves: rhbz#1219110
+
+* Wed Jan 18 2017 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-50
+- Fix incorrect parsing of certain regular expressions
+Resolves: rhbz#1373363
+
+* Tue Jan 17 2017 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-49
+- Fix ssl module's parsing of GEN_RID subject alternative name fields in X.509 certs
+Resolves: rhbz#1364444
 
 * Mon Aug 01 2016 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-48
 - Fix for CVE-2016-1000110 HTTPoxy attack

@@ -1,8 +1,8 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 Summary: A set of tools to gather troubleshooting information from a system
 Name: sos
-Version: 3.3
-Release: 5%{?dist}.redsleeve
+Version: 3.4
+Release: 6%{?dist}
 Group: Applications/System
 Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
 License: GPLv2+
@@ -17,17 +17,18 @@ Requires: bzip2
 Requires: xz
 Obsoletes: sos-plugins-openstack
 Patch0: skip-generating-doc.patch
-Patch1: sos-bz1116670-grub2-mkconfig-dont-load-kernel-modules.patch
-Patch2: sos-bz1260607-ceph-skip-keyring-bindpass-files.patch
-Patch3: sos-bz1353552-virtwho-plugin.patch
-Patch4: sos-bz1302146-atomichost-info-policy-style.patch
-Patch5: sos-bz1356945-monit-copy-spec-string.patch
-Patch6: sos-bz1299603-omsa-chassis-summary-storage-controller.patch
-Patch7: sos-bz1351647-docker-more-data-expand-options.patch
-Patch8: sos-bz1368393-nodejs-npm-plugins.patch
-Patch9: sos-bz1374152-networking-no-net-tools.patch
-Patch10: sos-bz1392038-network-name-with-quotemark.patch
-Patch11: sos-redsleeve-branding.patch
+Patch1: sos-bz1438257-collect-cmds-with-return-1.patch
+Patch2: sos-bz1438269-ceph-collect-etc-calamari.patch
+Patch3: sos-bz1444641-virsh-uncaught-exception.patch
+Patch4: sos-bz1250346-openstack-tripleo.patch
+Patch5: sos-bz1442078-container-test-oci.patch
+Patch6: sos-bz1416535-pacemaker-user-logs.patch
+Patch7: sos-bz1148381-libvirt-cgroups-collection.patch
+Patch8: sos-bz1449904-ceph-tmp-mount-exclude.patch
+Patch9: sos-bz1393961-missing-filesystem-nonfatal.patch
+Patch10: sos-bz1400407-samba-dc-connect.patch
+Patch11: sos-bz1470573-tripleo-add-ui-logs.patch
+Patch12: sos-centos-branding.patch
 
 %description
 Sos is a set of tools that gathers information about system
@@ -49,6 +50,7 @@ support technicians and developers.
 %patch9 -p1
 %patch10 -p1
 %patch11 -p1
+%patch12 -p1
 
 %build
 make
@@ -72,15 +74,47 @@ rm -rf ${RPM_BUILD_ROOT}
 %config(noreplace) %{_sysconfdir}/sos.conf
 
 %changelog
-* Sun Dec 11 2016 Jacco Ligthart <jacco@redsleeve.org> - 3.3-5.el7.redsleeve
-- Roll in RedSleeve Branding
-
-* Tue Dec 06 2016 CentOS Sources <bugs@centos.org> - 3.3-5.el7.centos
+* Mon Jul 31 2017 CentOS Sources <bugs@centos.org> - 3.4-6.el7.centos
 - Roll in CentOS Branding
+
+* Wed Jul 12 2017 Pavel Moravec <pmoravec@redhat.com> = 3.4-6
+- [tripleo] Add ui logs
+  Resolves: bz1470573
+
+* Tue May 30 2017 Pavel Moravec <pmoravec@redhat.com> = 3.4-5
+- [samba] Fix dc-connect winbind logfile path
+  Resolves: bz1400407
+
+* Mon May 22 2017 Pavel Moravec <pmoravec@redhat.com> = 3.4-4
+- [libvirt] fix per-process cgroup collection
+  Resolves: bz1148381
+- [ceph] exclude temporary mount locations from collection
+  Resolves: bz1449904
+- [policies/redhat] make missing 'filesystem' package non-fatal
+  Resolves: bz1393961
+
+* Wed May 10 2017 Pavel Moravec <pmoravec@redhat.com> = 3.4-3
+- [ceph] fix list formatting
+  Resolves: bz1438269
+- [virsh] Handle properly cases when virsh commands fail
+  Resolves: bz1444641
+- [openstack_*] fix issue with --verify option, extend pkglist for instack
+  Resolves: bz1250346
+- [policies/redhat] accept 'oci' as a valid container type
+  Resolves: bz1442078
+- [pacemaker] Collect user-defined logfile
+  Resolves: bz1416535
+
+* Wed Apr 19 2017 Pavel Moravec <pmoravec@redhat.com> = 3.4-2
+- [Pugin] revert 77eb4ab (do not return output from failed cmds)
+  Resolves: bz1438257
+
+* Tue Mar 28 2017 Pavel Moravec <pmoravec@redhat.com> = 3.4-1
+- New upstream release sos-3.4
 
 * Fri Nov 04 2016 Pavel Moravec <pmoravec@redhat.com> = 3.3-5
 - [networking] plugin crash with quotemark in network name
-  Resolves: bz1392038
+  Resolves: bz1353992
 
 * Fri Sep 09 2016 Pavel Moravec <pmoravec@redhat.com> = 3.3-4
 - [networking][reporting] plugin tracebacks when net-tools missing

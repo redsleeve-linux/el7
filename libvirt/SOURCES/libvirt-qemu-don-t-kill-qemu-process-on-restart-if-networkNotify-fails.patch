@@ -1,0 +1,142 @@
+From 01c309a7d81daa85e7212e37c8b4b9dd2c08f898 Mon Sep 17 00:00:00 2001
+Message-Id: <01c309a7d81daa85e7212e37c8b4b9dd2c08f898@dist-git>
+From: Laine Stump <laine@laine.org>
+Date: Tue, 2 May 2017 12:31:51 -0400
+Subject: [PATCH] qemu: don't kill qemu process on restart if networkNotify
+ fails
+
+Nothing that could happen during networkNotifyActualDevice() could
+justify unceremoniously killing the qemu process, but that's what we
+were doing.
+
+In particular, new code added in commit 85bcc022 (first appearred in
+libvirt-3.2.0) attempts to reattach tap devices to their assigned
+bridge devices when libvirtd restarts (to make it easier to recover
+from a restart of a libvirt network). But if the network has been
+stopped and *not* restarted, the bridge device won't exist and
+networkNotifyActualDevice() will fail.
+
+This patch changes networkNotifyActualDevice() and
+qemuProcessNotifyNets() to return void, so that qemuProcessReconnect()
+will soldier on regardless of what happens (any errors will still be
+logged though).
+
+Partially resolves: https://bugzilla.redhat.com/1442700
+
+(cherry picked from commit cb182eb11d3a99adb06e188989899dcd488c43fc)
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/network/bridge_driver.c | 10 ++++------
+ src/network/bridge_driver.h |  7 +++----
+ src/qemu/qemu_process.c     |  9 +++------
+ 3 files changed, 10 insertions(+), 16 deletions(-)
+
+diff --git a/src/network/bridge_driver.c b/src/network/bridge_driver.c
+index ef982363b..cb91a2c90 100644
+--- a/src/network/bridge_driver.c
++++ b/src/network/bridge_driver.c
+@@ -4656,9 +4656,9 @@ networkAllocateActualDevice(virDomainDefPtr dom,
+  * order, or re-attach the interface's tap device to the network's
+  * bridge.
+  *
+- * Returns 0 on success, -1 on failure.
++ * No return value (but does log any failures)
+  */
+-int
++void
+ networkNotifyActualDevice(virDomainDefPtr dom,
+                           virDomainNetDefPtr iface)
+ {
+@@ -4668,11 +4668,10 @@ networkNotifyActualDevice(virDomainDefPtr dom,
+     virNetworkDefPtr netdef;
+     virNetworkForwardIfDefPtr dev = NULL;
+     size_t i;
+-    int ret = -1;
+     char *master = NULL;
+ 
+     if (iface->type != VIR_DOMAIN_NET_TYPE_NETWORK)
+-        return 0;
++        return;
+ 
+     network = virNetworkObjFindByName(driver->networks, iface->data.network.name);
+     if (!network) {
+@@ -4848,11 +4847,10 @@ networkNotifyActualDevice(virDomainDefPtr dom,
+     }
+     networkLogAllocation(netdef, actualType, dev, iface, true);
+ 
+-    ret = 0;
+  cleanup:
+     virNetworkObjEndAPI(&network);
+     VIR_FREE(master);
+-    return ret;
++    return;
+ 
+  error:
+     goto cleanup;
+diff --git a/src/network/bridge_driver.h b/src/network/bridge_driver.h
+index c696f0301..aaedd67a1 100644
+--- a/src/network/bridge_driver.h
++++ b/src/network/bridge_driver.h
+@@ -37,8 +37,8 @@ int networkRegister(void);
+ int networkAllocateActualDevice(virDomainDefPtr dom,
+                                 virDomainNetDefPtr iface)
+     ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2);
+-int networkNotifyActualDevice(virDomainDefPtr dom,
+-                              virDomainNetDefPtr iface)
++void networkNotifyActualDevice(virDomainDefPtr dom,
++                               virDomainNetDefPtr iface)
+     ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2);
+ int networkReleaseActualDevice(virDomainDefPtr dom,
+                                virDomainNetDefPtr iface)
+@@ -72,11 +72,10 @@ int networkBandwidthUpdate(virDomainNetDefPtr iface,
+ #  define networkDnsmasqConfContents(network, pidfile, configstr, \
+                     dctx, caps) 0
+ 
+-static inline int
++static inline void
+ networkNotifyActualDevice(virDomainDefPtr dom ATTRIBUTE_UNUSED,
+                           virDomainNetDefPtr iface ATTRIBUTE_UNUSED)
+ {
+-    return 0;
+ }
+ 
+ static inline int
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index a33ec87e6..df5ba575a 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -2825,7 +2825,7 @@ int qemuProcessStopCPUs(virQEMUDriverPtr driver,
+ 
+ 
+ 
+-static int
++static void
+ qemuProcessNotifyNets(virDomainDefPtr def)
+ {
+     size_t i;
+@@ -2840,10 +2840,8 @@ qemuProcessNotifyNets(virDomainDefPtr def)
+         if (virDomainNetGetActualType(net) == VIR_DOMAIN_NET_TYPE_DIRECT)
+            ignore_value(virNetDevMacVLanReserveName(net->ifname, false));
+ 
+-        if (networkNotifyActualDevice(def, net) < 0)
+-            return -1;
++        networkNotifyActualDevice(def, net);
+     }
+-    return 0;
+ }
+ 
+ static int
+@@ -3480,8 +3478,7 @@ qemuProcessReconnect(void *opaque)
+     if (qemuSecurityReserveLabel(driver->securityManager, obj->def, obj->pid) < 0)
+         goto error;
+ 
+-    if (qemuProcessNotifyNets(obj->def) < 0)
+-        goto error;
++    qemuProcessNotifyNets(obj->def);
+ 
+     if (qemuProcessFiltersInstantiate(obj->def))
+         goto error;
+-- 
+2.12.2
+

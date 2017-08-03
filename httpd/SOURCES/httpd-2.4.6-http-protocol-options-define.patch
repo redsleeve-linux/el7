@@ -1,0 +1,17 @@
+diff --git a/server/main.c b/server/main.c
+index 28d1872..544882d 100644
+--- a/server/main.c
++++ b/server/main.c
+@@ -478,6 +478,12 @@ int main(int argc, const char * const argv[])
+     ap_server_post_read_config = apr_array_make(pcommands, 1, sizeof(char *));
+     ap_server_config_defines   = apr_array_make(pcommands, 1, sizeof(char *));
+ 
++    {
++       char **new = (char **)apr_array_push(ap_server_config_defines);
++ 
++       *new = "_RH_HAS_HTTPPROTOCOLOPTIONS";
++    }
++
+     error = ap_setup_prelinked_modules(process);
+     if (error) {
+         ap_log_error(APLOG_MARK, APLOG_STARTUP|APLOG_EMERG, 0, NULL, APLOGNO(00012)

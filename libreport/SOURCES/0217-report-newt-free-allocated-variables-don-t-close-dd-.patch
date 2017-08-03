@@ -1,0 +1,39 @@
+From 79d5c0352a09fc1bfe8cc491b33a745ac33b7855 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Tue, 21 Feb 2017 12:08:13 +0100
+Subject: [PATCH] report-newt: free allocated variables, don't close dd twice
+
+Uncovered by coverity.
+
+Related #1257159
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/report-newt/report-newt.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/report-newt/report-newt.c b/src/report-newt/report-newt.c
+index 278cfb7..2427d86 100644
+--- a/src/report-newt/report-newt.c
++++ b/src/report-newt/report-newt.c
+@@ -333,12 +333,16 @@ static int report(const char *dump_dir_name)
+                             not_reportable ? " " : "",
+                             reason ? : _("(no description)"));
+ 
+-        dd_close(dd);
+         newtWinMessage(_("Error"), _("Ok"), (char *)"%s", t);
+         free(t);
++        free(not_reportable);
++        free(reason);
+ 
+         if (get_global_stop_on_not_reportable())
++        {
++            dd_close(dd);
+             return -1;
++        }
+     }
+ 
+     dd_close(dd);
+-- 
+1.8.3.1
+

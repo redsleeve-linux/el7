@@ -1,0 +1,42 @@
+From bd25ad4689524e4212a72c7d40a18e91071cfa35 Mon Sep 17 00:00:00 2001
+Message-Id: <bd25ad4689524e4212a72c7d40a18e91071cfa35@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Fri, 2 Jun 2017 12:52:56 +0200
+Subject: [PATCH] qemu: Don't error out if allocation info can't be queried
+
+qemuDomainGetBlockInfo would error out if qemu did not report
+'wr_highest_offset'. This usually does not happen, but can happen
+briefly during active layer block commit. There's no need to report the
+error, we can simply report that the disk is fully alocated at that
+point.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1452045
+(cherry picked from commit c245f558369de5eb404e54728bf69ad27942e912)
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_driver.c | 8 --------
+ 1 file changed, 8 deletions(-)
+
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index b741c1b5a6..fdfa4a50e1 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -11555,14 +11555,6 @@ qemuDomainGetBlockInfo(virDomainPtr dom,
+     }
+ 
+     if (!entry->wr_highest_offset_valid) {
+-        if (virStorageSourceGetActualType(disk->src) == VIR_STORAGE_TYPE_BLOCK &&
+-            disk->src->format != VIR_STORAGE_FILE_RAW) {
+-            virReportError(VIR_ERR_INTERNAL_ERROR,
+-                           _("failed to query the maximum written offset of "
+-                             "block device '%s'"), disk->dst);
+-            goto endjob;
+-        }
+-
+         info->allocation = entry->physical;
+     } else {
+         if (virStorageSourceGetActualType(disk->src) == VIR_STORAGE_TYPE_FILE &&
+-- 
+2.13.1
+

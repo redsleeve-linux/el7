@@ -1,0 +1,48 @@
+commit ed2a41fe646a1dcfc4f216f8babf25f93fde40e3
+Author: Michal Domonkos <mdomonko@redhat.com>
+Date:   Fri Feb 3 18:24:37 2017 +0100
+
+    Detect installed virtual provide in install(). BZ 1352585
+    
+    Normally, when the user tries to install something that's already
+    installed, we exit gracefully with 0.  However, that's not the case if
+    what we're looking for is a provide that, despite being installed, is
+    not available in any of the enabled repos, in which case we error out.
+    This commit makes sure we exit gracefully in that case too.
+    
+    The old code path for "yum install foo" looks like this:
+    
+    1) Look for foo in pkgSack
+    2) If no success, look for a package in pkgSack providing foo
+    3) If no success, look for foo in rpmdb
+    4) If no success, error out with "No package foo available." and exit
+       code 1
+    
+    What we're adding with this commit is the following in between 3 and 4:
+    
+    - If no success, look for a package in rpmdb providing foo
+    
+    Note that we only search for the provide in pkgSack if the kwarg
+    'pattern' is set, so let's adhere to this with the newly added rpmdb
+    search too.
+
+diff --git a/yum/__init__.py b/yum/__init__.py
+index 9780d96..451b2b8 100644
+--- a/yum/__init__.py
++++ b/yum/__init__.py
+@@ -4910,8 +4910,14 @@ much more problems).
+             # Do we still want to return errors here?
+             # We don't in the cases below, so I didn't here...
+             if 'pattern' in kwargs:
+-                pkgs = self.rpmdb.returnPackages(patterns=[kwargs['pattern']],
++                arg = kwargs['pattern']
++                pkgs = self.rpmdb.returnPackages(patterns=[arg],
+                                                  ignore_case=False)
++                if not pkgs:
++                    self.verbose_logger.debug(
++                        _('Checking for installed virtual provide or file-provide for %s'),
++                        arg)
++                    pkgs = self.returnInstalledPackagesByDep(arg)
+             if 'name' in kwargs:
+                 pkgs = self.rpmdb.searchNevra(name=kwargs['name'])
+             if 'pkgtup' in kwargs:

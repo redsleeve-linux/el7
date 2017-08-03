@@ -1,0 +1,57 @@
+From 82a4218a06697ee5beaa6ba76704b0156b1a806c Mon Sep 17 00:00:00 2001
+Message-Id: <82a4218a06697ee5beaa6ba76704b0156b1a806c@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Tue, 2 May 2017 18:56:06 +0200
+Subject: [PATCH] qemu: Fix persistent migration of transient domains
+
+While fixing a bug with incorrectly freed memory in commit
+v3.1.0-399-g5498aa29a, I accidentally broke persistent migration of
+transient domains. Before adding qemuDomainDefCopy in the path, the code
+just took NULL from vm->newDef and used it as the persistent def, which
+resulted in no persistent XML being sent in the migration cookie. This
+scenario is perfectly valid and the destination correctly handles it by
+using the incoming live definition and storing it as the persistent one.
+
+After the mentioned commit libvirtd would just segfault in the described
+scenario.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1446205
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit 59307fade86fb74db1f8f572433962233f7ac123)
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_migration.c | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/qemu/qemu_migration.c b/src/qemu/qemu_migration.c
+index ac7e27319..5bf9bd10f 100644
+--- a/src/qemu/qemu_migration.c
++++ b/src/qemu/qemu_migration.c
+@@ -3609,15 +3609,15 @@ qemuMigrationRun(virQEMUDriverPtr driver,
+ 
+     if (flags & VIR_MIGRATE_PERSIST_DEST) {
+         if (persist_xml) {
+-            persistDef = qemuMigrationPrepareDef(driver, persist_xml,
+-                                                 NULL, NULL);
+-        } else {
+-            persistDef = qemuDomainDefCopy(driver, vm->newDef,
+-                                           VIR_DOMAIN_XML_SECURE |
+-                                           VIR_DOMAIN_XML_MIGRATABLE);
++            if (!(persistDef = qemuMigrationPrepareDef(driver, persist_xml,
++                                                       NULL, NULL)))
++                goto cleanup;
++        } else if (vm->newDef) {
++            if (!(persistDef = qemuDomainDefCopy(driver, vm->newDef,
++                                                 VIR_DOMAIN_XML_SECURE |
++                                                 VIR_DOMAIN_XML_MIGRATABLE)))
++                goto cleanup;
+         }
+-        if (!persistDef)
+-            goto cleanup;
+     }
+ 
+     mig = qemuMigrationEatCookie(driver, vm, cookiein, cookieinlen,
+-- 
+2.12.2
+

@@ -1,0 +1,44 @@
+--- dhcp-4.2.5.orig/server/mdb.c	2016-05-03 12:46:04.933000000 -0400
++++ dhcp-4.2.5/server/mdb.c	2016-05-18 14:38:27.553000000 -0400
+@@ -720,8 +720,9 @@ void new_address_range (cfile, low, high
+ {
+ #if defined(COMPACT_LEASES)
+ 	struct lease *address_range;
++	unsigned s;
+ #endif
+-	unsigned min, max, i;
++	unsigned min, max, i, num_addrs;
+ 	char lowbuf [16], highbuf [16], netbuf [16];
+ 	struct shared_network *share = subnet -> shared_network;
+ 	struct lease *lt = (struct lease *)0;
+@@ -777,9 +778,29 @@ void new_address_range (cfile, low, high
+ 		min = host_addr (high, subnet -> netmask);
+ 	}
+ 
++	/* get the number of addresses we want, and add it to the pool info
++	* this value is only for use when setting up lease chains and will
++	* be overwritten when expire_all_pools is run
++	*/
++	num_addrs = max - min + 1;
++
+ 	/* Get a lease structure for each address in the range. */
+ #if defined (COMPACT_LEASES)
+-	address_range = new_leases (max - min + 1, MDL);
++	s = (num_addrs + 1) * sizeof (struct lease);
++	 /* Check unsigned overflow in new_leases().
++	    With 304 byte lease structure (x86_64), this happens at
++	    range 10.0.0.0 10.215.148.52; */
++	if (((s % sizeof (struct lease)) != 0) ||
++	    ((s / sizeof (struct lease)) != (num_addrs + 1))) {
++		strcpy (lowbuf, piaddr (low));
++		strcpy (highbuf, piaddr (high));
++		parse_warn (cfile, "%s-%s is an overly large address range.",
++			   lowbuf, highbuf);
++		log_info ("Consider breaking large address ranges into multiple scopes of less than 14 million IPs each.");
++		log_info ("For more information, please visit:  https://support.roguewave.com/resources/blogs/openlogic-blogs/how-to-extend-isc-dhcp/");
++		log_fatal ("Memory overflow.");
++	}
++	address_range = new_leases (num_addrs, MDL);
+ 	if (!address_range) {
+ 		strcpy (lowbuf, piaddr (low));
+ 		strcpy (highbuf, piaddr (high));

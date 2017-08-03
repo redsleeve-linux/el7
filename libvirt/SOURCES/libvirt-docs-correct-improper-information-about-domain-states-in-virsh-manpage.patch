@@ -1,0 +1,42 @@
+From 7a40c13d93a300f6f2c493c864da7342f34e9a6c Mon Sep 17 00:00:00 2001
+Message-Id: <7a40c13d93a300f6f2c493c864da7342f34e9a6c@dist-git>
+From: Laine Stump <laine@laine.org>
+Date: Tue, 6 Jun 2017 12:07:49 -0400
+Subject: [PATCH] docs: correct improper information about domain states in
+ virsh manpage
+
+Commit 24d4a0a1f removed the non-existent "dying" state from the list
+of possible domain states given in the virsh manpage, but didn't
+correct the count of states from 8 down to 7. This patch fixes that
+mismatch by completely removing any reference to the exact number of
+states (thus preventing a potential future mismatch), while wording
+the sentence in a more readable/truthful manner.
+
+(cherry picked from commit c44482eb4fb703391f2ee00c23b2187e0415e799)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1408778
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ tools/virsh.pod | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/tools/virsh.pod b/tools/virsh.pod
+index 0315f1f265..6386c39fbc 100644
+--- a/tools/virsh.pod
++++ b/tools/virsh.pod
+@@ -418,8 +418,9 @@ State is the run state (see below).
+ 
+ B<STATES>
+ 
+-The State field lists 8 states for a domain, and which ones the
+-current domain is in.
++The State field lists what state each domain is currently in. A domain
++can be in one of the following possible states:
++
+ 
+ =over 4
+ 
+-- 
+2.13.1
+

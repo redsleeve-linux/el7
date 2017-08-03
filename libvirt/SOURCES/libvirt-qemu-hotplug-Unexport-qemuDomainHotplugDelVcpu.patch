@@ -1,0 +1,46 @@
+From abb3d4b218479bb4609a208491448bc70b0d356d Mon Sep 17 00:00:00 2001
+Message-Id: <abb3d4b218479bb4609a208491448bc70b0d356d@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Thu, 20 Apr 2017 11:33:09 +0200
+Subject: [PATCH] qemu: hotplug: Unexport qemuDomainHotplugDelVcpu
+
+The function is used only in the hotplug module.
+
+(cherry picked from commit f24dc5e2c2ad184e64d8e80f196cee5006fc7e10)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1439452
+---
+ src/qemu/qemu_hotplug.c | 2 +-
+ src/qemu/qemu_hotplug.h | 3 ---
+ 2 files changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/qemu/qemu_hotplug.c b/src/qemu/qemu_hotplug.c
+index 37b8d455c..79d0dc94e 100644
+--- a/src/qemu/qemu_hotplug.c
++++ b/src/qemu/qemu_hotplug.c
+@@ -5384,7 +5384,7 @@ qemuDomainRemoveVcpuAlias(virQEMUDriverPtr driver,
+ }
+ 
+ 
+-int
++static int
+ qemuDomainHotplugDelVcpu(virQEMUDriverPtr driver,
+                          virDomainObjPtr vm,
+                          unsigned int vcpu)
+diff --git a/src/qemu/qemu_hotplug.h b/src/qemu/qemu_hotplug.h
+index f06f232bb..985c6733f 100644
+--- a/src/qemu/qemu_hotplug.h
++++ b/src/qemu/qemu_hotplug.h
+@@ -140,9 +140,6 @@ int qemuDomainDetachRNGDevice(virQEMUDriverPtr driver,
+                               virDomainObjPtr vm,
+                               virDomainRNGDefPtr rng);
+ 
+-int qemuDomainHotplugDelVcpu(virQEMUDriverPtr driver,
+-                             virDomainObjPtr vm,
+-                             unsigned int vcpu);
+ void qemuDomainRemoveVcpuAlias(virQEMUDriverPtr driver,
+                                virDomainObjPtr vm,
+                                const char *alias);
+-- 
+2.12.2
+

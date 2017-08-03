@@ -1,0 +1,33 @@
+From 25033eb499af95f458bd975eddd954c4b6a086ff Mon Sep 17 00:00:00 2001
+From: Sumit Bose <sbose@redhat.com>
+Date: Thu, 1 Jun 2017 18:17:53 +0200
+Subject: [PATCH] ipa-kdb: use canonical principal in certauth plugin
+
+Currently the certauth plugin use the unmodified principal from the
+request to lookup the user. This might fail if e.g. enterprise
+principals are use. With this patch the canonical principal form the kdc
+entry is used.
+
+Resolves https://pagure.io/freeipa/issue/6993
+
+Reviewed-By: David Kupka <dkupka@redhat.com>
+---
+ daemons/ipa-kdb/ipa_kdb_certauth.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/daemons/ipa-kdb/ipa_kdb_certauth.c b/daemons/ipa-kdb/ipa_kdb_certauth.c
+index da9a9cb87feca68ee591da70a3239dc86749bae5..66c2d08cbb9d23a8891b9cb6ca238925530eb40c 100644
+--- a/daemons/ipa-kdb/ipa_kdb_certauth.c
++++ b/daemons/ipa-kdb/ipa_kdb_certauth.c
+@@ -284,7 +284,7 @@ static krb5_error_code ipa_certauth_authorize(krb5_context context,
+         }
+     }
+ 
+-    ret = krb5_unparse_name(context, princ, &principal);
++    ret = krb5_unparse_name(context, db_entry->princ, &principal);
+     if (ret != 0) {
+         ret = KRB5KDC_ERR_CERTIFICATE_MISMATCH;
+         goto done;
+-- 
+2.9.4
+

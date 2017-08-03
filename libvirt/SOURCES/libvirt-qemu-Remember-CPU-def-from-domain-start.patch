@@ -1,0 +1,132 @@
+From f4038af76b0b8b4f8fb7b4ea7e957a6eb0614ea5 Mon Sep 17 00:00:00 2001
+Message-Id: <f4038af76b0b8b4f8fb7b4ea7e957a6eb0614ea5@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Tue, 16 May 2017 13:26:54 +0200
+Subject: [PATCH] qemu: Remember CPU def from domain start
+
+When starting a domain we update the guest CPU definition to match what
+QEMU actually provided (since it is allowed to add or removed some
+features unless check='full' is specified). Let's store the original CPU
+in domain private data so that we can use it to provide a backward
+compatible domain XML.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit ea6d89831198ae1854dca15b2bcf081df2d866a2)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1441662
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/libvirt_private.syms |  2 ++
+ src/qemu/qemu_domain.c   |  7 +++++++
+ src/qemu/qemu_domain.h   |  4 ++++
+ src/qemu/qemu_process.c  | 13 +++++++++++--
+ 4 files changed, 24 insertions(+), 2 deletions(-)
+
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index 88e3f4b8ac..8c088316c4 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -76,9 +76,11 @@ virCPUDefCopyModelFilter;
+ virCPUDefCopyWithoutModel;
+ virCPUDefFormat;
+ virCPUDefFormatBuf;
++virCPUDefFormatBufFull;
+ virCPUDefFree;
+ virCPUDefFreeFeatures;
+ virCPUDefFreeModel;
++virCPUDefIsEqual;
+ virCPUDefParseXML;
+ virCPUDefStealModel;
+ virCPUDefUpdateFeature;
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index 63fcde8024..89fd9f9abc 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -1705,6 +1705,8 @@ qemuDomainObjPrivateFree(void *data)
+     VIR_FREE(priv->migTLSAlias);
+     qemuDomainMasterKeyFree(priv);
+ 
++    virCPUDefFree(priv->origCPU);
++
+     VIR_FREE(priv);
+ }
+ 
+@@ -1860,6 +1862,8 @@ qemuDomainObjPrivateXMLFormat(virBufferPtr buf,
+     virBufferEscapeString(buf, "<channelTargetDir path='%s'/>\n",
+                           priv->channelTargetDir);
+ 
++    virCPUDefFormatBufFull(buf, priv->origCPU, NULL, false);
++
+     return 0;
+ }
+ 
+@@ -2128,6 +2132,9 @@ qemuDomainObjPrivateXMLParse(xmlXPathContextPtr ctxt,
+     if (qemuDomainSetPrivatePathsOld(driver, vm) < 0)
+         goto error;
+ 
++    if (virCPUDefParseXML(ctxt, "./cpu", VIR_CPU_TYPE_GUEST, &priv->origCPU) < 0)
++        goto error;
++
+     return 0;
+ 
+  error:
+diff --git a/src/qemu/qemu_domain.h b/src/qemu/qemu_domain.h
+index 80d80e4554..0c5dad60e1 100644
+--- a/src/qemu/qemu_domain.h
++++ b/src/qemu/qemu_domain.h
+@@ -293,6 +293,10 @@ struct _qemuDomainObjPrivate {
+     /* Used when fetching/storing the current 'tls-creds' migration setting */
+     /* (not to be saved in our private XML). */
+     char *migTLSAlias;
++
++    /* CPU def used to start the domain when it differs from the one actually
++     * provided by QEMU. */
++    virCPUDefPtr origCPU;
+ };
+ 
+ # define QEMU_DOMAIN_PRIVATE(vm)	\
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 7e51ca819a..79f780ed46 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -3915,6 +3915,7 @@ qemuProcessUpdateLiveGuestCPU(virQEMUDriverPtr driver,
+     qemuDomainObjPrivatePtr priv = vm->privateData;
+     int rc;
+     int ret = -1;
++    virCPUDefPtr orig = NULL;
+ 
+     if (ARCH_IS_X86(def->os.arch)) {
+         if (qemuDomainObjEnterMonitorAsync(driver, vm, asyncJob) < 0)
+@@ -3945,10 +3946,17 @@ qemuProcessUpdateLiveGuestCPU(virQEMUDriverPtr driver,
+         if (qemuProcessVerifyCPUFeatures(def, cpu) < 0)
+             goto cleanup;
+ 
+-        if ((rc = virCPUUpdateLive(def->os.arch, def->cpu, cpu, disabled)) < 0)
++        if (!(orig = virCPUDefCopy(def->cpu)))
+             goto cleanup;
+-        else if (rc == 0)
++
++        if ((rc = virCPUUpdateLive(def->os.arch, def->cpu, cpu, disabled)) < 0) {
++            goto cleanup;
++        } else if (rc == 0) {
++            if (!virCPUDefIsEqual(def->cpu, orig, false))
++                VIR_STEAL_PTR(priv->origCPU, orig);
++
+             def->cpu->check = VIR_CPU_CHECK_FULL;
++        }
+     }
+ 
+     ret = 0;
+@@ -3956,6 +3964,7 @@ qemuProcessUpdateLiveGuestCPU(virQEMUDriverPtr driver,
+  cleanup:
+     virCPUDataFree(cpu);
+     virCPUDataFree(disabled);
++    virCPUDefFree(orig);
+     return ret;
+ }
+ 
+-- 
+2.13.1
+

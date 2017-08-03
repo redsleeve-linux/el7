@@ -25,7 +25,7 @@
 # Define GOROOT macros
 %global goroot          /usr/lib/%{name}
 %global gopath          %{_datadir}/gocode
-%global golang_arches   x86_64 aarch64 %{arm}
+%global golang_arches   x86_64 aarch64 ppc64le s390x
 
 # Golang build options.
 
@@ -72,16 +72,20 @@
 %global gohostarch  arm64
 %endif
 
-%ifarch %{arm}
-%global gohostarch  arm
+%ifarch ppc64le
+%global gohostarch ppc64le
 %endif
 
-%global go_api 1.6
-%global go_version 1.6.3
+%ifarch s390x
+%global gohostarch s390x
+%endif
+
+%global go_api 1.8
+%global go_version 1.8.3
 
 Name:           golang
-Version:        1.6.3
-Release:        2%{?dist}.redsleeve
+Version:        1.8.3
+Release:        1%{?dist}
 Summary:        The Go Programming Language
 # source tree includes several copies of Mark.Twain-Tom.Sawyer.txt under Public Domain
 License:        BSD and Public Domain
@@ -100,7 +104,7 @@ BuildRequires:  hostname
 BuildRequires:  net-tools
 %endif
 # for tests
-BuildRequires:  pcre-devel, glibc-static
+BuildRequires:  pcre-devel, glibc-static, perl
 
 Provides:       go = %{version}-%{release}
 Provides:       go-srpm-macros
@@ -109,19 +113,17 @@ Requires:       %{name}-src = %{version}-%{release}
 
 Patch0:         golang-1.2-verbose-build.patch
 
-# https://bugzilla.redhat.com/show_bug.cgi?id=1038683
-Patch1:         golang-1.2-remove-ECC-p224.patch
-
 # use the arch dependent path in the bootstrap
 Patch212:       golang-1.5-bootstrap-binary-path.patch
-
-# disable TestGdbPython
-# https://github.com/golang/go/issues/11214
-Patch213:       go1.5beta1-disable-TestGdbPython.patch
 
 # we had been just removing the zoneinfo.zip, but that caused tests to fail for users that 
 # later run `go test -a std`. This makes it only use the zoneinfo.zip where needed in tests.
 Patch215:       ./go1.5-zoneinfo_testing_only.patch
+
+# https://github.com/golang/go/commit/94aba76639cf4d5e30975d846bb0368db8202269
+Patch216:       ./31bit-OID-asn1.patch
+Patch217:       ./dlink-test-fail.patch
+Patch218:       ./dlink-aarch64-test-fail.patch
 
 # Having documentation separate was broken
 Obsoletes:      %{name}-docs < 1.1-4
@@ -236,16 +238,21 @@ Summary:        Golang shared object libraries
 # increase verbosity of build
 %patch0 -p1
 
-# remove the P224 curve
-%patch1 -p1
-
 # use the arch dependent path in the bootstrap
 %patch212 -p1 -b .boot
 
-# disable TestGdbPython
-%patch213 -p1
-
 %patch215 -p1
+
+%patch216 -p1
+%ifarch ppc64le
+%patch217 -p1
+%endif
+%ifarch aarch64
+%patch218 -p1
+%endif
+
+# don't include chacha test vectors in buildID
+mv ./src/vendor/golang_org/x/crypto/chacha20poly1305/chacha20poly1305_test_vectors.go ./src/vendor/golang_org/x/crypto/chacha20poly1305/chacha20poly1305_vectors_test.go
 
 %build
 
@@ -459,16 +466,45 @@ fi
 %files -f go-tests.list tests
 
 %files -f go-pkg.list bin
-%{_bindir}/go
-%{_bindir}/gofmt
+%ghost %{_bindir}/go
+%ghost %{_bindir}/gofmt
 
 %if %{shared}
 %files -f go-shared.list shared
 %endif
 
 %changelog
-* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> - 1.6.3-2.redsleeve
-- added arm to golang_arches
+* Wed May 31 2017 Jakub Čajka <jcajka@redhat.com> - 1.8.3-1
+- bump to 1.8.3
+- fix CVE-2017-8932
+- Resolves: rhbz#1452616, rhbz#1452241, rhbz#1457169, rhbz#1448346
+
+* Fri Apr 21 2017 Jakub Čajka <jcajka@redhat.com> - 1.8-4
+- Related: rhbz#1444122
+
+* Fri Apr 21 2017 Jakub Čajka <jcajka@redhat.com> - 1.8-3
+- Resolves: rhbz#1444122
+
+* Fri Feb 24 2017 Jakub Čajka <jcajka@redhat.com> - 1.8-2
+- Related: rhbz#1414500
+
+* Fri Feb 17 2017 Jakub Čajka <jcajka@redhat.com> - 1.8-1
+- Resolves: rhbz#1414500 Rebase golang to 1.8
+
+* Wed Feb 01 2017 Josh Stone <jistone@redhat.com> - 1.7.4-4
+- Resolves: rhbz#1405587 Add ppc64le and s390x to %%go_arches
+
+* Wed Jan 11 2017 Jakub Čajka <jcajka@redhat.com> - 1.7.4-3
+- Resolves: rhbz#1405587 Add ppc64le and s390x builds
+
+* Fri Dec 09 2016 Jakub Čajka <jcajka@redhat.com> - 1.7.4-1
+- Resolves: rhbz#1365649 - Rebase to golang 1.7
+
+* Mon Nov 21 2016 Jakub Čajka <jcajka@redhat.com> - 1.6.3-4
+- Resolves: rhbz#1399719 - NIST P-224 curve support for golang
+
+* Thu Oct 13 2016 Jakub Čajka <jcajka@redhat.com> - 1.6.3-3
+- Resolves: rhbz#1381593 - runtime: backport 'fix nanotime for macOS Sierra, again' to go 1.6.x 
 
 * Wed Jul 20 2016 Jakub Čajka <jcajka@redhat.com> - 1.6.3-2
 - Resolves: rhbz#1358279 - CVE-2016-5386

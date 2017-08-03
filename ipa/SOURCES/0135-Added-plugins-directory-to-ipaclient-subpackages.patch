@@ -1,0 +1,35 @@
+From b62710ef8fe96ac012d61f6fc76f7d4e69a49f09 Mon Sep 17 00:00:00 2001
+From: Oliver Gutierrez <ogutierrez@redhat.com>
+Date: Fri, 28 Apr 2017 15:21:49 +0100
+Subject: [PATCH] Added plugins directory to ipaclient subpackages
+
+https://pagure.io/freeipa/issue/6927
+
+Reviewed-By: Pavel Vomacka <pvomacka@redhat.com>
+---
+ freeipa.spec.in | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/freeipa.spec.in b/freeipa.spec.in
+index 1b3ed15036eab6262b144d970cbdfdad31ac13ea..3a5a9b4087d2394d6e8556d62da46a3dc922c913 100644
+--- a/freeipa.spec.in
++++ b/freeipa.spec.in
+@@ -1404,6 +1404,7 @@ fi
+ %doc README.md Contributors.txt
+ %license COPYING
+ %dir %{python_sitelib}/ipaclient
++%dir %{python_sitelib}/ipaclient/plugins
+ %{python_sitelib}/ipaclient/*.py*
+ %{python_sitelib}/ipaclient/install/*.py*
+ %{python_sitelib}/ipaclient/plugins/*.py*
+@@ -1422,6 +1423,7 @@ fi
+ %doc README.md Contributors.txt
+ %license COPYING
+ %dir %{python3_sitelib}/ipaclient
++%dir %{python3_sitelib}/ipaclient/plugins
+ %{python3_sitelib}/ipaclient/*.py
+ %{python3_sitelib}/ipaclient/__pycache__/*.py*
+ %{python3_sitelib}/ipaclient/install/*.py
+-- 
+2.9.3
+

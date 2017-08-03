@@ -1,0 +1,26 @@
+commit 1ff69afbb78e9303a0d9859d941371eaedbb6842
+Author: James Antill <james@and.org>
+Date:   Mon Sep 22 16:22:42 2014 -0400
+
+    Have "yum check" ignore self conflicts.
+
+diff --git a/yum/rpmsack.py b/yum/rpmsack.py
+index 2d718c1..229e1a1 100644
+--- a/yum/rpmsack.py
++++ b/yum/rpmsack.py
+@@ -1576,6 +1576,15 @@ class RPMDBPackageSack(PackageSackBase):
+ 
+                 (req, flags, ver) = creq
+                 res = self.getProvides(req, flags, ver)
++
++                # Filter this pkg out, as self conflicts are allowed.
++                nres = {}
++                for conflicting_po in res:
++                    if conflicting_po.pkgtup[0] == pkg.pkgtup[0] and conflicting_po.pkgtup[2:] == pkg.pkgtup[2:]:
++                        continue
++                    nres[conflicting_po] = res[conflicting_po]
++                res = nres
++
+                 if not res:
+                     continue
+                 flags = yum.depsolve.flags.get(flags, flags)

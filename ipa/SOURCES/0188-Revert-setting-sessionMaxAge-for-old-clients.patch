@@ -1,0 +1,44 @@
+From f231d5ceb283723c42f6c15210c76f28324c2e15 Mon Sep 17 00:00:00 2001
+From: Simo Sorce <simo@redhat.com>
+Date: Tue, 6 Jun 2017 09:04:58 -0400
+Subject: [PATCH] Revert setting sessionMaxAge for old clients
+
+Older clients have issues properly parsing cookies and the sessionMaxAge
+setting is one of those that breaks them.
+Comment out the setting and add a comment that explains why it is not
+set by default.
+
+https://pagure.io/freeipa/issue/7001
+
+Signed-off-by: Simo Sorce <simo@redhat.com>
+Reviewed-By: Pavel Vomacka <pvomacka@redhat.com>
+Reviewed-By: Alexander Bokovoy <abokovoy@redhat.com>
+---
+ install/conf/ipa.conf | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/install/conf/ipa.conf b/install/conf/ipa.conf
+index a7ca5ce715e55960b8edd307cdbe41dcbd6b29ca..01bf9a4f97fc0cf197c0ad12743affa597b54911 100644
+--- a/install/conf/ipa.conf
++++ b/install/conf/ipa.conf
+@@ -1,5 +1,5 @@
+ #
+-# VERSION 26 - DO NOT REMOVE THIS LINE
++# VERSION 27 - DO NOT REMOVE THIS LINE
+ #
+ # This file may be overwritten on upgrades.
+ #
+@@ -77,7 +77,9 @@ WSGIScriptReloading Off
+   Session On
+   SessionCookieName ipa_session path=/ipa;httponly;secure;
+   SessionHeader IPASESSION
+-  SessionMaxAge 1800
++  # Uncomment the following to have shorter sessions, but beware this may break
++  # old IPA client tols that incorrectly parse cookies.
++  # SessionMaxAge 1800
+   GssapiSessionKey file:/etc/httpd/alias/ipasession.key
+ 
+   GssapiImpersonate On
+-- 
+2.9.4
+

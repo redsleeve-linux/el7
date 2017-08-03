@@ -1,0 +1,47 @@
+From 93313904b77e40a1ebb7b0cf6fdcadf34d6cb175 Mon Sep 17 00:00:00 2001
+Message-Id: <93313904b77e40a1ebb7b0cf6fdcadf34d6cb175@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Tue, 4 Apr 2017 19:43:13 +0200
+Subject: [PATCH] qemu: Properly reset TLS in qemuProcessRecoverMigrationIn
+
+There is no async job running when a freshly started libvirtd is trying
+to recover from an interrupted incoming migration. While at it, let's
+call qemuMigrationResetTLS every time we don't kill the domain. This is
+not strictly necessary since TLS is not supported when v2 migration
+protocol is used, but doing so makes more sense.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit 59b28ecab845adb6fefe3280675f95d1f2135e3b)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1425003
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_process.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 039b3911c..0b9b4f76a 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -2973,9 +2973,6 @@ qemuProcessRecoverMigrationIn(virQEMUDriverPtr driver,
+         /* migration finished, we started resuming the domain but didn't
+          * confirm success or failure yet; killing it seems safest unless
+          * we already started guest CPUs or we were in post-copy mode */
+-        ignore_value(qemuMigrationResetTLS(driver, vm,
+-                                           QEMU_ASYNC_JOB_MIGRATION_IN,
+-                                           NULL, NULL));
+         if (postcopy) {
+             qemuMigrationPostcopyFailed(driver, vm);
+         } else if (state != VIR_DOMAIN_RUNNING) {
+@@ -2985,6 +2982,7 @@ qemuProcessRecoverMigrationIn(virQEMUDriverPtr driver,
+         break;
+     }
+ 
++    qemuMigrationResetTLS(driver, vm, QEMU_ASYNC_JOB_NONE, NULL, NULL);
+     return 0;
+ }
+ 
+-- 
+2.12.2
+

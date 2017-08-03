@@ -1,0 +1,129 @@
+From 0c3a8fd16a2081ba0a07bf8c8bfdf26e4922da31 Mon Sep 17 00:00:00 2001
+Message-Id: <0c3a8fd16a2081ba0a07bf8c8bfdf26e4922da31@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 5 Apr 2017 14:48:43 +0200
+Subject: [PATCH] qemu: Introduce qemuMigrationReset
+
+This new API is supposed to reset all migration parameters to make sure
+future migrations won't accidentally use them. This patch makes the
+first step and moves qemuMigrationResetTLS call inside
+qemuMigrationReset.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit 439a1795fd3dc8a47ad794bf10a4c86a3ee14e61)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1425003
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_migration.c | 31 +++++++++++++++++++++++--------
+ src/qemu/qemu_migration.h |  5 +++++
+ src/qemu/qemu_process.c   |  4 ++--
+ 3 files changed, 30 insertions(+), 10 deletions(-)
+
+diff --git a/src/qemu/qemu_migration.c b/src/qemu/qemu_migration.c
+index 6c9f14245..27156cc78 100644
+--- a/src/qemu/qemu_migration.c
++++ b/src/qemu/qemu_migration.c
+@@ -2836,9 +2836,7 @@ qemuMigrationPrepareAny(virQEMUDriverPtr driver,
+     return ret;
+ 
+  stopjob:
+-    ignore_value(qemuMigrationResetTLS(driver, vm,
+-                                       QEMU_ASYNC_JOB_MIGRATION_IN,
+-                                       tlsAlias, secAlias));
++    qemuMigrationReset(driver, vm, QEMU_ASYNC_JOB_MIGRATION_IN);
+ 
+     if (stopProcess) {
+         unsigned int stopFlags = VIR_QEMU_PROCESS_STOP_MIGRATED;
+@@ -3216,8 +3214,7 @@ qemuMigrationConfirmPhase(virQEMUDriverPtr driver,
+             qemuDomainEventQueue(driver, event);
+         }
+ 
+-        qemuMigrationResetTLS(driver, vm, QEMU_ASYNC_JOB_MIGRATION_OUT,
+-                              NULL, NULL);
++        qemuMigrationReset(driver, vm, QEMU_ASYNC_JOB_MIGRATION_OUT);
+ 
+         if (virDomainSaveStatus(driver->xmlopt, cfg->stateDir, vm, driver->caps) < 0)
+             VIR_WARN("Failed to save status on vm %s", vm->def->name);
+@@ -4830,8 +4827,7 @@ qemuMigrationPerformJob(virQEMUDriverPtr driver,
+      * here
+      */
+     if (!v3proto && ret < 0)
+-        qemuMigrationResetTLS(driver, vm, QEMU_ASYNC_JOB_MIGRATION_OUT,
+-                              NULL, NULL);
++        qemuMigrationReset(driver, vm, QEMU_ASYNC_JOB_MIGRATION_OUT);
+ 
+     if (qemuMigrationRestoreDomainState(conn, vm)) {
+         event = virDomainEventLifecycleNewFromObj(vm,
+@@ -5362,7 +5358,7 @@ qemuMigrationFinish(virQEMUDriverPtr driver,
+                                  QEMU_ASYNC_JOB_MIGRATION_IN);
+     }
+ 
+-    qemuMigrationResetTLS(driver, vm, QEMU_ASYNC_JOB_MIGRATION_IN, NULL, NULL);
++    qemuMigrationReset(driver, vm, QEMU_ASYNC_JOB_MIGRATION_IN);
+ 
+     qemuMigrationJobFinish(driver, vm);
+     if (!virDomainObjIsActive(vm))
+@@ -5875,3 +5871,22 @@ qemuMigrationCompressionDump(qemuMigrationCompressionPtr compression,
+ 
+     return 0;
+ }
++
++
++/*
++ * qemuMigrationReset:
++ *
++ * Reset all migration parameters so that the next job which internally uses
++ * migration (save, managedsave, snapshots, dump) will not try to use them.
++ */
++void
++qemuMigrationReset(virQEMUDriverPtr driver,
++                   virDomainObjPtr vm,
++                   qemuDomainAsyncJob job)
++{
++    if (!virDomainObjIsActive(vm))
++        return;
++
++    if (qemuMigrationResetTLS(driver, vm, job, NULL, NULL) < 0)
++        return;
++}
+diff --git a/src/qemu/qemu_migration.h b/src/qemu/qemu_migration.h
+index 5248f399d..28eb55056 100644
+--- a/src/qemu/qemu_migration.h
++++ b/src/qemu/qemu_migration.h
+@@ -285,4 +285,9 @@ qemuMigrationResetTLS(virQEMUDriverPtr driver,
+                       char *in_tlsAlias,
+                       char *in_secAlias);
+ 
++void
++qemuMigrationReset(virQEMUDriverPtr driver,
++                   virDomainObjPtr vm,
++                   qemuDomainAsyncJob job);
++
+ #endif /* __QEMU_MIGRATION_H__ */
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 2e0f859ce..027c831e6 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -2982,7 +2982,7 @@ qemuProcessRecoverMigrationIn(virQEMUDriverPtr driver,
+         break;
+     }
+ 
+-    qemuMigrationResetTLS(driver, vm, QEMU_ASYNC_JOB_NONE, NULL, NULL);
++    qemuMigrationReset(driver, vm, QEMU_ASYNC_JOB_NONE);
+     return 0;
+ }
+ 
+@@ -3077,7 +3077,7 @@ qemuProcessRecoverMigrationOut(virQEMUDriverPtr driver,
+         }
+     }
+ 
+-    qemuMigrationResetTLS(driver, vm, QEMU_ASYNC_JOB_NONE, NULL, NULL);
++    qemuMigrationReset(driver, vm, QEMU_ASYNC_JOB_NONE);
+     return 0;
+ }
+ 
+-- 
+2.12.2
+

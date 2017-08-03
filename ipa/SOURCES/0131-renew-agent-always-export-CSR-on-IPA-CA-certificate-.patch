@@ -1,0 +1,51 @@
+From da3e6ab68f4f40b2851770fcc928b5bb93831c42 Mon Sep 17 00:00:00 2001
+From: Jan Cholasta <jcholast@redhat.com>
+Date: Mon, 24 Apr 2017 06:20:07 +0000
+Subject: [PATCH] renew agent: always export CSR on IPA CA certificate renewal
+
+Make sure a CSR is exported for the IPA CA whenever certmonger detects that
+the CA certificate is about to expire.
+
+This is a pre-requisite for using the `dogtag-ipa-ca-renew-agent-reuse` CA
+instead of the `ipaCSRExport` virtual profile to export the CSR.
+
+https://pagure.io/freeipa/issue/5799
+
+Reviewed-By: David Kupka <dkupka@redhat.com>
+Reviewed-By: Stanislav Laznicka <slaznick@redhat.com>
+---
+ install/certmonger/dogtag-ipa-ca-renew-agent-submit | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/install/certmonger/dogtag-ipa-ca-renew-agent-submit b/install/certmonger/dogtag-ipa-ca-renew-agent-submit
+index 7b5489555d069856a6da7a21b5ab2b0f4dd4a41c..657a1bc638e1da680522c638e92914098fc6ab4b 100755
+--- a/install/certmonger/dogtag-ipa-ca-renew-agent-submit
++++ b/install/certmonger/dogtag-ipa-ca-renew-agent-submit
+@@ -451,6 +451,10 @@ def renew_ca_cert(reuse_existing, **kwargs):
+     """
+     This is used for automatic CA certificate renewal.
+     """
++    csr = os.environ.get('CERTMONGER_CSR')
++    if not csr:
++        return (UNCONFIGURED, "Certificate request not provided")
++
+     cert = os.environ.get('CERTMONGER_CERTIFICATE')
+     if not cert:
+         return (REJECTED, "New certificate requests not supported")
+@@ -462,6 +466,13 @@ def renew_ca_cert(reuse_existing, **kwargs):
+ 
+         if is_self_signed and not reuse_existing and is_renewal_master():
+             state = 'request'
++
++        csr_file = paths.IPA_CA_CSR
++        try:
++            with open(csr_file, 'wb') as f:
++                f.write(csr)
++        except Exception as e:
++            return (UNREACHABLE, "Failed to write %s: %s" % (csr_file, e))
+     elif operation == 'POLL':
+         cookie = os.environ.get('CERTMONGER_CA_COOKIE')
+         if not cookie:
+-- 
+2.9.3
+

@@ -1,0 +1,207 @@
+From 2c6067b5f21f5965912c115d0b5e3afd2d1f6ddd Mon Sep 17 00:00:00 2001
+Message-Id: <2c6067b5f21f5965912c115d0b5e3afd2d1f6ddd@dist-git>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Fri, 26 May 2017 08:52:57 +0200
+Subject: [PATCH] qemu: format eim on intel-iommu command line
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+This option turns on extended interrupt mode,
+which allows more than 255 vCPUs.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1451282
+
+Reviewed-by: Andrea Bolognani <abologna@redhat.com>
+(cherry picked from commit 381e638d81fd13475112ec9ae2cc4fdbe546ed4d)
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+
+Also:
+https://bugzilla.redhat.com/show_bug.cgi?id=1289153
+
+Conflicts:
+    tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml
+      that QEMU version again
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_capabilities.c                        |  2 ++
+ src/qemu/qemu_capabilities.h                        |  1 +
+ src/qemu/qemu_command.c                             | 11 +++++++++++
+ src/qemu/qemu_domain.c                              | 21 +++++++++++++++++++++
+ tests/qemucapabilitiesdata/caps_2.8.0.x86_64.xml    |  1 +
+ tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml    |  1 +
+ .../qemuxml2argv-intel-iommu-eim.args               | 19 +++++++++++++++++++
+ tests/qemuxml2argvtest.c                            |  7 +++++++
+ 8 files changed, 63 insertions(+)
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-intel-iommu-eim.args
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index c970d70e3..80db60bc4 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -371,6 +371,7 @@ VIR_ENUM_IMPL(virQEMUCaps, QEMU_CAPS_LAST,
+               "kernel-irqchip.split",
+               "intel-iommu.intremap",
+               "intel-iommu.caching-mode",
++              "intel-iommu.eim",
+     );
+ 
+ 
+@@ -1726,6 +1727,7 @@ static struct virQEMUCapsStringFlags virQEMUCapsObjectPropsUSBNECXHCI[] = {
+ static struct virQEMUCapsStringFlags virQEMUCapsObjectPropsIntelIOMMU[] = {
+     { "intremap", QEMU_CAPS_INTEL_IOMMU_INTREMAP },
+     { "caching-mode", QEMU_CAPS_INTEL_IOMMU_CACHING_MODE },
++    { "eim", QEMU_CAPS_INTEL_IOMMU_EIM },
+ };
+ 
+ /* see documentation for virQEMUCapsQMPSchemaGetByPath for the query format */
+diff --git a/src/qemu/qemu_capabilities.h b/src/qemu/qemu_capabilities.h
+index 4e322b5c2..1c64364af 100644
+--- a/src/qemu/qemu_capabilities.h
++++ b/src/qemu/qemu_capabilities.h
+@@ -409,6 +409,7 @@ typedef enum {
+     QEMU_CAPS_MACHINE_KERNEL_IRQCHIP_SPLIT, /* -machine kernel_irqchip=split */
+     QEMU_CAPS_INTEL_IOMMU_INTREMAP, /* intel-iommu.intremap */
+     QEMU_CAPS_INTEL_IOMMU_CACHING_MODE, /* intel-iommu.caching-mode */
++    QEMU_CAPS_INTEL_IOMMU_EIM, /* intel-iommu.eim */
+ 
+     QEMU_CAPS_LAST /* this must always be the last item */
+ } virQEMUCapsFlags;
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index d4d0c00d5..9c0d151da 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -6687,6 +6687,13 @@ qemuBuildIOMMUCommandLine(virCommandPtr cmd,
+                              "with this QEMU binary"));
+             return -1;
+         }
++        if (iommu->eim != VIR_TRISTATE_SWITCH_ABSENT &&
++            !virQEMUCapsGet(qemuCaps, QEMU_CAPS_INTEL_IOMMU_EIM))  {
++            virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
++                           _("iommu: eim is not supported "
++                             "with this QEMU binary"));
++            return -1;
++        }
+         break;
+     case VIR_DOMAIN_IOMMU_MODEL_LAST:
+         break;
+@@ -6720,6 +6727,10 @@ qemuBuildIOMMUCommandLine(virCommandPtr cmd,
+             virBufferAsprintf(&opts, ",caching-mode=%s",
+                               virTristateSwitchTypeToString(iommu->caching_mode));
+         }
++        if (iommu->eim != VIR_TRISTATE_SWITCH_ABSENT) {
++            virBufferAsprintf(&opts, ",eim=%s",
++                              virTristateSwitchTypeToString(iommu->eim));
++        }
+     case VIR_DOMAIN_IOMMU_MODEL_LAST:
+         break;
+     }
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index a8a68aedd..89698d4fc 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -2941,6 +2941,9 @@ qemuDomainDefValidateVideo(const virDomainDef *def)
+ }
+ 
+ 
++#define QEMU_MAX_VCPUS_WITHOUT_EIM 255
++
++
+ static int
+ qemuDomainDefValidate(const virDomainDef *def,
+                       virCapsPtr caps,
+@@ -3020,6 +3023,24 @@ qemuDomainDefValidate(const virDomainDef *def,
+         }
+     }
+ 
++    if (ARCH_IS_X86(def->os.arch) &&
++        virDomainDefGetVcpusMax(def) > QEMU_MAX_VCPUS_WITHOUT_EIM) {
++        if (!qemuDomainIsQ35(def)) {
++            virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
++                           _("more than %d vCPUs are only supported on "
++                             "q35-based machine types"),
++                           QEMU_MAX_VCPUS_WITHOUT_EIM);
++            goto cleanup;
++        }
++        if (!def->iommu || def->iommu->eim != VIR_TRISTATE_SWITCH_ON) {
++            virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
++                           _("more than %d vCPUs require extended interrupt "
++                             "mode enabled on the iommu device"),
++                           QEMU_MAX_VCPUS_WITHOUT_EIM);
++            goto cleanup;
++        }
++    }
++
+     if (qemuDomainDefValidateVideo(def) < 0)
+         goto cleanup;
+ 
+diff --git a/tests/qemucapabilitiesdata/caps_2.8.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_2.8.0.x86_64.xml
+index e51567817..01edbc88d 100644
+--- a/tests/qemucapabilitiesdata/caps_2.8.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.8.0.x86_64.xml
+@@ -206,6 +206,7 @@
+   <flag name='kernel-irqchip'/>
+   <flag name='kernel-irqchip.split'/>
+   <flag name='intel-iommu.intremap'/>
++  <flag name='intel-iommu.eim'/>
+   <version>2008000</version>
+   <kvmVersion>0</kvmVersion>
+   <package> (v2.8.0)</package>
+diff --git a/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml
+index b5649d8d7..2002dc7c0 100644
+--- a/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml
+@@ -213,6 +213,7 @@
+   <flag name='kernel-irqchip.split'/>
+   <flag name='intel-iommu.intremap'/>
+   <flag name='intel-iommu.caching-mode'/>
++  <flag name='intel-iommu.eim'/>
+   <version>2008090</version>
+   <kvmVersion>0</kvmVersion>
+   <package> (v2.9.0-rc0-142-g940a8ce)</package>
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-intel-iommu-eim.args b/tests/qemuxml2argvdata/qemuxml2argv-intel-iommu-eim.args
+new file mode 100644
+index 000000000..ebf7c49bf
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-intel-iommu-eim.args
+@@ -0,0 +1,19 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/home/test \
++USER=test \
++LOGNAME=test \
++QEMU_AUDIO_DRV=none \
++/usr/bin/qemu-system-x86_64 \
++-name QEMUGuest1 \
++-S \
++-machine q35,accel=kvm,kernel_irqchip=split \
++-m 214 \
++-smp 288,sockets=288,cores=1,threads=1 \
++-uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
++-nographic \
++-nodefaults \
++-monitor unix:/tmp/lib/domain--1-QEMUGuest1/monitor.sock,server,nowait \
++-no-acpi \
++-boot c \
++-device intel-iommu,intremap=on,eim=on
+diff --git a/tests/qemuxml2argvtest.c b/tests/qemuxml2argvtest.c
+index e3d6d757b..ecdda2db9 100644
+--- a/tests/qemuxml2argvtest.c
++++ b/tests/qemuxml2argvtest.c
+@@ -2534,6 +2534,13 @@ mymain(void)
+             QEMU_CAPS_DEVICE_INTEL_IOMMU,
+             QEMU_CAPS_INTEL_IOMMU_INTREMAP,
+             QEMU_CAPS_INTEL_IOMMU_CACHING_MODE);
++    DO_TEST("intel-iommu-eim",
++            QEMU_CAPS_MACHINE_OPT,
++            QEMU_CAPS_MACHINE_KERNEL_IRQCHIP,
++            QEMU_CAPS_MACHINE_KERNEL_IRQCHIP_SPLIT,
++            QEMU_CAPS_INTEL_IOMMU_INTREMAP,
++            QEMU_CAPS_INTEL_IOMMU_EIM,
++            QEMU_CAPS_DEVICE_INTEL_IOMMU);
+ 
+     DO_TEST("cpu-hotplug-startup", QEMU_CAPS_QUERY_HOTPLUGGABLE_CPUS);
+ 
+-- 
+2.13.0
+

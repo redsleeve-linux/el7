@@ -1,0 +1,34 @@
+From a4140595a3fcb42d9666aea823d3d8cd9ae0c7c3 Mon Sep 17 00:00:00 2001
+From: Martin Babinsky <mbabinsk@redhat.com>
+Date: Tue, 21 Mar 2017 17:03:35 +0100
+Subject: [PATCH] Upgrade: configure PKINIT after adding anonymous principal
+
+In order to set up PKINIT, the anonymous principal must already be
+created, otherwise the upgrade with fail when trying out anonymous
+PKINIT. Switch the order of steps so that this issue does not occur.
+
+https://pagure.io/freeipa/issue/6792
+
+Reviewed-By: Stanislav Laznicka <slaznick@redhat.com>
+---
+ ipaserver/install/server/upgrade.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ipaserver/install/server/upgrade.py b/ipaserver/install/server/upgrade.py
+index 1706079da86d9ba9066f71f02b170c161c1f2963..be07d78585d4772eb6dd0aaa8fb4ccb588c42c65 100644
+--- a/ipaserver/install/server/upgrade.py
++++ b/ipaserver/install/server/upgrade.py
+@@ -1809,9 +1809,9 @@ def upgrade_configuration():
+                         KDC_CERT=paths.KDC_CERT,
+                         KDC_KEY=paths.KDC_KEY,
+                         CACERT_PEM=paths.CACERT_PEM)
+-    setup_pkinit(krb)
+     enable_anonymous_principal(krb)
+     http.request_anon_keytab()
++    setup_pkinit(krb)
+ 
+     if not ds_running:
+         ds.stop(ds_serverid)
+-- 
+2.12.2
+

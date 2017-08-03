@@ -1,0 +1,32 @@
+From 4ec1a4fd564bff73c37810bd5326c9382e3a26bf Mon Sep 17 00:00:00 2001
+From: Pavel Vomacka <pvomacka@redhat.com>
+Date: Mon, 12 Jun 2017 13:18:44 +0200
+Subject: [PATCH] WebUI: add support for changing trust UPN suffixes
+
+It is now possible to change UPN suffixes in WebUI. This change
+allows another way to changing UPN suffixes for AD users.
+
+https://pagure.io/freeipa/issue/7015
+
+Reviewed-By: Alexander Bokovoy <abokovoy@redhat.com>
+---
+ install/ui/src/freeipa/trust.js | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/install/ui/src/freeipa/trust.js b/install/ui/src/freeipa/trust.js
+index 39e79ebef1c1fb3cb730d9304c46862ec0d0e651..ff019cab3070312b90e14e08a9070c353b1e7f71 100644
+--- a/install/ui/src/freeipa/trust.js
++++ b/install/ui/src/freeipa/trust.js
+@@ -147,8 +147,7 @@ return {
+                     fields: [
+                         {
+                             $type: 'multivalued',
+-                            name: 'ipantadditionalsuffixes',
+-                            read_only: true
++                            name: 'ipantadditionalsuffixes'
+                         }
+                     ]
+                 },
+-- 
+2.9.4
+

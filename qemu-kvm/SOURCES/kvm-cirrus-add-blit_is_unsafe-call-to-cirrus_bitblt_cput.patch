@@ -1,4 +1,4 @@
-From e894ec03d7e6229488ae24d83809009162a0f9e0 Mon Sep 17 00:00:00 2001
+From 74db251c34369bd32148864b3abea6d6586270dc Mon Sep 17 00:00:00 2001
 From: Gerd Hoffmann <kraxel@redhat.com>
 Date: Fri, 10 Feb 2017 08:30:15 +0100
 Subject: [PATCH 3/3] cirrus: add blit_is_unsafe call to
@@ -8,7 +8,7 @@ RH-Author: Gerd Hoffmann <kraxel@redhat.com>
 Message-id: <1486715415-3462-4-git-send-email-kraxel@redhat.com>
 Patchwork-id: 73773
 O-Subject: [virt-devel] [EMBARGOED RHEL-7.4 qemu-kvm PATCH 3/3] cirrus: add blit_is_unsafe call to cirrus_bitblt_cputovideo
-Bugzilla: 1420490
+Bugzilla: 1420492
 CVE: CVE-2017-2620/20170221
 RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
 RH-Acked-by: Laurent Vivier <lvivier@redhat.com>

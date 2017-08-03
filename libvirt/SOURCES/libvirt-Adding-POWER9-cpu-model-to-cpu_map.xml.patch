@@ -1,0 +1,39 @@
+From e3d953a8230f0cc4c8955f80c515cede99593d6b Mon Sep 17 00:00:00 2001
+Message-Id: <e3d953a8230f0cc4c8955f80c515cede99593d6b@dist-git>
+From: Kothapally Madhu Pavan <kmp@linux.vnet.ibm.com>
+Date: Wed, 17 May 2017 13:23:33 +0200
+Subject: [PATCH] Adding POWER9 cpu model to cpu_map.xml
+
+As POWER9 model is not available in cpu_map.xml virsh capabilities
+donot display the cpu model and vendor details. This patch
+provides those details
+
+(cherry picked from commit 9cdf3a1c06189b8d0cab9f8f62b5b626cf8a150c)
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1450189
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/cpu/cpu_map.xml | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/cpu/cpu_map.xml b/src/cpu/cpu_map.xml
+index 7d5540a73..29b5b596f 100644
+--- a/src/cpu/cpu_map.xml
++++ b/src/cpu/cpu_map.xml
+@@ -1571,6 +1571,11 @@
+       <pvr value='0x004d0000' mask='0xffff0000'/>
+     </model>
+ 
++    <model name='POWER9'>
++      <vendor name='IBM'/>
++      <pvr value='0x004e0000' mask='0xffff0000'/>
++    </model>
++
+     <!-- Freescale-based CPU models -->
+     <model name='POWERPC_e5500'>
+       <vendor name='Freescale'/>
+-- 
+2.13.0
+

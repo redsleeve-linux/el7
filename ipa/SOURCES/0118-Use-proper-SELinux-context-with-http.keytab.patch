@@ -1,0 +1,40 @@
+From 488c433c369bfcd13e95d910b500c455a01715b6 Mon Sep 17 00:00:00 2001
+From: Martin Basti <mbasti@redhat.com>
+Date: Wed, 3 May 2017 13:51:02 +0200
+Subject: [PATCH] Use proper SELinux context with http.keytab
+
+During upgrade keytab is moved to a new location using "move" operation.
+This commit replaces move operation with "copy" and "remove" that
+ensures a proper selinux context.
+
+https://pagure.io/freeipa/issue/6924
+
+Reviewed-By: Martin Babinsky <mbabinsk@redhat.com>
+---
+ ipaserver/install/server/upgrade.py | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/ipaserver/install/server/upgrade.py b/ipaserver/install/server/upgrade.py
+index 0f27428dd492bb44dd8c69a7e7f47abb531843f5..4d8fd666dfd4e918103b449d4c31bb7661727115 100644
+--- a/ipaserver/install/server/upgrade.py
++++ b/ipaserver/install/server/upgrade.py
+@@ -1427,7 +1427,15 @@ def update_ipa_httpd_service_conf(http):
+ def update_http_keytab(http):
+     root_logger.info('[Moving HTTPD service keytab to gssproxy]')
+     if os.path.exists(paths.OLD_IPA_KEYTAB):
+-        shutil.move(paths.OLD_IPA_KEYTAB, http.keytab)
++        # ensure proper SELinux context by using copy operation
++        shutil.copy(paths.OLD_IPA_KEYTAB, http.keytab)
++        try:
++            os.remove(paths.OLD_IPA_KEYTAB)
++        except OSError as e:
++            root_logger.error(
++                'Cannot remove file %s (%s). Please remove the file manually.',
++                paths.OLD_IPA_KEYTAB, e
++            )
+     pent = pwd.getpwnam(http.keytab_user)
+     os.chown(http.keytab, pent.pw_uid, pent.pw_gid)
+ 
+-- 
+2.12.2
+

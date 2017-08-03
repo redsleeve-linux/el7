@@ -1,0 +1,41 @@
+From ceb0d5c2a4a8e8fae271e5a37ee32f58a2d36273 Mon Sep 17 00:00:00 2001
+From: Florence Blanc-Renaud <flo@redhat.com>
+Date: Tue, 16 May 2017 17:24:09 +0200
+Subject: [PATCH] ipa-ca-install: append CA cert chain into /etc/ipa/ca.crt
+
+ipa-ca-install currently overwrites /etc/ipa/ca.crt with the CA chain
+retrieved from Dogtag. It should instead append the new certs, otherwise
+the CA that signed dirsrv and httpd certificates is removed and ipa tools
+fail.
+A consequence is that ipa-kra-install fails.
+This is a regression introduced by 5ab85b36.
+
+https://pagure.io/freeipa/issue/6925
+
+Reviewed-By: Stanislav Laznicka <slaznick@redhat.com>
+---
+ ipaserver/install/cainstance.py | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/ipaserver/install/cainstance.py b/ipaserver/install/cainstance.py
+index b8c8cc4fc4532fc2c911ec174d363f8280ce863b..b0e9e8757ec3e3c0d03ed930743ef5a1253b864a 100644
+--- a/ipaserver/install/cainstance.py
++++ b/ipaserver/install/cainstance.py
+@@ -793,6 +793,14 @@ class CAInstance(DogtagInstance):
+         # Get list of PEM certificates
+         certlist = x509.pkcs7_to_pems(data, x509.DER)
+ 
++        # We need to append the certs to the existing file, so start by
++        # reading the file
++        if ipautil.file_exists(paths.IPA_CA_CRT):
++            ca_certs = x509.load_certificate_list_from_file(paths.IPA_CA_CRT)
++            ca_certs = [cert.public_bytes(serialization.Encoding.PEM)
++                        for cert in ca_certs]
++            certlist.extend(ca_certs)
++
+         # We have all the certificates in certlist, write them to a PEM file
+         for path in [paths.IPA_CA_CRT,
+                      paths.KDC_CA_BUNDLE_PEM,
+-- 
+2.9.4
+

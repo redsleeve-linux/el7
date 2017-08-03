@@ -42,7 +42,7 @@
 +
 +    # Check for a system-wide override of the default behaviour
 +    context_factory = {
-+        'platform_default': _create_unverified_context,
++        'platform_default': create_default_context,
 +        'enable': create_default_context,
 +        'disable': _create_unverified_context
 +    }
@@ -77,7 +77,7 @@
  import asyncore
  import socket
  import select
-@@ -1149,6 +1149,52 @@ 
+@@ -1149,6 +1149,57 @@
          self.assertEqual(ctx.verify_mode, ssl.CERT_NONE)
          self.assertEqual(ctx.options & ssl.OP_NO_SSLv2, ssl.OP_NO_SSLv2)
  
@@ -91,17 +91,17 @@
 +        local_ssl = support.import_fresh_module("ssl")
 +        # Certificate verification is enabled by default
 +        self.assertIs(local_ssl._create_default_https_context,
-+                      local_ssl._create_unverified_context)
-+        # Turn verification on
-+        local_ssl._https_verify_certificates(enable=True)
-+        self.assertIs(local_ssl._create_default_https_context,
 +                      local_ssl.create_default_context)
-+        # Turn verification off
++        # Turn default verification off
 +        local_ssl._https_verify_certificates(enable=False)
 +        self.assertIs(local_ssl._create_default_https_context,
 +                      local_ssl._create_unverified_context)
-+        # The default behaviour is verification on
++        # And back on
 +        local_ssl._https_verify_certificates(enable=True)
++        self.assertIs(local_ssl._create_default_https_context,
++                      local_ssl.create_default_context)
++        # The default behaviour is to enable
++        local_ssl._https_verify_certificates(enable=False)
 +        local_ssl._https_verify_certificates()
 +        self.assertIs(local_ssl._create_default_https_context,
 +                      local_ssl.create_default_context)
@@ -109,16 +109,21 @@
 +    def test__https_verify_envvar(self):
 +        # Unit test to check the PYTHONHTTPSVERIFY handling
 +        # Need to use a subprocess so it can still be run under -E
-+        # Checks are inverted due to the 0 == success return code convention
-+        https_is_verified = """import ssl, sys;\
-+            sys.exit(ssl._create_default_https_context is not
-+                     ssl.create_default_context)"""
-+        https_is_not_verified = """import ssl, sys;\
-+            sys.exit(ssl._create_default_https_context is not
-+                     ssl._create_unverified_context)"""
++        https_is_verified = """import ssl, sys; \
++            status = "Error: _create_default_https_context does not verify certs" \
++                       if ssl._create_default_https_context is \
++                          ssl._create_unverified_context \
++                     else None; \
++            sys.exit(status)"""
++        https_is_not_verified = """import ssl, sys; \
++            status = "Error: _create_default_https_context verifies certs" \
++                       if ssl._create_default_https_context is \
++                          ssl.create_default_context \
++                     else None; \
++            sys.exit(status)"""
 +        extra_env = {}
-+        # Omitting it leaves verification off
-+        assert_python_ok("-c", https_is_not_verified, **extra_env)
++        # Omitting it leaves verification on
++        assert_python_ok("-c", https_is_verified, **extra_env)
 +        # Setting it to zero turns verification off
 +        extra_env[ssl._https_verify_envvar] = "0"
 +        assert_python_ok("-c", https_is_not_verified, **extra_env)

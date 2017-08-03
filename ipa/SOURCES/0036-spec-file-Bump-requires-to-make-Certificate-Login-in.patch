@@ -1,0 +1,54 @@
+From 03d0b25c585e9202ff0fa7fba96df5c9f0a1a337 Mon Sep 17 00:00:00 2001
+From: David Kupka <dkupka@redhat.com>
+Date: Thu, 23 Mar 2017 08:43:51 +0100
+Subject: [PATCH] spec file: Bump requires to make Certificate Login in WebUI
+ work
+
+gssproxy >= 0.7.0-2 - fixes impersonator checking
+mod_lookup_identity >= 0.9.9 - adds support for single certificate assigned to multiple users
+mod_nss >= 1.0.14-3 - no longer sets remote user in fixup hook
+sssd-dbus >= 1.15.2 - adds FindByNameAndCertificate DBus method
+
+https://pagure.io/freeipa/issue/6823
+
+Reviewed-By: Pavel Vomacka <pvomacka@redhat.com>
+Reviewed-By: Jan Cholasta <jcholast@redhat.com>
+---
+ freeipa.spec.in | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/freeipa.spec.in b/freeipa.spec.in
+index 5419ed10723fc7aa3ecc1b3f66b3ef1c8b38b12f..9c8a14a580ad80ed10e797bef9661e7b1feb81b3 100644
+--- a/freeipa.spec.in
++++ b/freeipa.spec.in
+@@ -270,9 +270,11 @@ Requires: ntp
+ Requires: httpd >= 2.4.6-31
+ Requires: mod_wsgi
+ Requires: mod_auth_gssapi >= 1.5.0
+-Requires: mod_nss >= 1.0.8-26
++# 1.0.14-3: https://bugzilla.redhat.com/show_bug.cgi?id=1431206
++Requires: mod_nss >= 1.0.14-3
+ Requires: mod_session
+-Requires: mod_lookup_identity
++# 0.9.9: https://github.com/adelton/mod_lookup_identity/pull/3
++Requires: mod_lookup_identity >= 0.9.9
+ Requires: python-ldap >= 2.4.15
+ Requires: python-gssapi >= 1.2.0
+ Requires: acl
+@@ -300,9 +302,10 @@ Requires: systemd-python
+ Requires: %{etc_systemd_dir}
+ Requires: gzip
+ Requires: oddjob
+-Requires: gssproxy >= 0.7.0
+-# Require 1.15.1 for the certificate identity mapping feature
+-Requires: sssd-dbus >= 1.15.1
++# 0.7.0-2: https://pagure.io/gssproxy/pull-request/172
++Requires: gssproxy >= 0.7.0-2
++# 1.15.2: FindByNameAndCertificate (https://pagure.io/SSSD/sssd/issue/3050)
++Requires: sssd-dbus >= 1.15.2
+ 
+ Provides: %{alt_name}-server = %{version}
+ Conflicts: %{alt_name}-server
+-- 
+2.12.1
+

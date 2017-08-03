@@ -1,0 +1,25 @@
+From 2b02dc85753e4b11f10bfa2d660aa493ae80c52b Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Thu, 20 Nov 2014 11:24:39 +0100
+Subject: [PATCH] turn sosreport off
+
+---
+ src/daemon/abrt_event.conf | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/daemon/abrt_event.conf b/src/daemon/abrt_event.conf
+index 380b312..eafee17 100644
+--- a/src/daemon/abrt_event.conf
++++ b/src/daemon/abrt_event.conf
+@@ -67,7 +67,7 @@ EVENT=post-create runlevel=
+ # Example: if you want to save sosreport immediately at the moment of a crash:
+ # (alternatively, you can add similar command to EVENT=analyze_foo's,
+ # if you would rather perform this collection later):
+-EVENT=post-create
++#EVENT=post-create
+         nice sosreport --tmp-dir "$DUMP_DIR" --batch \
+                 --only=anaconda --only=boot --only=devicemapper \
+                 --only=filesys --only=hardware --only=kernel --only=libraries \
+-- 
+1.8.3.1
+

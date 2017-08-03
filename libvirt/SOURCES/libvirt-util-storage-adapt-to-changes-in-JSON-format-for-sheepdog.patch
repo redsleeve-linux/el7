@@ -1,0 +1,94 @@
+From 5e1615fba181a37d805c17f517c0a925d171fff5 Mon Sep 17 00:00:00 2001
+Message-Id: <5e1615fba181a37d805c17f517c0a925d171fff5@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 20 Jun 2017 10:22:45 +0200
+Subject: [PATCH] util: storage: adapt to changes in JSON format for sheepdog
+
+Since qemu 2.9 the options changed from a monolithic string into fine
+grained options for the json pseudo-protocol object.
+
+(cherry picked from commit b16133b114fd0d787de1cda6bf2ff0110c523a32)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1461638
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+---
+ src/util/virstoragefile.c | 28 ++++++++++++++++++++++++----
+ tests/virstoragetest.c    | 11 +++++++++++
+ 2 files changed, 35 insertions(+), 4 deletions(-)
+
+diff --git a/src/util/virstoragefile.c b/src/util/virstoragefile.c
+index 566c4c27c3..c2ba3fba9f 100644
+--- a/src/util/virstoragefile.c
++++ b/src/util/virstoragefile.c
+@@ -3066,6 +3066,8 @@ virStorageSourceParseBackingJSONSheepdog(virStorageSourcePtr src,
+                                          int opaque ATTRIBUTE_UNUSED)
+ {
+     const char *filename;
++    const char *vdi = virJSONValueObjectGetString(json, "vdi");
++    virJSONValuePtr server = virJSONValueObjectGetObject(json, "server");
+ 
+     /* legacy URI based syntax passed via 'filename' option */
+     if ((filename = virJSONValueObjectGetString(json, "filename"))) {
+@@ -3074,13 +3076,31 @@ virStorageSourceParseBackingJSONSheepdog(virStorageSourcePtr src,
+                                                           VIR_STORAGE_NET_PROTOCOL_SHEEPDOG);
+ 
+         /* libvirt doesn't implement a parser for the legacy non-URI syntax */
++        virReportError(VIR_ERR_INVALID_ARG, "%s",
++                       _("missing sheepdog URI in JSON backing volume definition"));
++        return -1;
+     }
+ 
+-    /* Sheepdog currently supports only URI and legacy syntax passed in as filename */
+-    virReportError(VIR_ERR_INVALID_ARG, "%s",
+-                   _("missing sheepdog URI in JSON backing volume definition"));
++    src->type = VIR_STORAGE_TYPE_NETWORK;
++    src->protocol = VIR_STORAGE_NET_PROTOCOL_SHEEPDOG;
+ 
+-    return -1;
++    if (!vdi) {
++        virReportError(VIR_ERR_INVALID_ARG, "%s", _("missing sheepdog vdi name"));
++        return -1;
++    }
++
++    if (VIR_STRDUP(src->path, vdi) < 0)
++        return -1;
++
++    if (VIR_ALLOC(src->hosts) < 0)
++        return -1;
++
++    src->nhosts = 1;
++
++    if (virStorageSourceParseBackingJSONSocketAddress(src->hosts, server) < 0)
++        return -1;
++
++    return 0;
+ }
+ 
+ 
+diff --git a/tests/virstoragetest.c b/tests/virstoragetest.c
+index 9ca927b5e4..36b8265dff 100644
+--- a/tests/virstoragetest.c
++++ b/tests/virstoragetest.c
+@@ -1562,6 +1562,17 @@ mymain(void)
+                        "<source protocol='iscsi' name='iqn.2016-12.com.virttest:emulated-iscsi-noauth.target/6'>\n"
+                        "  <host name='test.org' port='1234'/>\n"
+                        "</source>\n");
++    TEST_BACKING_PARSE("json:{\"file\":{\"driver\":\"sheepdog\","
++                                       "\"vdi\":\"test\","
++                                       "\"server\":{ \"type\":\"inet\","
++                                                    "\"host\":\"example.com\","
++                                                    "\"port\":\"321\""
++                                                  "}"
++                                      "}"
++                            "}",
++                       "<source protocol='sheepdog' name='test'>\n"
++                       "  <host name='example.com' port='321'/>\n"
++                       "</source>\n");
+ 
+  cleanup:
+     /* Final cleanup */
+-- 
+2.13.1
+

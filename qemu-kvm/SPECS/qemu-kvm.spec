@@ -41,10 +41,6 @@
 %ifarch aarch64
     %global kvm_target    aarch64
 %endif
-%ifarch %{arm}
-    %global kvm_target    arm
-%endif
-
 
 #Versions of various parts:
 
@@ -77,19 +73,16 @@ Provides: %1%{extra_provides_suffix} = %{epoch}:%{version}-%{release} \
 Obsoletes: %1 < %{obsoletes_version}                                      \
     %endif
 
-Summary: QEMU is a FAST! processor emulator
+Summary: QEMU is a machine emulator and virtualizer
 Name: %{pkgname}%{?pkgsuffix}
 Version: 1.5.3
-Release: 126%{?dist}.9.redsleeve
+Release: 141%{?dist}
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 Epoch: 10
 License: GPLv2+ and LGPLv2+ and BSD
 Group: Development/Tools
 URL: http://www.qemu.org/
-# RHEV will build Qemu only on x86_64:
-%if %{rhev}
-ExclusiveArch: %{power64} x86_64
-%endif
+ExclusiveArch: x86_64 %{power64} aarch64 s390x
 Requires: seabios-bin >= 1.7.2.2-5
 Requires: sgabios-bin
 Requires: seavgabios-bin
@@ -134,6 +127,7 @@ Source17: rhel6-ne2k_pci.rom
 Source18: bios-256k.bin
 Source19: README.rhel6-gpxe-source
 Source20: rhel6-e1000.rom
+Source21: sample_images.tar
 
 # libcacard build fixes (heading upstream)
 Patch1: 0000-libcacard-fix-missing-symbols-in-libcacard.so.patch
@@ -3392,110 +3386,219 @@ Patch1664: kvm-target-i386-Add-more-Intel-AVX-512-instructions-supp.patch
 Patch1665: kvm-nbd-server-Set-O_NONBLOCK-on-client-fd.patch
 # For bz#1376542 - RHSA-2016-1756 breaks migration of instances
 Patch1666: kvm-virtio-recalculate-vq-inuse-after-migration.patch
-# For bz#1393042 - system_reset should clear pending request for error (IDE)
-Patch1667: kvm-ide-fix-halted-IO-segfault-at-reset.patch
-# For bz#1392027 - shutdown rhel 5.11 guest failed and stop at "system halted"
-Patch1668: kvm-hw-i386-regenerate-checked-in-AML-payload-RHEL-only.patch
-# For bz#1393484 - [RHEL7.3] KVM guest shuts itself down after 128th reboot
-Patch1669: kvm-virtio-introduce-virtqueue_unmap_sg.patch
-# For bz#1393484 - [RHEL7.3] KVM guest shuts itself down after 128th reboot
-Patch1670: kvm-virtio-introduce-virtqueue_discard.patch
-# For bz#1393484 - [RHEL7.3] KVM guest shuts itself down after 128th reboot
-Patch1671: kvm-virtio-decrement-vq-inuse-in-virtqueue_discard.patch
-# For bz#1393484 - [RHEL7.3] KVM guest shuts itself down after 128th reboot
-Patch1672: kvm-balloon-fix-segfault-and-harden-the-stats-queue.patch
-# For bz#1393484 - [RHEL7.3] KVM guest shuts itself down after 128th reboot
-Patch1673: kvm-virtio-balloon-discard-virtqueue-element-on-reset.patch
-# For bz#1393484 - [RHEL7.3] KVM guest shuts itself down after 128th reboot
-Patch1674: kvm-virtio-zero-vq-inuse-in-virtio_reset.patch
-# For bz#1393484 - [RHEL7.3] KVM guest shuts itself down after 128th reboot
-Patch1675: kvm-virtio-add-virtqueue_rewind.patch
-# For bz#1393484 - [RHEL7.3] KVM guest shuts itself down after 128th reboot
-Patch1676: kvm-virtio-balloon-fix-stats-vq-migration.patch
-# For bz#1398217 - CVE-2016-2857 qemu-kvm: Qemu: net: out of bounds read in net_checksum_calculate() [rhel-7.3.z]
+# For bz#1377087 - shutdown rhel 5.11 guest failed and stop at "system halted"
+Patch1667: kvm-hw-i386-regenerate-checked-in-AML-payload-RHEL-only.patch
+# For bz#1377968 - [RHEL7.3] KVM guest shuts itself down after 128th reboot
+Patch1668: kvm-virtio-introduce-virtqueue_unmap_sg.patch
+# For bz#1377968 - [RHEL7.3] KVM guest shuts itself down after 128th reboot
+Patch1669: kvm-virtio-introduce-virtqueue_discard.patch
+# For bz#1377968 - [RHEL7.3] KVM guest shuts itself down after 128th reboot
+Patch1670: kvm-virtio-decrement-vq-inuse-in-virtqueue_discard.patch
+# For bz#1377968 - [RHEL7.3] KVM guest shuts itself down after 128th reboot
+Patch1671: kvm-balloon-fix-segfault-and-harden-the-stats-queue.patch
+# For bz#1377968 - [RHEL7.3] KVM guest shuts itself down after 128th reboot
+Patch1672: kvm-virtio-balloon-discard-virtqueue-element-on-reset.patch
+# For bz#1377968 - [RHEL7.3] KVM guest shuts itself down after 128th reboot
+Patch1673: kvm-virtio-zero-vq-inuse-in-virtio_reset.patch
+# For bz#1377968 - [RHEL7.3] KVM guest shuts itself down after 128th reboot
+Patch1674: kvm-virtio-add-virtqueue_rewind.patch
+# For bz#1377968 - [RHEL7.3] KVM guest shuts itself down after 128th reboot
+Patch1675: kvm-virtio-balloon-fix-stats-vq-migration.patch
+# For bz#1375507 - "threads" option is overwritten if both "sockets" and "cores" is set on -smp
+Patch1676: kvm-vl-Don-t-silently-change-topology-when-all-smp-optio.patch
+# For bz#1398218 - CVE-2016-2857 qemu-kvm: Qemu: net: out of bounds read in net_checksum_calculate() [rhel-7.4]
 Patch1677: kvm-net-check-packet-payload-length.patch
-# For bz#1420049 - system_reset should clear pending request for error (virtio-blk)
-Patch1678: kvm-virtio-blk-Release-s-rq-queue-at-system_reset.patch
-# For bz#1418232 - CVE-2017-2615 qemu-kvm: Qemu: display: cirrus: oob access while doing bitblt copy backward mode [rhel-7.3.z]
-Patch1679: kvm-cirrus_vga-fix-off-by-one-in-blit_region_is_unsafe.patch
-# For bz#1418232 - CVE-2017-2615 qemu-kvm: Qemu: display: cirrus: oob access while doing bitblt copy backward mode [rhel-7.3.z]
-Patch1680: kvm-display-cirrus-check-vga-bits-per-pixel-bpp-value.patch
-# For bz#1418232 - CVE-2017-2615 qemu-kvm: Qemu: display: cirrus: oob access while doing bitblt copy backward mode [rhel-7.3.z]
-Patch1681: kvm-display-cirrus-ignore-source-pitch-value-as-needed-i.patch
-# For bz#1418232 - CVE-2017-2615 qemu-kvm: Qemu: display: cirrus: oob access while doing bitblt copy backward mode [rhel-7.3.z]
-Patch1682: kvm-cirrus-handle-negative-pitch-in-cirrus_invalidate_re.patch
-# For bz#1418232 - CVE-2017-2615 qemu-kvm: Qemu: display: cirrus: oob access while doing bitblt copy backward mode [rhel-7.3.z]
-Patch1683: kvm-cirrus-allow-zero-source-pitch-in-pattern-fill-rops.patch
-# For bz#1418232 - CVE-2017-2615 qemu-kvm: Qemu: display: cirrus: oob access while doing bitblt copy backward mode [rhel-7.3.z]
-Patch1684: kvm-cirrus-fix-blit-address-mask-handling.patch
-# For bz#1418232 - CVE-2017-2615 qemu-kvm: Qemu: display: cirrus: oob access while doing bitblt copy backward mode [rhel-7.3.z]
-Patch1685: kvm-cirrus-fix-oob-access-issue-CVE-2017-2615.patch
-# For bz#1420490 - EMBARGOED CVE-2017-2620 qemu-kvm: Qemu: display: cirrus: potential arbitrary code execution via cirrus_bitblt_cputovideo [rhel-7.3.z]
-Patch1686: kvm-cirrus-fix-patterncopy-checks.patch
-# For bz#1420490 - EMBARGOED CVE-2017-2620 qemu-kvm: Qemu: display: cirrus: potential arbitrary code execution via cirrus_bitblt_cputovideo [rhel-7.3.z]
-Patch1687: kvm-Revert-cirrus-allow-zero-source-pitch-in-pattern-fil.patch
-# For bz#1420490 - EMBARGOED CVE-2017-2620 qemu-kvm: Qemu: display: cirrus: potential arbitrary code execution via cirrus_bitblt_cputovideo [rhel-7.3.z]
-Patch1688: kvm-cirrus-add-blit_is_unsafe-call-to-cirrus_bitblt_cput.patch
-# For bz#1430059 - CVE-2016-9603 qemu-kvm: Qemu: cirrus: heap buffer overflow via vnc connection [rhel-7.3.z]
-Patch1689: kvm-fix-cirrus_vga-fix-OOB-read-case-qemu-Segmentation-f.patch
-# For bz#1430059 - CVE-2016-9603 qemu-kvm: Qemu: cirrus: heap buffer overflow via vnc connection [rhel-7.3.z]
-Patch1690: kvm-cirrus-vnc-zap-bitblit-support-from-console-code.patch
-# For bz#1430059 - CVE-2016-9603 qemu-kvm: Qemu: cirrus: heap buffer overflow via vnc connection [rhel-7.3.z]
-Patch1691: kvm-cirrus-add-option-to-disable-blitter.patch
-# For bz#1430059 - CVE-2016-9603 qemu-kvm: Qemu: cirrus: heap buffer overflow via vnc connection [rhel-7.3.z]
-Patch1692: kvm-cirrus-fix-cirrus_invalidate_region.patch
-# For bz#1430059 - CVE-2016-9603 qemu-kvm: Qemu: cirrus: heap buffer overflow via vnc connection [rhel-7.3.z]
-Patch1693: kvm-cirrus-stop-passing-around-dst-pointers-in-the-blitt.patch
-# For bz#1430059 - CVE-2016-9603 qemu-kvm: Qemu: cirrus: heap buffer overflow via vnc connection [rhel-7.3.z]
-Patch1694: kvm-cirrus-stop-passing-around-src-pointers-in-the-blitt.patch
-# For bz#1430059 - CVE-2016-9603 qemu-kvm: Qemu: cirrus: heap buffer overflow via vnc connection [rhel-7.3.z]
-Patch1695: kvm-cirrus-fix-off-by-one-in-cirrus_bitblt_rop_bkwd_tran.patch
-# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
-Patch1696: kvm-char-serial-cosmetic-fixes.patch
-# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
-Patch1697: kvm-char-serial-Use-generic-Fifo8.patch
-# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
-Patch1698: kvm-char-serial-serial_ioport_write-Factor-out-common-co.patch
-# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
-Patch1699: kvm-char-serial-fix-copy-paste-error-fifo8_is_full-vs-em.patch
-# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
-Patch1700: kvm-char-serial-Fix-emptyness-check.patch
-# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
-Patch1701: kvm-char-serial-Fix-emptyness-handling.patch
-# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
-Patch1702: kvm-serial-poll-the-serial-console-with-G_IO_HUP.patch
-# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
-Patch1703: kvm-serial-change-retry-logic-to-avoid-concurrency.patch
-# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
-Patch1704: kvm-qemu-char-ignore-flow-control-if-a-PTY-s-slave-is-no.patch
-# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
-Patch1705: kvm-serial-check-if-backed-by-a-physical-serial-port-at-.patch
-# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
-Patch1706: kvm-serial-reset-thri_pending-on-IER-writes-with-THRI-0.patch
-# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
-Patch1707: kvm-serial-clean-up-THRE-TEMT-handling.patch
-# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
-Patch1708: kvm-serial-update-LSR-on-enabling-disabling-FIFOs.patch
-# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
-Patch1709: kvm-serial-only-resample-THR-interrupt-on-rising-edge-of.patch
-# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
-Patch1710: kvm-serial-make-tsr_retry-unsigned.patch
-# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
-Patch1711: kvm-serial-simplify-tsr_retry-reset.patch
-# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
-Patch1712: kvm-serial-separate-serial_xmit-and-serial_watch_cb.patch
-# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
-Patch1713: kvm-serial-remove-watch-on-reset.patch
-# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
-Patch1714: kvm-char-change-qemu_chr_fe_add_watch-to-return-unsigned.patch
-# For bz#1452332 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
-Patch1715: kvm-spice-fix-spice_chr_add_watch-pre-condition.patch
+# For bz#1342489 - Flickering Fedora 24 Login Screen on RHEL 7
+Patch1678: kvm-qxl-Only-emit-QXL_INTERRUPT_CLIENT_MONITORS_CONFIG-o.patch
+# For bz#1151859 - [RFE] Allow the libgfapi logging level to be controlled.
+Patch1679: kvm-gluster-correctly-propagate-errors.patch
+# For bz#1151859 - [RFE] Allow the libgfapi logging level to be controlled.
+Patch1680: kvm-gluster-Correctly-propagate-errors-when-volume-isn-t.patch
+# For bz#1151859 - [RFE] Allow the libgfapi logging level to be controlled.
+Patch1681: kvm-block-gluster-add-support-for-selecting-debug-loggin.patch
+# For bz#1342768 - [Intel 7.4 Bug] qemu-kvm crashes with Linux kernel 4.6.0 or above
+Patch1682: kvm-memory-Allow-access-only-upto-the-maximum-alignment-.patch
+# For bz#1361488 - system_reset should clear pending request for error (virtio-blk)
+Patch1683: kvm-virtio-blk-Release-s-rq-queue-at-system_reset.patch
+# For bz#1418233 - CVE-2017-2615 qemu-kvm: Qemu: display: cirrus: oob access while doing bitblt copy backward mode [rhel-7.4]
+Patch1684: kvm-cirrus_vga-fix-off-by-one-in-blit_region_is_unsafe.patch
+# For bz#1418233 - CVE-2017-2615 qemu-kvm: Qemu: display: cirrus: oob access while doing bitblt copy backward mode [rhel-7.4]
+Patch1685: kvm-display-cirrus-check-vga-bits-per-pixel-bpp-value.patch
+# For bz#1418233 - CVE-2017-2615 qemu-kvm: Qemu: display: cirrus: oob access while doing bitblt copy backward mode [rhel-7.4]
+Patch1686: kvm-display-cirrus-ignore-source-pitch-value-as-needed-i.patch
+# For bz#1418233 - CVE-2017-2615 qemu-kvm: Qemu: display: cirrus: oob access while doing bitblt copy backward mode [rhel-7.4]
+Patch1687: kvm-cirrus-handle-negative-pitch-in-cirrus_invalidate_re.patch
+# For bz#1418233 - CVE-2017-2615 qemu-kvm: Qemu: display: cirrus: oob access while doing bitblt copy backward mode [rhel-7.4]
+Patch1688: kvm-cirrus-allow-zero-source-pitch-in-pattern-fill-rops.patch
+# For bz#1418233 - CVE-2017-2615 qemu-kvm: Qemu: display: cirrus: oob access while doing bitblt copy backward mode [rhel-7.4]
+Patch1689: kvm-cirrus-fix-blit-address-mask-handling.patch
+# For bz#1418233 - CVE-2017-2615 qemu-kvm: Qemu: display: cirrus: oob access while doing bitblt copy backward mode [rhel-7.4]
+Patch1690: kvm-cirrus-fix-oob-access-issue-CVE-2017-2615.patch
+# For bz#1419898 - Documentation inaccurate for __com.redhat_qxl_screendump and __com.redhat_drive_add
+Patch1691: kvm-HMP-Fix-user-manual-typo-of-__com.redhat_qxl_screend.patch
+# For bz#1419898 - Documentation inaccurate for __com.redhat_qxl_screendump and __com.redhat_drive_add
+Patch1692: kvm-HMP-Fix-documentation-of-__com.redhat.drive_add.patch
+# For bz#1420492 - EMBARGOED CVE-2017-2620 qemu-kvm: Qemu: display: cirrus: potential arbitrary code execution via cirrus_bitblt_cputovideo [rhel-7.4]
+Patch1693: kvm-cirrus-fix-patterncopy-checks.patch
+# For bz#1420492 - EMBARGOED CVE-2017-2620 qemu-kvm: Qemu: display: cirrus: potential arbitrary code execution via cirrus_bitblt_cputovideo [rhel-7.4]
+Patch1694: kvm-Revert-cirrus-allow-zero-source-pitch-in-pattern-fil.patch
+# For bz#1420492 - EMBARGOED CVE-2017-2620 qemu-kvm: Qemu: display: cirrus: potential arbitrary code execution via cirrus_bitblt_cputovideo [rhel-7.4]
+Patch1695: kvm-cirrus-add-blit_is_unsafe-call-to-cirrus_bitblt_cput.patch
+# For bz#1368375 - [Intel 7.4 Bug] qemu-kvm does not support “-cpu IvyBridge”
+Patch1696: kvm-target-i386-add-Ivy-Bridge-CPU-model.patch
+# For bz#1382122 - [Intel 7.4 FEAT] KVM Enable the avx512_4vnniw, avx512_4fmaps instructions in qemu
+Patch1697: kvm-x86-add-AVX512_4VNNIW-and-AVX512_4FMAPS-features.patch
+# For bz#1382122 - [Intel 7.4 FEAT] KVM Enable the avx512_4vnniw, avx512_4fmaps instructions in qemu
+Patch1698: kvm-target-i386-kvm_cpu_fill_host-Kill-unused-code.patch
+# For bz#1382122 - [Intel 7.4 FEAT] KVM Enable the avx512_4vnniw, avx512_4fmaps instructions in qemu
+Patch1699: kvm-target-i386-kvm_cpu_fill_host-No-need-to-check-level.patch
+# For bz#1382122 - [Intel 7.4 FEAT] KVM Enable the avx512_4vnniw, avx512_4fmaps instructions in qemu
+Patch1700: kvm-target-i386-kvm_cpu_fill_host-No-need-to-check-CPU-v.patch
+# For bz#1382122 - [Intel 7.4 FEAT] KVM Enable the avx512_4vnniw, avx512_4fmaps instructions in qemu
+Patch1701: kvm-target-i386-kvm_cpu_fill_host-No-need-to-check-xleve.patch
+# For bz#1382122 - [Intel 7.4 FEAT] KVM Enable the avx512_4vnniw, avx512_4fmaps instructions in qemu
+Patch1702: kvm-target-i386-kvm_cpu_fill_host-Set-all-feature-words-.patch
+# For bz#1382122 - [Intel 7.4 FEAT] KVM Enable the avx512_4vnniw, avx512_4fmaps instructions in qemu
+Patch1703: kvm-target-i386-kvm_cpu_fill_host-Fill-feature-words-in-.patch
+# For bz#1382122 - [Intel 7.4 FEAT] KVM Enable the avx512_4vnniw, avx512_4fmaps instructions in qemu
+Patch1704: kvm-target-i386-kvm_check_features_against_host-Kill-fea.patch
+# For bz#1382122 - [Intel 7.4 FEAT] KVM Enable the avx512_4vnniw, avx512_4fmaps instructions in qemu
+Patch1705: kvm-target-i386-Make-TCG-feature-filtering-more-readable.patch
+# For bz#1382122 - [Intel 7.4 FEAT] KVM Enable the avx512_4vnniw, avx512_4fmaps instructions in qemu
+Patch1706: kvm-target-i386-Filter-FEAT_7_0_EBX-TCG-features-too.patch
+# For bz#1382122 - [Intel 7.4 FEAT] KVM Enable the avx512_4vnniw, avx512_4fmaps instructions in qemu
+Patch1707: kvm-target-i386-Filter-KVM-and-0xC0000001-features-on-TC.patch
+# For bz#1382122 - [Intel 7.4 FEAT] KVM Enable the avx512_4vnniw, avx512_4fmaps instructions in qemu
+Patch1708: kvm-target-i386-Define-TCG_-_FEATURES-earlier-in-cpu.c.patch
+# For bz#1382122 - [Intel 7.4 FEAT] KVM Enable the avx512_4vnniw, avx512_4fmaps instructions in qemu
+Patch1709: kvm-target-i386-Loop-based-copying-and-setting-unsetting.patch
+# For bz#1382122 - [Intel 7.4 FEAT] KVM Enable the avx512_4vnniw, avx512_4fmaps instructions in qemu
+Patch1710: kvm-target-i386-Loop-based-feature-word-filtering-in-TCG.patch
+# For bz#1430606 - Can't build qemu-kvm with newer spice packages
+Patch1711: kvm-spice-remove-spice-experimental.h-include.patch
+# For bz#1430606 - Can't build qemu-kvm with newer spice packages
+Patch1712: kvm-spice-replace-use-of-deprecated-API.patch
+# For bz#1377977 - qemu-kvm coredump in vnc_raw_send_framebuffer_update [rhel-7.4]
+Patch1713: kvm-ui-vnc-introduce-VNC_DIRTY_PIXELS_PER_BIT-macro.patch
+# For bz#1377977 - qemu-kvm coredump in vnc_raw_send_framebuffer_update [rhel-7.4]
+Patch1714: kvm-ui-vnc-derive-cmp_bytes-from-VNC_DIRTY_PIXELS_PER_BI.patch
+# For bz#1377977 - qemu-kvm coredump in vnc_raw_send_framebuffer_update [rhel-7.4]
+Patch1715: kvm-ui-vnc-optimize-dirty-bitmap-tracking.patch
+# For bz#1377977 - qemu-kvm coredump in vnc_raw_send_framebuffer_update [rhel-7.4]
+Patch1716: kvm-ui-vnc-optimize-setting-in-vnc_dpy_update.patch
+# For bz#1377977 - qemu-kvm coredump in vnc_raw_send_framebuffer_update [rhel-7.4]
+Patch1717: kvm-ui-vnc-fix-vmware-VGA-incompatiblities.patch
+# For bz#1377977 - qemu-kvm coredump in vnc_raw_send_framebuffer_update [rhel-7.4]
+Patch1718: kvm-ui-vnc-fix-potential-memory-corruption-issues.patch
+# For bz#1377977 - qemu-kvm coredump in vnc_raw_send_framebuffer_update [rhel-7.4]
+Patch1719: kvm-vnc-fix-memory-corruption-CVE-2015-5225.patch
+# For bz#1377977 - qemu-kvm coredump in vnc_raw_send_framebuffer_update [rhel-7.4]
+Patch1720: kvm-vnc-fix-overflow-in-vnc_update_stats.patch
+# For bz#1335751 - CVE-2016-4020 qemu-kvm: Qemu: i386: leakage of stack memory to guest in kvmvapic.c [rhel-7.4]
+Patch1721: kvm-i386-kvmvapic-initialise-imm32-variable.patch
+# For bz#1427176 - test cases of qemu-iotests failed
+Patch1722: kvm-qemu-iotests-Filter-out-actual-image-size-in-067.patch
+# For bz#1427176 - test cases of qemu-iotests failed
+Patch1723: kvm-qcow2-Don-t-rely-on-free_cluster_index-in-alloc_ref2.patch
+# For bz#1427176 - test cases of qemu-iotests failed
+Patch1724: kvm-qemu-iotests-Fix-core-dump-suppression-in-test-039.patch
+# For bz#1427176 - test cases of qemu-iotests failed
+Patch1725: kvm-qemu-io-Add-sigraise-command.patch
+# For bz#1427176 - test cases of qemu-iotests failed
+Patch1726: kvm-iotests-Filter-for-Killed-in-qemu-io-output.patch
+# For bz#1427176 - test cases of qemu-iotests failed
+Patch1727: kvm-iotests-Fix-test-039.patch
+# For bz#1427176 - test cases of qemu-iotests failed
+Patch1728: kvm-blkdebug-Add-bdrv_truncate.patch
+# For bz#1427176 - test cases of qemu-iotests failed
+Patch1729: kvm-vhdx-Fix-zero-fill-iov-length.patch
+# For bz#1427176 - test cases of qemu-iotests failed
+Patch1730: kvm-qemu-iotests-Disable-030-040-041.patch
+# For bz#1415830 - [Intel 7.4 FEAT] Enable vpopcntdq for KNM - qemu/kvm
+Patch1731: kvm-x86-add-AVX512_VPOPCNTDQ-features.patch
+# For bz#1419818 - CVE-2017-5898 qemu-kvm: Qemu: usb: integer overflow in emulated_apdu_from_guest [rhel-7.4]
+Patch1732: kvm-usb-ccid-check-ccid-apdu-length.patch
+# For bz#1419818 - CVE-2017-5898 qemu-kvm: Qemu: usb: integer overflow in emulated_apdu_from_guest [rhel-7.4]
+Patch1733: kvm-usb-ccid-better-bulk_out-error-handling.patch
+# For bz#1419818 - CVE-2017-5898 qemu-kvm: Qemu: usb: integer overflow in emulated_apdu_from_guest [rhel-7.4]
+Patch1734: kvm-usb-ccid-move-header-size-check.patch
+# For bz#1419818 - CVE-2017-5898 qemu-kvm: Qemu: usb: integer overflow in emulated_apdu_from_guest [rhel-7.4]
+Patch1735: kvm-usb-ccid-add-check-message-size-checks.patch
+# For bz#1430060 - CVE-2016-9603 qemu-kvm: Qemu: cirrus: heap buffer overflow via vnc connection [rhel-7.4]
+Patch1736: kvm-fix-cirrus_vga-fix-OOB-read-case-qemu-Segmentation-f.patch
+# For bz#1430060 - CVE-2016-9603 qemu-kvm: Qemu: cirrus: heap buffer overflow via vnc connection [rhel-7.4]
+Patch1737: kvm-cirrus-vnc-zap-bitblit-support-from-console-code.patch
+# For bz#1430060 - CVE-2016-9603 qemu-kvm: Qemu: cirrus: heap buffer overflow via vnc connection [rhel-7.4]
+Patch1738: kvm-cirrus-add-option-to-disable-blitter.patch
+# For bz#1430060 - CVE-2016-9603 qemu-kvm: Qemu: cirrus: heap buffer overflow via vnc connection [rhel-7.4]
+Patch1739: kvm-cirrus-fix-cirrus_invalidate_region.patch
+# For bz#1430060 - CVE-2016-9603 qemu-kvm: Qemu: cirrus: heap buffer overflow via vnc connection [rhel-7.4]
+Patch1740: kvm-cirrus-stop-passing-around-dst-pointers-in-the-blitt.patch
+# For bz#1430060 - CVE-2016-9603 qemu-kvm: Qemu: cirrus: heap buffer overflow via vnc connection [rhel-7.4]
+Patch1741: kvm-cirrus-stop-passing-around-src-pointers-in-the-blitt.patch
+# For bz#1430060 - CVE-2016-9603 qemu-kvm: Qemu: cirrus: heap buffer overflow via vnc connection [rhel-7.4]
+Patch1742: kvm-cirrus-fix-off-by-one-in-cirrus_bitblt_rop_bkwd_tran.patch
+# For bz#1327593 - [Intel 7.4 FEAT] KVM Enable the XSAVEC, XSAVES and XRSTORS instructions
+Patch1743: kvm-target-i386-get-set-migrate-XSAVES-state.patch
+# For bz#1299875 - system_reset should clear pending request for error (IDE)
+Patch1744: kvm-ide-fix-halted-IO-segfault-at-reset.patch
+# For bz#1451470 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1745: kvm-char-serial-cosmetic-fixes.patch
+# For bz#1451470 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1746: kvm-char-serial-Use-generic-Fifo8.patch
+# For bz#1451470 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1747: kvm-char-serial-serial_ioport_write-Factor-out-common-co.patch
+# For bz#1451470 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1748: kvm-char-serial-fix-copy-paste-error-fifo8_is_full-vs-em.patch
+# For bz#1451470 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1749: kvm-char-serial-Fix-emptyness-check.patch
+# For bz#1451470 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1750: kvm-char-serial-Fix-emptyness-handling.patch
+# For bz#1451470 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1751: kvm-serial-poll-the-serial-console-with-G_IO_HUP.patch
+# For bz#1451470 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1752: kvm-serial-change-retry-logic-to-avoid-concurrency.patch
+# For bz#1451470 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1753: kvm-qemu-char-ignore-flow-control-if-a-PTY-s-slave-is-no.patch
+# For bz#1451470 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1754: kvm-serial-check-if-backed-by-a-physical-serial-port-at-.patch
+# For bz#1451470 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1755: kvm-serial-reset-thri_pending-on-IER-writes-with-THRI-0.patch
+# For bz#1451470 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1756: kvm-serial-clean-up-THRE-TEMT-handling.patch
+# For bz#1451470 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1757: kvm-serial-update-LSR-on-enabling-disabling-FIFOs.patch
+# For bz#1451470 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1758: kvm-serial-only-resample-THR-interrupt-on-rising-edge-of.patch
+# For bz#1451470 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1759: kvm-serial-make-tsr_retry-unsigned.patch
+# For bz#1451470 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1760: kvm-serial-simplify-tsr_retry-reset.patch
+# For bz#1451470 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1761: kvm-serial-separate-serial_xmit-and-serial_watch_cb.patch
+# For bz#1451470 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1762: kvm-serial-remove-watch-on-reset.patch
+# For bz#1451470 - RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop
+Patch1763: kvm-char-change-qemu_chr_fe_add_watch-to-return-unsigned.patch
+# For bz#1456983 - Character device regression due to missing patch
+Patch1764: kvm-spice-fix-spice_chr_add_watch-pre-condition.patch
+# For bz#1455745 - Backport fix for broken logic that's supposed to ensure memory slots are page aligned
+Patch1765: kvm-Fix-memory-slot-page-alignment-logic-bug-1455745.patch
+# For bz#1452067 - migration can confuse serial port user
+Patch1766: kvm-Do-not-hang-on-full-PTY.patch
+# For bz#1452067 - migration can confuse serial port user
+Patch1767: kvm-serial-fixing-vmstate-for-save-restore.patch
+# For bz#1452067 - migration can confuse serial port user
+Patch1768: kvm-serial-reinstate-watch-after-migration.patch
+# For bz#1451614 - CVE-2017-9524 qemu-kvm: segment fault when private user nmap qemu-nbd server [rhel-7.4]
+Patch1769: kvm-nbd-Fully-initialize-client-in-case-of-failed-negoti.patch
+# For bz#1451614 - CVE-2017-9524 qemu-kvm: segment fault when private user nmap qemu-nbd server [rhel-7.4]
+Patch1770: kvm-nbd-Fix-regression-on-resiliency-to-port-scan.patch
 
 
 BuildRequires: zlib-devel
 BuildRequires: SDL-devel
 BuildRequires: which
-BuildRequires: texi2html
 BuildRequires: gnutls-devel
 BuildRequires: cyrus-sasl-devel
 BuildRequires: libtool
@@ -3562,7 +3665,7 @@ BuildRequires: perl-podlators
 BuildRequires: texinfo
 # For rdma
 %if 0%{?have_librdma:1}
-BuildRequires: librdmacm-devel
+BuildRequires: rdma-core-devel
 %endif
 # cpp for preprocessing option ROM assembly files
 %ifarch %{ix86} x86_64
@@ -3590,12 +3693,10 @@ Requires: qemu-img = %{epoch}:%{version}-%{release}
 %define qemudocdir %{_docdir}/%{pkgname}
 
 %description
-qemu-kvm is an open source virtualizer that provides hardware emulation for
-the KVM hypervisor. qemu-kvm acts as a virtual machine monitor together with
-the KVM kernel modules, and emulates the hardware for a full system such as
-a PC and its assocated peripherals.
-
-As qemu-kvm requires no host kernel patches to run, it is safe and easy to use.
+qemu-kvm%{?pkgsuffix} is an open source virtualizer that provides hardware
+emulation for the KVM hypervisor. qemu-kvm%{?pkgsuffix} acts as a virtual
+machine monitor together with the KVM kernel modules, and emulates the
+hardware for a full system such as a PC and its associated peripherals.
 
 %package -n qemu-img%{?pkgsuffix}
 Summary: QEMU command line tool for manipulating disk images
@@ -3670,6 +3771,7 @@ such as kvm_stat.
 %prep
 %setup -q -n qemu-%{version}
 cp %{SOURCE18} pc-bios # keep "make check" happy
+tar -xf %{SOURCE21}
 %patch1 -p1
 #%%patch2 -p1
 #%%patch3 -p1
@@ -5385,6 +5487,61 @@ cp %{SOURCE18} pc-bios # keep "make check" happy
 %patch1713 -p1
 %patch1714 -p1
 %patch1715 -p1
+%patch1716 -p1
+%patch1717 -p1
+%patch1718 -p1
+%patch1719 -p1
+%patch1720 -p1
+%patch1721 -p1
+%patch1722 -p1
+%patch1723 -p1
+%patch1724 -p1
+%patch1725 -p1
+%patch1726 -p1
+%patch1727 -p1
+%patch1728 -p1
+%patch1729 -p1
+%patch1730 -p1
+%patch1731 -p1
+%patch1732 -p1
+%patch1733 -p1
+%patch1734 -p1
+%patch1735 -p1
+%patch1736 -p1
+%patch1737 -p1
+%patch1738 -p1
+%patch1739 -p1
+%patch1740 -p1
+%patch1741 -p1
+%patch1742 -p1
+%patch1743 -p1
+%patch1744 -p1
+%patch1745 -p1
+%patch1746 -p1
+%patch1747 -p1
+%patch1748 -p1
+%patch1749 -p1
+%patch1750 -p1
+%patch1751 -p1
+%patch1752 -p1
+%patch1753 -p1
+%patch1754 -p1
+%patch1755 -p1
+%patch1756 -p1
+%patch1757 -p1
+%patch1758 -p1
+%patch1759 -p1
+%patch1760 -p1
+%patch1761 -p1
+%patch1762 -p1
+%patch1763 -p1
+%patch1764 -p1
+%patch1765 -p1
+%patch1766 -p1
+%patch1767 -p1
+%patch1768 -p1
+%patch1769 -p1
+%patch1770 -p1
 
 %build
 buildarch="%{kvm_target}-softmmu"
@@ -5830,98 +5987,211 @@ sh %{_sysconfdir}/sysconfig/modules/kvm.modules &> /dev/null || :
 %{_mandir}/man8/qemu-nbd.8*
 
 %changelog
-* Tue Jun 13 2017 Jacco Ligthart <jacco@redsleeve.org> - 1.5.3-126.el7.9.redsleeve
-- added kvm_target arm
+* Tue Jun 13 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-141.el7
+- kvm-Fix-memory-slot-page-alignment-logic-bug-1455745.patch [bz#1455745]
+- kvm-Do-not-hang-on-full-PTY.patch [bz#1452067]
+- kvm-serial-fixing-vmstate-for-save-restore.patch [bz#1452067]
+- kvm-serial-reinstate-watch-after-migration.patch [bz#1452067]
+- kvm-nbd-Fully-initialize-client-in-case-of-failed-negoti.patch [bz#1451614]
+- kvm-nbd-Fix-regression-on-resiliency-to-port-scan.patch [bz#1451614]
+- Resolves: bz#1451614
+  (CVE-2017-9524 qemu-kvm: segment fault when private user nmap qemu-nbd server [rhel-7.4])
+- Resolves: bz#1452067
+  (migration can confuse serial port user)
+- Resolves: bz#1455745
+  (Backport fix for broken logic that's supposed to ensure memory slots are page aligned)
 
-* Tue Jun 06 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-126.el7_3.9
-- kvm-spice-fix-spice_chr_add_watch-pre-condition.patch [bz#1452332]
-- Resolves: bz#1452332
+* Tue Jun 06 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-140.el7
+- kvm-spice-fix-spice_chr_add_watch-pre-condition.patch [bz#1456983]
+- Resolves: bz#1456983
+  (Character device regression due to missing patch)
+
+* Wed May 24 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-139.el7
+- kvm-char-change-qemu_chr_fe_add_watch-to-return-unsigned.patch [bz#1451470]
+- Resolves: bz#1451470
   (RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop)
 
-* Wed May 24 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-126.el7_3.8
-- kvm-char-change-qemu_chr_fe_add_watch-to-return-unsigned.patch [bz#1452332]
-- Resolves: bz#1452332
+* Tue May 23 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-138.el7
+- kvm-char-serial-cosmetic-fixes.patch [bz#1451470]
+- kvm-char-serial-Use-generic-Fifo8.patch [bz#1451470]
+- kvm-char-serial-serial_ioport_write-Factor-out-common-co.patch [bz#1451470]
+- kvm-char-serial-fix-copy-paste-error-fifo8_is_full-vs-em.patch [bz#1451470]
+- kvm-char-serial-Fix-emptyness-check.patch [bz#1451470]
+- kvm-char-serial-Fix-emptyness-handling.patch [bz#1451470]
+- kvm-serial-poll-the-serial-console-with-G_IO_HUP.patch [bz#1451470]
+- kvm-serial-change-retry-logic-to-avoid-concurrency.patch [bz#1451470]
+- kvm-qemu-char-ignore-flow-control-if-a-PTY-s-slave-is-no.patch [bz#1451470]
+- kvm-serial-check-if-backed-by-a-physical-serial-port-at-.patch [bz#1451470]
+- kvm-serial-reset-thri_pending-on-IER-writes-with-THRI-0.patch [bz#1451470]
+- kvm-serial-clean-up-THRE-TEMT-handling.patch [bz#1451470]
+- kvm-serial-update-LSR-on-enabling-disabling-FIFOs.patch [bz#1451470]
+- kvm-serial-only-resample-THR-interrupt-on-rising-edge-of.patch [bz#1451470]
+- kvm-serial-make-tsr_retry-unsigned.patch [bz#1451470]
+- kvm-serial-simplify-tsr_retry-reset.patch [bz#1451470]
+- kvm-serial-separate-serial_xmit-and-serial_watch_cb.patch [bz#1451470]
+- kvm-serial-remove-watch-on-reset.patch [bz#1451470]
+- Resolves: bz#1451470
   (RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop)
 
-* Mon May 22 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-126.el7_3.7
-- kvm-char-serial-cosmetic-fixes.patch [bz#1452332]
-- kvm-char-serial-Use-generic-Fifo8.patch [bz#1452332]
-- kvm-char-serial-serial_ioport_write-Factor-out-common-co.patch [bz#1452332]
-- kvm-char-serial-fix-copy-paste-error-fifo8_is_full-vs-em.patch [bz#1452332]
-- kvm-char-serial-Fix-emptyness-check.patch [bz#1452332]
-- kvm-char-serial-Fix-emptyness-handling.patch [bz#1452332]
-- kvm-serial-poll-the-serial-console-with-G_IO_HUP.patch [bz#1452332]
-- kvm-serial-change-retry-logic-to-avoid-concurrency.patch [bz#1452332]
-- kvm-qemu-char-ignore-flow-control-if-a-PTY-s-slave-is-no.patch [bz#1452332]
-- kvm-serial-check-if-backed-by-a-physical-serial-port-at-.patch [bz#1452332]
-- kvm-serial-reset-thri_pending-on-IER-writes-with-THRI-0.patch [bz#1452332]
-- kvm-serial-clean-up-THRE-TEMT-handling.patch [bz#1452332]
-- kvm-serial-update-LSR-on-enabling-disabling-FIFOs.patch [bz#1452332]
-- kvm-serial-only-resample-THR-interrupt-on-rising-edge-of.patch [bz#1452332]
-- kvm-serial-make-tsr_retry-unsigned.patch [bz#1452332]
-- kvm-serial-simplify-tsr_retry-reset.patch [bz#1452332]
-- kvm-serial-separate-serial_xmit-and-serial_watch_cb.patch [bz#1452332]
-- kvm-serial-remove-watch-on-reset.patch [bz#1452332]
-- Resolves: bz#1452332
-  (RHEL 7.2 based VM (Virtual Machine) hung for several hours apparently waiting for lock held by main_loop)
+* Fri Apr 28 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-137.el7
+- kvm-ide-fix-halted-IO-segfault-at-reset.patch [bz#1299875]
+- Resolves: bz#1299875
+  (system_reset should clear pending request for error (IDE))
 
-* Fri Mar 24 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-126.el7_3.6
-- kvm-fix-cirrus_vga-fix-OOB-read-case-qemu-Segmentation-f.patch [bz#1430059]
-- kvm-cirrus-vnc-zap-bitblit-support-from-console-code.patch [bz#1430059]
-- kvm-cirrus-add-option-to-disable-blitter.patch [bz#1430059]
-- kvm-cirrus-fix-cirrus_invalidate_region.patch [bz#1430059]
-- kvm-cirrus-stop-passing-around-dst-pointers-in-the-blitt.patch [bz#1430059]
-- kvm-cirrus-stop-passing-around-src-pointers-in-the-blitt.patch [bz#1430059]
-- kvm-cirrus-fix-off-by-one-in-cirrus_bitblt_rop_bkwd_tran.patch [bz#1430059]
-- Resolves: bz#1430059
-  (CVE-2016-9603 qemu-kvm: Qemu: cirrus: heap buffer overflow via vnc connection [rhel-7.3.z])
+* Tue Apr 18 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-136.el7
+- kvm-target-i386-get-set-migrate-XSAVES-state.patch [bz#1327593]
+- kvm-Removing-texi2html-from-build-requirements.patch [bz#1440987]
+- kvm-Disable-build-of-32bit-packages.patch [bz#1441778]
+- kvm-Add-sample-images-to-srpm.patch [bz#1436280]
+- Resolves: bz#1327593
+  ([Intel 7.4 FEAT] KVM Enable the XSAVEC, XSAVES and XRSTORS instructions)
+- Resolves: bz#1436280
+  (sample images  for qemu-iotests are missing in the SRPM)
+- Resolves: bz#1440987
+  (Remove texi2html build dependancy from RPM)
+- Resolves: bz#1441778
+  (Stop building qemu-img for 32bit architectures.)
 
-* Mon Feb 13 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-126.el7_3.5
-- kvm-cirrus-fix-patterncopy-checks.patch [bz#1420490]
-- kvm-Revert-cirrus-allow-zero-source-pitch-in-pattern-fil.patch [bz#1420490]
-- kvm-cirrus-add-blit_is_unsafe-call-to-cirrus_bitblt_cput.patch [bz#1420490]
-- Resolves: bz#1420490
-  (EMBARGOED CVE-2017-2620 qemu-kvm: Qemu: display: cirrus: potential arbitrary code execution via cirrus_bitblt_cputovideo [rhel-7.3.z])
+* Thu Mar 30 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-135.el7
+- kvm-fix-cirrus_vga-fix-OOB-read-case-qemu-Segmentation-f.patch [bz#1430060]
+- kvm-cirrus-vnc-zap-bitblit-support-from-console-code.patch [bz#1430060]
+- kvm-cirrus-add-option-to-disable-blitter.patch [bz#1430060]
+- kvm-cirrus-fix-cirrus_invalidate_region.patch [bz#1430060]
+- kvm-cirrus-stop-passing-around-dst-pointers-in-the-blitt.patch [bz#1430060]
+- kvm-cirrus-stop-passing-around-src-pointers-in-the-blitt.patch [bz#1430060]
+- kvm-cirrus-fix-off-by-one-in-cirrus_bitblt_rop_bkwd_tran.patch [bz#1430060]
+- Resolves: bz#1430060
+  (CVE-2016-9603 qemu-kvm: Qemu: cirrus: heap buffer overflow via vnc connection [rhel-7.4])
 
-* Fri Feb 10 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-126.el7_3.4
-- kvm-virtio-blk-Release-s-rq-queue-at-system_reset.patch [bz#1420049]
-- kvm-cirrus_vga-fix-off-by-one-in-blit_region_is_unsafe.patch [bz#1418232]
-- kvm-display-cirrus-check-vga-bits-per-pixel-bpp-value.patch [bz#1418232]
-- kvm-display-cirrus-ignore-source-pitch-value-as-needed-i.patch [bz#1418232]
-- kvm-cirrus-handle-negative-pitch-in-cirrus_invalidate_re.patch [bz#1418232]
-- kvm-cirrus-allow-zero-source-pitch-in-pattern-fill-rops.patch [bz#1418232]
-- kvm-cirrus-fix-blit-address-mask-handling.patch [bz#1418232]
-- kvm-cirrus-fix-oob-access-issue-CVE-2017-2615.patch [bz#1418232]
-- Resolves: bz#1418232
-  (CVE-2017-2615 qemu-kvm: Qemu: display: cirrus: oob access while doing bitblt copy backward mode [rhel-7.3.z])
-- Resolves: bz#1420049
+* Tue Mar 21 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-134.el7
+- kvm-ui-vnc-introduce-VNC_DIRTY_PIXELS_PER_BIT-macro.patch [bz#1377977]
+- kvm-ui-vnc-derive-cmp_bytes-from-VNC_DIRTY_PIXELS_PER_BI.patch [bz#1377977]
+- kvm-ui-vnc-optimize-dirty-bitmap-tracking.patch [bz#1377977]
+- kvm-ui-vnc-optimize-setting-in-vnc_dpy_update.patch [bz#1377977]
+- kvm-ui-vnc-fix-vmware-VGA-incompatiblities.patch [bz#1377977]
+- kvm-ui-vnc-fix-potential-memory-corruption-issues.patch [bz#1377977]
+- kvm-vnc-fix-memory-corruption-CVE-2015-5225.patch [bz#1377977]
+- kvm-vnc-fix-overflow-in-vnc_update_stats.patch [bz#1377977]
+- kvm-i386-kvmvapic-initialise-imm32-variable.patch [bz#1335751]
+- kvm-qemu-iotests-Filter-out-actual-image-size-in-067.patch [bz#1427176]
+- vm-qcow2-Don-t-rely-on-free_cluster_index-in-alloc_ref2.patch [bz#1427176]
+- kvm-qemu-iotests-Fix-core-dump-suppression-in-test-039.patch [bz#1427176]
+- kvm-qemu-io-Add-sigraise-command.patch [bz#1427176]
+- kvm-iotests-Filter-for-Killed-in-qemu-io-output.patch [bz#1427176]
+- kvm-iotests-Fix-test-039.patch [bz#1427176]
+- kvm-blkdebug-Add-bdrv_truncate.patch [bz#1427176]
+- kvm-vhdx-Fix-zero-fill-iov-length.patch [bz#1427176]
+- kvm-qemu-iotests-Disable-030-040-041.patch [bz#1427176]
+- kvm-x86-add-AVX512_VPOPCNTDQ-features.patch [bz#1415830]
+- kvm-usb-ccid-check-ccid-apdu-length.patch [bz#1419818]
+- kvm-usb-ccid-better-bulk_out-error-handling.patch [bz#1419818]
+- kvm-usb-ccid-move-header-size-check.patch [bz#1419818]
+- kvm-usb-ccid-add-check-message-size-checks.patch [bz#1419818]
+- kvm-spec-Update-rdma-build-dependency.patch [bz#1433920]
+- Resolves: bz#1335751
+  (CVE-2016-4020 qemu-kvm: Qemu: i386: leakage of stack memory to guest in kvmvapic.c [rhel-7.4])
+- Resolves: bz#1377977
+  (qemu-kvm coredump in vnc_raw_send_framebuffer_update [rhel-7.4])
+- Resolves: bz#1415830
+  ([Intel 7.4 FEAT] Enable vpopcntdq for KNM - qemu/kvm)
+- Resolves: bz#1419818
+  (CVE-2017-5898 qemu-kvm: Qemu: usb: integer overflow in emulated_apdu_from_guest [rhel-7.4])
+- Resolves: bz#1427176
+  (test cases of qemu-iotests failed)
+- Resolves: bz#1433920
+  (Switch from librdmacm-devel to rdma-core-devel)
+
+* Thu Mar 09 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-133.el7
+- kvm-target-i386-add-Ivy-Bridge-CPU-model.patch [bz#1368375]
+- kvm-x86-add-AVX512_4VNNIW-and-AVX512_4FMAPS-features.patch [bz#1382122]
+- kvm-target-i386-kvm_cpu_fill_host-Kill-unused-code.patch [bz#1382122]
+- kvm-target-i386-kvm_cpu_fill_host-No-need-to-check-level.patch [bz#1382122]
+- kvm-target-i386-kvm_cpu_fill_host-No-need-to-check-CPU-v.patch [bz#1382122]
+- kvm-target-i386-kvm_cpu_fill_host-No-need-to-check-xleve.patch [bz#1382122]
+- kvm-target-i386-kvm_cpu_fill_host-Set-all-feature-words-.patch [bz#1382122]
+- kvm-target-i386-kvm_cpu_fill_host-Fill-feature-words-in-.patch [bz#1382122]
+- kvm-target-i386-kvm_check_features_against_host-Kill-fea.patch [bz#1382122]
+- kvm-target-i386-Make-TCG-feature-filtering-more-readable.patch [bz#1382122]
+- kvm-target-i386-Filter-FEAT_7_0_EBX-TCG-features-too.patch [bz#1382122]
+- kvm-target-i386-Filter-KVM-and-0xC0000001-features-on-TC.patch [bz#1382122]
+- kvm-target-i386-Define-TCG_-_FEATURES-earlier-in-cpu.c.patch [bz#1382122]
+- kvm-target-i386-Loop-based-copying-and-setting-unsetting.patch [bz#1382122]
+- kvm-target-i386-Loop-based-feature-word-filtering-in-TCG.patch [bz#1382122]
+- kvm-spice-remove-spice-experimental.h-include.patch [bz#1430606]
+- kvm-spice-replace-use-of-deprecated-API.patch [bz#1430606]
+- Resolves: bz#1368375
+  ([Intel 7.4 Bug] qemu-kvm does not support “-cpu IvyBridge”)
+- Resolves: bz#1382122
+  ([Intel 7.4 FEAT] KVM Enable the avx512_4vnniw, avx512_4fmaps instructions in qemu)
+- Resolves: bz#1430606
+  (Can't build qemu-kvm with newer spice packages)
+
+* Tue Feb 21 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-132.el7
+- kvm-cirrus-fix-patterncopy-checks.patch [bz#1420492]
+- kvm-Revert-cirrus-allow-zero-source-pitch-in-pattern-fil.patch [bz#1420492]
+- kvm-cirrus-add-blit_is_unsafe-call-to-cirrus_bitblt_cput.patch [bz#1420492]
+- Resolves: bz#1420492
+  (EMBARGOED CVE-2017-2620 qemu-kvm: Qemu: display: cirrus: potential arbitrary code execution via cirrus_bitblt_cputovideo [rhel-7.4])
+
+* Fri Feb 10 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-131.el7
+- kvm-memory-Allow-access-only-upto-the-maximum-alignment-.patch [bz#1342768]
+- kvm-virtio-blk-Release-s-rq-queue-at-system_reset.patch [bz#1361488]
+- kvm-cirrus_vga-fix-off-by-one-in-blit_region_is_unsafe.patch [bz#1418233]
+- kvm-display-cirrus-check-vga-bits-per-pixel-bpp-value.patch [bz#1418233]
+- kvm-display-cirrus-ignore-source-pitch-value-as-needed-i.patch [bz#1418233]
+- kvm-cirrus-handle-negative-pitch-in-cirrus_invalidate_re.patch [bz#1418233]
+- kvm-cirrus-allow-zero-source-pitch-in-pattern-fill-rops.patch [bz#1418233]
+- kvm-cirrus-fix-blit-address-mask-handling.patch [bz#1418233]
+- kvm-cirrus-fix-oob-access-issue-CVE-2017-2615.patch [bz#1418233]
+- kvm-HMP-Fix-user-manual-typo-of-__com.redhat_qxl_screend.patch [bz#1419898]
+- kvm-HMP-Fix-documentation-of-__com.redhat.drive_add.patch [bz#1419898]
+- Resolves: bz#1342768
+  ([Intel 7.4 Bug] qemu-kvm crashes with Linux kernel 4.6.0 or above)
+- Resolves: bz#1361488
   (system_reset should clear pending request for error (virtio-blk))
+- Resolves: bz#1418233
+  (CVE-2017-2615 qemu-kvm: Qemu: display: cirrus: oob access while doing bitblt copy backward mode [rhel-7.4])
+- Resolves: bz#1419898
+  (Documentation inaccurate for __com.redhat_qxl_screendump and __com.redhat_drive_add)
 
-* Wed Jan 04 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-126.el7_3.3
-- kvm-net-check-packet-payload-length.patch [bz#1398217]
-- Resolves: bz#1398217
-  (CVE-2016-2857 qemu-kvm: Qemu: net: out of bounds read in net_checksum_calculate() [rhel-7.3.z])
+* Wed Feb 01 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-130.el7
+- kvm-gluster-correctly-propagate-errors.patch [bz#1151859]
+- kvm-gluster-Correctly-propagate-errors-when-volume-isn-t.patch [bz#1151859]
+- kvm-block-gluster-add-support-for-selecting-debug-loggin.patch [bz#1151859]
+- Resolves: bz#1151859
+  ([RFE] Allow the libgfapi logging level to be controlled.)
 
-* Thu Nov 24 2016 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-126.el7_3.2
-- kvm-virtio-introduce-virtqueue_unmap_sg.patch [bz#1393484]
-- kvm-virtio-introduce-virtqueue_discard.patch [bz#1393484]
-- kvm-virtio-decrement-vq-inuse-in-virtqueue_discard.patch [bz#1393484]
-- kvm-balloon-fix-segfault-and-harden-the-stats-queue.patch [bz#1393484]
-- kvm-virtio-balloon-discard-virtqueue-element-on-reset.patch [bz#1393484]
-- kvm-virtio-zero-vq-inuse-in-virtio_reset.patch [bz#1393484]
-- kvm-virtio-add-virtqueue_rewind.patch [bz#1393484]
-- kvm-virtio-balloon-fix-stats-vq-migration.patch [bz#1393484]
-- Resolves: bz#1393484
+* Wed Jan 18 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-129.el7
+- kvm-Update-qemu-kvm-package-Summary-and-Description.patch [bz#1378541]
+- kvm-vl-Don-t-silently-change-topology-when-all-smp-optio.patch [bz#1375507]
+- kvm-net-check-packet-payload-length.patch [bz#1398218]
+- kvm-qxl-Only-emit-QXL_INTERRUPT_CLIENT_MONITORS_CONFIG-o.patch [bz#1342489]
+- Resolves: bz#1342489
+  (Flickering Fedora 24 Login Screen on RHEL 7)
+- Resolves: bz#1375507
+  ("threads" option is overwritten if both "sockets" and "cores" is set on -smp)
+- Resolves: bz#1378541
+  (QEMU: update package summary and description)
+- Resolves: bz#1398218
+  (CVE-2016-2857 qemu-kvm: Qemu: net: out of bounds read in net_checksum_calculate() [rhel-7.4])
+
+* Thu Nov 24 2016 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-128.el7
+- kvm-virtio-introduce-virtqueue_unmap_sg.patch [bz#1377968]
+- kvm-virtio-introduce-virtqueue_discard.patch [bz#1377968]
+- kvm-virtio-decrement-vq-inuse-in-virtqueue_discard.patch [bz#1377968]
+- kvm-balloon-fix-segfault-and-harden-the-stats-queue.patch [bz#1377968]
+- kvm-virtio-balloon-discard-virtqueue-element-on-reset.patch [bz#1377968]
+- kvm-virtio-zero-vq-inuse-in-virtio_reset.patch [bz#1377968]
+- kvm-virtio-add-virtqueue_rewind.patch [bz#1377968]
+- kvm-virtio-balloon-fix-stats-vq-migration.patch [bz#1377968]
+- Resolves: bz#1377968
   ([RHEL7.3] KVM guest shuts itself down after 128th reboot)
 
-* Fri Nov 11 2016 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-126.el7_3.1
-- kvm-ide-fix-halted-IO-segfault-at-reset.patch [bz#1393042]
-- kvm-hw-i386-regenerate-checked-in-AML-payload-RHEL-only.patch [bz#1392027]
-- kvm-SPEC-file-flip-the-build-from-IASL-to-checked-in-AML.patch [bz#1392027]
-- Resolves: bz#1392027
+* Wed Nov 16 2016 Danilo de Paula <ddepaula@redhat.com> - 1.5.3-127.el7
+- kvm-hw-i386-regenerate-checked-in-AML-payload-RHEL-only.patch [bz#1377087]
+- kvm-ide-fix-halted-IO-segfault-at-reset.patch [bz#1377087]
+- Resolves: bz#1377087
   (shutdown rhel 5.11 guest failed and stop at "system halted")
-- Resolves: bz#1393042
-  (system_reset should clear pending request for error (IDE))
 
 * Tue Sep 20 2016 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-126.el7
 - kvm-virtio-recalculate-vq-inuse-after-migration.patch [bz#1376542]

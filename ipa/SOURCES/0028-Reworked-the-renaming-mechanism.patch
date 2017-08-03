@@ -1,0 +1,296 @@
+From bd2a0a8d363af6c8b1491314d5da5f3c146e4ce6 Mon Sep 17 00:00:00 2001
+From: Stanislav Laznicka <slaznick@redhat.com>
+Date: Mon, 27 Mar 2017 08:18:29 +0200
+Subject: [PATCH] Reworked the renaming mechanism
+
+The rename operation on *_mod commands was only allowed when
+the primary key of an entry was also its RDN. With these changes,
+it should be possible to rename the rest of the entries as well.
+
+An attribute to the base LDAPObject was added to whitelist the
+objects we want to allow to be renamed. It replaced an old
+attribute rdn_is_primary_key which was used for the very same
+purpose but the name was confusing because it was not set
+correctly for certain objects.
+
+https://pagure.io/freeipa/issue/2466
+https://pagure.io/freeipa/issue/6784
+
+Reviewed-By: Alexander Bokovoy <abokovoy@redhat.com>
+Reviewed-By: Jan Cholasta <jcholast@redhat.com>
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+---
+ ipaserver/plugins/automount.py         |  2 +-
+ ipaserver/plugins/baseldap.py          | 32 ++++++++++++++++++++------------
+ ipaserver/plugins/baseuser.py          |  2 +-
+ ipaserver/plugins/ca.py                |  2 +-
+ ipaserver/plugins/dns.py               |  2 +-
+ ipaserver/plugins/group.py             |  2 +-
+ ipaserver/plugins/idviews.py           |  6 +++---
+ ipaserver/plugins/otptoken.py          |  2 +-
+ ipaserver/plugins/permission.py        |  2 +-
+ ipaserver/plugins/privilege.py         |  2 +-
+ ipaserver/plugins/radiusproxy.py       |  2 +-
+ ipaserver/plugins/role.py              |  2 +-
+ ipaserver/plugins/servicedelegation.py |  2 +-
+ 13 files changed, 34 insertions(+), 26 deletions(-)
+
+diff --git a/ipaserver/plugins/automount.py b/ipaserver/plugins/automount.py
+index c4cf2d6db876e13c78ecd73fc53bb356bf190e17..03f994c65832e7b6099739e951105c4b5a897391 100644
+--- a/ipaserver/plugins/automount.py
++++ b/ipaserver/plugins/automount.py
+@@ -456,7 +456,7 @@ class automountkey(LDAPObject):
+     default_attributes = [
+         'automountkey', 'automountinformation', 'description'
+     ]
+-    rdn_is_primary_key = True
++    allow_rename = True
+     rdn_separator = ' '
+ 
+     takes_params = (
+diff --git a/ipaserver/plugins/baseldap.py b/ipaserver/plugins/baseldap.py
+index 79ba7fc4a14f8105cda481e1599b2acbd8394e45..dbe3cbd28c85ebc3d9254e24e14c5701adc673ab 100644
+--- a/ipaserver/plugins/baseldap.py
++++ b/ipaserver/plugins/baseldap.py
+@@ -36,7 +36,7 @@ from ipalib.text import _
+ from ipalib.util import json_serialize, validate_hostname
+ from ipalib.capabilities import client_has_capability
+ from ipalib.messages import add_message, SearchResultTruncated
+-from ipapython.dn import DN
++from ipapython.dn import DN, RDN
+ from ipapython.version import API_VERSION
+ 
+ if six.PY3:
+@@ -549,7 +549,7 @@ class LDAPObject(Object):
+     rdn_attribute = ''
+     uuid_attribute = ''
+     attribute_members = {}
+-    rdn_is_primary_key = False # Do we need RDN change to do a rename?
++    allow_rename = False
+     password_attributes = []
+     # Can bind as this entry (has userPassword or krbPrincipalKey)
+     bindable = False
+@@ -1384,7 +1384,7 @@ class LDAPUpdate(LDAPQuery, crud.Update):
+     def get_options(self):
+         for option in super(LDAPUpdate, self).get_options():
+             yield option
+-        if self.obj.rdn_is_primary_key:
++        if self.obj.allow_rename:
+             yield self._get_rename_option()
+ 
+     def execute(self, *keys, **options):
+@@ -1419,15 +1419,19 @@ class LDAPUpdate(LDAPQuery, crud.Update):
+         _check_limit_object_class(self.api.Backend.ldap2.schema.attribute_types(self.obj.disallow_object_classes), list(entry_attrs), allow_only=False)
+ 
+         rdnupdate = False
+-        try:
+-            if self.obj.rdn_is_primary_key and 'rename' in options:
+-                if not options['rename']:
+-                    raise errors.ValidationError(name='rename', error=u'can\'t be empty')
+-                entry_attrs[self.obj.primary_key.name] = options['rename']
+-
+-            if self.obj.rdn_is_primary_key and self.obj.primary_key.name in entry_attrs:
++        if 'rename' in options:
++            if not options['rename']:
++                raise errors.ValidationError(
++                    name='rename', error=u'can\'t be empty')
++            entry_attrs[self.obj.primary_key.name] = options['rename']
++
++        # if setattr was used to change the RDN, the primary_key.name is
++        # already in entry_attrs
++        if self.obj.allow_rename and self.obj.primary_key.name in entry_attrs:
++            # perform RDN change if the primary key is also RDN
++            if (RDN((self.obj.primary_key.name, keys[-1])) ==
++                    entry_attrs.dn[0]):
+                 try:
+-                    # RDN change
+                     new_dn = DN((self.obj.primary_key.name,
+                                  entry_attrs[self.obj.primary_key.name]),
+                                 *entry_attrs.dn[1:])
+@@ -1435,17 +1439,21 @@ class LDAPUpdate(LDAPQuery, crud.Update):
+                         entry_attrs.dn,
+                         new_dn)
+ 
+-                    rdnkeys = keys[:-1] + (entry_attrs[self.obj.primary_key.name], )
++                    rdnkeys = (keys[:-1] +
++                               (entry_attrs[self.obj.primary_key.name], ))
+                     entry_attrs.dn = self.obj.get_dn(*rdnkeys)
+                     options['rdnupdate'] = True
+                     rdnupdate = True
+                 except errors.EmptyModlist:
+                     # Attempt to rename to the current name, ignore
+                     pass
++                except errors.NotFound:
++                    self.obj.handle_not_found(*keys)
+                 finally:
+                     # Delete the primary_key from entry_attrs either way
+                     del entry_attrs[self.obj.primary_key.name]
+ 
++        try:
+             # Exception callbacks will need to test for options['rdnupdate']
+             # to decide what to do. An EmptyModlist in this context doesn't
+             # mean an error occurred, just that there were no other updates to
+diff --git a/ipaserver/plugins/baseuser.py b/ipaserver/plugins/baseuser.py
+index 44adc76ec854dadbe0d8a4e8ca03e71c30df526c..bf24dbf542d3b481671dfe4e8cee14a2edcc26e0 100644
+--- a/ipaserver/plugins/baseuser.py
++++ b/ipaserver/plugins/baseuser.py
+@@ -164,7 +164,7 @@ class baseuser(LDAPObject):
+         'memberof': ['group', 'netgroup', 'role', 'hbacrule', 'sudorule'],
+         'memberofindirect': ['group', 'netgroup', 'role', 'hbacrule', 'sudorule'],
+     }
+-    rdn_is_primary_key = True
++    allow_rename = True
+     bindable = True
+     password_attributes = [('userpassword', 'has_password'),
+                            ('krbprincipalkey', 'has_keytab')]
+diff --git a/ipaserver/plugins/ca.py b/ipaserver/plugins/ca.py
+index f774f78bd6d4ad236b37d06b8b267e8dd78f93b7..9bb163dffa645c1cbb10976e62cbd4a714139319 100644
+--- a/ipaserver/plugins/ca.py
++++ b/ipaserver/plugins/ca.py
+@@ -68,7 +68,7 @@ class ca(LDAPObject):
+         'cn', 'description', 'ipacaid', 'ipacaissuerdn', 'ipacasubjectdn',
+     ]
+     rdn_attribute = 'cn'
+-    rdn_is_primary_key = True
++    allow_rename = True
+     label = _('Certificate Authorities')
+     label_singular = _('Certificate Authority')
+ 
+diff --git a/ipaserver/plugins/dns.py b/ipaserver/plugins/dns.py
+index 7007928f3b4b2fd863077193671a03ae46119dc5..47ac963a0ae26fcaa81e70a8143bd7d0c172d20e 100644
+--- a/ipaserver/plugins/dns.py
++++ b/ipaserver/plugins/dns.py
+@@ -3000,7 +3000,7 @@ class dnsrecord(LDAPObject):
+     possible_objectclasses = ['idnsTemplateObject']
+     permission_filter_objectclasses = ['idnsrecord']
+     default_attributes = ['idnsname'] + _record_attributes
+-    rdn_is_primary_key = True
++    allow_rename = True
+ 
+     label = _('DNS Resource Records')
+     label_singular = _('DNS Resource Record')
+diff --git a/ipaserver/plugins/group.py b/ipaserver/plugins/group.py
+index 218da3c94d95bb399761acf9414182eff566c63b..1fb092d5f049e86f12681e5eb2397f98f1001697 100644
+--- a/ipaserver/plugins/group.py
++++ b/ipaserver/plugins/group.py
+@@ -173,7 +173,7 @@ class group(LDAPObject):
+         'memberofindirect': ['group', 'netgroup', 'role', 'hbacrule',
+         'sudorule'],
+     }
+-    rdn_is_primary_key = True
++    allow_rename = True
+     managed_permissions = {
+         'System: Read Groups': {
+             'replaces_global_anonymous_aci': True,
+diff --git a/ipaserver/plugins/idviews.py b/ipaserver/plugins/idviews.py
+index 6d4ac75209ea08e3c2969d53e1ae5372c3a535ac..b5ee32cf138677874497e2f345c932c352e20054 100644
+--- a/ipaserver/plugins/idviews.py
++++ b/ipaserver/plugins/idviews.py
+@@ -97,7 +97,7 @@ class idview(LDAPObject):
+     object_class = ['ipaIDView', 'top']
+     possible_objectclasses = ['ipaNameResolutionData']
+     default_attributes = ['cn', 'description', 'ipadomainresolutionorder']
+-    rdn_is_primary_key = True
++    allow_rename = True
+ 
+     label = _('ID Views')
+     label_singular = _('ID View')
+@@ -848,7 +848,7 @@ class idoverrideuser(baseidoverride):
+ 
+     label = _('User ID overrides')
+     label_singular = _('User ID override')
+-    rdn_is_primary_key = True
++    allow_rename = True
+ 
+     # ID user overrides are bindable because we map SASL GSSAPI
+     # authentication of trusted users to ID user overrides in the
+@@ -964,7 +964,7 @@ class idoverridegroup(baseidoverride):
+ 
+     label = _('Group ID overrides')
+     label_singular = _('Group ID override')
+-    rdn_is_primary_key = True
++    allow_rename = True
+ 
+     permission_filter_objectclasses = ['ipaGroupOverride']
+     managed_permissions = {
+diff --git a/ipaserver/plugins/otptoken.py b/ipaserver/plugins/otptoken.py
+index 98ecbe58b84622d7937a7e6eff77c5e41624bf4f..c66f0980f0fc2ed49b4224be40a18ce528a6da7b 100644
+--- a/ipaserver/plugins/otptoken.py
++++ b/ipaserver/plugins/otptoken.py
+@@ -143,7 +143,7 @@ class otptoken(LDAPObject):
+     relationships = {
+         'managedby': ('Managed by', 'man_by_', 'not_man_by_'),
+     }
+-    rdn_is_primary_key = True
++    allow_rename = True
+ 
+     label = _('OTP Tokens')
+     label_singular = _('OTP Token')
+diff --git a/ipaserver/plugins/permission.py b/ipaserver/plugins/permission.py
+index dd2a0183e90ed6da9e55fb0590ea0bd81bf0bd67..977c6fe363c501f820aa82ae5b2ea00d8c78c7ae 100644
+--- a/ipaserver/plugins/permission.py
++++ b/ipaserver/plugins/permission.py
+@@ -188,7 +188,7 @@ class permission(baseldap.LDAPObject):
+         'member': ['privilege'],
+         'memberindirect': ['role'],
+     }
+-    rdn_is_primary_key = True
++    allow_rename = True
+     managed_permissions = {
+         'System: Read Permissions': {
+             'replaces_global_anonymous_aci': True,
+diff --git a/ipaserver/plugins/privilege.py b/ipaserver/plugins/privilege.py
+index b3afbd289ac2e82d5569b5d5306be398a560413e..01d5396902d482eb5a9f21e7ece730a0a35157d6 100644
+--- a/ipaserver/plugins/privilege.py
++++ b/ipaserver/plugins/privilege.py
+@@ -101,7 +101,7 @@ class privilege(LDAPObject):
+     reverse_members = {
+         'member': ['permission'],
+     }
+-    rdn_is_primary_key = True
++    allow_rename = True
+     managed_permissions = {
+         'System: Read Privileges': {
+             'replaces_global_anonymous_aci': True,
+diff --git a/ipaserver/plugins/radiusproxy.py b/ipaserver/plugins/radiusproxy.py
+index 3391b8aed77205fb1a586d5472d8cfdbc9fd1cd5..be77c62432066beec951e5f50afe689e1d6debce 100644
+--- a/ipaserver/plugins/radiusproxy.py
++++ b/ipaserver/plugins/radiusproxy.py
+@@ -101,7 +101,7 @@ class radiusproxy(LDAPObject):
+         'ipatokenradiustimeout', 'ipatokenradiusretries', 'ipatokenusermapattribute'
+     ]
+     search_attributes = ['cn', 'description', 'ipatokenradiusserver']
+-    rdn_is_primary_key = True
++    allow_rename = True
+     label = _('RADIUS Servers')
+     label_singular = _('RADIUS Server')
+ 
+diff --git a/ipaserver/plugins/role.py b/ipaserver/plugins/role.py
+index 5d0d1f8c657b8d840762135f5ff16db90fb4893f..e7f115c461a6a0421f9c43d0410daaf9d4307e76 100644
+--- a/ipaserver/plugins/role.py
++++ b/ipaserver/plugins/role.py
+@@ -92,7 +92,7 @@ class role(LDAPObject):
+     reverse_members = {
+         'member': ['privilege'],
+     }
+-    rdn_is_primary_key = True
++    allow_rename = True
+     managed_permissions = {
+         'System: Read Roles': {
+             'replaces_global_anonymous_aci': True,
+diff --git a/ipaserver/plugins/servicedelegation.py b/ipaserver/plugins/servicedelegation.py
+index c8052e957cc5f8d24f6a8d0621ca93422052e35b..4f94924fa76691bcd6c6fc2cef9eb7fb30fce48c 100644
+--- a/ipaserver/plugins/servicedelegation.py
++++ b/ipaserver/plugins/servicedelegation.py
+@@ -138,7 +138,7 @@ class servicedelegation(LDAPObject):
+         },
+     }
+ 
+-    rdn_is_primary_key = True
++    allow_rename = True
+ 
+     takes_params = (
+         Str(
+-- 
+2.12.1
+

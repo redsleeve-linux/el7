@@ -1,0 +1,32 @@
+From 09fad2745b3f49192d6d43550ccb82145f223be0 Mon Sep 17 00:00:00 2001
+From: Martin Basti <mbasti@redhat.com>
+Date: Wed, 14 Jun 2017 14:45:03 +0200
+Subject: [PATCH] ipa-dns-install: remove check for local ip address
+
+This check was forgotten and will be removed now.
+
+https://pagure.io/freeipa/issue/4317
+
+Reviewed-By: David Kupka <dkupka@redhat.com>
+---
+ install/tools/ipa-dns-install | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/install/tools/ipa-dns-install b/install/tools/ipa-dns-install
+index 5bd0ba6d77335d9fa32ea4269422cb3dd1cfca4a..cb6c5d887f101135ca593ea6d4ed0caf51478a4c 100755
+--- a/install/tools/ipa-dns-install
++++ b/install/tools/ipa-dns-install
+@@ -47,7 +47,9 @@ def parse_options():
+                       default=False, help="print debugging information")
+     parser.add_option("--ip-address", dest="ip_addresses", metavar="IP_ADDRESS",
+                       default=[], action="append",
+-                      type="ip", ip_local=True, help="Master Server IP Address. This option can be used multiple times")
++                      type="ip",
++                      help="Master Server IP Address. This option can be used "
++                           "multiple times")
+     parser.add_option("--forwarder", dest="forwarders", action="append",
+                       type="ip", help="Add a DNS forwarder. This option can be used multiple times")
+     parser.add_option("--no-forwarders", dest="no_forwarders", action="store_true",
+-- 
+2.9.4
+

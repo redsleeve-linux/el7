@@ -1,0 +1,96 @@
+From ea26b477bbb8d6f93af2b12840ac6ff0b0deca17 Mon Sep 17 00:00:00 2001
+Message-Id: <ea26b477bbb8d6f93af2b12840ac6ff0b0deca17@dist-git>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Fri, 9 Jun 2017 12:49:08 +0200
+Subject: [PATCH] qemuxml2argvtest: add virtio-options test case
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Add a test case to demonstrate the addition of new command line options
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1283251
+
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit 56a28fbb57daa96fc7fe8f0516c8ee937ec3b39b)
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+
+Conflicts:
+  Downstream still normalizes machine names.
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ .../qemuxml2argv-virtio-options.args               | 41 ++++++++++++++++++++++
+ tests/qemuxml2argvtest.c                           |  9 +++++
+ 2 files changed, 50 insertions(+)
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-virtio-options.args
+
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-virtio-options.args b/tests/qemuxml2argvdata/qemuxml2argv-virtio-options.args
+new file mode 100644
+index 0000000000..f9f3c2cbad
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-virtio-options.args
+@@ -0,0 +1,41 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/home/test \
++USER=test \
++LOGNAME=test \
++QEMU_AUDIO_DRV=none \
++/usr/bin/qemu-system-x86_64 \
++-name QEMUGuest1 \
++-S \
++-M pc-0.11 \
++-m 214 \
++-smp 1,sockets=1,cores=1,threads=1 \
++-uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
++-nographic \
++-nodefaults \
++-monitor unix:/tmp/lib/domain--1-QEMUGuest1/monitor.sock,server,nowait \
++-no-acpi \
++-boot c \
++-device virtio-scsi-pci,id=scsi0,bus=pci.0,addr=0x8 \
++-device virtio-serial-pci,id=virtio-serial0,bus=pci.0,addr=0x9 \
++-usb \
++-drive file=/var/lib/libvirt/images/img1,format=raw,if=none,\
++id=drive-virtio-disk0 \
++-device virtio-blk-pci,bus=pci.0,addr=0xa,drive=drive-virtio-disk0,\
++id=virtio-disk0 \
++-fsdev local,security_model=passthrough,id=fsdev-fs0,path=/export/fs1 \
++-device virtio-9p-pci,id=fs0,fsdev=fsdev-fs0,mount_tag=fs1,bus=pci.0,addr=0x3 \
++-fsdev local,security_model=mapped,writeout=immediate,id=fsdev-fs1,\
++path=/export/fs2 \
++-device virtio-9p-pci,id=fs1,fsdev=fsdev-fs1,mount_tag=fs2,bus=pci.0,addr=0x4 \
++-device virtio-net-pci,vlan=0,id=net0,mac=52:54:56:58:5a:5c,bus=pci.0,addr=0x6 \
++-net user,vlan=0,name=hostnet0 \
++-device virtio-mouse-pci,id=input0,bus=pci.0,addr=0xe \
++-device virtio-keyboard-pci,id=input1,bus=pci.0,addr=0x10 \
++-device virtio-tablet-pci,id=input2,bus=pci.0,addr=0x11 \
++-device virtio-input-host-pci,id=input3,evdev=/dev/input/event1234,bus=pci.0,\
++addr=0x12 \
++-device virtio-gpu-pci,id=video0,virgl=on,bus=pci.0,addr=0x2 \
++-device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0xc \
++-object rng-random,id=objrng0,filename=/dev/random \
++-device virtio-rng-pci,rng=objrng0,id=rng0,bus=pci.0,addr=0xd
+diff --git a/tests/qemuxml2argvtest.c b/tests/qemuxml2argvtest.c
+index bff32200d7..c186780ef1 100644
+--- a/tests/qemuxml2argvtest.c
++++ b/tests/qemuxml2argvtest.c
+@@ -2550,6 +2550,15 @@ mymain(void)
+             QEMU_CAPS_DEVICE_INTEL_IOMMU);
+ 
+     DO_TEST("cpu-hotplug-startup", QEMU_CAPS_QUERY_HOTPLUGGABLE_CPUS);
++    DO_TEST("virtio-options", QEMU_CAPS_VIRTIO_SCSI, QEMU_CAPS_VIRTIO_KEYBOARD,
++            QEMU_CAPS_VIRTIO_MOUSE, QEMU_CAPS_VIRTIO_TABLET,
++            QEMU_CAPS_VIRTIO_INPUT_HOST,
++            QEMU_CAPS_FSDEV, QEMU_CAPS_FSDEV_WRITEOUT,
++            QEMU_CAPS_DEVICE_VIRTIO_GPU,
++            QEMU_CAPS_VIRTIO_GPU_VIRGL,
++            QEMU_CAPS_DEVICE_VIRTIO_RNG,
++            QEMU_CAPS_OBJECT_RNG_RANDOM,
++            QEMU_CAPS_DEVICE_VIDEO_PRIMARY);
+ 
+     DO_TEST("fd-memory-numa-topology", QEMU_CAPS_MEM_PATH, QEMU_CAPS_OBJECT_MEMORY_FILE,
+             QEMU_CAPS_KVM);
+-- 
+2.13.1
+

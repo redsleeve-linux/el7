@@ -1,0 +1,135 @@
+From acb04249a77f62f72179899223bfeacdd2292883 Mon Sep 17 00:00:00 2001
+From: Jan Cholasta <jcholast@redhat.com>
+Date: Fri, 7 Apr 2017 07:44:21 +0200
+Subject: [PATCH] install: request service certs after host keytab is set up
+
+The certmonger renew agent and restart scripts use host keytab for
+authentication. When they are executed during a certmonger request before
+the host keytab is set up, the authentication will fail.
+
+Make sure all certmonger requests in the installer are done after the host
+keytab is set up.
+
+https://pagure.io/freeipa/issue/6757
+
+Reviewed-By: Martin Babinsky <mbabinsk@redhat.com>
+---
+ ipaserver/install/dsinstance.py            | 17 +++++++----------
+ ipaserver/install/server/install.py        | 18 +++++++-----------
+ ipaserver/install/server/replicainstall.py |  5 ++---
+ 3 files changed, 16 insertions(+), 24 deletions(-)
+
+diff --git a/ipaserver/install/dsinstance.py b/ipaserver/install/dsinstance.py
+index 31dbd4ec8bcaf4a7545b4f9f316fe609b845cb75..72fcb65f2eb699d0077d3c5cc02a3fcaaad9b8e5 100644
+--- a/ipaserver/install/dsinstance.py
++++ b/ipaserver/install/dsinstance.py
+@@ -256,7 +256,7 @@ class DsInstance(service.Service):
+ 
+     subject_base = ipautil.dn_attribute_property('_subject_base')
+ 
+-    def __common_setup(self, enable_ssl=False):
++    def __common_setup(self):
+ 
+         self.step("creating directory server user", create_ds_user)
+         self.step("creating directory server instance", self.__create_instance)
+@@ -279,8 +279,6 @@ class DsInstance(service.Service):
+         self.step("configuring topology plugin", self.__config_topology_module)
+         self.step("creating indices", self.__create_indices)
+         self.step("enabling referential integrity plugin", self.__add_referint_module)
+-        if enable_ssl:
+-            self.step("configuring TLS for DS instance", self.__enable_ssl)
+         self.step("configuring certmap.conf", self.__certmap_conf)
+         self.step("configure new location for managed entries", self.__repoint_managed_entries)
+         self.step("configure dirsrv ccache", self.configure_dirsrv_ccache)
+@@ -356,8 +354,12 @@ class DsInstance(service.Service):
+         self.steps = []
+ 
+         self.step("configuring TLS for DS instance", self.__enable_ssl)
++        if self.master_fqdn is None:
++            self.step("adding CA certificate entry", self.__upload_ca_cert)
++        else:
++            self.step("importing CA certificates from LDAP",
++                      self.__import_ca_certs)
+         self.step("restarting directory server", self.__restart_instance)
+-        self.step("adding CA certificate entry", self.__upload_ca_cert)
+ 
+         self.start_creation()
+ 
+@@ -391,21 +393,16 @@ class DsInstance(service.Service):
+         self.promote = promote
+         self.api = api
+ 
+-        self.__common_setup(enable_ssl=(not self.promote))
++        self.__common_setup()
+         self.step("restarting directory server", self.__restart_instance)
+ 
+         self.step("creating DS keytab", self.request_service_keytab)
+-        if self.promote:
+-            self.step("configuring TLS for DS instance", self.__enable_ssl)
+-            self.step("restarting directory server", self.__restart_instance)
+-
+         self.step("setting up initial replication", self.__setup_replica)
+         self.step("adding sasl mappings to the directory", self.__configure_sasl_mappings)
+         self.step("updating schema", self.__update_schema)
+         # See LDIFs for automember configuration during replica install
+         self.step("setting Auto Member configuration", self.__add_replica_automember_config)
+         self.step("enabling S4U2Proxy delegation", self.__setup_s4u2proxy)
+-        self.step("importing CA certificates from LDAP", self.__import_ca_certs)
+ 
+         self.__common_post_setup()
+ 
+diff --git a/ipaserver/install/server/install.py b/ipaserver/install/server/install.py
+index f8e64ec26e85bbc6218018eec8f403a0567b45a2..bf2e248dceaae36ba0030d3eaa47976f51ce60ba 100644
+--- a/ipaserver/install/server/install.py
++++ b/ipaserver/install/server/install.py
+@@ -770,6 +770,13 @@ def install(installer):
+             realm_name, host_name, domain_name, dm_password,
+             options.subject_base, options.ca_subject, 1101, 1100, None)
+ 
++    krb = krbinstance.KrbInstance(fstore)
++    krb.create_instance(realm_name, host_name, domain_name,
++                        dm_password, master_password,
++                        setup_pkinit=not options.no_pkinit,
++                        pkcs12_info=pkinit_pkcs12_info,
++                        subject_base=options.subject_base)
++
+     if setup_ca:
+         if not options.external_cert_files and options.external_ca:
+             # stage 1 of external CA installation
+@@ -793,17 +800,6 @@ def install(installer):
+     # we now need to enable ssl on the ds
+     ds.enable_ssl()
+ 
+-    krb = krbinstance.KrbInstance(fstore)
+-    krb.create_instance(realm_name, host_name, domain_name,
+-                        dm_password, master_password,
+-                        setup_pkinit=not options.no_pkinit,
+-                        pkcs12_info=pkinit_pkcs12_info,
+-                        subject_base=options.subject_base)
+-
+-    # restart DS to enable ipa-pwd-extop plugin
+-    print("Restarting directory server to enable password extension plugin")
+-    ds.restart()
+-
+     if setup_ca:
+         ca.install_step_1(False, None, options)
+ 
+diff --git a/ipaserver/install/server/replicainstall.py b/ipaserver/install/server/replicainstall.py
+index cd6a62f9540f4a46da70e0cc5686eff5f54e7dfe..6f1a0d6d29b20d53986205a63382a385e75f80ea 100644
+--- a/ipaserver/install/server/replicainstall.py
++++ b/ipaserver/install/server/replicainstall.py
+@@ -1422,9 +1422,8 @@ def install(installer):
+         setup_pkinit=not options.no_pkinit,
+         promote=promote)
+ 
+-    # restart DS to enable ipa-pwd-extop plugin
+-    print("Restarting directory server to enable password extension plugin")
+-    ds.restart()
++    # we now need to enable ssl on the ds
++    ds.enable_ssl()
+ 
+     install_http(
+         config,
+-- 
+2.9.3
+

@@ -1,0 +1,49 @@
+From 6d44c0c1455442ffd61ad532635c109b92ca96d1 Mon Sep 17 00:00:00 2001
+From: Martin Babinsky <mbabinsk@redhat.com>
+Date: Fri, 26 May 2017 12:23:51 +0200
+Subject: [PATCH] fix incorrect suffix handling in topology checks
+
+When trying to delete a partially removed master entry lacking
+'iparepltopomanagedsuffix' attribute, the code that tries to retrieve
+tha value for further computations passes None and causes unhandled
+internal errors.
+
+If the attribute is empty or not present, we should return empty list
+instead as to not break calling cod attribute, the code that tries to
+retrieve tha value for further computations passes None and causes
+unhandled internal errors. We should return empty list instead.
+
+https://pagure.io/freeipa/issue/6965
+
+Reviewed-By: Felipe Volpone <felipevolpone@gmail.com>
+---
+ ipaserver/topology.py | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/ipaserver/topology.py b/ipaserver/topology.py
+index 385da29a66fb7276c55e9aac5c8c266b897721a7..2b6b0835473097eeec673230fab338bef41b8c49 100644
+--- a/ipaserver/topology.py
++++ b/ipaserver/topology.py
+@@ -72,12 +72,15 @@ def get_topology_connection_errors(graph):
+ 
+ def map_masters_to_suffixes(masters):
+     masters_to_suffix = {}
++    managed_suffix_attr = 'iparepltopomanagedsuffix_topologysuffix'
+ 
+     for master in masters:
+-        try:
+-            managed_suffixes = master.get(
+-                'iparepltopomanagedsuffix_topologysuffix')
+-        except KeyError:
++        if managed_suffix_attr not in master:
++            continue
++
++        managed_suffixes = master[managed_suffix_attr]
++
++        if managed_suffixes is None:
+             continue
+ 
+         for suffix_name in managed_suffixes:
+-- 
+2.9.4
+

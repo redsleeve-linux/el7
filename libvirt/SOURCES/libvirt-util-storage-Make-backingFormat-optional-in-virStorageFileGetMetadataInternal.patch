@@ -1,0 +1,55 @@
+From edc31db33c74dd86c1d49c4e561a8535ef5968a9 Mon Sep 17 00:00:00 2001
+Message-Id: <edc31db33c74dd86c1d49c4e561a8535ef5968a9@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 20 Jun 2017 16:58:52 +0200
+Subject: [PATCH] util: storage: Make @backingFormat optional in
+ virStorageFileGetMetadataInternal
+
+Some callers don't need to know the backing format. Make the argument
+optional by using a dummy int if NULL is passed.
+
+(cherry picked from commit 296a53313f447d2f251cbea2cb050d2f695a7991)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1461303
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Andrea Bolognani <abologna@redhat.com>
+---
+ src/util/virstoragefile.c | 4 ++++
+ src/util/virstoragefile.h | 2 +-
+ 2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/util/virstoragefile.c b/src/util/virstoragefile.c
+index 3ed79fb2b5..437a13b90b 100644
+--- a/src/util/virstoragefile.c
++++ b/src/util/virstoragefile.c
+@@ -966,9 +966,13 @@ virStorageFileGetMetadataInternal(virStorageSourcePtr meta,
+                                   size_t len,
+                                   int *backingFormat)
+ {
++    int dummy;
+     int ret = -1;
+     size_t i;
+ 
++    if (!backingFormat)
++        backingFormat = &dummy;
++
+     VIR_DEBUG("path=%s, buf=%p, len=%zu, meta->format=%d",
+               meta->path, buf, len, meta->format);
+ 
+diff --git a/src/util/virstoragefile.h b/src/util/virstoragefile.h
+index ce54a19cee..0bff8671f7 100644
+--- a/src/util/virstoragefile.h
++++ b/src/util/virstoragefile.h
+@@ -293,7 +293,7 @@ int virStorageFileGetMetadataInternal(virStorageSourcePtr meta,
+                                       char *buf,
+                                       size_t len,
+                                       int *backingFormat)
+-    ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2) ATTRIBUTE_NONNULL(4);
++    ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2);
+ 
+ virStorageSourcePtr virStorageFileGetMetadataFromFD(const char *path,
+                                                     int fd,
+-- 
+2.13.1
+

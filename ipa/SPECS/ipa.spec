@@ -1,6 +1,19 @@
-# Define ONLY_CLIENT to only make the ipa-admintools, ipa-client and ipa-python
+# Define ONLY_CLIENT to only make the ipa-client and ipa-python
 # subpackages
 %{!?ONLY_CLIENT:%global ONLY_CLIENT 0}
+%if %{ONLY_CLIENT}
+    %global enable_server_option --disable-server
+%else
+    %global enable_server_option --enable-server
+%endif
+
+# Build with ipatests
+%global with_ipatests 0
+%if 0%{?with_ipatests}
+    %global with_ipatests_option --with-ipatests
+%else
+    %global with_ipatests_option --without-ipatests
+%endif
 
 %if 0%{?rhel}
 %global with_python3 0
@@ -8,22 +21,30 @@
 %global with_python3 1
 %endif
 
-# RHEL spec file only: START
-%ifarch x86_64 %{ix86}
-# Nothing, we want to force just building client on non-Intel
+# lint is not executed during rpmbuild
+# %%global with_lint 1
+%if 0%{?with_lint}
+    %global linter_options --enable-pylint --with-jslint
 %else
-%global ONLY_CLIENT 1
+    %global linter_options --disable-pylint --without-jslint
 %endif
-%global VERSION 4.4.0
-# RHEL spec file only: END
+
+# Python wheel support and PyPI packages
+%global with_wheels 0
 
 %global alt_name freeipa
 %if 0%{?rhel}
-%global samba_version 4.2.10-1
+# 1.15.1-7: certauth (http://krbdev.mit.edu/rt/Ticket/Display.html?id=8561)
+%global krb5_version 1.15.1-4
+# Require 4.6.0-4 which brings RC4 for FIPS + trust fixes to priv. separation
+%global samba_version 4.6.0-4
 %global selinux_policy_version 3.13.1-70
 %global slapi_nis_version 0.56.0-4
 %else
-%global samba_version 2:4.0.5-1
+# 1.15.1-7: certauth (http://krbdev.mit.edu/rt/Ticket/Display.html?id=8561)
+%global krb5_version 1.15.1-7
+# Require 4.6.0-4 which brings RC4 for FIPS + trust fixes to priv. separation
+%global samba_version 2:4.6.0-4
 %global selinux_policy_version 3.13.1-158.4
 %global slapi_nis_version 0.56.1
 %endif
@@ -33,280 +54,421 @@
 %global plugin_dir %{_libdir}/dirsrv/plugins
 %global etc_systemd_dir %{_sysconfdir}/systemd/system
 %global gettext_domain ipa
-%if 0%{?rhel}
-%global platform_module rhel
-%else
-%global platform_module fedora
-%endif
 
 %define _hardened_build 1
 
+# Work-around fact that RPM SPEC parser does not accept
+# "Version: @VERSION@" in freeipa.spec.in used for Autoconf string replacement
+%define IPA_VERSION 4.5.0
+%define AT_SIGN @
+# redefine IPA_VERSION only if its value matches the Autoconf placeholder
+%if "%{IPA_VERSION}" == "%{AT_SIGN}VERSION%{AT_SIGN}"
+	%define IPA_VERSION nonsense.to.please.RPM.SPEC.parser
+%endif
+
 Name:           ipa
-Version:        4.4.0
-Release:        14%{?dist}.7.redsleeve
+Version:        %{IPA_VERSION}
+Release:        21%{?dist}
 Summary:        The Identity, Policy and Audit system
 
 Group:          System Environment/Base
 License:        GPLv3+
 URL:            http://www.freeipa.org/
-Source0:        http://www.freeipa.org/downloads/src/freeipa-%{VERSION}.tar.gz
-# RHEL spec file only: START: Change branding to IPA and Identity-Management
+Source0:        https://releases.pagure.org/freeipa/freeipa-%{version}.tar.gz
+# RHEL spec file only: START: Change branding to IPA and Identity Management
 #Source1:        header-logo.png
 #Source2:        login-screen-background.jpg
 #Source3:        login-screen-logo.png
 #Source4:        product-name.png
-# RHEL spec file only: END: Change branding to IPA and Identity-Management
+# RHEL spec file only: END: Change branding to IPA and Identity Management
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
 # RHEL spec file only: START
-Patch0001:      0001-Fix-incorrect-check-for-principal-type-when-evaluati.patch
-Patch0002:      0002-uninstall-untrack-lightweight-CA-certs.patch
-Patch0003:      0003-ipa-nis-manage-Use-server-API-to-retrieve-plugin-sta.patch
-Patch0004:      0004-ipa-compat-manage-use-server-API-to-retrieve-plugin-.patch
-Patch0005:      0005-ipa-advise-correct-handling-of-plugin-namespace-iter.patch
-Patch0006:      0006-kdb-check-for-local-realm-in-enterprise-principals.patch
-Patch0007:      0007-Enable-vault-commands-on-client.patch
-Patch0008:      0008-vault-add-set-the-default-vault-type-on-the-client-s.patch
-Patch0009:      0009-caacl-expand-plugin-documentation.patch
-Patch0010:      0010-host-find-do-not-show-SSH-key-by-default.patch
-Patch0011:      0011-Removed-unused-method-parameter-from-migrate-ds.patch
-Patch0012:      0012-Preserve-user-principal-aliases-during-rename-operat.patch
-Patch0013:      0013-messages-specify-message-type-for-ResultFormattingEr.patch
-Patch0014:      0014-schema-Fix-subtopic-topic-mapping.patch
-Patch0015:      0015-DNS-install-Ensure-that-DNS-servers-container-exists.patch
-Patch0016:      0016-Heap-corruption-in-ipapwd-plugin.patch
-Patch0017:      0017-Use-server-API-in-com.redhat.idm.trust-fetch-domains.patch
-Patch0018:      0018-frontend-copy-command-arguments-to-output-params-on-.patch
-Patch0019:      0019-Show-full-error-message-for-selinuxusermap-add-hostg.patch
-Patch0020:      0020-allow-value-output-param-in-commands-without-primary.patch
-Patch0021:      0021-server-uninstall-fails-to-remove-krb-principals.patch
-Patch0022:      0022-expose-secret-option-in-radiusproxy-commands.patch
-Patch0023:      0023-prevent-search-for-RADIUS-proxy-servers-by-secret.patch
-Patch0024:      0024-trust-add-handle-all-raw-options-properly.patch
-Patch0025:      0025-unite-log-file-name-of-ipa-ca-install.patch
-Patch0026:      0026-Host-del-fix-behavior-of-updatedns-and-PTR-records.patch
-Patch0027:      0027-help-Add-dnsserver-commands-to-help-topic-dns.patch
-Patch0028:      0028-DNS-Locations-fix-update-system-records-unpacking-er.patch
-Patch0029:      0029-Fix-session-cookies.patch
-Patch0030:      0030-Use-copy-when-replacing-files-to-keep-SELinux-contex.patch
-Patch0031:      0031-baseldap-Fix-MidairCollision-instantiation-during-en.patch
-Patch0032:      0032-Create-indexes-for-krbCanonicalName-attribute.patch
-Patch0033:      0033-harden-the-check-for-trust-namespace-overlap-in-new-.patch
-Patch0034:      0034-Revert-Enable-vault-commands-on-client.patch
-Patch0035:      0035-client-fix-hiding-of-commands-which-lack-server-supp.patch
-Patch0036:      0036-Minor-fix-in-ipa-replica-manage-MAN-page.patch
-Patch0037:      0037-compat-fix-ping-call.patch
-Patch0038:      0038-replica-install-Fix-domain.patch
-Patch0039:      0039-idrange-fix-unassigned-global-variable.patch
-Patch0040:      0040-re-set-canonical-principal-name-on-migrated-users.patch
-Patch0041:      0041-Do-not-initialize-API-in-ipa-client-automount-uninst.patch
-Patch0042:      0042-Correct-path-to-HTTPD-s-systemd-service-directory.patch
-Patch0043:      0043-vault-Catch-correct-exception-in-decrypt.patch
-Patch0044:      0044-Increase-default-length-of-auto-generated-passwords.patch
-Patch0045:      0045-vault-add-missing-salt-option-to-vault_mod.patch
-Patch0046:      0046-Fix-ipa-hbactest-output.patch
-Patch0047:      0047-install-fix-external-CA-cert-validation.patch
-Patch0048:      0048-caacl-fix-regression-in-rule-instantiation.patch
-Patch0049:      0049-Update-ipa-replica-install-documentation.patch
-Patch0050:      0050-ipa-kdb-Fix-unit-test-after-packaging-changes-in-krb.patch
-Patch0051:      0051-Improvements-for-the-ipa-cacert-manage-man-and-help.patch
-Patch0052:      0052-Revert-spec-add-conflict-with-bind-chroot-to-freeipa.patch
-Patch0053:      0053-Fix-unicode-characters-in-ca-and-domain-adders.patch
-Patch0054:      0054-ipa-backup-backup-etc-tmpfiles.d-dirsrv-instance-.co.patch
-Patch0055:      0055-client-RPM-require-initscripts-to-get-domainname.ser.patch
-Patch0056:      0056-parameters-move-the-confirm-kwarg-to-Param.patch
-Patch0057:      0057-client-add-missing-output-params-to-client-side-comm.patch
-Patch0058:      0058-server-install-Fix-hostname-option-to-always-overrid.patch
-Patch0059:      0059-install-Call-hostnamectl-set-hostname-only-if-hostna.patch
-Patch0060:      0060-schema-Speed-up-schema-cache.patch
-Patch0061:      0061-frontend-Change-doc-summary-topic-and-NO_CLI-to-clas.patch
-Patch0062:      0062-schema-Introduce-schema-cache-format.patch
-Patch0063:      0063-schema-Generate-bits-for-help-load-them-on-request.patch
-Patch0064:      0064-help-Do-not-create-instances-to-get-information-abou.patch
-Patch0065:      0065-Fix-ipa-caalc-add-service-error-message.patch
-Patch0066:      0066-Don-t-show-force-ntpd-option-in-replica-install.patch
-Patch0067:      0067-DNS-server-upgrade-do-not-fail-when-DNS-server-did-n.patch
-Patch0068:      0068-DNS-allow-to-add-forward-zone-to-already-broken-sub-.patch
-Patch0069:      0069-cert-speed-up-cert-find.patch
-Patch0070:      0070-cert-do-not-crash-on-invalid-data-in-cert-find.patch
-Patch0071:      0071-Add-warning-about-only-one-existing-CA-server.patch
-Patch0072:      0072-Set-servers-list-as-default-facet-in-topology-facet-.patch
-Patch0073:      0073-schema-cache-Do-not-reset-ServerInfo-dirty-flag.patch
-Patch0074:      0074-schema-cache-Do-not-read-fingerprint-and-format-from.patch
-Patch0075:      0075-Access-data-for-help-separately.patch
-Patch0076:      0076-frontent-Add-summary-class-property-to-CommandOverri.patch
-Patch0077:      0077-schema-cache-Read-server-info-only-once.patch
-Patch0078:      0078-schema-cache-Store-API-schema-cache-in-memory.patch
-Patch0079:      0079-client-Do-not-create-instance-just-to-check-isinstan.patch
-Patch0080:      0080-schema-cache-Read-schema-instead-of-rewriting-it-whe.patch
-Patch0081:      0081-schema-check-Check-current-client-language-against-c.patch
-Patch0082:      0082-Fail-on-topology-disconnect-last-role-removal.patch
-Patch0083:      0083-server-install-do-not-prompt-for-cert-file-PIN-repea.patch
-Patch0084:      0084-service-add-flag-to-allow-S4U2Self.patch
-Patch0085:      0085-Add-trusted-to-auth-as-user-checkbox.patch
-Patch0086:      0086-Added-new-authentication-method.patch
-Patch0087:      0087-schema-cache-Fallback-to-en_us-when-locale-is-not-av.patch
-Patch0088:      0088-cert-revoke-fix-permission-check-bypass-CVE-2016-540.patch
-Patch0089:      0089-Fix-container-owner-should-be-able-to-add-vault.patch
-Patch0090:      0090-ipaserver-dcerpc-reformat-to-make-the-code-closer-to.patch
-Patch0091:      0091-trust-automatically-resolve-DNS-trust-conflicts-for-.patch
-Patch0092:      0092-trust-make-sure-external-trust-topology-is-correctly.patch
-Patch0093:      0093-trust-make-sure-ID-range-is-created-for-the-child-do.patch
-Patch0094:      0094-ipa-kdb-simplify-trusted-domain-parent-search.patch
-Patch0095:      0095-Remove-Custodia-server-keys-from-LDAP.patch
-Patch0096:      0096-Handled-empty-hostname-in-server-del-command.patch
-Patch0097:      0097-Secure-permissions-of-Custodia-server.keys.patch
-Patch0098:      0098-Require-httpd-2.4.6-31-with-mod_proxy-Unix-socket-su.patch
-Patch0099:      0099-Fix-ipa-server-install-in-pure-IPv6-environment.patch
-Patch0100:      0100-support-multiple-uid-values-in-schema-compatibility-.patch
-Patch0101:      0101-custodia-include-known-CA-certs-in-the-PKCS-12-file-.patch
-Patch0102:      0102-otptoken-permission-Convert-custom-type-parameters-o.patch
-Patch0103:      0103-Raise-DuplicatedEnrty-error-when-user-exists-in-dele.patch
-Patch0104:      0104-cert-add-missing-param-values-to-cert-find-output.patch
-Patch0105:      0105-rpcserver-assume-version-1-for-unversioned-command-c.patch
-Patch0106:      0106-custodia-force-reconnect-before-retrieving-CA-certs-.patch
-Patch0107:      0107-rpcserver-fix-crash-in-XML-RPC-system-commands.patch
-Patch0108:      0108-compat-Save-server-s-API-version-in-for-pre-schema-s.patch
-Patch0109:      0109-compat-Fix-ping-command-call.patch
-Patch0110:      0110-Fix-man-page-ipa-replica-manage-remove-duplicate-c-o.patch
-Patch0111:      0111-cert-include-CA-name-in-cert-command-output.patch
-Patch0112:      0112-Fix-CA-ACL-Check-on-SubjectAltNames.patch
-Patch0113:      0113-do-not-use-trusted-forest-name-to-construct-domain-a.patch
-Patch0114:      0114-Always-fetch-forest-info-from-root-DCs-when-establis.patch
-Patch0115:      0115-factor-out-populate_remote_domain-method-into-module.patch
-Patch0116:      0116-Always-fetch-forest-info-from-root-DCs-when-establis.patch
-Patch0117:      0117-cli-use-full-name-when-executing-a-command.patch
-Patch0118:      0118-Use-RSA-OAEP-instead-of-RSA-PKCS-1-v1.5.patch
-Patch0119:      0119-Fix-ipa-certupdate-for-CA-less-installation.patch
-Patch0120:      0120-Track-lightweight-CAs-on-replica-installation.patch
-Patch0121:      0121-dns-normalize-record-type-read-interactively-in-dnsr.patch
-Patch0122:      0122-dns-prompt-for-missing-record-parts-in-CLI.patch
-Patch0123:      0123-dns-fix-crash-in-interactive-mode-against-old-server.patch
-Patch0124:      0124-schema-cache-Store-and-check-info-for-pre-schema-ser.patch
-Patch0125:      0125-Fix-parse-errors-with-link-local-addresses.patch
-Patch0126:      0126-Add-support-for-additional-options-taken-from-table-.patch
-Patch0127:      0127-WebUI-Fix-showing-certificates-issued-by-sub-CA.patch
-Patch0128:      0128-WebUI-add-support-for-sub-CAs-while-revoking-certifi.patch
-Patch0129:      0129-cert-fix-cert-find-certificate-when-the-cert-is-not-.patch
-Patch0130:      0130-Make-host-service-cert-revocation-aware-of-lightweig.patch
-Patch0131:      0131-Fix-regression-introduced-in-ipa-certupdate.patch
-Patch0132:      0132-Start-named-during-configuration-upgrade.patch
-Patch0133:      0133-Catch-DNS-exceptions-during-emptyzones-named.conf-up.patch
-Patch0134:      0134-trust-fetch-domains-contact-forest-DCs-when-fetching.patch
-Patch0135:      0135-ipa-passwd-use-correct-normalizer-for-user-principal.patch
-Patch0136:      0136-Keep-NSS-trust-flags-of-existing-certificates.patch
-Patch0137:      0137-Properly-handle-LDAP-socket-closures-in-ipa-otpd.patch
-Patch0138:      0138-cert-add-revocation-reason-back-to-cert-find-output.patch
-Patch0139:      0139-Make-httpd-publish-its-CA-certificate-on-DL1.patch
-Patch0140:      0140-Add-cert-checks-in-ipa-server-certinstall.patch
-Patch0141:      0141-WebUI-services-without-canonical-name-are-shown-corr.patch
-Patch0142:      0142-Fix-missing-file-that-fails-DL1-replica-installation.patch
-Patch0143:      0143-trustdomain-del-fix-the-way-how-subdomain-is-searche.patch
-Patch0144:      0144-spec-file-bump-minimal-required-version-of-389-ds-ba.patch
-Patch0145:      0145-replication-ensure-bind-DN-group-check-interval-is-s.patch
-Patch0146:      0146-bindinstance-use-data-in-named.conf-to-determine-con.patch
-Patch0147:      0147-gracefully-handle-setting-replica-bind-dn-group-on-o.patch
-Patch0148:      0148-add-missing-attribute-to-ipaca-replica-during-CA-top.patch
-Patch0149:      0149-Check-for-conflict-entries-before-raising-domain-lev.patch
-Patch0150:      0150-certprofile-mod-correctly-authorise-config-update.patch
-Patch0151:      0151-password-policy-Add-explicit-default-password-policy.patch
-Patch0152:      0152-ipa-kdb-search-for-password-policies-globally.patch
-Patch0153:      0153-Set-up-DS-TLS-on-replica-in-CA-less-topology.patch
-Patch0154:      0154-wait_for_entry-use-only-DN-as-parameter.patch
-Patch0155:      0155-Wait-until-HTTPS-principal-entry-is-replicated-to-re.patch
-Patch0156:      0156-Use-proper-logging-for-error-messages.patch
-Patch0157:      0157-Do-not-configure-PKI-ajp-redirection-to-use-1.patch
-Patch0158:      0158-added-ssl-verification-using-IPA-trust-anchor.patch
-Patch0159:      0159-ca-correctly-authorise-ca-del-ca-enable-and-ca-disab.patch
-Patch0160:      0160-compat-fix-Any-params-in-batch-and-dnsrecord.patch
+Patch0001:      0001-Add-options-to-allow-ticket-caching.patch
+Patch0002:      0002-Use-connection-keep-alive.patch
+Patch0003:      0003-Add-debug-logging-for-keep-alive.patch
+Patch0004:      0004-Increase-Apache-HTTPD-s-default-keep-alive-timeout.patch
+Patch0005:      0005-ipapython.ipautil.nolog_replace-Do-not-replace-empty.patch
+Patch0006:      0006-tasks-run-systemctl-daemon-reload-after-httpd.servic.patch
+Patch0007:      0007-man-ipa-cacert-manage-install-needs-clarification.patch
+Patch0008:      0008-certs-do-not-implicitly-create-DS-pin.txt.patch
+Patch0009:      0009-httpinstance-clean-up-etc-httpd-alias-on-uninstall.patch
+Patch0010:      0010-Fixing-replica-install-fix-ldap-connection-in-domlvl.patch
+Patch0011:      0011-replica-prepare-fix-wrong-IPA-CA-nickname-in-replica.patch
+Patch0012:      0012-ldap2-use-LDAP-whoami-operation-to-retrieve-bind-DN-.patch
+Patch0013:      0013-Backup-ipa-specific-httpd-unit-file.patch
+Patch0014:      0014-WebUI-check-principals-in-lowercase.patch
+Patch0015:      0015-WebUI-add-method-for-disabling-item-in-user-dropdown.patch
+Patch0016:      0016-WebUI-Add-support-for-login-for-AD-users.patch
+Patch0017:      0017-cert-do-not-limit-internal-searches-in-cert-find.patch
+Patch0018:      0018-ipa-kdb-add-ipadb_fetch_principals_with_extra_filter.patch
+Patch0019:      0019-IPA-certauth-plugin.patch
+Patch0020:      0020-configure-fix-disable-server-with-certauth-plugin.patch
+Patch0021:      0021-ipa-kdb-do-not-depend-on-certauth_plugin.h.patch
+Patch0022:      0022-WebUI-Add-support-for-suppressing-warnings.patch
+Patch0023:      0023-WebUI-suppress-truncation-warning-in-select-widget.patch
+Patch0024:      0024-WebUI-Fix-showing-vault-in-selfservice-view.patch
+Patch0025:      0025-Set-KDC-Disable-Last-Success-by-default.patch
+Patch0026:      0026-WebUI-Allow-to-add-certs-to-certmapping-with-CERT-LI.patch
+Patch0027:      0027-Bump-samba-version-for-FIPS-and-priv.-separation.patch
+Patch0028:      0028-Reworked-the-renaming-mechanism.patch
+Patch0029:      0029-Allow-renaming-of-the-HBAC-rule-objects.patch
+Patch0030:      0030-Allow-renaming-of-the-sudorule-objects.patch
+Patch0031:      0031-Create-temporaty-directories-at-the-begining-of-unin.patch
+Patch0032:      0032-dogtag-ipa-ca-renew-agent-submit-fix-the-is_replicat.patch
+Patch0033:      0033-Simplify-KRA-transport-cert-cache.patch
+Patch0034:      0034-rpcserver.login_x509-Actually-return-reply-from-__ca.patch
+Patch0035:      0035-Backup-CA-cert-from-kerberos-folder.patch
+Patch0036:      0036-spec-file-Bump-requires-to-make-Certificate-Login-in.patch
+Patch0037:      0037-Use-Custodia-0.3.1-features.patch
+Patch0038:      0038-spec-file-bump-krb5-devel-BuildRequires-for-certauth.patch
+Patch0039:      0039-Avoid-growing-FILE-ccaches-unnecessarily.patch
+Patch0040:      0040-Handle-failed-authentication-via-cookie.patch
+Patch0041:      0041-Work-around-issues-fetching-session-data.patch
+Patch0042:      0042-Prevent-churn-on-ccaches.patch
+Patch0043:      0043-Generate-PIN-for-PKI-to-help-Dogtag-in-FIPS.patch
+Patch0044:      0044-httpinstance.disable_system_trust-Don-t-fail-if-modu.patch
+Patch0045:      0045-extdom-do-reverse-search-for-domain-separator.patch
+Patch0046:      0046-extdom-improve-cert-request.patch
+Patch0047:      0047-spec-file-bump-libsss_nss_idmap-devel-BuildRequires.patch
+Patch0048:      0048-server-make-sure-we-test-for-sss_nss_getlistbycert.patch
+Patch0049:      0049-Upgrade-configure-PKINIT-after-adding-anonymous-prin.patch
+Patch0050:      0050-Remove-unused-variable-from-failed-anonymous-PKINIT-.patch
+Patch0051:      0051-Split-out-anonymous-PKINIT-test-to-a-separate-method.patch
+Patch0052:      0052-Ensure-KDC-is-propery-configured-after-upgrade.patch
+Patch0053:      0053-adtrust-make-sure-that-runtime-hostname-result-is-co.patch
+Patch0054:      0054-Allow-erasing-ipaDomainResolutionOrder-attribute.patch
+Patch0055:      0055-Always-check-and-create-anonymous-principal-during-K.patch
+Patch0056:      0056-Remove-duplicate-functionality-in-upgrade.patch
+Patch0057:      0057-Fix-the-order-of-cert-files-check.patch
+Patch0058:      0058-Don-t-allow-setting-pkinit-related-options-on-DL0.patch
+Patch0059:      0059-replica-prepare-man-remove-pkinit-option-refs.patch
+Patch0060:      0060-Remove-redundant-option-check-for-cert-files.patch
+Patch0061:      0061-Hide-request_type-doc-string-in-cert-request-help.patch
+Patch0062:      0062-Get-correct-CA-cert-nickname-in-CA-less.patch
+Patch0063:      0063-Remove-publish_ca_cert-method-from-NSSDatabase.patch
+Patch0064:      0064-httpinstance-make-sure-NSS-database-is-backed-up.patch
+Patch0065:      0065-IPA-KDB-use-relative-path-in-ipa-certmap-config-snip.patch
+Patch0066:      0066-Add-pki_pin-only-when-needed.patch
+Patch0067:      0067-idrange-add-properly-handle-empty-dom-name-option.patch
+Patch0068:      0068-ipa-sam-create-the-gidNumber-attribute-in-the-truste.patch
+Patch0069:      0069-Upgrade-add-gidnumber-to-trusted-domain-entry.patch
+Patch0070:      0070-dsinstance-reconnect-ldap2-after-DS-is-restarted-by-.patch
+Patch0071:      0071-httpinstance-avoid-httpd-restart-during-certificate-.patch
+Patch0072:      0072-dsinstance-httpinstance-consolidate-certificate-requ.patch
+Patch0073:      0073-install-request-service-certs-after-host-keytab-is-s.patch
+Patch0074:      0074-renew-agent-revert-to-host-keytab-authentication.patch
+Patch0075:      0075-renew-agent-restart-scripts-connect-to-LDAP-after-ki.patch
+Patch0076:      0076-ipaserver-dcerpc-unify-error-processing.patch
+Patch0077:      0077-trust-always-use-oddjobd-helper-for-fetching-trust-i.patch
+Patch0078:      0078-WebUI-cert-login-Configure-name-of-parameter-used-to.patch
+Patch0079:      0079-Create-system-users-for-FreeIPA-services-during-pack.patch
+Patch0080:      0080-Fix-s4u2self-with-adtrust.patch
+Patch0081:      0081-Add-debug-log-in-case-cookie-retrieval-went-wrong.patch
+Patch0082:      0082-server-install-remove-broken-no-pkinit-check.patch
+Patch0083:      0083-Add-the-force-join-option-to-replica-install.patch
+Patch0084:      0084-replicainstall-better-client-install-exception-handl.patch
+Patch0085:      0085-Fix-CA-less-to-CA-full-upgrade.patch
+Patch0086:      0086-cert-defer-cert-find-result-post-processing.patch
+Patch0087:      0087-server-install-No-double-Kerberos-install.patch
+Patch0088:      0088-ext.-CA-correctly-write-the-cert-chain.patch
+Patch0089:      0089-Fix-RA-cert-import-during-DL0-replication.patch
+Patch0090:      0090-configure-fix-AC_CHECK_LIB-usage.patch
+Patch0091:      0091-Fix-CAInstance.import_ra_cert-for-empty-passwords.patch
+Patch0092:      0092-upgrade-adtrust-update_tdo_gidnumber-plugin-must-che.patch
+Patch0093:      0093-compat-manage-behave-the-same-for-all-users.patch
+Patch0094:      0094-Move-the-compat-plugin-setup-at-the-end-of-install.patch
+Patch0095:      0095-compat-ignore-cn-topology-cn-ipa-cn-etc-subtree.patch
+Patch0096:      0096-spec-file-bump-krb5-Requires-for-certauth-fixes.patch
+Patch0097:      0097-Hide-PKI-Client-database-password-in-log-file.patch
+Patch0098:      0098-Vault-Explicitly-default-to-3DES-CBC.patch
+Patch0099:      0099-separate-function-to-set-ipaConfigString-values-on-s.patch
+Patch0100:      0100-Allow-for-configuration-of-all-three-PKINIT-variants.patch
+Patch0101:      0101-API-for-retrieval-of-master-s-PKINIT-status-and-publ.patch
+Patch0102:      0102-Use-only-anonymous-PKINIT-to-fetch-armor-ccache.patch
+Patch0103:      0103-Stop-requesting-anonymous-keytab-and-purge-all-refer.patch
+Patch0104:      0104-Use-local-anchor-when-armoring-password-requests.patch
+Patch0105:      0105-Upgrade-configure-local-full-PKINIT-depending-on-the.patch
+Patch0106:      0106-Do-not-test-anonymous-PKINIT-after-install-upgrade.patch
+Patch0107:      0107-vault-piped-input-for-ipa-vault-add-fails.patch
+Patch0108:      0108-automount-install-fix-checking-of-SSSD-functionality.patch
+Patch0109:      0109-Fix-CA-server-cert-validation-in-FIPS.patch
+Patch0110:      0110-restore-restart-reload-gssproxy-after-restore.patch
+Patch0111:      0111-kerberos-session-use-CA-cert-with-full-cert-chain-fo.patch
+Patch0112:      0112-ipa-client-install-remove-extra-space-in-pkinit_anch.patch
+Patch0113:      0113-Refresh-Dogtag-RestClient.ca_host-property.patch
+Patch0114:      0114-Remove-the-cachedproperty-class.patch
+Patch0115:      0115-ipa-server-install-with-external-CA-fix-pkinit-cert-.patch
+Patch0116:      0116-kra-install-update-installation-failure-message.patch
+Patch0117:      0117-Make-sure-remote-hosts-have-our-keys.patch
+Patch0118:      0118-Use-proper-SELinux-context-with-http.keytab.patch
+Patch0119:      0119-ipa-kra-install-fix-check_host_keys.patch
+Patch0120:      0120-python2-ipalib-add-missing-python-dependency.patch
+Patch0121:      0121-installer-service-fix-typo-in-service-entry.patch
+Patch0122:      0122-upgrade-add-missing-suffix-to-http-instance.patch
+Patch0123:      0123-Turn-on-NSSOCSP-check-in-mod_nss-conf.patch
+Patch0124:      0124-cert-show-writable-files-does-not-mean-dirs.patch
+Patch0125:      0125-Bump-version-of-ipa.conf-file.patch
+Patch0126:      0126-ipa-kra-install-manpage-document-domain-level-1.patch
+Patch0127:      0127-renew-agent-respect-CA-renewal-master-setting.patch
+Patch0128:      0128-server-upgrade-always-fix-certmonger-tracking-reques.patch
+Patch0129:      0129-cainstance-use-correct-profile-for-lightweight-CA-ce.patch
+Patch0130:      0130-renew-agent-allow-reusing-existing-certs.patch
+Patch0131:      0131-renew-agent-always-export-CSR-on-IPA-CA-certificate-.patch
+Patch0132:      0132-renew-agent-get-rid-of-virtual-profiles.patch
+Patch0133:      0133-ipa-cacert-manage-add-external-ca-type.patch
+Patch0134:      0134-Fixing-adding-authenticator-indicators-to-host.patch
+Patch0135:      0135-Added-plugins-directory-to-ipaclient-subpackages.patch
+Patch0136:      0136-ipaclient-fix-missing-RPM-ownership.patch
+Patch0137:      0137-otptoken-add-yubikey-When-digits-not-provided-use-de.patch
+Patch0138:      0138-ipa-server-install-fix-uninstall.patch
+Patch0139:      0139-ca-install-merge-duplicated-code-for-DM-password.patch
+Patch0140:      0140-installutils-add-DM-password-validator.patch
+Patch0141:      0141-ca-kra-install-validate-DM-password.patch
+Patch0142:      0142-ipa-kra-install-fix-pkispawn-setting-for-pki_securit.patch
+Patch0143:      0143-certdb-add-named-trust-flag-constants.patch
+Patch0144:      0144-certdb-certs-make-trust-flags-argument-mandatory.patch
+Patch0145:      0145-certdb-use-custom-object-for-trust-flags.patch
+Patch0146:      0146-install-trust-IPA-CA-for-PKINIT.patch
+Patch0147:      0147-client-install-fix-client-PKINIT-configuration.patch
+Patch0148:      0148-install-introduce-generic-Kerberos-Augeas-lens.patch
+Patch0149:      0149-server-install-fix-KDC-PKINIT-configuration.patch
+Patch0150:      0150-ipapython.ipautil.run-Add-option-to-set-umask-before.patch
+Patch0151:      0151-certs-do-not-export-keys-world-readable-in-install_k.patch
+Patch0152:      0152-certs-do-not-export-CA-certs-in-install_pem_from_p12.patch
+Patch0153:      0153-server-install-fix-KDC-certificate-validation-in-CA-.patch
+Patch0154:      0154-replica-install-respect-pkinit-cert-file.patch
+Patch0155:      0155-cacert-manage-support-PKINIT.patch
+Patch0156:      0156-server-certinstall-support-PKINIT.patch
+Patch0157:      0157-ipa-ca-install-append-CA-cert-chain-into-etc-ipa-ca..patch
+Patch0158:      0158-ca-cert-show-check-certificate_out-in-options.patch
+Patch0159:      0159-Fix-rare-race-condition-with-missing-ccache-file.patch
+Patch0160:      0160-Remove-pkinit-anonymous-command.patch
+Patch0161:      0161-krb5-make-sure-KDC-certificate-is-readable.patch
+Patch0162:      0162-Change-python-cryptography-to-python2-cryptography.patch
+Patch0163:      0163-Allow-for-multivalued-server-attributes.patch
+Patch0164:      0164-Refactor-the-role-attribute-member-reporting-code.patch
+Patch0165:      0165-Add-an-attribute-reporting-client-PKINIT-capable-ser.patch
+Patch0166:      0166-Add-the-list-of-PKINIT-servers-as-a-virtual-attribut.patch
+Patch0167:      0167-Add-pkinit-status-command.patch
+Patch0168:      0168-test_serverroles-Get-rid-of-MockLDAP-and-use-ldap2-i.patch
+Patch0169:      0169-only-stop-disable-simple-service-if-it-is-installed.patch
+Patch0170:      0170-Fix-index-definition-for-ipaAnchorUUID.patch
+Patch0171:      0171-httpinstance-wait-until-the-service-entry-is-replica.patch
+Patch0172:      0172-kdc.key-should-not-be-visible-to-all.patch
+Patch0173:      0173-ipa-kdb-reload-certificate-mapping-rules-periodicall.patch
+Patch0174:      0174-Avoid-possible-endless-recursion-in-RPC-call.patch
+Patch0175:      0175-rpc-preparations-for-recursion-fix.patch
+Patch0176:      0176-rpc-avoid-possible-recursion-in-create_connection.patch
+Patch0177:      0177-Changing-cert-find-to-do-not-use-only-primary-key-to.patch
+Patch0178:      0178-ipa-kdb-add-pkinit-authentication-indicator-in-case-.patch
+Patch0179:      0179-fix-incorrect-suffix-handling-in-topology-checks.patch
+Patch0180:      0180-server-certinstall-update-KDC-master-entry.patch
+Patch0181:      0181-pkinit-manage-introduce-ipa-pkinit-manage.patch
+Patch0182:      0182-server-upgrade-do-not-enable-PKINIT-by-default.patch
+Patch0183:      0183-Turn-off-OCSP-check.patch
+Patch0184:      0184-Only-warn-when-specified-server-IP-addresses-don-t-m.patch
+Patch0185:      0185-ipa-kdb-use-canonical-principal-in-certauth-plugin.patch
+Patch0186:      0186-Bump-version-of-python-gssapi.patch
+Patch0187:      0187-Add-code-to-be-able-to-set-default-kinit-lifetime.patch
+Patch0188:      0188-Revert-setting-sessionMaxAge-for-old-clients.patch
+Patch0189:      0189-Extend-the-advice-printing-code-by-some-useful-abstr.patch
+Patch0190:      0190-Prepare-advise-plugin-for-smart-card-auth-configurat.patch
+Patch0191:      0191-trust-mod-allow-modifying-list-of-UPNs-of-a-trusted-.patch
+Patch0192:      0192-WebUI-add-support-for-changing-trust-UPN-suffixes.patch
+Patch0193:      0193-kra-promote-Get-ticket-before-calling-custodia.patch
+Patch0194:      0194-Fix-local-IP-address-validation.patch
+Patch0195:      0195-ipa-dns-install-remove-check-for-local-ip-address.patch
+Patch0196:      0196-refactor-CheckedIPAddress-class.patch
+Patch0197:      0197-CheckedIPAddress-remove-match_local-param.patch
+Patch0198:      0198-Remove-ip_netmask-from-option-parser.patch
+Patch0199:      0199-replica-install-add-missing-check-for-non-local-IP-a.patch
+Patch0200:      0200-Remove-network-and-broadcast-address-warnings.patch
+Patch0201:      0201-ipa-sam-replace-encode_nt_key-with-E_md4hash.patch
+Patch0202:      0202-ipa_pwd_extop-do-not-generate-NT-hashes-in-FIPS-mode.patch
+Patch0203:      0203-Make-sure-we-check-ccaches-in-all-rpcserver-paths.patch
+Patch0204:      0204-replica-install-drop-in-IPA-specific-config-to-tmpfi.patch
 
-Patch1001:      1001-Hide-pkinit-functionality-from-production-version.patch
-Patch1002:      1002-Remove-pkinit-plugin.patch
-Patch1003:      1003-Remove-pkinit-references-from-tool-man-pages.patch
-Patch1004:      1004-Change-branding-to-IPA-and-Identity-Management.patch
-Patch1005:      1005-Remove-pylint-from-build-process.patch
-Patch1006:      1006-Remove-i18test-from-build-process.patch
-Patch1007:      1007-Do-not-build-tests.patch
-Patch1008:      1008-RCUE.patch
-Patch1009:      1009-Revert-Increased-mod_wsgi-socket-timeout.patch
-Patch1010:      1010-WebUI-add-API-browser-is-tech-preview-warning.patch
-Patch1011:      ipa-redsleeve-branding.patch
+Patch1001:      1001-Change-branding-to-IPA-and-Identity-Management.patch
+Patch1002:      1002-Package-copy-schema-to-ca.py.patch
+Patch1003:      1003-Revert-Increased-mod_wsgi-socket-timeout.patch
+Patch1004:      1004-Remove-csrgen.patch
+Patch1005:      ipa-centos-branding.patch
 # RHEL spec file only: END
 
-%if ! %{ONLY_CLIENT}
-BuildRequires:  389-ds-base-devel >= 1.3.5.6
-BuildRequires:  svrcore-devel
-BuildRequires:  policycoreutils >= 2.1.14-37
-BuildRequires:  systemd-units
-BuildRequires:  samba-devel >= %{samba_version}
-BuildRequires:  samba-python
-BuildRequires:  libtalloc-devel
-BuildRequires:  libtevent-devel
-%endif # ONLY_CLIENT
-BuildRequires:  nspr-devel
-BuildRequires:  nss-devel
-BuildRequires:  openssl-devel
 BuildRequires:  openldap-devel
-BuildRequires:  krb5-devel >= 1.13
-BuildRequires:  krb5-workstation
-BuildRequires:  libuuid-devel
-BuildRequires:  libcurl-devel >= 7.21.7-2
+# For KDB DAL version, make explicit dependency so that increase of version
+# will cause the build to fail due to unsatisfied dependencies.
+# DAL version change may cause code crash or memory leaks, it is better to fail early.
+%if 0%{?fedora} > 25
+BuildRequires: krb5-kdb-version = 6.1
+%endif
+BuildRequires:  krb5-devel >= %{krb5_version}
+# 1.27.4: xmlrpc_curl_xportparms.gssapi_delegation
 BuildRequires:  xmlrpc-c-devel >= 1.27.4
 BuildRequires:  popt-devel
 BuildRequires:  autoconf
 BuildRequires:  automake
-BuildRequires:  m4
 BuildRequires:  libtool
 BuildRequires:  gettext
+BuildRequires:  gettext-devel
 BuildRequires:  python-devel
-BuildRequires:  python-ldap
 BuildRequires:  python-setuptools
-BuildRequires:  python-nss
-BuildRequires:  python-cryptography >= 0.9
-BuildRequires:  python-netaddr
-BuildRequires:  python-gssapi >= 1.1.2
-BuildRequires:  python-rhsm
-BuildRequires:  pyOpenSSL
-# RHEL spec file only: DELETED: Remove pylint from build process
-# RHEL spec file only: DELETED: Remove i18test from build process
-BuildRequires:  python-libipa_hbac
-BuildRequires:  python-memcached
-BuildRequires:  python-lxml
-BuildRequires:  python-pyasn1 >= 0.0.9a
-BuildRequires:  python-qrcode-core >= 5.0.0
-BuildRequires:  python-dns >= 1.11.1-2
-BuildRequires:  libsss_idmap-devel
-BuildRequires:  libsss_nss_idmap-devel >= 1.14.0
-BuildRequires:  java-headless
-BuildRequires:  rhino
-BuildRequires:  libverto-devel
+%if 0%{?with_python3}
+BuildRequires:  python3-devel
+BuildRequires:  python3-setuptools
+%endif # with_python3
+# %{_unitdir}, %{_tmpfilesdir}
 BuildRequires:  systemd
-BuildRequires:  libunistring-devel
+# systemd-tmpfiles which is executed from make install requires apache user
+BuildRequires:  httpd
+BuildRequires:  nspr-devel
+BuildRequires:  nss-devel
+BuildRequires:  openssl-devel
+BuildRequires:  libini_config-devel
+BuildRequires:  cyrus-sasl-devel
 # RHEL spec file only: START
 BuildRequires:  diffstat
 # RHEL spec file only: END
+%if ! %{ONLY_CLIENT}
+# 1.3.3.9: DS_Sleep (https://fedorahosted.org/389/ticket/48005)
+BuildRequires:  389-ds-base-devel >= 1.3.3.9
+BuildRequires:  svrcore-devel
+%if 0%{?rhel}
+BuildRequires:  samba-devel >= 4.0.0
+%else
+BuildRequires:  samba-devel >= 2:4.0.0
+%endif
+BuildRequires:  libtalloc-devel
+BuildRequires:  libtevent-devel
+BuildRequires:  libuuid-devel
+BuildRequires:  libsss_idmap-devel
+BuildRequires:  libsss_certmap-devel
+# 1.15.3: sss_nss_getlistbycert (https://pagure.io/SSSD/sssd/issue/3050)
+BuildRequires:  libsss_nss_idmap-devel >= 1.15.2-2
+BuildRequires:  rhino
+BuildRequires:  libverto-devel
+BuildRequires:  libunistring-devel
 BuildRequires:  python-lesscpy
-BuildRequires:  python-yubico >= 1.2.3
-BuildRequires:  openssl-devel
-BuildRequires:  pki-base >= 10.3.3-7
-# RHEL spec file only: DELETED: Do not build tests
-BuildRequires:  python-kdcproxy >= 0.3
-BuildRequires:  python-six
-BuildRequires:  python-jwcrypto
-BuildRequires:  custodia
-BuildRequires:  libini_config-devel >= 1.2.0
-BuildRequires:  dbus-python
-BuildRequires:  python-netifaces >= 0.10.4
+%endif # ONLY_CLIENT
 
+#
+# Build dependencies for makeapi/makeaci
+# makeapi/makeaci is using Python 2 only for now
+#
+BuildRequires:  python-ldap
+BuildRequires:  python-nss
+BuildRequires:  python-netaddr
+BuildRequires:  python-pyasn1
+BuildRequires:  python-pyasn1-modules
+BuildRequires:  python-dns
+BuildRequires:  python-six
+BuildRequires:  python-libsss_nss_idmap
+BuildRequires:  python-cffi
+
+#
+# Build dependencies for wheel packaging and PyPI upload
+#
+%if 0%{with_wheels}
+BuildRequires:  python2-twine
+BuildRequires:  python2-wheel
+%if 0%{?with_python3}
+BuildRequires:  python3-twine
+BuildRequires:  python3-wheel
+%endif
+%endif # with_wheels
+
+#
+# Build dependencies for lint
+#
+%if 0%{?with_lint}
+BuildRequires:  samba-python
+# 1.4: the version where Certificate.serial changed to .serial_number
+BuildRequires:  python2-cryptography >= 1.4
+# Bump because of #1457942 certauth: use canonical principal for lookups
+BuildRequires:  python-gssapi >= 1.2.0-3
+BuildRequires:  pylint >= 1.6
+# workaround for https://bugzilla.redhat.com/show_bug.cgi?id=1096506
+BuildRequires:  python2-polib
+BuildRequires:  python-libipa_hbac
+BuildRequires:  python-lxml
+# 5.0.0: QRCode.print_ascii
+BuildRequires:  python-qrcode-core >= 5.0.0
+# 1.15: python-dns changed return type in to_text() method in PY3
+BuildRequires:  python-dns >= 1.12.0-3
+BuildRequires:  jsl
+BuildRequires:  python-yubico
+# pki Python package
+BuildRequires:  pki-base-python2
+BuildRequires:  python-pytest-multihost
+BuildRequires:  python-pytest-sourceorder
+BuildRequires:  python-jwcrypto
+# 0.3: sd_notify (https://pagure.io/freeipa/issue/5825)
+BuildRequires:  python-custodia >= 0.3.0-4
+BuildRequires:  dbus-python
+BuildRequires:  python-dateutil
+BuildRequires:  python-enum34
+BuildRequires:  python-netifaces
+BuildRequires:  python-sss
+BuildRequires:  python-sss-murmur
+BuildRequires:  python-sssdconfig
+BuildRequires:  python-nose
+BuildRequires:  python-paste
+BuildRequires:  systemd-python
+# RHEL spec file only: DELETED: Remove csrgen
+# python-augeas >= 0.5 supports replace method
+BuildRequires:  python-augeas >= 0.5
+
+%if 0%{?with_python3}
+# FIXME: this depedency is missing - server will not work
+#BuildRequires:  python3-samba
+# 1.4: the version where Certificate.serial changed to .serial_number
+BuildRequires:  python3-cryptography >= 1.4
+BuildRequires:  python3-gssapi >= 1.2.0
+BuildRequires:  python3-pylint >= 1.6
+# workaround for https://bugzilla.redhat.com/show_bug.cgi?id=1096506
+BuildRequires:  python3-polib
+BuildRequires:  python3-libipa_hbac
+BuildRequires:  python3-memcached
+BuildRequires:  python3-lxml
+# 5.0.0: QRCode.print_ascii
+BuildRequires:  python3-qrcode-core >= 5.0.0
+# 1.15: python-dns changed return type in to_text() method in PY3
+BuildRequires:  python3-dns >= 1.12.0-3
+BuildRequires:  python3-yubico
+# pki Python package
+BuildRequires:  pki-base-python3
+BuildRequires:  python3-pytest-multihost
+BuildRequires:  python3-pytest-sourceorder
+BuildRequires:  python3-jwcrypto
+# 0.3: sd_notify (https://pagure.io/freeipa/issue/5825)
+BuildRequires:  python3-custodia >= 0.3.0-4
+BuildRequires:  python3-dbus
+BuildRequires:  python3-dateutil
+BuildRequires:  python3-enum34
+BuildRequires:  python3-netifaces
+BuildRequires:  python3-sss
+BuildRequires:  python3-sss-murmur
+BuildRequires:  python3-sssdconfig
+BuildRequires:  python3-libsss_nss_idmap
+BuildRequires:  python3-nose
+BuildRequires:  python3-paste
+BuildRequires:  python3-systemd
+# RHEL spec file only: DELETED: Remove csrgen
+# python-augeas >= 0.5 supports replace method
+BuildRequires:  python3-augeas >= 0.5
+%endif # with_python3
+%endif # with_lint
+
+#
 # Build dependencies for unit tests
+#
+%if ! %{ONLY_CLIENT}
 BuildRequires:  libcmocka-devel
 BuildRequires:  nss_wrapper
 # Required by ipa_kdb_tests
 BuildRequires:  %{_libdir}/krb5/plugins/kdb/db2.so
-
-%if 0%{?with_python3}
-BuildRequires:  python3-devel
-%endif  # with_python3
+%endif # ONLY_CLIENT
 
 %description
 IPA is an integrated solution to provide centrally managed Identity (users,
@@ -323,26 +485,29 @@ Summary: The IPA authentication server
 Group: System Environment/Base
 Requires: %{name}-server-common = %{version}-%{release}
 Requires: %{name}-client = %{version}-%{release}
-Requires: %{name}-admintools = %{version}-%{release}
 Requires: %{name}-common = %{version}-%{release}
 Requires: python2-ipaserver = %{version}-%{release}
-Requires: 389-ds-base >= 1.3.5.10-12
+Requires: 389-ds-base >= 1.3.5.14
 Requires: openldap-clients > 2.4.35-4
 Requires: nss >= 3.14.3-12.0
 Requires: nss-tools >= 3.14.3-12.0
+Requires(post): krb5-server >= %{krb5_version}
 Requires(post): krb5-server >= %{krb5_base_version}, krb5-server < %{krb5_base_version}.100
-Requires: krb5-pkinit-openssl
+Requires: krb5-pkinit-openssl >= %{krb5_version}
 Requires: cyrus-sasl-gssapi%{?_isa}
 Requires: ntp
 Requires: httpd >= 2.4.6-31
 Requires: mod_wsgi
-Requires: mod_auth_gssapi >= 1.4.0
-Requires: mod_nss >= 1.0.8-26
+Requires: mod_auth_gssapi >= 1.5.0
+# 1.0.14-2: https://bugzilla.redhat.com/show_bug.cgi?id=1347298
+Requires: mod_nss >= 1.0.14-2
+Requires: mod_session
+# 0.9.9: https://github.com/adelton/mod_lookup_identity/pull/3
+Requires: mod_lookup_identity >= 0.9.9
 Requires: python-ldap >= 2.4.15
-Requires: python-gssapi >= 1.1.2
+# Bump because of #1457942 certauth: use canonical principal for lookups
+Requires: python-gssapi >= 1.2.0-3
 Requires: acl
-Requires: memcached
-Requires: python-memcached
 Requires: systemd-units >= 38
 Requires(pre): shadow-utils
 Requires(pre): systemd-units
@@ -350,15 +515,14 @@ Requires(post): systemd-units
 Requires: selinux-policy >= %{selinux_policy_version}
 Requires(post): selinux-policy-base >= %{selinux_policy_version}
 Requires: slapi-nis >= %{slapi_nis_version}
-Requires: pki-ca >= 10.3.3-17
-Requires: pki-kra >= 10.3.3-17
+Requires: pki-ca >= 10.3.5-11
+Requires: pki-kra >= 10.3.5-11
 Requires(preun): python systemd-units
 Requires(postun): python systemd-units
-Requires: zip
 Requires: policycoreutils >= 2.1.14-37
 Requires: tar
 Requires(pre): certmonger >= 0.78
-Requires(pre): 389-ds-base >= 1.3.5.10-12
+Requires(pre): 389-ds-base >= 1.3.5.14
 Requires: fontawesome-fonts
 Requires: open-sans-fonts
 Requires: openssl >= 1:1.0.1e-42
@@ -368,6 +532,10 @@ Requires: systemd-python
 Requires: %{etc_systemd_dir}
 Requires: gzip
 Requires: oddjob
+# 0.7.0-2: https://pagure.io/gssproxy/pull-request/172
+Requires: gssproxy >= 0.7.0-2
+# 1.15.2: FindByNameAndCertificate (https://pagure.io/SSSD/sssd/issue/3050)
+Requires: sssd-dbus >= 1.15.2
 
 Provides: %{alt_name}-server = %{version}
 Conflicts: %{alt_name}-server
@@ -406,18 +574,25 @@ If you are installing an IPA server, you need to install this package.
 Summary: Python libraries used by IPA server
 Group: System Environment/Libraries
 BuildArch: noarch
-Provides: python-ipaserver = %{version}-%{release}
+%{?python_provide:%python_provide python2-ipaserver}
+%{!?python_provide:Provides: python-ipaserver = %{version}-%{release}}
 Requires: %{name}-server-common = %{version}-%{release}
 Requires: %{name}-common = %{version}-%{release}
 Requires: python2-ipaclient = %{version}-%{release}
+Requires: python-custodia >= 0.3.0-4
 Requires: python-ldap >= 2.4.15
-Requires: python-gssapi >= 1.1.2
+Requires: python-lxml
+# Bump because of #1457942 certauth: use canonical principal for lookups
+Requires: python-gssapi >= 1.2.0-3
 Requires: python-sssdconfig
 Requires: python-pyasn1
 Requires: dbus-python
-Requires: python-dns >= 1.11.1-2
+Requires: python-dns >= 1.12.0-3
 Requires: python-kdcproxy >= 0.3
 Requires: rpm-libs
+Requires: pki-base-python2
+# python-augeas >= 0.5 supports replace method
+Requires: python-augeas >= 0.5
 
 %description -n python2-ipaserver
 IPA is an integrated solution to provide centrally managed Identity (users,
@@ -428,6 +603,41 @@ and integration with Active Directory based infrastructures (Trusts).
 If you are installing an IPA server, you need to install this package.
 
 
+%if 0%{?with_python3}
+
+%package -n python3-ipaserver
+Summary: Python libraries used by IPA server
+Group: System Environment/Libraries
+BuildArch: noarch
+%{?python_provide:%python_provide python3-ipaserver}
+Requires: %{name}-server-common = %{version}-%{release}
+Requires: %{name}-common = %{version}-%{release}
+Requires: python3-ipaclient = %{version}-%{release}
+Requires: python3-custodia >= 0.3.0-4
+Requires: python3-pyldap >= 2.4.15
+Requires: python3-lxml
+Requires: python3-gssapi >= 1.2.0
+Requires: python3-sssdconfig
+Requires: python3-pyasn1
+Requires: python3-dbus
+Requires: python3-dns >= 1.12.0-3
+Requires: python3-kdcproxy >= 0.3
+# python3-augeas >= 0.5 supports replace method
+Requires: python3-augeas >= 0.5
+Requires: rpm-libs
+Requires: pki-base-python3
+
+%description -n python3-ipaserver
+IPA is an integrated solution to provide centrally managed Identity (users,
+hosts, services), Authentication (SSO, 2FA), and Authorization
+(host access control, SELinux user roles, services). The solution provides
+features for further integration with Linux based clients (SUDO, automount)
+and integration with Active Directory based infrastructures (Trusts).
+If you are installing an IPA server, you need to install this package.
+
+%endif  # with_python3
+
+
 %package server-common
 Summary: Common files used by IPA server
 Group: System Environment/Base
@@ -435,7 +645,7 @@ BuildArch: noarch
 Requires: %{name}-client-common = %{version}-%{release}
 Requires: httpd >= 2.4.6-31
 Requires: systemd-units >= 38
-Requires: custodia
+Requires: custodia >= 0.3.0-4
 
 Provides: %{alt_name}-server-common = %{version}
 Conflicts: %{alt_name}-server-common
@@ -455,18 +665,12 @@ Summary: IPA integrated DNS server with support for automatic DNSSEC signing
 Group: System Environment/Base
 BuildArch: noarch
 Requires: %{name}-server = %{version}-%{release}
-Requires: bind-dyndb-ldap >= 10.0
-%if 0%{?fedora} >= 21
-Requires: bind >= 9.9.6-3
-Requires: bind-utils >= 9.9.6-3
-Requires: bind-pkcs11 >= 9.9.6-3
-Requires: bind-pkcs11-utils >= 9.9.6-3
-%else
-Requires: bind >= 9.9.4-21
-Requires: bind-utils >= 9.9.4-21
-Requires: bind-pkcs11 >= 9.9.4-21
-Requires: bind-pkcs11-utils >= 9.9.4-21
-%endif
+# bumped because of https://bugzilla.redhat.com/show_bug.cgi?id=1469480
+Requires: bind-dyndb-ldap >= 11.1-4
+Requires: bind >= 9.9.4-51
+Requires: bind-utils >= 9.9.4-51
+Requires: bind-pkcs11 >= 9.9.4-51
+Requires: bind-pkcs11-utils >= 9.9.4-51
 Requires: opendnssec >= 1.4.6-4
 
 Provides: %{alt_name}-server-dns = %{version}
@@ -522,9 +726,8 @@ Requires: python2-ipaclient = %{version}-%{release}
 Requires: python-ldap
 Requires: cyrus-sasl-gssapi%{?_isa}
 Requires: ntp
-Requires: krb5-workstation
+Requires: krb5-workstation >= %{krb5_version}
 Requires: authconfig
-Requires: pam_krb5
 Requires: curl
 # NIS domain name config: /usr/lib/systemd/system/*-domainname.service
 Requires: initscripts
@@ -536,7 +739,8 @@ Requires: certmonger >= 0.78
 Requires: nss-tools
 Requires: bind-utils
 Requires: oddjob-mkhomedir
-Requires: python-gssapi >= 1.1.2
+# Bump because of #1457942 certauth: use canonical principal for lookups
+Requires: python-gssapi >= 1.2.0-3
 Requires: libsss_autofs
 Requires: autofs
 Requires: libnfsidmap
@@ -547,6 +751,13 @@ Provides: %{alt_name}-client = %{version}
 Conflicts: %{alt_name}-client
 Obsoletes: %{alt_name}-client < %{version}
 
+Provides: %{alt_name}-admintools = %{version}
+Conflicts: %{alt_name}-admintools
+Obsoletes: %{alt_name}-admintools < 4.4.1
+
+Obsoletes: %{name}-admintools < 4.4.1
+Provides: %{name}-admintools = %{version}-%{release}
+
 %description client
 IPA is an integrated solution to provide centrally managed Identity (users,
 hosts, services), Authentication (SSO, 2FA), and Authorization
@@ -555,17 +766,20 @@ features for further integration with Linux based clients (SUDO, automount)
 and integration with Active Directory based infrastructures (Trusts).
 If your network uses IPA for authentication, this package should be
 installed on every client machine.
+This package provides command-line tools for IPA administrators.
 
 
 %package -n python2-ipaclient
 Summary: Python libraries used by IPA client
 Group: System Environment/Libraries
 BuildArch: noarch
-Provides: python-ipaclient = %{version}-%{release}
+%{?python_provide:%python_provide python2-ipaclient}
+%{!?python_provide:Provides: python-ipaclient = %{version}-%{release}}
 Requires: %{name}-client-common = %{version}-%{release}
 Requires: %{name}-common = %{version}-%{release}
 Requires: python2-ipalib = %{version}-%{release}
-Requires: python-dns >= 1.11.1-2
+Requires: python-dns >= 1.12.0-3
+# RHEL spec file only: DELETED: Remove csrgen
 
 %description -n python2-ipaclient
 IPA is an integrated solution to provide centrally managed Identity (users,
@@ -583,10 +797,12 @@ installed on every client machine.
 Summary: Python libraries used by IPA client
 Group: System Environment/Libraries
 BuildArch: noarch
+%{?python_provide:%python_provide python3-ipaclient}
 Requires: %{name}-client-common = %{version}-%{release}
 Requires: %{name}-common = %{version}-%{release}
 Requires: python3-ipalib = %{version}-%{release}
-Requires: python3-dns >= 1.11.1
+Requires: python3-dns >= 1.12.0-3
+# RHEL spec file only: DELETED: Remove csrgen
 
 %description -n python3-ipaclient
 IPA is an integrated solution to provide centrally managed Identity (users,
@@ -617,26 +833,6 @@ features for further integration with Linux based clients (SUDO, automount)
 and integration with Active Directory based infrastructures (Trusts).
 If your network uses IPA for authentication, this package should be
 installed on every client machine.
-
-
-%package admintools
-Summary: IPA administrative tools
-Group: System Environment/Base
-BuildArch: noarch
-Requires: python2-ipaclient = %{version}-%{release}
-Requires: python-ldap
-
-Provides: %{alt_name}-admintools = %{version}
-Conflicts: %{alt_name}-admintools
-Obsoletes: %{alt_name}-admintools < %{version}
-
-%description admintools
-IPA is an integrated solution to provide centrally managed Identity (users,
-hosts, services), Authentication (SSO, 2FA), and Authorization
-(host access control, SELinux user roles, services). The solution provides
-features for further integration with Linux based clients (SUDO, automount)
-and integration with Active Directory based infrastructures (Trusts).
-This package provides command-line tools for IPA administrators.
 
 
 %package python-compat
@@ -672,23 +868,28 @@ Summary: Python libraries used by IPA
 Group: System Environment/Libraries
 BuildArch: noarch
 Conflicts: %{name}-python < 4.2.91
-Provides: python-ipalib = %{version}-%{release}
+%{?python_provide:%python_provide python2-ipalib}
+%{!?python_provide:Provides: python-ipalib = %{version}-%{release}}
 Provides: python2-ipapython = %{version}-%{release}
-Provides: python-ipapython = %{version}-%{release}
+%{?python_provide:%python_provide python2-ipapython}
+%{!?python_provide:Provides: python-ipapython = %{version}-%{release}}
 Provides: python2-ipaplatform = %{version}-%{release}
-Provides: python-ipaplatform = %{version}-%{release}
+%{?python_provide:%python_provide python2-ipaplatform}
+%{!?python_provide:Provides: python-ipaplatform = %{version}-%{release}}
 Requires: %{name}-common = %{version}-%{release}
-Requires: python-gssapi >= 1.1.2
+# Bump because of #1457942 certauth: use canonical principal for lookups
+Requires: python-gssapi >= 1.2.0-3
 Requires: gnupg
 Requires: keyutils
 Requires: pyOpenSSL
+Requires: python >= 2.7.5-24
 Requires: python-nss >= 0.16
-Requires: python-cryptography >= 0.9
-Requires: python-lxml
+Requires: python2-cryptography >= 1.4
 Requires: python-netaddr
 Requires: python-libipa_hbac
 Requires: python-qrcode-core >= 5.0.0
 Requires: python-pyasn1
+Requires: python-pyasn1-modules
 Requires: python-dateutil
 Requires: python-yubico >= 1.2.3
 Requires: python-sss-murmur
@@ -699,8 +900,8 @@ Requires: python-jwcrypto
 Requires: python-cffi
 Requires: python-ldap >= 2.4.15
 Requires: python-requests
-Requires: python-custodia
-Requires: python-dns >= 1.11.1-2
+Requires: python-dns >= 1.12.0-3
+Requires: python-enum34
 Requires: python-netifaces >= 0.10.4
 Requires: pyusb
 
@@ -721,20 +922,23 @@ If you are using IPA, you need to install this package.
 Summary: Python3 libraries used by IPA
 Group: System Environment/Libraries
 BuildArch: noarch
+%{?python_provide:%python_provide python3-ipalib}
 Provides: python3-ipapython = %{version}-%{release}
+%{?python_provide:%python_provide python3-ipapython}
 Provides: python3-ipaplatform = %{version}-%{release}
+%{?python_provide:%python_provide python3-ipaplatform}
 Requires: %{name}-common = %{version}-%{release}
-Requires: python3-gssapi >= 1.1.2
+Requires: python3-gssapi >= 1.2.0
 Requires: gnupg
 Requires: keyutils
 Requires: python3-pyOpenSSL
 Requires: python3-nss >= 0.16
-Requires: python3-cryptography
-Requires: python3-lxml
+Requires: python3-cryptography >= 1.4
 Requires: python3-netaddr
 Requires: python3-libipa_hbac
 Requires: python3-qrcode-core >= 5.0.0
 Requires: python3-pyasn1
+Requires: python3-pyasn1-modules
 Requires: python3-dateutil
 Requires: python3-yubico >= 1.2.3
 Requires: python3-sss-murmur
@@ -744,9 +948,8 @@ Requires: python3-six
 Requires: python3-jwcrypto
 Requires: python3-cffi
 Requires: python3-pyldap >= 2.4.15
-Requires: python3-custodia
 Requires: python3-requests
-Requires: python3-dns >= 1.11.1
+Requires: python3-dns >= 1.12.0-3
 Requires: python3-netifaces >= 0.10.4
 Requires: python3-pyusb
 
@@ -782,10 +985,81 @@ and integration with Active Directory based infrastructures (Trusts).
 If you are using IPA, you need to install this package.
 
 
-# RHEL spec file only: DELETED: Do not build tests
+%if 0%{?with_ipatests}
+
+%package -n python2-ipatests
+Summary: IPA tests and test tools
+BuildArch: noarch
+Obsoletes: %{name}-tests < 4.2.91
+Provides: %{name}-tests = %{version}-%{release}
+%{?python_provide:%python_provide python2-ipatests}
+%{!?python_provide:Provides: python-ipatests = %{version}-%{release}}
+Requires: python2-ipaclient = %{version}-%{release}
+Requires: python2-ipaserver = %{version}-%{release}
+Requires: tar
+Requires: xz
+Requires: python-nose
+Requires: pytest >= 2.6
+Requires: python-paste
+Requires: python-coverage
+# workaround for https://bugzilla.redhat.com/show_bug.cgi?id=1096506
+Requires: python2-polib
+Requires: python-pytest-multihost >= 0.5
+Requires: python-pytest-sourceorder
+Requires: ldns-utils
+Requires: python-sssdconfig
+Requires: python2-cryptography >= 1.4
+
+Provides: %{alt_name}-tests = %{version}
+Conflicts: %{alt_name}-tests
+Obsoletes: %{alt_name}-tests < %{version}
+
+%description -n python2-ipatests
+IPA is an integrated solution to provide centrally managed Identity (users,
+hosts, services), Authentication (SSO, 2FA), and Authorization
+(host access control, SELinux user roles, services). The solution provides
+features for further integration with Linux based clients (SUDO, automount)
+and integration with Active Directory based infrastructures (Trusts).
+This package contains tests that verify IPA functionality.
+
+
+%if 0%{?with_python3}
+
+%package -n python3-ipatests
+Summary: IPA tests and test tools
+BuildArch: noarch
+%{?python_provide:%python_provide python3-ipatests}
+Requires: python3-ipaclient = %{version}-%{release}
+# FIXME: uncomment once there's python3-ipaserver
+#Requires: python3-ipaserver = %{version}-%{release}
+Requires: tar
+Requires: xz
+Requires: python3-nose
+Requires: python3-pytest >= 2.6
+Requires: python3-coverage
+Requires: python3-polib
+Requires: python3-pytest-multihost >= 0.5
+Requires: python3-pytest-sourceorder
+Requires: ldns-utils
+Requires: python3-sssdconfig
+Requires: python3-cryptography >= 1.4
+
+%description -n python3-ipatests
+IPA is an integrated solution to provide centrally managed Identity (users,
+hosts, services), Authentication (SSO, 2FA), and Authorization
+(host access control, SELinux user roles, services). The solution provides
+features for further integration with Linux based clients (SUDO, automount)
+and integration with Active Directory based infrastructures (Trusts).
+This package contains tests that verify IPA functionality under Python 3.
+
+%endif # with_python3
+
+%endif # with_ipatests
 
 
 %prep
+%setup -n freeipa-%{version} -q
+
 # RHEL spec file only: START
 # Update timestamps on the files touched by a patch, to avoid non-equal
 # .pyc/.pyo files across the multilib peers within a build, where "Level"
@@ -798,100 +1072,136 @@ UpdateTimestamps() {
   # Locate the affected files:
   for f in $(diffstat $Level -l $PatchFile); do
     # Set the files to have the same timestamp as that of the patch:
-    touch -r $PatchFile $f
+    touch -c -r $PatchFile $f
   done
 }
-
-%setup -n freeipa-%{VERSION} -q
-
 for p in %patches ; do
     %__patch -p1 -i $p
     UpdateTimestamps -p1 $p
 done
+# RHEL spec file only: END
 
-# Red Hat's Identity Management branding
+%if 0%{?with_python3}
+# Workaround: We want to build Python things twice. To be sure we do not mess
+# up something, do two separate builds in separate directories.
+cp -r %{_builddir}/freeipa-%{version} %{_builddir}/freeipa-%{version}-python3
+%endif # with_python3
+
+# RHEL spec file only: START: Change branding to IPA and Identity Management
 #cp %SOURCE1 install/ui/images/header-logo.png
 #cp %SOURCE2 install/ui/images/login-screen-background.jpg
 #cp %SOURCE3 install/ui/images/login-screen-logo.png
 #cp %SOURCE4 install/ui/images/product-name.png
-# RHEL spec file only: END
+# RHEL spec file only: END: Change branding to IPA and Identity Management
 
 
 %build
+# RHEL spec file only: START
+autoreconf -i -f
+# RHEL spec file only: END
 # UI compilation segfaulted on some arches when the stack was lower (#1040576)
 export JAVA_STACK_SIZE="8m"
+# PATH is workaround for https://bugzilla.redhat.com/show_bug.cgi?id=1005235
+export PATH=/usr/bin:/usr/sbin:$PATH
+export PYTHON=%{__python2}
+# Workaround: make sure all shebangs are pointing to Python 2
+# This should be solved properly using setuptools
+# and this hack should be removed.
+find \
+	! -name '*.pyc' -a \
+	! -name '*.pyo' -a \
+	-type f -exec grep -qsm1 '^#!.*\bpython' {} \; \
+	-exec sed -i -e '1 s|^#!.*\bpython[^ ]*|#!%{__python2}|' {} \;
+%configure --with-vendor-suffix=-%{release} \
+           %{enable_server_option} \
+           %{with_ipatests_option} \
+           %{linter_options}
 
-export CFLAGS="%{optflags} $CFLAGS"
-export LDFLAGS="%{__global_ldflags} $LDFLAGS"
-export SUPPORTED_PLATFORM=%{platform_module}
+%make_build
 
-# Force re-generate of platform support
-export IPA_VENDOR_VERSION_SUFFIX=-%{release}
-rm -f ipapython/version.py
-rm -f ipaplatform/services.py
-rm -f ipaplatform/tasks.py
-rm -f ipaplatform/paths.py
-rm -f ipaplatform/constants.py
-make version-update
-cd client; ../autogen.sh --prefix=%{_usr} --sysconfdir=%{_sysconfdir} --localstatedir=%{_localstatedir} --libdir=%{_libdir} --mandir=%{_mandir}; cd ..
-%if ! %{ONLY_CLIENT}
-# RHEL SPEC file only: START: Force re-generation of the makefiles
-find daemons -name Makefile.in |egrep -v '(libotp|lockout|otp-counter|lasttoken)'|xargs rm -f
-# RHEL SPEC file only: END: Force re-generation of the makefiles
-cd daemons; ../autogen.sh --prefix=%{_usr} --sysconfdir=%{_sysconfdir} --localstatedir=%{_localstatedir} --libdir=%{_libdir} --mandir=%{_mandir} --with-openldap; cd ..
-cd install; ../autogen.sh --prefix=%{_usr} --sysconfdir=%{_sysconfdir} --localstatedir=%{_localstatedir} --libdir=%{_libdir} --mandir=%{_mandir}; cd ..
-%endif # ONLY_CLIENT
-
-%if ! %{ONLY_CLIENT}
-make IPA_VERSION_IS_GIT_SNAPSHOT=no %{?_smp_mflags} all
-%else
-make IPA_VERSION_IS_GIT_SNAPSHOT=no %{?_smp_mflags} client
-%endif # ONLY_CLIENT
-
+%if 0%{?with_python3}
+pushd %{_builddir}/freeipa-%{version}-python3
+export PYTHON=%{__python3}
+# Workaround: make sure all shebangs are pointing to Python 3
+# This should be solved properly using setuptools
+# and this hack should be removed.
+find \
+	! -name '*.pyc' -a \
+	! -name '*.pyo' -a \
+	-type f -exec grep -qsm1 '^#!.*\bpython' {} \; \
+	-exec sed -i -e '1 s|^#!.*\bpython[^ ]*|#!%{__python3}|' {} \;
+%configure --with-vendor-suffix=-%{release} \
+           %{enable_server_option} \
+           %{with_ipatests_option} \
+           %{linter_options}
+popd
+%endif # with_python3
 
 %check
-%if ! %{ONLY_CLIENT}
-make %{?_smp_mflags} check VERBOSE=yes
-%else
-make %{?_smp_mflags} client-check VERBOSE=yes
-%endif # ONLY_CLIENT
+make %{?_smp_mflags} check VERBOSE=yes LIBDIR=%{_libdir}
 
 
 %install
-rm -rf %{buildroot}
-export SUPPORTED_PLATFORM=%{platform_module}
-# Force re-generate of platform support
-export IPA_VENDOR_VERSION_SUFFIX=-%{release}
-rm -f ipapython/version.py
-rm -f ipaplatform/services.py
-rm -f ipaplatform/tasks.py
-rm -f ipaplatform/paths.py
-rm -f ipaplatform/constants.py
-make version-update
-%if ! %{ONLY_CLIENT}
-make install DESTDIR=%{buildroot}
-
-# RHEL spec file only: DELETED: Do not build tests
-
-%else
-make client-install DESTDIR=%{buildroot}
-%endif # ONLY_CLIENT
+# Please put as much logic as possible into make install. It allows:
+# - easier porting to other distributions
+# - rapid devel & install cycle using make install
+#   (instead of full RPM build and installation each time)
+#
+# All files and directories created by spec install should be marked as ghost.
+# (These are typically configuration files created by IPA installer.)
+# All other artifacts should be created by make install.
+#
+# Exception to this rule are test programs which where want to install
+# Python2/3 versions at the same time so we need to rename them. Yuck.
 
 %if 0%{?with_python3}
-(cd ipalib && make PYTHON=%{__python3} IPA_VERSION_IS_GIT_SNAPSHOT=no %{?_smp_mflags} DESTDIR=%{buildroot} install)
-(cd ipapython && make PYTHON=%{__python3} IPA_VERSION_IS_GIT_SNAPSHOT=no %{?_smp_mflags} DESTDIR=%{buildroot} install)
-(cd ipaplatform && %{__python3} setup.py install --root %{buildroot})
-(cd ipaclient && %{__python3} setup.py install --root %{buildroot})
+# Python 3 installation needs to be done first. Subsequent Python 2 install
+# will overwrite /usr/bin/ipa and other scripts with variants using
+# python2 shebang.
+pushd %{_builddir}/freeipa-%{version}-python3
+(cd ipaclient && %make_install)
+(cd ipalib && %make_install)
+(cd ipaplatform && %make_install)
+(cd ipapython && %make_install)
+%if ! %{ONLY_CLIENT}
+(cd ipaserver && %make_install)
+%endif # ONLY_CLIENT
+%if 0%{?with_ipatests}
+(cd ipatests && %make_install)
+%endif # with_ipatests
+popd
+
+%if 0%{?with_ipatests}
+mv %{buildroot}%{_bindir}/ipa-run-tests %{buildroot}%{_bindir}/ipa-run-tests-%{python3_version}
+mv %{buildroot}%{_bindir}/ipa-test-config %{buildroot}%{_bindir}/ipa-test-config-%{python3_version}
+mv %{buildroot}%{_bindir}/ipa-test-task %{buildroot}%{_bindir}/ipa-test-task-%{python3_version}
+ln -s %{_bindir}/ipa-run-tests-%{python3_version} %{buildroot}%{_bindir}/ipa-run-tests-3
+ln -s %{_bindir}/ipa-test-config-%{python3_version} %{buildroot}%{_bindir}/ipa-test-config-3
+ln -s %{_bindir}/ipa-test-task-%{python3_version} %{buildroot}%{_bindir}/ipa-test-task-3
+%endif # with_ipatests
+
 %endif # with_python3
 
-# Switch shebang of /usr/bin/ipa
-# XXX: ipa cli is not stable enough for enabling py3 support, keep it in py2
-# in any case
-sed -i -e'1s/python\(3\|$\)/python2/' %{buildroot}%{_bindir}/ipa
+# Python 2 installation
+%make_install
+
+%if 0%{?with_ipatests}
+mv %{buildroot}%{_bindir}/ipa-run-tests %{buildroot}%{_bindir}/ipa-run-tests-%{python2_version}
+mv %{buildroot}%{_bindir}/ipa-test-config %{buildroot}%{_bindir}/ipa-test-config-%{python2_version}
+mv %{buildroot}%{_bindir}/ipa-test-task %{buildroot}%{_bindir}/ipa-test-task-%{python2_version}
+ln -s %{_bindir}/ipa-run-tests-%{python2_version} %{buildroot}%{_bindir}/ipa-run-tests-2
+ln -s %{_bindir}/ipa-test-config-%{python2_version} %{buildroot}%{_bindir}/ipa-test-config-2
+ln -s %{_bindir}/ipa-test-task-%{python2_version} %{buildroot}%{_bindir}/ipa-test-task-2
+# test framework defaults to Python 2
+ln -s %{_bindir}/ipa-run-tests-%{python2_version} %{buildroot}%{_bindir}/ipa-run-tests
+ln -s %{_bindir}/ipa-test-config-%{python2_version} %{buildroot}%{_bindir}/ipa-test-config
+ln -s %{_bindir}/ipa-test-task-%{python2_version} %{buildroot}%{_bindir}/ipa-test-task
+%endif # with_ipatests
+
+# remove files which are useful only for make uninstall
+find %{buildroot} -wholename '*/site-packages/*/install_files.txt' -exec rm {} \;
 
 %find_lang %{gettext_domain}
-
-mkdir -p %{buildroot}%{_usr}/share/ipa
 
 %if ! %{ONLY_CLIENT}
 # Remove .la files from libtool - we don't want to package
@@ -915,105 +1225,33 @@ rm %{buildroot}/%{plugin_dir}/libtopology.la
 rm %{buildroot}/%{_libdir}/krb5/plugins/kdb/ipadb.la
 rm %{buildroot}/%{_libdir}/samba/pdb/ipasam.la
 
-# Some user-modifiable HTML files are provided. Move these to /etc
-# and link back.
-mkdir -p %{buildroot}/%{_sysconfdir}/ipa/html
-mkdir -p %{buildroot}/%{_localstatedir}/cache/ipa/sysrestore
-mkdir -p %{buildroot}/%{_localstatedir}/cache/ipa/sysupgrade
-mkdir %{buildroot}%{_usr}/share/ipa/html/
-ln -s ../../../..%{_sysconfdir}/ipa/html/ffconfig.js \
-    %{buildroot}%{_usr}/share/ipa/html/ffconfig.js
-ln -s ../../../..%{_sysconfdir}/ipa/html/ffconfig_page.js \
-    %{buildroot}%{_usr}/share/ipa/html/ffconfig_page.js
-ln -s ../../../..%{_sysconfdir}/ipa/html/ssbrowser.html \
-    %{buildroot}%{_usr}/share/ipa/html/ssbrowser.html
-ln -s ../../../..%{_sysconfdir}/ipa/html/unauthorized.html \
-    %{buildroot}%{_usr}/share/ipa/html/unauthorized.html
-ln -s ../../../..%{_sysconfdir}/ipa/html/browserconfig.html \
-    %{buildroot}%{_usr}/share/ipa/html/browserconfig.html
-
 # So we can own our Apache configuration
 mkdir -p %{buildroot}%{_sysconfdir}/httpd/conf.d/
 /bin/touch %{buildroot}%{_sysconfdir}/httpd/conf.d/ipa.conf
 /bin/touch %{buildroot}%{_sysconfdir}/httpd/conf.d/ipa-kdc-proxy.conf
 /bin/touch %{buildroot}%{_sysconfdir}/httpd/conf.d/ipa-pki-proxy.conf
 /bin/touch %{buildroot}%{_sysconfdir}/httpd/conf.d/ipa-rewrite.conf
-mkdir -p %{buildroot}%{_usr}/share/ipa/html/
 /bin/touch %{buildroot}%{_usr}/share/ipa/html/ca.crt
 /bin/touch %{buildroot}%{_usr}/share/ipa/html/kerberosauth.xpi
 /bin/touch %{buildroot}%{_usr}/share/ipa/html/krb.con
 /bin/touch %{buildroot}%{_usr}/share/ipa/html/krb.js
 /bin/touch %{buildroot}%{_usr}/share/ipa/html/krb5.ini
 /bin/touch %{buildroot}%{_usr}/share/ipa/html/krbrealm.con
-mkdir -p %{buildroot}%{_initrddir}
-mkdir %{buildroot}%{_sysconfdir}/sysconfig/
-install -m 644 init/ipa_memcached.conf %{buildroot}%{_sysconfdir}/sysconfig/ipa_memcached
-install -m 644 init/ipa-dnskeysyncd.conf %{buildroot}%{_sysconfdir}/sysconfig/ipa-dnskeysyncd
-install -m 644 init/ipa-ods-exporter.conf %{buildroot}%{_sysconfdir}/sysconfig/ipa-ods-exporter
-install -m 644 daemons/dnssec/ipa-ods-exporter.socket %{buildroot}%{_unitdir}/ipa-ods-exporter.socket
-install -m 644 daemons/dnssec/ipa-ods-exporter.service %{buildroot}%{_unitdir}/ipa-ods-exporter.service
-install -m 644 daemons/dnssec/ipa-dnskeysyncd.service %{buildroot}%{_unitdir}/ipa-dnskeysyncd.service
-
-# dnssec daemons
-mkdir -p %{buildroot}%{_libexecdir}/ipa/
-install daemons/dnssec/ipa-dnskeysyncd %{buildroot}%{_libexecdir}/ipa/ipa-dnskeysyncd
-install daemons/dnssec/ipa-dnskeysync-replica %{buildroot}%{_libexecdir}/ipa/ipa-dnskeysync-replica
-install daemons/dnssec/ipa-ods-exporter %{buildroot}%{_libexecdir}/ipa/ipa-ods-exporter
-
-# Web UI plugin dir
-mkdir -p %{buildroot}%{_usr}/share/ipa/ui/js/plugins
-
-# DNSSEC config
-mkdir -p %{buildroot}%{_sysconfdir}/ipa/dnssec
-
-# KDC proxy config (Apache config sets KDCPROXY_CONFIG to load this file)
-mkdir -p %{buildroot}%{_sysconfdir}/ipa/kdcproxy/
-install -m 644 install/share/kdcproxy.conf %{buildroot}%{_sysconfdir}/ipa/kdcproxy/kdcproxy.conf
-
-# NOTE: systemd specific section
-mkdir -p %{buildroot}%{_tmpfilesdir}
-install -m 0644 init/systemd/ipa.conf.tmpfiles %{buildroot}%{_tmpfilesdir}/%{name}.conf
-# END
-
-mkdir -p %{buildroot}%{_localstatedir}/run/
-install -d -m 0700 %{buildroot}%{_localstatedir}/run/ipa_memcached/
-install -d -m 0700 %{buildroot}%{_localstatedir}/run/ipa/
-install -d -m 0700 %{buildroot}%{_localstatedir}/run/httpd/ipa
-install -d -m 0700 %{buildroot}%{_localstatedir}/run/httpd/ipa/clientcaches
-install -d -m 0700 %{buildroot}%{_localstatedir}/run/httpd/ipa/krbcache
 
 mkdir -p %{buildroot}%{_libdir}/krb5/plugins/libkrb5
 touch %{buildroot}%{_libdir}/krb5/plugins/libkrb5/winbind_krb5_locator.so
 
-# NOTE: systemd specific section
-mkdir -p %{buildroot}%{_unitdir}
-mkdir -p %{buildroot}%{etc_systemd_dir}
-install -m 644 init/systemd/ipa.service %{buildroot}%{_unitdir}/ipa.service
-install -m 644 init/systemd/ipa_memcached.service %{buildroot}%{_unitdir}/ipa_memcached.service
-install -m 644 init/systemd/ipa-custodia.service %{buildroot}%{_unitdir}/ipa-custodia.service
-# END
-mkdir -p %{buildroot}/%{_localstatedir}/lib/ipa/backup
+# RHEL spec file only: START: Package copy-schema-to-ca.py
+cp contrib/copy-schema-to-ca-RHEL6.py %{buildroot}%{_usr}/share/ipa/copy-schema-to-ca.py
+# RHEL spec file only: END: Package copy-schema-to-ca.py
+
 %endif # ONLY_CLIENT
 
-mkdir -p %{buildroot}%{_sysconfdir}/ipa/
 /bin/touch %{buildroot}%{_sysconfdir}/ipa/default.conf
 /bin/touch %{buildroot}%{_sysconfdir}/ipa/ca.crt
-mkdir -p %{buildroot}%{_sysconfdir}/ipa/nssdb
-mkdir -p %{buildroot}/%{_localstatedir}/lib/ipa-client/sysrestore
-mkdir -p %{buildroot}%{_sysconfdir}/bash_completion.d
-install -pm 644 contrib/completion/ipa.bash_completion %{buildroot}%{_sysconfdir}/bash_completion.d/ipa
 
 %if ! %{ONLY_CLIENT}
 mkdir -p %{buildroot}%{_sysconfdir}/cron.d
-
-(cd %{buildroot}/%{python_sitelib}/ipaserver && find . -type f  | \
-    sed -e 's,\.py.*$,.*,g' | sort -u | \
-    sed -e 's,\./,%%{python_sitelib}/ipaserver/,g' ) >server-python.list
-
-# RHEL spec file only: DELETED: Do not build tests
-
-mkdir -p %{buildroot}%{_sysconfdir}/ipa/custodia
-
 %endif # ONLY_CLIENT
 
 
@@ -1075,6 +1313,15 @@ if [ -e /usr/sbin/ipa_kpasswd ]; then
 # END
 fi
 
+# create users and groups
+# create kdcproxy group and user
+getent group kdcproxy >/dev/null || groupadd -f -r kdcproxy
+getent passwd kdcproxy >/dev/null || useradd -r -g kdcproxy -s /sbin/nologin -d / -c "IPA KDC Proxy User" kdcproxy
+# create ipaapi group and user
+getent group ipaapi >/dev/null || groupadd -f -r ipaapi
+getent passwd ipaapi >/dev/null || useradd -r -g ipaapi -s /sbin/nologin -d / -c "IPA Framework User" ipaapi
+# add apache to ipaaapi group
+id -Gn apache | grep '\bipaapi\b' >/dev/null || usermod apache -a -G ipaapi
 
 %postun server-trust-ad
 if [ "$1" -ge "1" ]; then
@@ -1124,6 +1371,15 @@ if [ $1 -gt 1 ] ; then
         fi
     fi
 
+    if [ $restore -ge 2 ]; then
+        if grep -E -q '\s*pkinit_anchors = FILE:/etc/ipa/ca.crt$' /etc/krb5.conf 2>/dev/null; then
+            sed -E 's|(\s*)pkinit_anchors = FILE:/etc/ipa/ca.crt$|\1pkinit_anchors = FILE:/var/lib/ipa-client/pki/kdc-ca-bundle.pem\n\1pkinit_pool = FILE:/var/lib/ipa-client/pki/ca-bundle.pem|' /etc/krb5.conf >/etc/krb5.conf.ipanew
+            mv -Z /etc/krb5.conf.ipanew /etc/krb5.conf
+            cp /etc/ipa/ca.crt /var/lib/ipa-client/pki/kdc-ca-bundle.pem
+            cp /etc/ipa/ca.crt /var/lib/ipa-client/pki/ca-bundle.pem
+        fi
+    fi
+
     if [ -f '/etc/sysconfig/ntpd' -a $restore -ge 2 ]; then
         if grep -E -q 'OPTIONS=.*-u ntp:ntp' /etc/sysconfig/ntpd 2>/dev/null; then
             sed -r '/OPTIONS=/ { s/\s+-u ntp:ntp\s+/ /; s/\s*-u ntp:ntp\s*// }' /etc/sysconfig/ntpd >/etc/sysconfig/ntpd.ipanew
@@ -1134,7 +1390,7 @@ if [ $1 -gt 1 ] ; then
     fi
 
     if [ $restore -ge 2 ]; then
-        python2 -c 'from ipapython.certdb import update_ipa_nssdb; update_ipa_nssdb()' >/var/log/ipaupgrade.log 2>&1
+        python2 -c 'from ipaclient.install.client import update_ipa_nssdb; update_ipa_nssdb()' >/var/log/ipaupgrade.log 2>&1
     fi
 fi
 
@@ -1150,17 +1406,17 @@ if [ -f '/etc/ssh/sshd_config' -a $restore -ge 2 ]; then
             /^(AuthorizedKeysCommand(User|RunAs)|PubKeyAgentRunAs)[ \t]/ d
         ' /etc/ssh/sshd_config >/etc/ssh/sshd_config.ipanew
 
-        if /usr/sbin/sshd -t -f /dev/null -o 'AuthorizedKeysCommand=/usr/bin/sss_ssh_authorizedkeys' -o 'AuthorizedKeysCommandUser=nobody'; then
+        if /usr/sbin/sshd -t -f /dev/null -o 'AuthorizedKeysCommand=/usr/bin/sss_ssh_authorizedkeys' -o 'AuthorizedKeysCommandUser=nobody' 2>/dev/null; then
             sed -ri '
                 s/^PubKeyAgent (.+) %u$/AuthorizedKeysCommand \1/
                 s/^AuthorizedKeysCommand .*$/\0\nAuthorizedKeysCommandUser nobody/
             ' /etc/ssh/sshd_config.ipanew
-        elif /usr/sbin/sshd -t -f /dev/null -o 'AuthorizedKeysCommand=/usr/bin/sss_ssh_authorizedkeys' -o 'AuthorizedKeysCommandRunAs=nobody'; then
+        elif /usr/sbin/sshd -t -f /dev/null -o 'AuthorizedKeysCommand=/usr/bin/sss_ssh_authorizedkeys' -o 'AuthorizedKeysCommandRunAs=nobody' 2>/dev/null; then
             sed -ri '
                 s/^PubKeyAgent (.+) %u$/AuthorizedKeysCommand \1/
                 s/^AuthorizedKeysCommand .*$/\0\nAuthorizedKeysCommandRunAs nobody/
             ' /etc/ssh/sshd_config.ipanew
-        elif /usr/sbin/sshd -t -f /dev/null -o 'PubKeyAgent=/usr/bin/sss_ssh_authorizedkeys %u' -o 'PubKeyAgentRunAs=nobody'; then
+        elif /usr/sbin/sshd -t -f /dev/null -o 'PubKeyAgent=/usr/bin/sss_ssh_authorizedkeys %u' -o 'PubKeyAgentRunAs=nobody' 2>/dev/null; then
             sed -ri '
                 s/^AuthorizedKeysCommand (.+)$/PubKeyAgent \1 %u/
                 s/^PubKeyAgent .*$/\0\nPubKeyAgentRunAs nobody/
@@ -1179,7 +1435,7 @@ fi
 
 %files server
 %defattr(-,root,root,-)
-%doc README Contributors.txt
+%doc README.md Contributors.txt
 %license COPYING
 %{_sbindir}/ipa-backup
 %{_sbindir}/ipa-restore
@@ -1199,23 +1455,25 @@ fi
 %{_sbindir}/ipa-nis-manage
 %{_sbindir}/ipa-managed-entries
 %{_sbindir}/ipactl
-%{_sbindir}/ipa-upgradeconfig
 %{_sbindir}/ipa-advise
 %{_sbindir}/ipa-cacert-manage
 %{_sbindir}/ipa-winsync-migrate
+%{_sbindir}/ipa-pkinit-manage
 %{_libexecdir}/certmonger/dogtag-ipa-ca-renew-agent-submit
 %{_libexecdir}/certmonger/ipa-server-guard
-%{_libexecdir}/ipa-otpd
 %dir %{_libexecdir}/ipa
+%{_libexecdir}/ipa/ipa-custodia
 %{_libexecdir}/ipa/ipa-dnskeysyncd
 %{_libexecdir}/ipa/ipa-dnskeysync-replica
 %{_libexecdir}/ipa/ipa-ods-exporter
 %{_libexecdir}/ipa/ipa-httpd-kdcproxy
 %{_libexecdir}/ipa/ipa-pki-retrieve-key
+%{_libexecdir}/ipa/ipa-otpd
 %dir %{_libexecdir}/ipa/oddjob
 %attr(0755,root,root) %{_libexecdir}/ipa/oddjob/org.freeipa.server.conncheck
 %config(noreplace) %{_sysconfdir}/dbus-1/system.d/org.freeipa.server.conf
 %config(noreplace) %{_sysconfdir}/oddjobd.conf.d/ipa-server.conf
+%config(noreplace) %{_sysconfdir}/krb5.conf.d/ipa-certauth
 %dir %{_libexecdir}/ipa/certmonger
 %attr(755,root,root) %{_libexecdir}/ipa/certmonger/*
 # NOTE: systemd specific section
@@ -1243,87 +1501,75 @@ fi
 %attr(755,root,root) %{plugin_dir}/libipa_sidgen_task.so
 %attr(755,root,root) %{plugin_dir}/libipa_extdom_extop.so
 %attr(755,root,root) %{_libdir}/krb5/plugins/kdb/ipadb.so
-%{_mandir}/man1/ipa-replica-conncheck.1.gz
-%{_mandir}/man1/ipa-replica-install.1.gz
-%{_mandir}/man1/ipa-replica-manage.1.gz
-%{_mandir}/man1/ipa-csreplica-manage.1.gz
-%{_mandir}/man1/ipa-replica-prepare.1.gz
-%{_mandir}/man1/ipa-server-certinstall.1.gz
-%{_mandir}/man1/ipa-server-install.1.gz
-%{_mandir}/man1/ipa-server-upgrade.1.gz
-%{_mandir}/man1/ipa-ca-install.1.gz
-%{_mandir}/man1/ipa-kra-install.1.gz
-%{_mandir}/man1/ipa-compat-manage.1.gz
-%{_mandir}/man1/ipa-nis-manage.1.gz
-%{_mandir}/man1/ipa-managed-entries.1.gz
-%{_mandir}/man1/ipa-ldap-updater.1.gz
-%{_mandir}/man8/ipactl.8.gz
-%{_mandir}/man8/ipa-upgradeconfig.8.gz
-%{_mandir}/man1/ipa-backup.1.gz
-%{_mandir}/man1/ipa-restore.1.gz
-%{_mandir}/man1/ipa-advise.1.gz
-%{_mandir}/man1/ipa-otptoken-import.1.gz
-%{_mandir}/man1/ipa-cacert-manage.1.gz
-%{_mandir}/man1/ipa-winsync-migrate.1.gz
+%{_mandir}/man1/ipa-replica-conncheck.1*
+%{_mandir}/man1/ipa-replica-install.1*
+%{_mandir}/man1/ipa-replica-manage.1*
+%{_mandir}/man1/ipa-csreplica-manage.1*
+%{_mandir}/man1/ipa-replica-prepare.1*
+%{_mandir}/man1/ipa-server-certinstall.1*
+%{_mandir}/man1/ipa-server-install.1*
+%{_mandir}/man1/ipa-server-upgrade.1*
+%{_mandir}/man1/ipa-ca-install.1*
+%{_mandir}/man1/ipa-kra-install.1*
+%{_mandir}/man1/ipa-compat-manage.1*
+%{_mandir}/man1/ipa-nis-manage.1*
+%{_mandir}/man1/ipa-managed-entries.1*
+%{_mandir}/man1/ipa-ldap-updater.1*
+%{_mandir}/man8/ipactl.8*
+%{_mandir}/man1/ipa-backup.1*
+%{_mandir}/man1/ipa-restore.1*
+%{_mandir}/man1/ipa-advise.1*
+%{_mandir}/man1/ipa-otptoken-import.1*
+%{_mandir}/man1/ipa-cacert-manage.1*
+%{_mandir}/man1/ipa-winsync-migrate.1*
+%{_mandir}/man1/ipa-pkinit-manage.1*
 
-
-%files -n python2-ipaserver -f server-python.list
+%files -n python2-ipaserver
 %defattr(-,root,root,-)
-%doc README Contributors.txt
+%doc README.md Contributors.txt
 %license COPYING
-%{python_sitelib}/freeipa-*.egg-info
-%dir %{python_sitelib}/ipaserver
-%dir %{python_sitelib}/ipaserver/install
-%dir %{python_sitelib}/ipaserver/install/plugins
-%dir %{python_sitelib}/ipaserver/install/server
-%dir %{python_sitelib}/ipaserver/advise
-%dir %{python_sitelib}/ipaserver/advise/plugins
-%dir %{python_sitelib}/ipaserver/plugins
+%{python2_sitelib}/ipaserver
+%{python2_sitelib}/ipaserver-*.egg-info
+
+
+%if 0%{?with_python3}
+
+%files -n python3-ipaserver
+%defattr(-,root,root,-)
+%doc README.md Contributors.txt
+%license COPYING
+%{python3_sitelib}/ipaserver
+%{python3_sitelib}/ipaserver-*.egg-info
+
+%endif # with_python3
 
 
 %files server-common
 %defattr(-,root,root,-)
-%doc README Contributors.txt
+%doc README.md Contributors.txt
 %license COPYING
 %ghost %verify(not owner group) %dir %{_sharedstatedir}/kdcproxy
 %dir %attr(0755,root,root) %{_sysconfdir}/ipa/kdcproxy
-%config(noreplace) %{_sysconfdir}/sysconfig/ipa_memcached
 %config(noreplace) %{_sysconfdir}/sysconfig/ipa-dnskeysyncd
 %config(noreplace) %{_sysconfdir}/sysconfig/ipa-ods-exporter
 %config(noreplace) %{_sysconfdir}/ipa/kdcproxy/kdcproxy.conf
-%dir %attr(0700,apache,apache) %{_localstatedir}/run/ipa_memcached/
-%dir %attr(0700,root,root) %{_localstatedir}/run/ipa/
-%dir %attr(0700,apache,apache) %{_localstatedir}/run/httpd/ipa/
-%dir %attr(0700,apache,apache) %{_localstatedir}/run/httpd/ipa/clientcaches/
-%dir %attr(0700,apache,apache) %{_localstatedir}/run/httpd/ipa/krbcache/
-# NOTE: systemd specific section
-%{_tmpfilesdir}/%{name}.conf
-%attr(644,root,root) %{_unitdir}/ipa_memcached.service
 %attr(644,root,root) %{_unitdir}/ipa-custodia.service
 %ghost %attr(644,root,root) %{etc_systemd_dir}/httpd.d/ipa.conf
 # END
 %dir %{_usr}/share/ipa
 %{_usr}/share/ipa/wsgi.py*
+# RHEL spec file only: START: Package copy-schema-to-ca.py
 %{_usr}/share/ipa/copy-schema-to-ca.py*
+# RHEL spec file only: END: Package copy-schema-to-ca.py
 %{_usr}/share/ipa/*.ldif
 %{_usr}/share/ipa/*.uldif
 %{_usr}/share/ipa/*.template
+%{_usr}/share/ipa/ipa.conf.tmpfiles
 %dir %{_usr}/share/ipa/advise
 %dir %{_usr}/share/ipa/advise/legacy
 %{_usr}/share/ipa/advise/legacy/*.template
 %dir %{_usr}/share/ipa/profiles
 %{_usr}/share/ipa/profiles/*.cfg
-%dir %{_usr}/share/ipa/ffextension
-%{_usr}/share/ipa/ffextension/bootstrap.js
-%{_usr}/share/ipa/ffextension/install.rdf
-%{_usr}/share/ipa/ffextension/chrome.manifest
-%dir %{_usr}/share/ipa/ffextension/chrome
-%dir %{_usr}/share/ipa/ffextension/chrome/content
-%{_usr}/share/ipa/ffextension/chrome/content/kerberosauth.js
-%{_usr}/share/ipa/ffextension/chrome/content/kerberosauth_overlay.xul
-%dir %{_usr}/share/ipa/ffextension/locale
-%dir %{_usr}/share/ipa/ffextension/locale/en-US
-%{_usr}/share/ipa/ffextension/locale/en-US/kerberosauth.properties
 %dir %{_usr}/share/ipa/html
 %{_usr}/share/ipa/html/ffconfig.js
 %{_usr}/share/ipa/html/ffconfig_page.js
@@ -1374,7 +1620,6 @@ fi
 %{_usr}/share/ipa/ipa.conf
 %{_usr}/share/ipa/ipa-rewrite.conf
 %{_usr}/share/ipa/ipa-pki-proxy.conf
-%{_usr}/share/ipa/kdcproxy.conf
 %ghost %attr(0644,root,apache) %config(noreplace) %{_usr}/share/ipa/html/ca.crt
 %ghost %attr(0644,root,apache) %{_usr}/share/ipa/html/kerberosauth.xpi
 %ghost %attr(0644,root,apache) %{_usr}/share/ipa/html/krb.con
@@ -1385,30 +1630,34 @@ fi
 %{_usr}/share/ipa/updates/*
 %dir %{_localstatedir}/lib/ipa
 %attr(700,root,root) %dir %{_localstatedir}/lib/ipa/backup
+%attr(700,root,root) %dir %{_localstatedir}/lib/ipa/gssproxy
 %attr(700,root,root) %dir %{_localstatedir}/lib/ipa/sysrestore
 %attr(700,root,root) %dir %{_localstatedir}/lib/ipa/sysupgrade
 %attr(755,root,root) %dir %{_localstatedir}/lib/ipa/pki-ca
 %ghost %{_localstatedir}/lib/ipa/pki-ca/publish
 %ghost %{_localstatedir}/named/dyndb-ldap/ipa
 %dir %attr(0700,root,root) %{_sysconfdir}/ipa/custodia
-
+%dir %{_usr}/share/ipa/schema.d
+%attr(0644,root,root) %{_usr}/share/ipa/schema.d/README
+%attr(0644,root,root) %{_usr}/share/ipa/gssapi.login
+%{_usr}/share/ipa/ipakrb5.aug
 
 %files server-dns
 %defattr(-,root,root,-)
-%doc README Contributors.txt
+%doc README.md Contributors.txt
 %license COPYING
 %{_sbindir}/ipa-dns-install
-%{_mandir}/man1/ipa-dns-install.1.gz
+%{_mandir}/man1/ipa-dns-install.1*
 
 
 %files server-trust-ad
 %defattr(-,root,root,-)
-%doc README Contributors.txt
+%doc README.md Contributors.txt
 %license COPYING
 %{_sbindir}/ipa-adtrust-install
 %{_usr}/share/ipa/smb.conf.empty
 %attr(755,root,root) %{_libdir}/samba/pdb/ipasam.so
-%{_mandir}/man1/ipa-adtrust-install.1.gz
+%{_mandir}/man1/ipa-adtrust-install.1*
 %ghost %{_libdir}/krb5/plugins/libkrb5/winbind_krb5_locator.so
 %{_sysconfdir}/dbus-1/system.d/oddjob-ipa-trust.conf
 %{_sysconfdir}/oddjobd.conf.d/oddjobd-ipa-trust.conf
@@ -1419,7 +1668,7 @@ fi
 
 %files client
 %defattr(-,root,root,-)
-%doc README Contributors.txt
+%doc README.md Contributors.txt
 %license COPYING
 %{_sbindir}/ipa-client-install
 %{_sbindir}/ipa-client-automount
@@ -1427,23 +1676,31 @@ fi
 %{_sbindir}/ipa-getkeytab
 %{_sbindir}/ipa-rmkeytab
 %{_sbindir}/ipa-join
-%{_mandir}/man1/ipa-getkeytab.1.gz
-%{_mandir}/man1/ipa-rmkeytab.1.gz
-%{_mandir}/man1/ipa-client-install.1.gz
-%{_mandir}/man1/ipa-client-automount.1.gz
-%{_mandir}/man1/ipa-certupdate.1.gz
-%{_mandir}/man1/ipa-join.1.gz
+%{_bindir}/ipa
+%config %{_sysconfdir}/bash_completion.d
+%{_mandir}/man1/ipa.1*
+%{_mandir}/man1/ipa-getkeytab.1*
+%{_mandir}/man1/ipa-rmkeytab.1*
+%{_mandir}/man1/ipa-client-install.1*
+%{_mandir}/man1/ipa-client-automount.1*
+%{_mandir}/man1/ipa-certupdate.1*
+%{_mandir}/man1/ipa-join.1*
 
 
 %files -n python2-ipaclient
 %defattr(-,root,root,-)
-%doc README Contributors.txt
+%doc README.md Contributors.txt
 %license COPYING
 %dir %{python_sitelib}/ipaclient
 %{python_sitelib}/ipaclient/*.py*
+%dir %{python_sitelib}/ipaclient/install
+%{python_sitelib}/ipaclient/install/*.py*
+%dir %{python_sitelib}/ipaclient/plugins
 %{python_sitelib}/ipaclient/plugins/*.py*
+%dir %{python_sitelib}/ipaclient/remote_plugins
 %{python_sitelib}/ipaclient/remote_plugins/*.py*
 %{python_sitelib}/ipaclient/remote_plugins/2_*/*.py*
+# RHEL spec file only: DELETED: Remove csrgen
 %{python_sitelib}/ipaclient-*.egg-info
 
 
@@ -1451,17 +1708,23 @@ fi
 
 %files -n python3-ipaclient
 %defattr(-,root,root,-)
-%doc README Contributors.txt
+%doc README.md Contributors.txt
 %license COPYING
 %dir %{python3_sitelib}/ipaclient
 %{python3_sitelib}/ipaclient/*.py
 %{python3_sitelib}/ipaclient/__pycache__/*.py*
+%dir %{python3_sitelib}/ipaclient/install
+%{python3_sitelib}/ipaclient/install/*.py
+%{python3_sitelib}/ipaclient/install/__pycache__/*.py*
+%dir %{python3_sitelib}/ipaclient/plugins
 %{python3_sitelib}/ipaclient/plugins/*.py
 %{python3_sitelib}/ipaclient/plugins/__pycache__/*.py*
+%dir %{python3_sitelib}/ipaclient/remote_plugins
 %{python3_sitelib}/ipaclient/remote_plugins/*.py
 %{python3_sitelib}/ipaclient/remote_plugins/__pycache__/*.py*
 %{python3_sitelib}/ipaclient/remote_plugins/2_*/*.py
 %{python3_sitelib}/ipaclient/remote_plugins/2_*/__pycache__/*.py*
+# RHEL spec file only: DELETED: Remove csrgen
 %{python3_sitelib}/ipaclient-*.egg-info
 
 %endif # with_python3
@@ -1469,7 +1732,7 @@ fi
 
 %files client-common
 %defattr(-,root,root,-)
-%doc README Contributors.txt
+%doc README.md Contributors.txt
 %license COPYING
 %dir %attr(0755,root,root) %{_sysconfdir}/ipa/
 %ghost %attr(0644,root,apache) %config(noreplace) %{_sysconfdir}/ipa/default.conf
@@ -1480,41 +1743,30 @@ fi
 %ghost %config(noreplace) %{_sysconfdir}/ipa/nssdb/secmod.db
 %ghost %config(noreplace) %{_sysconfdir}/ipa/nssdb/pwdfile.txt
 %ghost %config(noreplace) %{_sysconfdir}/pki/ca-trust/source/ipa.p11-kit
-%dir %{_usr}/share/ipa
 %dir %{_localstatedir}/lib/ipa-client
+%dir %{_localstatedir}/lib/ipa-client/pki
 %dir %{_localstatedir}/lib/ipa-client/sysrestore
-%{_mandir}/man5/default.conf.5.gz
-
-
-%files admintools
-%defattr(-,root,root,-)
-%doc README Contributors.txt
-%license COPYING
-%{_bindir}/ipa
-%config %{_sysconfdir}/bash_completion.d
-%{_mandir}/man1/ipa.1.gz
+%{_mandir}/man5/default.conf.5*
 
 
 %files python-compat
 %defattr(-,root,root,-)
-%doc README Contributors.txt
+%doc README.md Contributors.txt
 %license COPYING
 
 
 %files -n python2-ipalib
 %defattr(-,root,root,-)
-%doc README Contributors.txt
+%doc README.md Contributors.txt
 %license COPYING
 %dir %{python_sitelib}/ipapython
 %{python_sitelib}/ipapython/*.py*
-%dir %{python_sitelib}/ipapython/dnssec
-%{python_sitelib}/ipapython/dnssec/*.py*
 %dir %{python_sitelib}/ipapython/install
 %{python_sitelib}/ipapython/install/*.py*
-%dir %{python_sitelib}/ipapython/secrets
-%{python_sitelib}/ipapython/secrets/*.py*
 %dir %{python_sitelib}/ipalib
-%{python_sitelib}/ipalib/*
+%{python_sitelib}/ipalib/*.py*
+%dir %{python_sitelib}/ipalib/install
+%{python_sitelib}/ipalib/install/*.py*
 %dir %{python_sitelib}/ipaplatform
 %{python_sitelib}/ipaplatform/*
 %{python_sitelib}/ipapython-*.egg-info
@@ -1524,7 +1776,7 @@ fi
 
 %files common -f %{gettext_domain}.lang
 %defattr(-,root,root,-)
-%doc README Contributors.txt
+%doc README.md Contributors.txt
 %license COPYING
 
 
@@ -1532,7 +1784,7 @@ fi
 
 %files -n python3-ipalib
 %defattr(-,root,root,-)
-%doc README Contributors.txt
+%doc README.md Contributors.txt
 %license COPYING
 
 %{python3_sitelib}/ipapython/
@@ -1545,39 +1797,591 @@ fi
 %endif # with_python3
 
 
-# RHEL spec file only: DELETED: Do not build tests
+%if 0%{?with_ipatests}
+
+%files -n python2-ipatests
+%defattr(-,root,root,-)
+%doc README.md Contributors.txt
+%license COPYING
+%{python_sitelib}/ipatests
+%{python_sitelib}/ipatests-*.egg-info
+%{_bindir}/ipa-run-tests
+%{_bindir}/ipa-test-config
+%{_bindir}/ipa-test-task
+%{_bindir}/ipa-run-tests-2
+%{_bindir}/ipa-test-config-2
+%{_bindir}/ipa-test-task-2
+%{_bindir}/ipa-run-tests-%{python2_version}
+%{_bindir}/ipa-test-config-%{python2_version}
+%{_bindir}/ipa-test-task-%{python2_version}
+%{_mandir}/man1/ipa-run-tests.1*
+%{_mandir}/man1/ipa-test-config.1*
+%{_mandir}/man1/ipa-test-task.1*
+
+%if 0%{?with_python3}
+
+%files -n python3-ipatests
+%defattr(-,root,root,-)
+%doc README.md Contributors.txt
+%license COPYING
+%{python3_sitelib}/ipatests
+%{python3_sitelib}/ipatests-*.egg-info
+%{_bindir}/ipa-run-tests-3
+%{_bindir}/ipa-test-config-3
+%{_bindir}/ipa-test-task-3
+%{_bindir}/ipa-run-tests-%{python3_version}
+%{_bindir}/ipa-test-config-%{python3_version}
+%{_bindir}/ipa-test-task-%{python3_version}
+
+%endif # with_python3
+
+%endif # with_ipatests
 
 
 %changelog
-* Fri Apr 14 2017 Jacco Ligthart <jacco@redsleeve.org> - 4.4.0-14.el7.7.redsleeve
-- Roll in RedSleeve Branding
-
-* Wed Apr 12 2017 CentOS Sources <bugs@centos.org> - 4.4.0-14.el7.centos.7
+* Mon Jul 31 2017 CentOS Sources <bugs@centos.org> - 4.5.0-21.el7.centos
 - Roll in CentOS Branding
 
+* Wed Jul 12 2017 Pavel Vomacka <pvomacka@redhat.com> - 4.5.0-21.el7
+- Resolves: #1470125 Replica install fails to configure IPA-specific
+  temporary files/directories
+  - replica install: drop-in IPA specific config to tmpfiles.d
+- Resolves: #1469978 bind package is not automatically updated during
+  ipa-server upgrade process
+  - Bumped Required version of bind-dyndb-ldap and bind package
+
+* Tue Jun 27 2017 Pavel Vomacka <pvomacka@redhat.com> - 4.5.0-20.el7
+- Resolves: #1452216 Replica installation grants HTTP principal
+  access in WebUI
+  - Make sure we check ccaches in all rpcserver paths
+
+* Wed Jun 21 2017 Pavel Vomacka <pvomacka@redhat.com> - 4.5.0-19.el7
+- Resolves: #1462112 ipaserver installation fails in FIPS mode: OpenSSL
+  internal error, assertion failed: Digest MD4 forbidden in FIPS mode!
+  - ipa-sam: replace encode_nt_key() with E_md4hash() 
+  - ipa_pwd_extop: do not generate NT hashes in FIPS mode
+- Resolves: #1377973 ipa-server-install fails when the provided or resolved
+  IP address is not found on local interfaces 
+  - Fix local IP address validation 
+  - ipa-dns-install: remove check for local ip address
+  - refactor CheckedIPAddress class
+  - CheckedIPAddress: remove match_local param
+  - Remove ip_netmask from option parser
+  - replica install: add missing check for non-local IP address
+  - Remove network and broadcast address warnings
+
+* Thu Jun 15 2017 Pavel Vomacka <pvomacka@redhat.com> - 4.5.0-18.el7
+- Resolves: #1449189 ipa-kra-install timeouts on replica
+  - kra: promote: Get ticket before calling custodia
+
+* Wed Jun 14 2017 Pavel Vomacka <pvomacka@redhat.com> - 4.5.0-17.el7
+- Resolve: #1455946 Provide a tooling automating the configuration 
+  of Smart Card authentication on a FreeIPA master
+  - server certinstall: update KDC master entry
+  - pkinit manage: introduce ipa-pkinit-manage
+  - server upgrade: do not enable PKINIT by default
+  - Extend the advice printing code by some useful abstractions
+  - Prepare advise plugin for smart card auth configuration
+- Resolve: #1461053 allow to modify list of UPNs of a trusted forest
+  - trust-mod: allow modifying list of UPNs of a trusted forest
+  - WebUI: add support for changing trust UPN suffixes
+
+* Wed Jun 7 2017 Pavel Vomacka <pvomacka@redhat.com> - 4.5.0-16.el7
+- Resolves: #1377973 ipa-server-install fails when the provided or resolved
+  IP address is not found on local interfaces
+  - Only warn when specified server IP addresses don't match intf
+- Resolves: #1438016 gssapi errors after IPA server upgrade
+  - Bump version of python-gssapi
+- Resolves: #1457942 certauth: use canonical principal for lookups
+  - ipa-kdb: use canonical principal in certauth plugin
+- Resolves: #1459153 Do not send Max-Age in ipa_session cookie to avoid
+  breaking older clients
+  - Add code to be able to set default kinit lifetime
+  - Revert setting sessionMaxAge for old clients
+
+* Wed Jun 7 2017 Pavel Vomacka <pvomacka@redhat.com> - 4.5.0-15.el7
+- Resolves: #1442233 IPA client commands fail when pointing to replica 
+  - httpinstance: wait until the service entry is replicated
+- Resolves: #1456769 ipaAnchorUUID index incorrectly configured and then
+  not indexed
+  - Fix index definition for ipaAnchorUUID
+- Resolves: #1438016 gssapi errors after IPA server upgrade
+  - Avoid possible endless recursion in RPC call
+  - rpc: preparations for recursion fix
+  - rpc: avoid possible recursion in create_connection
+- Resolves: #1446087 services entries missing krbCanonicalName attribute.
+  - Changing cert-find to do not use only primary key to search in LDAP.
+- Resolves: #1452763 ipa certmaprule change not reflected in krb5kdc workers
+  - ipa-kdb: reload certificate mapping rules periodically
+- Resolves: #1455541 after upgrade login from web ui breaks
+  - kdc.key should not be visible to all 
+- Resolves: #1435606 Add pkinit_indicator option to KDC configuration
+  - ipa-kdb: add pkinit authentication indicator in case of a successful
+    certauth
+- Resolves: #1455945 Enabling OCSP checks in mod_nss breaks certificate
+  issuance when ipa-ca records are not resolvable
+  - Turn off OCSP check
+- Resolves: #1454483 rhel73 ipa ui - cannot del server - IPA Error 903 -
+  server_del - TypeError: 'NoneType' object is not iterable
+  - fix incorrect suffix handling in topology checks
+
+* Wed May 24 2017 Pavel Vomacka <pvomacka@redhat.com> - 4.5.0-14.el7
+- Resolves: #1438731 Extend ipa-server-certinstall and ipa-certupdate to 
+  handle PKINIT certificates/anchors
+  - certdb: add named trust flag constants
+  - certdb, certs: make trust flags argument mandatory
+  - certdb: use custom object for trust flags
+  - install: trust IPA CA for PKINIT
+  - client install: fix client PKINIT configuration
+  - install: introduce generic Kerberos Augeas lens
+  - server install: fix KDC PKINIT configuration
+  - ipapython.ipautil.run: Add option to set umask before executing command
+  - certs: do not export keys world-readable in install_key_from_p12
+  - certs: do not export CA certs in install_pem_from_p12
+  - server install: fix KDC certificate validation in CA-less
+  - replica install: respect --pkinit-cert-file
+  - cacert manage: support PKINIT
+  - server certinstall: support PKINIT
+- Resolves: #1444432 CA-less pkinit not installable with --pkinit-cert-file
+  option
+  - certs: do not export CA certs in install_pem_from_p12
+  - server install: fix KDC certificate validation in CA-less
+- Resolves: #1451228 ipa-kra-install fails when primary KRA server has been
+  decommissioned
+  - ipa-kra-install: fix pkispawn setting for pki_security_domain_hostname 
+- Resolves: #1451712 KRA installation fails on server that was originally
+  installed as CA-less
+  - ipa-ca-install: append CA cert chain into /etc/ipa/ca.crt
+- Resolves: #1441499 ipa cert-show does not raise error if no file name
+  specified
+  - ca/cert-show: check certificate_out in options
+- Resolves: #1449522 Deprecate `ipa pkinit-anonymous` command in FreeIPA 4.5+
+  - Remove pkinit-anonymous command
+- Resolves: #1449523 Provide an API command to retrieve PKINIT status
+  in the FreeIPA topology
+  - Allow for multivalued server attributes
+  - Refactor the role/attribute member reporting code
+  - Add an attribute reporting client PKINIT-capable servers
+  - Add the list of PKINIT servers as a virtual attribute to global config
+  - Add `pkinit-status` command
+  - test_serverroles: Get rid of MockLDAP and use ldap2 instead
+- Resolves: #1452216 Replica installation grants HTTP principal access in WebUI
+  - Fix rare race condition with missing ccache file
+- Resolves: #1455045 Simple service uninstallers must be able to handle
+  missing service files gracefully
+  - only stop/disable simple service if it is installed
+- Resolves: #1455541 after upgrade login from web ui breaks
+  - krb5: make sure KDC certificate is readable
+- Resolves: #1455862 "ipa: ERROR: an internal error has occurred" on executing
+  command "ipa cert-request --add" after upgrade
+  - Change python-cryptography to python2-cryptography 
+
+* Thu May 18 2017 Pavel Vomacka <pvomacka@redhat.com> - 4.5.0-13.el7
+- Resolves: #1451804 "AttributeError: 'tuple' object has no attribute 'append'"
+  error observed during ipa upgrade with latest package. 
+  - ipa-server-install: fix uninstall
+- Resolves: #1445390 ipa-[ca|kra]-install with invalid DM password break
+  replica 
+  - ca install: merge duplicated code for DM password
+  - installutils: add DM password validator
+  - ca, kra install: validate DM password
+
+* Tue May 16 2017 Pavel Vomacka <pvomacka@redhat.com> - 4.5.0-12.el7
+- Resolves: #1447284 Upgrade from ipa-4.1 fails when enabling KDC proxy
+  - python2-ipalib: add missing python dependency
+  - installer service: fix typo in service entry
+  - upgrade: add missing suffix to http instance
+- Resolves: #1444791 Update man page of ipa-kra-install 
+  - ipa-kra-install manpage: document domain-level 1
+- Resolves: #1441493 ipa cert-show raises stack traces when
+  --certificate-out=/tmp 
+  - cert-show: writable files does not mean dirs 
+- Resolves: #1441192 Add the name of URL parameter which will be check for
+  username during cert login
+  - Bump version of ipa.conf file
+- Resolves: #1378797 Web UI must check OCSP and CRL during smartcard login
+  - Turn on NSSOCSP check in mod_nss conf
+- Resolves: #1322963 Errors from AD when trying to sign ipa.csr, conflicting
+  template on
+  - renew agent: respect CA renewal master setting
+  - server upgrade: always fix certmonger tracking request
+  - cainstance: use correct profile for lightweight CA certificates
+  - renew agent: allow reusing existing certs
+  - renew agent: always export CSR on IPA CA certificate renewal
+  - renew agent: get rid of virtual profiles
+  - ipa-cacert-manage: add --external-ca-type
+- Resolves: #1441593 error adding authenticator indicators to host 
+  - Fixing adding authenticator indicators to host
+- Resolves: #1449525 Set directory ownership in spec file 
+  - Added plugins directory to ipaclient subpackages
+  - ipaclient: fix missing RPM ownership
+- Resolves: #1451279 otptoken-add-yubikey KeyError: 'ipatokenotpdigits'
+  - otptoken-add-yubikey: When --digits not provided use default value
+
+* Wed May 10 2017 Jan Cholasta <jcholast@redhat.com> - 4.5.0-11.el7
+- Resolves: #1449189 ipa-kra-install timeouts on replica
+  - ipa-kra-install: fix check_host_keys
+
+* Wed May  3 2017 Jan Cholasta <jcholast@redhat.com> - 4.5.0-10.el7
+- Resolves: #1438833 [ipa-replica-install] - 406 Client Error: Failed to
+  validate message: Incorrect number of results (0) searching forpublic key for
+  host
+  - Make sure remote hosts have our keys
+- Resolves: #1442815 Replica install fails during migration from older IPA
+  master
+  - Refresh Dogtag RestClient.ca_host property
+  - Remove the cachedproperty class
+- Resolves: #1444787 Update warning message when KRA installation fails
+  - kra install: update installation failure message
+- Resolves: #1444896 ipa-server-install with external-ca fails in FIPS mode
+  - ipa-server-install with external CA: fix pkinit cert issuance
+- Resolves: #1445397 GET in KerberosSession.finalize_kerberos_acquisition()
+  must use FreeIPA CA
+  - kerberos session: use CA cert with full cert chain for obtaining cookie
+- Resolves: #1447375 ipa-client-install: extra space in pkinit_anchors
+  definition
+  - ipa-client-install: remove extra space in pkinit_anchors definition
+- Resolves: #1447703 Fix SELinux contex of http.keytab during upgrade
+  - Use proper SELinux context with http.keytab
+
+* Fri Apr 28 2017 Jan Cholasta <jcholast@redhat.com> - 4.5.0-9.el7
+- Resolves: #1200767 [RFE] Allow Kerberos authentication for users with
+  certificates on smart cards (pkinit)
+  - spec file: bump krb5 Requires for certauth fixes
+- Resolves: #1438729 Configure local PKINIT on DL0 or when '--no-pkinit' option
+  is used
+  - separate function to set ipaConfigString values on service entry
+  - Allow for configuration of all three PKINIT variants when deploying KDC
+  - API for retrieval of master's PKINIT status and publishing it in LDAP
+  - Use only anonymous PKINIT to fetch armor ccache
+  - Stop requesting anonymous keytab and purge all references of it
+  - Use local anchor when armoring password requests
+  - Upgrade: configure local/full PKINIT depending on the master status
+  - Do not test anonymous PKINIT after install/upgrade
+- Resolves: #1442427 ipa.ipaserver.install.plugins.adtrust.
+  update_tdo_gidnumber: ERROR Default SMB Group not found
+  - upgrade: adtrust update_tdo_gidnumber plugin must check if adtrust is
+    installed
+- Resolves: #1442932 ipa restore fails to restore IPA user
+  - restore: restart/reload gssproxy after restore
+- Resolves: #1444896 ipa-server-install with external-ca fails in FIPS mode
+  - Fix CA/server cert validation in FIPS
+- Resolves: #1444947 Deadlock between topology and schema-compat plugins
+  - compat-manage: behave the same for all users
+  - Move the compat plugin setup at the end of install
+  - compat: ignore cn=topology,cn=ipa,cn=etc subtree
+- Resolves: #1445358 ipa vault-add raises TypeError
+  - vault: piped input for ipa vault-add fails
+- Resolves: #1445382 ipa vault-retrieve fails to retrieve data from vault
+  - Vault: Explicitly default to 3DES CBC
+- Resolves: #1445432 uninstall ipa client automount failed with RuntimeWarning
+  - automount install: fix checking of SSSD functionality on uninstall
+- Resolves: #1446137 pki_client_database_password is shown in
+  ipaserver-install.log
+  - Hide PKI Client database password in log file
+
+* Thu Apr 20 2017 Jan Cholasta <jcholast@redhat.com> - 4.5.0-8.el7
+- Resolves: #1443869 Command "openssl pkcs12 ..." failed during IPA upgrade
+  - Fix CAInstance.import_ra_cert for empty passwords
+
+* Wed Apr 19 2017 Jan Cholasta <jcholast@redhat.com> - 4.5.0-7.el7
+- Resolves: #1431520 ipa cert-find runs a large number of searches, so IPA
+  WebUI is slow to display user details page
+  - cert: defer cert-find result post-processing
+- Resolves: #1435611 Tracebacks seen from dogtag-ipa-ca-renew-agent-submit
+  helper when installing replica
+  - server-install: No double Kerberos install
+- Resolves: #1437502 ipa-replica-install fails with requirement to
+  use --force-join that is a client install option.
+  - Add the force-join option to replica install
+  - replicainstall: better client install exception handling
+- Resolves: #1437953 Server CA-less impossible option check
+  - server-install: remove broken no-pkinit check
+- Resolves: #1441160 FreeIPA client <= 4.4 fail to parse 4.5 cookies
+  - Add debug log in case cookie retrieval went wrong
+- Resolves: #1441548 ipa server install fails with --external-ca option
+  - ext. CA: correctly write the cert chain
+- Resolves: #1441718 Conversion of CA-less server to CA fails on CA instance
+  spawn
+  - Fix CA-less to CA-full upgrade
+- Resolves: #1442133 Do not link libkrad, liblber, libldap_r and
+  libsss_nss_idmap to every binary in IPA
+  - configure: fix AC_CHECK_LIB usage
+- Resolves: #1442815 Replica install fails during migration from older IPA
+  master
+  - Fix RA cert import during DL0 replication
+- Related: #1442004 Building IdM/FreeIPA internally on all architectures -
+  filtering unsupported packages
+  - Build all subpackages on all architectures
+
+* Wed Apr 12 2017 Pavel Vomacka <pvomacka@redhat.com> - 4.5.0-6.el7
+- Resolves: #1382053 Need to have validation for idrange names
+  - idrange-add: properly handle empty --dom-name option
+- Resolves: #1435611 Tracebacks seen from dogtag-ipa-ca-renew-agent-submit
+  helper when installing replica
+  - dsinstance: reconnect ldap2 after DS is restarted by certmonger
+  - httpinstance: avoid httpd restart during certificate request
+  - dsinstance, httpinstance: consolidate certificate request code
+  - install: request service certs after host keytab is set up
+  - renew agent: revert to host keytab authentication
+  - renew agent, restart scripts: connect to LDAP after kinit
+- Resolves: #1436987 ipasam: gidNumber attribute is not created in the trusted
+  domain entry
+  - ipa-sam: create the gidNumber attribute in the trusted domain entry
+  - Upgrade: add gidnumber to trusted domain entry
+- Resolves: #1438679 [ipa-replica-install] - IncorrectPasswordException:
+  Incorrect client security database password
+  - Add pki_pin only when needed
+- Resolves: #1438348 Console output message while adding trust should be
+  mapped with texts changed in Samba.
+  - ipaserver/dcerpc: unify error processing
+- Resolves: #1438366 ipa trust-fetch-domains: ValidationError: invalid
+  'Credentials': Missing credentials for cross-forest communication
+  - trust: always use oddjobd helper for fetching trust information
+- Resolves: #1441192 Add the name of URL parameter which will be check for
+  username during cert login
+  - WebUI: cert login: Configure name of parameter used to pass username
+- Resolves: #1437879 [copr] Replica install failing
+  - Create system users for FreeIPA services during package installation
+- Resolves: #1441316 WebUI cert auth fails after ipa-adtrust-install
+  - Fix s4u2self with adtrust
+
+* Wed Apr  5 2017 Jan Cholasta <jcholast@redhat.com> - 4.5.0-5.el7
+- Resolves: #1318186 Misleading error message during external-ca IPA master
+  install
+  - httpinstance: make sure NSS database is backed up
+- Resolves: #1331443 Re-installing ipa-server after uninstall fails with "ERROR
+  CA certificate chain in ... incomplete"
+  - httpinstance: make sure NSS database is backed up
+- Resolves: #1393726 Enumerate all available request type options in ipa
+  cert-request help
+  - Hide request_type doc string in cert-request help
+- Resolves: #1402959 [RFE] Universal Smart Card to Identity mapping
+  - spec file: bump libsss_nss_idmap-devel BuildRequires
+  - server: make sure we test for sss_nss_getlistbycert
+- Resolves: #1437378 ipa-adtrust-install produced an error and failed on
+  starting smb when hostname is not FQDN
+  - adtrust: make sure that runtime hostname result is consistent with the
+    configuration
+- Resolves: #1437555 ipa-replica-install with DL0 fails to get annonymous
+  keytab
+  - Always check and create anonymous principal during KDC install
+  - Remove duplicate functionality in upgrade
+- Resolves: #1437946 Upgrade to FreeIPA 4.5.0 does not configure anonymous
+  principal for PKINIT
+  - Upgrade: configure PKINIT after adding anonymous principal
+  - Remove unused variable from failed anonymous PKINIT handling
+  - Split out anonymous PKINIT test to a separate method
+  - Ensure KDC is propery configured after upgrade
+- Resolves: #1437951 Remove pkinit-related options from server/replica-install
+  on DL0
+  - Fix the order of cert-files check
+  - Don't allow setting pkinit-related options on DL0
+  - replica-prepare man: remove pkinit option refs
+  - Remove redundant option check for cert files
+- Resolves: #1438490 CA-less installation fails on publishing CA certificate
+  - Get correct CA cert nickname in CA-less
+  - Remove publish_ca_cert() method from NSSDatabase
+- Resolves: #1438838 Avoid arch-specific path in /etc/krb5.conf.d/ipa-certmap
+  - IPA-KDB: use relative path in ipa-certmap config snippet
+- Resolves: #1439038 Allow erasing ipaDomainResolutionOrder attribute
+  - Allow erasing ipaDomainResolutionOrder attribute
+
+* Wed Mar 29 2017 Jan Cholasta <jcholast@redhat.com> - 4.5.0-4.el7
+- Resolves: #1434032 Run ipa-custodia with custom SELinux context
+  - Require correct custodia version
+
+* Tue Mar 28 2017 Jan Cholasta <jcholast@redhat.com> - 4.5.0-3.el7
+- Resolves: #800545 [RFE] Support SUDO command rename
+  - Reworked the renaming mechanism
+  - Allow renaming of the sudorule objects
+- Resolves: #872671 IPA WebUI login for AD Trusted User fails
+  - WebUI: check principals in lowercase
+  - WebUI: add method for disabling item in user dropdown menu
+  - WebUI: Add support for login for AD users
+- Resolves: #1200767 [RFE] Allow Kerberos authentication for users with
+  certificates on smart cards (pkinit)
+  - ipa-kdb: add ipadb_fetch_principals_with_extra_filter()
+  - IPA certauth plugin
+  - ipa-kdb: do not depend on certauth_plugin.h
+  - spec file: bump krb5-devel BuildRequires for certauth
+- Resolves: #1264370 RFE: disable last successful authentication by default in
+  ipa.
+  - Set "KDC:Disable Last Success" by default
+- Resolves: #1318186 Misleading error message during external-ca IPA master
+  install
+  - certs: do not implicitly create DS pin.txt
+  - httpinstance: clean up /etc/httpd/alias on uninstall
+- Resolves: #1331443 Re-installing ipa-server after uninstall fails with "ERROR
+  CA certificate chain in ... incomplete"
+  - certs: do not implicitly create DS pin.txt
+  - httpinstance: clean up /etc/httpd/alias on uninstall
+- Resolves: #1366572 [RFE] Web UI: allow Smart Card authentication
+  - configure: fix --disable-server with certauth plugin
+  - rpcserver.login_x509: Actually return reply from __call__ method
+  - spec file: Bump requires to make Certificate Login in WebUI work
+- Resolves: #1402959 [RFE] Universal Smart Card to Identity mapping
+  - extdom: do reverse search for domain separator
+  - extdom: improve cert request
+- Resolves: #1430363 [RFE] HBAC rule names command rename
+  - Reworked the renaming mechanism
+  - Allow renaming of the HBAC rule objects
+- Resolves: #1433082 systemctl daemon-reload needs to be called after
+  httpd.service.d/ipa.conf is manipulated
+  - tasks: run `systemctl daemon-reload` after httpd.service.d updates
+- Resolves: #1434032 Run ipa-custodia with custom SELinux context
+  - Use Custodia 0.3.1 features
+- Resolves: #1434384 RPC client should use HTTP persistent connection
+  - Use connection keep-alive
+  - Add debug logging for keep-alive
+  - Increase Apache HTTPD's default keep alive timeout
+- Resolves: #1434729 man ipa-cacert-manage install needs clarification
+  - man ipa-cacert-manage install needs clarification
+- Resolves: #1434910 replica install against IPA v3 master fails with ACIError
+  - Fixing replica install: fix ldap connection in domlvl 0
+- Resolves: #1435394 Ipa-kra-install fails with weird output when backspace is
+  used during typing Directory Manager password
+  - ipapython.ipautil.nolog_replace: Do not replace empty value
+- Resolves: #1435397 ipa-replica-install can't install replica file produced by
+  ipa-replica-prepare on 4.5
+  - replica prepare: fix wrong IPA CA nickname in replica file
+- Resolves: #1435599 WebUI: in self-service Vault menu item is shown even if
+  KRA is not installed
+  - WebUI: Fix showing vault in selfservice view
+- Resolves: #1435718 As a ID user I cannot call a command with --rights option
+  - ldap2: use LDAP whoami operation to retrieve bind DN for current connection
+- Resolves: #1436319 "Truncated search results" pop-up appears in user details
+  in WebUI
+  - WebUI: Add support for suppressing warnings
+  - WebUI: suppress truncation warning in select widget
+- Resolves: #1436333 Uninstall fails with No such file or directory:
+  '/var/run/ipa/services.list'
+  - Create temporaty directories at the begining of uninstall
+- Resolves: #1436334 WebUI: Adding certificate mapping data using certificate
+  fails
+  - WebUI: Allow to add certs to certmapping with CERT LINES around
+- Resolves: #1436338 CLI doesn't work after ipa-restore
+  - Backup ipa-specific httpd unit-file
+  - Backup CA cert from kerberos folder
+- Resolves: #1436342 Bump samba version, required for FIPS mode and privilege
+  separation
+  - Bump samba version for FIPS and priv. separation
+- Resolves: #1436642 [ipalib/rpc.py] - "maximum recursion depth exceeded" with
+  ipa vault commands
+  - Avoid growing FILE ccaches unnecessarily
+  - Handle failed authentication via cookie
+  - Work around issues fetching session data
+  - Prevent churn on ccaches
+- Resolves: #1436657 Add workaround for pki_pin for FIPS
+  - Generate PIN for PKI to help Dogtag in FIPS
+- Resolves: #1436714 [vault] cache KRA transport cert
+  - Simplify KRA transport cert cache
+- Resolves: #1436723 cert-find does not find all certificates without
+  sizelimit=0
+  - cert: do not limit internal searches in cert-find
+- Resolves: #1436724 Renewal of IPA RA fails on replica
+  - dogtag-ipa-ca-renew-agent-submit: fix the is_replicated() function
+- Resolves: #1436753 Master tree fails to install
+  - httpinstance.disable_system_trust: Don't fail if module 'Root Certs' is not
+    available
+
+* Tue Mar 21 2017 Jan Cholasta <jcholast@redhat.com> - 4.5.0-2.el7
+- Resolves: #1432630 python2-jinja2 needed for python2-ipaclient
+  - Remove csrgen
+- Resolves: #1432903 Set GssProxy options to enable caching of ldap tickets
+  - Add options to allow ticket caching
+
+* Wed Mar 15 2017 Jan Cholasta <jcholast@redhat.com> - 4.5.0-1.el7
+- Resolves: #828866 [RFE] enhance --subject option for ipa-server-install
+- Resolves: #1160555 ipa-server-install: Cannot handle double hyphen "--" in
+  hostname
+- Resolves: #1286288 Insufficient 'write' privilege to the 'ipaExternalMember'
+  attribute
+- Resolves: #1321652 ipa-server-install fails when using external certificates
+  that encapsulate RDN components in double quotes
+- Resolves: #1327207 ipa cert-revoke --help doesn't provide enough info on
+  revocation reasons
+- Resolves: #1340880 ipa-server-install: improve prompt on interactive
+  installation
+- Resolves: #1353841 ipa-replica-install fails to install when resolv.conf
+  incomplete entries
+- Resolves: #1356104 cert-show command does not display Subject Alternative
+  Names
+- Resolves: #1357511 Traceback message seen when ipa is provided with invalid
+  configuration file name
+- Resolves: #1358752 ipa-ca-install fails on replica when IPA server is
+  converted from CA-less to CA-full
+- Resolves: #1366572 [RFE] Web UI: allow Smart Card authentication
+- Resolves: #1367572 improve error message in ipa migrate-ds: mention ipa
+  config-mod --enable-migration=TRUE
+- Resolves: #1367868 Add options to retrieve lightweight CA certificate/chain
+- Resolves: #1371927 Implement ca-enable/disable commands.
+- Resolves: #1372202 Add Users into User Group editors fails to show Full names
+- Resolves: #1373091 Adding an auth indicator from the CLI creates an extra
+  check box in the UI
+- Resolves: #1375596 Ipa-server WebUI - long user/group name show wrong error
+  message
+- Resolves: #1375905 "Normal" group type in the UI is confusing
+- Resolves: #1376040 IPA client ipv6 - invalid --ip-address shows traceback
+- Resolves: #1376630 IDM admin password gets written to
+  /root/.dogtag/pki-tomcat/ca/pkcs12_password.conf
+- Resolves: #1376729 ipa-server-install script option --no_hbac_allow should
+  match other options
+- Resolves: #1378461 IPA Allows Password Reuse with History value defined when
+  admin resets the password.
+- Resolves: #1379029 conncheck failing intermittently during single step
+  replica installs
+- Resolves: #1379858 [RFE] better debugging for ipa-replica-conncheck
+- Resolves: #1384310 ipa dnsrecord-add fails with Keyerror stack trace
+- Resolves: #1392778 Update man page for ipa-adtrust-install by
+  removing --no-msdcs option
+- Resolves: #1392858 Rebase to FreeIPA 4.5+
+  - Rebase to 4.5.0
+- Resolves: #1399133 Delete option shouldn't be available for hosts applied to
+  view.
+- Resolves: #1399190 [RFE] Certificates issued by externally signed IdM CA
+  should contain full trust chain
+- Resolves: #1400416 RFE: Provide option to take backup of IPA server before
+  uninstalling IPA server
+- Resolves: #1400529 cert-request is not aware of Kerberos principal aliases
+- Resolves: #1401526 IPA WebUI certificates are grayed out on overview page but
+  not on details page
+- Resolves: #1402959 [RFE] Universal Smart Card to Identity mapping
+- Resolves: #1404750 ipa-client-install fails to get CA cert via LDAP when
+  non-FQDN name of IPA server is first in /etc/hosts
+- Resolves: #1409628 [RFE] Semi-automatic integration with external DNS using
+  nsupdate
+- Resolves: #1413742 Backport request for bug/issue Change IP address
+  validation errors to warnings
+- Resolves: #1415652 IPA replica install log shows password in plain text
+- Resolves: #1427897 different behavior regarding system wide certs in master
+  and replica.
+- Resolves: #1430314 The ipa-managed-entries command failed, exception:
+  AttributeError: ldap2
+
 * Tue Mar 14 2017 Jan Cholasta <jcholast@redhat.com> - 4.4.0-14.7
-- Resolves: #1429872 ipa-replica-install fails promotecustodia.create_replica
+- Resolves: #1419735 ipa-replica-install fails promotecustodia.create_replica
   with cert errors (untrusted)
   - added ssl verification using IPA trust anchor
-- Resolves: #1430674 batch param compatibility is incorrect
+- Resolves: #1428472 batch param compatibility is incorrect
   - compat: fix `Any` params in `batch` and `dnsrecord`
 - Renamed patches 1011 and 1012 to 0159 and 0157, as they were merged upstream
 
 * Tue Jan 31 2017 Jan Cholasta <jcholast@redhat.com> - 4.4.0-14.6
-- Resolves: #1416488 replication race condition prevents IPA to install
+- Resolves: #1416454 replication race condition prevents IPA to install
   - wait_for_entry: use only DN as parameter
   - Wait until HTTPS principal entry is replicated to replica
   - Use proper logging for error messages
 
 * Tue Jan 31 2017 Jan Cholasta <jcholast@redhat.com> - 4.4.0-14.5
-- Resolves: #1410760 ipa-ca-install fails on replica when IPA Master is
+- Resolves: #1365858 ipa-ca-install fails on replica when IPA Master is
   installed without CA
   - Set up DS TLS on replica in CA-less topology
+- Resolves: #1398600 IPA replica install fails with dirsrv errors.
+  - Do not configure PKI ajp redirection to use "::1"
 - Resolves: #1413137 CVE-2017-2590 ipa: Insufficient permission check for
   ca-del, ca-disable and ca-enable commands
   - ca: correctly authorise ca-del, ca-enable and ca-disable
-- Resolves: #1416481 IPA replica install fails with dirsrv errors.
-  - Do not configure PKI ajp redirection to use "::1"
 
 * Fri Dec 16 2016 Jan Cholasta <jcholast@redhat.com> - 4.4.0-14.4
 - Resolves: #1370493 CVE-2016-7030 ipa: DoS attack against kerberized services
@@ -1586,21 +2390,21 @@ fi
 - Renamed patches 1011 and 1012 to 0151 and 0150, as they were merged upstream
 
 * Tue Dec 13 2016 Jan Cholasta <jcholast@redhat.com> - 4.4.0-14.3
-- Resolves: #1404338 Check IdM Topology for broken record caused by replication
+- Resolves: #1398670 Check IdM Topology for broken record caused by replication
   conflict before upgrading it
   - Check for conflict entries before raising domain level
 
 * Tue Dec 13 2016 Jan Cholasta <jcholast@redhat.com> - 4.4.0-14.2
-- Resolves: #1401953 ipa-ca-install on promoted replica hangs on creating a
+- Resolves: #1382812 Creation of replica for disconnected environment is
+  failing with CA issuance errors; Need good steps.
+  - gracefully handle setting replica bind dn group on old masters
+- Resolves: #1397439 ipa-ca-install on promoted replica hangs on creating a
   temporary CA admin
   - replication: ensure bind DN group check interval is set on replica config
   - add missing attribute to ipaca replica during CA topology update
-- Resolves: #1404169 IPA upgrade of replica without DNS fails during restart of
+- Resolves: #1401088 IPA upgrade of replica without DNS fails during restart of
   named-pkcs11
   - bindinstance: use data in named.conf to determine configuration status
-- Resolves: #1404171 Creation of replica for disconnected environment is
-  failing with CA issuance errors; Need good steps.
-  - gracefully handle setting replica bind dn group on old masters
 
 * Mon Dec 12 2016 Jan Cholasta <jcholast@redhat.com> - 4.4.0-14.1
 - Resolves: #1370493 CVE-2016-7030 ipa: DoS attack against kerberized services

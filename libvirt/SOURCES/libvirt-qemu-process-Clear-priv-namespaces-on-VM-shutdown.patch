@@ -1,0 +1,35 @@
+From eb52df58d1dc63812430728f173699665e936cdf Mon Sep 17 00:00:00 2001
+Message-Id: <eb52df58d1dc63812430728f173699665e936cdf@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 23 May 2017 16:33:26 +0200
+Subject: [PATCH] qemu: process: Clear priv->namespaces on VM shutdown
+
+Otherwise the private data entry would be kept across instances of the
+same VM even if it's not configured to do so.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1453142
+(cherry picked from commit 5203975f37e24f7b7156f0251f19f5001a6bd6eb)
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_process.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index df5ba575a..6f0d07242 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -6447,6 +6447,10 @@ void qemuProcessStop(virQEMUDriverPtr driver,
+     /* clean up migration data */
+     VIR_FREE(priv->migTLSAlias);
+ 
++    /* clear previously used namespaces */
++    virBitmapFree(priv->namespaces);
++    priv->namespaces = NULL;
++
+     /* The "release" hook cleans up additional resources */
+     if (virHookPresent(VIR_HOOK_DRIVER_QEMU)) {
+         char *xml = qemuDomainDefFormatXML(driver, vm->def, 0);
+-- 
+2.13.0
+

@@ -1,0 +1,36 @@
+From af6bebddeb6a9e4c5c731d3c075dc5f955cbd94f Mon Sep 17 00:00:00 2001
+From: Debarshi Ray <debarshir@gnome.org>
+Date: Fri, 19 May 2017 18:33:44 +0200
+Subject: [PATCH] Drop Gadu-Gadu and MXit
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1026505
+https://bugzilla.redhat.com/show_bug.cgi?id=1439296
+---
+ configure.ac | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/configure.ac b/configure.ac
+index 51471b1f5deb..eeec35350d20 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -1091,7 +1091,7 @@ if test "x$STATIC_PRPLS" != "x" -a "x$DYNAMIC_PRPLS" = "xall"; then
+ fi
+ 
+ if test "x$STATIC_PRPLS" = "xall" ; then
+-	STATIC_PRPLS="bonjour gg irc jabber msn myspace mxit novell oscar sametime silc simple yahoo zephyr"
++	STATIC_PRPLS="bonjour irc jabber msn myspace novell oscar sametime silc simple yahoo zephyr"
+ fi
+ if test "x$have_meanwhile" != "xyes" ; then
+ 	STATIC_PRPLS=`echo $STATIC_PRPLS | $sedpath 's/sametime//'`
+@@ -1176,7 +1176,7 @@ AC_DEFINE_UNQUOTED(STATIC_PROTO_INIT, $extern_init static void static_proto_init
+ 
+ AC_ARG_WITH(dynamic_prpls, [AC_HELP_STRING([--with-dynamic-prpls], [specify which protocols to build dynamically])], [DYNAMIC_PRPLS=`echo $withval | $sedpath 's/,/ /g'`])
+ if test "x$DYNAMIC_PRPLS" = "xall" ; then
+-	DYNAMIC_PRPLS="bonjour gg irc jabber msn myspace mxit novell oscar sametime silc simple yahoo zephyr"
++	DYNAMIC_PRPLS="bonjour irc jabber msn myspace novell oscar sametime silc simple yahoo zephyr"
+ fi
+ if test "x$have_meanwhile" != "xyes"; then
+ 	DYNAMIC_PRPLS=`echo $DYNAMIC_PRPLS | $sedpath 's/sametime//'`
+-- 
+2.9.4
+

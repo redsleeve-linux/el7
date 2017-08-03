@@ -1,0 +1,98 @@
+From 01440531b0805d647b0a0a37e2c3ea9489d19a35 Mon Sep 17 00:00:00 2001
+From: Jan Cholasta <jcholast@redhat.com>
+Date: Thu, 18 May 2017 07:57:40 +0000
+Subject: [PATCH] install: introduce generic Kerberos Augeas lens
+
+Introduce new IPAKrb5 lens to handle krb5.conf and kdc.conf changes using
+Augeas. The stock Krb5 lens does not work on our krb5.conf and kdc.conf.
+
+https://pagure.io/freeipa/issue/6831
+
+Reviewed-By: Stanislav Laznicka <slaznick@redhat.com>
+Reviewed-By: Martin Babinsky <mbabinsk@redhat.com>
+---
+ freeipa.spec.in           |  1 +
+ install/share/Makefile.am |  1 +
+ install/share/ipakrb5.aug | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 48 insertions(+)
+ create mode 100644 install/share/ipakrb5.aug
+
+diff --git a/freeipa.spec.in b/freeipa.spec.in
+index 6cb37ae53b039aa1d0e0509f62a3237504be6555..790e5838e0ba45ea9bbfe3bc3a1bd40c0bd3ac1a 100644
+--- a/freeipa.spec.in
++++ b/freeipa.spec.in
+@@ -1362,6 +1362,7 @@ fi
+ %dir %{_usr}/share/ipa/schema.d
+ %attr(0644,root,root) %{_usr}/share/ipa/schema.d/README
+ %attr(0644,root,root) %{_usr}/share/ipa/gssapi.login
++%{_usr}/share/ipa/ipakrb5.aug
+ 
+ %files server-dns
+ %defattr(-,root,root,-)
+diff --git a/install/share/Makefile.am b/install/share/Makefile.am
+index b27861da37153d77d693ce6e46340525bbd50173..85a061c6976dcc55b0ba2250423a344e14f2ce97 100644
+--- a/install/share/Makefile.am
++++ b/install/share/Makefile.am
+@@ -89,6 +89,7 @@ dist_app_DATA =				\
+ 	gssapi.login			\
+ 	ipa.conf.tmpfiles		\
+ 	gssproxy.conf.template		\
++	ipakrb5.aug			\
+ 	$(NULL)
+ 
+ kdcproxyconfdir = $(IPA_SYSCONF_DIR)/kdcproxy
+diff --git a/install/share/ipakrb5.aug b/install/share/ipakrb5.aug
+new file mode 100644
+index 0000000000000000000000000000000000000000..4a31a84e147a680067acddac683c672ccb6f9c31
+--- /dev/null
++++ b/install/share/ipakrb5.aug
+@@ -0,0 +1,46 @@
++module IPAKrb5 =
++  autoload xfm
++
++  let dels (s:string) = Util.del_str s
++
++  let indent    = Util.indent
++  let space     = Sep.space
++  let opt_space = Sep.opt_space
++  let sep       = Sep.space_equal
++  let eol       = IniFile.eol
++
++  let kw  = Rx.word
++  let val = Rx.space_in
++
++  let comment = IniFile.comment IniFile.comment_re "# "
++  let empty   = IniFile.empty
++
++  let entry_generic (v:lens) = [ indent . key kw . sep . v . eol ]
++
++  (*
++    FIXME: combine entry and subrecord into a single recursive lens
++
++    This does not work for some reason:
++      let rec entry = entry_generic ( store ( val - "{" ) )
++                    | entry_generic ( dels "{" . eol
++                                    . ( entry | comment | empty )*
++                                    . indent . dels "}" )
++  *)
++  let entry     = entry_generic ( store ( val - "{" ) )
++  let subrecord = entry_generic ( dels "{" . eol
++                                . ( entry | comment | empty )*
++                                . indent . dels "}" )
++
++  let title  = IniFile.indented_title kw
++  let record = IniFile.record title ( entry | subrecord | comment )
++
++  let directive = Build.key_value_line kw space ( store val )
++
++  let lns = IniFile.lns record ( directive | comment )
++
++  let filter = incl "/etc/krb5.conf"
++             . incl "/etc/krb5.conf.d/*"
++             . incl "/var/kerberos/krb5kdc/kdc.conf"
++             . Util.stdexcl
++
++  let xfm = transform lns filter
+-- 
+2.9.4
+

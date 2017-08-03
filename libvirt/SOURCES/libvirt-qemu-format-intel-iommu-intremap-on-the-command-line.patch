@@ -1,0 +1,715 @@
+From f341f4c03ec726b6004e477259ba2da0932528e3 Mon Sep 17 00:00:00 2001
+Message-Id: <f341f4c03ec726b6004e477259ba2da0932528e3@dist-git>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Tue, 16 May 2017 10:44:55 +0200
+Subject: [PATCH] qemu: format intel-iommu, intremap on the command line
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1427005
+(cherry picked from commit 04028a9db9f2657e8d57d1e4705073c908aa248c)
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+
+Conflicts:
+        tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml
+          - downstream did not update qemu version to 2.9.0
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_capabilities.c                       |  8 ++++
+ src/qemu/qemu_capabilities.h                       |  1 +
+ src/qemu/qemu_command.c                            | 18 ++++++++
+ .../qemucapabilitiesdata/caps_2.4.0.x86_64.replies | 22 +++++++---
+ .../qemucapabilitiesdata/caps_2.5.0.x86_64.replies | 24 +++++++----
+ .../qemucapabilitiesdata/caps_2.6.0.x86_64.replies | 24 +++++++----
+ .../qemucapabilitiesdata/caps_2.7.0.x86_64.replies | 28 +++++++++----
+ tests/qemucapabilitiesdata/caps_2.7.0.x86_64.xml   |  1 +
+ .../qemucapabilitiesdata/caps_2.8.0.x86_64.replies | 37 ++++++++++++----
+ tests/qemucapabilitiesdata/caps_2.8.0.x86_64.xml   |  1 +
+ .../qemucapabilitiesdata/caps_2.9.0.x86_64.replies | 49 ++++++++++++++++++----
+ tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml   |  1 +
+ .../qemuxml2argv-intel-iommu-ioapic.args           |  2 +-
+ tests/qemuxml2argvtest.c                           |  1 +
+ 14 files changed, 173 insertions(+), 44 deletions(-)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index f27fe0a24..4fd0df260 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -369,6 +369,7 @@ VIR_ENUM_IMPL(virQEMUCaps, QEMU_CAPS_LAST,
+ 
+               "kernel-irqchip", /* 255 */
+               "kernel-irqchip.split",
++              "intel-iommu.intremap",
+     );
+ 
+ 
+@@ -1721,6 +1722,10 @@ static struct virQEMUCapsStringFlags virQEMUCapsObjectPropsUSBNECXHCI[] = {
+     { "p3", QEMU_CAPS_NEC_USB_XHCI_PORTS },
+ };
+ 
++static struct virQEMUCapsStringFlags virQEMUCapsObjectPropsIntelIOMMU[] = {
++    { "intremap", QEMU_CAPS_INTEL_IOMMU_INTREMAP },
++};
++
+ /* see documentation for virQEMUCapsQMPSchemaGetByPath for the query format */
+ static struct virQEMUCapsStringFlags virQEMUCapsQMPSchemaQueries[] = {
+     { "blockdev-add/arg-type/options/+gluster/debug-level", QEMU_CAPS_GLUSTER_DEBUG_LEVEL},
+@@ -1828,6 +1833,9 @@ static struct virQEMUCapsObjectTypeProps virQEMUCapsObjectProps[] = {
+     { "nec-usb-xhci", virQEMUCapsObjectPropsUSBNECXHCI,
+       ARRAY_CARDINALITY(virQEMUCapsObjectPropsUSBNECXHCI),
+       -1 },
++    { "intel-iommu", virQEMUCapsObjectPropsIntelIOMMU,
++      ARRAY_CARDINALITY(virQEMUCapsObjectPropsIntelIOMMU),
++      QEMU_CAPS_DEVICE_INTEL_IOMMU},
+ };
+ 
+ struct virQEMUCapsPropTypeObjects {
+diff --git a/src/qemu/qemu_capabilities.h b/src/qemu/qemu_capabilities.h
+index a6cdf2c3d..d1730a725 100644
+--- a/src/qemu/qemu_capabilities.h
++++ b/src/qemu/qemu_capabilities.h
+@@ -407,6 +407,7 @@ typedef enum {
+     /* 255 */
+     QEMU_CAPS_MACHINE_KERNEL_IRQCHIP, /* -machine kernel_irqchip */
+     QEMU_CAPS_MACHINE_KERNEL_IRQCHIP_SPLIT, /* -machine kernel_irqchip=split */
++    QEMU_CAPS_INTEL_IOMMU_INTREMAP, /* intel-iommu.intremap */
+ 
+     QEMU_CAPS_LAST /* this must always be the last item */
+ } virQEMUCapsFlags;
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index 7151b1843..a8dac1489 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -6671,6 +6671,20 @@ qemuBuildIOMMUCommandLine(virCommandPtr cmd,
+     if (!iommu)
+         return 0;
+ 
++    switch (iommu->model) {
++    case VIR_DOMAIN_IOMMU_MODEL_INTEL:
++        if (iommu->intremap != VIR_TRISTATE_SWITCH_ABSENT &&
++            !virQEMUCapsGet(qemuCaps, QEMU_CAPS_INTEL_IOMMU_INTREMAP)) {
++            virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
++                           _("iommu: interrupt remapping is not supported "
++                             "with this QEMU binary"));
++            return -1;
++        }
++        break;
++    case VIR_DOMAIN_IOMMU_MODEL_LAST:
++        break;
++    }
++
+     if (virQEMUCapsGet(qemuCaps, QEMU_CAPS_MACHINE_IOMMU))
+         return 0; /* Already handled via -machine */
+ 
+@@ -6691,6 +6705,10 @@ qemuBuildIOMMUCommandLine(virCommandPtr cmd,
+             return -1;
+         }
+         virBufferAddLit(&opts, "intel-iommu");
++        if (iommu->intremap != VIR_TRISTATE_SWITCH_ABSENT) {
++            virBufferAsprintf(&opts, ",intremap=%s",
++                              virTristateSwitchTypeToString(iommu->intremap));
++        }
+     case VIR_DOMAIN_IOMMU_MODEL_LAST:
+         break;
+     }
+diff --git a/tests/qemucapabilitiesdata/caps_2.4.0.x86_64.replies b/tests/qemucapabilitiesdata/caps_2.4.0.x86_64.replies
+index 68221816b..9f256c48a 100644
+--- a/tests/qemucapabilitiesdata/caps_2.4.0.x86_64.replies
++++ b/tests/qemucapabilitiesdata/caps_2.4.0.x86_64.replies
+@@ -3123,6 +3123,16 @@
+ {
+   "return": [
+     {
++      "name": "version",
++      "type": "uint32"
++    }
++  ],
++  "id": "libvirt-41"
++}
++
++{
++  "return": [
++    {
+       "name": "pc-i440fx-2.4",
+       "is-default": true,
+       "cpu-max": 255,
+@@ -3246,7 +3256,7 @@
+       "cpu-max": 255
+     }
+   ],
+-  "id": "libvirt-41"
++  "id": "libvirt-42"
+ }
+ 
+ {
+@@ -3336,21 +3346,21 @@
+       "name": "qemu64"
+     }
+   ],
+-  "id": "libvirt-42"
++  "id": "libvirt-43"
+ }
+ 
+ {
+   "return": [
+     "tpm-tis"
+   ],
+-  "id": "libvirt-43"
++  "id": "libvirt-44"
+ }
+ 
+ {
+   "return": [
+     "passthrough"
+   ],
+-  "id": "libvirt-44"
++  "id": "libvirt-45"
+ }
+ 
+ {
+@@ -4358,7 +4368,7 @@
+       "option": "drive"
+     }
+   ],
+-  "id": "libvirt-45"
++  "id": "libvirt-46"
+ }
+ 
+ {
+@@ -4388,7 +4398,7 @@
+       "capability": "events"
+     }
+   ],
+-  "id": "libvirt-46"
++  "id": "libvirt-47"
+ }
+ 
+ {
+diff --git a/tests/qemucapabilitiesdata/caps_2.5.0.x86_64.replies b/tests/qemucapabilitiesdata/caps_2.5.0.x86_64.replies
+index 2eeed7d6c..876bc2f0a 100644
+--- a/tests/qemucapabilitiesdata/caps_2.5.0.x86_64.replies
++++ b/tests/qemucapabilitiesdata/caps_2.5.0.x86_64.replies
+@@ -3286,6 +3286,16 @@
+ {
+   "return": [
+     {
++      "name": "version",
++      "type": "uint32"
++    }
++  ],
++  "id": "libvirt-41"
++}
++
++{
++  "return": [
++    {
+       "name": "pc-i440fx-2.4",
+       "cpu-max": 255
+     },
+@@ -3417,7 +3427,7 @@
+       "cpu-max": 255
+     }
+   ],
+-  "id": "libvirt-41"
++  "id": "libvirt-42"
+ }
+ 
+ {
+@@ -3507,21 +3517,21 @@
+       "name": "qemu64"
+     }
+   ],
+-  "id": "libvirt-42"
++  "id": "libvirt-43"
+ }
+ 
+ {
+   "return": [
+     "tpm-tis"
+   ],
+-  "id": "libvirt-43"
++  "id": "libvirt-44"
+ }
+ 
+ {
+   "return": [
+     "passthrough"
+   ],
+-  "id": "libvirt-44"
++  "id": "libvirt-45"
+ }
+ 
+ {
+@@ -4566,7 +4576,7 @@
+       "option": "drive"
+     }
+   ],
+-  "id": "libvirt-45"
++  "id": "libvirt-46"
+ }
+ 
+ {
+@@ -4600,7 +4610,7 @@
+       "capability": "x-postcopy-ram"
+     }
+   ],
+-  "id": "libvirt-46"
++  "id": "libvirt-47"
+ }
+ 
+ {
+@@ -12145,7 +12155,7 @@
+       "meta-type": "array"
+     }
+   ],
+-  "id": "libvirt-47"
++  "id": "libvirt-48"
+ }
+ 
+ {
+diff --git a/tests/qemucapabilitiesdata/caps_2.6.0.x86_64.replies b/tests/qemucapabilitiesdata/caps_2.6.0.x86_64.replies
+index 0c285cd95..d6d0b5786 100644
+--- a/tests/qemucapabilitiesdata/caps_2.6.0.x86_64.replies
++++ b/tests/qemucapabilitiesdata/caps_2.6.0.x86_64.replies
+@@ -3368,6 +3368,16 @@
+ {
+   "return": [
+     {
++      "name": "version",
++      "type": "uint32"
++    }
++  ],
++  "id": "libvirt-41"
++}
++
++{
++  "return": [
++    {
+       "name": "pc-0.12",
+       "cpu-max": 255
+     },
+@@ -3475,7 +3485,7 @@
+       "cpu-max": 255
+     }
+   ],
+-  "id": "libvirt-41"
++  "id": "libvirt-42"
+ }
+ 
+ {
+@@ -3565,21 +3575,21 @@
+       "name": "qemu64"
+     }
+   ],
+-  "id": "libvirt-42"
++  "id": "libvirt-43"
+ }
+ 
+ {
+   "return": [
+     "tpm-tis"
+   ],
+-  "id": "libvirt-43"
++  "id": "libvirt-44"
+ }
+ 
+ {
+   "return": [
+     "passthrough"
+   ],
+-  "id": "libvirt-44"
++  "id": "libvirt-45"
+ }
+ 
+ {
+@@ -4673,7 +4683,7 @@
+       "option": "drive"
+     }
+   ],
+-  "id": "libvirt-45"
++  "id": "libvirt-46"
+ }
+ 
+ {
+@@ -4707,7 +4717,7 @@
+       "capability": "postcopy-ram"
+     }
+   ],
+-  "id": "libvirt-46"
++  "id": "libvirt-47"
+ }
+ 
+ {
+@@ -12712,7 +12722,7 @@
+       "meta-type": "array"
+     }
+   ],
+-  "id": "libvirt-47"
++  "id": "libvirt-48"
+ }
+ 
+ {
+diff --git a/tests/qemucapabilitiesdata/caps_2.7.0.x86_64.replies b/tests/qemucapabilitiesdata/caps_2.7.0.x86_64.replies
+index 4a872370b..671a958be 100644
+--- a/tests/qemucapabilitiesdata/caps_2.7.0.x86_64.replies
++++ b/tests/qemucapabilitiesdata/caps_2.7.0.x86_64.replies
+@@ -3559,6 +3559,20 @@
+ {
+   "return": [
+     {
++      "name": "version",
++      "type": "uint32"
++    },
++    {
++      "name": "intremap",
++      "type": "bool"
++    }
++  ],
++  "id": "libvirt-41"
++}
++
++{
++  "return": [
++    {
+       "hotpluggable-cpus": true,
+       "name": "pc-0.12",
+       "cpu-max": 255
+@@ -3702,7 +3716,7 @@
+       "cpu-max": 255
+     }
+   ],
+-  "id": "libvirt-41"
++  "id": "libvirt-42"
+ }
+ 
+ {
+@@ -3795,21 +3809,21 @@
+       "name": "qemu64"
+     }
+   ],
+-  "id": "libvirt-42"
++  "id": "libvirt-43"
+ }
+ 
+ {
+   "return": [
+     "tpm-tis"
+   ],
+-  "id": "libvirt-43"
++  "id": "libvirt-44"
+ }
+ 
+ {
+   "return": [
+     "passthrough"
+   ],
+-  "id": "libvirt-44"
++  "id": "libvirt-45"
+ }
+ 
+ {
+@@ -4907,7 +4921,7 @@
+       "option": "drive"
+     }
+   ],
+-  "id": "libvirt-45"
++  "id": "libvirt-46"
+ }
+ 
+ {
+@@ -4941,7 +4955,7 @@
+       "capability": "postcopy-ram"
+     }
+   ],
+-  "id": "libvirt-46"
++  "id": "libvirt-47"
+ }
+ 
+ {
+@@ -13297,7 +13311,7 @@
+       "meta-type": "object"
+     }
+   ],
+-  "id": "libvirt-47"
++  "id": "libvirt-48"
+ }
+ 
+ {
+diff --git a/tests/qemucapabilitiesdata/caps_2.7.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_2.7.0.x86_64.xml
+index 6c2ea59c6..49c046212 100644
+--- a/tests/qemucapabilitiesdata/caps_2.7.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.7.0.x86_64.xml
+@@ -204,6 +204,7 @@
+   <flag name='query-named-block-nodes'/>
+   <flag name='kernel-irqchip'/>
+   <flag name='kernel-irqchip.split'/>
++  <flag name='intel-iommu.intremap'/>
+   <version>2007000</version>
+   <kvmVersion>0</kvmVersion>
+   <package> (v2.7.0)</package>
+diff --git a/tests/qemucapabilitiesdata/caps_2.8.0.x86_64.replies b/tests/qemucapabilitiesdata/caps_2.8.0.x86_64.replies
+index b3ad9121e..3087d7680 100644
+--- a/tests/qemucapabilitiesdata/caps_2.8.0.x86_64.replies
++++ b/tests/qemucapabilitiesdata/caps_2.8.0.x86_64.replies
+@@ -3692,6 +3692,29 @@
+ {
+   "return": [
+     {
++      "name": "eim",
++      "description": "on/off/auto",
++      "type": "OnOffAuto"
++    },
++    {
++      "name": "x-buggy-eim",
++      "type": "bool"
++    },
++    {
++      "name": "intremap",
++      "type": "bool"
++    },
++    {
++      "name": "version",
++      "type": "uint32"
++    }
++  ],
++  "id": "libvirt-41"
++}
++
++{
++  "return": [
++    {
+       "hotpluggable-cpus": true,
+       "name": "pc-0.12",
+       "cpu-max": 255
+@@ -3855,7 +3878,7 @@
+       "cpu-max": 255
+     }
+   ],
+-  "id": "libvirt-41"
++  "id": "libvirt-42"
+ }
+ 
+ {
+@@ -4061,21 +4084,21 @@
+       "static": false
+     }
+   ],
+-  "id": "libvirt-42"
++  "id": "libvirt-43"
+ }
+ 
+ {
+   "return": [
+     "tpm-tis"
+   ],
+-  "id": "libvirt-43"
++  "id": "libvirt-44"
+ }
+ 
+ {
+   "return": [
+     "passthrough"
+   ],
+-  "id": "libvirt-44"
++  "id": "libvirt-45"
+ }
+ 
+ {
+@@ -5198,7 +5221,7 @@
+       "option": "drive"
+     }
+   ],
+-  "id": "libvirt-45"
++  "id": "libvirt-46"
+ }
+ 
+ {
+@@ -5236,7 +5259,7 @@
+       "capability": "x-colo"
+     }
+   ],
+-  "id": "libvirt-46"
++  "id": "libvirt-47"
+ }
+ 
+ {
+@@ -14006,7 +14029,7 @@
+       "meta-type": "object"
+     }
+   ],
+-  "id": "libvirt-47"
++  "id": "libvirt-48"
+ }
+ 
+ {
+diff --git a/tests/qemucapabilitiesdata/caps_2.8.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_2.8.0.x86_64.xml
+index 9c8c79ab0..e51567817 100644
+--- a/tests/qemucapabilitiesdata/caps_2.8.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.8.0.x86_64.xml
+@@ -205,6 +205,7 @@
+   <flag name='query-named-block-nodes'/>
+   <flag name='kernel-irqchip'/>
+   <flag name='kernel-irqchip.split'/>
++  <flag name='intel-iommu.intremap'/>
+   <version>2008000</version>
+   <kvmVersion>0</kvmVersion>
+   <package> (v2.8.0)</package>
+diff --git a/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.replies b/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.replies
+index bae24750c..3cfefb709 100644
+--- a/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.replies
++++ b/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.replies
+@@ -4003,6 +4003,37 @@
+ {
+   "return": [
+     {
++      "name": "eim",
++      "description": "on/off/auto",
++      "type": "OnOffAuto"
++    },
++    {
++      "name": "caching-mode",
++      "type": "bool"
++    },
++    {
++      "name": "x-buggy-eim",
++      "type": "bool"
++    },
++    {
++      "name": "intremap",
++      "type": "bool"
++    },
++    {
++      "name": "version",
++      "type": "uint32"
++    },
++    {
++      "name": "device-iotlb",
++      "type": "bool"
++    }
++  ],
++  "id": "libvirt-41"
++}
++
++{
++  "return": [
++    {
+       "hotpluggable-cpus": true,
+       "name": "pc-0.12",
+       "cpu-max": 255
+@@ -4176,7 +4207,7 @@
+       "cpu-max": 255
+     }
+   ],
+-  "id": "libvirt-41"
++  "id": "libvirt-42"
+ }
+ 
+ {
+@@ -4458,21 +4489,21 @@
+       "migration-safe": true
+     }
+   ],
+-  "id": "libvirt-42"
++  "id": "libvirt-43"
+ }
+ 
+ {
+   "return": [
+     "tpm-tis"
+   ],
+-  "id": "libvirt-43"
++  "id": "libvirt-44"
+ }
+ 
+ {
+   "return": [
+     "passthrough"
+   ],
+-  "id": "libvirt-44"
++  "id": "libvirt-45"
+ }
+ 
+ {
+@@ -5721,7 +5752,7 @@
+       "option": "drive"
+     }
+   ],
+-  "id": "libvirt-45"
++  "id": "libvirt-46"
+ }
+ 
+ {
+@@ -5763,7 +5794,7 @@
+       "capability": "release-ram"
+     }
+   ],
+-  "id": "libvirt-46"
++  "id": "libvirt-47"
+ }
+ 
+ {
+@@ -14888,7 +14919,7 @@
+       "meta-type": "object"
+     }
+   ],
+-  "id": "libvirt-47"
++  "id": "libvirt-48"
+ }
+ 
+ {
+@@ -15067,7 +15098,7 @@
+       }
+     }
+   },
+-  "id": "libvirt-48"
++  "id": "libvirt-49"
+ }
+ 
+ {
+@@ -15308,7 +15339,7 @@
+       }
+     }
+   },
+-  "id": "libvirt-49"
++  "id": "libvirt-50"
+ }
+ 
+ {
+diff --git a/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml
+index e4cdca89a..5a88cf505 100644
+--- a/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml
+@@ -211,6 +211,7 @@
+   <flag name='qemu-xhci'/>
+   <flag name='kernel-irqchip'/>
+   <flag name='kernel-irqchip.split'/>
++  <flag name='intel-iommu.intremap'/>
+   <version>2008090</version>
+   <kvmVersion>0</kvmVersion>
+   <package> (v2.9.0-rc0-142-g940a8ce)</package>
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-intel-iommu-ioapic.args b/tests/qemuxml2argvdata/qemuxml2argv-intel-iommu-ioapic.args
+index 43d71adfc..c6539878a 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-intel-iommu-ioapic.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-intel-iommu-ioapic.args
+@@ -16,4 +16,4 @@ QEMU_AUDIO_DRV=none \
+ -monitor unix:/tmp/lib/domain--1-QEMUGuest1/monitor.sock,server,nowait \
+ -no-acpi \
+ -boot c \
+--device intel-iommu
++-device intel-iommu,intremap=on
+diff --git a/tests/qemuxml2argvtest.c b/tests/qemuxml2argvtest.c
+index c7aad297c..8061292b3 100644
+--- a/tests/qemuxml2argvtest.c
++++ b/tests/qemuxml2argvtest.c
+@@ -2521,6 +2521,7 @@ mymain(void)
+             QEMU_CAPS_MACHINE_OPT,
+             QEMU_CAPS_MACHINE_KERNEL_IRQCHIP,
+             QEMU_CAPS_MACHINE_KERNEL_IRQCHIP_SPLIT,
++            QEMU_CAPS_INTEL_IOMMU_INTREMAP,
+             QEMU_CAPS_DEVICE_INTEL_IOMMU);
+ 
+     DO_TEST("cpu-hotplug-startup", QEMU_CAPS_QUERY_HOTPLUGGABLE_CPUS);
+-- 
+2.13.0
+

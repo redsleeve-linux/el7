@@ -1,0 +1,60 @@
+From f57c0fbd46d0cca82b45c2f16fab316aa2554a08 Mon Sep 17 00:00:00 2001
+From: Stanislav Laznicka <slaznick@redhat.com>
+Date: Fri, 24 Mar 2017 09:52:18 +0100
+Subject: [PATCH] Get correct CA cert nickname in CA-less
+
+During CA-less installation, we initialize the HTTPD alias
+database from a pkcs12 file. This means there's going to
+be different nicknames to the added certificates. Store
+the CA certificate nickname in HTTPInstance__setup_ssl()
+to be able to correctly export it later.
+
+https://pagure.io/freeipa/issue/6806
+
+Reviewed-By: Jan Cholasta <jcholast@redhat.com>
+---
+ ipaserver/install/httpinstance.py | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/ipaserver/install/httpinstance.py b/ipaserver/install/httpinstance.py
+index 01b55e7a7b00d020b7745c419267ad4f0ba86804..3e4252cb1e907618d4aa15f7381caff5e4e868e3 100644
+--- a/ipaserver/install/httpinstance.py
++++ b/ipaserver/install/httpinstance.py
+@@ -118,6 +118,7 @@ class WebGuiInstance(service.SimpleServiceInstance):
+     def __init__(self):
+         service.SimpleServiceInstance.__init__(self, "ipa_webgui")
+ 
++
+ class HTTPInstance(service.Service):
+     def __init__(self, fstore=None, cert_nickname='Server-Cert',
+                  api=api):
+@@ -130,6 +131,7 @@ class HTTPInstance(service.Service):
+             service_user=HTTPD_USER,
+             keytab=paths.HTTP_KEYTAB)
+ 
++        self.cacert_nickname = None
+         self.cert_nickname = cert_nickname
+         self.ca_is_configured = True
+         self.keytab_user = constants.GSSPROXY_USER
+@@ -441,6 +443,9 @@ class HTTPInstance(service.Service):
+             if not server_certs:
+                 raise RuntimeError("Could not find a suitable server cert.")
+ 
++        # store the CA cert nickname so that we can publish it later on
++        self.cacert_nickname = db.cacert_name
++
+     def __import_ca_certs(self):
+         db = certs.CertDB(self.realm, nssdir=paths.HTTPD_ALIAS_DIR,
+                           subject_base=self.subject_base)
+@@ -449,7 +454,7 @@ class HTTPInstance(service.Service):
+     def __publish_ca_cert(self):
+         ca_db = certs.CertDB(self.realm, nssdir=paths.HTTPD_ALIAS_DIR,
+                              subject_base=self.subject_base)
+-        ca_db.publish_ca_cert(paths.CA_CRT)
++        ca_db.export_pem_cert(self.cacert_nickname, paths.CA_CRT)
+ 
+     def is_kdcproxy_configured(self):
+         """Check if KDC proxy has already been configured in the past"""
+-- 
+2.12.2
+

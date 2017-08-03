@@ -1,0 +1,46 @@
+From 726eaedf70802680a3634b572603b39422016c80 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Thu, 20 Aug 2015 11:15:59 +0200
+Subject: [PATCH] cli: don't start reporting of not-reportable problems
+
+If the reported problem data contains 'not-reportable' element, the
+reporting process fails unexpectedly and after the reporter already spent some
+time on it.
+
+This commit ensures that the reporting process won't start, so
+abrt-cli's behaviour will be consistent with ABRT GUI.
+
+However, this is not an ideal solution because we might want to allow
+the reporter to report the problem directly to developers via e-mail.
+
+Closes #986
+Related to #1257159
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/cli/report.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/src/cli/report.c b/src/cli/report.c
+index 19b4c51..cc4035e 100644
+--- a/src/cli/report.c
++++ b/src/cli/report.c
+@@ -36,6 +36,15 @@ int _cmd_report(const char **dirs_strv, int remove)
+             continue;
+         }
+ 
++        const int not_reportable = test_exist_over_dbus(real_problem_id, FILENAME_NOT_REPORTABLE);
++        if (not_reportable != 0)
++        {
++            error_msg(_("Problem '%s' cannot be reported"), real_problem_id);
++            free(real_problem_id);
++            ++ret;
++            continue;
++        }
++
+         const int res = chown_dir_over_dbus(real_problem_id);
+         if (res != 0)
+         {
+-- 
+1.8.3.1
+

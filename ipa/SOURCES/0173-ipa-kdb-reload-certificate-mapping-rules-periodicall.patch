@@ -1,0 +1,221 @@
+From 3a946e38a911fdfb1575135c41128f41ab44324c Mon Sep 17 00:00:00 2001
+From: Sumit Bose <sbose@redhat.com>
+Date: Fri, 26 May 2017 18:19:48 +0200
+Subject: [PATCH] ipa-kdb: reload certificate mapping rules periodically
+
+With this patch the certificate mapping rules are reloaded every 5
+minutes.
+
+Resolves https://pagure.io/freeipa/issue/6963
+
+Reviewed-By: David Kupka <dkupka@redhat.com>
+---
+ daemons/ipa-kdb/ipa_kdb_certauth.c | 153 ++++++++++++++++++++-----------------
+ 1 file changed, 81 insertions(+), 72 deletions(-)
+
+diff --git a/daemons/ipa-kdb/ipa_kdb_certauth.c b/daemons/ipa-kdb/ipa_kdb_certauth.c
+index a53a2ce4e7ceb06ec8de117cdbca2666fdb5a97a..dbe7a0443700784d2b8dbb1fb9196d6249e5522a 100644
+--- a/daemons/ipa-kdb/ipa_kdb_certauth.c
++++ b/daemons/ipa-kdb/ipa_kdb_certauth.c
+@@ -58,6 +58,8 @@
+ #define CERTMAP_FILTER "(&("OBJECTCLASS"="IPA_OC_CERTMAP_RULE")" \
+                               "("IPA_ENABLED_FLAG"="IPA_TRUE_VALUE"))"
+ 
++#define DEFAULT_CERTMAP_LIFETIME 300
++
+ #ifndef discard_const
+ #define discard_const(ptr) ((void *)((uintptr_t)(ptr)))
+ #endif
+@@ -67,6 +69,7 @@ struct krb5_certauth_moddata_st {
+     char *local_domain;
+     struct sss_certmap_ctx *sss_certmap_ctx;
+     struct ipadb_context *ipactx;
++    time_t valid_until;
+ };
+ 
+ void ipa_certmap_debug(void *private,
+@@ -133,95 +136,101 @@ static krb5_error_code ipa_get_init_data(krb5_context kcontext,
+     }
+ 
+     if (ipactx->certauth_moddata == NULL) {
+-        ret = asprintf(&basedn, "cn=certmap,%s", ipactx->base);
+-        if (ret == -1) {
+-            return ENOMEM;
+-        }
++        ipactx->certauth_moddata = moddata_out;
+ 
+-        kerr = ipadb_simple_search(ipactx,basedn, LDAP_SCOPE_SUBTREE,
+-                                   CERTMAP_FILTER, discard_const(certmap_attrs),
+-                                   &result);
+-        if (kerr != 0 && kerr != KRB5_KDB_NOENTRY) {
+-            goto done;
++        if (ipactx->realm != NULL) {
++            ipactx->certauth_moddata->local_domain = strdup(ipactx->realm);
++            if (ipactx->certauth_moddata->local_domain == NULL) {
++                free(ipactx->certauth_moddata);
++                ipactx->certauth_moddata = NULL;
++                ret = ENOMEM;
++                goto done;
++            }
+         }
+ 
+-        ret = sss_certmap_init(NULL, ipa_certmap_debug, NULL, &ctx);
++        ipactx->certauth_moddata->ipactx = ipactx;
++
++    }
++
++    ret = asprintf(&basedn, "cn=certmap,%s", ipactx->base);
++    if (ret == -1) {
++        return ENOMEM;
++    }
++
++    kerr = ipadb_simple_search(ipactx,basedn, LDAP_SCOPE_SUBTREE,
++                               CERTMAP_FILTER, discard_const(certmap_attrs),
++                               &result);
++    if (kerr != 0 && kerr != KRB5_KDB_NOENTRY) {
++        goto done;
++    }
++
++    ret = sss_certmap_init(NULL, ipa_certmap_debug, NULL, &ctx);
++    if (ret != 0) {
++        return ret;
++    }
++
++    if (kerr == KRB5_KDB_NOENTRY) {
++        ret = sss_certmap_add_rule(ctx, SSS_CERTMAP_MIN_PRIO,
++                                   NULL, NULL, NULL);
+         if (ret != 0) {
+-            return ret;
++            goto done;
+         }
+-
+-        if (kerr == KRB5_KDB_NOENTRY) {
+-            ret = sss_certmap_add_rule(ctx, SSS_CERTMAP_MIN_PRIO,
+-                                       NULL, NULL, NULL);
+-            if (ret != 0) {
++    } else {
++        lc = ipactx->lcontext;
++
++        for (le = ldap_first_entry(lc, result); le;
++                                             le = ldap_next_entry(lc, le)) {
++            prio = SSS_CERTMAP_MIN_PRIO;
++            ret = ipadb_ldap_attr_to_uint32(lc, le, IPA_CERTMAP_PRIORITY,
++                                            &prio);
++            if (ret != 0 && ret != ENOENT) {
+                 goto done;
+             }
+-        } else {
+-            lc = ipactx->lcontext;
+-
+-            for (le = ldap_first_entry(lc, result); le;
+-                                                 le = ldap_next_entry(lc, le)) {
+-                prio = SSS_CERTMAP_MIN_PRIO;
+-                ret = ipadb_ldap_attr_to_uint32(lc, le, IPA_CERTMAP_PRIORITY,
+-                                                &prio);
+-                if (ret != 0 && ret != ENOENT) {
+-                    goto done;
+-                }
+-
+-                free(map_rule);
+-                map_rule = NULL;
+-                ret = ipadb_ldap_attr_to_str(lc, le, IPA_CERTMAP_MAPRULE,
+-                                             &map_rule);
+-                if (ret != 0 && ret != ENOENT) {
+-                    goto done;
+-                }
+ 
+-                free(match_rule);
+-                match_rule = NULL;
+-                ret = ipadb_ldap_attr_to_str(lc, le, IPA_CERTMAP_MATCHRULE,
+-                                             &match_rule);
+-                if (ret != 0 && ret != ENOENT) {
+-                    goto done;
+-                }
++            free(map_rule);
++            map_rule = NULL;
++            ret = ipadb_ldap_attr_to_str(lc, le, IPA_CERTMAP_MAPRULE,
++                                         &map_rule);
++            if (ret != 0 && ret != ENOENT) {
++                goto done;
++            }
+ 
+-                if (domains != NULL) {
+-                    for (c = 0; domains[c] != NULL; c++) {
+-                        free(domains[c]);
+-                    }
+-                    free(domains);
+-                    domains = NULL;
+-                }
+-                ret = ipadb_ldap_attr_to_strlist(lc, le, IPA_ASSOCIATED_DOMAIN,
+-                                                 &domains);
+-                if (ret != 0 && ret != ENOENT) {
+-                    goto done;
+-                }
++            free(match_rule);
++            match_rule = NULL;
++            ret = ipadb_ldap_attr_to_str(lc, le, IPA_CERTMAP_MATCHRULE,
++                                         &match_rule);
++            if (ret != 0 && ret != ENOENT) {
++                goto done;
++            }
+ 
+-                ret = sss_certmap_add_rule(ctx, prio, match_rule, map_rule,
+-                                           (const char **) domains);
+-                if (ret != 0) {
+-                    goto done;
++            if (domains != NULL) {
++                for (c = 0; domains[c] != NULL; c++) {
++                    free(domains[c]);
+                 }
++                free(domains);
++                domains = NULL;
++            }
++            ret = ipadb_ldap_attr_to_strlist(lc, le, IPA_ASSOCIATED_DOMAIN,
++                                             &domains);
++            if (ret != 0 && ret != ENOENT) {
++                goto done;
+             }
+-        }
+-
+-        ipactx->certauth_moddata = moddata_out;
+ 
+-        if (ipactx->realm != NULL) {
+-            ipactx->certauth_moddata->local_domain = strdup(ipactx->realm);
+-            if (ipactx->certauth_moddata->local_domain == NULL) {
+-                free(ipactx->certauth_moddata);
+-                ipactx->certauth_moddata = NULL;
+-                ret = ENOMEM;
++            ret = sss_certmap_add_rule(ctx, prio, match_rule, map_rule,
++                                       (const char **) domains);
++            if (ret != 0) {
+                 goto done;
+             }
+         }
+-
+-        ipactx->certauth_moddata->sss_certmap_ctx = ctx;
+-        ipactx->certauth_moddata->ipactx = ipactx;
+-
+     }
+ 
++    sss_certmap_free_ctx(ipactx->certauth_moddata->sss_certmap_ctx);
++    ipactx->certauth_moddata->sss_certmap_ctx = ctx;
++    ipactx->certauth_moddata->valid_until = time(NULL)
++                                                 + DEFAULT_CERTMAP_LIFETIME;
++    krb5_klog_syslog(LOG_DEBUG,
++                     "Successfully updates certificate mapping rules.");
++
+     ret = 0;
+ 
+ done:
+@@ -266,7 +275,7 @@ static krb5_error_code ipa_certauth_authorize(krb5_context context,
+         return KRB5_PLUGIN_NO_HANDLE;
+     }
+ 
+-    if (moddata->sss_certmap_ctx == NULL) {
++    if (moddata->sss_certmap_ctx == NULL || time(NULL) > moddata->valid_until) {
+         kerr = ipa_get_init_data(context, moddata);
+         if (kerr != 0) {
+             krb5_klog_syslog(LOG_ERR, "Failed to init certmapping data");
+-- 
+2.9.4
+

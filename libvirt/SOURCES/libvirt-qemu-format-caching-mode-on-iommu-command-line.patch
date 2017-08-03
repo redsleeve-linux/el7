@@ -1,0 +1,159 @@
+From d5e2a0cc600ea90645df6161b662cf32a16a7a1b Mon Sep 17 00:00:00 2001
+Message-Id: <d5e2a0cc600ea90645df6161b662cf32a16a7a1b@dist-git>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Tue, 16 May 2017 10:44:57 +0200
+Subject: [PATCH] qemu: format caching-mode on iommu command line
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Format the caching-mode option for the intel-iommu device,
+based on its <driver caching> attribute value.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1427005
+(cherry picked from commit a56914486ca67f921ee6e3ce26b5787fccb47155)
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+
+Conflicts:
+	tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml
+        - downstream did not update qemu version to 2.9.0
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_capabilities.c                       |  2 ++
+ src/qemu/qemu_capabilities.h                       |  1 +
+ src/qemu/qemu_command.c                            | 11 ++++++++++
+ tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml   |  1 +
+ .../qemuxml2argv-intel-iommu-caching-mode.args     | 25 ++++++++++++++++++++++
+ tests/qemuxml2argvtest.c                           | 11 ++++++++++
+ 6 files changed, 51 insertions(+)
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-intel-iommu-caching-mode.args
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index 4fd0df260..c970d70e3 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -370,6 +370,7 @@ VIR_ENUM_IMPL(virQEMUCaps, QEMU_CAPS_LAST,
+               "kernel-irqchip", /* 255 */
+               "kernel-irqchip.split",
+               "intel-iommu.intremap",
++              "intel-iommu.caching-mode",
+     );
+ 
+ 
+@@ -1724,6 +1725,7 @@ static struct virQEMUCapsStringFlags virQEMUCapsObjectPropsUSBNECXHCI[] = {
+ 
+ static struct virQEMUCapsStringFlags virQEMUCapsObjectPropsIntelIOMMU[] = {
+     { "intremap", QEMU_CAPS_INTEL_IOMMU_INTREMAP },
++    { "caching-mode", QEMU_CAPS_INTEL_IOMMU_CACHING_MODE },
+ };
+ 
+ /* see documentation for virQEMUCapsQMPSchemaGetByPath for the query format */
+diff --git a/src/qemu/qemu_capabilities.h b/src/qemu/qemu_capabilities.h
+index d1730a725..4e322b5c2 100644
+--- a/src/qemu/qemu_capabilities.h
++++ b/src/qemu/qemu_capabilities.h
+@@ -408,6 +408,7 @@ typedef enum {
+     QEMU_CAPS_MACHINE_KERNEL_IRQCHIP, /* -machine kernel_irqchip */
+     QEMU_CAPS_MACHINE_KERNEL_IRQCHIP_SPLIT, /* -machine kernel_irqchip=split */
+     QEMU_CAPS_INTEL_IOMMU_INTREMAP, /* intel-iommu.intremap */
++    QEMU_CAPS_INTEL_IOMMU_CACHING_MODE, /* intel-iommu.caching-mode */
+ 
+     QEMU_CAPS_LAST /* this must always be the last item */
+ } virQEMUCapsFlags;
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index a8dac1489..d4d0c00d5 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -6680,6 +6680,13 @@ qemuBuildIOMMUCommandLine(virCommandPtr cmd,
+                              "with this QEMU binary"));
+             return -1;
+         }
++        if (iommu->caching_mode != VIR_TRISTATE_SWITCH_ABSENT &&
++            !virQEMUCapsGet(qemuCaps, QEMU_CAPS_INTEL_IOMMU_CACHING_MODE))  {
++            virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
++                           _("iommu: caching mode is not supported "
++                             "with this QEMU binary"));
++            return -1;
++        }
+         break;
+     case VIR_DOMAIN_IOMMU_MODEL_LAST:
+         break;
+@@ -6709,6 +6716,10 @@ qemuBuildIOMMUCommandLine(virCommandPtr cmd,
+             virBufferAsprintf(&opts, ",intremap=%s",
+                               virTristateSwitchTypeToString(iommu->intremap));
+         }
++        if (iommu->caching_mode != VIR_TRISTATE_SWITCH_ABSENT) {
++            virBufferAsprintf(&opts, ",caching-mode=%s",
++                              virTristateSwitchTypeToString(iommu->caching_mode));
++        }
+     case VIR_DOMAIN_IOMMU_MODEL_LAST:
+         break;
+     }
+diff --git a/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml
+index 5a88cf505..b5649d8d7 100644
+--- a/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml
+@@ -212,6 +212,7 @@
+   <flag name='kernel-irqchip'/>
+   <flag name='kernel-irqchip.split'/>
+   <flag name='intel-iommu.intremap'/>
++  <flag name='intel-iommu.caching-mode'/>
+   <version>2008090</version>
+   <kvmVersion>0</kvmVersion>
+   <package> (v2.9.0-rc0-142-g940a8ce)</package>
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-intel-iommu-caching-mode.args b/tests/qemuxml2argvdata/qemuxml2argv-intel-iommu-caching-mode.args
+new file mode 100644
+index 000000000..1bec6d00b
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-intel-iommu-caching-mode.args
+@@ -0,0 +1,25 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/home/test \
++USER=test \
++LOGNAME=test \
++QEMU_AUDIO_DRV=none \
++/usr/bin/qemu-system-x86_64 \
++-name QEMUGuest1 \
++-S \
++-machine q35,accel=tcg \
++-m 214 \
++-smp 1,sockets=1,cores=1,threads=1 \
++-uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
++-nographic \
++-nodefaults \
++-monitor unix:/tmp/lib/domain--1-QEMUGuest1/monitor.sock,server,nowait \
++-no-acpi \
++-boot c \
++-device intel-iommu,intremap=on,caching-mode=on \
++-device i82801b11-bridge,id=pci.1,bus=pcie.0,addr=0x1e \
++-device pci-bridge,chassis_nr=2,id=pci.2,bus=pci.1,addr=0x0 \
++-device ioh3420,port=0x10,chassis=3,id=pci.3,bus=pcie.0,addr=0x2 \
++-device ich9-usb-ehci1,id=usb,bus=pci.2,addr=0x2.0x7 \
++-device rtl8139,vlan=0,id=net0,mac=52:54:00:ab:0c:5c,bus=pci.2,addr=0x1 \
++-net user,vlan=0,name=hostnet0
+diff --git a/tests/qemuxml2argvtest.c b/tests/qemuxml2argvtest.c
+index 8061292b3..e3d6d757b 100644
+--- a/tests/qemuxml2argvtest.c
++++ b/tests/qemuxml2argvtest.c
+@@ -2523,6 +2523,17 @@ mymain(void)
+             QEMU_CAPS_MACHINE_KERNEL_IRQCHIP_SPLIT,
+             QEMU_CAPS_INTEL_IOMMU_INTREMAP,
+             QEMU_CAPS_DEVICE_INTEL_IOMMU);
++    DO_TEST("intel-iommu-caching-mode",
++            QEMU_CAPS_MACHINE_OPT,
++            QEMU_CAPS_DEVICE_PCI_BRIDGE,
++            QEMU_CAPS_DEVICE_DMI_TO_PCI_BRIDGE,
++            QEMU_CAPS_DEVICE_IOH3420,
++            QEMU_CAPS_ICH9_AHCI,
++            QEMU_CAPS_PCI_MULTIFUNCTION,
++            QEMU_CAPS_ICH9_USB_EHCI1,
++            QEMU_CAPS_DEVICE_INTEL_IOMMU,
++            QEMU_CAPS_INTEL_IOMMU_INTREMAP,
++            QEMU_CAPS_INTEL_IOMMU_CACHING_MODE);
+ 
+     DO_TEST("cpu-hotplug-startup", QEMU_CAPS_QUERY_HOTPLUGGABLE_CPUS);
+ 
+-- 
+2.13.0
+

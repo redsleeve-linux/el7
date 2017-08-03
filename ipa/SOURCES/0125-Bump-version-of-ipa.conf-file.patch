@@ -1,0 +1,30 @@
+From dd433bd402b847b651ba2aa722e4b37c3235984b Mon Sep 17 00:00:00 2001
+From: David Kupka <dkupka@redhat.com>
+Date: Thu, 11 May 2017 10:17:33 +0200
+Subject: [PATCH] Bump version of ipa.conf file
+
+In commit 157831a287c64106eed4 the version bump was forgotten and therefore the
+ipa.conf file is not replaced during upgrade and login using certificate when
+single certificate is mapped to multiple users doesn't work.
+
+https://pagure.io/freeipa/issue/6860
+
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+---
+ install/conf/ipa.conf | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/install/conf/ipa.conf b/install/conf/ipa.conf
+index 75c122e6c94b941c278d724add84315753082531..a7ca5ce715e55960b8edd307cdbe41dcbd6b29ca 100644
+--- a/install/conf/ipa.conf
++++ b/install/conf/ipa.conf
+@@ -1,5 +1,5 @@
+ #
+-# VERSION 25 - DO NOT REMOVE THIS LINE
++# VERSION 26 - DO NOT REMOVE THIS LINE
+ #
+ # This file may be overwritten on upgrades.
+ #
+-- 
+2.9.3
+

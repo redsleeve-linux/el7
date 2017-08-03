@@ -1,0 +1,37 @@
+From 66ea6269d7ad401e5f89b1ab33f8e827efb25dd8 Mon Sep 17 00:00:00 2001
+From: Pavel Vomacka <pvomacka@redhat.com>
+Date: Fri, 17 Mar 2017 15:10:49 +0100
+Subject: [PATCH] WebUI: suppress truncation warning in select widget
+
+This widget is used on details pages and dialogs. When the size limit
+is set to lower number the warning about truncation was shown every time
+the details page was open.
+
+Now, with support for suppressing warning messages from server according
+to its code, we are able to disable warning with 13017 code (truncation
+warning)
+
+https://pagure.io/freeipa/issue/6618
+
+Reviewed-By: Petr Vobornik <pvoborni@redhat.com>
+---
+ install/ui/src/freeipa/widget.js | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/install/ui/src/freeipa/widget.js b/install/ui/src/freeipa/widget.js
+index 223b449962fabb47cf72b0443e39c295c783ab7f..b7a6504cf4af942c99ee217a2b47718af9e40f86 100644
+--- a/install/ui/src/freeipa/widget.js
++++ b/install/ui/src/freeipa/widget.js
+@@ -5012,7 +5012,8 @@ IPA.entity_select_widget = function(spec) {
+             entity: that.other_entity.name,
+             method: 'find',
+             args: [filter],
+-            options: that.filter_options
++            options: that.filter_options,
++            suppress_warnings: [13017]
+         });
+         var no_members = metadata.get('@mc-opt:' + cmd.get_command() + ':no_members');
+         if (no_members) {
+-- 
+2.12.1
+

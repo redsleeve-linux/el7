@@ -1,0 +1,103 @@
+From 496255286bdf83c11deeba08755de56e639de000 Mon Sep 17 00:00:00 2001
+From: Stanislav Laznicka <slaznick@redhat.com>
+Date: Mon, 27 Mar 2017 08:25:04 +0200
+Subject: [PATCH] Allow renaming of the HBAC rule objects
+
+The recent changes allow HBAC rule objects to be renamed.
+
+https://pagure.io/freeipa/issue/6784
+
+Reviewed-By: Alexander Bokovoy <abokovoy@redhat.com>
+Reviewed-By: Jan Cholasta <jcholast@redhat.com>
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+---
+ API.txt                                  |  3 ++-
+ VERSION.m4                               |  4 ++--
+ ipaserver/plugins/hbacrule.py            |  1 +
+ ipatests/test_xmlrpc/test_hbac_plugin.py | 15 +++++++++++++++
+ 4 files changed, 20 insertions(+), 3 deletions(-)
+
+diff --git a/API.txt b/API.txt
+index f0bd1b6495854decf4470efdcf1f2d915ce71c52..2a63c983a343b07ec7928bc774c6443a84b7c64c 100644
+--- a/API.txt
++++ b/API.txt
+@@ -2163,7 +2163,7 @@ output: ListOfEntries('result')
+ output: Output('summary', type=[<type 'unicode'>, <type 'NoneType'>])
+ output: Output('truncated', type=[<type 'bool'>])
+ command: hbacrule_mod/1
+-args: 1,16,3
++args: 1,17,3
+ arg: Str('cn', cli_name='name')
+ option: StrEnum('accessruletype?', autofill=False, cli_name='type', default=u'allow', values=[u'allow', u'deny'])
+ option: Str('addattr*', cli_name='addattr')
+@@ -2175,6 +2175,7 @@ option: StrEnum('hostcategory?', autofill=False, cli_name='hostcat', values=[u'a
+ option: Bool('ipaenabledflag?', autofill=False)
+ option: Flag('no_members', autofill=True, default=False)
+ option: Flag('raw', autofill=True, cli_name='raw', default=False)
++option: Str('rename?', cli_name='rename')
+ option: Flag('rights', autofill=True, default=False)
+ option: StrEnum('servicecategory?', autofill=False, cli_name='servicecat', values=[u'all'])
+ option: Str('setattr*', cli_name='setattr')
+diff --git a/VERSION.m4 b/VERSION.m4
+index 743f2dbe0d05126f11c67574c5a9b712cb1f112d..bbb5212e5b8cd9604b6ec90d4a0bd4c3276b1856 100644
+--- a/VERSION.m4
++++ b/VERSION.m4
+@@ -73,8 +73,8 @@ define(IPA_DATA_VERSION, 20100614120000)
+ #                                                      #
+ ########################################################
+ define(IPA_API_VERSION_MAJOR, 2)
+-define(IPA_API_VERSION_MINOR, 223)
+-# Last change: Add domain resolution order to ID views
++define(IPA_API_VERSION_MINOR, 224)
++# Last change: Add rename option to HBAC rule objects
+ 
+ 
+ ########################################################
+diff --git a/ipaserver/plugins/hbacrule.py b/ipaserver/plugins/hbacrule.py
+index 60e5e606fff6d2ffb93db608328c5987b91d1fa8..2495702e87accaf60eb38dae0fb122ac0764452f 100644
+--- a/ipaserver/plugins/hbacrule.py
++++ b/ipaserver/plugins/hbacrule.py
+@@ -141,6 +141,7 @@ class hbacrule(LDAPObject):
+     ]
+     uuid_attribute = 'ipauniqueid'
+     rdn_attribute = 'ipauniqueid'
++    allow_rename = True
+     attribute_members = {
+         'memberuser': ['user', 'group'],
+         'memberhost': ['host', 'hostgroup'],
+diff --git a/ipatests/test_xmlrpc/test_hbac_plugin.py b/ipatests/test_xmlrpc/test_hbac_plugin.py
+index 75c15c5abe472d975f0c2bc78eb9dd5fda8af45e..b495fe3341f8d0682f65b4fc1d408734d130a7cd 100644
+--- a/ipatests/test_xmlrpc/test_hbac_plugin.py
++++ b/ipatests/test_xmlrpc/test_hbac_plugin.py
+@@ -34,6 +34,7 @@ class test_hbac(XMLRPC_test):
+     Test the `hbacrule` plugin.
+     """
+     rule_name = u'testing_rule1234'
++    rule_renamed = u'mega_testing_rule'
+     rule_type = u'allow'
+     rule_type_fail = u'value not allowed'
+     rule_service = u'ssh'
+@@ -459,6 +460,20 @@ class test_hbac(XMLRPC_test):
+         assert_attr_equal(entry, 'cn', self.rule_name)
+         assert_attr_equal(entry, 'memberservice_hbacsvc', self.test_service)
+ 
++    def test_o_hbacrule_rename(self):
++        """
++        Test renaming an HBAC rule, rename it back afterwards
++        """
++        api.Command['hbacrule_mod'](
++            self.rule_name, rename=self.rule_renamed
++        )
++        entry = api.Command['hbacrule_show'](self.rule_renamed)['result']
++        assert_attr_equal(entry, 'cn', self.rule_renamed)
++        # clean up by renaming the rule back
++        api.Command['hbacrule_mod'](
++            self.rule_renamed, rename=self.rule_name
++        )
++
+     def test_y_hbacrule_zap_testing_data(self):
+         """
+         Clear data for HBAC plugin testing.
+-- 
+2.12.1
+

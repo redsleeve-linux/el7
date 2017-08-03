@@ -1,0 +1,52 @@
+From 0ab58cdf99dbb5f71e91ebd047a984d48c9f9e6e Mon Sep 17 00:00:00 2001
+Message-Id: <0ab58cdf99dbb5f71e91ebd047a984d48c9f9e6e@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 5 Apr 2017 13:05:25 +0200
+Subject: [PATCH] qemu: Properly reset all migration capabilities
+
+So far only QEMU_MONITOR_MIGRATION_CAPS_POSTCOPY was reset, but only in
+a single code path leaving post-copy enabled in quite a few cases.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1425003
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit 8be3ccd047e17c4998c669da2a63c3956e1f5225)
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_migration.c | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/qemu/qemu_migration.c b/src/qemu/qemu_migration.c
+index 3e9c35e4c..ae0ab368d 100644
+--- a/src/qemu/qemu_migration.c
++++ b/src/qemu/qemu_migration.c
+@@ -5342,9 +5342,6 @@ qemuMigrationFinish(virQEMUDriverPtr driver,
+          */
+         if (inPostCopy)
+             VIR_FREE(priv->job.completed);
+-
+-        qemuMigrationSetPostCopy(driver, vm, false,
+-                                 QEMU_ASYNC_JOB_MIGRATION_IN);
+     }
+ 
+     qemuMigrationReset(driver, vm, QEMU_ASYNC_JOB_MIGRATION_IN);
+@@ -5873,9 +5870,16 @@ qemuMigrationReset(virQEMUDriverPtr driver,
+                    virDomainObjPtr vm,
+                    qemuDomainAsyncJob job)
+ {
++    qemuMonitorMigrationCaps cap;
++
+     if (!virDomainObjIsActive(vm))
+         return;
+ 
+     if (qemuMigrationResetTLS(driver, vm, job) < 0)
+         return;
++
++    for (cap = 0; cap < QEMU_MONITOR_MIGRATION_CAPS_LAST; cap++) {
++        if (qemuMigrationSetOption(driver, vm, cap, false, job) < 0)
++            return;
++    }
+ }
+-- 
+2.12.2
+

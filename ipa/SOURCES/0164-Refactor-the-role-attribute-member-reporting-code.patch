@@ -1,0 +1,179 @@
+From 352b1bc2735e8571bd4bf3a46f599834c6b0aefa Mon Sep 17 00:00:00 2001
+From: Martin Babinsky <mbabinsk@redhat.com>
+Date: Tue, 16 May 2017 17:29:39 +0200
+Subject: [PATCH] Refactor the role/attribute member reporting code
+
+The `config` object now hosts a generic method for updating the config
+entry for desired server role configuration (if not empty). The
+duplicated code in dns/trust/vaultconfig commands was replaced by a call
+to a common method.
+
+https://pagure.io/freeipa/issue/6937
+
+Reviewed-By: Jan Cholasta <jcholast@redhat.com>
+Reviewed-By: Stanislav Laznicka <slaznick@redhat.com>
+---
+ ipaserver/plugins/config.py | 24 ++++++++++++++++--------
+ ipaserver/plugins/dns.py    | 16 ++++------------
+ ipaserver/plugins/trust.py  | 22 ++++------------------
+ ipaserver/plugins/vault.py  |  6 +++---
+ 4 files changed, 27 insertions(+), 41 deletions(-)
+
+diff --git a/ipaserver/plugins/config.py b/ipaserver/plugins/config.py
+index b50e7a4691bd76bfaf7c332cd89b0f1bf55bac46..c88cb99b47ac746f8e18cf189708d457b535416a 100644
+--- a/ipaserver/plugins/config.py
++++ b/ipaserver/plugins/config.py
+@@ -267,15 +267,21 @@ class config(LDAPObject):
+     def get_dn(self, *keys, **kwargs):
+         return DN(('cn', 'ipaconfig'), ('cn', 'etc'), api.env.basedn)
+ 
+-    def show_servroles_attributes(self, entry_attrs, **options):
++    def update_entry_with_role_config(self, role_name, entry_attrs):
++        backend = self.api.Backend.serverroles
++
++        role_config = backend.config_retrieve(role_name)
++        for key, value in role_config.items():
++            if value:
++                entry_attrs.update({key: value})
++
++
++    def show_servroles_attributes(self, entry_attrs, *roles, **options):
+         if options.get('raw', False):
+             return
+ 
+-        backend = self.api.Backend.serverroles
+-
+-        for role in ("CA server", "IPA master", "NTP server"):
+-            config = backend.config_retrieve(role)
+-            entry_attrs.update(config)
++        for role in roles:
++            self.update_entry_with_role_config(role, entry_attrs)
+ 
+     def gather_trusted_domains(self):
+         """
+@@ -525,7 +531,8 @@ class config_mod(LDAPUpdate):
+             keys, options, exc, call_func, *call_args, **call_kwargs)
+ 
+     def post_callback(self, ldap, dn, entry_attrs, *keys, **options):
+-        self.obj.show_servroles_attributes(entry_attrs, **options)
++        self.obj.show_servroles_attributes(
++            entry_attrs, "CA server", "IPA master", "NTP server", **options)
+         return dn
+ 
+ 
+@@ -534,5 +541,6 @@ class config_show(LDAPRetrieve):
+     __doc__ = _('Show the current configuration.')
+ 
+     def post_callback(self, ldap, dn, entry_attrs, *keys, **options):
+-        self.obj.show_servroles_attributes(entry_attrs, **options)
++        self.obj.show_servroles_attributes(
++            entry_attrs, "CA server", "IPA master", "NTP server", **options)
+         return dn
+diff --git a/ipaserver/plugins/dns.py b/ipaserver/plugins/dns.py
+index 47ac963a0ae26fcaa81e70a8143bd7d0c172d20e..f0e6c48f06313def57cdd6a4c7114357c9d8de8a 100644
+--- a/ipaserver/plugins/dns.py
++++ b/ipaserver/plugins/dns.py
+@@ -4184,16 +4184,6 @@ class dnsconfig(LDAPObject):
+         if is_config_empty:
+             result['summary'] = unicode(_('Global DNS configuration is empty'))
+ 
+-    def show_servroles_attributes(self, entry_attrs, **options):
+-        if options.get('raw', False):
+-            return
+-
+-        backend = self.api.Backend.serverroles
+-        entry_attrs.update(
+-            backend.config_retrieve("DNS server")
+-        )
+-
+-
+ @register()
+ class dnsconfig_mod(LDAPUpdate):
+     __doc__ = _('Modify global DNS configuration.')
+@@ -4247,7 +4237,8 @@ class dnsconfig_mod(LDAPUpdate):
+         return result
+ 
+     def post_callback(self, ldap, dn, entry_attrs, *keys, **options):
+-        self.obj.show_servroles_attributes(entry_attrs, **options)
++        self.api.Object.config.show_servroles_attributes(
++            entry_attrs, "DNS server", **options)
+         return dn
+ 
+ 
+@@ -4261,7 +4252,8 @@ class dnsconfig_show(LDAPRetrieve):
+         return result
+ 
+     def post_callback(self, ldap, dn, entry_attrs, *keys, **options):
+-        self.obj.show_servroles_attributes(entry_attrs, **options)
++        self.api.Object.config.show_servroles_attributes(
++            entry_attrs, "DNS server", **options)
+         return dn
+ 
+ 
+diff --git a/ipaserver/plugins/trust.py b/ipaserver/plugins/trust.py
+index 0829f8c714f15c4384a89e18ba29e417405c249c..075b39dcc33a79f3e73e8e1e9e31ebbef17618fe 100644
+--- a/ipaserver/plugins/trust.py
++++ b/ipaserver/plugins/trust.py
+@@ -1278,22 +1278,6 @@ class trustconfig(LDAPObject):
+ 
+         entry_attrs['ipantfallbackprimarygroup'] = [groupdn[0][0].value]
+ 
+-    def show_servroles(self, entry_attrs, **options):
+-        if options.get('raw', False):
+-            return
+-
+-        backend = self.api.Backend.serverroles
+-
+-        adtrust_agents = backend.config_retrieve(
+-            "AD trust agent"
+-        )
+-        adtrust_controllers = backend.config_retrieve(
+-            "AD trust controller"
+-        )
+-
+-        entry_attrs.update(adtrust_agents)
+-        entry_attrs.update(adtrust_controllers)
+-
+ 
+ @register()
+ class trustconfig_mod(LDAPUpdate):
+@@ -1314,7 +1298,8 @@ class trustconfig_mod(LDAPUpdate):
+ 
+     def post_callback(self, ldap, dn, entry_attrs, *keys, **options):
+         self.obj._convert_groupdn(entry_attrs, options)
+-        self.obj.show_servroles(entry_attrs, **options)
++        self.api.Object.config.show_servroles_attributes(
++            entry_attrs, "AD trust agent", "AD trust controller", **options)
+         return dn
+ 
+ 
+@@ -1333,7 +1318,8 @@ class trustconfig_show(LDAPRetrieve):
+ 
+     def post_callback(self, ldap, dn, entry_attrs, *keys, **options):
+         self.obj._convert_groupdn(entry_attrs, options)
+-        self.obj.show_servroles(entry_attrs, **options)
++        self.api.Object.config.show_servroles_attributes(
++            entry_attrs, "AD trust agent", "AD trust controller", **options)
+ 
+         return dn
+ 
+diff --git a/ipaserver/plugins/vault.py b/ipaserver/plugins/vault.py
+index d46aca821d2ec94a38dd7cc930f26038d5d80a90..d05a240c39bc1b47f1eba19cb893ab7408b35fa8 100644
+--- a/ipaserver/plugins/vault.py
++++ b/ipaserver/plugins/vault.py
+@@ -997,9 +997,9 @@ class vaultconfig_show(Retrieve):
+         with self.api.Backend.kra.get_client() as kra_client:
+             transport_cert = kra_client.system_certs.get_transport_cert()
+             config = {'transport_cert': transport_cert.binary}
+-            config.update(
+-                self.api.Backend.serverroles.config_retrieve("KRA server")
+-            )
++
++        self.api.Object.config.show_servroles_attributes(
++            config, "KRA server", **options)
+ 
+         return {
+             'result': config,
+-- 
+2.9.4
+

@@ -1,13 +1,13 @@
-From 4f55d2d2f6efdce59440b57726f09578b8692158 Mon Sep 17 00:00:00 2001
+From 436e7a406724efa98d05d4c32cae027f31a66033 Mon Sep 17 00:00:00 2001
 From: Laszlo Ersek <lersek@redhat.com>
-Date: Fri, 23 Sep 2016 14:39:35 +0200
-Subject: [PATCH 2/3] hw/i386: regenerate checked-in AML payload (RHEL only)
+Date: Fri, 23 Sep 2016 14:39:35 -0300
+Subject: [PATCH 1/2] hw/i386: regenerate checked-in AML payload (RHEL only)
 
 RH-Author: Laszlo Ersek <lersek@redhat.com>
 Message-id: <20160923143936.25594-2-lersek@redhat.com>
 Patchwork-id: 72414
 O-Subject: [RHEL-7.3 qemu-kvm PATCH 1/2] hw/i386: regenerate checked-in AML payload (RHEL only)
-Bugzilla: 1392027
+Bugzilla: 1377087
 RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
 RH-Acked-by: Michael S. Tsirkin <mst@redhat.com>
 RH-Acked-by: Igor Mammedov <imammedo@redhat.com>
@@ -24,7 +24,7 @@ switch the build to them. I actually verified this in a RHEL-7 guest, with
 remained identical across this change.
 
 Signed-off-by: Laszlo Ersek <lersek@redhat.com>
-Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+Signed-off-by: Danilo C. L. de Paula <ddepaula@redhat.com>
 ---
  hw/i386/acpi-dsdt.hex.generated     |  8 ++++----
  hw/i386/q35-acpi-dsdt.hex.generated |  8 ++++----

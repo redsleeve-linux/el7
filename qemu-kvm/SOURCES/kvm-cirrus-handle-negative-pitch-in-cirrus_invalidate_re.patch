@@ -1,14 +1,14 @@
-From 1d7bdd730d1537f931a95897b14fdb6c5754ea2c Mon Sep 17 00:00:00 2001
+From 45023277a5822c89806eae1cc5f4d5f897e28fcd Mon Sep 17 00:00:00 2001
 From: Gerd Hoffmann <kraxel@redhat.com>
 Date: Tue, 7 Feb 2017 10:07:49 +0100
-Subject: [PATCH 5/8] cirrus: handle negative pitch in
+Subject: [PATCH 06/11] cirrus: handle negative pitch in
  cirrus_invalidate_region()
 
 RH-Author: Gerd Hoffmann <kraxel@redhat.com>
 Message-id: <1486462072-32174-5-git-send-email-kraxel@redhat.com>
 Patchwork-id: 73566
 O-Subject: [RHEL-7.4 qemu-kvm PATCH 4/7] cirrus: handle negative pitch in cirrus_invalidate_region()
-Bugzilla: 1418232
+Bugzilla: 1418233
 RH-Acked-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
 RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
 RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>

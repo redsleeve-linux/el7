@@ -1,0 +1,32 @@
+From fef78a011c148f63a08014bbe7ed2d63fe3380bd Mon Sep 17 00:00:00 2001
+From: David Kupka <dkupka@redhat.com>
+Date: Mon, 20 Mar 2017 12:48:14 +0100
+Subject: [PATCH] ipapython.ipautil.nolog_replace: Do not replace empty value
+
+When provided empty value in nolog parameter nolog_replace added 'XXXXXXXX'
+three (once for plain value, once for http quoted value and last time for shell
+quoted value) times before every character (including terminating '\0') in the string.
+
+https://pagure.io/freeipa/issue/6738
+
+Reviewed-By: Pavel Vomacka <pvomacka@redhat.com>
+---
+ ipapython/ipautil.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ipapython/ipautil.py b/ipapython/ipautil.py
+index 60b4a37fe247624e826d0f6516cb9a25d30ae75d..cd66328e6c9a0f69e6f83582a9d288ac239c5be3 100644
+--- a/ipapython/ipautil.py
++++ b/ipapython/ipautil.py
+@@ -505,7 +505,7 @@ def run(args, stdin=None, raiseonerr=True, nolog=(), env=None,
+ def nolog_replace(string, nolog):
+     """Replace occurences of strings given in `nolog` with XXXXXXXX"""
+     for value in nolog:
+-        if not isinstance(value, six.string_types):
++        if not value or not isinstance(value, six.string_types):
+             continue
+ 
+         quoted = urllib.parse.quote(value)
+-- 
+2.12.1
+

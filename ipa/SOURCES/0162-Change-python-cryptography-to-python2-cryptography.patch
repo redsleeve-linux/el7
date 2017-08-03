@@ -1,0 +1,41 @@
+From a2747fd0b73818babe82a81c07a098124830b85d Mon Sep 17 00:00:00 2001
+From: Pavel Vomacka <pvomacka@redhat.com>
+Date: Fri, 19 May 2017 16:32:28 +0200
+Subject: [PATCH] Change python-cryptography to python2-cryptography
+
+Package name is python2-cryptography and even that it Provides
+python-cryptography package, it causes problems during update of IPA
+on RHEL - python2-cryptography is not updated. After changing required package
+name to python2-cryptography upgrade on RHEL works well.
+
+Fixes: https://pagure.io/freeipa/issue/6749
+Reviewed-By: Martin Babinsky <mbabinsk@redhat.com>
+---
+ freeipa.spec.in | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/freeipa.spec.in b/freeipa.spec.in
+index 790e5838e0ba45ea9bbfe3bc3a1bd40c0bd3ac1a..2cbaa60df0db021a4a1ce10af383cd6a15e1e57c 100644
+--- a/freeipa.spec.in
++++ b/freeipa.spec.in
+@@ -164,7 +164,7 @@ BuildRequires:  python3-wheel
+ %if 0%{?with_lint}
+ BuildRequires:  samba-python
+ # 1.4: the version where Certificate.serial changed to .serial_number
+-BuildRequires:  python-cryptography >= 1.4
++BuildRequires:  python2-cryptography >= 1.4
+ BuildRequires:  python-gssapi >= 1.2.0
+ BuildRequires:  pylint >= 1.6
+ # workaround for https://bugzilla.redhat.com/show_bug.cgi?id=1096506
+@@ -645,7 +645,7 @@ Requires: keyutils
+ Requires: pyOpenSSL
+ Requires: python >= 2.7.9
+ Requires: python-nss >= 0.16
+-Requires: python-cryptography >= 1.4
++Requires: python2-cryptography >= 1.4
+ Requires: python-netaddr
+ Requires: python-libipa_hbac
+ Requires: python-qrcode-core >= 5.0.0
+-- 
+2.9.4
+

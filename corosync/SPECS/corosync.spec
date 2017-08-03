@@ -23,7 +23,7 @@
 Name: corosync
 Summary: The Corosync Cluster Engine and Application Programming Interfaces
 Version: 2.4.0
-Release: 4%{?gitver}%{?dist}.redsleeve
+Release: 9%{?gitver}%{?dist}
 License: BSD
 Group: System Environment/Base
 URL: http://corosync.github.io/corosync/
@@ -33,9 +33,27 @@ Patch0: bz1363654-1-Config-Flag-config-uidgid-entries.patch
 Patch1: bz1367813-1-Man-Fix-corosync-qdevice-net-certutil-link.patch
 Patch2: bz1367813-2-man-mention-qdevice-incompatibilites-in-votequorum.5.patch
 Patch3: bz1367813-3-Qnetd-LMS-Fix-two-partition-use-case.patch
+Patch4: bz1371880-1-libvotequorum-Bump-version.patch
+Patch5: bz1371880-2-votequorum-Don-t-update-expected_votes-display-if-va.patch
+Patch6: bz1371880-3-votequorum-simplify-reconfigure-message-handling.patch
+Patch7: bz1371880-4-build-Fix-build-on-RHEL7.3-latest.patch
+Patch8: bz1434528-1-cfg-Prevents-use-of-uninitialized-buffer.patch
+Patch9: bz1434529-1-man-Fix-typos-in-man-page.patch
+Patch10: bz1434529-2-Fix-typo-Destorying-Destroying.patch
+Patch11: bz1434529-3-init-Add-doc-URIs-to-the-systemd-service-files.patch
+Patch12: bz1434529-4-man-Modify-man-page-according-to-command-usage.patch
+Patch13: bz1434528-2-Totempg-remove-duplicate-memcpy-in-mcast_msg-func.patch
+Patch14: bz1434529-5-upstart-Add-softdog-module-loading-example.patch
+Patch15: bz1434529-6-Remove-deprecated-doxygen-flags.patch
+Patch16: bz1434528-3-Remove-redundant-header-file-inclusion.patch
+Patch17: bz1434529-7-Qdevice-fix-spell-errors-in-qdevice.patch
+Patch18: bz1434529-8-doc-document-watchdog_device-parameter.patch
+Patch19: bz1434534-1-Logsys-Change-logsys-syslog_priority-priority.patch
+Patch20: bz1434534-2-logconfig-Do-not-overwrite-logger_subsys-priority.patch
+Patch21: bz1445001-1-Main-Call-mlockall-after-fork.patch
 
 %if 0%{?rhel}
-ExclusiveArch: i686 x86_64 s390x %{arm}
+ExclusiveArch: i686 x86_64 s390x ppc64le
 %endif
 
 # Runtime bits
@@ -91,6 +109,24 @@ BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 %patch1 -p1 -b .bz1367813-1
 %patch2 -p1 -b .bz1367813-2
 %patch3 -p1 -b .bz1367813-3
+%patch4 -p1 -b .bz1371880-1
+%patch5 -p1 -b .bz1371880-2
+%patch6 -p1 -b .bz1371880-3
+%patch7 -p1 -b .bz1371880-4
+%patch8 -p1 -b .bz1434528-1
+%patch9 -p1 -b .bz1434529-1
+%patch10 -p1 -b .bz1434529-2
+%patch11 -p1 -b .bz1434529-3
+%patch12 -p1 -b .bz1434529-4
+%patch13 -p1 -b .bz1434528-2
+%patch14 -p1 -b .bz1434529-5
+%patch15 -p1 -b .bz1434529-6
+%patch16 -p1 -b .bz1434528-3
+%patch17 -p1 -b .bz1434529-7
+%patch18 -p1 -b .bz1434529-8
+%patch19 -p1 -b .bz1434534-1
+%patch20 -p1 -b .bz1434534-2
+%patch21 -p1 -b .bz1445001-1
 
 %build
 %if %{with runautogen}
@@ -519,8 +555,66 @@ fi
 %endif
 
 %changelog
-* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> 2.4.0-4.redsleeve
-- added arm to exclusive archs
+* Wed Apr 26 2017 Jan Friesse <jfriesse@redhat.com> 2.4.0-9
+- Resolves: rhbz#1445001
+
+- Main: Call mlockall after fork (rhbz#1445001)
+- merge upstream commit 238e2e62d8b960e7c10bfa0a8281d78ec99f3a26 (rhbz#1445001)
+- Disable aarch64 build (bz#1422598)
+
+* Wed Mar 22 2017 Jan Friesse <jfriesse@redhat.com> 2.4.0-8
+- Resolves: rhbz#1434528
+- Resolves: rhbz#1434529
+- Resolves: rhbz#1434534
+
+- cfg: Prevents use of uninitialized buffer (rhbz#1434528)
+- merge upstream commit 52e6ae57ea06d0bef61c5c9250881bef1372ead2 (rhbz#1434528)
+- man: Fix typos in man page (rhbz#1434529)
+- merge upstream commit b642904ea9640bd7a1573a8c0d2c5bcb43a10dfc (rhbz#1434529)
+- Fix typo: Destorying -> Destroying (rhbz#1434529)
+- merge upstream commit 117d9e4eb77ef9941fdeaf17ddfd892514da8143 (rhbz#1434529)
+- init: Add doc URIs to the systemd service files (rhbz#1434529)
+- merge upstream commit 21a728785027483786e41c19f6aff57a95b80aa5 (rhbz#1434529)
+- man: Modify man-page according to command usage (rhbz#1434529)
+- merge upstream commit 79898e8cb1715e79b7467b91661b7341e2664550 (rhbz#1434529)
+- Totempg: remove duplicate memcpy in mcast_msg func (rhbz#1434528)
+- merge upstream commit 4a8e9d80409590cb42732ae3105b5ae71fda52c1 (rhbz#1434528)
+- upstart: Add softdog module loading example (rhbz#1434529)
+- merge upstream commit 75474d69bebea6c9c4ef2252476ce738cf92f0f4 (rhbz#1434529)
+- Remove deprecated doxygen flags (rhbz#1434529)
+- merge upstream commit b252013e42007ea7284ae54d035a30ca40f20fc0 (rhbz#1434529)
+- Remove redundant header file inclusion (rhbz#1434528)
+- merge upstream commit d6c7ade277a4a23d84c56d7fde6b60b377a1023b (rhbz#1434528)
+- Qdevice: fix spell errors in qdevice (rhbz#1434529)
+- merge upstream commit d9caa09c45d4560c89a1ad873087c0476cabab46 (rhbz#1434529)
+- doc: document watchdog_device parameter (rhbz#1434529)
+- merge upstream commit a5f97ae1b99063383d8f45168125b34232b91faf (rhbz#1434529)
+- Logsys: Change logsys syslog_priority priority (rhbz#1434534)
+- merge upstream commit 609cc0cc100aa1070d97b405273373682da0e270 (rhbz#1434534)
+- logconfig: Do not overwrite logger_subsys priority (rhbz#1434534)
+- merge upstream commit c866a2f8603b44e89eb21a6cf7d88134af2e8b66 (rhbz#1434534)
+
+* Tue Mar 21 2017 Jan Friesse <jfriesse@redhat.com> 2.4.0-7
+- Related: rhbz#1371880
+
+- Fix build on RHEL7.3 latest (rhbz#1371880)
+- merge upstream commit 19e48a6eee20d5f34f79a3b8d4e1c694169c1d7b (rhbz#1371880)
+- Enable aarch64 build (bz#1422598)
+
+* Tue Mar 21 2017 Jan Friesse <jfriesse@redhat.com> 2.4.0-6
+- Resolves: rhbz#1371880
+
+- libvotequorum: Bump version (rhbz#1371880)
+- merge upstream commit 96f91f23a6a413535cc2f0e8492e2300373fed40 (rhbz#1371880)
+- votequorum: Don't update expected_votes display if value is too high (rhbz#1371880)
+- merge upstream commit 596433066805af029be1292a37a35ce31307f0bf (rhbz#1371880)
+- votequorum: simplify reconfigure message handling (rhbz#1371880)
+- merge upstream commit 4a385f2e94c7168dbd92168c54a80ee97a3c2140 (rhbz#1371880)
+
+* Thu Jan 19 2017 Jan Friesse <jfriesse@redhat.com> 2.4.0-5
+- Resolves: rhbz#1289661
+
+- Enable ppc64le build
 
 * Wed Aug 31 2016 Jan Friesse <jfriesse@redhat.com> 2.4.0-4
 - Resolves: rhbz#1367813

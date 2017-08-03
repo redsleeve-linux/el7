@@ -1,0 +1,153 @@
+From 00aaab7312b72b5ef1785793f97849a69f425b83 Mon Sep 17 00:00:00 2001
+Message-Id: <00aaab7312b72b5ef1785793f97849a69f425b83@dist-git>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Fri, 9 Jun 2017 12:49:07 +0200
+Subject: [PATCH] Add virtio-related options to input devices
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1283251
+
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit cc0933d3501229cdc8cf183a52a14c9b1c8de666)
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ docs/formatdomain.html.in                              |  7 +++++++
+ docs/schemas/domaincommon.rng                          |  5 +++++
+ src/conf/domain_conf.c                                 | 18 ++++++++++++++++++
+ src/conf/domain_conf.h                                 |  1 +
+ tests/qemuxml2argvdata/qemuxml2argv-virtio-options.xml |  4 ++++
+ 5 files changed, 35 insertions(+)
+
+diff --git a/docs/formatdomain.html.in b/docs/formatdomain.html.in
+index 6be015f866..dc8e7d2dc7 100644
+--- a/docs/formatdomain.html.in
++++ b/docs/formatdomain.html.in
+@@ -5712,6 +5712,13 @@ qemu-kvm -net nic,model=? /dev/null
+       event device passed through to guests. (KVM only)
+     </p>
+ 
++    <p>
++        The subelement <code>driver</code> can be used to tune the virtio
++        options of the device:
++        <a href="#elementsVirtio">Virtio-specific options</a> can also be
++        set. (<span class="since">Since 3.5.0</span>)
++    </p>
++
+     <h4><a name="elementsHub">Hub devices</a></h4>
+ 
+     <p>
+diff --git a/docs/schemas/domaincommon.rng b/docs/schemas/domaincommon.rng
+index ee49d6eb58..78023ff4af 100644
+--- a/docs/schemas/domaincommon.rng
++++ b/docs/schemas/domaincommon.rng
+@@ -3936,6 +3936,11 @@
+ 
+   <define name="input">
+     <element name="input">
++      <optional>
++        <element name="driver">
++          <ref name="virtioOptions"/>
++        </element>
++      </optional>
+       <choice>
+         <group>
+           <attribute name="type">
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index a0de639e51..d8ca25da38 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -1400,6 +1400,7 @@ void virDomainInputDefFree(virDomainInputDefPtr def)
+ 
+     virDomainDeviceInfoClear(&def->info);
+     VIR_FREE(def->source.evdev);
++    VIR_FREE(def->virtio);
+     VIR_FREE(def);
+ }
+ 
+@@ -11587,6 +11588,9 @@ virDomainInputDefParseXML(const virDomainDef *dom,
+         goto error;
+     }
+ 
++    if (virDomainVirtioOptionsParseXML(ctxt, &def->virtio) < 0)
++        goto error;
++
+  cleanup:
+     VIR_FREE(evdev);
+     VIR_FREE(type);
+@@ -19328,6 +19332,10 @@ virDomainInputDefCheckABIStability(virDomainInputDefPtr src,
+         return false;
+     }
+ 
++    if (src->virtio && dst->virtio &&
++        !virDomainVirtioOptionsCheckABIStability(src->virtio, dst->virtio))
++        return false;
++
+     if (!virDomainDeviceInfoCheckABIStability(&src->info, &dst->info))
+         return false;
+ 
+@@ -23404,6 +23412,7 @@ virDomainInputDefFormat(virBufferPtr buf,
+     const char *type = virDomainInputTypeToString(def->type);
+     const char *bus = virDomainInputBusTypeToString(def->bus);
+     virBuffer childbuf = VIR_BUFFER_INITIALIZER;
++    virBuffer driverBuf = VIR_BUFFER_INITIALIZER;
+ 
+     /* don't format keyboard into migratable XML for backward compatibility */
+     if (flags & VIR_DOMAIN_DEF_FORMAT_MIGRATABLE &&
+@@ -23427,6 +23436,15 @@ virDomainInputDefFormat(virBufferPtr buf,
+                       type, bus);
+ 
+     virBufferAdjustIndent(&childbuf, virBufferGetIndent(buf, false) + 2);
++    virDomainVirtioOptionsFormat(&driverBuf, def->virtio);
++    if (virBufferCheckError(&driverBuf) < 0)
++        return -1;
++
++    if (virBufferUse(&driverBuf)) {
++        virBufferAddLit(&childbuf, "<driver");
++        virBufferAddBuffer(&childbuf, &driverBuf);
++        virBufferAddLit(&childbuf, "/>\n");
++    }
+     virBufferEscapeString(&childbuf, "<source evdev='%s'/>\n", def->source.evdev);
+     if (virDomainDeviceInfoFormat(&childbuf, &def->info, flags) < 0)
+         return -1;
+diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
+index b79fb50c79..4c33b0d15e 100644
+--- a/src/conf/domain_conf.h
++++ b/src/conf/domain_conf.h
+@@ -1282,6 +1282,7 @@ struct _virDomainInputDef {
+         char *evdev;
+     } source;
+     virDomainDeviceInfo info;
++    virDomainVirtioOptionsPtr virtio;
+ };
+ 
+ typedef enum {
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-virtio-options.xml b/tests/qemuxml2argvdata/qemuxml2argv-virtio-options.xml
+index 85d1145263..773038a320 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-virtio-options.xml
++++ b/tests/qemuxml2argvdata/qemuxml2argv-virtio-options.xml
+@@ -54,15 +54,19 @@
+       <address type='pci' domain='0x0000' bus='0x00' slot='0x06' function='0x0'/>
+     </interface>
+     <input type='mouse' bus='virtio'>
++      <driver iommu='on' ats='on'/>
+       <address type='pci' domain='0x0000' bus='0x00' slot='0x0e' function='0x0'/>
+     </input>
+     <input type='keyboard' bus='virtio'>
++      <driver iommu='on' ats='on'/>
+       <address type='pci' domain='0x0000' bus='0x00' slot='0x10' function='0x0'/>
+     </input>
+     <input type='tablet' bus='virtio'>
++      <driver iommu='on' ats='on'/>
+       <address type='pci' domain='0x0000' bus='0x00' slot='0x11' function='0x0'/>
+     </input>
+     <input type='passthrough' bus='virtio'>
++      <driver iommu='on' ats='on'/>
+       <source evdev='/dev/input/event1234'/>
+       <address type='pci' domain='0x0000' bus='0x00' slot='0x12' function='0x0'/>
+     </input>
+-- 
+2.13.1
+

@@ -1,5 +1,5 @@
-From 2c48579454f7cd49500cb03ae23973c6880ea5ea Mon Sep 17 00:00:00 2001
-Message-Id: <2c48579454f7cd49500cb03ae23973c6880ea5ea@dist-git>
+From e57574f1c3a506267da6676a0036bc35dbd923b3 Mon Sep 17 00:00:00 2001
+Message-Id: <e57574f1c3a506267da6676a0036bc35dbd923b3@dist-git>
 From: Eric Blake <eblake@redhat.com>
 Date: Tue, 7 Oct 2014 17:06:17 -0600
 Subject: [PATCH] RHEL: qemu: support relative backing for RHEL 7.0.z qemu
@@ -25,17 +25,17 @@ Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
  1 file changed, 1 insertion(+)
 
 diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
-index 28d5321..206133d 100644
+index b1245ad5d..629fc8a9b 100644
 --- a/src/qemu/qemu_capabilities.c
 +++ b/src/qemu/qemu_capabilities.c
-@@ -1464,6 +1464,7 @@ struct virQEMUCapsStringFlags virQEMUCapsCommands[] = {
+@@ -1480,6 +1480,7 @@ struct virQEMUCapsStringFlags virQEMUCapsCommands[] = {
      { "add-fd", QEMU_CAPS_ADD_FD },
      { "nbd-server-start", QEMU_CAPS_NBD_SERVER },
      { "change-backing-file", QEMU_CAPS_CHANGE_BACKING_FILE },
 +    { "__com.redhat_change-backing-file", QEMU_CAPS_CHANGE_BACKING_FILE },
      { "rtc-reset-reinjection", QEMU_CAPS_RTC_RESET_REINJECTION },
      { "migrate-incoming", QEMU_CAPS_INCOMING_DEFER },
- };
+     { "query-hotpluggable-cpus", QEMU_CAPS_QUERY_HOTPLUGGABLE_CPUS },
 -- 
-2.9.0
+2.12.2
 

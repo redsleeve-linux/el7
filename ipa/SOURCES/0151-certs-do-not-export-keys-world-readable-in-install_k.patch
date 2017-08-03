@@ -1,0 +1,33 @@
+From 9e724963967a79fd171e79d2353ec7b655f13c47 Mon Sep 17 00:00:00 2001
+From: Jan Cholasta <jcholast@redhat.com>
+Date: Thu, 11 May 2017 07:00:42 +0000
+Subject: [PATCH] certs: do not export keys world-readable in
+ install_key_from_p12
+
+Make sure the exported private key files are readable only by the owner.
+
+https://pagure.io/freeipa/issue/6831
+
+Reviewed-By: Stanislav Laznicka <slaznick@redhat.com>
+Reviewed-By: Martin Babinsky <mbabinsk@redhat.com>
+---
+ ipaserver/install/certs.py | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/ipaserver/install/certs.py b/ipaserver/install/certs.py
+index 17b9ebad4a128e292e453af44ca9d63cfb1e6ea2..06a7e2143964484fa45106ca381043eb440dc5b1 100644
+--- a/ipaserver/install/certs.py
++++ b/ipaserver/install/certs.py
+@@ -73,7 +73,8 @@ def install_key_from_p12(p12_fname, p12_passwd, pem_fname):
+     pwd = ipautil.write_tmp_file(p12_passwd)
+     ipautil.run([paths.OPENSSL, "pkcs12", "-nodes", "-nocerts",
+                  "-in", p12_fname, "-out", pem_fname,
+-                 "-passin", "file:" + pwd.name])
++                 "-passin", "file:" + pwd.name],
++                umask=0o077)
+ 
+ 
+ def export_pem_p12(pkcs12_fname, pkcs12_pwd_fname, nickname, pem_fname):
+-- 
+2.9.4
+

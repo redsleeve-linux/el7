@@ -1,0 +1,282 @@
+From 8e5ac9cdbe38dd3b3320b97385d8e2cf0e862ef7 Mon Sep 17 00:00:00 2001
+Message-Id: <8e5ac9cdbe38dd3b3320b97385d8e2cf0e862ef7@dist-git>
+From: Erik Skultety <eskultet@redhat.com>
+Date: Thu, 18 May 2017 14:02:54 +0200
+Subject: [PATCH] nodedev: Introduce mdev capability for mediated devices
+
+Start discovering the mediated devices on the host system and format the
+attributes for the mediated device into the XML. Compared to the parent
+device which reports generic information about the abstract mediated
+devices types, a child device only reports the type name it has been
+instantiated from and the IOMMU group number, since that's device
+specific compared to the rest of the info that can be gathered about
+mediated devices at the moment.
+This patch introduces both the formatting and parsing routines, updates
+nodedev.rng schema, adding a testcase as well.
+
+The resulting mdev child device XML:
+<device>
+  <name>mdev_4b20d080_1b54_4048_85b3_a6a62d165c01</name>
+  <path>/sys/devices/.../4b20d080-1b54-4048-85b3-a6a62d165c01</path>
+  <parent>pci_0000_06_00_0</parent>
+  <driver>
+    <name>vfio_mdev</name>
+  </driver>
+  <capability type='mdev'>
+    <type id='vendor_supplied_type_id'/>
+    <iommuGroup number='NUM'/>
+  <capability/>
+<device/>
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1452072
+
+Signed-off-by: Erik Skultety <eskultet@redhat.com>
+(cherry picked from commit 88ef73e13cddc8c0ff01dfe7a914342f8720c517)
+Signed-off-by: Erik Skultety <eskultet@redhat.com>
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ docs/schemas/nodedev.rng                           | 17 +++++++++
+ src/conf/node_device_conf.c                        | 41 +++++++++++++++++++++
+ src/conf/node_device_conf.h                        |  8 ++++
+ src/node_device/node_device_udev.c                 | 43 +++++++++++++++++++++-
+ .../mdev_3627463d_b7f0_4fea_b468_f1da537d301b.xml  |  8 ++++
+ tests/nodedevxml2xmltest.c                         |  1 +
+ 6 files changed, 117 insertions(+), 1 deletion(-)
+ create mode 100644 tests/nodedevschemadata/mdev_3627463d_b7f0_4fea_b468_f1da537d301b.xml
+
+diff --git a/docs/schemas/nodedev.rng b/docs/schemas/nodedev.rng
+index e0a2c5032..924f73861 100644
+--- a/docs/schemas/nodedev.rng
++++ b/docs/schemas/nodedev.rng
+@@ -83,6 +83,7 @@
+         <ref name="capscsi"/>
+         <ref name="capstorage"/>
+         <ref name="capdrm"/>
++        <ref name="capmdev"/>
+       </choice>
+     </element>
+   </define>
+@@ -580,6 +581,22 @@
+     </element>
+   </define>
+ 
++  <define name='capmdev'>
++    <attribute name='type'>
++      <value>mdev</value>
++    </attribute>
++    <element name='type'>
++      <attribute name='id'>
++        <data type='string'/>
++      </attribute>
++    </element>
++    <element name='iommuGroup'>
++      <attribute name='number'>
++        <ref name='unsignedInt'/>
++      </attribute>
++    </element>
++  </define>
++
+   <define name='address'>
+     <element name='address'>
+       <attribute name='domain'><ref name='hexuint'/></attribute>
+diff --git a/src/conf/node_device_conf.c b/src/conf/node_device_conf.c
+index de8ba8f9d..ac61db34c 100644
+--- a/src/conf/node_device_conf.c
++++ b/src/conf/node_device_conf.c
+@@ -577,6 +577,10 @@ virNodeDeviceDefFormat(const virNodeDeviceDef *def)
+             virBufferEscapeString(&buf, "<type>%s</type>\n", virNodeDevDRMTypeToString(data->drm.type));
+             break;
+         case VIR_NODE_DEV_CAP_MDEV:
++            virBufferEscapeString(&buf, "<type id='%s'/>\n", data->mdev.type);
++            virBufferAsprintf(&buf, "<iommuGroup number='%u'/>\n",
++                              data->mdev.iommuGroupNumber);
++            break;
+         case VIR_NODE_DEV_CAP_MDEV_TYPES:
+         case VIR_NODE_DEV_CAP_FC_HOST:
+         case VIR_NODE_DEV_CAP_VPORTS:
+@@ -1647,6 +1651,39 @@ virNodeDevCapSystemParseXML(xmlXPathContextPtr ctxt,
+ }
+ 
+ 
++static int
++virNodeDevCapMdevParseXML(xmlXPathContextPtr ctxt,
++                          virNodeDeviceDefPtr def,
++                          xmlNodePtr node,
++                          virNodeDevCapMdevPtr mdev)
++{
++    xmlNodePtr orignode;
++    int ret = -1;
++
++    orignode = ctxt->node;
++    ctxt->node = node;
++
++    if (!(mdev->type = virXPathString("string(./type[1]/@id)", ctxt))) {
++        virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
++                       _("missing type id attribute for '%s'"), def->name);
++        goto out;
++    }
++
++    if (virNodeDevCapsDefParseULong("number(./iommuGroup[1]/@number)", ctxt,
++                                    &mdev->iommuGroupNumber, def,
++                                    _("missing iommuGroup number attribute for "
++                                      "'%s'"),
++                                    _("invalid iommuGroup number attribute for "
++                                      "'%s'")) < 0)
++        goto out;
++
++    ret = 0;
++ out:
++    ctxt->node = orignode;
++    return ret;
++}
++
++
+ static virNodeDevCapsDefPtr
+ virNodeDevCapsDefParseXML(xmlXPathContextPtr ctxt,
+                           virNodeDeviceDefPtr def,
+@@ -1715,6 +1752,8 @@ virNodeDevCapsDefParseXML(xmlXPathContextPtr ctxt,
+         ret = virNodeDevCapDRMParseXML(ctxt, def, node, &caps->data.drm);
+         break;
+     case VIR_NODE_DEV_CAP_MDEV:
++        ret = virNodeDevCapMdevParseXML(ctxt, def, node, &caps->data.mdev);
++        break;
+     case VIR_NODE_DEV_CAP_MDEV_TYPES:
+     case VIR_NODE_DEV_CAP_FC_HOST:
+     case VIR_NODE_DEV_CAP_VPORTS:
+@@ -2037,6 +2076,8 @@ virNodeDevCapsDefFree(virNodeDevCapsDefPtr caps)
+         VIR_FREE(data->sg.path);
+         break;
+     case VIR_NODE_DEV_CAP_MDEV:
++        VIR_FREE(data->mdev.type);
++        break;
+     case VIR_NODE_DEV_CAP_MDEV_TYPES:
+     case VIR_NODE_DEV_CAP_DRM:
+     case VIR_NODE_DEV_CAP_FC_HOST:
+diff --git a/src/conf/node_device_conf.h b/src/conf/node_device_conf.h
+index 18aaff8b5..5743f9d3e 100644
+--- a/src/conf/node_device_conf.h
++++ b/src/conf/node_device_conf.h
+@@ -143,6 +143,13 @@ struct _virNodeDevCapMdevType {
+     unsigned int available_instances;
+ };
+ 
++typedef struct _virNodeDevCapMdev virNodeDevCapMdev;
++typedef virNodeDevCapMdev *virNodeDevCapMdevPtr;
++struct _virNodeDevCapMdev {
++    char *type;
++    unsigned int iommuGroupNumber;
++};
++
+ typedef struct _virNodeDevCapPCIDev virNodeDevCapPCIDev;
+ typedef virNodeDevCapPCIDev *virNodeDevCapPCIDevPtr;
+ struct _virNodeDevCapPCIDev {
+@@ -276,6 +283,7 @@ struct _virNodeDevCapData {
+         virNodeDevCapStorage storage;
+         virNodeDevCapSCSIGeneric sg;
+         virNodeDevCapDRM drm;
++        virNodeDevCapMdev mdev;
+     };
+ };
+ 
+diff --git a/src/node_device/node_device_udev.c b/src/node_device/node_device_udev.c
+index b89099c82..37528ee48 100644
+--- a/src/node_device/node_device_udev.c
++++ b/src/node_device/node_device_udev.c
+@@ -1073,6 +1073,42 @@ udevProcessSCSIGeneric(struct udev_device *dev,
+ }
+ 
+ static int
++udevProcessMediatedDevice(struct udev_device *dev,
++                          virNodeDeviceDefPtr def)
++{
++    int ret = -1;
++    const char *uuidstr = NULL;
++    int iommugrp = -1;
++    char *linkpath = NULL;
++    char *realpath = NULL;
++    virNodeDevCapMdevPtr data = &def->caps->data.mdev;
++
++    if (virAsprintf(&linkpath, "%s/mdev_type", udev_device_get_syspath(dev)) < 0)
++        goto cleanup;
++
++    if (virFileResolveLink(linkpath, &realpath) < 0)
++        goto cleanup;
++
++    if (VIR_STRDUP(data->type, last_component(realpath)) < 0)
++        goto cleanup;
++
++    uuidstr = udev_device_get_sysname(dev);
++    if ((iommugrp = virMediatedDeviceGetIOMMUGroupNum(uuidstr)) < 0)
++        goto cleanup;
++
++    if (udevGenerateDeviceName(dev, def, NULL) != 0)
++        goto cleanup;
++
++    data->iommuGroupNumber = iommugrp;
++
++    ret = 0;
++ cleanup:
++    VIR_FREE(linkpath);
++    VIR_FREE(realpath);
++    return ret;
++}
++
++static int
+ udevGetDeviceNodes(struct udev_device *device,
+                    virNodeDeviceDefPtr def)
+ {
+@@ -1140,12 +1176,16 @@ udevGetDeviceType(struct udev_device *device,
+         if (udevHasDeviceProperty(device, "INTERFACE"))
+             *type = VIR_NODE_DEV_CAP_NET;
+ 
+-        /* SCSI generic device doesn't set DEVTYPE property */
++        /* Neither SCSI generic devices nor mediated devices set DEVTYPE
++         * property, therefore we need to rely on the SUBSYSTEM property */
+         if (udevGetStringProperty(device, "SUBSYSTEM", &subsystem) < 0)
+             return -1;
+ 
+         if (STREQ_NULLABLE(subsystem, "scsi_generic"))
+             *type = VIR_NODE_DEV_CAP_SCSI_GENERIC;
++        else if (STREQ_NULLABLE(subsystem, "mdev"))
++            *type = VIR_NODE_DEV_CAP_MDEV;
++
+         VIR_FREE(subsystem);
+     }
+ 
+@@ -1185,6 +1225,7 @@ static int udevGetDeviceDetails(struct udev_device *device,
+     case VIR_NODE_DEV_CAP_DRM:
+         return udevProcessDRMDevice(device, def);
+     case VIR_NODE_DEV_CAP_MDEV:
++        return udevProcessMediatedDevice(device, def);
+     case VIR_NODE_DEV_CAP_MDEV_TYPES:
+     case VIR_NODE_DEV_CAP_SYSTEM:
+     case VIR_NODE_DEV_CAP_FC_HOST:
+diff --git a/tests/nodedevschemadata/mdev_3627463d_b7f0_4fea_b468_f1da537d301b.xml b/tests/nodedevschemadata/mdev_3627463d_b7f0_4fea_b468_f1da537d301b.xml
+new file mode 100644
+index 000000000..470e5917e
+--- /dev/null
++++ b/tests/nodedevschemadata/mdev_3627463d_b7f0_4fea_b468_f1da537d301b.xml
+@@ -0,0 +1,8 @@
++<device>
++  <name>mdev_3627463d_b7f0_4fea_b468_f1da537d301b</name>
++  <parent>computer</parent>
++  <capability type='mdev'>
++    <type id='mtty-1'/>
++    <iommuGroup number='12'/>
++  </capability>
++</device>
+diff --git a/tests/nodedevxml2xmltest.c b/tests/nodedevxml2xmltest.c
+index eb5c50b86..26f0d25bc 100644
+--- a/tests/nodedevxml2xmltest.c
++++ b/tests/nodedevxml2xmltest.c
+@@ -102,6 +102,7 @@ mymain(void)
+     DO_TEST("pci_0000_02_10_7_sriov_pf_vfs_all_header_type");
+     DO_TEST("drm_renderD129");
+     DO_TEST("pci_0000_02_10_7_mdev_types");
++    DO_TEST("mdev_3627463d_b7f0_4fea_b468_f1da537d301b");
+ 
+     return ret == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+ }
+-- 
+2.13.0
+

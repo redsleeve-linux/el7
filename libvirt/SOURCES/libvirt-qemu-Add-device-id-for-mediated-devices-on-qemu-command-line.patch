@@ -1,0 +1,47 @@
+From 23a4263e7611fa3f1e69f5bab7056a85e48d6b23 Mon Sep 17 00:00:00 2001
+Message-Id: <23a4263e7611fa3f1e69f5bab7056a85e48d6b23@dist-git>
+From: Erik Skultety <eskultet@redhat.com>
+Date: Tue, 4 Apr 2017 08:54:51 +0200
+Subject: [PATCH] qemu: Add device id for mediated devices on qemu command line
+
+Like all devices, add the 'id' option for mdevs as well. Patch also
+adjusts the test accordingly.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1438431
+
+(cherry picked from commit c3272e5e12e0bfd43b8101b73ae13d264c13337f)
+Signed-off-by: Erik Skultety <eskultet@redhat.com>
+---
+ src/qemu/qemu_command.c                                          | 3 ++-
+ tests/qemuxml2argvdata/qemuxml2argv-hostdev-mdev-precreated.args | 2 +-
+ 2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index 1a2984e56..59fedaaaf 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -5231,7 +5231,8 @@ qemuBuildHostdevMediatedDevStr(const virDomainDef *def,
+     char *ret = NULL;
+ 
+     virBufferAddLit(&buf, "vfio-pci");
+-    virBufferAsprintf(&buf, ",sysfsdev=%s",
++    virBufferAsprintf(&buf, ",id=%s,sysfsdev=%s",
++                      dev->info->alias,
+                       virMediatedDeviceGetSysfsPath(mdevsrc->uuidstr));
+ 
+     if (qemuBuildDeviceAddressStr(&buf, def, dev->info, qemuCaps) < 0)
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-hostdev-mdev-precreated.args b/tests/qemuxml2argvdata/qemuxml2argv-hostdev-mdev-precreated.args
+index fdefeb610..76e77707b 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-hostdev-mdev-precreated.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-hostdev-mdev-precreated.args
+@@ -20,6 +20,6 @@ QEMU_AUDIO_DRV=none \
+ -usb \
+ -drive file=/dev/HostVG/QEMUGuest2,format=raw,if=none,id=drive-ide0-0-0 \
+ -device ide-drive,bus=ide.0,unit=0,drive=drive-ide0-0-0,id=ide0-0-0 \
+--device vfio-pci,\
++-device vfio-pci,id=hostdev0,\
+ sysfsdev=/sys/bus/mdev/devices/53764d0e-85a0-42b4-af5c-2046b460b1dc,bus=pci.0,\
+ addr=0x3
+-- 
+2.12.2
+

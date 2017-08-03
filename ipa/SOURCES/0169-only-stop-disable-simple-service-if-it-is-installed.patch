@@ -1,0 +1,54 @@
+From 2a20fbe381dd8a740e05833dd8d2b5440ce84812 Mon Sep 17 00:00:00 2001
+From: Martin Babinsky <mbabinsk@redhat.com>
+Date: Tue, 23 May 2017 16:35:01 +0200
+Subject: [PATCH] only stop/disable simple service if it is installed
+
+The SimpleServiceInstance uninstaller assument that the service to
+uninstall was always present on the system. This may not be valid in
+some cases (e.g. containerized deployments) and thus we need to change
+the service state only when we know that the unit file exists.
+
+https://pagure.io/freeipa/issue/6977
+
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+---
+ ipaserver/install/service.py | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)
+
+diff --git a/ipaserver/install/service.py b/ipaserver/install/service.py
+index 1aa49ed25b25366afd2bb17073b4b214c231d54b..0523e914aa7debf6aaa82ddcce9b7b26c1833cd3 100644
+--- a/ipaserver/install/service.py
++++ b/ipaserver/install/service.py
+@@ -674,18 +674,21 @@ class SimpleServiceInstance(Service):
+         else:
+             self.ldap_enable(self.gensvc_name, self.fqdn, None, self.suffix)
+ 
++    def is_installed(self):
++        return self.service.is_installed()
++
+     def uninstall(self):
+         if self.is_configured():
+             self.print_msg("Unconfiguring %s" % self.service_name)
+ 
+-        self.stop()
+-        self.disable()
+-
+         running = self.restore_state("running")
+         enabled = self.restore_state("enabled")
+ 
+-        # restore the original state of service
+-        if running:
+-            self.start()
+-        if enabled:
+-            self.enable()
++        if self.is_installed():
++            self.stop()
++            self.disable()
++
++            if running:
++                self.start()
++            if enabled:
++                self.enable()
+-- 
+2.9.4
+

@@ -1,0 +1,74 @@
+From 6c74f5fdf8f882d89fd6a1c30fe017f2ed270a96 Mon Sep 17 00:00:00 2001
+Message-Id: <6c74f5fdf8f882d89fd6a1c30fe017f2ed270a96@dist-git>
+From: Pavel Hrdina <phrdina@redhat.com>
+Date: Fri, 21 Apr 2017 13:12:16 +0200
+Subject: [PATCH] util: check ifa_addr pointer before accessing its elements
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Reported by Rafał Wojciechowski <it@rafalwojciechowski.pl>.
+
+Thread 1 (Thread 0x7f194b99d700 (LWP 5631)):
+0  virNetDevGetifaddrsAddress (addr=0x7f194b99c7c0, ifname=0x7f193400e2b0 "ovirtmgmt") at util/virnetdevip.c:738
+1  virNetDevIPAddrGet (ifname=0x7f193400e2b0 "ovirtmgmt", addr=addr@entry=0x7f194b99c7c0) at util/virnetdevip.c:795
+2  0x00007f19467800d6 in networkGetNetworkAddress (netname=<optimized out>, netaddr=netaddr@entry=0x7f1924013f18) at network/bridge_driver.c:4780
+3  0x00007f193e43a33c in qemuProcessGraphicsSetupNetworkAddress (listenAddr=0x7f19340f7650 "127.0.0.1", glisten=0x7f1924013f10) at qemu/qemu_process.c:4062
+4  qemuProcessGraphicsSetupListen (vm=<optimized out>, graphics=0x7f1924014f10, cfg=0x7f1934119f00) at qemu/qemu_process.c:4133
+5  qemuProcessSetupGraphics (flags=17, vm=0x7f19240155d0, driver=0x7f193411f1d0) at qemu/qemu_process.c:4196
+6  qemuProcessPrepareDomain (conn=conn@entry=0x7f192c00ab50, driver=driver@entry=0x7f193411f1d0, vm=vm@entry=0x7f19240155d0, flags=flags@entry=17) at qemu/qemu_process.c:4969
+7  0x00007f193e4417c0 in qemuProcessStart (conn=conn@entry=0x7f192c00ab50, driver=driver@entry=0x7f193411f1d0, vm=0x7f19240155d0,asyncJob=asyncJob@entry=QEMU_ASYNC_JOB_START, migrateFrom=migrateFrom@entry=0x0, migrateFd=migrateFd@entry=-1, migratePath=migratePath@entry=0x0,snapshot=snapshot@entry=0x0, vmop=vmop@entry=VIR_NETDEV_VPORT_PROFILE_OP_CREATE, flags=17, flags@entry=1) at qemu/qemu_process.c:5553
+
+Man page for getifaddrs also states that the "ifa_addr" may contain
+a null pointer which happens if there is an existing network interface
+on the host without IP address.
+
+Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit 42000bf7e554b3732a569db633824302d5ec2867)
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1444408
+
+Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
+---
+ src/util/virnetdevip.c  | 7 ++++++-
+ src/util/virnetdevtap.c | 3 +++
+ 2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/util/virnetdevip.c b/src/util/virnetdevip.c
+index c9ac6baf7..7a4fb1c91 100644
+--- a/src/util/virnetdevip.c
++++ b/src/util/virnetdevip.c
+@@ -893,10 +893,15 @@ virNetDevGetifaddrsAddress(const char *ifname,
+     }
+ 
+     for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+-        int family = ifa->ifa_addr->sa_family;
++        int family;
+ 
+         if (STRNEQ_NULLABLE(ifa->ifa_name, ifname))
+             continue;
++
++        if (!ifa->ifa_addr)
++            continue;
++        family = ifa->ifa_addr->sa_family;
++
+         if (family != AF_INET6 && family != AF_INET)
+             continue;
+ 
+diff --git a/src/util/virnetdevtap.c b/src/util/virnetdevtap.c
+index 02ef7fd24..93002b929 100644
+--- a/src/util/virnetdevtap.c
++++ b/src/util/virnetdevtap.c
+@@ -762,6 +762,9 @@ virNetDevTapInterfaceStats(const char *ifname,
+     }
+ 
+     for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
++        if (!ifa->ifa_addr)
++            continue;
++
+         if (ifa->ifa_addr->sa_family != AF_LINK)
+             continue;
+ 
+-- 
+2.12.2
+

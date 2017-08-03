@@ -1,5 +1,6 @@
 %if 0%{?rhel}
 %define with_private_llvm 1
+%define with_vdpau 1
 %else
 %define with_private_llvm 0
 %define with_vdpau 1
@@ -29,26 +30,38 @@
 %else
 %define with_hardware 1
 %define base_drivers nouveau,radeon,r200
+%define base_vulkan_drivers radeon
 %ifarch %{ix86} x86_64
 %define platform_drivers ,i915,i965
 %define with_vmware 1
+%define platform_vulkan_drivers ,intel
 %endif
 %ifarch ppc
 %define platform_drivers ,swrast
 %endif
 %endif
 
+%ifarch x86_64 ppc64le
+%define with_vulkan 1
+%else
+%define with_vulkan 0
+%endif
+
 %define dri_drivers --with-dri-drivers=%{?base_drivers}%{?platform_drivers}
+
+%if 0%{?with_vulkan}
+%define vulkan_drivers --with-vulkan-drivers=%{?base_vulkan_drivers}%{?platform_vulkan_drivers}
+%endif
 
 %define _default_patch_fuzz 2
 
-%define gitdate 20160614
+%define gitdate 20170307
 #% define snapshot 
 
 Summary: Mesa graphics libraries
 Name: mesa
-Version: 11.2.2
-Release: 2.%{gitdate}%{?dist}.redsleeve
+Version: 17.0.1
+Release: 6.%{gitdate}%{?dist}
 License: MIT
 Group: System Environment/Libraries
 URL: http://www.mesa3d.org
@@ -70,10 +83,11 @@ Patch12: mesa-8.0.1-fix-16bpp.patch
 Patch15: mesa-9.2-hardware-float.patch
 Patch20: mesa-10.2-evergreen-big-endian.patch
 
-Patch30: 0001-virgl-fix-checking-fences.patch
+Patch30: 0001-glsl-Allow-compatibility-shaders-with-MESA_GL_VERSIO.patch
 
-Patch40: 0001-i956-Add-more-Kabylake-PCI-IDs.patch
-Patch41: 0002-i965-Removing-PCI-IDs-that-are-no-longer-listed-as-K.patch
+Patch40: 0001-Revert-draw-use-SoA-fetch-not-AoS-one.patch
+
+Patch50: 0001-gallivm-Make-sure-module-has-the-correct-data-layout.patch
 
 BuildRequires: pkgconfig autoconf automake libtool
 %if %{with_hardware}
@@ -98,7 +112,7 @@ BuildRequires: python-mako
 BuildRequires: gettext
 %if 0%{?with_llvm}
 %if 0%{?with_private_llvm}
-BuildRequires: mesa-private-llvm-devel >= 3.6
+BuildRequires: mesa-private-llvm-devel >= 3.9
 %else
 BuildRequires: llvm-devel >= 3.0
 %endif
@@ -286,6 +300,15 @@ Group: System Environment/Libraries
 %description libglapi
 Mesa shared glapi
 
+%if 0%{?with_vulkan}
+%package vulkan-drivers
+Summary:        Mesa Vulkan drivers
+Requires:       vulkan%{_isa}
+
+%description vulkan-drivers
+The drivers with support for the Vulkan API.
+%endif
+
 %prep
 #setup -q -n Mesa-%{version}%{?snapshot}
 %setup -q -n mesa-%{gitdate}
@@ -306,9 +329,12 @@ grep -q ^/ src/gallium/auxiliary/vl/vl_decoder.c && exit 1
 
 %patch15 -p1 -b .hwfloat
 #patch20 -p1 -b .egbe
-%patch30 -p1 -b .virglfix
-%patch40 -p1 -b .kblid1
-%patch41 -p1 -b .kblid2
+
+%patch30 -p1 -b .glslfix
+
+%patch40 -p1 -b .bigendian-fix
+
+%patch50 -p1 -b .gallivm-datalayout-fix
 
 %if 0%{with_private_llvm}
 sed -i 's/\[llvm-config\]/\[mesa-private-llvm-config-%{__isa_bits}\]/g' configure.ac
@@ -356,12 +382,14 @@ export CXXFLAGS="$RPM_OPT_FLAGS -fno-rtti -fno-exceptions"
     --disable-opencl \
     --enable-glx-tls \
     --enable-texture-float=yes \
+%if %{with_vulkan}
+    %{?vulkan_drivers} \
+%endif
     %{?with_llvm:--enable-gallium-llvm} \
-    %{?with_llvm:--with-llvm-shared-libs} \
     --enable-dri \
 %if %{with_hardware}
     %{?with_vmware:--enable-xa} \
-    --with-gallium-drivers=%{?with_vmware:svga,}%{?with_radeonsi:radeonsi,}%{?with_llvm:swrast,r600,}%{?with_freedreno:freedreno,}r300,nouveau,virgl \
+    --with-gallium-drivers=%{?with_vmware:svga,}%{?with_radeonsi:radeonsi,}%{?with_llvm:swrast,r600,r300}%{?with_freedreno:freedreno,},nouveau,virgl \
 %else
     --with-gallium-drivers=%{?with_llvm:swrast} \
 %endif
@@ -380,6 +408,8 @@ make install DESTDIR=$RPM_BUILD_ROOT
 %if 0%{?rhel}
 # remove pre-DX9 drivers
 rm -f $RPM_BUILD_ROOT%{_libdir}/dri/{radeon,r200,nouveau_vieux}_dri.*
+# remove r300 vdpau
+rm -f $RPM_BUILD_ROOT%{_libdir}/vdpau/libvdpau_r300.*
 %endif
 
 %if !%{with_hardware}
@@ -393,6 +423,8 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/vdpau/*.so
 rm -f $RPM_BUILD_ROOT%{_includedir}/GL/w*.h
 
 rm -rf $RPM_BUILD_ROOT%{_libdir}/gallium-pipe/
+
+rm -f $RPM_BUILD_ROOT%{_includedir}/vulkan/vulkan_intel.h
 
 # remove .la files
 find $RPM_BUILD_ROOT -name \*.la | xargs rm -f
@@ -432,25 +464,22 @@ rm -rf $RPM_BUILD_ROOT
 
 %files libGL
 %defattr(-,root,root,-)
-%doc docs/COPYING
 %{_libdir}/libGL.so.1
 %{_libdir}/libGL.so.1.*
 
 %files libEGL
 %defattr(-,root,root,-)
-%doc docs/COPYING
 %{_libdir}/libEGL.so.1
 %{_libdir}/libEGL.so.1.*
 
 %files libGLES
 %defattr(-,root,root,-)
-%doc docs/COPYING
 %{_libdir}/libGLESv2.so.2
 %{_libdir}/libGLESv2.so.2.*
 
 %files filesystem
 %defattr(-,root,root,-)
-%doc docs/COPYING docs/Mesa-MLAA-License-Clarification-Email.txt
+%doc docs/Mesa-MLAA-License-Clarification-Email.txt
 %dir %{_libdir}/dri
 %if %{with_hardware}
 %if 0%{?with_vdpau}
@@ -471,8 +500,8 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/dri/r200_dri.so
 %{_libdir}/dri/nouveau_vieux_dri.so
 %endif
-%{_libdir}/dri/r300_dri.so
 %if 0%{?with_llvm}
+%{_libdir}/dri/r300_dri.so
 %{_libdir}/dri/r600_dri.so
 %if 0%{?with_radeonsi}
 %{_libdir}/dri/radeonsi_dri.so
@@ -484,7 +513,6 @@ rm -rf $RPM_BUILD_ROOT
 %endif
 %if 0%{?with_freedreno}
 %{_libdir}/dri/kgsl_dri.so
-%{_libdir}/dri/msm_dri.so
 %endif
 %{_libdir}/dri/nouveau_dri.so
 %{_libdir}/dri/virtio_gpu_dri.so
@@ -545,19 +573,20 @@ rm -rf $RPM_BUILD_ROOT
 %files libGLES-devel
 %defattr(-,root,root,-)
 %dir %{_includedir}/GLES2
+%dir %{_includedir}/GLES3
 %{_includedir}/GLES2/gl2platform.h
 %{_includedir}/GLES2/gl2.h
 %{_includedir}/GLES2/gl2ext.h
 %{_includedir}/GLES3/gl3platform.h
 %{_includedir}/GLES3/gl3.h
 %{_includedir}/GLES3/gl31.h
+%{_includedir}/GLES3/gl32.h
 %{_includedir}/GLES3/gl3ext.h
 %{_libdir}/pkgconfig/glesv2.pc
 %{_libdir}/libGLESv2.so
 
 %files libOSMesa
 %defattr(-,root,root,-)
-%doc docs/COPYING
 %{_libdir}/libOSMesa.so.8*
 
 %files libOSMesa-devel
@@ -569,7 +598,6 @@ rm -rf $RPM_BUILD_ROOT
 
 %files libgbm
 %defattr(-,root,root,-)
-%doc docs/COPYING
 %{_libdir}/libgbm.so.1
 %{_libdir}/libgbm.so.1.*
 
@@ -582,7 +610,6 @@ rm -rf $RPM_BUILD_ROOT
 %if !0%{?rhel}
 %files libwayland-egl
 %defattr(-,root,root,-)
-%doc docs/COPYING
 %{_libdir}/libwayland-egl.so.1
 %{_libdir}/libwayland-egl.so.1.*
 
@@ -595,7 +622,6 @@ rm -rf $RPM_BUILD_ROOT
 %if 0%{?with_vmware}
 %files libxatracker
 %defattr(-,root,root,-)
-%doc docs/COPYING
 %if %{with_hardware}
 %{_libdir}/libxatracker.so.2
 %{_libdir}/libxatracker.so.2.*
@@ -612,9 +638,51 @@ rm -rf $RPM_BUILD_ROOT
 %endif
 %endif
 
+%if 0%{?with_vulkan}
+%files vulkan-drivers
+%ifarch x86_64
+%{_libdir}/libvulkan_intel.so
+%{_datadir}/vulkan/icd.d/intel_icd.x86_64.json
+%endif
+%{_libdir}/libvulkan_radeon.so
+%ifarch x86_64
+%{_datadir}/vulkan/icd.d/radeon_icd.x86_64.json
+%endif
+%ifarch ppc64le
+%{_datadir}/vulkan/icd.d/radeon_icd.powerpc64le.json
+%endif
+%endif
+
 %changelog
-* Wed Nov 09 2016 Jacco Ligthart <jacco@redsleeve.org> 11.2.2-2.20160614.redsleeve
-- add msm_dri.so to the %files section
+* Thu May 11 2017 Dave Airlie <airlied@redhat.com> - 17.0.1-6.20170307
+- enable VDPAU drivers (#1297276)
+
+* Tue May 09 2017 Tom Stellard <tstellar@redhat.com> - 17.0.1-5.20170307
+- Use correct datalayout for llvmpipe (#1445423)
+
+* Fri May 05 2017 Adam Jackson <ajax@redhat.com> - 17.0.1-4.20170307
+- Add ppc64le vulkan build
+
+* Wed May 03 2017 Lyude Paul <lyude@redhat.com> - 17.0.1-3.20170307
+- Add temporary revert for #1438891
+
+* Tue Mar 28 2017 Dave Airlie <airlied@redhat.com> - 17.0.1-2.20170307
+- Allow compat shaders override. (#1429813)
+
+* Tue Mar 07 2017 Dave Airlie <airlied@redhat.com> - 17.0.1-1.20170307
+- mesa 17.0.1 release
+
+* Tue Feb 28 2017 Dave Airlie <airlied@redhat.com> - 17.0.0-2.20170215
+- enable more drivers on aarch64 + vulkan drivers (#1358444)
+
+* Wed Feb 15 2017 Dave Airlie <airlied@redhat.com> - 17.0.0-1.20170215
+- mesa 17.0.0 release
+
+* Mon Feb 06 2017 Adam Jackson <ajax@redhat.com> - 17.0.0-0.2.20170123
+- Rebuild against (and BuildRequire) mesa-private-llvm >= 3.9
+
+* Mon Jan 23 2017 Dave Airlie <airlied@redhat.com> - 17.0.0-0.1.20170123
+- mesa 17.0.0-rc1
 
 * Tue Aug 09 2016 Rob Clark <rclark@redhat.com> - 11.2.2-2.20160614
 - update kbl pci ids.

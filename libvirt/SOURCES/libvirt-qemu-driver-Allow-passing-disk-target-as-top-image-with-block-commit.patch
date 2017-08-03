@@ -1,0 +1,39 @@
+From 6126edc9e0fcf658c95f8ede0c05b72dad6d221b Mon Sep 17 00:00:00 2001
+Message-Id: <6126edc9e0fcf658c95f8ede0c05b72dad6d221b@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 17 May 2017 17:44:54 +0200
+Subject: [PATCH] qemu: driver: Allow passing disk target as top image with
+ block commit
+
+Since we allow active layer block commit the users are allowed to commit
+the top of the chain (e.g. vda) into the backing image. The API would
+not accept that parameter, as it tried to look up the image in the
+backing chain.
+
+Add the ability to use the top level image target name explicitly as the
+top image of the block commit operation.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1451394
+(cherry picked from commit ed61e0b368859b25beb5259f84edd4910cd5218f)
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_driver.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index 8699fb2fe..a0f641fd4 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -16933,7 +16933,7 @@ qemuDomainBlockCommit(virDomainPtr dom,
+     if (qemuDomainDiskBlockJobIsActive(disk))
+         goto endjob;
+ 
+-    if (!top)
++    if (!top || STREQ(top, disk->dst))
+         topSource = disk->src;
+     else if (virStorageFileParseChainIndex(disk->dst, top, &topIndex) < 0 ||
+              !(topSource = virStorageFileChainLookup(disk->src, NULL,
+-- 
+2.13.0
+

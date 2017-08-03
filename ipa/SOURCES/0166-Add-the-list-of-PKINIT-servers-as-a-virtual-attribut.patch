@@ -1,0 +1,34 @@
+From 095e8387572432749cf4231f7af67b9d5b597440 Mon Sep 17 00:00:00 2001
+From: Martin Babinsky <mbabinsk@redhat.com>
+Date: Fri, 12 May 2017 15:27:36 +0200
+Subject: [PATCH] Add the list of PKINIT servers as a virtual attribute to
+ global config
+
+https://pagure.io/freeipa/issue/6937
+
+Reviewed-By: Jan Cholasta <jcholast@redhat.com>
+Reviewed-By: Stanislav Laznicka <slaznick@redhat.com>
+---
+ ipaserver/plugins/config.py | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/ipaserver/plugins/config.py b/ipaserver/plugins/config.py
+index c88cb99b47ac746f8e18cf189708d457b535416a..df6bd466afa937be96722a570385fb5b3419830d 100644
+--- a/ipaserver/plugins/config.py
++++ b/ipaserver/plugins/config.py
+@@ -256,6 +256,12 @@ class config(LDAPObject):
+             flags={'virtual_attribute', 'no_create'}
+         ),
+         Str(
++            'pkinit_server_server*',
++            label=_('IPA master capable of PKINIT'),
++            doc=_('IPA master which can process PKINIT requests'),
++            flags={'virtual_attribute', 'no_create', 'no_update'}
++        ),
++        Str(
+             'ipadomainresolutionorder?',
+             cli_name='domain_resolution_order',
+             label=_('Domain resolution order'),
+-- 
+2.9.4
+

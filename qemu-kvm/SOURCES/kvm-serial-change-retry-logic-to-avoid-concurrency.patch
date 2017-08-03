@@ -1,15 +1,15 @@
-From 3ddb1809fc188f9aca337b19a81b40da5b992057 Mon Sep 17 00:00:00 2001
+From 19651bdbf15a4ce03d6fc6e3a6be514a3f46a118 Mon Sep 17 00:00:00 2001
 From: Fam Zheng <famz@redhat.com>
-Date: Fri, 19 May 2017 00:35:13 +0200
+Date: Thu, 18 May 2017 09:21:21 +0200
 Subject: [PATCH 08/18] serial: change retry logic to avoid concurrency
 
 RH-Author: Fam Zheng <famz@redhat.com>
-Message-id: <20170519003523.21163-9-famz@redhat.com>
-Patchwork-id: 75362
-O-Subject: [RHEL-7.3.z qemu-kvm PATCH 08/18] serial: change retry logic to avoid concurrency
-Bugzilla: 1452332
+Message-id: <20170518092131.16571-9-famz@redhat.com>
+Patchwork-id: 75300
+O-Subject: [RHEL-7.4 qemu-kvm PATCH v3 08/18] serial: change retry logic to avoid concurrency
+Bugzilla: 1451470
 RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
-RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
 RH-Acked-by: Eduardo Habkost <ehabkost@redhat.com>
 
 From: Kirill Batuzov <batuzovk@ispras.ru>

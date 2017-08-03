@@ -1,0 +1,31 @@
+From 9d5e8f44210f661850ec67f92909534dd52c2ee8 Mon Sep 17 00:00:00 2001
+From: Florence Blanc-Renaud <flo@redhat.com>
+Date: Wed, 22 Mar 2017 08:49:39 +0100
+Subject: [PATCH] man ipa-cacert-manage install needs clarification
+
+The customers are often confused by ipa-cacert-manage install. The man page
+should make it clear that IPA CA is not modified in any way by this command.
+
+https://pagure.io/freeipa/issue/6795
+
+Reviewed-By: Tomas Krizek <tkrizek@redhat.com>
+---
+ install/tools/man/ipa-cacert-manage.1 | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/install/tools/man/ipa-cacert-manage.1 b/install/tools/man/ipa-cacert-manage.1
+index 4515d7c404054139725fd47f366706cb1e222be5..128edd8bd2500a09f406da8dc01a53b269007ab0 100644
+--- a/install/tools/man/ipa-cacert-manage.1
++++ b/install/tools/man/ipa-cacert-manage.1
+@@ -46,6 +46,8 @@ When the IPA CA is not configured, this command is not available.
+ .RS
+ This command can be used to install the certificate contained in \fICERTFILE\fR as an additional CA certificate to IPA.
+ .sp
++Important: this does not replace IPA CA but adds the provided certificate as a known CA. This is useful for instance when using ipa-server-certinstall to replace HTTP/LDAP certificates with third-party certificates signed by this additional CA.
++.sp
+ Please do not forget to run ipa-certupdate on the master, all the replicas and all the clients after this command in order to update IPA certificates databases.
+ .RE
+ .SH "COMMON OPTIONS"
+-- 
+2.12.1
+

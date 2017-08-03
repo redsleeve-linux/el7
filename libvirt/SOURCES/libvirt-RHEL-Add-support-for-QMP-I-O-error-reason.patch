@@ -1,5 +1,5 @@
-From f45c3ceef34cdc47dbf3b5694769a8282a956983 Mon Sep 17 00:00:00 2001
-Message-Id: <f45c3ceef34cdc47dbf3b5694769a8282a956983@dist-git>
+From d2a647fd2d68114875222614d6b098a96c9d16c3 Mon Sep 17 00:00:00 2001
+Message-Id: <d2a647fd2d68114875222614d6b098a96c9d16c3@dist-git>
 From: Jiri Denemark <jdenemar@redhat.com>
 Date: Thu, 9 Oct 2014 10:38:39 +0200
 Subject: [PATCH] RHEL: Add support for QMP I/O error reason
@@ -18,10 +18,10 @@ Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
  1 file changed, 9 insertions(+), 3 deletions(-)
 
 diff --git a/src/qemu/qemu_monitor_json.c b/src/qemu/qemu_monitor_json.c
-index 5a65203..2890872 100644
+index 6fcf57cd1..405f79fec 100644
 --- a/src/qemu/qemu_monitor_json.c
 +++ b/src/qemu/qemu_monitor_json.c
-@@ -592,7 +592,7 @@ qemuMonitorJSONHandleIOError(qemuMonitorPtr mon, virJSONValuePtr data)
+@@ -646,7 +646,7 @@ qemuMonitorJSONHandleIOError(qemuMonitorPtr mon, virJSONValuePtr data)
  {
      const char *device;
      const char *action;
@@ -30,7 +30,7 @@ index 5a65203..2890872 100644
      bool nospc = false;
      int actionID;
  
-@@ -608,8 +608,14 @@ qemuMonitorJSONHandleIOError(qemuMonitorPtr mon, virJSONValuePtr data)
+@@ -662,8 +662,14 @@ qemuMonitorJSONHandleIOError(qemuMonitorPtr mon, virJSONValuePtr data)
      if ((device = virJSONValueObjectGetString(data, "device")) == NULL)
          VIR_WARN("missing device in disk io error event");
  
@@ -48,5 +48,5 @@ index 5a65203..2890872 100644
      if ((actionID = qemuMonitorIOErrorActionTypeFromString(action)) < 0) {
          VIR_WARN("unknown disk io error action '%s'", action);
 -- 
-2.9.0
+2.12.2
 

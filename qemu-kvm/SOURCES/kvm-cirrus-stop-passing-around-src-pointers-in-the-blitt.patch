@@ -1,16 +1,16 @@
-From d29af2a00b6126d2c3af535d128beeb80216c197 Mon Sep 17 00:00:00 2001
+From cc965429746aac94b7c37991f676dcd323ef212d Mon Sep 17 00:00:00 2001
 From: Gerd Hoffmann <kraxel@redhat.com>
-Date: Tue, 21 Mar 2017 09:58:06 +0100
+Date: Mon, 27 Mar 2017 10:01:21 +0200
 Subject: [PATCH 6/7] cirrus: stop passing around src pointers in the blitter
 
 RH-Author: Gerd Hoffmann <kraxel@redhat.com>
-Message-id: <1490090287-1503-7-git-send-email-kraxel@redhat.com>
-Patchwork-id: 74417
-O-Subject: [RHEL-7.4 qemu-kvm PATCH 6/7] cirrus: stop passing around src pointers in the blitter
-Bugzilla: 1430059
+Message-id: <1490608882-10242-7-git-send-email-kraxel@redhat.com>
+Patchwork-id: 74549
+O-Subject: [RHEL-7.4 qemu-kvm PATCH v2 6/7] cirrus: stop passing around src pointers in the blitter
+Bugzilla: 1430060
 RH-Acked-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
 RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
-RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
 
 Does basically the same as "cirrus: stop passing around dst pointers in
 the blitter", just for the src pointer instead of the dst pointer.

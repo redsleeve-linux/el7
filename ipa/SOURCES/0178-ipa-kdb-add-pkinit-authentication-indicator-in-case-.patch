@@ -1,0 +1,101 @@
+From 5e052107dcb70630c1cccee191ae5317a43ec2cf Mon Sep 17 00:00:00 2001
+From: Alexander Bokovoy <abokovoy@redhat.com>
+Date: Sun, 4 Jun 2017 22:49:13 +0300
+Subject: [PATCH] ipa-kdb: add pkinit authentication indicator in case of a
+ successful certauth
+
+We automatically add 'otp' and 'radius' authentication indicators when
+pre-authentication with OTP or RADIUS did succeed. Do the same for
+certauth-based pre-authentication (PKINIT).
+
+A default PKINIT configuration does not add any authentication
+indicators unless 'pkinit_indicator = pkinit' is set in kdc.conf.
+Unfortunately, modifying kdc.conf automatically is a bit more
+complicated than modifying krb5.conf. Given that we have 'otp' and
+'radius' authentication indicators also defined in the code not in the
+kdc.conf, this change is following an established trend.
+
+SSSD certauth interface does not provide additional information about
+which rule(s) succeeded in matching the incoming certificate. Thus,
+there is not much information we can automatically provide in the
+indicator. It would be good to generate indicators that include some
+information from the certmapping rules in future but for now a single
+'pkinit' indicator is enough.
+
+Fixes https://pagure.io/freeipa/issue/6736
+
+Reviewed-By: Simo Sorce <ssorce@redhat.com>
+---
+ daemons/ipa-kdb/ipa_kdb_certauth.c | 36 ++++++++++++++++++++++++++++++++++--
+ 1 file changed, 34 insertions(+), 2 deletions(-)
+
+diff --git a/daemons/ipa-kdb/ipa_kdb_certauth.c b/daemons/ipa-kdb/ipa_kdb_certauth.c
+index dbe7a0443700784d2b8dbb1fb9196d6249e5522a..da9a9cb87feca68ee591da70a3239dc86749bae5 100644
+--- a/daemons/ipa-kdb/ipa_kdb_certauth.c
++++ b/daemons/ipa-kdb/ipa_kdb_certauth.c
+@@ -267,6 +267,7 @@ static krb5_error_code ipa_certauth_authorize(krb5_context context,
+     int ret;
+     size_t c;
+     char *principal = NULL;
++    char **auth_inds = NULL;
+     LDAPMessage *res = NULL;
+     krb5_error_code kerr;
+     LDAPMessage *lentry;
+@@ -350,6 +351,20 @@ static krb5_error_code ipa_certauth_authorize(krb5_context context,
+         goto done;
+     }
+ 
++    /* Associate authentication indicator "pkinit" with the successful match.
++     * SSSD interface doesn't give us a clue which rule did match
++     * so there is nothing more to add here. */
++    auth_inds = calloc(2, sizeof(char *));
++    if (auth_inds != NULL) {
++	ret = asprintf(&auth_inds[0], "pkinit");
++	if (ret != -1) {
++            auth_inds[1] = NULL;
++            *authinds_out = auth_inds;
++	} else {
++	    free(auth_inds);
++        }
++    }
++
+     /* TODO: add more tests ? */
+ 
+     ret = 0;
+@@ -384,6 +399,24 @@ static void ipa_certauth_fini(krb5_context context,
+     return;
+ }
+ 
++static void ipa_certauth_free_indicator(krb5_context context,
++                                        krb5_certauth_moddata moddata,
++                                        char **authinds)
++{
++    size_t i = 0;
++
++    if ((authinds == NULL) || (moddata == NULL)) {
++	return;
++    }
++
++    for(i=0; authinds[i]; i++) {
++	free(authinds[i]);
++	authinds[i] = NULL;
++    }
++
++    free(authinds);
++}
++
+ 
+ krb5_error_code certauth_ipakdb_initvt(krb5_context context,
+                                           int maj_ver, int min_ver,
+@@ -401,7 +434,6 @@ krb5_error_code certauth_ipakdb_initvt(krb5_context context,
+     vt->authorize = ipa_certauth_authorize;
+     vt->init = ipa_certauth_init;
+     vt->fini = ipa_certauth_fini;
+-    /* currently we do not return authentication indicators */
+-    vt->free_ind = NULL;
++    vt->free_ind = ipa_certauth_free_indicator;
+     return 0;
+ }
+-- 
+2.9.4
+

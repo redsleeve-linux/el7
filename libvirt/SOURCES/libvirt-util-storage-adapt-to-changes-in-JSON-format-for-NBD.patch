@@ -1,0 +1,97 @@
+From 042cf4d53a2422d998e6715a6c914f61cb345bb9 Mon Sep 17 00:00:00 2001
+Message-Id: <042cf4d53a2422d998e6715a6c914f61cb345bb9@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 20 Jun 2017 10:22:42 +0200
+Subject: [PATCH] util: storage: adapt to changes in JSON format for NBD
+
+Since 2.9 the host and port for NBD are no longer directly under the
+json pseudo-protocol object, but rather belong to a sub-object called
+'server'.
+
+(cherry picked from commit 35d23f90b2266adb93079755161515699a401932)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1461638
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+---
+ src/util/virstoragefile.c | 28 +++++++++++++++++-----------
+ tests/virstoragetest.c    | 11 +++++++++++
+ 2 files changed, 28 insertions(+), 11 deletions(-)
+
+diff --git a/src/util/virstoragefile.c b/src/util/virstoragefile.c
+index 945c3e4198..ef3050711b 100644
+--- a/src/util/virstoragefile.c
++++ b/src/util/virstoragefile.c
+@@ -3019,11 +3019,12 @@ virStorageSourceParseBackingJSONNbd(virStorageSourcePtr src,
+     const char *host = virJSONValueObjectGetString(json, "host");
+     const char *port = virJSONValueObjectGetString(json, "port");
+     const char *export = virJSONValueObjectGetString(json, "export");
++    virJSONValuePtr server = virJSONValueObjectGetObject(json, "server");
+ 
+-    if (!path && !host) {
++    if (!path && !host && !server) {
+         virReportError(VIR_ERR_INVALID_ARG, "%s",
+-                       _("missing path or host of NBD server in JSON backing "
+-                         "volume definition"));
++                       _("missing host specification of NBD server in JSON "
++                         "backing volume definition"));
+         return -1;
+     }
+ 
+@@ -3037,17 +3038,22 @@ virStorageSourceParseBackingJSONNbd(virStorageSourcePtr src,
+         return -1;
+     src->nhosts = 1;
+ 
+-    if (path) {
+-        src->hosts[0].transport = VIR_STORAGE_NET_HOST_TRANS_UNIX;
+-        if (VIR_STRDUP(src->hosts[0].socket, path) < 0)
++    if (server) {
++        if (virStorageSourceParseBackingJSONSocketAddress(src->hosts, server) < 0)
+             return -1;
+     } else {
+-        src->hosts[0].transport = VIR_STORAGE_NET_HOST_TRANS_TCP;
+-        if (VIR_STRDUP(src->hosts[0].name, host) < 0)
+-            return -1;
++        if (path) {
++            src->hosts[0].transport = VIR_STORAGE_NET_HOST_TRANS_UNIX;
++            if (VIR_STRDUP(src->hosts[0].socket, path) < 0)
++                return -1;
++        } else {
++            src->hosts[0].transport = VIR_STORAGE_NET_HOST_TRANS_TCP;
++            if (VIR_STRDUP(src->hosts[0].name, host) < 0)
++                return -1;
+ 
+-        if (VIR_STRDUP(src->hosts[0].port, port) < 0)
+-            return -1;
++            if (VIR_STRDUP(src->hosts[0].port, port) < 0)
++                return -1;
++        }
+     }
+ 
+     return 0;
+diff --git a/tests/virstoragetest.c b/tests/virstoragetest.c
+index 294e1f6ffb..54f7c849c5 100644
+--- a/tests/virstoragetest.c
++++ b/tests/virstoragetest.c
+@@ -1471,6 +1471,17 @@ mymain(void)
+                        "<source protocol='nbd' name='blah'>\n"
+                        "  <host name='example.org' port='6000'/>\n"
+                        "</source>\n");
++    TEST_BACKING_PARSE("json:{\"file\":{\"driver\":\"nbd\","
++                                       "\"export\":\"blah\","
++                                       "\"server\": { \"type\":\"inet\","
++                                                     "\"host\":\"example.org\","
++                                                     "\"port\":\"6000\""
++                                                   "}"
++                                      "}"
++                            "}",
++                       "<source protocol='nbd' name='blah'>\n"
++                       "  <host name='example.org' port='6000'/>\n"
++                       "</source>\n");
+     TEST_BACKING_PARSE("json:{\"file\":{\"driver\":\"ssh\","
+                                        "\"host\":\"example.org\","
+                                        "\"port\":\"6000\","
+-- 
+2.13.1
+

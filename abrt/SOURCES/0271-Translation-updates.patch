@@ -1,0 +1,2566 @@
+From b99597ac793c9613644c7169c516619519619487 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Mon, 29 May 2017 16:45:19 +0200
+Subject: [PATCH] Translation updates
+
+Related to #1449488
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ po/de.po    |  97 ++++++++++++++++++++++++++++++++++------------------------
+ po/es.po    |  99 +++++++++++++++++++++++++++++++++--------------------------
+ po/fr.po    |  99 ++++++++++++++++++++++++++++++++++-------------------------
+ po/it.po    |  96 +++++++++++++++++++++++++++++++++------------------------
+ po/ja.po    | 100 ++++++++++++++++++++++++++++++++++++------------------------
+ po/ko.po    |  96 +++++++++++++++++++++++++++++++++------------------------
+ po/pt_BR.po |  94 +++++++++++++++++++++++++++++++++-----------------------
+ po/ru.po    |  97 +++++++++++++++++++++++++++++++++-------------------------
+ po/zh_CN.po |  97 ++++++++++++++++++++++++++++++++++------------------------
+ po/zh_TW.po |  99 ++++++++++++++++++++++++++++++++++-------------------------
+ 10 files changed, 572 insertions(+), 402 deletions(-)
+
+diff --git a/po/de.po b/po/de.po
+index ea61f95..a53667a 100644
+--- a/po/de.po
++++ b/po/de.po
+@@ -13,23 +13,22 @@
+ # noxin <transifex.com@davidmainzer.com>, 2013
+ # Rainer Gromansperg <rgromans@redhat.com>, 2013
+ # Roman Spirgi <bigant@fedoraproject.org>, 2011-2012
+-# Hedda Peters <hpeters@redhat.com>, 2015. #zanata
+-# Roman Spirgi <rspirgi@gmail.com>, 2015. #zanata
++# mhabrnal <mhabrnal@redhat.com>, 2017. #zanata
+ msgid ""
+ msgstr ""
+ "Project-Id-Version: PACKAGE VERSION\n"
+ "Report-Msgid-Bugs-To: jmoskovc@redhat.com\n"
+-"POT-Creation-Date: 2016-06-29 15:31+0200\n"
++"POT-Creation-Date: 2017-05-15 16:10+0200\n"
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
+-"PO-Revision-Date: 2015-07-16 08:12-0400\n"
+-"Last-Translator: Hedda Peters <hpeters@redhat.com>\n"
++"PO-Revision-Date: 2017-05-16 07:08+0000\n"
++"Last-Translator: Copied by Zanata <copied-by-zanata@zanata.org>\n"
+ "Language-Team: German (http://www.transifex.com/projects/p/fedora-abrt/"
+ "language/de/)\n"
+ "Language: de\n"
+ "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+-"X-Generator: Zanata 3.9.5\n"
++"X-Generator: Zanata 4.1.1\n"
+ 
+ #: ../src/applet/abrt-applet.desktop.in.h:1
+ msgid "Automatic Bug Reporting Tool"
+@@ -71,7 +70,7 @@ msgstr "Keine Verbindung mit NetworkManager über DBus: %s"
+ msgid "Can't determine network status via NetworkManager: %s"
+ msgstr "Netzwerkstatus kann über NetworkManager nicht bestimmt werden: %s"
+ 
+-#: ../src/applet/applet.c:342 ../src/cli/report.c:42
++#: ../src/applet/applet.c:342 ../src/cli/report.c:63
+ #, c-format
+ msgid "Can't take ownership of '%s'"
+ msgstr "Eigentumsrechte von »%s« können nicht geändert werden."
+@@ -197,7 +196,8 @@ msgid "Can't show notification: %s"
+ msgstr "Benachrichtigung kann nicht angezeigt werden: %s"
+ 
+ #. TODO: Terminate child's process?
+-#: ../src/applet/applet.c:1098 ../src/daemon/abrt-upload-watch.c:168
++#: ../src/applet/applet.c:1098 ../src/daemon/abrt-server.c:114
++#: ../src/daemon/abrt-upload-watch.c:168
+ #, c-format
+ msgid "Can't read from gio channel: '%s'"
+ msgstr "Von gio channel kann nicht gelesen werden: »%s«"
+@@ -388,22 +388,22 @@ msgstr "Fehler-Verzeichnis"
+ msgid "Configuration file"
+ msgstr "Konfigurationsdatei"
+ 
+-#: ../src/daemon/abrt-server.c:792 ../src/dbus/abrt-dbus.c:1004
+-#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:465
++#: ../src/daemon/abrt-server.c:924 ../src/dbus/abrt-dbus.c:1004
++#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:744
+ msgid "& [options]"
+ msgstr "& [options]"
+ 
+-#: ../src/daemon/abrt-server.c:803
++#: ../src/daemon/abrt-server.c:935
+ msgid "Use NUM as client uid"
+ msgstr "NUM als Client-UID benutzen"
+ 
+-#: ../src/daemon/abrt-server.c:804 ../src/daemon/abrt-upload-watch.c:280
++#: ../src/daemon/abrt-server.c:936 ../src/daemon/abrt-upload-watch.c:280
+ #: ../src/plugins/abrt-watch-log.c:153 ../src/plugins/abrt-dump-oops.c:281
+-#: ../src/plugins/abrt-dump-xorg.c:252
++#: ../src/plugins/abrt-dump-xorg.c:260
+ msgid "Log to syslog"
+ msgstr "In Systemprotokoll speichern"
+ 
+-#: ../src/daemon/abrt-server.c:805 ../src/daemon/abrtd.c:481
++#: ../src/daemon/abrt-server.c:937 ../src/daemon/abrtd.c:760
+ msgid "Add program names to log"
+ msgstr "Anwendungsnamen protokollieren"
+ 
+@@ -478,7 +478,7 @@ msgstr ""
+ "anderer Dienst unter dem gleichen Namen läuft.\n"
+ 
+ #: ../src/dbus/abrt-dbus.c:1013 ../src/dbus/abrt-configuration.c:1011
+-#: ../src/daemon/abrtd.c:480
++#: ../src/daemon/abrtd.c:759
+ msgid "Exit after NUM seconds of inactivity"
+ msgstr "Nach NUM Sekunden Inaktivität beenden"
+ 
+@@ -486,7 +486,7 @@ msgstr "Nach NUM Sekunden Inaktivität beenden"
+ msgid "This program must be run as root."
+ msgstr "Die Anwendung muss mit Root-Rechten ausgeführt werden."
+ 
+-#: ../src/daemon/abrtd.c:432
++#: ../src/daemon/abrtd.c:711
+ msgid ""
+ "The problem data are incomplete. This usually happens when a problem is "
+ "detected while computer is shutting down or user is logging out. In order to "
+@@ -501,23 +501,23 @@ msgstr ""
+ "Entwicklern helfen wollen, dieses Problem zu lösen, kontaktieren Sie die "
+ "Entwickler bitte direkt."
+ 
+-#: ../src/daemon/abrtd.c:478
++#: ../src/daemon/abrtd.c:757
+ msgid "Do not daemonize"
+ msgstr "Nicht als Hintergrunddienst ausführen"
+ 
+-#: ../src/daemon/abrtd.c:479
++#: ../src/daemon/abrtd.c:758
+ msgid "Log to syslog even with -d"
+ msgstr "Auch mit -d  im Systemprotokoll speichern"
+ 
+-#: ../src/daemon/abrt-handle-event.c:388
++#: ../src/daemon/abrt-handle-event.c:343
+ msgid "& [-v -i] -e|--event EVENT DIR..."
+ msgstr "& [-v -i] -e|--event EVENT DIR..."
+ 
+-#: ../src/daemon/abrt-handle-event.c:396
++#: ../src/daemon/abrt-handle-event.c:351
+ msgid "Run EVENT on DIR"
+ msgstr "EVENT auf DIR ausführen"
+ 
+-#: ../src/daemon/abrt-handle-event.c:397
++#: ../src/daemon/abrt-handle-event.c:352
+ msgid "Communicate directly to the user"
+ msgstr "Direkt mit dem Benutzer kommunizieren"
+ 
+@@ -1333,7 +1333,7 @@ msgstr ""
+ "Neues Fehlerverzeichnis in DIR erstellen für jede gefundene Kernelabsturz-"
+ "Meldung"
+ 
+-#: ../src/plugins/abrt-dump-oops.c:287 ../src/plugins/abrt-dump-xorg.c:255
++#: ../src/plugins/abrt-dump-oops.c:287 ../src/plugins/abrt-dump-xorg.c:263
+ msgid "Same as -d DumpLocation, DumpLocation is specified in abrt.conf"
+ msgstr ""
+ "Entspricht -d DumpLocation, DumpLocation ist in abrt.conf spezifiziert"
+@@ -1342,7 +1342,7 @@ msgstr ""
+ msgid "Save the extracted information in PROBLEM"
+ msgstr "Speichern Sie die extrahierten Informationen in PROBLEM"
+ 
+-#: ../src/plugins/abrt-dump-oops.c:289 ../src/plugins/abrt-dump-xorg.c:256
++#: ../src/plugins/abrt-dump-oops.c:289 ../src/plugins/abrt-dump-xorg.c:264
+ msgid "Make the problem directory world readable"
+ msgstr "Fehler-Verzeichnis allgemein lesbar machen"
+ 
+@@ -1350,7 +1350,7 @@ msgstr "Fehler-Verzeichnis allgemein lesbar machen"
+ msgid "Throttle problem directory creation to 1 per second"
+ msgstr "Erstellung eines Fehlerverzeichnisses auf 1 pro Sekunde beschränken"
+ 
+-#: ../src/plugins/abrt-dump-oops.c:291 ../src/plugins/abrt-dump-xorg.c:257
++#: ../src/plugins/abrt-dump-oops.c:291 ../src/plugins/abrt-dump-xorg.c:265
+ msgid "Print search string(s) to stdout and exit"
+ msgstr "Suchbegriff(e) in Stdout schreiben und beenden"
+ 
+@@ -1367,7 +1367,7 @@ msgstr "Fehler kann nicht aktualisiert werden: mehrere Oops gefunden"
+ msgid "Sleeping for %d seconds"
+ msgstr "%d Sekunden warten"
+ 
+-#: ../src/plugins/abrt-dump-xorg.c:245
++#: ../src/plugins/abrt-dump-xorg.c:253
+ msgid ""
+ "& [-vsoxm] [-d DIR]/[-D] [FILE]\n"
+ "\n"
+@@ -1377,11 +1377,11 @@ msgstr ""
+ "\n"
+ "Xorg-Absturz aus FILE extrahieren (oder Standard-Eingabe)"
+ 
+-#: ../src/plugins/abrt-dump-xorg.c:253
++#: ../src/plugins/abrt-dump-xorg.c:261
+ msgid "Print found crash data on standard output"
+ msgstr "Gefundene Daten zum Absturz auf Standard-Eingabe ausgeben"
+ 
+-#: ../src/plugins/abrt-dump-xorg.c:254
++#: ../src/plugins/abrt-dump-xorg.c:262
+ msgid "Create problem directory in DIR for every crash found"
+ msgstr "Neues Fehlerverzeichnis in DIR erstellen für jeden gefundenen Absturz"
+ 
+@@ -2107,42 +2107,59 @@ msgstr ""
+ msgid "Can't find problem '%s'"
+ msgstr "Fehlerbericht »%s« kann nicht gefunden werden"
+ 
+-#: ../src/cli/report.c:54 ../src/cli/process.c:70
++#: ../src/cli/report.c:52
++#, c-format
++msgid "Problem '%s' cannot be reported"
++msgstr ""
++
++#: ../src/cli/report.c:57
++#, c-format
++msgid "Problem '%s' is labeled as 'not-reportable'?"
++msgstr ""
++
++#: ../src/cli/report.c:78 ../src/cli/process.c:70
+ #, c-format
+ msgid "Deleting '%s'"
+ msgstr "»%s« wird gelöscht"
+ 
+-#: ../src/cli/report.c:70
++#: ../src/cli/report.c:94
+ msgid "& report [options] DIR..."
+ msgstr "& berichten [Optionen] DIR..."
+ 
+-#: ../src/cli/report.c:80
++#: ../src/cli/report.c:105
+ msgid "Remove PROBLEM_DIR after reporting"
+ msgstr "PROBLEM_DIR nach Berichterstattung löschen"
+ 
+-#: ../src/cli/process.c:64
+-msgid "Actions: remove(rm), info(i), skip(s):"
+-msgstr "Aktionen: entfernen(rm), info(i), überspringen(s):"
++#: ../src/cli/report.c:106 ../src/cli/process.c:154
++msgid "Ignore security checks to be able to report all problems"
++msgstr ""
+ 
+-#: ../src/cli/process.c:66
++#: ../src/cli/process.c:64
+ msgid "Actions: remove(rm), report(e), info(i), skip(s):"
+ msgstr "Aktionen: entfernen(rm), berichten(e), info(i), überspringen(s):"
+ 
+-#: ../src/cli/process.c:78
++#: ../src/cli/process.c:66
++msgid "Actions: remove(rm), info(i), skip(s):"
++msgstr "Aktionen: entfernen(rm), info(i), überspringen(s):"
++
++#: ../src/cli/process.c:79
+ #, c-format
+ msgid "Reporting '%s'"
+ msgstr "»%s« wird gemeldet"
+ 
+ #. dummy must be free because the function ask allocate memory
+-#: ../src/cli/process.c:127
++#: ../src/cli/process.c:128
+ msgid "For next problem press ENTER:"
+ msgstr "Drücken Sie die EINGABETASTE für den nächsten Fehler"
+ 
+-#: ../src/cli/process.c:138
+-msgid "Without --since argument, iterates over all detected problems."
+-msgstr "Ohne --since Parameter werden alle erkannten Fehler durchgegangen."
++#: ../src/cli/process.c:139
++msgid ""
++"& process [options]\n"
++"\n"
++"Without --since argument, iterates over all detected problems."
++msgstr ""
+ 
+-#: ../src/cli/process.c:144
++#: ../src/cli/process.c:153
+ msgid "Selects only problems detected after timestamp"
+ msgstr "Nur Fehler auswählen, die nach diesem Zeitpunkt auftraten"
+ 
+diff --git a/po/es.po b/po/es.po
+index cb1c136..a661355 100644
+--- a/po/es.po
++++ b/po/es.po
+@@ -19,26 +19,22 @@
+ # Luis Bazán <lbazan@fedoraproject.org>, 2011
+ # Israel Torres <dnlsrl.kaiser@gmail.com>, 2013
+ # vareli <ehespinosa@ya.com>, 2013
+-# Alex Puchades <alex94puchades@gmail.com>, 2015. #zanata
+-# Gerardo Rosales <grosale86@gmail.com>, 2015. #zanata
+-# Gladys Guerrero Lozano <gguerrer@redhat.com>, 2015. #zanata
+-# Jakub Filak <jfilak@redhat.com>, 2015. #zanata
+-# Máximo Castañeda Riloba <mcrcctm@gmail.com>, 2016. #zanata
++# mhabrnal <mhabrnal@redhat.com>, 2017. #zanata
+ msgid ""
+ msgstr ""
+ "Project-Id-Version: PACKAGE VERSION\n"
+ "Report-Msgid-Bugs-To: jmoskovc@redhat.com\n"
+-"POT-Creation-Date: 2016-06-29 15:31+0200\n"
++"POT-Creation-Date: 2017-05-15 16:10+0200\n"
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
+-"PO-Revision-Date: 2016-08-31 07:26-0400\n"
+-"Last-Translator: Máximo Castañeda Riloba <mcrcctm@gmail.com>\n"
++"PO-Revision-Date: 2017-05-16 07:08+0000\n"
++"Last-Translator: Copied by Zanata <copied-by-zanata@zanata.org>\n"
+ "Language-Team: Spanish (http://www.transifex.com/projects/p/fedora-abrt/"
+ "language/es/)\n"
+ "Language: es\n"
+ "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+-"X-Generator: Zanata 3.9.5\n"
++"X-Generator: Zanata 4.1.1\n"
+ 
+ #: ../src/applet/abrt-applet.desktop.in.h:1
+ msgid "Automatic Bug Reporting Tool"
+@@ -78,7 +74,7 @@ msgid "Can't determine network status via NetworkManager: %s"
+ msgstr ""
+ "No puedo determinar el estado de la red por medio de NetworkManager: %s"
+ 
+-#: ../src/applet/applet.c:342 ../src/cli/report.c:42
++#: ../src/applet/applet.c:342 ../src/cli/report.c:63
+ #, c-format
+ msgid "Can't take ownership of '%s'"
+ msgstr "No puedo hacerme dueño de '%s'"
+@@ -205,7 +201,8 @@ msgid "Can't show notification: %s"
+ msgstr "No puedo mostrar notificación: %s"
+ 
+ #. TODO: Terminate child's process?
+-#: ../src/applet/applet.c:1098 ../src/daemon/abrt-upload-watch.c:168
++#: ../src/applet/applet.c:1098 ../src/daemon/abrt-server.c:114
++#: ../src/daemon/abrt-upload-watch.c:168
+ #, c-format
+ msgid "Can't read from gio channel: '%s'"
+ msgstr "No puedo leer desde canal gio: '%s'"
+@@ -394,22 +391,22 @@ msgstr "Directorio de problemas"
+ msgid "Configuration file"
+ msgstr "Archivo de configuración"
+ 
+-#: ../src/daemon/abrt-server.c:792 ../src/dbus/abrt-dbus.c:1004
+-#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:465
++#: ../src/daemon/abrt-server.c:924 ../src/dbus/abrt-dbus.c:1004
++#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:744
+ msgid "& [options]"
+ msgstr "& [opciones]"
+ 
+-#: ../src/daemon/abrt-server.c:803
++#: ../src/daemon/abrt-server.c:935
+ msgid "Use NUM as client uid"
+ msgstr "Utilice NUM como uid del cliente"
+ 
+-#: ../src/daemon/abrt-server.c:804 ../src/daemon/abrt-upload-watch.c:280
++#: ../src/daemon/abrt-server.c:936 ../src/daemon/abrt-upload-watch.c:280
+ #: ../src/plugins/abrt-watch-log.c:153 ../src/plugins/abrt-dump-oops.c:281
+-#: ../src/plugins/abrt-dump-xorg.c:252
++#: ../src/plugins/abrt-dump-xorg.c:260
+ msgid "Log to syslog"
+ msgstr "Registrarse en syslog"
+ 
+-#: ../src/daemon/abrt-server.c:805 ../src/daemon/abrtd.c:481
++#: ../src/daemon/abrt-server.c:937 ../src/daemon/abrtd.c:760
+ msgid "Add program names to log"
+ msgstr "Agrega el nombre del programa al log"
+ 
+@@ -485,7 +482,7 @@ msgstr ""
+ "ese nombre no se esté ejecutando.\n"
+ 
+ #: ../src/dbus/abrt-dbus.c:1013 ../src/dbus/abrt-configuration.c:1011
+-#: ../src/daemon/abrtd.c:480
++#: ../src/daemon/abrtd.c:759
+ msgid "Exit after NUM seconds of inactivity"
+ msgstr "Sale después de NUM de segundos de inactividad"
+ 
+@@ -493,7 +490,7 @@ msgstr "Sale después de NUM de segundos de inactividad"
+ msgid "This program must be run as root."
+ msgstr "Este programa debe ser ejecutado como root."
+ 
+-#: ../src/daemon/abrtd.c:432
++#: ../src/daemon/abrtd.c:711
+ msgid ""
+ "The problem data are incomplete. This usually happens when a problem is "
+ "detected while computer is shutting down or user is logging out. In order to "
+@@ -508,23 +505,23 @@ msgstr ""
+ "tiempo y desea ayudar a los desarrolladores en su esfuerzo por solucionarlo, "
+ "por favor contáctelos directamente."
+ 
+-#: ../src/daemon/abrtd.c:478
++#: ../src/daemon/abrtd.c:757
+ msgid "Do not daemonize"
+ msgstr "No convertir en un demonio"
+ 
+-#: ../src/daemon/abrtd.c:479
++#: ../src/daemon/abrtd.c:758
+ msgid "Log to syslog even with -d"
+ msgstr "Registrar en syslog aún con -d"
+ 
+-#: ../src/daemon/abrt-handle-event.c:388
++#: ../src/daemon/abrt-handle-event.c:343
+ msgid "& [-v -i] -e|--event EVENT DIR..."
+ msgstr "& [-v -i] -e|--event EVENT DIR..."
+ 
+-#: ../src/daemon/abrt-handle-event.c:396
++#: ../src/daemon/abrt-handle-event.c:351
+ msgid "Run EVENT on DIR"
+ msgstr "Ejecuta EVENTO en DIR"
+ 
+-#: ../src/daemon/abrt-handle-event.c:397
++#: ../src/daemon/abrt-handle-event.c:352
+ msgid "Communicate directly to the user"
+ msgstr "Comunicar directamente al usuario"
+ 
+@@ -1334,7 +1331,7 @@ msgid "Create new problem directory in DIR for every oops found"
+ msgstr ""
+ "Creado un nuevo directorio de problemas en DIR para cada ups encontrado"
+ 
+-#: ../src/plugins/abrt-dump-oops.c:287 ../src/plugins/abrt-dump-xorg.c:255
++#: ../src/plugins/abrt-dump-oops.c:287 ../src/plugins/abrt-dump-xorg.c:263
+ msgid "Same as -d DumpLocation, DumpLocation is specified in abrt.conf"
+ msgstr ""
+ "Igual que -d DumpLocation, lugar de volcado se especifica en  abrt.conf"
+@@ -1343,7 +1340,7 @@ msgstr ""
+ msgid "Save the extracted information in PROBLEM"
+ msgstr "Guardar la información extraída en PROBLEM"
+ 
+-#: ../src/plugins/abrt-dump-oops.c:289 ../src/plugins/abrt-dump-xorg.c:256
++#: ../src/plugins/abrt-dump-oops.c:289 ../src/plugins/abrt-dump-xorg.c:264
+ msgid "Make the problem directory world readable"
+ msgstr "Hacer que el directorio de problemas sea legible para todos"
+ 
+@@ -1351,7 +1348,7 @@ msgstr "Hacer que el directorio de problemas sea legible para todos"
+ msgid "Throttle problem directory creation to 1 per second"
+ msgstr "Aceleración de creación de directorio de problemas a 1 por segundo"
+ 
+-#: ../src/plugins/abrt-dump-oops.c:291 ../src/plugins/abrt-dump-xorg.c:257
++#: ../src/plugins/abrt-dump-oops.c:291 ../src/plugins/abrt-dump-xorg.c:265
+ msgid "Print search string(s) to stdout and exit"
+ msgstr "Imprime la(s) cadena(s) de búsqueda a stdout y sale"
+ 
+@@ -1368,7 +1365,7 @@ msgstr "No se pudo actualizar el problema: se encontraron más de un oops"
+ msgid "Sleeping for %d seconds"
+ msgstr "Durmiendo por %d segundos"
+ 
+-#: ../src/plugins/abrt-dump-xorg.c:245
++#: ../src/plugins/abrt-dump-xorg.c:253
+ msgid ""
+ "& [-vsoxm] [-d DIR]/[-D] [FILE]\n"
+ "\n"
+@@ -1378,11 +1375,11 @@ msgstr ""
+ "\n"
+ "Extrae la caída de Xorg desde el ARCHIVO (o la entrada estándar)"
+ 
+-#: ../src/plugins/abrt-dump-xorg.c:253
++#: ../src/plugins/abrt-dump-xorg.c:261
+ msgid "Print found crash data on standard output"
+ msgstr "Imprime los datos de la caída encontrados en la salida estándar"
+ 
+-#: ../src/plugins/abrt-dump-xorg.c:254
++#: ../src/plugins/abrt-dump-xorg.c:262
+ msgid "Create problem directory in DIR for every crash found"
+ msgstr "Crea un directorio de problemas en DIR para cada fallo encontrado"
+ 
+@@ -2111,43 +2108,59 @@ msgstr ""
+ msgid "Can't find problem '%s'"
+ msgstr "No se puede encontrar el problema '%s'"
+ 
+-#: ../src/cli/report.c:54 ../src/cli/process.c:70
++#: ../src/cli/report.c:52
++#, c-format
++msgid "Problem '%s' cannot be reported"
++msgstr ""
++
++#: ../src/cli/report.c:57
++#, c-format
++msgid "Problem '%s' is labeled as 'not-reportable'?"
++msgstr ""
++
++#: ../src/cli/report.c:78 ../src/cli/process.c:70
+ #, c-format
+ msgid "Deleting '%s'"
+ msgstr "Borrando '%s'..."
+ 
+-#: ../src/cli/report.c:70
++#: ../src/cli/report.c:94
+ msgid "& report [options] DIR..."
+ msgstr "& reporte[opciones] DIR..."
+ 
+-#: ../src/cli/report.c:80
++#: ../src/cli/report.c:105
+ msgid "Remove PROBLEM_DIR after reporting"
+ msgstr "Elimina PROBLEM_DIR después de reportarlos"
+ 
+-#: ../src/cli/process.c:64
+-msgid "Actions: remove(rm), info(i), skip(s):"
+-msgstr "Acciones: eliminar(rm), información(i), omitir(s):"
++#: ../src/cli/report.c:106 ../src/cli/process.c:154
++msgid "Ignore security checks to be able to report all problems"
++msgstr ""
+ 
+-#: ../src/cli/process.c:66
++#: ../src/cli/process.c:64
+ msgid "Actions: remove(rm), report(e), info(i), skip(s):"
+ msgstr "Acciones: eliminar(rm), reporte(e), información(i), omitir(s):"
+ 
+-#: ../src/cli/process.c:78
++#: ../src/cli/process.c:66
++msgid "Actions: remove(rm), info(i), skip(s):"
++msgstr "Acciones: eliminar(rm), información(i), omitir(s):"
++
++#: ../src/cli/process.c:79
+ #, c-format
+ msgid "Reporting '%s'"
+ msgstr "Reportando '%s'"
+ 
+ #. dummy must be free because the function ask allocate memory
+-#: ../src/cli/process.c:127
++#: ../src/cli/process.c:128
+ msgid "For next problem press ENTER:"
+ msgstr "Para el siguiente problema presione la tecla ENTER:"
+ 
+-#: ../src/cli/process.c:138
+-msgid "Without --since argument, iterates over all detected problems."
++#: ../src/cli/process.c:139
++msgid ""
++"& process [options]\n"
++"\n"
++"Without --since argument, iterates over all detected problems."
+ msgstr ""
+-"Sin el parámetro --since, se repite sobre todos los problemas detectados."
+ 
+-#: ../src/cli/process.c:144
++#: ../src/cli/process.c:153
+ msgid "Selects only problems detected after timestamp"
+ msgstr "Selecciona únicamente los problemas después del tiempo especificado"
+ 
+diff --git a/po/fr.po b/po/fr.po
+index 019ecad..d177a91 100644
+--- a/po/fr.po
++++ b/po/fr.po
+@@ -13,25 +13,22 @@
+ # Sam Friedmann <sam.friedmann@redhat.com>, 2014
+ # Vincent HERBER <vincent.herber@gmail.com>, 2011
+ # Vincent  <vincent.herber@gmail.com>, 2011
+-# Jakub Filak <jfilak@redhat.com>, 2015. #zanata
+-# Julie Carbone <jcarbone@redhat.com>, 2015. #zanata
+-# Richard Marko <rmarko@fedoraproject.org>, 2015. #zanata
+-# Sam Friedmann <sfriedma@redhat.com>, 2015. #zanata
++# mhabrnal <mhabrnal@redhat.com>, 2017. #zanata
+ msgid ""
+ msgstr ""
+ "Project-Id-Version: PACKAGE VERSION\n"
+ "Report-Msgid-Bugs-To: jmoskovc@redhat.com\n"
+-"POT-Creation-Date: 2016-06-29 15:31+0200\n"
++"POT-Creation-Date: 2017-05-15 16:10+0200\n"
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
+-"PO-Revision-Date: 2015-07-29 09:45-0400\n"
+-"Last-Translator: Richard Marko <rmarko@fedoraproject.org>\n"
++"PO-Revision-Date: 2017-05-16 07:08+0000\n"
++"Last-Translator: Copied by Zanata <copied-by-zanata@zanata.org>\n"
+ "Language-Team: French (http://www.transifex.com/projects/p/fedora-abrt/"
+ "language/fr/)\n"
+ "Language: fr\n"
+ "Plural-Forms: nplurals=2; plural=(n > 1);\n"
+-"X-Generator: Zanata 3.9.5\n"
++"X-Generator: Zanata 4.1.1\n"
+ 
+ #: ../src/applet/abrt-applet.desktop.in.h:1
+ msgid "Automatic Bug Reporting Tool"
+@@ -73,7 +70,7 @@ msgstr "Impossible de se connecter à NetworkManager via DBus : %s"
+ msgid "Can't determine network status via NetworkManager: %s"
+ msgstr "Impossible de déterminer l'état du réseau via NetworkManager : %s"
+ 
+-#: ../src/applet/applet.c:342 ../src/cli/report.c:42
++#: ../src/applet/applet.c:342 ../src/cli/report.c:63
+ #, c-format
+ msgid "Can't take ownership of '%s'"
+ msgstr "Impossible de s'approprier « %s »"
+@@ -203,7 +200,8 @@ msgid "Can't show notification: %s"
+ msgstr "Impossible d'afficher la notification : %s"
+ 
+ #. TODO: Terminate child's process?
+-#: ../src/applet/applet.c:1098 ../src/daemon/abrt-upload-watch.c:168
++#: ../src/applet/applet.c:1098 ../src/daemon/abrt-server.c:114
++#: ../src/daemon/abrt-upload-watch.c:168
+ #, c-format
+ msgid "Can't read from gio channel: '%s'"
+ msgstr "Impossible de lire à partir du canal gio : « %s »"
+@@ -397,22 +395,22 @@ msgstr "Répertoire des incidents"
+ msgid "Configuration file"
+ msgstr "Fichier de configuration"
+ 
+-#: ../src/daemon/abrt-server.c:792 ../src/dbus/abrt-dbus.c:1004
+-#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:465
++#: ../src/daemon/abrt-server.c:924 ../src/dbus/abrt-dbus.c:1004
++#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:744
+ msgid "& [options]"
+ msgstr "& [options]"
+ 
+-#: ../src/daemon/abrt-server.c:803
++#: ../src/daemon/abrt-server.c:935
+ msgid "Use NUM as client uid"
+ msgstr "Utiliser NUM en tant qu'UID client"
+ 
+-#: ../src/daemon/abrt-server.c:804 ../src/daemon/abrt-upload-watch.c:280
++#: ../src/daemon/abrt-server.c:936 ../src/daemon/abrt-upload-watch.c:280
+ #: ../src/plugins/abrt-watch-log.c:153 ../src/plugins/abrt-dump-oops.c:281
+-#: ../src/plugins/abrt-dump-xorg.c:252
++#: ../src/plugins/abrt-dump-xorg.c:260
+ msgid "Log to syslog"
+ msgstr "Journaliser vers syslog"
+ 
+-#: ../src/daemon/abrt-server.c:805 ../src/daemon/abrtd.c:481
++#: ../src/daemon/abrt-server.c:937 ../src/daemon/abrtd.c:760
+ msgid "Add program names to log"
+ msgstr "Ajouter le nom des programmes dans le journal"
+ 
+@@ -487,7 +485,7 @@ msgstr ""
+ "ce même nom ne tourne pas.\n"
+ 
+ #: ../src/dbus/abrt-dbus.c:1013 ../src/dbus/abrt-configuration.c:1011
+-#: ../src/daemon/abrtd.c:480
++#: ../src/daemon/abrtd.c:759
+ msgid "Exit after NUM seconds of inactivity"
+ msgstr "Quitter après NUM secondes d'inactivité"
+ 
+@@ -495,7 +493,7 @@ msgstr "Quitter après NUM secondes d'inactivité"
+ msgid "This program must be run as root."
+ msgstr "Le programme doit être lancé en tant que root."
+ 
+-#: ../src/daemon/abrtd.c:432
++#: ../src/daemon/abrtd.c:711
+ msgid ""
+ "The problem data are incomplete. This usually happens when a problem is "
+ "detected while computer is shutting down or user is logging out. In order to "
+@@ -510,23 +508,23 @@ msgstr ""
+ "vous avez du temps et désirez aider les développeurs dans leur effort de "
+ "résolution de cet incident, merci de les contacter directement."
+ 
+-#: ../src/daemon/abrtd.c:478
++#: ../src/daemon/abrtd.c:757
+ msgid "Do not daemonize"
+ msgstr "Ne pas lancer le démon"
+ 
+-#: ../src/daemon/abrtd.c:479
++#: ../src/daemon/abrtd.c:758
+ msgid "Log to syslog even with -d"
+ msgstr "Journaliser vers syslog même avec -d"
+ 
+-#: ../src/daemon/abrt-handle-event.c:388
++#: ../src/daemon/abrt-handle-event.c:343
+ msgid "& [-v -i] -e|--event EVENT DIR..."
+ msgstr "& [-v -i] -e|--event EVENT DIR..."
+ 
+-#: ../src/daemon/abrt-handle-event.c:396
++#: ../src/daemon/abrt-handle-event.c:351
+ msgid "Run EVENT on DIR"
+ msgstr "Exécuter EVENT sur DIR"
+ 
+-#: ../src/daemon/abrt-handle-event.c:397
++#: ../src/daemon/abrt-handle-event.c:352
+ msgid "Communicate directly to the user"
+ msgstr "Communiquer directement à l'utilisateur"
+ 
+@@ -1348,7 +1346,7 @@ msgid "Create new problem directory in DIR for every oops found"
+ msgstr ""
+ "Créer un nouveau répertoire d'incidents dans DIR pour chaque oops découvert"
+ 
+-#: ../src/plugins/abrt-dump-oops.c:287 ../src/plugins/abrt-dump-xorg.c:255
++#: ../src/plugins/abrt-dump-oops.c:287 ../src/plugins/abrt-dump-xorg.c:263
+ msgid "Same as -d DumpLocation, DumpLocation is specified in abrt.conf"
+ msgstr ""
+ "Identique à l'option -d emplacement_de_vidage, l'emplacement du vidage est "
+@@ -1358,7 +1356,7 @@ msgstr ""
+ msgid "Save the extracted information in PROBLEM"
+ msgstr "Sauvegarder les informations extraites dans PROBLEM"
+ 
+-#: ../src/plugins/abrt-dump-oops.c:289 ../src/plugins/abrt-dump-xorg.c:256
++#: ../src/plugins/abrt-dump-oops.c:289 ../src/plugins/abrt-dump-xorg.c:264
+ msgid "Make the problem directory world readable"
+ msgstr "Rendre le répertoire des incidents lisible par tout le monde"
+ 
+@@ -1366,7 +1364,7 @@ msgstr "Rendre le répertoire des incidents lisible par tout le monde"
+ msgid "Throttle problem directory creation to 1 per second"
+ msgstr "Limiter la création de répertoire d'incident à 1 par seconde"
+ 
+-#: ../src/plugins/abrt-dump-oops.c:291 ../src/plugins/abrt-dump-xorg.c:257
++#: ../src/plugins/abrt-dump-oops.c:291 ../src/plugins/abrt-dump-xorg.c:265
+ msgid "Print search string(s) to stdout and exit"
+ msgstr "Afficher les chaînes recherchées sur la sortie standard et quitter"
+ 
+@@ -1383,7 +1381,7 @@ msgstr "Impossible de mettre à jour l'incident : plus d'un oops trouvé"
+ msgid "Sleeping for %d seconds"
+ msgstr "Mise en sommeil pour %d secondes"
+ 
+-#: ../src/plugins/abrt-dump-xorg.c:245
++#: ../src/plugins/abrt-dump-xorg.c:253
+ msgid ""
+ "& [-vsoxm] [-d DIR]/[-D] [FILE]\n"
+ "\n"
+@@ -1393,11 +1391,11 @@ msgstr ""
+ "\n"
+ "Extraire les données de plantage de Xorg de FILE (ou de l'entrée standard)"
+ 
+-#: ../src/plugins/abrt-dump-xorg.c:253
++#: ../src/plugins/abrt-dump-xorg.c:261
+ msgid "Print found crash data on standard output"
+ msgstr "Afficher les données de plantage sur la sortie standard"
+ 
+-#: ../src/plugins/abrt-dump-xorg.c:254
++#: ../src/plugins/abrt-dump-xorg.c:262
+ msgid "Create problem directory in DIR for every crash found"
+ msgstr ""
+ "Créer un répertoire d'incidents dans DIR pour chaque incident découvert"
+@@ -2134,43 +2132,60 @@ msgstr ""
+ msgid "Can't find problem '%s'"
+ msgstr "Impossible de trouver le problème « %s »"
+ 
+-#: ../src/cli/report.c:54 ../src/cli/process.c:70
++#: ../src/cli/report.c:52
++#, c-format
++msgid "Problem '%s' cannot be reported"
++msgstr ""
++
++#: ../src/cli/report.c:57
++#, c-format
++msgid "Problem '%s' is labeled as 'not-reportable'?"
++msgstr ""
++
++#: ../src/cli/report.c:78 ../src/cli/process.c:70
+ #, c-format
+ msgid "Deleting '%s'"
+ msgstr "Suppression de « %s »"
+ 
+-#: ../src/cli/report.c:70
++#: ../src/cli/report.c:94
+ msgid "& report [options] DIR..."
+ msgstr "& report [options] DIR..."
+ 
+-#: ../src/cli/report.c:80
++#: ../src/cli/report.c:105
+ msgid "Remove PROBLEM_DIR after reporting"
+ msgstr "Supprimer PROBLEM_DIR après le rapport"
+ 
+-#: ../src/cli/process.c:64
+-msgid "Actions: remove(rm), info(i), skip(s):"
+-msgstr "Actions : supprimer (rm), informations (i), ignorer (s) :"
++#: ../src/cli/report.c:106 ../src/cli/process.c:154
++msgid "Ignore security checks to be able to report all problems"
++msgstr ""
+ 
+-#: ../src/cli/process.c:66
++#: ../src/cli/process.c:64
+ msgid "Actions: remove(rm), report(e), info(i), skip(s):"
+ msgstr ""
+ "Actions : supprimer (rm), signaler (e), informations (i), ignorer (s) :"
+ 
+-#: ../src/cli/process.c:78
++#: ../src/cli/process.c:66
++msgid "Actions: remove(rm), info(i), skip(s):"
++msgstr "Actions : supprimer (rm), informations (i), ignorer (s) :"
++
++#: ../src/cli/process.c:79
+ #, c-format
+ msgid "Reporting '%s'"
+ msgstr "Rapporter « %s »"
+ 
+ #. dummy must be free because the function ask allocate memory
+-#: ../src/cli/process.c:127
++#: ../src/cli/process.c:128
+ msgid "For next problem press ENTER:"
+ msgstr "Pour le problème suivant, veuillez appuyer sur ENTRÉE :"
+ 
+-#: ../src/cli/process.c:138
+-msgid "Without --since argument, iterates over all detected problems."
+-msgstr "Sans l'argument --since, réitère tous les problèmes détectés."
++#: ../src/cli/process.c:139
++msgid ""
++"& process [options]\n"
++"\n"
++"Without --since argument, iterates over all detected problems."
++msgstr ""
+ 
+-#: ../src/cli/process.c:144
++#: ../src/cli/process.c:153
+ msgid "Selects only problems detected after timestamp"
+ msgstr "Sélectionne uniquement les problèmes détectés après l'horodatage"
+ 
+diff --git a/po/it.po b/po/it.po
+index 1fcb308..0849ab4 100644
+--- a/po/it.po
++++ b/po/it.po
+@@ -14,22 +14,22 @@
+ # Luigi Votta <lewis41@fedoraproject.org>, 2011
+ # Mauro Gaggiotti <mauro.gaggiotti@gmail.com>, 2012
+ # Silvio Pierro <perplesso82@gmail.com>, 2012
+-# Francesco Valente <fvalen@redhat.com>, 2015. #zanata
++# mhabrnal <mhabrnal@redhat.com>, 2017. #zanata
+ msgid ""
+ msgstr ""
+ "Project-Id-Version: PACKAGE VERSION\n"
+ "Report-Msgid-Bugs-To: jmoskovc@redhat.com\n"
+-"POT-Creation-Date: 2016-06-29 15:31+0200\n"
++"POT-Creation-Date: 2017-05-15 16:10+0200\n"
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
+-"PO-Revision-Date: 2015-07-16 10:44-0400\n"
+-"Last-Translator: Francesco Valente <fvalen@redhat.com>\n"
++"PO-Revision-Date: 2017-05-16 07:08+0000\n"
++"Last-Translator: Copied by Zanata <copied-by-zanata@zanata.org>\n"
+ "Language-Team: Italian (http://www.transifex.com/projects/p/fedora-abrt/"
+ "language/it/)\n"
+ "Language: it\n"
+ "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+-"X-Generator: Zanata 3.9.5\n"
++"X-Generator: Zanata 4.1.1\n"
+ 
+ #: ../src/applet/abrt-applet.desktop.in.h:1
+ msgid "Automatic Bug Reporting Tool"
+@@ -70,7 +70,7 @@ msgid "Can't determine network status via NetworkManager: %s"
+ msgstr ""
+ "Impossibile determinare lo stato della rete tramite NetworkManager: %s"
+ 
+-#: ../src/applet/applet.c:342 ../src/cli/report.c:42
++#: ../src/applet/applet.c:342 ../src/cli/report.c:63
+ #, c-format
+ msgid "Can't take ownership of '%s'"
+ msgstr "Impossibile ottenere la proprietà di '%s'"
+@@ -194,7 +194,8 @@ msgid "Can't show notification: %s"
+ msgstr "Impossibile mostrare la notifica: %s"
+ 
+ #. TODO: Terminate child's process?
+-#: ../src/applet/applet.c:1098 ../src/daemon/abrt-upload-watch.c:168
++#: ../src/applet/applet.c:1098 ../src/daemon/abrt-server.c:114
++#: ../src/daemon/abrt-upload-watch.c:168
+ #, c-format
+ msgid "Can't read from gio channel: '%s'"
+ msgstr "Impossibile eseguire la lettura dal canale gio: '%s'"
+@@ -384,22 +385,22 @@ msgstr "Directory del problema"
+ msgid "Configuration file"
+ msgstr "File di configurazione"
+ 
+-#: ../src/daemon/abrt-server.c:792 ../src/dbus/abrt-dbus.c:1004
+-#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:465
++#: ../src/daemon/abrt-server.c:924 ../src/dbus/abrt-dbus.c:1004
++#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:744
+ msgid "& [options]"
+ msgstr "& [opzioni]"
+ 
+-#: ../src/daemon/abrt-server.c:803
++#: ../src/daemon/abrt-server.c:935
+ msgid "Use NUM as client uid"
+ msgstr "Utilizzare NUM per l'uid del client"
+ 
+-#: ../src/daemon/abrt-server.c:804 ../src/daemon/abrt-upload-watch.c:280
++#: ../src/daemon/abrt-server.c:936 ../src/daemon/abrt-upload-watch.c:280
+ #: ../src/plugins/abrt-watch-log.c:153 ../src/plugins/abrt-dump-oops.c:281
+-#: ../src/plugins/abrt-dump-xorg.c:252
++#: ../src/plugins/abrt-dump-xorg.c:260
+ msgid "Log to syslog"
+ msgstr "Log su syslog"
+ 
+-#: ../src/daemon/abrt-server.c:805 ../src/daemon/abrtd.c:481
++#: ../src/daemon/abrt-server.c:937 ../src/daemon/abrtd.c:760
+ msgid "Add program names to log"
+ msgstr "Aggiungi i nomi dei programmi sul log"
+ 
+@@ -474,7 +475,7 @@ msgstr ""
+ "questo nome non siano in esecuzione.\n"
+ 
+ #: ../src/dbus/abrt-dbus.c:1013 ../src/dbus/abrt-configuration.c:1011
+-#: ../src/daemon/abrtd.c:480
++#: ../src/daemon/abrtd.c:759
+ msgid "Exit after NUM seconds of inactivity"
+ msgstr "Esci dopo NUM secondi di inattività"
+ 
+@@ -482,7 +483,7 @@ msgstr "Esci dopo NUM secondi di inattività"
+ msgid "This program must be run as root."
+ msgstr "Questo programma deve essere eseguito come root."
+ 
+-#: ../src/daemon/abrtd.c:432
++#: ../src/daemon/abrtd.c:711
+ msgid ""
+ "The problem data are incomplete. This usually happens when a problem is "
+ "detected while computer is shutting down or user is logging out. In order to "
+@@ -496,23 +497,23 @@ msgstr ""
+ "permetterà di inviare questo problema. Se hai un po' di tempo e vuoi aiutare "
+ "gli sviluppatori a correggere il malfunzionameto, contattali direttamente."
+ 
+-#: ../src/daemon/abrtd.c:478
++#: ../src/daemon/abrtd.c:757
+ msgid "Do not daemonize"
+ msgstr "Non rendere demone"
+ 
+-#: ../src/daemon/abrtd.c:479
++#: ../src/daemon/abrtd.c:758
+ msgid "Log to syslog even with -d"
+ msgstr "Log su syslog anche con -d"
+ 
+-#: ../src/daemon/abrt-handle-event.c:388
++#: ../src/daemon/abrt-handle-event.c:343
+ msgid "& [-v -i] -e|--event EVENT DIR..."
+ msgstr "& [-v -i] -e|--event EVENT DIR..."
+ 
+-#: ../src/daemon/abrt-handle-event.c:396
++#: ../src/daemon/abrt-handle-event.c:351
+ msgid "Run EVENT on DIR"
+ msgstr "Esegui EVENT su DIR"
+ 
+-#: ../src/daemon/abrt-handle-event.c:397
++#: ../src/daemon/abrt-handle-event.c:352
+ msgid "Communicate directly to the user"
+ msgstr "Comunica direttamente all'utente"
+ 
+@@ -1327,7 +1328,7 @@ msgstr "Stampa gli oops trovati sull'uscita standard"
+ msgid "Create new problem directory in DIR for every oops found"
+ msgstr "Crea una nuova directory del problema in DIR per ogni oops rilevato"
+ 
+-#: ../src/plugins/abrt-dump-oops.c:287 ../src/plugins/abrt-dump-xorg.c:255
++#: ../src/plugins/abrt-dump-oops.c:287 ../src/plugins/abrt-dump-xorg.c:263
+ msgid "Same as -d DumpLocation, DumpLocation is specified in abrt.conf"
+ msgstr "Uguale a -d DumpLocation, DumpLocation viene specificato in abrt.conf"
+ 
+@@ -1335,7 +1336,7 @@ msgstr "Uguale a -d DumpLocation, DumpLocation viene specificato in abrt.conf"
+ msgid "Save the extracted information in PROBLEM"
+ msgstr "Salva l'informazione estratta in PROBLEM"
+ 
+-#: ../src/plugins/abrt-dump-oops.c:289 ../src/plugins/abrt-dump-xorg.c:256
++#: ../src/plugins/abrt-dump-oops.c:289 ../src/plugins/abrt-dump-xorg.c:264
+ msgid "Make the problem directory world readable"
+ msgstr "Rendi la directory del problema leggibile a tutti"
+ 
+@@ -1343,7 +1344,7 @@ msgstr "Rendi la directory del problema leggibile a tutti"
+ msgid "Throttle problem directory creation to 1 per second"
+ msgstr "Aumenta la creazione della directory del problema a 1 per secondo"
+ 
+-#: ../src/plugins/abrt-dump-oops.c:291 ../src/plugins/abrt-dump-xorg.c:257
++#: ../src/plugins/abrt-dump-oops.c:291 ../src/plugins/abrt-dump-xorg.c:265
+ msgid "Print search string(s) to stdout and exit"
+ msgstr "Stampa la/le stringa/stringhe ricercate in stdout ed esce"
+ 
+@@ -1360,7 +1361,7 @@ msgstr "Impossibile aggiornare il problema: travati più di un oops"
+ msgid "Sleeping for %d seconds"
+ msgstr "In sospensione per %d secondi"
+ 
+-#: ../src/plugins/abrt-dump-xorg.c:245
++#: ../src/plugins/abrt-dump-xorg.c:253
+ msgid ""
+ "& [-vsoxm] [-d DIR]/[-D] [FILE]\n"
+ "\n"
+@@ -1370,11 +1371,11 @@ msgstr ""
+ "\n"
+ "Estrae il crash di Xorg da FILE (o da standard input)"
+ 
+-#: ../src/plugins/abrt-dump-xorg.c:253
++#: ../src/plugins/abrt-dump-xorg.c:261
+ msgid "Print found crash data on standard output"
+ msgstr "Stampa i dati trovati relativi al crash sullo standard output"
+ 
+-#: ../src/plugins/abrt-dump-xorg.c:254
++#: ../src/plugins/abrt-dump-xorg.c:262
+ msgid "Create problem directory in DIR for every crash found"
+ msgstr "Crea una nuova directory del problema in DIR per ogni crash rilevato"
+ 
+@@ -2098,42 +2099,59 @@ msgstr ""
+ msgid "Can't find problem '%s'"
+ msgstr "Impossibile trovare il problema '%s'"
+ 
+-#: ../src/cli/report.c:54 ../src/cli/process.c:70
++#: ../src/cli/report.c:52
++#, c-format
++msgid "Problem '%s' cannot be reported"
++msgstr ""
++
++#: ../src/cli/report.c:57
++#, c-format
++msgid "Problem '%s' is labeled as 'not-reportable'?"
++msgstr ""
++
++#: ../src/cli/report.c:78 ../src/cli/process.c:70
+ #, c-format
+ msgid "Deleting '%s'"
+ msgstr "Rimozione '%s'"
+ 
+-#: ../src/cli/report.c:70
++#: ../src/cli/report.c:94
+ msgid "& report [options] DIR..."
+ msgstr "& report [options] DIR..."
+ 
+-#: ../src/cli/report.c:80
++#: ../src/cli/report.c:105
+ msgid "Remove PROBLEM_DIR after reporting"
+ msgstr "Rimuovi PROBLEM_DIR dopo la notifica"
+ 
+-#: ../src/cli/process.c:64
+-msgid "Actions: remove(rm), info(i), skip(s):"
+-msgstr "Azioni: remove(rm), info(i), skip(s):"
++#: ../src/cli/report.c:106 ../src/cli/process.c:154
++msgid "Ignore security checks to be able to report all problems"
++msgstr ""
+ 
+-#: ../src/cli/process.c:66
++#: ../src/cli/process.c:64
+ msgid "Actions: remove(rm), report(e), info(i), skip(s):"
+ msgstr "Azioni: remove(rm), report(e), info(i), skip(s):"
+ 
+-#: ../src/cli/process.c:78
++#: ../src/cli/process.c:66
++msgid "Actions: remove(rm), info(i), skip(s):"
++msgstr "Azioni: remove(rm), info(i), skip(s):"
++
++#: ../src/cli/process.c:79
+ #, c-format
+ msgid "Reporting '%s'"
+ msgstr "Notifica '%s'"
+ 
+ #. dummy must be free because the function ask allocate memory
+-#: ../src/cli/process.c:127
++#: ../src/cli/process.c:128
+ msgid "For next problem press ENTER:"
+ msgstr "Per il problema successivo premere ENTER:"
+ 
+-#: ../src/cli/process.c:138
+-msgid "Without --since argument, iterates over all detected problems."
+-msgstr "Senza l'argomento --since, ripetere su tutti i problemi rilevati."
++#: ../src/cli/process.c:139
++msgid ""
++"& process [options]\n"
++"\n"
++"Without --since argument, iterates over all detected problems."
++msgstr ""
+ 
+-#: ../src/cli/process.c:144
++#: ../src/cli/process.c:153
+ msgid "Selects only problems detected after timestamp"
+ msgstr "Seleziona solo i problemi rilevati dopo il timestamp"
+ 
+diff --git a/po/ja.po b/po/ja.po
+index 9673028..08028bd 100644
+--- a/po/ja.po
++++ b/po/ja.po
+@@ -12,22 +12,23 @@
+ # noriko <noriko@fedoraproject.org>, 2014
+ # noriko <noriko@fedoraproject.org>, 2010,2012-2013
+ # carrotsoft <www.carrotsoft@gmail.com>, 2011-2012
+-# Noriko Mizumoto <noriko@redhat.com>, 2015. #zanata
++# kmoriguc <kmoriguc@redhat.com>, 2017. #zanata
++# mhabrnal <mhabrnal@redhat.com>, 2017. #zanata
+ msgid ""
+ msgstr ""
+ "Project-Id-Version: PACKAGE VERSION\n"
+ "Report-Msgid-Bugs-To: jmoskovc@redhat.com\n"
+-"POT-Creation-Date: 2016-06-29 15:31+0200\n"
++"POT-Creation-Date: 2017-05-15 16:10+0200\n"
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
+-"PO-Revision-Date: 2015-07-16 10:25-0400\n"
+-"Last-Translator: Noriko Mizumoto <noriko@redhat.com>\n"
++"PO-Revision-Date: 2017-05-21 11:21+0000\n"
++"Last-Translator: kmoriguc <kmoriguc@redhat.com>\n"
+ "Language-Team: Japanese (http://www.transifex.com/projects/p/fedora-abrt/"
+ "language/ja/)\n"
+ "Language: ja\n"
+ "Plural-Forms: nplurals=1; plural=0;\n"
+-"X-Generator: Zanata 3.9.5\n"
++"X-Generator: Zanata 4.1.1\n"
+ 
+ #: ../src/applet/abrt-applet.desktop.in.h:1
+ msgid "Automatic Bug Reporting Tool"
+@@ -63,7 +64,7 @@ msgstr "DBus で NetworkManager に接続できません: %s"
+ msgid "Can't determine network status via NetworkManager: %s"
+ msgstr "NetworkManager でネットワークの状態を判断できません: %s"
+ 
+-#: ../src/applet/applet.c:342 ../src/cli/report.c:42
++#: ../src/applet/applet.c:342 ../src/cli/report.c:63
+ #, c-format
+ msgid "Can't take ownership of '%s'"
+ msgstr "'%s' の所有権を取得できません"
+@@ -186,7 +187,8 @@ msgid "Can't show notification: %s"
+ msgstr "通知を表示できません: %s"
+ 
+ #. TODO: Terminate child's process?
+-#: ../src/applet/applet.c:1098 ../src/daemon/abrt-upload-watch.c:168
++#: ../src/applet/applet.c:1098 ../src/daemon/abrt-server.c:114
++#: ../src/daemon/abrt-upload-watch.c:168
+ #, c-format
+ msgid "Can't read from gio channel: '%s'"
+ msgstr "gio チャネルからの読み込みができません: '%s'"
+@@ -358,22 +360,22 @@ msgstr "問題ディレクトリ"
+ msgid "Configuration file"
+ msgstr "設定ファイル"
+ 
+-#: ../src/daemon/abrt-server.c:792 ../src/dbus/abrt-dbus.c:1004
+-#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:465
++#: ../src/daemon/abrt-server.c:924 ../src/dbus/abrt-dbus.c:1004
++#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:744
+ msgid "& [options]"
+ msgstr "& [オプション]"
+ 
+-#: ../src/daemon/abrt-server.c:803
++#: ../src/daemon/abrt-server.c:935
+ msgid "Use NUM as client uid"
+ msgstr "NUM をクライアントの uid  として使用する"
+ 
+-#: ../src/daemon/abrt-server.c:804 ../src/daemon/abrt-upload-watch.c:280
++#: ../src/daemon/abrt-server.c:936 ../src/daemon/abrt-upload-watch.c:280
+ #: ../src/plugins/abrt-watch-log.c:153 ../src/plugins/abrt-dump-oops.c:281
+-#: ../src/plugins/abrt-dump-xorg.c:252
++#: ../src/plugins/abrt-dump-xorg.c:260
+ msgid "Log to syslog"
+ msgstr "syslog にログする"
+ 
+-#: ../src/daemon/abrt-server.c:805 ../src/daemon/abrtd.c:481
++#: ../src/daemon/abrt-server.c:937 ../src/daemon/abrtd.c:760
+ msgid "Add program names to log"
+ msgstr "ログにプログラム名を追加する"
+ 
+@@ -443,7 +445,7 @@ msgid ""
+ msgstr "'%s' の名前を紛失しました。その名前を持つ他のサービスが実行していないかチェックして下さい。\n"
+ 
+ #: ../src/dbus/abrt-dbus.c:1013 ../src/dbus/abrt-configuration.c:1011
+-#: ../src/daemon/abrtd.c:480
++#: ../src/daemon/abrtd.c:759
+ msgid "Exit after NUM seconds of inactivity"
+ msgstr "休止状態が NUM 秒以上続いた場合は終了します"
+ 
+@@ -451,7 +453,7 @@ msgstr "休止状態が NUM 秒以上続いた場合は終了します"
+ msgid "This program must be run as root."
+ msgstr "このプログラムは root で実行しなければなりません"
+ 
+-#: ../src/daemon/abrtd.c:432
++#: ../src/daemon/abrtd.c:711
+ msgid ""
+ "The problem data are incomplete. This usually happens when a problem is "
+ "detected while computer is shutting down or user is logging out. In order to "
+@@ -462,23 +464,23 @@ msgstr ""
+ "問題データは不完全なデータです。コンピューターのシャットダウン中やユーザーのログアウト中に問題が検出されると、こうしたことが発生します。役に立たない問題レポートは提出されないよう、ABRT "
+ "によりこの問題の送信は許可されません。この問題を解決するため時間をとって開発者にご協力頂ける場合は、開発者に直接ご連絡ください。"
+ 
+-#: ../src/daemon/abrtd.c:478
++#: ../src/daemon/abrtd.c:757
+ msgid "Do not daemonize"
+ msgstr "デーモン化しない"
+ 
+-#: ../src/daemon/abrtd.c:479
++#: ../src/daemon/abrtd.c:758
+ msgid "Log to syslog even with -d"
+ msgstr "-d オプションを使用するとログを syslog へ書き込みます"
+ 
+-#: ../src/daemon/abrt-handle-event.c:388
++#: ../src/daemon/abrt-handle-event.c:343
+ msgid "& [-v -i] -e|--event EVENT DIR..."
+ msgstr "& [-v -i] -e|--event EVENT DIR..."
+ 
+-#: ../src/daemon/abrt-handle-event.c:396
++#: ../src/daemon/abrt-handle-event.c:351
+ msgid "Run EVENT on DIR"
+ msgstr "EVENT を DIR で実行する"
+ 
+-#: ../src/daemon/abrt-handle-event.c:397
++#: ../src/daemon/abrt-handle-event.c:352
+ msgid "Communicate directly to the user"
+ msgstr "ユーザーと直接通信する"
+ 
+@@ -1255,7 +1257,7 @@ msgstr "見つけた oops を標準出力に表示します"
+ msgid "Create new problem directory in DIR for every oops found"
+ msgstr "検出される oops ごと DIR 内に新規の問題ディレクトリを作成します"
+ 
+-#: ../src/plugins/abrt-dump-oops.c:287 ../src/plugins/abrt-dump-xorg.c:255
++#: ../src/plugins/abrt-dump-oops.c:287 ../src/plugins/abrt-dump-xorg.c:263
+ msgid "Same as -d DumpLocation, DumpLocation is specified in abrt.conf"
+ msgstr "-d DumpLocation と同じです、 DumpLocation は abrt.conf で指定します"
+ 
+@@ -1263,7 +1265,7 @@ msgstr "-d DumpLocation と同じです、 DumpLocation は abrt.conf で指定
+ msgid "Save the extracted information in PROBLEM"
+ msgstr "抽出した情報を PROBLEM に保存します"
+ 
+-#: ../src/plugins/abrt-dump-oops.c:289 ../src/plugins/abrt-dump-xorg.c:256
++#: ../src/plugins/abrt-dump-oops.c:289 ../src/plugins/abrt-dump-xorg.c:264
+ msgid "Make the problem directory world readable"
+ msgstr "問題ディレクトリを誰でも見れるようにします"
+ 
+@@ -1271,7 +1273,7 @@ msgstr "問題ディレクトリを誰でも見れるようにします"
+ msgid "Throttle problem directory creation to 1 per second"
+ msgstr "問題のディレクトリの作成を毎秒 1 個に制限"
+ 
+-#: ../src/plugins/abrt-dump-oops.c:291 ../src/plugins/abrt-dump-xorg.c:257
++#: ../src/plugins/abrt-dump-oops.c:291 ../src/plugins/abrt-dump-xorg.c:265
+ msgid "Print search string(s) to stdout and exit"
+ msgstr "検索文字列を標準出力に表示して終了"
+ 
+@@ -1288,7 +1290,7 @@ msgstr "問題を更新できません: 複数のウップスが見つかりま
+ msgid "Sleeping for %d seconds"
+ msgstr "%d 秒スリープします"
+ 
+-#: ../src/plugins/abrt-dump-xorg.c:245
++#: ../src/plugins/abrt-dump-xorg.c:253
+ msgid ""
+ "& [-vsoxm] [-d DIR]/[-D] [FILE]\n"
+ "\n"
+@@ -1297,11 +1299,11 @@ msgstr "& [-vsoxm] [-d DIR]/[-D] [FILE]\n"
+ "\n"
+ "FILE (または標準入力) から Xorg クラッシュを抽出します"
+ 
+-#: ../src/plugins/abrt-dump-xorg.c:253
++#: ../src/plugins/abrt-dump-xorg.c:261
+ msgid "Print found crash data on standard output"
+ msgstr "発見したクラッシュデータを標準出力に表示する"
+ 
+-#: ../src/plugins/abrt-dump-xorg.c:254
++#: ../src/plugins/abrt-dump-xorg.c:262
+ msgid "Create problem directory in DIR for every crash found"
+ msgstr "検出されるクラッシュごと DIR 内に問題ディレクトリを作成します"
+ 
+@@ -1988,42 +1990,62 @@ msgstr "ABRT により %u 件の問題が検出されました。次を実行し
+ msgid "Can't find problem '%s'"
+ msgstr "問題 '%s' が見つかりません"
+ 
+-#: ../src/cli/report.c:54 ../src/cli/process.c:70
++#: ../src/cli/report.c:52
++#, c-format
++msgid "Problem '%s' cannot be reported"
++msgstr "問題 '%s' は報告できません"
++
++#: ../src/cli/report.c:57
++#, c-format
++msgid "Problem '%s' is labeled as 'not-reportable'?"
++msgstr "問題 '%s' に 'not-reportable' のラベル付けをしますか?"
++
++#: ../src/cli/report.c:78 ../src/cli/process.c:70
+ #, c-format
+ msgid "Deleting '%s'"
+ msgstr "'%s' を削除中"
+ 
+-#: ../src/cli/report.c:70
++#: ../src/cli/report.c:94
+ msgid "& report [options] DIR..."
+ msgstr "& report [options] DIR..."
+ 
+-#: ../src/cli/report.c:80
++#: ../src/cli/report.c:105
+ msgid "Remove PROBLEM_DIR after reporting"
+ msgstr "レポート後に PROBLEM_DIR を削除します"
+ 
+-#: ../src/cli/process.c:64
+-msgid "Actions: remove(rm), info(i), skip(s):"
+-msgstr "アクション: 削除(rm), 情報(i), スキップ(s):"
++#: ../src/cli/report.c:106 ../src/cli/process.c:154
++msgid "Ignore security checks to be able to report all problems"
++msgstr "すべての問題を報告できるようにするためセキュリティーチェックを無視する"
+ 
+-#: ../src/cli/process.c:66
++#: ../src/cli/process.c:64
+ msgid "Actions: remove(rm), report(e), info(i), skip(s):"
+ msgstr "アクション: 削除(rm), レポート(e), 情報(i), スキップ(s):"
+ 
+-#: ../src/cli/process.c:78
++#: ../src/cli/process.c:66
++msgid "Actions: remove(rm), info(i), skip(s):"
++msgstr "アクション: 削除(rm), 情報(i), スキップ(s):"
++
++#: ../src/cli/process.c:79
+ #, c-format
+ msgid "Reporting '%s'"
+ msgstr "'%s' をレポート中"
+ 
+ #. dummy must be free because the function ask allocate memory
+-#: ../src/cli/process.c:127
++#: ../src/cli/process.c:128
+ msgid "For next problem press ENTER:"
+ msgstr "次の問題に移るには、ENTER を押します:"
+ 
+-#: ../src/cli/process.c:138
+-msgid "Without --since argument, iterates over all detected problems."
+-msgstr "--since 引数がないと、すべての検出済み問題を繰り返します。"
++#: ../src/cli/process.c:139
++msgid ""
++"& process [options]\n"
++"\n"
++"Without --since argument, iterates over all detected problems."
++msgstr ""
++"& process [options]\n"
++"\n"
++"Without --since argument, iterates over all detected problems."
+ 
+-#: ../src/cli/process.c:144
++#: ../src/cli/process.c:153
+ msgid "Selects only problems detected after timestamp"
+ msgstr "タイムスタンプ後に検出された問題のみを選択します"
+ 
+diff --git a/po/ko.po b/po/ko.po
+index 6684de2..83a5f41 100644
+--- a/po/ko.po
++++ b/po/ko.po
+@@ -8,22 +8,22 @@
+ # eukim <eukim@redhat.com>, 2014
+ # Jiří Moskovčák <jmoskovc@redhat.com>, 2011
+ #   <raypoatssium@gmail.com>, 2011-2012, 2013
+-# Eun-Ju Kim <eukim@redhat.com>, 2015. #zanata
++# mhabrnal <mhabrnal@redhat.com>, 2017. #zanata
+ msgid ""
+ msgstr ""
+ "Project-Id-Version: PACKAGE VERSION\n"
+ "Report-Msgid-Bugs-To: jmoskovc@redhat.com\n"
+-"POT-Creation-Date: 2016-06-29 15:31+0200\n"
++"POT-Creation-Date: 2017-05-15 16:10+0200\n"
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
+-"PO-Revision-Date: 2015-07-19 09:20-0400\n"
+-"Last-Translator: Eun-Ju Kim <eukim@redhat.com>\n"
++"PO-Revision-Date: 2017-05-16 07:08+0000\n"
++"Last-Translator: Copied by Zanata <copied-by-zanata@zanata.org>\n"
+ "Language-Team: Korean (http://www.transifex.com/projects/p/fedora-abrt/"
+ "language/ko/)\n"
+ "Language: ko\n"
+ "Plural-Forms: nplurals=1; plural=0;\n"
+-"X-Generator: Zanata 3.9.5\n"
++"X-Generator: Zanata 4.1.1\n"
+ 
+ #: ../src/applet/abrt-applet.desktop.in.h:1
+ msgid "Automatic Bug Reporting Tool"
+@@ -60,7 +60,7 @@ msgstr "DBus를 통해 NetworkManager에 연결할 수 없음: %s"
+ msgid "Can't determine network status via NetworkManager: %s"
+ msgstr "NetworkManager를 통해 네트워크 상태를 지정할 수 없음: %s"
+ 
+-#: ../src/applet/applet.c:342 ../src/cli/report.c:42
++#: ../src/applet/applet.c:342 ../src/cli/report.c:63
+ #, c-format
+ msgid "Can't take ownership of '%s'"
+ msgstr "'%s'의 소유 권한을 갖을 수 없음 "
+@@ -181,7 +181,8 @@ msgid "Can't show notification: %s"
+ msgstr "통지를 표시할 수 없음: %s"
+ 
+ #. TODO: Terminate child's process?
+-#: ../src/applet/applet.c:1098 ../src/daemon/abrt-upload-watch.c:168
++#: ../src/applet/applet.c:1098 ../src/daemon/abrt-server.c:114
++#: ../src/daemon/abrt-upload-watch.c:168
+ #, c-format
+ msgid "Can't read from gio channel: '%s'"
+ msgstr "gio 채널에서 읽을 수 없음: '%s'"
+@@ -350,22 +351,22 @@ msgstr "문제가 있는 디렉토리 "
+ msgid "Configuration file"
+ msgstr "설정 파일 "
+ 
+-#: ../src/daemon/abrt-server.c:792 ../src/dbus/abrt-dbus.c:1004
+-#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:465
++#: ../src/daemon/abrt-server.c:924 ../src/dbus/abrt-dbus.c:1004
++#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:744
+ msgid "& [options]"
+ msgstr "& [options]"
+ 
+-#: ../src/daemon/abrt-server.c:803
++#: ../src/daemon/abrt-server.c:935
+ msgid "Use NUM as client uid"
+ msgstr "NUM을 클라이언트 uid로 사용 "
+ 
+-#: ../src/daemon/abrt-server.c:804 ../src/daemon/abrt-upload-watch.c:280
++#: ../src/daemon/abrt-server.c:936 ../src/daemon/abrt-upload-watch.c:280
+ #: ../src/plugins/abrt-watch-log.c:153 ../src/plugins/abrt-dump-oops.c:281
+-#: ../src/plugins/abrt-dump-xorg.c:252
++#: ../src/plugins/abrt-dump-xorg.c:260
+ msgid "Log to syslog"
+ msgstr "syslog에 로그   "
+ 
+-#: ../src/daemon/abrt-server.c:805 ../src/daemon/abrtd.c:481
++#: ../src/daemon/abrt-server.c:937 ../src/daemon/abrtd.c:760
+ msgid "Add program names to log"
+ msgstr "로그에 프로그램 이름 추가 "
+ 
+@@ -435,7 +436,7 @@ msgid ""
+ msgstr "'%s'의 이름이 분실되었습니다. 이 이름을 갖는 다른 서비스가 실행되고 있지 않은지 확인하십시오.\n"
+ 
+ #: ../src/dbus/abrt-dbus.c:1013 ../src/dbus/abrt-configuration.c:1011
+-#: ../src/daemon/abrtd.c:480
++#: ../src/daemon/abrtd.c:759
+ msgid "Exit after NUM seconds of inactivity"
+ msgstr "NUM 초 동안 동작하지 않을 경우 종료합니다 "
+ 
+@@ -443,7 +444,7 @@ msgstr "NUM 초 동안 동작하지 않을 경우 종료합니다 "
+ msgid "This program must be run as root."
+ msgstr "이 프로그램은 root로 실행해야 합니다."
+ 
+-#: ../src/daemon/abrtd.c:432
++#: ../src/daemon/abrtd.c:711
+ msgid ""
+ "The problem data are incomplete. This usually happens when a problem is "
+ "detected while computer is shutting down or user is logging out. In order to "
+@@ -455,23 +456,23 @@ msgstr ""
+ "정확하게 문제를 보고하기 위해 ABRT는 이 문제를 전송하는 것을 허용하지 않습니다. 시간이 허락하여 이 문제를 해결하기 위해 개발자에게 "
+ "도움을 주려면 개발자에게 직접 연락을 취하십시오."
+ 
+-#: ../src/daemon/abrtd.c:478
++#: ../src/daemon/abrtd.c:757
+ msgid "Do not daemonize"
+ msgstr "데몬화하지 않습니다 "
+ 
+-#: ../src/daemon/abrtd.c:479
++#: ../src/daemon/abrtd.c:758
+ msgid "Log to syslog even with -d"
+ msgstr "-d를 사용하여 syslog에 로그 "
+ 
+-#: ../src/daemon/abrt-handle-event.c:388
++#: ../src/daemon/abrt-handle-event.c:343
+ msgid "& [-v -i] -e|--event EVENT DIR..."
+ msgstr "& [-v -i] -e|--event EVENT DIR..."
+ 
+-#: ../src/daemon/abrt-handle-event.c:396
++#: ../src/daemon/abrt-handle-event.c:351
+ msgid "Run EVENT on DIR"
+ msgstr "DIR에서 EVENT 실행 "
+ 
+-#: ../src/daemon/abrt-handle-event.c:397
++#: ../src/daemon/abrt-handle-event.c:352
+ msgid "Communicate directly to the user"
+ msgstr "사용자에게 직접 통신 "
+ 
+@@ -1240,7 +1241,7 @@ msgstr "찾아낸 oops를 표준 출력으로 인쇄합니다 "
+ msgid "Create new problem directory in DIR for every oops found"
+ msgstr "발견된 모든 oops에 대해 DIR에 새로운 문제 디렉토리를 생성 "
+ 
+-#: ../src/plugins/abrt-dump-oops.c:287 ../src/plugins/abrt-dump-xorg.c:255
++#: ../src/plugins/abrt-dump-oops.c:287 ../src/plugins/abrt-dump-xorg.c:263
+ msgid "Same as -d DumpLocation, DumpLocation is specified in abrt.conf"
+ msgstr "-d DumpLocation과 동일, DumpLocation은 abrt.conf에 지정됩니다 "
+ 
+@@ -1248,7 +1249,7 @@ msgstr "-d DumpLocation과 동일, DumpLocation은 abrt.conf에 지정됩니다
+ msgid "Save the extracted information in PROBLEM"
+ msgstr "추출한 정보를 PROBLEM에 저장합니다 "
+ 
+-#: ../src/plugins/abrt-dump-oops.c:289 ../src/plugins/abrt-dump-xorg.c:256
++#: ../src/plugins/abrt-dump-oops.c:289 ../src/plugins/abrt-dump-xorg.c:264
+ msgid "Make the problem directory world readable"
+ msgstr "문제 디렉토리를 전역에서 읽기 가능하게 합니다 "
+ 
+@@ -1256,7 +1257,7 @@ msgstr "문제 디렉토리를 전역에서 읽기 가능하게 합니다 "
+ msgid "Throttle problem directory creation to 1 per second"
+ msgstr "1 초당 한 개로 문제 디렉토리 생성 제한 "
+ 
+-#: ../src/plugins/abrt-dump-oops.c:291 ../src/plugins/abrt-dump-xorg.c:257
++#: ../src/plugins/abrt-dump-oops.c:291 ../src/plugins/abrt-dump-xorg.c:265
+ msgid "Print search string(s) to stdout and exit"
+ msgstr "검색 문자열을 표준 출력에 인쇄하고 종료 "
+ 
+@@ -1273,7 +1274,7 @@ msgstr "문제를 업데이트할 수 없습니다: 하나 이상의 oops 발견
+ msgid "Sleeping for %d seconds"
+ msgstr "%d 초 동안 절전 "
+ 
+-#: ../src/plugins/abrt-dump-xorg.c:245
++#: ../src/plugins/abrt-dump-xorg.c:253
+ msgid ""
+ "& [-vsoxm] [-d DIR]/[-D] [FILE]\n"
+ "\n"
+@@ -1282,11 +1283,11 @@ msgstr "& [-vsoxm] [-d DIR]/[-D] [FILE]\n"
+ "\n"
+ "FILE (또는 표준 입력)에서 Xorg 크래시를 추출합니다"
+ 
+-#: ../src/plugins/abrt-dump-xorg.c:253
++#: ../src/plugins/abrt-dump-xorg.c:261
+ msgid "Print found crash data on standard output"
+ msgstr "검색된 크래시 데이터를 표준 출력에 인쇄 "
+ 
+-#: ../src/plugins/abrt-dump-xorg.c:254
++#: ../src/plugins/abrt-dump-xorg.c:262
+ msgid "Create problem directory in DIR for every crash found"
+ msgstr "발견된 모든 크래시에 대해 DIR에 문제 디렉토리를 생성"
+ 
+@@ -1973,42 +1974,59 @@ msgstr ""
+ msgid "Can't find problem '%s'"
+ msgstr "문제 '%s'을/를 찾을 수 없음"
+ 
+-#: ../src/cli/report.c:54 ../src/cli/process.c:70
++#: ../src/cli/report.c:52
++#, c-format
++msgid "Problem '%s' cannot be reported"
++msgstr ""
++
++#: ../src/cli/report.c:57
++#, c-format
++msgid "Problem '%s' is labeled as 'not-reportable'?"
++msgstr ""
++
++#: ../src/cli/report.c:78 ../src/cli/process.c:70
+ #, c-format
+ msgid "Deleting '%s'"
+ msgstr "'%s' 삭제 중 "
+ 
+-#: ../src/cli/report.c:70
++#: ../src/cli/report.c:94
+ msgid "& report [options] DIR..."
+ msgstr "& report [options] DIR..."
+ 
+-#: ../src/cli/report.c:80
++#: ../src/cli/report.c:105
+ msgid "Remove PROBLEM_DIR after reporting"
+ msgstr "보고 후 PROBLEM_DIR 삭제 "
+ 
+-#: ../src/cli/process.c:64
+-msgid "Actions: remove(rm), info(i), skip(s):"
+-msgstr "동작: 삭제(rm), 정보(i), 생략(s):"
++#: ../src/cli/report.c:106 ../src/cli/process.c:154
++msgid "Ignore security checks to be able to report all problems"
++msgstr ""
+ 
+-#: ../src/cli/process.c:66
++#: ../src/cli/process.c:64
+ msgid "Actions: remove(rm), report(e), info(i), skip(s):"
+ msgstr "동작: 삭제(rm), 보고 (e), 정보(i), 생략(s):"
+ 
+-#: ../src/cli/process.c:78
++#: ../src/cli/process.c:66
++msgid "Actions: remove(rm), info(i), skip(s):"
++msgstr "동작: 삭제(rm), 정보(i), 생략(s):"
++
++#: ../src/cli/process.c:79
+ #, c-format
+ msgid "Reporting '%s'"
+ msgstr "'%s' 보고 중 "
+ 
+ #. dummy must be free because the function ask allocate memory
+-#: ../src/cli/process.c:127
++#: ../src/cli/process.c:128
+ msgid "For next problem press ENTER:"
+ msgstr "다음 문제로 이동하려면 ENTER를 누릅니다: "
+ 
+-#: ../src/cli/process.c:138
+-msgid "Without --since argument, iterates over all detected problems."
+-msgstr "--since 인수가 없으면 감지된 모든 문제를 반복합니다 "
++#: ../src/cli/process.c:139
++msgid ""
++"& process [options]\n"
++"\n"
++"Without --since argument, iterates over all detected problems."
++msgstr ""
+ 
+-#: ../src/cli/process.c:144
++#: ../src/cli/process.c:153
+ msgid "Selects only problems detected after timestamp"
+ msgstr "타임 스탬프 후 감지된 문제만 선택합니다 "
+ 
+diff --git a/po/pt_BR.po b/po/pt_BR.po
+index 7a1098b..04c8aee 100644
+--- a/po/pt_BR.po
++++ b/po/pt_BR.po
+@@ -22,22 +22,22 @@
+ # Taylon Silmer <taylon@taylon.eti.br>, 2011
+ # Teseu <tuliomac@gmail.com>, 2011
+ # Vitor Lobo Ramos <lobocode@gmail.com>, 2014
+-# Daniel Lara <danniel@fedoraproject.org>, 2016. #zanata
++# mhabrnal <mhabrnal@redhat.com>, 2017. #zanata
+ msgid ""
+ msgstr ""
+ "Project-Id-Version: PACKAGE VERSION\n"
+ "Report-Msgid-Bugs-To: jmoskovc@redhat.com\n"
+-"POT-Creation-Date: 2016-06-29 15:31+0200\n"
++"POT-Creation-Date: 2017-05-15 16:10+0200\n"
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
+-"PO-Revision-Date: 2016-03-02 01:16-0500\n"
++"PO-Revision-Date: 2017-05-16 07:09+0000\n"
+ "Last-Translator: Copied by Zanata <copied-by-zanata@zanata.org>\n"
+ "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/"
+ "fedora-abrt/language/pt_BR/)\n"
+ "Language: pt-BR\n"
+ "Plural-Forms: nplurals=2; plural=(n > 1);\n"
+-"X-Generator: Zanata 3.9.5\n"
++"X-Generator: Zanata 4.1.1\n"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+ #: ../src/applet/abrt-applet.desktop.in.h:1
+@@ -84,7 +84,7 @@ msgid "Can't determine network status via NetworkManager: %s"
+ msgstr "Não foi possível determinar o status usando o NetworkManager: %s"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/applet/applet.c:342 ../src/cli/report.c:42
++#: ../src/applet/applet.c:342 ../src/cli/report.c:63
+ #, c-format
+ msgid "Can't take ownership of '%s'"
+ msgstr "Não foi possível obter propriedade de '%s'"
+@@ -234,7 +234,8 @@ msgstr "Não é possível mostrar a notificação: %s"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+ #. TODO: Terminate child's process?
+-#: ../src/applet/applet.c:1098 ../src/daemon/abrt-upload-watch.c:168
++#: ../src/applet/applet.c:1098 ../src/daemon/abrt-server.c:114
++#: ../src/daemon/abrt-upload-watch.c:168
+ #, c-format
+ msgid "Can't read from gio channel: '%s'"
+ msgstr "Não é possivel ler a partir do canal gio: '%s'"
+@@ -436,25 +437,25 @@ msgid "Configuration file"
+ msgstr "Arquivo de Configuração"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-server.c:792 ../src/dbus/abrt-dbus.c:1004
+-#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:465
++#: ../src/daemon/abrt-server.c:924 ../src/dbus/abrt-dbus.c:1004
++#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:744
+ msgid "& [options]"
+ msgstr "& [options]"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-server.c:803
++#: ../src/daemon/abrt-server.c:935
+ msgid "Use NUM as client uid"
+ msgstr "Utilize o NUM como uid de cliente"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-server.c:804 ../src/daemon/abrt-upload-watch.c:280
++#: ../src/daemon/abrt-server.c:936 ../src/daemon/abrt-upload-watch.c:280
+ #: ../src/plugins/abrt-watch-log.c:153 ../src/plugins/abrt-dump-oops.c:281
+-#: ../src/plugins/abrt-dump-xorg.c:252
++#: ../src/plugins/abrt-dump-xorg.c:260
+ msgid "Log to syslog"
+ msgstr "Log para o syslog"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-server.c:805 ../src/daemon/abrtd.c:481
++#: ../src/daemon/abrt-server.c:937 ../src/daemon/abrtd.c:760
+ msgid "Add program names to log"
+ msgstr "Adicionar os nomes dos programas ao log"
+ 
+@@ -541,7 +542,7 @@ msgstr ""
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+ #: ../src/dbus/abrt-dbus.c:1013 ../src/dbus/abrt-configuration.c:1011
+-#: ../src/daemon/abrtd.c:480
++#: ../src/daemon/abrtd.c:759
+ msgid "Exit after NUM seconds of inactivity"
+ msgstr "Sai após os segundos NUM de inatividade"
+ 
+@@ -551,7 +552,7 @@ msgid "This program must be run as root."
+ msgstr "Este programa deve estar sendo executado como root."
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrtd.c:432
++#: ../src/daemon/abrtd.c:711
+ msgid ""
+ "The problem data are incomplete. This usually happens when a problem is "
+ "detected while computer is shutting down or user is logging out. In order to "
+@@ -567,27 +568,27 @@ msgstr ""
+ "favor contacte-os diretamente."
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrtd.c:478
++#: ../src/daemon/abrtd.c:757
+ msgid "Do not daemonize"
+ msgstr "Não criar um daemon"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrtd.c:479
++#: ../src/daemon/abrtd.c:758
+ msgid "Log to syslog even with -d"
+ msgstr "Registrar no syslog mesmo com o -d"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-handle-event.c:388
++#: ../src/daemon/abrt-handle-event.c:343
+ msgid "& [-v -i] -e|--event EVENT DIR..."
+ msgstr "& [-v -i] -e|--event EVENT DIR..."
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-handle-event.c:396
++#: ../src/daemon/abrt-handle-event.c:351
+ msgid "Run EVENT on DIR"
+ msgstr "Executar o EVENT no DIR"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-handle-event.c:397
++#: ../src/daemon/abrt-handle-event.c:352
+ msgid "Communicate directly to the user"
+ msgstr "Comunicar diretamente com o usuário"
+ 
+@@ -1454,7 +1455,7 @@ msgid "Create new problem directory in DIR for every oops found"
+ msgstr "Crie novo diretório de problema no DIR para todos os oops encontrados"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/plugins/abrt-dump-oops.c:287 ../src/plugins/abrt-dump-xorg.c:255
++#: ../src/plugins/abrt-dump-oops.c:287 ../src/plugins/abrt-dump-xorg.c:263
+ msgid "Same as -d DumpLocation, DumpLocation is specified in abrt.conf"
+ msgstr ""
+ "Mesmo que -d DumpLocation, DumpLocation está especificado no abrt.conf"
+@@ -1464,7 +1465,7 @@ msgid "Save the extracted information in PROBLEM"
+ msgstr "Salva a informação extraída em PROBLEM"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/plugins/abrt-dump-oops.c:289 ../src/plugins/abrt-dump-xorg.c:256
++#: ../src/plugins/abrt-dump-oops.c:289 ../src/plugins/abrt-dump-xorg.c:264
+ msgid "Make the problem directory world readable"
+ msgstr "Tornar o diretório de problema mundial legível"
+ 
+@@ -1473,7 +1474,7 @@ msgid "Throttle problem directory creation to 1 per second"
+ msgstr "Alterna a criação de diretório do problema para 1 por segundo"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/plugins/abrt-dump-oops.c:291 ../src/plugins/abrt-dump-xorg.c:257
++#: ../src/plugins/abrt-dump-oops.c:291 ../src/plugins/abrt-dump-xorg.c:265
+ msgid "Print search string(s) to stdout and exit"
+ msgstr "Imprima a(s)  faixa(s) de busca no stdout e saia"
+ 
+@@ -1492,7 +1493,7 @@ msgid "Sleeping for %d seconds"
+ msgstr "Dormindo por %d segundos"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/plugins/abrt-dump-xorg.c:245
++#: ../src/plugins/abrt-dump-xorg.c:253
+ msgid ""
+ "& [-vsoxm] [-d DIR]/[-D] [FILE]\n"
+ "\n"
+@@ -1503,12 +1504,12 @@ msgstr ""
+ "Extraia o travamento do Xorg doFILE (ou entrada padrão)"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/plugins/abrt-dump-xorg.c:253
++#: ../src/plugins/abrt-dump-xorg.c:261
+ msgid "Print found crash data on standard output"
+ msgstr "Imprima dados de travamento encontrados na saída do padrão"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/plugins/abrt-dump-xorg.c:254
++#: ../src/plugins/abrt-dump-xorg.c:262
+ msgid "Create problem directory in DIR for every crash found"
+ msgstr ""
+ "Criar diretório de problema no DIR para todos os travamentos encontrados"
+@@ -2343,42 +2344,59 @@ msgstr ""
+ msgid "Can't find problem '%s'"
+ msgstr "Não foi possível encontrar problema '%s'"
+ 
+-#: ../src/cli/report.c:54 ../src/cli/process.c:70
++#: ../src/cli/report.c:52
++#, c-format
++msgid "Problem '%s' cannot be reported"
++msgstr ""
++
++#: ../src/cli/report.c:57
++#, c-format
++msgid "Problem '%s' is labeled as 'not-reportable'?"
++msgstr ""
++
++#: ../src/cli/report.c:78 ../src/cli/process.c:70
+ #, c-format
+ msgid "Deleting '%s'"
+ msgstr "Removendo '%s'"
+ 
+-#: ../src/cli/report.c:70
++#: ../src/cli/report.c:94
+ msgid "& report [options] DIR..."
+ msgstr "& relatório [opções] DIR..."
+ 
+-#: ../src/cli/report.c:80
++#: ../src/cli/report.c:105
+ msgid "Remove PROBLEM_DIR after reporting"
+ msgstr "Remover PROBLEM_DIR após relatar"
+ 
+-#: ../src/cli/process.c:64
+-msgid "Actions: remove(rm), info(i), skip(s):"
+-msgstr "Ações: remover (rm),  info(i), skip(s):"
++#: ../src/cli/report.c:106 ../src/cli/process.c:154
++msgid "Ignore security checks to be able to report all problems"
++msgstr ""
+ 
+-#: ../src/cli/process.c:66
++#: ../src/cli/process.c:64
+ msgid "Actions: remove(rm), report(e), info(i), skip(s):"
+ msgstr "Acões: remove(rm), report(e), info(i), skip(s):"
+ 
+-#: ../src/cli/process.c:78
++#: ../src/cli/process.c:66
++msgid "Actions: remove(rm), info(i), skip(s):"
++msgstr "Ações: remover (rm),  info(i), skip(s):"
++
++#: ../src/cli/process.c:79
+ #, c-format
+ msgid "Reporting '%s'"
+ msgstr "Reportando '%s'"
+ 
+ #. dummy must be free because the function ask allocate memory
+-#: ../src/cli/process.c:127
++#: ../src/cli/process.c:128
+ msgid "For next problem press ENTER:"
+ msgstr "Para o próximo problema, pressione ENTER:"
+ 
+-#: ../src/cli/process.c:138
+-msgid "Without --since argument, iterates over all detected problems."
+-msgstr "Sem o argumento --since, itera em todos os problemas detectados."
++#: ../src/cli/process.c:139
++msgid ""
++"& process [options]\n"
++"\n"
++"Without --since argument, iterates over all detected problems."
++msgstr ""
+ 
+-#: ../src/cli/process.c:144
++#: ../src/cli/process.c:153
+ msgid "Selects only problems detected after timestamp"
+ msgstr "Seleciona somente problemas detectados após o timestamp"
+ 
+diff --git a/po/ru.po b/po/ru.po
+index a9390da..e235dee 100644
+--- a/po/ru.po
++++ b/po/ru.po
+@@ -12,24 +12,23 @@
+ # Stanislav Hanzhin <hanzhin.stas@gmail.com>, 2011
+ # Yulia <yulia.poyarkova@redhat.com>, 2012,2014
+ # Yuri Khabarov <madb00blik@gmail.com>, 2011
+-# Igor Gorbounov <igor.gorbounov@gmail.com>, 2015. #zanata
+-# yuliya <ypoyarko@redhat.com>, 2015. #zanata
++# mhabrnal <mhabrnal@redhat.com>, 2017. #zanata
+ msgid ""
+ msgstr ""
+ "Project-Id-Version: PACKAGE VERSION\n"
+ "Report-Msgid-Bugs-To: jmoskovc@redhat.com\n"
+-"POT-Creation-Date: 2016-06-29 15:31+0200\n"
++"POT-Creation-Date: 2017-05-15 16:10+0200\n"
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
+-"PO-Revision-Date: 2015-07-20 08:46-0400\n"
+-"Last-Translator: yuliya <ypoyarko@redhat.com>\n"
++"PO-Revision-Date: 2017-05-16 07:08+0000\n"
++"Last-Translator: Copied by Zanata <copied-by-zanata@zanata.org>\n"
+ "Language-Team: Russian (http://www.transifex.com/projects/p/fedora-abrt/"
+ "language/ru/)\n"
+ "Language: ru\n"
+ "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
+ "n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+-"X-Generator: Zanata 3.9.5\n"
++"X-Generator: Zanata 4.1.1\n"
+ 
+ #: ../src/applet/abrt-applet.desktop.in.h:1
+ msgid "Automatic Bug Reporting Tool"
+@@ -67,7 +66,7 @@ msgstr "Не удалось подключиться к NetworkManager чере
+ msgid "Can't determine network status via NetworkManager: %s"
+ msgstr "NetworkManager не смог определить статус сети: %s"
+ 
+-#: ../src/applet/applet.c:342 ../src/cli/report.c:42
++#: ../src/applet/applet.c:342 ../src/cli/report.c:63
+ #, c-format
+ msgid "Can't take ownership of '%s'"
+ msgstr "Не удается стать владельцем «%s»"
+@@ -191,7 +190,8 @@ msgid "Can't show notification: %s"
+ msgstr "Не удалось показать уведомление: %s"
+ 
+ #. TODO: Terminate child's process?
+-#: ../src/applet/applet.c:1098 ../src/daemon/abrt-upload-watch.c:168
++#: ../src/applet/applet.c:1098 ../src/daemon/abrt-server.c:114
++#: ../src/daemon/abrt-upload-watch.c:168
+ #, c-format
+ msgid "Can't read from gio channel: '%s'"
+ msgstr "Не удалось выполнить чтение из канала gio: «%s»"
+@@ -375,22 +375,22 @@ msgstr "Каталог с данными сбоя"
+ msgid "Configuration file"
+ msgstr "Файл конфигурации"
+ 
+-#: ../src/daemon/abrt-server.c:792 ../src/dbus/abrt-dbus.c:1004
+-#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:465
++#: ../src/daemon/abrt-server.c:924 ../src/dbus/abrt-dbus.c:1004
++#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:744
+ msgid "& [options]"
+ msgstr "& [параметры]"
+ 
+-#: ../src/daemon/abrt-server.c:803
++#: ../src/daemon/abrt-server.c:935
+ msgid "Use NUM as client uid"
+ msgstr "Использовать NUM как uid клиента"
+ 
+-#: ../src/daemon/abrt-server.c:804 ../src/daemon/abrt-upload-watch.c:280
++#: ../src/daemon/abrt-server.c:936 ../src/daemon/abrt-upload-watch.c:280
+ #: ../src/plugins/abrt-watch-log.c:153 ../src/plugins/abrt-dump-oops.c:281
+-#: ../src/plugins/abrt-dump-xorg.c:252
++#: ../src/plugins/abrt-dump-xorg.c:260
+ msgid "Log to syslog"
+ msgstr "Запись в журнал"
+ 
+-#: ../src/daemon/abrt-server.c:805 ../src/daemon/abrtd.c:481
++#: ../src/daemon/abrt-server.c:937 ../src/daemon/abrtd.c:760
+ msgid "Add program names to log"
+ msgstr "Добавить названия программ в журнал"
+ 
+@@ -464,7 +464,7 @@ msgstr ""
+ "использующая это имя.\n"
+ 
+ #: ../src/dbus/abrt-dbus.c:1013 ../src/dbus/abrt-configuration.c:1011
+-#: ../src/daemon/abrtd.c:480
++#: ../src/daemon/abrtd.c:759
+ msgid "Exit after NUM seconds of inactivity"
+ msgstr "Выйти после NUM секунд бездействия"
+ 
+@@ -473,7 +473,7 @@ msgid "This program must be run as root."
+ msgstr ""
+ "Эта программа должна запускаться от имени привелигированного пользователя."
+ 
+-#: ../src/daemon/abrtd.c:432
++#: ../src/daemon/abrtd.c:711
+ msgid ""
+ "The problem data are incomplete. This usually happens when a problem is "
+ "detected while computer is shutting down or user is logging out. In order to "
+@@ -487,23 +487,23 @@ msgstr ""
+ "об этой ошибке. Если у вас есть время, и вы хотите помочь разработчикам в их "
+ "усилиях разобраться с этим сбоем, связывайтесь с ними напрямую."
+ 
+-#: ../src/daemon/abrtd.c:478
++#: ../src/daemon/abrtd.c:757
+ msgid "Do not daemonize"
+ msgstr "Не выполнять как службу"
+ 
+-#: ../src/daemon/abrtd.c:479
++#: ../src/daemon/abrtd.c:758
+ msgid "Log to syslog even with -d"
+ msgstr "Запись в журнал даже с -d"
+ 
+-#: ../src/daemon/abrt-handle-event.c:388
++#: ../src/daemon/abrt-handle-event.c:343
+ msgid "& [-v -i] -e|--event EVENT DIR..."
+ msgstr "& [-v -i] -e|--event EVENT DIR..."
+ 
+-#: ../src/daemon/abrt-handle-event.c:396
++#: ../src/daemon/abrt-handle-event.c:351
+ msgid "Run EVENT on DIR"
+ msgstr "Запуск EVENT в DIR"
+ 
+-#: ../src/daemon/abrt-handle-event.c:397
++#: ../src/daemon/abrt-handle-event.c:352
+ msgid "Communicate directly to the user"
+ msgstr "Взаимодействие с пользователем напрямую"
+ 
+@@ -1308,7 +1308,7 @@ msgstr "Вывести найденные ошибки в stdout"
+ msgid "Create new problem directory in DIR for every oops found"
+ msgstr "Создавать каталог в DIR для каждого сбоя oops"
+ 
+-#: ../src/plugins/abrt-dump-oops.c:287 ../src/plugins/abrt-dump-xorg.c:255
++#: ../src/plugins/abrt-dump-oops.c:287 ../src/plugins/abrt-dump-xorg.c:263
+ msgid "Same as -d DumpLocation, DumpLocation is specified in abrt.conf"
+ msgstr "То же, что и \"-d DumpLocation\", \"DumpLocation\" задается в abrt.conf"
+ 
+@@ -1316,7 +1316,7 @@ msgstr "То же, что и \"-d DumpLocation\", \"DumpLocation\" задает
+ msgid "Save the extracted information in PROBLEM"
+ msgstr "Сохранить извлеченную информацию в PROBLEM"
+ 
+-#: ../src/plugins/abrt-dump-oops.c:289 ../src/plugins/abrt-dump-xorg.c:256
++#: ../src/plugins/abrt-dump-oops.c:289 ../src/plugins/abrt-dump-xorg.c:264
+ msgid "Make the problem directory world readable"
+ msgstr "Открыть доступ чтения к каталогу сбоев"
+ 
+@@ -1324,7 +1324,7 @@ msgstr "Открыть доступ чтения к каталогу сбоев"
+ msgid "Throttle problem directory creation to 1 per second"
+ msgstr "Повторить создание каталога через 1 секунду"
+ 
+-#: ../src/plugins/abrt-dump-oops.c:291 ../src/plugins/abrt-dump-xorg.c:257
++#: ../src/plugins/abrt-dump-oops.c:291 ../src/plugins/abrt-dump-xorg.c:265
+ msgid "Print search string(s) to stdout and exit"
+ msgstr "Вывести строку (строки) поиска в stdout и выйти"
+ 
+@@ -1341,7 +1341,7 @@ msgstr "Не удалось обновить проблему: найдено н
+ msgid "Sleeping for %d seconds"
+ msgstr "Переход в режим ожидания на %d сек."
+ 
+-#: ../src/plugins/abrt-dump-xorg.c:245
++#: ../src/plugins/abrt-dump-xorg.c:253
+ msgid ""
+ "& [-vsoxm] [-d DIR]/[-D] [FILE]\n"
+ "\n"
+@@ -1351,11 +1351,11 @@ msgstr ""
+ "\n"
+ "Извлекать данные о сбое Xorg из FILE (или стандартного ввода)"
+ 
+-#: ../src/plugins/abrt-dump-xorg.c:253
++#: ../src/plugins/abrt-dump-xorg.c:261
+ msgid "Print found crash data on standard output"
+ msgstr "Вывести найденные данные о сбое в стандартный вывод"
+ 
+-#: ../src/plugins/abrt-dump-xorg.c:254
++#: ../src/plugins/abrt-dump-xorg.c:262
+ msgid "Create problem directory in DIR for every crash found"
+ msgstr "Создавать каталог в DIR для каждого сбоя"
+ 
+@@ -2073,44 +2073,59 @@ msgstr ""
+ msgid "Can't find problem '%s'"
+ msgstr "Не удалось найти информацию об ошибке «%s"
+ 
+-#: ../src/cli/report.c:54 ../src/cli/process.c:70
++#: ../src/cli/report.c:52
++#, c-format
++msgid "Problem '%s' cannot be reported"
++msgstr ""
++
++#: ../src/cli/report.c:57
++#, c-format
++msgid "Problem '%s' is labeled as 'not-reportable'?"
++msgstr ""
++
++#: ../src/cli/report.c:78 ../src/cli/process.c:70
+ #, c-format
+ msgid "Deleting '%s'"
+ msgstr "Удаление «%s»"
+ 
+-#: ../src/cli/report.c:70
++#: ../src/cli/report.c:94
+ msgid "& report [options] DIR..."
+ msgstr "& report [параметры] DIR..."
+ 
+-#: ../src/cli/report.c:80
++#: ../src/cli/report.c:105
+ msgid "Remove PROBLEM_DIR after reporting"
+ msgstr "Удалить PROBLEM_DIR после отправки отчета"
+ 
+-#: ../src/cli/process.c:64
+-msgid "Actions: remove(rm), info(i), skip(s):"
+-msgstr "Действия: удалить (rm), информация (i), пропустить (s):"
++#: ../src/cli/report.c:106 ../src/cli/process.c:154
++msgid "Ignore security checks to be able to report all problems"
++msgstr ""
+ 
+-#: ../src/cli/process.c:66
++#: ../src/cli/process.c:64
+ msgid "Actions: remove(rm), report(e), info(i), skip(s):"
+ msgstr "Действия: удалить (rm), сообщить (e), информация (i), пропустить (s):"
+ 
+-#: ../src/cli/process.c:78
++#: ../src/cli/process.c:66
++msgid "Actions: remove(rm), info(i), skip(s):"
++msgstr "Действия: удалить (rm), информация (i), пропустить (s):"
++
++#: ../src/cli/process.c:79
+ #, c-format
+ msgid "Reporting '%s'"
+ msgstr "Отчет по «%s»..."
+ 
+ #. dummy must be free because the function ask allocate memory
+-#: ../src/cli/process.c:127
++#: ../src/cli/process.c:128
+ msgid "For next problem press ENTER:"
+ msgstr "Для перехода к следующей проблеме нажмите ENTER:"
+ 
+-#: ../src/cli/process.c:138
+-msgid "Without --since argument, iterates over all detected problems."
++#: ../src/cli/process.c:139
++msgid ""
++"& process [options]\n"
++"\n"
++"Without --since argument, iterates over all detected problems."
+ msgstr ""
+-"Если аргумент --since не указан, обнаруженные ошибки будут обрабатываться "
+-"последовательно"
+ 
+-#: ../src/cli/process.c:144
++#: ../src/cli/process.c:153
+ msgid "Selects only problems detected after timestamp"
+ msgstr "Выбор сбоев, обнаруженных после заданного момента времени"
+ 
+diff --git a/po/zh_CN.po b/po/zh_CN.po
+index d66dbb8..8531a11 100644
+--- a/po/zh_CN.po
++++ b/po/zh_CN.po
+@@ -14,23 +14,22 @@
+ # wangwenye <wangwenye_wwy@163.com>, 2013
+ # yusuf <yusufma77@yahoo.com>, 2011
+ # Zamir SUN <zamirs@163.com>, 2013
+-# Leah Liu <lliu@redhat.com>, 2015. #zanata
+-# Alex Eng <aeng@redhat.com>, 2016. #zanata
++# mhabrnal <mhabrnal@redhat.com>, 2017. #zanata
+ msgid ""
+ msgstr ""
+ "Project-Id-Version: PACKAGE VERSION\n"
+ "Report-Msgid-Bugs-To: jmoskovc@redhat.com\n"
+-"POT-Creation-Date: 2016-06-29 15:31+0200\n"
++"POT-Creation-Date: 2017-05-15 16:10+0200\n"
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
+-"PO-Revision-Date: 2016-05-24 01:05-0400\n"
++"PO-Revision-Date: 2017-05-16 07:08+0000\n"
+ "Last-Translator: Copied by Zanata <copied-by-zanata@zanata.org>\n"
+ "Language-Team: Chinese (China) (http://www.transifex.com/projects/p/fedora-"
+ "abrt/language/zh_CN/)\n"
+-"Language: zh-CN\n"
++"Language: zh-Hans\n"
+ "Plural-Forms: nplurals=1; plural=0;\n"
+-"X-Generator: Zanata 3.9.5\n"
++"X-Generator: Zanata 4.1.1\n"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+ #: ../src/applet/abrt-applet.desktop.in.h:1
+@@ -71,7 +70,7 @@ msgid "Can't determine network status via NetworkManager: %s"
+ msgstr "无法通过 NetworkManager 确定网络状态：%s"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/applet/applet.c:342 ../src/cli/report.c:42
++#: ../src/applet/applet.c:342 ../src/cli/report.c:63
+ #, c-format
+ msgid "Can't take ownership of '%s'"
+ msgstr "无法获取 '%s' 的所有权"
+@@ -215,7 +214,8 @@ msgstr "无法显示通知：%s"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+ #. TODO: Terminate child's process?
+-#: ../src/applet/applet.c:1098 ../src/daemon/abrt-upload-watch.c:168
++#: ../src/applet/applet.c:1098 ../src/daemon/abrt-server.c:114
++#: ../src/daemon/abrt-upload-watch.c:168
+ #, c-format
+ msgid "Can't read from gio channel: '%s'"
+ msgstr "无法读取 gio 频道：'%s'"
+@@ -398,25 +398,25 @@ msgid "Configuration file"
+ msgstr "配置文件"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-server.c:792 ../src/dbus/abrt-dbus.c:1004
+-#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:465
++#: ../src/daemon/abrt-server.c:924 ../src/dbus/abrt-dbus.c:1004
++#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:744
+ msgid "& [options]"
+ msgstr "& [options]"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-server.c:803
++#: ../src/daemon/abrt-server.c:935
+ msgid "Use NUM as client uid"
+ msgstr "使用 NUM 作为客户端 UID"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-server.c:804 ../src/daemon/abrt-upload-watch.c:280
++#: ../src/daemon/abrt-server.c:936 ../src/daemon/abrt-upload-watch.c:280
+ #: ../src/plugins/abrt-watch-log.c:153 ../src/plugins/abrt-dump-oops.c:281
+-#: ../src/plugins/abrt-dump-xorg.c:252
++#: ../src/plugins/abrt-dump-xorg.c:260
+ msgid "Log to syslog"
+ msgstr "记录至 syslog"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-server.c:805 ../src/daemon/abrtd.c:481
++#: ../src/daemon/abrt-server.c:937 ../src/daemon/abrtd.c:760
+ msgid "Add program names to log"
+ msgstr "在日志中添加程序名"
+ 
+@@ -498,7 +498,7 @@ msgstr "名称 '%s' 已丢失，请检查其它拥有该名称的服务是否未
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+ #: ../src/dbus/abrt-dbus.c:1013 ../src/dbus/abrt-configuration.c:1011
+-#: ../src/daemon/abrtd.c:480
++#: ../src/daemon/abrtd.c:759
+ msgid "Exit after NUM seconds of inactivity"
+ msgstr "闲置 NUM 秒后退出"
+ 
+@@ -508,7 +508,7 @@ msgid "This program must be run as root."
+ msgstr "此程序必须以 root 权限运行。"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrtd.c:432
++#: ../src/daemon/abrtd.c:711
+ msgid ""
+ "The problem data are incomplete. This usually happens when a problem is "
+ "detected while computer is shutting down or user is logging out. In order to "
+@@ -520,27 +520,27 @@ msgstr ""
+ "将不允许您提交该问题。如果您有时间想帮助开发者找出问题的根源，请直接与他们联系。"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrtd.c:478
++#: ../src/daemon/abrtd.c:757
+ msgid "Do not daemonize"
+ msgstr "不要在后台运行"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrtd.c:479
++#: ../src/daemon/abrtd.c:758
+ msgid "Log to syslog even with -d"
+ msgstr "即使加入 -d 选项也记录至 syslog"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-handle-event.c:388
++#: ../src/daemon/abrt-handle-event.c:343
+ msgid "& [-v -i] -e|--event EVENT DIR..."
+ msgstr "& [-v -i] -e|--event EVENT DIR......"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-handle-event.c:396
++#: ../src/daemon/abrt-handle-event.c:351
+ msgid "Run EVENT on DIR"
+ msgstr "在 DIR 中运行 EVENT "
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-handle-event.c:397
++#: ../src/daemon/abrt-handle-event.c:352
+ msgid "Communicate directly to the user"
+ msgstr "直接联系用户"
+ 
+@@ -1394,7 +1394,7 @@ msgid "Create new problem directory in DIR for every oops found"
+ msgstr "在 DIR 中为每个发现的 oops 生成新问题目录"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/plugins/abrt-dump-oops.c:287 ../src/plugins/abrt-dump-xorg.c:255
++#: ../src/plugins/abrt-dump-oops.c:287 ../src/plugins/abrt-dump-xorg.c:263
+ msgid "Same as -d DumpLocation, DumpLocation is specified in abrt.conf"
+ msgstr "与 -d DumpLocation 相同，是在 abrt.conf 中指定 DumpLocation。"
+ 
+@@ -1404,7 +1404,7 @@ msgid "Save the extracted information in PROBLEM"
+ msgstr "保存提取信息到PROBLEM"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/plugins/abrt-dump-oops.c:289 ../src/plugins/abrt-dump-xorg.c:256
++#: ../src/plugins/abrt-dump-oops.c:289 ../src/plugins/abrt-dump-xorg.c:264
+ msgid "Make the problem directory world readable"
+ msgstr "使问题目录可读"
+ 
+@@ -1414,7 +1414,7 @@ msgid "Throttle problem directory creation to 1 per second"
+ msgstr "每 1 秒创建一个控流问题目录"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/plugins/abrt-dump-oops.c:291 ../src/plugins/abrt-dump-xorg.c:257
++#: ../src/plugins/abrt-dump-oops.c:291 ../src/plugins/abrt-dump-xorg.c:265
+ msgid "Print search string(s) to stdout and exit"
+ msgstr "输出搜索字符串至标准输出并退出"
+ 
+@@ -1434,7 +1434,7 @@ msgid "Sleeping for %d seconds"
+ msgstr "休眠 %d 秒"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/plugins/abrt-dump-xorg.c:245
++#: ../src/plugins/abrt-dump-xorg.c:253
+ msgid ""
+ "& [-vsoxm] [-d DIR]/[-D] [FILE]\n"
+ "\n"
+@@ -1444,12 +1444,12 @@ msgstr "& [-vsoxm] [-d DIR]/[-D] [FILE]\n"
+ "从文件 FILE (或标准输入)提取 Xorg 崩溃信息"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/plugins/abrt-dump-xorg.c:253
++#: ../src/plugins/abrt-dump-xorg.c:261
+ msgid "Print found crash data on standard output"
+ msgstr "在标准输出上输出找到的崩溃数据"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/plugins/abrt-dump-xorg.c:254
++#: ../src/plugins/abrt-dump-xorg.c:262
+ msgid "Create problem directory in DIR for every crash found"
+ msgstr "在 DIR 中为每个发现的崩溃生成新的问题目录"
+ 
+@@ -2247,42 +2247,59 @@ msgstr "ABRT 已检测到 '%u' 个问题。预了解详细信息请执行：abrt
+ msgid "Can't find problem '%s'"
+ msgstr "无法找到问题 '%s'"
+ 
+-#: ../src/cli/report.c:54 ../src/cli/process.c:70
++#: ../src/cli/report.c:52
++#, c-format
++msgid "Problem '%s' cannot be reported"
++msgstr ""
++
++#: ../src/cli/report.c:57
++#, c-format
++msgid "Problem '%s' is labeled as 'not-reportable'?"
++msgstr ""
++
++#: ../src/cli/report.c:78 ../src/cli/process.c:70
+ #, c-format
+ msgid "Deleting '%s'"
+ msgstr "正在删除 '%s'"
+ 
+-#: ../src/cli/report.c:70
++#: ../src/cli/report.c:94
+ msgid "& report [options] DIR..."
+ msgstr "& report [options] DIR..."
+ 
+-#: ../src/cli/report.c:80
++#: ../src/cli/report.c:105
+ msgid "Remove PROBLEM_DIR after reporting"
+ msgstr "报告后删除 PROBLEM_DIR"
+ 
+-#: ../src/cli/process.c:64
+-msgid "Actions: remove(rm), info(i), skip(s):"
+-msgstr "动作：remove(rm), info(i), skip(s):"
++#: ../src/cli/report.c:106 ../src/cli/process.c:154
++msgid "Ignore security checks to be able to report all problems"
++msgstr ""
+ 
+-#: ../src/cli/process.c:66
++#: ../src/cli/process.c:64
+ msgid "Actions: remove(rm), report(e), info(i), skip(s):"
+ msgstr "动作：remove(rm), report(e), info(i), skip(s):"
+ 
+-#: ../src/cli/process.c:78
++#: ../src/cli/process.c:66
++msgid "Actions: remove(rm), info(i), skip(s):"
++msgstr "动作：remove(rm), info(i), skip(s):"
++
++#: ../src/cli/process.c:79
+ #, c-format
+ msgid "Reporting '%s'"
+ msgstr "正在报告 '%s'"
+ 
+ #. dummy must be free because the function ask allocate memory
+-#: ../src/cli/process.c:127
++#: ../src/cli/process.c:128
+ msgid "For next problem press ENTER:"
+ msgstr "下一个问题请按 ENTER："
+ 
+-#: ../src/cli/process.c:138
+-msgid "Without --since argument, iterates over all detected problems."
+-msgstr "没有 --since 参数，则重复所有探测到的问题。"
++#: ../src/cli/process.c:139
++msgid ""
++"& process [options]\n"
++"\n"
++"Without --since argument, iterates over all detected problems."
++msgstr ""
+ 
+-#: ../src/cli/process.c:144
++#: ../src/cli/process.c:153
+ msgid "Selects only problems detected after timestamp"
+ msgstr "只选择时间戳之后探测到的问题"
+ 
+diff --git a/po/zh_TW.po b/po/zh_TW.po
+index e93a848..48b1b20 100644
+--- a/po/zh_TW.po
++++ b/po/zh_TW.po
+@@ -6,23 +6,22 @@
+ # Chester Cheng <ccheng@redhat.com>, 2012,2014
+ # Jiří Moskovčák <jmoskovc@redhat.com>, 2011
+ # Terry Chuang <tchuang@redhat.com>, 2014
+-# Chester Cheng <snowlet.cheng@gmail.com>, 2015. #zanata
+-# Terry Chuang <tchuang@redhat.com>, 2015. #zanata
++# mhabrnal <mhabrnal@redhat.com>, 2017. #zanata
+ msgid ""
+ msgstr ""
+ "Project-Id-Version: PACKAGE VERSION\n"
+ "Report-Msgid-Bugs-To: jmoskovc@redhat.com\n"
+-"POT-Creation-Date: 2016-06-29 15:31+0200\n"
++"POT-Creation-Date: 2017-05-15 16:10+0200\n"
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
+-"PO-Revision-Date: 2015-07-17 07:14-0400\n"
+-"Last-Translator: Terry Chuang <tchuang@redhat.com>\n"
++"PO-Revision-Date: 2017-05-16 07:08+0000\n"
++"Last-Translator: Copied by Zanata <copied-by-zanata@zanata.org>\n"
+ "Language-Team: Chinese (Taiwan) (http://www.transifex.com/projects/p/fedora-"
+ "abrt/language/zh_TW/)\n"
+-"Language: zh-TW\n"
++"Language: zh-Hant\n"
+ "Plural-Forms: nplurals=1; plural=0;\n"
+-"X-Generator: Zanata 3.9.5\n"
++"X-Generator: Zanata 4.1.1\n"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+ #: ../src/applet/abrt-applet.desktop.in.h:1
+@@ -63,7 +62,7 @@ msgid "Can't determine network status via NetworkManager: %s"
+ msgstr "無法透過 NetworkManager 判定網路狀態：%s"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/applet/applet.c:342 ../src/cli/report.c:42
++#: ../src/applet/applet.c:342 ../src/cli/report.c:63
+ #, c-format
+ msgid "Can't take ownership of '%s'"
+ msgstr "無法掌握「%s」的擁有權"
+@@ -207,7 +206,8 @@ msgstr "無法顯示通知：%s"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+ #. TODO: Terminate child's process?
+-#: ../src/applet/applet.c:1098 ../src/daemon/abrt-upload-watch.c:168
++#: ../src/applet/applet.c:1098 ../src/daemon/abrt-server.c:114
++#: ../src/daemon/abrt-upload-watch.c:168
+ #, c-format
+ msgid "Can't read from gio channel: '%s'"
+ msgstr "無法從 gio 通道讀取：「%s」"
+@@ -398,25 +398,25 @@ msgid "Configuration file"
+ msgstr "組態檔"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-server.c:792 ../src/dbus/abrt-dbus.c:1004
+-#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:465
++#: ../src/daemon/abrt-server.c:924 ../src/dbus/abrt-dbus.c:1004
++#: ../src/dbus/abrt-configuration.c:1002 ../src/daemon/abrtd.c:744
+ msgid "& [options]"
+ msgstr "& [選項]"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-server.c:803
++#: ../src/daemon/abrt-server.c:935
+ msgid "Use NUM as client uid"
+ msgstr "使用 NUM 作為客戶端 UID"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-server.c:804 ../src/daemon/abrt-upload-watch.c:280
++#: ../src/daemon/abrt-server.c:936 ../src/daemon/abrt-upload-watch.c:280
+ #: ../src/plugins/abrt-watch-log.c:153 ../src/plugins/abrt-dump-oops.c:281
+-#: ../src/plugins/abrt-dump-xorg.c:252
++#: ../src/plugins/abrt-dump-xorg.c:260
+ msgid "Log to syslog"
+ msgstr "紀錄至 syslog"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-server.c:805 ../src/daemon/abrtd.c:481
++#: ../src/daemon/abrt-server.c:937 ../src/daemon/abrtd.c:760
+ msgid "Add program names to log"
+ msgstr "加入程式名稱至紀錄檔"
+ 
+@@ -499,7 +499,7 @@ msgstr "「%s」名稱已遺失，請確認其他擁有該名稱的服務並未
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+ #: ../src/dbus/abrt-dbus.c:1013 ../src/dbus/abrt-configuration.c:1011
+-#: ../src/daemon/abrtd.c:480
++#: ../src/daemon/abrtd.c:759
+ msgid "Exit after NUM seconds of inactivity"
+ msgstr "在停止使用 NUM 秒後離開"
+ 
+@@ -509,7 +509,7 @@ msgid "This program must be run as root."
+ msgstr "此程式必須以 root 身份執行。"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrtd.c:432
++#: ../src/daemon/abrtd.c:711
+ msgid ""
+ "The problem data are incomplete. This usually happens when a problem is "
+ "detected while computer is shutting down or user is logging out. In order to "
+@@ -521,27 +521,27 @@ msgstr ""
+ "不會允許您提交此種問題報告。若您有時間，且也想幫助開發者來處理此問題，請直接聯繫開發者。"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrtd.c:478
++#: ../src/daemon/abrtd.c:757
+ msgid "Do not daemonize"
+ msgstr "不要在幕後運行"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrtd.c:479
++#: ../src/daemon/abrtd.c:758
+ msgid "Log to syslog even with -d"
+ msgstr "即使加上 -d 參數也紀錄至 syslog"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-handle-event.c:388
++#: ../src/daemon/abrt-handle-event.c:343
+ msgid "& [-v -i] -e|--event EVENT DIR..."
+ msgstr "& [-v -i] -e|--event EVENT DIR..."
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-handle-event.c:396
++#: ../src/daemon/abrt-handle-event.c:351
+ msgid "Run EVENT on DIR"
+ msgstr "於 DIR 執行 EVENT"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/daemon/abrt-handle-event.c:397
++#: ../src/daemon/abrt-handle-event.c:352
+ msgid "Communicate directly to the user"
+ msgstr "直接與使用者溝通"
+ 
+@@ -1392,7 +1392,7 @@ msgid "Create new problem directory in DIR for every oops found"
+ msgstr "在 DIR 內為每個找到的 oops 建立新的問題目錄"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/plugins/abrt-dump-oops.c:287 ../src/plugins/abrt-dump-xorg.c:255
++#: ../src/plugins/abrt-dump-oops.c:287 ../src/plugins/abrt-dump-xorg.c:263
+ msgid "Same as -d DumpLocation, DumpLocation is specified in abrt.conf"
+ msgstr "與 -d DumpLocation 相同，DumpLocation 於 abrt.conf 內指定"
+ 
+@@ -1402,7 +1402,7 @@ msgid "Save the extracted information in PROBLEM"
+ msgstr "將抽出的資訊存入 PROBLEM 中"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/plugins/abrt-dump-oops.c:289 ../src/plugins/abrt-dump-xorg.c:256
++#: ../src/plugins/abrt-dump-oops.c:289 ../src/plugins/abrt-dump-xorg.c:264
+ msgid "Make the problem directory world readable"
+ msgstr "讓問題目錄全世界都可以讀取"
+ 
+@@ -1412,7 +1412,7 @@ msgid "Throttle problem directory creation to 1 per second"
+ msgstr "節制問題目錄的建立速度為每秒 1 個"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/plugins/abrt-dump-oops.c:291 ../src/plugins/abrt-dump-xorg.c:257
++#: ../src/plugins/abrt-dump-oops.c:291 ../src/plugins/abrt-dump-xorg.c:265
+ msgid "Print search string(s) to stdout and exit"
+ msgstr "將搜尋字串列印在 stdout 上並離開"
+ 
+@@ -1432,7 +1432,7 @@ msgid "Sleeping for %d seconds"
+ msgstr "正睡眠 %d 秒"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/plugins/abrt-dump-xorg.c:245
++#: ../src/plugins/abrt-dump-xorg.c:253
+ msgid ""
+ "& [-vsoxm] [-d DIR]/[-D] [FILE]\n"
+ "\n"
+@@ -1442,12 +1442,12 @@ msgstr "& [-vsoxm] [-d DIR]/[-D] [FILE]\n"
+ "從 FILE (或標準輸出) 抽出 Xorg 當機資訊"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/plugins/abrt-dump-xorg.c:253
++#: ../src/plugins/abrt-dump-xorg.c:261
+ msgid "Print found crash data on standard output"
+ msgstr "將找到的崩潰資料列印在標準輸出上"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+-#: ../src/plugins/abrt-dump-xorg.c:254
++#: ../src/plugins/abrt-dump-xorg.c:262
+ msgid "Create problem directory in DIR for every crash found"
+ msgstr "在 DIR 內為每個找到的當機資料建立問題目錄"
+ 
+@@ -2247,42 +2247,59 @@ msgstr "ABRT 已偵測到 %u 項問題。若要取得更多資訊，請執行：
+ msgid "Can't find problem '%s'"
+ msgstr "找不到問題「%s」"
+ 
+-#: ../src/cli/report.c:54 ../src/cli/process.c:70
++#: ../src/cli/report.c:52
++#, c-format
++msgid "Problem '%s' cannot be reported"
++msgstr ""
++
++#: ../src/cli/report.c:57
++#, c-format
++msgid "Problem '%s' is labeled as 'not-reportable'?"
++msgstr ""
++
++#: ../src/cli/report.c:78 ../src/cli/process.c:70
+ #, c-format
+ msgid "Deleting '%s'"
+ msgstr "正在刪除「%s」"
+ 
+-#: ../src/cli/report.c:70
++#: ../src/cli/report.c:94
+ msgid "& report [options] DIR..."
+ msgstr "& report [選項] DIR..."
+ 
+-#: ../src/cli/report.c:80
++#: ../src/cli/report.c:105
+ msgid "Remove PROBLEM_DIR after reporting"
+ msgstr "在回報後移除 PROBLEM_DIR"
+ 
+-#: ../src/cli/process.c:64
+-msgid "Actions: remove(rm), info(i), skip(s):"
+-msgstr "可用動作：移除 remove(rm)、資訊 info(i)、略過 skip(s)："
++#: ../src/cli/report.c:106 ../src/cli/process.c:154
++msgid "Ignore security checks to be able to report all problems"
++msgstr ""
+ 
+-#: ../src/cli/process.c:66
++#: ../src/cli/process.c:64
+ msgid "Actions: remove(rm), report(e), info(i), skip(s):"
+ msgstr "可用動作：移除 remove(rm)、回報 report(e)、資訊 info(i)、略過 skip(s)："
+ 
+-#: ../src/cli/process.c:78
++#: ../src/cli/process.c:66
++msgid "Actions: remove(rm), info(i), skip(s):"
++msgstr "可用動作：移除 remove(rm)、資訊 info(i)、略過 skip(s)："
++
++#: ../src/cli/process.c:79
+ #, c-format
+ msgid "Reporting '%s'"
+ msgstr "正在回報「%s」"
+ 
+ #. dummy must be free because the function ask allocate memory
+-#: ../src/cli/process.c:127
++#: ../src/cli/process.c:128
+ msgid "For next problem press ENTER:"
+ msgstr "下個問題請按 ENTER 鍵。"
+ 
+-#: ../src/cli/process.c:138
+-msgid "Without --since argument, iterates over all detected problems."
+-msgstr "若不用 --since 引數，則會在所有偵測到的問題之間迭代。"
++#: ../src/cli/process.c:139
++msgid ""
++"& process [options]\n"
++"\n"
++"Without --since argument, iterates over all detected problems."
++msgstr ""
+ 
+-#: ../src/cli/process.c:144
++#: ../src/cli/process.c:153
+ msgid "Selects only problems detected after timestamp"
+ msgstr "僅選取時間戳記之後的問題"
+ 
+-- 
+1.8.3.1
+
