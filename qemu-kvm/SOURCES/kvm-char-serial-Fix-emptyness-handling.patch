@@ -1,15 +1,15 @@
-From a14715c6b64f4764259028923a9c04ae7844c546 Mon Sep 17 00:00:00 2001
+From 63857964e14bbf4bcb91eaa56ca46a30d14934ed Mon Sep 17 00:00:00 2001
 From: Fam Zheng <famz@redhat.com>
-Date: Fri, 19 May 2017 00:35:11 +0200
+Date: Thu, 18 May 2017 09:21:19 +0200
 Subject: [PATCH 06/18] char/serial: Fix emptyness handling
 
 RH-Author: Fam Zheng <famz@redhat.com>
-Message-id: <20170519003523.21163-7-famz@redhat.com>
-Patchwork-id: 75359
-O-Subject: [RHEL-7.3.z qemu-kvm PATCH 06/18] char/serial: Fix emptyness handling
-Bugzilla: 1452332
+Message-id: <20170518092131.16571-7-famz@redhat.com>
+Patchwork-id: 75298
+O-Subject: [RHEL-7.4 qemu-kvm PATCH v3 06/18] char/serial: Fix emptyness handling
+Bugzilla: 1451470
 RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
-RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
 RH-Acked-by: Eduardo Habkost <ehabkost@redhat.com>
 
 From: Don Slutz <dslutz@verizon.com>

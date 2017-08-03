@@ -1,0 +1,77 @@
+From dd4ae3da2d341a25b63936b689e53fdbc8e93f65 Mon Sep 17 00:00:00 2001
+From: Alexander Bokovoy <abokovoy@redhat.com>
+Date: Mon, 20 Mar 2017 13:23:44 +0200
+Subject: [PATCH] adtrust: make sure that runtime hostname result is consistent
+ with the configuration
+
+FreeIPA's `ipasam` module to Samba uses gethostname() call to identify
+own server's host name. This value is then used in multiple places,
+including construction of cifs/host.name principal. `ipasam` module
+always uses GSSAPI authentication when talking to LDAP, so Kerberos
+keys must be available in the /etc/samba/samba.keytab. However, if
+the principal was created using non-FQDN name but system reports
+FQDN name, `ipasam` will fail to acquire Kerberos credentials.
+Same with FQDN principal and non-FQDN hostname.
+
+Also host name and principal name must have the same case.
+
+Report an error when configuring ADTrust instance with inconsistent
+runtime hostname and configuration. This prevents errors like this:
+
+    [20/21]: starting CIFS services
+    ipa         : CRITICAL CIFS services failed to start
+
+    where samba logs have this:
+
+    [2017/03/20 06:34:27.385307,  0] ipa_sam.c:4193(bind_callback_cleanup)
+      kerberos error: code=-1765328203, message=Keytab contains no suitable keys for cifs/ipatrust@EXAMPLE.COM
+    [2017/03/20 06:34:27.385476,  1] ../source3/lib/smbldap.c:1206(get_cached_ldap_connect)
+      Connection to LDAP server failed for the 16 try!
+
+Fixes https://pagure.io/freeipa/issue/6786
+
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+---
+ ipaserver/install/adtrustinstance.py | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/ipaserver/install/adtrustinstance.py b/ipaserver/install/adtrustinstance.py
+index 0b189854f568ea5d8c0e68077255939887ff0cc3..b4db055045823ce8ae7e3b264e1442a085f81b2d 100644
+--- a/ipaserver/install/adtrustinstance.py
++++ b/ipaserver/install/adtrustinstance.py
+@@ -27,6 +27,7 @@ import uuid
+ import string
+ import struct
+ import re
++import socket
+ 
+ import six
+ 
+@@ -689,6 +690,15 @@ class ADTRUSTInstance(service.Service):
+         except Exception as e:
+             root_logger.critical("Enabling nsswitch support in slapi-nis failed with error '%s'" % e)
+ 
++    def __validate_server_hostname(self):
++        hostname = socket.gethostname()
++        if hostname != self.fqdn:
++            raise ValueError("Host reports different name than configured: "
++                             "'%s' versus '%s'. Samba requires to have "
++                             "the same hostname or Kerberos principal "
++                             "'cifs/%s' will not be found in Samba keytab." %
++                             (hostname, self.fqdn, self.fqdn))
++
+     def __start(self):
+         try:
+             self.start()
+@@ -804,6 +814,8 @@ class ADTRUSTInstance(service.Service):
+         api.Backend.ldap2.add_entry(entry)
+ 
+     def create_instance(self):
++        self.step("validate server hostname",
++                  self.__validate_server_hostname)
+         self.step("stopping smbd", self.__stop)
+         self.step("creating samba domain object", \
+                   self.__create_samba_domain_object)
+-- 
+2.12.2
+

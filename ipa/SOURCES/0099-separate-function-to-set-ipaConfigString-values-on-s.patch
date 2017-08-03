@@ -1,0 +1,244 @@
+From fd6873ad33493b5f395a92f03d54cd184b90d2a2 Mon Sep 17 00:00:00 2001
+From: Martin Babinsky <mbabinsk@redhat.com>
+Date: Tue, 25 Apr 2017 18:55:59 +0200
+Subject: [PATCH] separate function to set ipaConfigString values on service
+ entry
+
+There is some code duplication regarding setting ipaConfigString values
+when:
+   * LDAP-enabling a service entry
+   * advertising enabled KDCProxy in LDAP
+
+We can delegate the common work to a single re-usable function and thus
+expose it to future use-cases (like PKINIT advertising).
+
+https://pagure.io/freeipa/issue/6830
+
+Reviewed-By: Alexander Bokovoy <abokovoy@redhat.com>
+Reviewed-By: Jan Cholasta <jcholast@redhat.com>
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+Reviewed-By: Simo Sorce <ssorce@redhat.com>
+---
+ ipaserver/install/httpinstance.py |  43 +-----------
+ ipaserver/install/service.py      | 135 ++++++++++++++++++++++++++------------
+ 2 files changed, 94 insertions(+), 84 deletions(-)
+
+diff --git a/ipaserver/install/httpinstance.py b/ipaserver/install/httpinstance.py
+index aeb5c5e450813469e1b6cd374b30cd4aab338537..f0a477e0bf16b03ed8b937279dad88e6e2b3aab6 100644
+--- a/ipaserver/install/httpinstance.py
++++ b/ipaserver/install/httpinstance.py
+@@ -42,7 +42,6 @@ from ipapython.ipa_log_manager import root_logger
+ import ipapython.errors
+ from ipaserver.install import sysupgrade
+ from ipalib import api
+-from ipalib import errors
+ from ipalib.constants import ANON_USER
+ from ipaplatform.constants import constants
+ from ipaplatform.tasks import tasks
+@@ -451,46 +450,8 @@ class HTTPInstance(service.Service):
+ 
+     def enable_kdcproxy(self):
+         """Add ipaConfigString=kdcProxyEnabled to cn=KDC"""
+-        entry_name = DN(('cn', 'KDC'), ('cn', self.fqdn), ('cn', 'masters'),
+-                        ('cn', 'ipa'), ('cn', 'etc'), self.suffix)
+-        attr_name = 'kdcProxyEnabled'
+-
+-        try:
+-            entry = api.Backend.ldap2.get_entry(
+-                entry_name, ['ipaConfigString'])
+-        except errors.NotFound:
+-            pass
+-        else:
+-            if any(attr_name.lower() == val.lower()
+-                   for val in entry.get('ipaConfigString', [])):
+-                root_logger.debug("service KDCPROXY already enabled")
+-                return
+-
+-            entry.setdefault('ipaConfigString', []).append(attr_name)
+-            try:
+-                api.Backend.ldap2.update_entry(entry)
+-            except errors.EmptyModlist:
+-                root_logger.debug("service KDCPROXY already enabled")
+-                return
+-            except:
+-                root_logger.debug("failed to enable service KDCPROXY")
+-                raise
+-
+-            root_logger.debug("service KDCPROXY enabled")
+-            return
+-
+-        entry = api.Backend.ldap2.make_entry(
+-            entry_name,
+-            objectclass=["nsContainer", "ipaConfigObject"],
+-            cn=['KDC'],
+-            ipaconfigstring=[attr_name]
+-        )
+-
+-        try:
+-            api.Backend.ldap2.add_entry(entry)
+-        except errors.DuplicateEntry:
+-            root_logger.debug("failed to add service KDCPROXY entry")
+-            raise
++        service.set_service_entry_config(
++            'KDC', self.fqdn, [u'kdcProxyEnabled'], self.suffix)
+ 
+     def create_kdcproxy_conf(self):
+         """Create ipa-kdc-proxy.conf in /etc/ipa/kdcproxy"""
+diff --git a/ipaserver/install/service.py b/ipaserver/install/service.py
+index 9533a887ca41b8d9f9480ec30b908b213807ca7e..6b5e69ccd08444c591f15eb680b4cbdf5b6f4de1 100644
+--- a/ipaserver/install/service.py
++++ b/ipaserver/install/service.py
+@@ -136,6 +136,87 @@ def find_providing_server(svcname, conn, host_name=None, api=api):
+     return None
+ 
+ 
++def case_insensitive_attr_has_value(attr, value):
++    """
++    Helper function to find value in an attribute having case-insensitive
++    matching rules
++
++    :param attr: attribute values
++    :param value: value to find
++
++    :returns: True if the case-insensitive match succeeds, false otherwise
++
++    """
++    if any(value.lower() == val.lower()
++           for val in attr):
++        return True
++
++    return False
++
++
++def set_service_entry_config(name, fqdn, config_values,
++                             ldap_suffix='',
++                             post_add_config=()):
++    """
++    Sets the 'ipaConfigString' values on the entry. If the entry is not present
++    already, create a new one with desired 'ipaConfigString'
++
++    :param name: service entry name
++    :param config_values: configuration values to store
++    :param fqdn: master fqdn
++    :param ldap_suffix: LDAP backend suffix
++    :param post_add_config: additional configuration to add when adding a
++        non-existent entry
++    """
++    assert isinstance(ldap_suffix, DN)
++
++    entry_name = DN(
++        ('cn', name), ('cn', fqdn), ('cn', 'masters'),
++        ('cn', 'ipa'), ('cn', 'etc'), ldap_suffix)
++
++    # enable disabled service
++    try:
++        entry = api.Backend.ldap2.get_entry(
++            entry_name, ['ipaConfigString'])
++    except errors.NotFound:
++        pass
++    else:
++        existing_values = entry.get('ipaConnfigString', [])
++        for value in config_values:
++            if case_insensitive_attr_has_value(existing_values, value):
++                root_logger.debug(
++                    "service %s: config string %s already set", name, value)
++
++            entry.setdefault('ipaConfigString', []).append(value)
++
++        try:
++            api.Backend.ldap2.update_entry(entry)
++        except errors.EmptyModlist:
++            root_logger.debug(
++                "service %s has already enabled config values %s", name,
++                config_values)
++            return
++        except:
++            root_logger.debug("failed to set service %s config values", name)
++            raise
++
++        root_logger.debug("service %s has all config values set", name)
++        return
++
++    entry = api.Backend.ldap2.make_entry(
++        entry_name,
++        objectclass=["nsContainer", "ipaConfigObject"],
++        cn=[name],
++        ipaconfigstring=config_values + list(post_add_config),
++    )
++
++    try:
++        api.Backend.ldap2.add_entry(entry)
++    except (errors.DuplicateEntry) as e:
++        root_logger.debug("failed to add service entry %s", name)
++        raise e
++
++
+ class Service(object):
+     def __init__(self, service_name, service_desc=None, sstore=None,
+                  fstore=None, api=api, realm_name=None,
+@@ -442,51 +523,19 @@ class Service(object):
+ 
+     def ldap_enable(self, name, fqdn, dm_password=None, ldap_suffix='',
+                     config=[]):
+-        assert isinstance(ldap_suffix, DN)
+-        self.disable()
++        extra_config_opts = [
++            ' '.join([u'startOrder', unicode(SERVICE_LIST[name][1])])
++        ]
++        extra_config_opts.extend(config)
+ 
+-        entry_name = DN(('cn', name), ('cn', fqdn), ('cn', 'masters'), ('cn', 'ipa'), ('cn', 'etc'), ldap_suffix)
+-
+-        # enable disabled service
+-        try:
+-            entry = api.Backend.ldap2.get_entry(
+-                entry_name, ['ipaConfigString'])
+-        except errors.NotFound:
+-            pass
+-        else:
+-            if any(u'enabledservice' == val.lower()
+-                   for val in entry.get('ipaConfigString', [])):
+-                root_logger.debug("service %s startup entry already enabled", name)
+-                return
+-
+-            entry.setdefault('ipaConfigString', []).append(u'enabledService')
+-
+-            try:
+-                api.Backend.ldap2.update_entry(entry)
+-            except errors.EmptyModlist:
+-                root_logger.debug("service %s startup entry already enabled", name)
+-                return
+-            except:
+-                root_logger.debug("failed to enable service %s startup entry", name)
+-                raise
+-
+-            root_logger.debug("service %s startup entry enabled", name)
+-            return
+-
+-        order = SERVICE_LIST[name][1]
+-        entry = api.Backend.ldap2.make_entry(
+-            entry_name,
+-            objectclass=["nsContainer", "ipaConfigObject"],
+-            cn=[name],
+-            ipaconfigstring=[
+-                "enabledService", "startOrder " + str(order)] + config,
+-        )
++        self.disable()
+ 
+-        try:
+-            api.Backend.ldap2.add_entry(entry)
+-        except (errors.DuplicateEntry) as e:
+-            root_logger.debug("failed to add service %s startup entry", name)
+-            raise e
++        set_service_entry_config(
++            name,
++            fqdn,
++            [u'enabledService'],
++            ldap_suffix=ldap_suffix,
++            post_add_config=extra_config_opts)
+ 
+     def ldap_disable(self, name, fqdn, ldap_suffix):
+         assert isinstance(ldap_suffix, DN)
+-- 
+2.12.2
+

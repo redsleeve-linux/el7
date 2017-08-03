@@ -1,0 +1,36 @@
+From 90864415eb0d8e1942bdb879035941909dc0a191 Mon Sep 17 00:00:00 2001
+Message-Id: <90864415eb0d8e1942bdb879035941909dc0a191@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 20 Jun 2017 10:22:36 +0200
+Subject: [PATCH] util: storage: Add missing return to
+ virStorageSourceParseBackingJSONGluster
+
+If the number of servers is not expected the code would report an error
+but would not return failure.
+
+(cherry picked from commit 506b80c84e4556296ea7ac499c77b9f4ee87079f)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1461638
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+---
+ src/util/virstoragefile.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/util/virstoragefile.c b/src/util/virstoragefile.c
+index 6427c2b24a..c86cd2fc0a 100644
+--- a/src/util/virstoragefile.c
++++ b/src/util/virstoragefile.c
+@@ -2893,6 +2893,8 @@ virStorageSourceParseBackingJSONGluster(virStorageSourcePtr src,
+         virReportError(VIR_ERR_INVALID_ARG, "%s",
+                        _("at least 1 server is necessary in "
+                          "JSON backing definition for gluster volume"));
++
++        return -1;
+     }
+ 
+     if (VIR_ALLOC_N(src->hosts, nservers) < 0)
+-- 
+2.13.1
+

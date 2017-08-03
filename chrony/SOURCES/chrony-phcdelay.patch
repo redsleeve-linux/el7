@@ -1,0 +1,33 @@
+commit abb09418b16993ecd8289dd459dff91701f4f971
+Author: Miroslav Lichvar <mlichvar@redhat.com>
+Date:   Wed Apr 19 12:20:14 2017 +0200
+
+    sys_linux: don't drop PHC samples with zero delay
+    
+    When processing data from the PTP_SYS_OFFSET ioctl, the sample is
+    dropped when an interval between two consecutive readings of the system
+    clock is negative or zero, assuming the clock has been stepped between
+    the two readings.
+    
+    With a real PHC the interval is normally expected to be at least a
+    microsecond, but with a virtual PHC and a low-resolution system clock
+    it's possible to get two readings with the same system time. Modify the
+    check to drop only samples with a negative delay.
+
+diff --git a/sys_linux.c b/sys_linux.c
+index c06112a..649afb0 100644
+--- a/sys_linux.c
++++ b/sys_linux.c
+@@ -705,9 +705,11 @@ get_phc_sample(int phc_fd, double precision, struct timespec *phc_ts,
+     phc_tss[i] = ts2;
+     delays[i] = UTI_DiffTimespecsToDouble(&ts3, &ts1);
+ 
+-    if (delays[i] <= 0.0)
++    if (delays[i] < 0.0) {
+       /* Step in the middle of a PHC reading? */
++      DEBUG_LOG(LOGF_SysLinux, "Bad PTP_SYS_OFFSET sample delay=%e", delays[i]);
+       return 0;
++    }
+ 
+     if (!i || delays[i] < min_delay)
+       min_delay = delays[i];

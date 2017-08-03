@@ -1,0 +1,114 @@
+From 16dad808f19120275bc57e952968840417e0d091 Mon Sep 17 00:00:00 2001
+Message-Id: <16dad808f19120275bc57e952968840417e0d091@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 26 Apr 2017 11:59:59 +0200
+Subject: [PATCH] Add VIR_DOMAIN_JOB_OPERATION typed parameter
+
+The parameter is reported by virDomainGetJobStats API and
+VIR_DOMAIN_EVENT_ID_JOB_COMPLETED event and it can be used to identify
+the operation (migration, snapshot, ...) to which the reported
+statistics belong.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1441563
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit b1c79d785f9385eb4ebd5e71d1d44e67f744f4d9)
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ include/libvirt/libvirt-domain.h | 25 +++++++++++++++++++++++++
+ tools/virsh-domain.c             | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 54 insertions(+)
+
+diff --git a/include/libvirt/libvirt-domain.h b/include/libvirt/libvirt-domain.h
+index 501996bc8..c9e96a6c9 100644
+--- a/include/libvirt/libvirt-domain.h
++++ b/include/libvirt/libvirt-domain.h
+@@ -3117,6 +3117,31 @@ int virDomainGetJobStats(virDomainPtr domain,
+                          unsigned int flags);
+ int virDomainAbortJob(virDomainPtr dom);
+ 
++typedef enum {
++    VIR_DOMAIN_JOB_OPERATION_UNKNOWN = 0,
++    VIR_DOMAIN_JOB_OPERATION_START = 1,
++    VIR_DOMAIN_JOB_OPERATION_SAVE = 2,
++    VIR_DOMAIN_JOB_OPERATION_RESTORE = 3,
++    VIR_DOMAIN_JOB_OPERATION_MIGRATION_IN = 4,
++    VIR_DOMAIN_JOB_OPERATION_MIGRATION_OUT = 5,
++    VIR_DOMAIN_JOB_OPERATION_SNAPSHOT = 6,
++    VIR_DOMAIN_JOB_OPERATION_SNAPSHOT_REVERT = 7,
++    VIR_DOMAIN_JOB_OPERATION_DUMP = 8,
++
++# ifdef VIR_ENUM_SENTINELS
++    VIR_DOMAIN_JOB_OPERATION_LAST
++# endif
++} virDomainJobOperation;
++
++/**
++ * VIR_DOMAIN_JOB_OPERATION:
++ *
++ * virDomainGetJobStats field: the operation which started the job as
++ * VIR_TYPED_PARAM_INT. The values correspond to the items in
++ * virDomainJobOperation enum.
++ */
++# define VIR_DOMAIN_JOB_OPERATION                "operation"
++
+ /**
+  * VIR_DOMAIN_JOB_TIME_ELAPSED:
+  *
+diff --git a/tools/virsh-domain.c b/tools/virsh-domain.c
+index 4b6c13ce4..bc0ded686 100644
+--- a/tools/virsh-domain.c
++++ b/tools/virsh-domain.c
+@@ -5754,6 +5754,26 @@ virshDomainJobToString(int type)
+     return str ? _(str) : _("unknown");
+ }
+ 
++VIR_ENUM_DECL(virshDomainJobOperation);
++VIR_ENUM_IMPL(virshDomainJobOperation,
++              VIR_DOMAIN_JOB_OPERATION_LAST,
++              N_("Unknown"),
++              N_("Start"),
++              N_("Save"),
++              N_("Restore"),
++              N_("Incoming migration"),
++              N_("Outgoing migration"),
++              N_("Snapshot"),
++              N_("Snapshot revert"),
++              N_("Dump"))
++
++static const char *
++virshDomainJobOperationToString(int op)
++{
++    const char *str = virshDomainJobOperationTypeToString(op);
++    return str ? _(str) : _("unknown");
++}
++
+ static bool
+ cmdDomjobinfo(vshControl *ctl, const vshCmd *cmd)
+ {
+@@ -5767,6 +5787,7 @@ cmdDomjobinfo(vshControl *ctl, const vshCmd *cmd)
+     unsigned long long value;
+     unsigned int flags = 0;
+     int ivalue;
++    int op;
+     int rc;
+ 
+     if (!(dom = virshCommandOptDomain(ctl, cmd, NULL)))
+@@ -5836,6 +5857,14 @@ cmdDomjobinfo(vshControl *ctl, const vshCmd *cmd)
+         goto cleanup;
+     }
+ 
++    op = VIR_DOMAIN_JOB_OPERATION_UNKNOWN;
++    if ((rc = virTypedParamsGetInt(params, nparams,
++                                   VIR_DOMAIN_JOB_OPERATION, &op)) < 0)
++        goto save_error;
++
++    vshPrint(ctl, "%-17s %-12s\n", _("Operation:"),
++             virshDomainJobOperationToString(op));
++
+     vshPrint(ctl, "%-17s %-12llu ms\n", _("Time elapsed:"), info.timeElapsed);
+     if ((rc = virTypedParamsGetULLong(params, nparams,
+                                       VIR_DOMAIN_JOB_TIME_ELAPSED_NET,
+-- 
+2.12.2
+

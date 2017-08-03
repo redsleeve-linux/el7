@@ -1,0 +1,47 @@
+From 7b57dd770bbb4861f46805adaa9597445dff142c Mon Sep 17 00:00:00 2001
+From: Stanislav Laznicka <slaznick@redhat.com>
+Date: Thu, 16 Mar 2017 10:22:59 +0100
+Subject: [PATCH] Backup ipa-specific httpd unit-file
+
+On backup-restore, the ipa unit file for httpd was not backed up.
+This file however contains setting for httpd to communicate with
+gssproxy so not backing it up will result in httpd not knowing
+how to get credentials.
+
+https://pagure.io/freeipa/issue/6748
+
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+Reviewed-By: Christian Heimes <cheimes@redhat.com>
+---
+ ipaserver/install/ipa_backup.py  | 1 +
+ ipaserver/install/ipa_restore.py | 2 ++
+ 2 files changed, 3 insertions(+)
+
+diff --git a/ipaserver/install/ipa_backup.py b/ipaserver/install/ipa_backup.py
+index 07c50c8364c313b9aeb6d73540b541f55d98a44d..56583c01b1677a48c103d79123e3fbe106222f38 100644
+--- a/ipaserver/install/ipa_backup.py
++++ b/ipaserver/install/ipa_backup.py
+@@ -166,6 +166,7 @@ class Backup(admintool.AdminTool):
+         paths.KDC_CERT,
+         paths.KDC_KEY,
+         paths.SYSTEMD_IPA_SERVICE,
++        paths.SYSTEMD_SYSTEM_HTTPD_IPA_CONF,
+         paths.SYSTEMD_SSSD_SERVICE,
+         paths.SYSTEMD_CERTMONGER_SERVICE,
+         paths.SYSTEMD_PKI_TOMCAT_SERVICE,
+diff --git a/ipaserver/install/ipa_restore.py b/ipaserver/install/ipa_restore.py
+index d798654ea7464f66e461936e41e3747a16acb21d..2552bbdef36f653f1c377ea096ca227d09e5f3e6 100644
+--- a/ipaserver/install/ipa_restore.py
++++ b/ipaserver/install/ipa_restore.py
+@@ -414,6 +414,8 @@ class Restore(admintool.AdminTool):
+                 sssd = services.service('sssd', api)
+                 sssd.restart()
+                 http.remove_httpd_ccaches()
++                # have the daemons pick up their restored configs
++                run([paths.SYSTEMCTL, "--system", "daemon-reload"])
+         finally:
+             try:
+                 os.chdir(cwd)
+-- 
+2.12.1
+

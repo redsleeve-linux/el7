@@ -5,62 +5,40 @@
 
 Summary:   Package management service
 Name:      PackageKit
-Version:   1.0.7
-Release:   6%{?dist}.redsleeve
+Version:   1.1.5
+Release:   1%{?dist}
 License:   GPLv2+ and LGPLv2+
 URL:       http://www.freedesktop.org/software/PackageKit/
 Source0:   http://www.freedesktop.org/software/PackageKit/releases/%{name}-%{version}.tar.xz
+Patch0:	CentOS-Vendor-Branding.patch
 
 # Fedora-specific: set Vendor.conf up for Fedora.
-
-# Backported from upstream; record the session UID in the yumdb
-Patch1:    0001-yum-Record-the-UID-of-the-session-user-in-the-yumdb.patch
-
-# Backported from upstream; support getting details from local files
-Patch2:    0001-yum-Add-support-for-GetDetailsLocal.patch
-
-# Backported from upstream; make BE safe
-Patch3:    0001-Make-pk_console_get_prompt-big-endian-safe.patch
-Patch0:    RedSleeve-Vendor-Branding.patch
 
 Requires: %{name}-glib%{?_isa} = %{version}-%{release}
 Requires: PackageKit-backend
 Requires: shared-mime-info
 Requires: systemd
 
-# required for configure.ac patching
-BuildRequires: automake gtk-doc libtool
-BuildRequires: glib2-devel >= 2.32.0
-BuildRequires: dbus-devel  >= 1.1.1
-BuildRequires: dbus-glib-devel >= 0.74
-BuildRequires: pam-devel
-BuildRequires: libX11-devel
+BuildRequires: glib2-devel >= 2.46.0
 BuildRequires: xmlto
 BuildRequires: gtk-doc
-BuildRequires: gcc-c++
 BuildRequires: sqlite-devel
-BuildRequires: NetworkManager-devel
 BuildRequires: polkit-devel >= 0.92
 BuildRequires: libtool
 BuildRequires: gtk2-devel
 BuildRequires: gtk3-devel
 BuildRequires: docbook-utils
 BuildRequires: gnome-doc-utils
-BuildRequires: python-devel
-BuildRequires: perl(XML::Parser)
 BuildRequires: intltool
 BuildRequires: gettext
-BuildRequires: libgudev1-devel
-BuildRequires: xulrunner-devel
-BuildRequires: libarchive-devel
+BuildRequires: vala-tools
 BuildRequires: gstreamer1-devel
 BuildRequires: gstreamer1-plugins-base-devel
 BuildRequires: pango-devel
 BuildRequires: fontconfig-devel
+BuildRequires: libappstream-glib-devel
 BuildRequires: systemd-devel
 BuildRequires: gobject-introspection-devel
-BuildRequires: libhif-devel
-BuildRequires: libappstream-glib-devel
 %if !0%{?rhel}
 BuildRequires: bash-completion
 %endif
@@ -72,6 +50,10 @@ Obsoletes: udev-packagekit < %{version}-%{release}
 # No more GTK+-2 plugin
 Obsoletes: PackageKit-gtk-module < %{version}-%{release}
 
+# Removed when npapi plugins were blocked
+Provides: PackageKit-browser-plugin = %{version}-%{release}
+Obsoletes: PackageKit-browser-plugin < 1.0.11-3
+
 # components now built-in
 Obsoletes: PackageKit-debug-install < 0.9.1
 Obsoletes: PackageKit-backend-devel < 0.9.6
@@ -81,6 +63,10 @@ Provides: PackageKit-device-rebind = %{version}-%{release}
 # Udev no longer provides this functionality
 Provides: PackageKit-device-rebind = %{version}-%{release}
 Obsoletes: PackageKit-device-rebind < 0.8.13-2
+
+# Will probably come back as libdnf
+Provides: PackageKit-hif = %{version}-%{release}
+Obsoletes: PackageKit-hif < 1.0.7-7
 
 %description
 PackageKit is a D-Bus abstraction layer that allows the session user
@@ -109,14 +95,6 @@ Obsoletes: yum-packagekit < %{version}-%{release}
 PackageKit-yum-plugin tells PackageKit to check for updates when yum exits.
 This way, if you run 'yum update' and install all available updates, puplet
 will almost instantly update itself to reflect this.
-
-%package hif
-Summary: PackageKit Hif backend
-Requires: %{name}%{?_isa} = %{version}-%{release}
-Provides: PackageKit-backend
-
-%description hif
-A backend for PackageKit to enable hawkey and libsolv functionality.
 
 %package glib
 Summary: GLib libraries for accessing PackageKit
@@ -149,17 +127,6 @@ Provides: PackageKit-docs = %{version}-%{release}
 %description glib-devel
 GLib headers and libraries for PackageKit.
 
-%package browser-plugin
-Summary: Browser Plugin for PackageKit
-Requires: gtk2
-Requires: %{name}-glib%{?_isa} = %{version}-%{release}
-Requires: mozilla-filesystem
-
-%description browser-plugin
-The PackageKit browser plugin allows web sites to offer the ability to
-users to install and update packages from configured repositories
-using PackageKit.
-
 %package gstreamer-plugin
 Summary: Install GStreamer codecs using PackageKit
 Requires: %{name}-glib%{?_isa} = %{version}-%{release}
@@ -190,18 +157,12 @@ using PackageKit.
 
 %prep
 %setup -q
-%patch1 -p1 -b .yumdb
-%patch2 -p1 -b .yumdetailslocal
-%patch3 -p1 -b .be-safe
 %patch0 -p1
-
-NOCONFIGURE=1 ./autogen.sh
 
 %build
 %configure \
         --disable-static \
         --enable-yum \
-        --enable-hif \
         --disable-python3 \
         --enable-introspection \
         --with-python-package-dir=%{python_sitelib} \
@@ -253,7 +214,8 @@ systemctl disable packagekit-offline-update.service > /dev/null 2>&1 || :
 %postun glib -p /sbin/ldconfig
 
 %files -f %{name}.lang
-%doc README AUTHORS NEWS COPYING
+%license COPYING
+%doc README AUTHORS NEWS
 %dir %{_datadir}/PackageKit
 %dir %{_datadir}/PackageKit/helpers
 %dir %{_sysconfdir}/PackageKit
@@ -305,9 +267,6 @@ systemctl disable packagekit-offline-update.service > /dev/null 2>&1 || :
 %config(noreplace) %{_sysconfdir}/yum/pluginconf.d/refresh-packagekit.conf
 /usr/lib/yum-plugins/refresh-packagekit.*
 
-%files hif
-%{_libdir}/packagekit-backend/libpk_backend_hif.so
-
 %files glib
 %{_libdir}/*packagekit-glib2.so.*
 %{_libdir}/girepository-1.0/PackageKitGlib-1.0.typelib
@@ -315,9 +274,6 @@ systemctl disable packagekit-offline-update.service > /dev/null 2>&1 || :
 %files cron
 %config %{_sysconfdir}/cron.daily/packagekit-background.cron
 %config(noreplace) %{_sysconfdir}/sysconfig/packagekit-background
-
-%files browser-plugin
-%{_libdir}/mozilla/plugins/packagekit-plugin.so
 
 %files gstreamer-plugin
 %{_libexecdir}/pk-gstreamer-install
@@ -341,14 +297,18 @@ systemctl disable packagekit-offline-update.service > /dev/null 2>&1 || :
 %{_includedir}/PackageKit/packagekit-glib*/*.h
 %{_datadir}/gir-1.0/PackageKitGlib-1.0.gir
 %{_datadir}/gtk-doc/html/PackageKit
+%{_datadir}/vala/vapi/packagekit-glib2.vapi
 
 %changelog
-* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> - 1.0.7-6.el7.redsleeve
-- Update Vendor patch to reference Redsleeve
-
-* Thu Nov 03 2016 CentOS Sources <bugs@centos.org> - 1.0.7-6.el7.centos
+* Mon Jul 31 2017 CentOS Sources <bugs@centos.org> - 1.1.5-1.el7.centos
 - remove old branding patch
 - Update Vendor patch to reference CentOS
+
+* Tue Feb 28 2017 Richard Hughes <rhughes@redhat.com> - 1.1.5-1
+- Update to 1.1.5
+- Remove the hif backend
+- Remove the browser plugin
+- Resolves: rhbz#1387029
 
 * Mon May 16 2016 Richard Hughes <rhughes@redhat.com> - 1.0.7-6
 - Make pk_console_get_prompt() big endian safe to fix PPC64

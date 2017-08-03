@@ -1,0 +1,153 @@
+From 6fa4cae7c760c804c601735a4eba91e72e2e756b Mon Sep 17 00:00:00 2001
+Message-Id: <6fa4cae7c760c804c601735a4eba91e72e2e756b@dist-git>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Fri, 9 Jun 2017 12:48:57 +0200
+Subject: [PATCH] qemu: format device-iotlb on intel-iommu command line
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Format the device-iotlb attribute.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1283251
+
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit 240e443afdac0df342bb462ac2754a46e6efbc23)
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+
+Conflicts:
+	tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml
+          that QEMU version again
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_capabilities.c                          |  3 +++
+ src/qemu/qemu_capabilities.h                          |  3 +++
+ src/qemu/qemu_command.c                               | 11 +++++++++++
+ tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml      |  1 +
+ .../qemuxml2argv-intel-iommu-device-iotlb.args        | 19 +++++++++++++++++++
+ tests/qemuxml2argvtest.c                              |  7 +++++++
+ 6 files changed, 44 insertions(+)
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-intel-iommu-device-iotlb.args
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index 29bb9949af..d8f3079083 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -372,6 +372,8 @@ VIR_ENUM_IMPL(virQEMUCaps, QEMU_CAPS_LAST,
+               "intel-iommu.intremap",
+               "intel-iommu.caching-mode",
+               "intel-iommu.eim",
++
++              "intel-iommu.device-iotlb", /* 260 */
+     );
+ 
+ 
+@@ -1728,6 +1730,7 @@ static struct virQEMUCapsStringFlags virQEMUCapsObjectPropsIntelIOMMU[] = {
+     { "intremap", QEMU_CAPS_INTEL_IOMMU_INTREMAP },
+     { "caching-mode", QEMU_CAPS_INTEL_IOMMU_CACHING_MODE },
+     { "eim", QEMU_CAPS_INTEL_IOMMU_EIM },
++    { "device-iotlb", QEMU_CAPS_INTEL_IOMMU_DEVICE_IOTLB },
+ };
+ 
+ /* see documentation for virQEMUCapsQMPSchemaGetByPath for the query format */
+diff --git a/src/qemu/qemu_capabilities.h b/src/qemu/qemu_capabilities.h
+index 1c64364af4..e0f81711fe 100644
+--- a/src/qemu/qemu_capabilities.h
++++ b/src/qemu/qemu_capabilities.h
+@@ -411,6 +411,9 @@ typedef enum {
+     QEMU_CAPS_INTEL_IOMMU_CACHING_MODE, /* intel-iommu.caching-mode */
+     QEMU_CAPS_INTEL_IOMMU_EIM, /* intel-iommu.eim */
+ 
++    /* 260 */
++    QEMU_CAPS_INTEL_IOMMU_DEVICE_IOTLB, /* intel-iommu.device-iotlb */
++
+     QEMU_CAPS_LAST /* this must always be the last item */
+ } virQEMUCapsFlags;
+ 
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index 9c0d151da1..9c5639b036 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -6694,6 +6694,13 @@ qemuBuildIOMMUCommandLine(virCommandPtr cmd,
+                              "with this QEMU binary"));
+             return -1;
+         }
++        if (iommu->iotlb != VIR_TRISTATE_SWITCH_ABSENT &&
++            !virQEMUCapsGet(qemuCaps, QEMU_CAPS_INTEL_IOMMU_DEVICE_IOTLB)) {
++            virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
++                           _("iommu: device IOTLB is not supported "
++                             "with this QEMU binary"));
++            return -1;
++        }
+         break;
+     case VIR_DOMAIN_IOMMU_MODEL_LAST:
+         break;
+@@ -6731,6 +6738,10 @@ qemuBuildIOMMUCommandLine(virCommandPtr cmd,
+             virBufferAsprintf(&opts, ",eim=%s",
+                               virTristateSwitchTypeToString(iommu->eim));
+         }
++        if (iommu->iotlb != VIR_TRISTATE_SWITCH_ABSENT) {
++            virBufferAsprintf(&opts, ",device-iotlb=%s",
++                              virTristateSwitchTypeToString(iommu->iotlb));
++        }
+     case VIR_DOMAIN_IOMMU_MODEL_LAST:
+         break;
+     }
+diff --git a/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml
+index 2002dc7c0d..29a483d123 100644
+--- a/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml
+@@ -214,6 +214,7 @@
+   <flag name='intel-iommu.intremap'/>
+   <flag name='intel-iommu.caching-mode'/>
+   <flag name='intel-iommu.eim'/>
++  <flag name='intel-iommu.device-iotlb'/>
+   <version>2008090</version>
+   <kvmVersion>0</kvmVersion>
+   <package> (v2.9.0-rc0-142-g940a8ce)</package>
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-intel-iommu-device-iotlb.args b/tests/qemuxml2argvdata/qemuxml2argv-intel-iommu-device-iotlb.args
+new file mode 100644
+index 0000000000..6d8f8e2188
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-intel-iommu-device-iotlb.args
+@@ -0,0 +1,19 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/home/test \
++USER=test \
++LOGNAME=test \
++QEMU_AUDIO_DRV=none \
++/usr/bin/qemu-system-x86_64 \
++-name QEMUGuest1 \
++-S \
++-machine q35,accel=kvm,kernel_irqchip=split \
++-m 214 \
++-smp 1,sockets=1,cores=1,threads=1 \
++-uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
++-nographic \
++-nodefaults \
++-monitor unix:/tmp/lib/domain--1-QEMUGuest1/monitor.sock,server,nowait \
++-no-acpi \
++-boot c \
++-device intel-iommu,intremap=on,device-iotlb=on
+diff --git a/tests/qemuxml2argvtest.c b/tests/qemuxml2argvtest.c
+index 9e0d4d7141..bff32200d7 100644
+--- a/tests/qemuxml2argvtest.c
++++ b/tests/qemuxml2argvtest.c
+@@ -2541,6 +2541,13 @@ mymain(void)
+             QEMU_CAPS_INTEL_IOMMU_INTREMAP,
+             QEMU_CAPS_INTEL_IOMMU_EIM,
+             QEMU_CAPS_DEVICE_INTEL_IOMMU);
++    DO_TEST("intel-iommu-device-iotlb",
++            QEMU_CAPS_MACHINE_OPT,
++            QEMU_CAPS_MACHINE_KERNEL_IRQCHIP,
++            QEMU_CAPS_MACHINE_KERNEL_IRQCHIP_SPLIT,
++            QEMU_CAPS_INTEL_IOMMU_INTREMAP,
++            QEMU_CAPS_INTEL_IOMMU_DEVICE_IOTLB,
++            QEMU_CAPS_DEVICE_INTEL_IOMMU);
+ 
+     DO_TEST("cpu-hotplug-startup", QEMU_CAPS_QUERY_HOTPLUGGABLE_CPUS);
+ 
+-- 
+2.13.1
+

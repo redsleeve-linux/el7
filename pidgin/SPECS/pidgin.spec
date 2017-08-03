@@ -110,9 +110,14 @@
 %global split_evolution         0
 %endif
 
+# valgrind available only on selected arches
+%ifarch %{ix86} x86_64 ppc ppc64 ppc64le s390x armv7hl aarch64
+%global has_valgrind 1
+%endif
+
 Name:           pidgin
-Version:        2.10.7
-Release:        26%{?dist}.redsleeve
+Version:        2.10.11
+Release:        5%{?dist}
 License:        GPLv2+ and GPLv2 and MIT
 # GPLv2+ - libpurple, gnt, finch, pidgin, most prpls
 # GPLv2 - silc & novell prpls
@@ -147,51 +152,23 @@ Source1:        purple-fedora-prefs.xml
 
 ## Patches 0-99: Fedora specific or upstream wont accept
 Patch0:         pidgin-NOT-UPSTREAM-2.5.2-rhel4-sound-migration.patch
-Patch1:         pidgin-2.10.7-drop-gadu-gadu.patch
+Patch1:         pidgin-2.10.9-valgrind.patch
+
+# https://bugzilla.redhat.com/show_bug.cgi?id=1026505
+# https://bugzilla.redhat.com/show_bug.cgi?id=1439296
+Patch2:         pidgin-2.10.11-drop-gadu-gadu-mxit.patch
 
 ## Patches 100+: To be Included in Future Upstream
-Patch100:       pidgin-2.10.1-fix-msn-ft-crashes.patch
-Patch101:       pidgin-2.10.7-link-libirc-to-libsasl2.patch
+Patch100:       pidgin-2.10.11-CVE-2017-2640.patch
 
-# CVE-2012-6152
-Patch102: pidgin-2.10.7-CVE-2012-6152.patch
+# http://pidgin.im/pipermail/devel/2011-November/010477.html
+Patch101:       pidgin-2.10.1-fix-msn-ft-crashes.patch
 
-# CVE-2013-6477
-Patch103: pidgin-2.10.7-CVE-2013-6477.patch
+# https://developer.pidgin.im/ticket/17200
+Patch102:       pidgin-2.10.11-jabber-Avoid-a-use-after-free-in-an-error-path.patch
 
-# CVE-2013-6478
-Patch104: pidgin-2.10.7-CVE-2013-6478.patch
-
-# CVE-2013-6479
-Patch105: pidgin-2.10.7-CVE-2013-6479.patch
-
-# CVE-2013-6481
-Patch106: pidgin-2.10.7-CVE-2013-6481.patch
-
-# CVE-2013-6482
-Patch107: pidgin-2.10.7-CVE-2013-6482.patch
-
-# CVE-2013-6483
-Patch108: pidgin-2.10.7-CVE-2013-6483.patch
-Patch109: pidgin-2.10.7-CVE-2013-6483-regression.patch
-
-# CVE-2013-6484
-Patch110: pidgin-2.10.7-CVE-2013-6484.patch
-
-# CVE-2013-6485
-Patch111: pidgin-2.10.7-CVE-2013-6485.patch
-
-# CVE-2013-6487
-Patch112: pidgin-2.10.7-CVE-2013-6487.patch
-
-# CVE-2013-6489
-Patch113: pidgin-2.10.7-CVE-2013-6489.patch
-
-# CVE-2013-6490
-Patch114: pidgin-2.10.7-CVE-2013-6490.patch
-
-# CVE-2014-0020
-Patch115: pidgin-2.10.7-CVE-2014-0020.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1446368
+Patch103:       pidgin-2.10.11-Try-to-fix-a-signed-unsigned-warning.patch
 
 BuildRoot:      %{_tmppath}/%{name}-%{version}-root
 Summary:        A Gtk+ based multiprotocol instant messaging client
@@ -311,6 +288,11 @@ BuildRequires:  libgadu-devel
 
 %if %{api_docs}
 BuildRequires:  doxygen
+%endif
+
+# Use distribution's valgrind.h
+%if 0%{?has_valgrind}
+BuildRequires:  valgrind-devel
 %endif
 
 %description
@@ -483,30 +465,15 @@ echo "FEDORA=%{fedora} RHEL=%{rhel}"
 %if %{force_sound_aplay}
 %patch0 -p1 -b .aplay
 %endif
-
-%patch1 -p1 -b .gadu-gadu
+%patch1 -p1
+%patch2 -p1 -b .gadu-gadu
 
 ## Patches 100+: To be Included in Future Upstream
 
-# http://pidgin.im/pipermail/devel/2011-November/010477.html
-%patch100 -p0 -R -b .ftcrash
-# https://developer.pidgin.im/ticket/15517
-%patch101 -p1 -b .irc-sasl
-
-%patch102 -p1 -b .CVE-2012-6152
-%patch103 -p1 -b .CVE-2013-6477
-%patch104 -p1 -b .CVE-2013-6478
-%patch105 -p1 -b .CVE-2013-6479
-%patch106 -p1 -b .CVE-2013-6481
-%patch107 -p1 -b .CVE-2013-6482
-%patch108 -p1 -b .CVE-2013-6483
-%patch109 -p1 -b .CVE-2013-6483-regression
-%patch110 -p1 -b .CVE-2013-6484
-%patch111 -p1 -b .CVE-2013-6485
-%patch112 -p1 -b .CVE-2013-6487
-%patch113 -p1 -b .CVE-2013-6489
-%patch114 -p1 -b .CVE-2013-6490
-%patch115 -p1 -b .CVE-2014-0020
+%patch100 -p1 -b .CVE-2017-2640
+%patch101 -p0 -R -b .ftcrash
+%patch102 -p1 -b .jabber-use-after-free
+%patch103 -p1 -b .Wsign-compare
 
 # Our preferences
 cp %{SOURCE1} prefs.xml
@@ -522,6 +489,12 @@ for file in finch/plugins/pietray.py libpurple/purple-remote libpurple/plugins/d
             libpurple/plugins/startup.py libpurple/purple-url-handler libpurple/purple-notifications-example; do
     sed -i 's/env python/python/' $file
 done
+
+# Bug #1141477
+%if 0%{?has_valgrind}
+rm -f libpurple/valgrind.h
+sed -ie 's/include "valgrind.h"/include <valgrind\/valgrind.h>/' libpurple/plugin.c
+%endif
 
 %build
 SWITCHES="--with-extraversion=%{release}"
@@ -579,11 +552,11 @@ autoreconf --force --install
            --enable-tcl --enable-tk \
            --disable-schemas-install $SWITCHES
 
-make %{?_smp_mflags} LIBTOOL="/usr/bin/libtool --tag=CC"
+make %{?_smp_mflags} LIBTOOL=/usr/bin/libtool
 
 # one_time_password plugin, included upstream but not built by default
 cd libpurple/plugins/
-make one_time_password.so LIBTOOL="/usr/bin/libtool --tag=CC"
+make one_time_password.so LIBTOOL=/usr/bin/libtool
 cd -
 
 %if %{api_docs}
@@ -593,7 +566,7 @@ find doc/html -empty -delete
 
 %install
 rm -rf $RPM_BUILD_ROOT
-make DESTDIR=$RPM_BUILD_ROOT install LIBTOOL="/usr/bin/libtool --tag=CC"
+make DESTDIR=$RPM_BUILD_ROOT install LIBTOOL=/usr/bin/libtool
 
 install -m 0755 libpurple/plugins/one_time_password.so $RPM_BUILD_ROOT%{_libdir}/purple-2/
 
@@ -707,6 +680,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/applications/pidgin.desktop
 %{_datadir}/pixmaps/pidgin/
 %{_datadir}/icons/hicolor/*/apps/pidgin.*
+%{_datadir}/appdata/pidgin.appdata.xml
 %{_sysconfdir}/gconf/schemas/purple.schemas
 
 %if %{split_evolution}
@@ -796,8 +770,26 @@ rm -rf $RPM_BUILD_ROOT
 %endif
 
 %changelog
-* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> 2.10.7-25.el7.redsleeve
-- added "--tag=CC" to the make command due to libtool errors
+* Fri May 19 2017 Debarshi Ray <rishi@fedoraproject.org> - 2.10.11-5
+- Drop MXit support in RHEL
+  Resolves: #1439296
+
+* Thu Apr 27 2017 Debarshi Ray <rishi@fedoraproject.org> - 2.10.11-4
+- Silence -Wsign-compare
+- Rename the previous patch for consistency
+  Resolves: #1445921, #1446368
+
+* Wed Apr 26 2017 Debarshi Ray <rishi@fedoraproject.org> - 2.10.11-3
+- Avoid a use-after-free in an error path
+  Resolves: #1445921
+
+* Tue Mar 28 2017 Debarshi Ray <rishi@fedoraproject.org> - 2.10.11-2
+- Add patch for CVE-2017-2640
+  Resolves: #1431022
+
+* Thu Aug 25 2016 Debarshi Ray <rishi@fedoraproject.org> - 2.10.11-1
+- Update to 2.10.11
+  Resolves: #1369526
 
 * Thu Mar 24 2016 Debarshi Ray <rishi@fedoraproject.org> - 2.10.7-26
 - Bump release to be higher than the EPEL build
@@ -1132,10 +1124,10 @@ rm -rf $RPM_BUILD_ROOT
 - Voice and Video support via farsight2 (Fedora 11+)
 - Numerous other bug fixes
 
-* Tue Aug 06 2009 Warren Togami <wtogami@redhat.com> 2.6.0-0.11.20090812
+* Thu Aug 06 2009 Warren Togami <wtogami@redhat.com> 2.6.0-0.11.20090812
 - new snapshot at the request of maiku
 
-* Tue Aug 06 2009 Warren Togami <wtogami@redhat.com> 2.6.0-0.10.20090806
+* Thu Aug 06 2009 Warren Togami <wtogami@redhat.com> 2.6.0-0.10.20090806
 - new snapshot - theoretically better sound quality in voice chat
 
 * Tue Aug 04 2009 Warren Togami <wtogami@redhat.com> 2.6.0-0.9.20090804

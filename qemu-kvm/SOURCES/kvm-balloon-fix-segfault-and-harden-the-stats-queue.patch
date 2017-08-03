@@ -1,4 +1,4 @@
-From 75255574498fad12727529c4ecbd4ccdabe86839 Mon Sep 17 00:00:00 2001
+From 1f177df6a47fb1e2961067a50e005efad52595cc Mon Sep 17 00:00:00 2001
 From: Ladi Prosek <lprosek@redhat.com>
 Date: Wed, 5 Oct 2016 17:22:26 +0200
 Subject: [PATCH 4/8] balloon: fix segfault and harden the stats queue
@@ -7,7 +7,7 @@ RH-Author: Ladi Prosek <lprosek@redhat.com>
 Message-id: <1475666548-9186-5-git-send-email-lprosek@redhat.com>
 Patchwork-id: 72483
 O-Subject: [RHEL-7.4 qemu-kvm v2 PATCH 4/6] balloon: fix segfault and harden the stats queue
-Bugzilla: 1393484
+Bugzilla: 1377968
 RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
 RH-Acked-by: Michael S. Tsirkin <mst@redhat.com>
 RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>

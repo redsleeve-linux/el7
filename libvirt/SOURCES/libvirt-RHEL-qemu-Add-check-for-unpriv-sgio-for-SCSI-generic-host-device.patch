@@ -1,5 +1,5 @@
-From 47da3da96575632cc166a3e1265e4753dc9a85e8 Mon Sep 17 00:00:00 2001
-Message-Id: <47da3da96575632cc166a3e1265e4753dc9a85e8@dist-git>
+From d331ff38d1f088b7cbdaec27b57ebbb81b3ff3d0 Mon Sep 17 00:00:00 2001
+Message-Id: <d331ff38d1f088b7cbdaec27b57ebbb81b3ff3d0@dist-git>
 From: John Ferlan <jferlan@redhat.com>
 Date: Thu, 9 Jul 2015 08:28:58 -0400
 Subject: [PATCH] RHEL: qemu: Add check for unpriv sgio for SCSI generic host
@@ -22,10 +22,10 @@ Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
  1 file changed, 15 insertions(+)
 
 diff --git a/src/qemu/qemu_conf.c b/src/qemu/qemu_conf.c
-index 1d5b0ae..49e8e8b 100644
+index 9137a69f8..7324c9c41 100644
 --- a/src/qemu/qemu_conf.c
 +++ b/src/qemu/qemu_conf.c
-@@ -1219,6 +1219,8 @@ qemuAddSharedHostdev(virQEMUDriverPtr driver,
+@@ -1298,6 +1298,8 @@ qemuAddSharedHostdev(virQEMUDriverPtr driver,
  {
      char *dev_path = NULL;
      char *key = NULL;
@@ -34,7 +34,7 @@ index 1d5b0ae..49e8e8b 100644
      int ret = -1;
  
      if (!qemuIsSharedHostdev(hostdev))
-@@ -1227,6 +1229,19 @@ qemuAddSharedHostdev(virQEMUDriverPtr driver,
+@@ -1306,6 +1308,19 @@ qemuAddSharedHostdev(virQEMUDriverPtr driver,
      if (!(dev_path = qemuGetHostdevPath(hostdev)))
          goto cleanup;
  
@@ -55,5 +55,5 @@ index 1d5b0ae..49e8e8b 100644
          goto cleanup;
  
 -- 
-2.9.0
+2.12.2
 

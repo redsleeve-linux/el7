@@ -1,0 +1,51 @@
+From 9dcf5d0029fe9b1e1e17b20070702bc1ce6382ad Mon Sep 17 00:00:00 2001
+Message-Id: <9dcf5d0029fe9b1e1e17b20070702bc1ce6382ad@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 4 Apr 2017 09:31:20 +0200
+Subject: [PATCH] qemu: hotplug: Iterate over vcpu 0 in individual vcpu hotplug
+ code
+
+Buggy condition meant that vcpu0 would not be iterated in the checks.
+Since it's not hotpluggable anyways we would not be able to break the
+configuration of a live VM.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1437013
+(cherry picked from commit 315f443dbb9f821fb207c30585e01dfbaac01878)
+---
+ src/qemu/qemu_hotplug.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/qemu/qemu_hotplug.c b/src/qemu/qemu_hotplug.c
+index de561da58..b5b520d8c 100644
+--- a/src/qemu/qemu_hotplug.c
++++ b/src/qemu/qemu_hotplug.c
+@@ -5784,7 +5784,7 @@ qemuDomainSetVcpuConfig(virDomainDefPtr def,
+ 
+     def->individualvcpus = true;
+ 
+-    while ((next = virBitmapNextSetBit(map, next)) > 0) {
++    while ((next = virBitmapNextSetBit(map, next)) >= 0) {
+         if (!(vcpu = virDomainDefGetVcpu(def, next)))
+             continue;
+ 
+@@ -5817,7 +5817,7 @@ qemuDomainFilterHotplugVcpuEntities(virDomainDefPtr def,
+         return NULL;
+ 
+     /* make sure that all selected vcpus are in the correct state */
+-    while ((next = virBitmapNextSetBit(map, next)) > 0) {
++    while ((next = virBitmapNextSetBit(map, next)) >= 0) {
+         if (!(vcpu = virDomainDefGetVcpu(def, next)))
+             continue;
+ 
+@@ -5837,7 +5837,7 @@ qemuDomainFilterHotplugVcpuEntities(virDomainDefPtr def,
+     /* Make sure that all vCPUs belonging to a single hotpluggable entity were
+      * selected and then de-select any sub-threads of it. */
+     next = -1;
+-    while ((next = virBitmapNextSetBit(map, next)) > 0) {
++    while ((next = virBitmapNextSetBit(map, next)) >= 0) {
+         if (!(vcpu = virDomainDefGetVcpu(def, next)))
+             continue;
+ 
+-- 
+2.12.2
+

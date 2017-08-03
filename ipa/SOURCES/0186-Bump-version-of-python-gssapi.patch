@@ -1,0 +1,66 @@
+From b117507de5cc68282b156a8e4751ef2cb5db74a9 Mon Sep 17 00:00:00 2001
+From: Pavel Vomacka <pvomacka@redhat.com>
+Date: Wed, 7 Jun 2017 10:11:39 +0200
+Subject: [PATCH] Bump version of python-gssapi
+
+Complete fixing of the bug requires fix on python-gssapi side.
+That fix is included in version 1.2.0-5.
+
+Fixes: https://pagure.io/freeipa/issue/6796
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+---
+ freeipa.spec.in | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/freeipa.spec.in b/freeipa.spec.in
+index ae77a9a23645c1490c32195203e2c4f665783a80..d7f8d11ec553cfe299937e1e5f8cc27caed32b08 100644
+--- a/freeipa.spec.in
++++ b/freeipa.spec.in
+@@ -165,7 +165,7 @@ BuildRequires:  python3-wheel
+ BuildRequires:  samba-python
+ # 1.4: the version where Certificate.serial changed to .serial_number
+ BuildRequires:  python2-cryptography >= 1.4
+-BuildRequires:  python-gssapi >= 1.2.0
++BuildRequires:  python-gssapi >= 1.2.0-5
+ BuildRequires:  pylint >= 1.6
+ # workaround for https://bugzilla.redhat.com/show_bug.cgi?id=1096506
+ BuildRequires:  python2-polib
+@@ -282,7 +282,7 @@ Requires: mod_session
+ # 0.9.9: https://github.com/adelton/mod_lookup_identity/pull/3
+ Requires: mod_lookup_identity >= 0.9.9
+ Requires: python-ldap >= 2.4.15
+-Requires: python-gssapi >= 1.2.0
++Requires: python-gssapi >= 1.2.0-5
+ Requires: acl
+ Requires: systemd-units >= 38
+ Requires(pre): shadow-utils
+@@ -349,7 +349,7 @@ Requires: python2-ipaclient = %{version}-%{release}
+ Requires: python-custodia >= 0.3.1
+ Requires: python-ldap >= 2.4.15
+ Requires: python-lxml
+-Requires: python-gssapi >= 1.2.0
++Requires: python-gssapi >= 1.2.0-5
+ Requires: python-sssdconfig
+ Requires: python-pyasn1
+ Requires: dbus-python
+@@ -502,7 +502,7 @@ Requires: certmonger >= 0.78
+ Requires: nss-tools
+ Requires: bind-utils
+ Requires: oddjob-mkhomedir
+-Requires: python-gssapi >= 1.2.0
++Requires: python-gssapi >= 1.2.0-5
+ Requires: libsss_autofs
+ Requires: autofs
+ Requires: libnfsidmap
+@@ -639,7 +639,7 @@ Provides: python2-ipaplatform = %{version}-%{release}
+ %{?python_provide:%python_provide python2-ipaplatform}
+ %{!?python_provide:Provides: python-ipaplatform = %{version}-%{release}}
+ Requires: %{name}-common = %{version}-%{release}
+-Requires: python-gssapi >= 1.2.0
++Requires: python-gssapi >= 1.2.0-5
+ Requires: gnupg
+ Requires: keyutils
+ Requires: pyOpenSSL
+-- 
+2.9.4
+

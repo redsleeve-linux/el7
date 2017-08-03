@@ -1,37 +1,39 @@
 %global _hardened_build 1
-%global clknetsim_ver c0e2b4
+%global clknetsim_ver ce89a1
 %bcond_without debug
 
 Name:           chrony
-Version:        2.1.1
-Release:        4%{?dist}.redsleeve
+Version:        3.1
+Release:        2%{?dist}
 Summary:        An NTP client/server
 
 Group:          System Environment/Daemons
 License:        GPLv2
-URL:            http://chrony.tuxfamily.org
-Source0:        http://download.tuxfamily.org/chrony/chrony-%{version}%{?prerelease}.tar.gz
-Source1:        chrony.conf
-Source2:        chrony.keys
-Source3:        chronyd.service
-Source4:        chrony.helper
-Source5:        chrony.logrotate
-Source8:        chrony.dhclient
-Source9:        chrony-wait.service
+URL:            https://chrony.tuxfamily.org
+Source0:        https://download.tuxfamily.org/chrony/chrony-%{version}%{?prerelease}.tar.gz
+Source1:        chrony.dhclient
+Source2:        chrony.helper
+Source3:        chrony-dnssrv@.service
+Source4:        chrony-dnssrv@.timer
 # simulator for test suite
 Source10:       https://github.com/mlichvar/clknetsim/archive/%{clknetsim_ver}/clknetsim-%{clknetsim_ver}.tar.gz
-Source11:       chrony-dnssrv@.service
-Source12:       chrony-dnssrv@.timer
-%{?gitpatch:Patch0: chrony-%{version}%{?prerelease}-%{gitpatch}.patch.gz}
 
-Patch1:         chrony-smoothleap.patch
+# add NTP servers from DHCP when starting service
+Patch1:         chrony-service-helper.patch
+# add limited support for SW/HW timestamping on older kernels
+Patch2:         chrony-timestamping.patch
+# don't drop PHC samples with zero delay
+Patch3:         chrony-phcdelay.patch
 
 BuildRequires:  libcap-devel libedit-devel nss-devel pps-tools-devel
-BuildRequires:  bison texinfo systemd-units
+%ifarch %{ix86} x86_64 %{arm} aarch64 ppc64 ppc64le s390 s390x
+BuildRequires:  libseccomp-devel
+%endif
+BuildRequires:  bison systemd-units
 
 Requires(pre):  shadow-utils
-Requires(post): systemd info
-Requires(preun): systemd info
+Requires(post): systemd
+Requires(preun): systemd
 Requires(postun): systemd
 
 %description
@@ -43,18 +45,33 @@ clocks, system real-time clock or manual input as time references.
 
 %if 0%{!?vendorzone:1}
 %{?fedora: %global vendorzone fedora.}
-%{?rhel: %global vendorzone redsleeve.}
+%{?rhel: %global vendorzone centos.}
 %endif
 
 %prep
 %setup -q -n %{name}-%{version}%{?prerelease} -a 10
-%{?gitpatch:%patch0 -p1}
-%patch1 -p1 -b .smoothleap
+%patch1 -p1 -b .service-helper
+%patch2 -p1 -b .timestamping
+%patch3 -p1 -b .phcdelay
 
-%{?gitpatch: echo %{version}-%{gitpatch} > version.txt}
+# review changes in packaged configuration files and scripts
+md5sum -c <<-EOF | (! grep -v 'OK$')
+        47ad7eccc410b981d2f2101cf5682616  examples/chrony-wait.service
+        58978d335ec3752ac2c38fa82b48f0a5  examples/chrony.conf.example2
+        ba6bb05c50e03f6b5ab54a2b7914800d  examples/chrony.keys.example
+        6a3178c4670de7de393d9365e2793740  examples/chrony.logrotate
+        298b7f611078aa0176aad58e936c7b0d  examples/chrony.nm-dispatcher
+        a85246982a89910b1e2d3356b7d131d7  examples/chronyd.service
+EOF
 
-sed -e 's|VENDORZONE\.|%{vendorzone}|' < %{SOURCE1} > chrony.conf
-touch -r %{SOURCE1} chrony.conf
+# use our vendor zone and replace the pool directive with server
+# directives as some configuration tools don't support it yet
+sed -e 's|^\(pool \)\(pool.ntp.org.*\)|'\
+'server 0.%{vendorzone}\2\nserver 1.%{vendorzone}\2\n'\
+'server 2.%{vendorzone}\2\nserver 3.%{vendorzone}\2|' \
+        < examples/chrony.conf.example2 > chrony.conf
+
+touch -r examples/chrony.conf.example2 chrony.conf
 
 # regenerate the file from getdate.y
 rm -f getdate.c
@@ -64,13 +81,17 @@ mv clknetsim-%{clknetsim_ver}* test/simulation/clknetsim
 %build
 %configure \
 %{?with_debug: --enable-debug} \
+        --enable-ntp-signd \
+        --enable-scfilter \
         --docdir=%{_docdir} \
+        --with-ntp-era=$(date -d '1970-01-01 00:00:00+00:00' +'%s') \
         --with-user=chrony \
+        --with-hwclockfile=%{_sysconfdir}/adjtime \
         --with-sendmail=%{_sbindir}/sendmail
-make %{?_smp_mflags} all docs
+make %{?_smp_mflags}
 
 %install
-make install install-docs DESTDIR=$RPM_BUILD_ROOT
+make install DESTDIR=$RPM_BUILD_ROOT
 
 rm -rf $RPM_BUILD_ROOT%{_docdir}
 
@@ -82,28 +103,38 @@ mkdir -p $RPM_BUILD_ROOT%{_libexecdir}
 mkdir -p $RPM_BUILD_ROOT{%{_unitdir},%{_prefix}/lib/systemd/ntp-units.d}
 
 install -m 644 -p chrony.conf $RPM_BUILD_ROOT%{_sysconfdir}/chrony.conf
-install -m 640 -p %{SOURCE2} $RPM_BUILD_ROOT%{_sysconfdir}/chrony.keys
-install -m 644 -p %{SOURCE3} $RPM_BUILD_ROOT%{_unitdir}/chronyd.service
-install -m 755 -p %{SOURCE4} $RPM_BUILD_ROOT%{_libexecdir}/chrony-helper
-install -m 644 -p %{SOURCE5} $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d/chrony
+
+install -m 640 -p examples/chrony.keys.example \
+        $RPM_BUILD_ROOT%{_sysconfdir}/chrony.keys
 install -m 755 -p examples/chrony.nm-dispatcher \
         $RPM_BUILD_ROOT%{_sysconfdir}/NetworkManager/dispatcher.d/20-chrony
-install -m 755 -p %{SOURCE8} \
+install -m 755 -p %{SOURCE1} \
         $RPM_BUILD_ROOT%{_sysconfdir}/dhcp/dhclient.d/chrony.sh
-install -m 644 -p %{SOURCE9} $RPM_BUILD_ROOT%{_unitdir}/chrony-wait.service
-install -m 644 -p %{SOURCE11} $RPM_BUILD_ROOT%{_unitdir}/chrony-dnssrv@.service
-install -m 644 -p %{SOURCE12} $RPM_BUILD_ROOT%{_unitdir}/chrony-dnssrv@.timer
+install -m 644 -p examples/chrony.logrotate \
+        $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d/chrony
+
+install -m 644 -p examples/chronyd.service \
+        $RPM_BUILD_ROOT%{_unitdir}/chronyd.service
+install -m 644 -p examples/chrony-wait.service \
+        $RPM_BUILD_ROOT%{_unitdir}/chrony-wait.service
+install -m 644 -p %{SOURCE3} $RPM_BUILD_ROOT%{_unitdir}/chrony-dnssrv@.service
+install -m 644 -p %{SOURCE4} $RPM_BUILD_ROOT%{_unitdir}/chrony-dnssrv@.timer
+
+install -m 755 -p %{SOURCE2} $RPM_BUILD_ROOT%{_libexecdir}/chrony-helper
+
+cat > $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig/chronyd <<EOF
+# Command-line options for chronyd
+OPTIONS=""
+EOF
 
 touch $RPM_BUILD_ROOT%{_localstatedir}/lib/chrony/{drift,rtc}
 
 echo 'chronyd.service' > \
         $RPM_BUILD_ROOT%{_prefix}/lib/systemd/ntp-units.d/50-chronyd.list
 
-gzip -9 -f -n chrony.txt
-
 %check
 # set random seed to get deterministic results
-export CLKNETSIM_RANDOM_SEED=24501
+export CLKNETSIM_RANDOM_SEED=24502
 make %{?_smp_mflags} -C test/simulation/clknetsim
 make check
 
@@ -115,31 +146,24 @@ getent passwd chrony > /dev/null || /usr/sbin/useradd -r -g chrony \
 
 %post
 %systemd_post chronyd.service chrony-wait.service
-/sbin/install-info %{_infodir}/chrony.info.gz %{_infodir}/dir &> /dev/null
-:
 
 %preun
 %systemd_preun chronyd.service chrony-wait.service
-if [ "$1" -eq 0 ]; then
-        /sbin/install-info --delete %{_infodir}/chrony.info.gz \
-                %{_infodir}/dir &> /dev/null
-fi
-:
 
 %postun
 %systemd_postun_with_restart chronyd.service
 
 %files
-%doc COPYING FAQ NEWS README chrony.txt.gz
+%doc COPYING FAQ NEWS README
 %config(noreplace) %{_sysconfdir}/chrony.conf
 %config(noreplace) %verify(not md5 size mtime) %attr(640,root,chrony) %{_sysconfdir}/chrony.keys
 %config(noreplace) %{_sysconfdir}/logrotate.d/chrony
+%config(noreplace) %{_sysconfdir}/sysconfig/chronyd
 %{_sysconfdir}/NetworkManager/dispatcher.d/20-chrony
 %{_sysconfdir}/dhcp/dhclient.d/chrony.sh
 %{_bindir}/chronyc
 %{_sbindir}/chronyd
 %{_libexecdir}/chrony-helper
-%{_infodir}/chrony.info*
 %{_prefix}/lib/systemd/ntp-units.d/*.list
 %{_unitdir}/chrony*.service
 %{_unitdir}/chrony*.timer
@@ -150,11 +174,17 @@ fi
 %dir %attr(-,chrony,chrony) %{_localstatedir}/log/chrony
 
 %changelog
-* Sun Dec 11 2016 Jacco Ligthart <jacco@redsleeve.org> - 2.1.1-4.el7.redsleeve
+* Mon Jul 31 2017 CentOS Sources <bugs@centos.org> - 3.1-2.el7.centos
 - rebrand vendorzone
 
-* Tue Dec 06 2016 CentOS Sources <bugs@centos.org> - 2.1.1-4.el7.centos
-- rebrand vendorzone
+* Mon Apr 24 2017 Miroslav Lichvar <mlichvar@redhat.com> 3.1-2
+- don't drop PHC samples with zero delay (#1443342)
+
+* Fri Feb 03 2017 Miroslav Lichvar <mlichvar@redhat.com> 3.1-1
+- update to 3.1 (#1387223 #1274250 #1350669 #1406445)
+- don't start chronyd without capability to set system clock (#1306046)
+- fix chrony-helper to escape names of systemd units (#1418968)
+- package chronyd sysconfig file (#1396840)
 
 * Fri Nov 18 2016 Miroslav Lichvar <mlichvar@redhat.com> 2.1.1-4
 - fix crash with smoothtime leaponly directive (#1392793)

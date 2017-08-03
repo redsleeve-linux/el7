@@ -1,21 +1,21 @@
-From 357b8e45c81e79a1547f65ea4109b0882050b1e9 Mon Sep 17 00:00:00 2001
+From 6106261b0f1501a3772f4f9b67ae329697c7b815 Mon Sep 17 00:00:00 2001
 From: Eduardo Habkost <ehabkost@redhat.com>
-Date: Tue, 23 May 2017 14:15:10 +0200
+Date: Tue, 23 May 2017 13:43:59 +0200
 Subject: [PATCH] char: change qemu_chr_fe_add_watch to return unsigned
 
 RH-Author: Eduardo Habkost <ehabkost@redhat.com>
-Message-id: <20170523141510.24762-1-ehabkost@redhat.com>
-Patchwork-id: 75397
-O-Subject: [RHEL-7.3.z qemu-kvm PATCH] char: change qemu_chr_fe_add_watch to return unsigned
-Bugzilla: 1452332
+Message-id: <20170523134359.8747-1-ehabkost@redhat.com>
+Patchwork-id: 75396
+O-Subject: [RHEL-7.4 qemu-kvm PATCH] char: change qemu_chr_fe_add_watch to return unsigned
+Bugzilla: 1451470
 RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
 RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
 RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
 
 From: Paolo Bonzini <pbonzini@redhat.com>
 
-Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1452332
-Brew: https://brewweb.engineering.redhat.com/brew/taskinfo?taskID=13257135
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1451470#c32
+Brew: https://brewweb.engineering.redhat.com/brew/taskinfo?taskID=13257025
 
 g_source_attach can return any value between 1 and UINT_MAX if you let
 QEMU run long enough.  However, qemu_chr_fe_add_watch can also return
@@ -26,11 +26,7 @@ these values.
 Fix the cadence_uart which asserts in this case (easily obtained with
 "-serial pty").
 
-Backport notes:
-
-  This is the same patch submitted to the 7.4 branch.
-
-7.4 backport conflicts:
+Backport Conflicts:
 	hw/char/cadence_uart.c (no qemu_chr_fe_add_watch() call)
 	net/vhost-user.c (doesn't exit)
 	qemu-char.c (trivial conflict)

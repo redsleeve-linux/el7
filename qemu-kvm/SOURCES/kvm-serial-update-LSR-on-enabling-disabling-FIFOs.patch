@@ -1,15 +1,15 @@
-From 727ebf3f24a6f519aab1306bad6e63014c76aec5 Mon Sep 17 00:00:00 2001
+From d6acc0368578932ee6a2949054a6f640a5b6fa09 Mon Sep 17 00:00:00 2001
 From: Fam Zheng <famz@redhat.com>
-Date: Fri, 19 May 2017 00:35:18 +0200
+Date: Thu, 18 May 2017 09:21:26 +0200
 Subject: [PATCH 13/18] serial: update LSR on enabling/disabling FIFOs
 
 RH-Author: Fam Zheng <famz@redhat.com>
-Message-id: <20170519003523.21163-14-famz@redhat.com>
-Patchwork-id: 75369
-O-Subject: [RHEL-7.3.z qemu-kvm PATCH 13/18] serial: update LSR on enabling/disabling FIFOs
-Bugzilla: 1452332
+Message-id: <20170518092131.16571-14-famz@redhat.com>
+Patchwork-id: 75306
+O-Subject: [RHEL-7.4 qemu-kvm PATCH v3 13/18] serial: update LSR on enabling/disabling FIFOs
+Bugzilla: 1451470
 RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
-RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
 RH-Acked-by: Eduardo Habkost <ehabkost@redhat.com>
 
 From: Paolo Bonzini <pbonzini@redhat.com>

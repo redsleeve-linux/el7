@@ -1,0 +1,37 @@
+From e2f2737b6f9aa4ba8399e87e2eecbfbc77f9b2a4 Mon Sep 17 00:00:00 2001
+Message-Id: <e2f2737b6f9aa4ba8399e87e2eecbfbc77f9b2a4@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Tue, 4 Apr 2017 12:46:37 +0200
+Subject: [PATCH] qemu: Break endless loop if qemuMigrationResetTLS fails
+
+Jumping to "endjob" label from a code after this label is not a very
+good idea.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit d658c8594e05d286de6af22ea88689d1d5e2a82b)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1300769
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_migration.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/qemu/qemu_migration.c b/src/qemu/qemu_migration.c
+index fcd3a38a1..992b6bd4a 100644
+--- a/src/qemu/qemu_migration.c
++++ b/src/qemu/qemu_migration.c
+@@ -5356,9 +5356,7 @@ qemuMigrationFinish(virQEMUDriverPtr driver,
+                                  QEMU_ASYNC_JOB_MIGRATION_IN);
+     }
+ 
+-    if (qemuMigrationResetTLS(driver, vm, QEMU_ASYNC_JOB_MIGRATION_IN,
+-                              NULL, NULL) < 0)
+-        goto endjob;
++    qemuMigrationResetTLS(driver, vm, QEMU_ASYNC_JOB_MIGRATION_IN, NULL, NULL);
+ 
+     qemuMigrationJobFinish(driver, vm);
+     if (!virDomainObjIsActive(vm))
+-- 
+2.12.2
+

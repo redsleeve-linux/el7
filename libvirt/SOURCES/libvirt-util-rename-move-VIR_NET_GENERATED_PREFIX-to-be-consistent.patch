@@ -1,0 +1,160 @@
+From 39de2f3c6d425c6444cf1aea43baf203aacf5df4 Mon Sep 17 00:00:00 2001
+Message-Id: <39de2f3c6d425c6444cf1aea43baf203aacf5df4@dist-git>
+From: Laine Stump <laine@laine.org>
+Date: Tue, 2 May 2017 12:33:12 -0400
+Subject: [PATCH] util: rename/move VIR_NET_GENERATED_PREFIX to be consistent
+
+... with VIR_NET_GENERATED_MACV???_PREFIX, which is defined in
+util/virnetdevmacvlan.h.
+
+Since VIR_NET_GENERATED_PREFIX is used for plain tap devices, it is
+renamed to VIR_NET_GENERATED_TAP_PREFIX and moved to virnetdev.h
+
+(cherry picked from commit 30e672301dd16e0433e23864e21dcc9d0c311e8c)
+
+https://bugzilla.redhat.com/1335798
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/bhyve/bhyve_command.c              | 4 ++--
+ src/conf/domain_conf.c                 | 4 ++--
+ src/conf/domain_conf.h                 | 4 ----
+ src/interface/interface_backend_udev.c | 2 +-
+ src/qemu/qemu_interface.c              | 8 ++++----
+ src/uml/uml_conf.c                     | 4 ++--
+ src/util/virnetdev.h                   | 5 +++++
+ 7 files changed, 16 insertions(+), 15 deletions(-)
+
+diff --git a/src/bhyve/bhyve_command.c b/src/bhyve/bhyve_command.c
+index e9c072b9f..eae5cb3ca 100644
+--- a/src/bhyve/bhyve_command.c
++++ b/src/bhyve/bhyve_command.c
+@@ -88,10 +88,10 @@ bhyveBuildNetArgStr(virConnectPtr conn,
+     }
+ 
+     if (!net->ifname ||
+-        STRPREFIX(net->ifname, VIR_NET_GENERATED_PREFIX) ||
++        STRPREFIX(net->ifname, VIR_NET_GENERATED_TAP_PREFIX) ||
+         strchr(net->ifname, '%')) {
+         VIR_FREE(net->ifname);
+-        if (VIR_STRDUP(net->ifname, VIR_NET_GENERATED_PREFIX "%d") < 0)
++        if (VIR_STRDUP(net->ifname, VIR_NET_GENERATED_TAP_PREFIX "%d") < 0)
+             goto cleanup;
+     }
+ 
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 84a8a94e5..1653aa61d 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -9733,7 +9733,7 @@ virDomainNetDefParseXML(virDomainXMLOptionPtr xmlopt,
+                 ifname = virXMLPropString(cur, "dev");
+                 if (ifname &&
+                     (flags & VIR_DOMAIN_DEF_PARSE_INACTIVE) &&
+-                    (STRPREFIX(ifname, VIR_NET_GENERATED_PREFIX) ||
++                    (STRPREFIX(ifname, VIR_NET_GENERATED_TAP_PREFIX) ||
+                      (prefix && STRPREFIX(ifname, prefix)))) {
+                     /* An auto-generated target name, blank it out */
+                     VIR_FREE(ifname);
+@@ -22139,7 +22139,7 @@ virDomainNetDefFormat(virBufferPtr buf,
+ 
+     if (def->ifname &&
+         !((flags & VIR_DOMAIN_DEF_FORMAT_INACTIVE) &&
+-          (STRPREFIX(def->ifname, VIR_NET_GENERATED_PREFIX) ||
++          (STRPREFIX(def->ifname, VIR_NET_GENERATED_TAP_PREFIX) ||
+            (prefix && STRPREFIX(def->ifname, prefix))))) {
+         /* Skip auto-generated target names for inactive config. */
+         virBufferEscapeString(buf, "<target dev='%s'/>\n", def->ifname);
+diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
+index c91791262..f1e9fc2ba 100644
+--- a/src/conf/domain_conf.h
++++ b/src/conf/domain_conf.h
+@@ -1041,10 +1041,6 @@ struct _virDomainNetDef {
+     virNetDevCoalescePtr coalesce;
+ };
+ 
+-/* Used for prefix of ifname of any network name generated dynamically
+- * by libvirt, and cannot be used for a persistent network name.  */
+-# define VIR_NET_GENERATED_PREFIX "vnet"
+-
+ typedef enum {
+     VIR_DOMAIN_CHR_DEVICE_STATE_DEFAULT = 0,
+     VIR_DOMAIN_CHR_DEVICE_STATE_CONNECTED,
+diff --git a/src/interface/interface_backend_udev.c b/src/interface/interface_backend_udev.c
+index 18a45fa85..1cd84060a 100644
+--- a/src/interface/interface_backend_udev.c
++++ b/src/interface/interface_backend_udev.c
+@@ -570,7 +570,7 @@ udevBridgeScanDirFilter(const struct dirent *entry)
+      * vnet%d. Improvements to this check are welcome.
+      */
+     if (strlen(entry->d_name) >= 5) {
+-        if (STRPREFIX(entry->d_name, VIR_NET_GENERATED_PREFIX) &&
++        if (STRPREFIX(entry->d_name, VIR_NET_GENERATED_TAP_PREFIX) &&
+             c_isdigit(entry->d_name[4]))
+             return 0;
+     }
+diff --git a/src/qemu/qemu_interface.c b/src/qemu/qemu_interface.c
+index 2057ac929..c643b76ec 100644
+--- a/src/qemu/qemu_interface.c
++++ b/src/qemu/qemu_interface.c
+@@ -428,10 +428,10 @@ qemuInterfaceEthernetConnect(virDomainDefPtr def,
+     }
+ 
+     if (!net->ifname ||
+-        STRPREFIX(net->ifname, VIR_NET_GENERATED_PREFIX) ||
++        STRPREFIX(net->ifname, VIR_NET_GENERATED_TAP_PREFIX) ||
+         strchr(net->ifname, '%')) {
+         VIR_FREE(net->ifname);
+-        if (VIR_STRDUP(net->ifname, VIR_NET_GENERATED_PREFIX "%d") < 0)
++        if (VIR_STRDUP(net->ifname, VIR_NET_GENERATED_TAP_PREFIX "%d") < 0)
+             goto cleanup;
+         /* avoid exposing vnet%d in getXMLDesc or error outputs */
+         template_ifname = true;
+@@ -528,10 +528,10 @@ qemuInterfaceBridgeConnect(virDomainDefPtr def,
+     }
+ 
+     if (!net->ifname ||
+-        STRPREFIX(net->ifname, VIR_NET_GENERATED_PREFIX) ||
++        STRPREFIX(net->ifname, VIR_NET_GENERATED_TAP_PREFIX) ||
+         strchr(net->ifname, '%')) {
+         VIR_FREE(net->ifname);
+-        if (VIR_STRDUP(net->ifname, VIR_NET_GENERATED_PREFIX "%d") < 0)
++        if (VIR_STRDUP(net->ifname, VIR_NET_GENERATED_TAP_PREFIX "%d") < 0)
+             goto cleanup;
+         /* avoid exposing vnet%d in getXMLDesc or error outputs */
+         template_ifname = true;
+diff --git a/src/uml/uml_conf.c b/src/uml/uml_conf.c
+index bdef78324..9bd4f1187 100644
+--- a/src/uml/uml_conf.c
++++ b/src/uml/uml_conf.c
+@@ -112,10 +112,10 @@ umlConnectTapDevice(virDomainDefPtr vm,
+     int tapfd = -1;
+ 
+     if (!net->ifname ||
+-        STRPREFIX(net->ifname, VIR_NET_GENERATED_PREFIX) ||
++        STRPREFIX(net->ifname, VIR_NET_GENERATED_TAP_PREFIX) ||
+         strchr(net->ifname, '%')) {
+         VIR_FREE(net->ifname);
+-        if (VIR_STRDUP(net->ifname, VIR_NET_GENERATED_PREFIX "%d") < 0)
++        if (VIR_STRDUP(net->ifname, VIR_NET_GENERATED_TAP_PREFIX "%d") < 0)
+             goto error;
+         /* avoid exposing vnet%d in getXMLDesc or error outputs */
+         template_ifname = true;
+diff --git a/src/util/virnetdev.h b/src/util/virnetdev.h
+index cff8cb51c..97236c170 100644
+--- a/src/util/virnetdev.h
++++ b/src/util/virnetdev.h
+@@ -37,6 +37,11 @@ typedef struct ifreq virIfreq;
+ typedef void virIfreq;
+ # endif
+ 
++/* Used for prefix of ifname of any tap device name generated
++ * dynamically by libvirt, cannot be used for a persistent network name.
++ */
++# define VIR_NET_GENERATED_TAP_PREFIX "vnet"
++
+ typedef enum {
+    VIR_NETDEV_RX_FILTER_MODE_NONE = 0,
+    VIR_NETDEV_RX_FILTER_MODE_NORMAL,
+-- 
+2.12.2
+

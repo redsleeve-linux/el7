@@ -1,0 +1,122 @@
+From 825c7ad1ab9be3abcd1935491d11d0590e3b3462 Mon Sep 17 00:00:00 2001
+Message-Id: <825c7ad1ab9be3abcd1935491d11d0590e3b3462@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 20 Jun 2017 10:22:43 +0200
+Subject: [PATCH] util: storage: adapt to changes in JSON format for ceph/rbd
+
+Since qemu 2.9 the options changed from a monolithic string into fine
+grained options for the json pseudo-protocol object.
+
+(cherry picked from commit 4fac5a1935041254964313ed722fa8d59f8fa2de)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1461638
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+---
+ src/util/virstoragefile.c | 50 +++++++++++++++++++++++++++++++++++++++++++----
+ tests/virstoragetest.c    | 19 ++++++++++++++++++
+ 2 files changed, 65 insertions(+), 4 deletions(-)
+
+diff --git a/src/util/virstoragefile.c b/src/util/virstoragefile.c
+index ef3050711b..68bfdcd0ca 100644
+--- a/src/util/virstoragefile.c
++++ b/src/util/virstoragefile.c
+@@ -3127,6 +3127,15 @@ virStorageSourceParseBackingJSONRBD(virStorageSourcePtr src,
+                                     int opaque ATTRIBUTE_UNUSED)
+ {
+     const char *filename;
++    const char *pool = virJSONValueObjectGetString(json, "pool");
++    const char *image = virJSONValueObjectGetString(json, "image");
++    const char *conf = virJSONValueObjectGetString(json, "conf");
++    const char *snapshot = virJSONValueObjectGetString(json, "snapshot");
++    virJSONValuePtr servers = virJSONValueObjectGetArray(json, "server");
++    char *fullname = NULL;
++    size_t nservers;
++    size_t i;
++    int ret = -1;
+ 
+     src->type = VIR_STORAGE_TYPE_NETWORK;
+     src->protocol = VIR_STORAGE_NET_PROTOCOL_RBD;
+@@ -3135,11 +3144,44 @@ virStorageSourceParseBackingJSONRBD(virStorageSourcePtr src,
+     if ((filename = virJSONValueObjectGetString(json, "filename")))
+         return virStorageSourceParseRBDColonString(filename, src);
+ 
+-    /* RBD currently supports only URI syntax passed in as filename */
+-    virReportError(VIR_ERR_INVALID_ARG, "%s",
+-                   _("missing RBD filename in JSON backing volume definition"));
++    if (!pool || !image) {
++        virReportError(VIR_ERR_INVALID_ARG, "%s",
++                       _("missing pool or image name in ceph backing volume "
++                         "JSON specification"));
++        return -1;
++    }
+ 
+-    return -1;
++    /* currently we need to store the pool name and image name together, since
++     * the rest of the code is not prepared for it */
++    if (virAsprintf(&fullname, "%s/%s", pool, image) < 0)
++        return -1;
++
++    if (VIR_STRDUP(src->snapshot, snapshot) < 0 ||
++        VIR_STRDUP(src->configFile, conf) < 0)
++        goto cleanup;
++
++    VIR_STEAL_PTR(src->path, fullname);
++
++    if (servers) {
++        nservers = virJSONValueArraySize(servers);
++
++        if (VIR_ALLOC_N(src->hosts, nservers) < 0)
++            goto cleanup;
++
++        src->nhosts = nservers;
++
++        for (i = 0; i < nservers; i++) {
++            if (virStorageSourceParseBackingJSONInetSocketAddress(src->hosts + i,
++                                                                  virJSONValueArrayGet(servers, i)) < 0)
++                goto cleanup;
++        }
++    }
++
++    ret = 0;
++ cleanup:
++    VIR_FREE(fullname);
++
++    return ret;
+ }
+ 
+ static int
+diff --git a/tests/virstoragetest.c b/tests/virstoragetest.c
+index 54f7c849c5..97eaeab094 100644
+--- a/tests/virstoragetest.c
++++ b/tests/virstoragetest.c
+@@ -1507,6 +1507,25 @@ mymain(void)
+                        "<source protocol='rbd' name='testshare'>\n"
+                        "  <host name='example.com'/>\n"
+                        "</source>\n");
++    TEST_BACKING_PARSE("json:{\"file\":{\"driver\":\"rbd\","
++                                       "\"image\":\"test\","
++                                       "\"pool\":\"libvirt\","
++                                       "\"conf\":\"/path/to/conf\","
++                                       "\"snapshot\":\"snapshotname\","
++                                       "\"server\":[ {\"host\":\"example.com\","
++                                                      "\"port\":\"1234\""
++                                                    "},"
++                                                    "{\"host\":\"example2.com\""
++                                                    "}"
++                                                  "]"
++                                      "}"
++                             "}",
++                        "<source protocol='rbd' name='libvirt/test'>\n"
++                        "  <host name='example.com' port='1234'/>\n"
++                        "  <host name='example2.com'/>\n"
++                        "  <snapshot name='snapshotname'/>\n"
++                        "  <config file='/path/to/conf'/>\n"
++                        "</source>\n");
+     TEST_BACKING_PARSE("json:{ \"file\": { "
+                                 "\"driver\": \"raw\","
+                                 "\"file\": {"
+-- 
+2.13.1
+

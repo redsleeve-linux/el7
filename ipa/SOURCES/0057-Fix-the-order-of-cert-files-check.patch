@@ -1,0 +1,47 @@
+From 9bc2481d6669906e105e1035a10cd81374464e5b Mon Sep 17 00:00:00 2001
+From: Stanislav Laznicka <slaznick@redhat.com>
+Date: Wed, 22 Mar 2017 17:10:56 +0100
+Subject: [PATCH] Fix the order of cert-files check
+
+Without this patch, if either of dirsrv_cert_files, http_cert_files
+or pkinit_cert_files is set along with no-pkinit, the user is first
+requested to add the remaining options and when they do that,
+they are told that they are using 'no-pkinit' along with
+'pkinit-cert-file'.
+
+https://pagure.io/freeipa/issue/6801
+
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+---
+ ipaserver/install/server/__init__.py | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/ipaserver/install/server/__init__.py b/ipaserver/install/server/__init__.py
+index 14f1ec48a1b8c7a520db69ffad378d488efa29cc..117f51c4ebfaeba51d3c85625cda0d0eee305696 100644
+--- a/ipaserver/install/server/__init__.py
++++ b/ipaserver/install/server/__init__.py
+@@ -340,16 +340,16 @@ class ServerInstallInterface(ServerCertificateInstallInterface,
+         cert_file_opt = (self.pkinit_cert_files,)
+         if not self.no_pkinit:
+             cert_file_req += cert_file_opt
+-        if any(cert_file_req + cert_file_opt) and not all(cert_file_req):
+-            raise RuntimeError(
+-                "--dirsrv-cert-file, --http-cert-file, and --pkinit-cert-file "
+-                "or --no-pkinit are required if any key file options are used."
+-            )
+         if self.no_pkinit and self.pkinit_cert_files:
+             raise RuntimeError(
+                 "--no-pkinit and --pkinit-cert-file cannot be specified "
+                 "together"
+             )
++        if any(cert_file_req + cert_file_opt) and not all(cert_file_req):
++            raise RuntimeError(
++                "--dirsrv-cert-file, --http-cert-file, and --pkinit-cert-file "
++                "or --no-pkinit are required if any key file options are used."
++            )
+ 
+         if not self.interactive:
+             if self.dirsrv_cert_files and self.dirsrv_pin is None:
+-- 
+2.12.2
+

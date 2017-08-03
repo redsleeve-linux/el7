@@ -16,7 +16,7 @@ index 6994751..3776e60 100644
  %_mandir		%{_prefix}/share/man
  
  %_defaultdocdir		%{_prefix}/share/doc
-+%_pkgdocdir             %{_docdir}/%{name}
++%_pkgdocdir             %{_docdir}/%{name}-%{version}
 +%_docdir_fmt            %%{NAME}-%%{VERSION}
  
  %_fmoddir		%{_libdir}/gfortran/modules

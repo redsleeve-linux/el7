@@ -1,0 +1,47 @@
+From dfc345ac7bd7bc87c297fc9887453e8f3035191c Mon Sep 17 00:00:00 2001
+Message-Id: <dfc345ac7bd7bc87c297fc9887453e8f3035191c@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Tue, 11 Jul 2017 13:30:09 +0200
+Subject: [PATCH] qemu: Rename qemuProcessUpdateLiveGuestCPU
+
+In addition to updating a guest CPU definition the function verifies
+that all required features are provided to the guest. Let's make it
+obvious by calling it qemuProcessUpdateAndVerifyCPU.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit e6ed55e4e9c9ec21ca87573b69225d2fafc54272)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1470582
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+---
+ src/qemu/qemu_process.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 3f7a9f4c02..1e7724e784 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -3971,7 +3971,7 @@ qemuProcessVerifyCPU(virDomainObjPtr vm,
+ 
+ 
+ static int
+-qemuProcessUpdateLiveGuestCPU(virQEMUDriverPtr driver,
++qemuProcessUpdateAndVerifyCPU(virQEMUDriverPtr driver,
+                               virDomainObjPtr vm,
+                               qemuDomainAsyncJob asyncJob)
+ {
+@@ -5875,7 +5875,7 @@ qemuProcessLaunch(virConnectPtr conn,
+         goto cleanup;
+ 
+     VIR_DEBUG("Verifying and updating provided guest CPU");
+-    if (qemuProcessUpdateLiveGuestCPU(driver, vm, asyncJob) < 0)
++    if (qemuProcessUpdateAndVerifyCPU(driver, vm, asyncJob) < 0)
+         goto cleanup;
+ 
+     VIR_DEBUG("Setting up post-init cgroup restrictions");
+-- 
+2.13.2
+

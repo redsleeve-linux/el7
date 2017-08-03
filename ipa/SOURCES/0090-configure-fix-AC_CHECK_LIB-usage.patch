@@ -1,0 +1,64 @@
+From 03750b1c1ba8ed670691e4e464d110b9329d85be Mon Sep 17 00:00:00 2001
+From: Jan Cholasta <jcholast@redhat.com>
+Date: Wed, 5 Apr 2017 10:24:17 +0000
+Subject: [PATCH] configure: fix AC_CHECK_LIB usage
+
+Replace empty string with a single space in the third argument of
+`AC_CHECK_LIB` (`action-if-found`) where applicable.
+
+Empty string in the argument causes `AC_CHECK_LIB` to use the default
+action when a library is found which includes adding the library to `LIBS`,
+which specifies libraries to be linked in every binary and library in the
+project.
+
+This fixes libkrad, liblber, libldap_r and libsss_nss_idmap being linked to
+every binary and library in IPA, even where unused.
+
+https://pagure.io/freeipa/issue/6846
+
+Reviewed-By: Stanislav Laznicka <slaznick@redhat.com>
+---
+ configure.ac | 4 ++--
+ server.m4    | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/configure.ac b/configure.ac
+index ded1d71fd079a5f6947ef0627fb699783c8cc109..e31a9849c4c0556833f5cd47104381d006c96eef 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -86,8 +86,8 @@ dnl ---------------------------------------------------------------------------
+ 
+ SAVE_CPPFLAGS=$CPPFLAGS
+ CPPFLAGS="$NSPR_CFLAGS $NSS_CFLAGS"
+-AC_CHECK_LIB([ldap_r], [ldap_search], [], AC_MSG_ERROR([libldap_r not found]))
+-AC_CHECK_LIB([lber], [ber_peek_tag], [], AC_MSG_ERROR([liblber not found]))
++AC_CHECK_LIB([ldap_r], [ldap_search], [ ], AC_MSG_ERROR([libldap_r not found]))
++AC_CHECK_LIB([lber], [ber_peek_tag], [ ], AC_MSG_ERROR([liblber not found]))
+ LDAP_LIBS="-lldap_r -llber"
+ LDAP_CFLAGS=""
+ AC_SUBST(LDAP_LIBS)
+diff --git a/server.m4 b/server.m4
+index 346d73e906c5d0499e46fcc4da070007b2ff5973..aa784e096299d5a6cc599a0d6a0652168f9bafbc 100644
+--- a/server.m4
++++ b/server.m4
+@@ -31,7 +31,7 @@ PKG_CHECK_MODULES([SSSIDMAP], [sss_idmap])
+ PKG_CHECK_MODULES([SSSNSSIDMAP], [sss_nss_idmap >= 1.15.2])
+ AC_CHECK_LIB([sss_nss_idmap],
+              [sss_nss_getlistbycert],
+-             [],
++             [ ],
+              [AC_MSG_ERROR([Required sss_nss_getlistbycert symbol in sss_nss_idmap not found])],
+              [])
+ 
+@@ -48,7 +48,7 @@ dnl - Check for KRB5 krad
+ dnl ---------------------------------------------------------------------------
+ 
+ AC_CHECK_HEADER(krad.h, [], [AC_MSG_ERROR([krad.h not found])])
+-AC_CHECK_LIB(krad, main, [], [AC_MSG_ERROR([libkrad not found])])
++AC_CHECK_LIB(krad, main, [ ], [AC_MSG_ERROR([libkrad not found])])
+ KRAD_LIBS="-lkrad"
+ krb5rundir="${localstatedir}/run/krb5kdc"
+ AC_SUBST(KRAD_LIBS)
+-- 
+2.12.2
+

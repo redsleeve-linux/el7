@@ -1,0 +1,45 @@
+From d3df2456cfc82cba6afdb2f44dca91f6f553ac76 Mon Sep 17 00:00:00 2001
+Message-Id: <d3df2456cfc82cba6afdb2f44dca91f6f553ac76@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 7 Jun 2017 09:35:25 +0200
+Subject: [PATCH] qemu: Always send persistent XML during migration
+
+When persistent migration of a transient domain is requested but no
+custom XML is passed to the migration API we would just let the
+destination daemon make a persistent definition from the live definition
+itself. This is not a problem now, but once the destination daemon
+starts replacing the original CPU definition with the one from migration
+cookie before starting a domain, it would need to add more ugly hacks to
+reverse the operation. Let's just always send the persistent definition
+in the cookie to make things a bit cleaner.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit b0a16641fa648de23d1fd05a3e89987799550c44)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1441662
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_migration.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/qemu/qemu_migration.c b/src/qemu/qemu_migration.c
+index ec5af7a612..a7c90a09e8 100644
+--- a/src/qemu/qemu_migration.c
++++ b/src/qemu/qemu_migration.c
+@@ -3613,8 +3613,9 @@ qemuMigrationRun(virQEMUDriverPtr driver,
+             if (!(persistDef = qemuMigrationPrepareDef(driver, persist_xml,
+                                                        NULL, NULL)))
+                 goto cleanup;
+-        } else if (vm->newDef) {
+-            if (!(persistDef = qemuDomainDefCopy(driver, vm->newDef,
++        } else {
++            virDomainDefPtr def = vm->newDef ? vm->newDef : vm->def;
++            if (!(persistDef = qemuDomainDefCopy(driver, def,
+                                                  VIR_DOMAIN_XML_SECURE |
+                                                  VIR_DOMAIN_XML_MIGRATABLE)))
+                 goto cleanup;
+-- 
+2.13.1
+

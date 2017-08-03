@@ -7,13 +7,14 @@
 Summary: Graphical Boot Animation and Logger
 Name: plymouth
 Version: 0.8.9
-Release: 0.26.20140113%{?dist}.redsleeve
+Release: 0.28.20140113%{?dist}
 License: GPLv2+
 Group: System Environment/Base
 Source0: http://freedesktop.org/software/plymouth/releases/%{name}-%{version}.tar.bz2
 Source1: boot-duration
 Source2: charge.plymouth
 Source3: plymouth-update-initrd
+Source4: bootlog
 
 URL: http://www.freedesktop.org/wiki/Software/Plymouth
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
@@ -55,6 +56,8 @@ Patch14: ensure-output-gets-terminal.patch
 Patch15: activate-new-renderers.patch
 Patch16: fix-progress-bar-colors.patch
 Patch17: fix-escape-key-for-media-check.patch
+Patch18: 0001-Revert-Recreate-boot-log-at-each-boot-instead-of-app.patch
+Patch19: 0001-Revert-Make-boot.log-world-readable-by-default.patch
 Patch99: colors.patch
 
 %description
@@ -233,7 +236,7 @@ Provides: plymouth(system-theme) = %{version}-%{release}
 
 %description theme-charge
 This package contains the "charge" boot splash theme for
-Plymouth. It is the default theme for RedSleeve Linux.
+Plymouth. It is the default theme for CentOS Linux.
 
 %package plugin-script
 Summary: Plymouth "script" plugin
@@ -289,6 +292,8 @@ Plymouth. It features a small spinner on a dark background.
 %patch15 -p1 -b .activate-new-renderers
 %patch16 -p1 -b .fix-progress-bar-colors
 %patch17 -p1 -b .fix-escape-key-for-media-check
+%patch18 -p1 -b .dont-truncate-boot.log
+%patch19 -p1 -b .dont-change-boot.log-file-mode
 %patch99 -p1 -b .colors
 
 # Change the default theme
@@ -344,6 +349,9 @@ mv $RPM_BUILD_ROOT%{_datadir}/plymouth/themes/text/tribar.plymouth $RPM_BUILD_RO
 sed -i -e 's/tribar/text/' $RPM_BUILD_ROOT%{_datadir}/plymouth/themes/text/text.plymouth
 
 cp $RPM_SOURCE_DIR/plymouth-update-initrd $RPM_BUILD_ROOT%{_libexecdir}/plymouth/plymouth-update-initrd
+
+install -d -m 755 $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d
+install -p -m 644 $RPM_SOURCE_DIR/bootlog $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d/bootlog
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -434,6 +442,7 @@ fi
 %dir %{_libdir}/plymouth/renderers
 %dir %{_sysconfdir}/plymouth
 %config(noreplace) %{_sysconfdir}/plymouth/plymouthd.conf
+%config(noreplace) %{_sysconfdir}/logrotate.d/bootlog
 %{plymouthdaemon_execdir}/plymouthd
 %{plymouthclient_execdir}/plymouth
 %{_bindir}/plymouth
@@ -553,11 +562,19 @@ fi
 %defattr(-, root, root)
 
 %changelog
-* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> 0.8.9-0.26.20140113.el7.redsleeve
+* Mon Jul 31 2017 CentOS Sources <bugs@centos.org> - 0.8.9-0.28.20140113.el7.centos
 - Roll in Branding Change in the SPEC
 
-* Thu Nov 03 2016 CentOS Sources <bugs@centos.org> - 0.8.9-0.26.20140113.el7.centos
-- Roll in Branding Change in the SPEC
+* Thu May 11 2017 Ray Strode <rstrode@redhat.com> - 0.8.9-0.28.20140113
+- Don't change file mode of boot.log.  Instead, remember what mode
+  the admin set it to.
+  Related: #916704
+- Don't unlink boot.log before opening it.
+  Related: #916704
+
+* Fri Mar 24 2017 Ray Strode <rstrode@redhat.com> - 0.8.3-27.20140113
+- Don't truncate boot.log. Rely on logrotate.d to carve it up.
+  Resolves: #916704
 
 * Fri Jul 01 2016 Ray Strode <rstrode@redhat.com> - 0.8.9-0.26.20140113
 - Fix color of text progress bar

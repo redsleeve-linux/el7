@@ -1,0 +1,97 @@
+From a1c6dd1700b461d84c6db3d62468c60f4e3b0a55 Mon Sep 17 00:00:00 2001
+Message-Id: <a1c6dd1700b461d84c6db3d62468c60f4e3b0a55@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 20 Jun 2017 14:45:38 +0200
+Subject: [PATCH] qemu: snapshot: Load data necessary for relative block commit
+ to work
+
+Commit 7456c4f5f introduced a regression by not reloading the backing
+chain of a disk after snapshot. The regression was caused as
+src->relPath was not set and thus the block commit code could not
+determine the relative path.
+
+This patch adds code that will load the backing store string if
+VIR_DOMAIN_SNAPSHOT_CREATE_REUSE_EXT and store it in the correct place
+when a snapshot is successfully completed.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1461303
+(cherry picked from commit e20853e1d32ff517e6feec3146066ec433fc39e6)
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+---
+ src/qemu/qemu_driver.c | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index c7c5e28ca3..a2fb41b91a 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -14094,6 +14094,7 @@ struct _qemuDomainSnapshotDiskData {
+     bool created; /* @src was created by the snapshot code */
+     bool prepared; /* @src was prepared using qemuDomainDiskChainElementPrepare */
+     virDomainDiskDefPtr disk;
++    char *relPath; /* relative path component to fill into original disk */
+ 
+     virStorageSourcePtr persistsrc;
+     virDomainDiskDefPtr persistdisk;
+@@ -14127,6 +14128,7 @@ qemuDomainSnapshotDiskDataFree(qemuDomainSnapshotDiskDataPtr data,
+             virStorageSourceFree(data[i].src);
+         }
+         virStorageSourceFree(data[i].persistsrc);
++        VIR_FREE(data[i].relPath);
+     }
+ 
+     VIR_FREE(data);
+@@ -14142,11 +14144,13 @@ qemuDomainSnapshotDiskDataFree(qemuDomainSnapshotDiskDataPtr data,
+ static qemuDomainSnapshotDiskDataPtr
+ qemuDomainSnapshotDiskDataCollect(virQEMUDriverPtr driver,
+                                   virDomainObjPtr vm,
+-                                  virDomainSnapshotObjPtr snap)
++                                  virDomainSnapshotObjPtr snap,
++                                  bool reuse)
+ {
+     size_t i;
+     qemuDomainSnapshotDiskDataPtr ret;
+     qemuDomainSnapshotDiskDataPtr dd;
++    char *backingStoreStr;
+ 
+     if (VIR_ALLOC_N(ret, snap->def->ndisks) < 0)
+         return NULL;
+@@ -14170,6 +14174,16 @@ qemuDomainSnapshotDiskDataCollect(virQEMUDriverPtr driver,
+ 
+         dd->initialized = true;
+ 
++        /* relative backing store paths need to be updated so that relative
++         * block commit still works */
++        if (reuse &&
++            (backingStoreStr = virStorageFileGetBackingStoreStr(dd->src))) {
++            if (virStorageIsRelative(backingStoreStr))
++                VIR_STEAL_PTR(dd->relPath, backingStoreStr);
++            else
++                VIR_FREE(backingStoreStr);
++        }
++
+         /* Note that it's unsafe to assume that the disks in the persistent
+          * definition match up with the disks in the live definition just by
+          * checking that the target name is the same. We've done that
+@@ -14213,6 +14227,7 @@ qemuDomainSnapshotUpdateDiskSources(qemuDomainSnapshotDiskDataPtr dd,
+     if (dd->initialized)
+         virStorageFileDeinit(dd->src);
+ 
++    VIR_STEAL_PTR(dd->disk->src->relPath, dd->relPath);
+     VIR_STEAL_PTR(dd->src->backingStore, dd->disk->src);
+     VIR_STEAL_PTR(dd->disk->src, dd->src);
+ 
+@@ -14326,7 +14341,7 @@ qemuDomainSnapshotCreateDiskActive(virQEMUDriverPtr driver,
+ 
+     /* prepare a list of objects to use in the vm definition so that we don't
+      * have to roll back later */
+-    if (!(diskdata = qemuDomainSnapshotDiskDataCollect(driver, vm, snap)))
++    if (!(diskdata = qemuDomainSnapshotDiskDataCollect(driver, vm, snap, reuse)))
+         goto cleanup;
+ 
+     cfg = virQEMUDriverGetConfig(driver);
+-- 
+2.13.1
+

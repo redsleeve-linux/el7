@@ -1,0 +1,82 @@
+From 2e728d3be5792685c38adbd61e80318e51985897 Mon Sep 17 00:00:00 2001
+Message-Id: <2e728d3be5792685c38adbd61e80318e51985897@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 14 Jun 2017 13:43:12 +0200
+Subject: [PATCH] qemu: Add qemuDomainMigratableDefCheckABIStability
+
+This patch separates the actual ABI checks from getting migratable defs
+in qemuDomainDefCheckABIStability so that we can create another wrapper
+which will use different methods to get the migratable defs.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit a0912df3faac8b58725f45b8cf928990999585a3)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1460952
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_domain.c | 34 +++++++++++++++++++++++-----------
+ 1 file changed, 23 insertions(+), 11 deletions(-)
+
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index ce75105afa..b3dc2bc3ac 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -5889,6 +5889,26 @@ virDomainABIStability virQEMUDriverDomainABIStability = {
+ };
+ 
+ 
++static bool
++qemuDomainMigratableDefCheckABIStability(virQEMUDriverPtr driver,
++                                         virDomainDefPtr src,
++                                         virDomainDefPtr migratableSrc,
++                                         virDomainDefPtr dst,
++                                         virDomainDefPtr migratableDst)
++{
++    if (!virDomainDefCheckABIStabilityFlags(migratableSrc,
++                                            migratableDst,
++                                            driver->xmlopt,
++                                            VIR_DOMAIN_DEF_ABI_CHECK_SKIP_VOLATILE))
++        return false;
++
++    /* Force update any skipped values from the volatile flag */
++    dst->mem.cur_balloon = src->mem.cur_balloon;
++
++    return true;
++}
++
++
+ bool
+ qemuDomainDefCheckABIStability(virQEMUDriverPtr driver,
+                                virDomainDefPtr src,
+@@ -5899,23 +5919,15 @@ qemuDomainDefCheckABIStability(virQEMUDriverPtr driver,
+     const unsigned int flags = VIR_DOMAIN_XML_SECURE |
+                                VIR_DOMAIN_XML_UPDATE_CPU |
+                                VIR_DOMAIN_XML_MIGRATABLE;
+-    const unsigned int check_flags = VIR_DOMAIN_DEF_ABI_CHECK_SKIP_VOLATILE;
+     bool ret = false;
+ 
+     if (!(migratableDefSrc = qemuDomainDefCopy(driver, src, flags)) ||
+         !(migratableDefDst = qemuDomainDefCopy(driver, dst, flags)))
+         goto cleanup;
+ 
+-    if (!virDomainDefCheckABIStabilityFlags(migratableDefSrc,
+-                                            migratableDefDst,
+-                                            driver->xmlopt,
+-                                            check_flags))
+-        goto cleanup;
+-
+-    /* Force update any skipped values from the volatile flag */
+-    dst->mem.cur_balloon = src->mem.cur_balloon;
+-
+-    ret = true;
++    ret = qemuDomainMigratableDefCheckABIStability(driver,
++                                                   src, migratableDefSrc,
++                                                   dst, migratableDefDst);
+ 
+  cleanup:
+     virDomainDefFree(migratableDefSrc);
+-- 
+2.13.1
+

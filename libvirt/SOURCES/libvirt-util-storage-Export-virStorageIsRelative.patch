@@ -1,0 +1,58 @@
+From 1c328fa0094c7a1c913f57a7361f650657d1aae8 Mon Sep 17 00:00:00 2001
+Message-Id: <1c328fa0094c7a1c913f57a7361f650657d1aae8@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 20 Jun 2017 14:45:36 +0200
+Subject: [PATCH] util: storage: Export virStorageIsRelative
+
+(cherry picked from commit e4c3eff70ed83694cc49820edcf7f5733e5bae27)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1461303
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+---
+ src/libvirt_private.syms  | 1 +
+ src/util/virstoragefile.c | 2 +-
+ src/util/virstoragefile.h | 1 +
+ 3 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index 8c088316c4..9c596e3f1c 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -2561,6 +2561,7 @@ virStorageFileParseChainIndex;
+ virStorageFileProbeFormat;
+ virStorageFileResize;
+ virStorageIsFile;
++virStorageIsRelative;
+ virStorageNetHostDefClear;
+ virStorageNetHostDefCopy;
+ virStorageNetHostDefFree;
+diff --git a/src/util/virstoragefile.c b/src/util/virstoragefile.c
+index c2ba3fba9f..3ed79fb2b5 100644
+--- a/src/util/virstoragefile.c
++++ b/src/util/virstoragefile.c
+@@ -801,7 +801,7 @@ virStorageIsFile(const char *backing)
+ }
+ 
+ 
+-static bool
++bool
+ virStorageIsRelative(const char *backing)
+ {
+     if (backing[0] == '/')
+diff --git a/src/util/virstoragefile.h b/src/util/virstoragefile.h
+index 9ebfc11081..ce54a19cee 100644
+--- a/src/util/virstoragefile.h
++++ b/src/util/virstoragefile.h
+@@ -332,6 +332,7 @@ int virStorageFileResize(const char *path,
+ 
+ int virStorageFileIsClusterFS(const char *path);
+ bool virStorageIsFile(const char *path);
++bool virStorageIsRelative(const char *backing);
+ 
+ int virStorageFileGetLVMKey(const char *path,
+                             char **key);
+-- 
+2.13.1
+

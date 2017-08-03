@@ -1,0 +1,411 @@
+From 00e9313798b4e830b372d0069fc211019d67f978 Mon Sep 17 00:00:00 2001
+Message-Id: <00e9313798b4e830b372d0069fc211019d67f978@dist-git>
+From: Andrea Bolognani <abologna@redhat.com>
+Date: Tue, 4 Apr 2017 14:59:31 +0200
+Subject: [PATCH] qemu: Enforce ACPI, UEFI requirements
+
+Depending on the architecture, requirements for ACPI and UEFI can
+be different; more specifically, while on x86 UEFI requires ACPI,
+on aarch64 it's the other way around.
+
+Enforce these requirements when validating the domain, and make
+the error message more accurate by mentioning that they're not
+necessarily applicable to all architectures.
+
+Several aarch64 test cases had to be tweaked because they would
+have failed the validation step otherwise.
+
+(cherry picked from commit 396ca36cb0be87bdf6c337bbc8098920eddea065)
+
+Bug: https://bugzilla.redhat.com/show_bug.cgi?id=1429509
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+---
+ src/qemu/qemu_command.c                              | 20 ++++----------------
+ src/qemu/qemu_domain.c                               | 20 ++++++++++++++++++++
+ .../qemuxml2argv-aarch64-aavmf-virtio-mmio.args      |  1 +
+ .../qemuxml2argv-aarch64-aavmf-virtio-mmio.xml       |  1 -
+ .../qemuxml2argv-aarch64-cpu-passthrough.args        |  1 +
+ .../qemuxml2argv-aarch64-cpu-passthrough.xml         |  1 -
+ .../qemuxml2argv-aarch64-video-virtio-gpu-pci.args   |  1 +
+ .../qemuxml2argv-aarch64-video-virtio-gpu-pci.xml    |  3 ---
+ ...xml2argv-aarch64-virt-2.6-virtio-pci-default.args |  1 +
+ ...uxml2argv-aarch64-virt-2.6-virtio-pci-default.xml |  1 -
+ .../qemuxml2argv-aarch64-virt-default-nic.args       |  1 +
+ .../qemuxml2argv-aarch64-virt-default-nic.xml        |  3 ---
+ .../qemuxml2argv-aarch64-virt-virtio.args            |  1 +
+ .../qemuxml2argv-aarch64-virt-virtio.xml             |  1 -
+ .../qemuxml2argv-aarch64-virtio-pci-default.args     |  1 +
+ .../qemuxml2argv-aarch64-virtio-pci-default.xml      |  1 -
+ ...xml2argv-aarch64-virtio-pci-manual-addresses.args |  1 +
+ ...uxml2argv-aarch64-virtio-pci-manual-addresses.xml |  1 -
+ .../qemuxml2argv-balloon-mmio-deflate.args           |  1 +
+ .../qemuxml2argv-balloon-mmio-deflate.xml            |  1 -
+ .../qemuxml2xmlout-aarch64-aavmf-virtio-mmio.xml     |  1 -
+ .../qemuxml2xmlout-aarch64-video-virtio-gpu-pci.xml  |  1 -
+ .../qemuxml2xmlout-aarch64-virtio-pci-default.xml    |  1 -
+ ...ml2xmlout-aarch64-virtio-pci-manual-addresses.xml |  1 -
+ 24 files changed, 33 insertions(+), 33 deletions(-)
+
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index 59fedaaaf..8ec4ec3a6 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -9346,18 +9346,16 @@ qemuBuildRedirdevCommandLine(virLogManagerPtr logManager,
+ }
+ 
+ 
+-static int
++static void
+ qemuBuildDomainLoaderCommandLine(virCommandPtr cmd,
+-                                 virDomainDefPtr def,
+-                                 virQEMUCapsPtr qemuCaps)
++                                 virDomainDefPtr def)
+ {
+-    int ret = -1;
+     virDomainLoaderDefPtr loader = def->os.loader;
+     virBuffer buf = VIR_BUFFER_INITIALIZER;
+     int unit = 0;
+ 
+     if (!loader)
+-        return 0;
++        return;
+ 
+     switch ((virDomainLoader) loader->type) {
+     case VIR_DOMAIN_LOADER_TYPE_ROM:
+@@ -9366,12 +9364,6 @@ qemuBuildDomainLoaderCommandLine(virCommandPtr cmd,
+         break;
+ 
+     case VIR_DOMAIN_LOADER_TYPE_PFLASH:
+-        if (virQEMUCapsGet(qemuCaps, QEMU_CAPS_NO_ACPI) &&
+-            def->features[VIR_DOMAIN_FEATURE_ACPI] != VIR_TRISTATE_SWITCH_ON) {
+-            virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+-                           _("ACPI must be enabled in order to use UEFI"));
+-            goto cleanup;
+-        }
+ 
+         if (loader->secure == VIR_TRISTATE_BOOL_YES) {
+             virCommandAddArgList(cmd,
+@@ -9409,10 +9401,7 @@ qemuBuildDomainLoaderCommandLine(virCommandPtr cmd,
+         break;
+     }
+ 
+-    ret = 0;
+- cleanup:
+     virBufferFreeAndReset(&buf);
+-    return ret;
+ }
+ 
+ 
+@@ -9849,8 +9838,7 @@ qemuBuildCommandLine(virQEMUDriverPtr driver,
+     if (qemuBuildCpuCommandLine(cmd, driver, def, qemuCaps) < 0)
+         goto error;
+ 
+-    if (qemuBuildDomainLoaderCommandLine(cmd, def, qemuCaps) < 0)
+-        goto error;
++    qemuBuildDomainLoaderCommandLine(cmd, def);
+ 
+     if (!migrateURI && !snapshot && qemuDomainAlignMemorySizes(def) < 0)
+         goto error;
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index 9f165c1da..f383a6cf2 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -2884,6 +2884,26 @@ qemuDomainDefValidate(const virDomainDef *def,
+         goto cleanup;
+     }
+ 
++    /* On x86, UEFI requires ACPI */
++    if (def->os.loader &&
++        def->os.loader->type == VIR_DOMAIN_LOADER_TYPE_PFLASH &&
++        ARCH_IS_X86(def->os.arch) &&
++        def->features[VIR_DOMAIN_FEATURE_ACPI] != VIR_TRISTATE_SWITCH_ON) {
++        virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
++                       _("UEFI requires ACPI on this architecture"));
++        goto cleanup;
++    }
++
++    /* On aarch64, ACPI requires UEFI */
++    if (def->features[VIR_DOMAIN_FEATURE_ACPI] == VIR_TRISTATE_SWITCH_ON &&
++        def->os.arch == VIR_ARCH_AARCH64 &&
++        (!def->os.loader ||
++         def->os.loader->type != VIR_DOMAIN_LOADER_TYPE_PFLASH)) {
++        virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
++                       _("ACPI requires UEFI on this architecture"));
++        goto cleanup;
++    }
++
+     if (def->os.loader &&
+         def->os.loader->secure == VIR_TRISTATE_BOOL_YES) {
+         /* These are the QEMU implementation limitations. But we
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-aavmf-virtio-mmio.args b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-aavmf-virtio-mmio.args
+index bf4b2f793..68fb61b1e 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-aavmf-virtio-mmio.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-aavmf-virtio-mmio.args
+@@ -16,6 +16,7 @@ QEMU_AUDIO_DRV=none \
+ -nodefconfig \
+ -nodefaults \
+ -monitor unix:/tmp/lib/domain--1-aarch64test/monitor.sock,server,nowait \
++-no-acpi \
+ -boot c \
+ -kernel /aarch64.kernel \
+ -initrd /aarch64.initrd \
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-aavmf-virtio-mmio.xml b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-aavmf-virtio-mmio.xml
+index 8c7428cf8..5d7217307 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-aavmf-virtio-mmio.xml
++++ b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-aavmf-virtio-mmio.xml
+@@ -13,7 +13,6 @@
+     <boot dev='hd'/>
+   </os>
+   <features>
+-    <acpi/>
+     <apic/>
+     <pae/>
+     <gic version='2'/>
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-cpu-passthrough.args b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-cpu-passthrough.args
+index 52d2112b8..9c8c001f1 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-cpu-passthrough.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-cpu-passthrough.args
+@@ -16,6 +16,7 @@ QEMU_AUDIO_DRV=none \
+ -nodefconfig \
+ -nodefaults \
+ -monitor unix:/tmp/lib/domain--1-aarch64test/monitor.sock,server,nowait \
++-no-acpi \
+ -boot c \
+ -drive file=/aarch64.raw,format=raw,if=none,id=drive-virtio-disk0 \
+ -device virtio-blk-device,drive=drive-virtio-disk0,id=virtio-disk0
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-cpu-passthrough.xml b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-cpu-passthrough.xml
+index 4cdf387f3..0dda09504 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-cpu-passthrough.xml
++++ b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-cpu-passthrough.xml
+@@ -8,7 +8,6 @@
+     <type arch="aarch64" machine="virt">hvm</type>
+   </os>
+   <features>
+-    <acpi/>
+     <apic/>
+     <pae/>
+   </features>
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-video-virtio-gpu-pci.args b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-video-virtio-gpu-pci.args
+index 76ee977a3..2f8c51610 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-video-virtio-gpu-pci.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-video-virtio-gpu-pci.args
+@@ -16,6 +16,7 @@ QEMU_AUDIO_DRV=none \
+ -nodefconfig \
+ -nodefaults \
+ -monitor unix:/tmp/lib/domain--1-aarch64-vgpu/monitor.sock,server,nowait \
++-no-acpi \
+ -device ioh3420,port=0x8,chassis=1,id=pci.1,bus=pcie.0,multifunction=on,\
+ addr=0x1 \
+ -device ioh3420,port=0x9,chassis=2,id=pci.2,bus=pcie.0,multifunction=on,\
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-video-virtio-gpu-pci.xml b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-video-virtio-gpu-pci.xml
+index 4b52a731b..d9a012893 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-video-virtio-gpu-pci.xml
++++ b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-video-virtio-gpu-pci.xml
+@@ -7,9 +7,6 @@
+   <os>
+     <type arch='aarch64' machine='virt'>hvm</type>
+   </os>
+-  <features>
+-    <acpi/>
+-  </features>
+   <cpu mode='custom' match='exact'>
+     <model fallback='allow'>cortex-a57</model>
+   </cpu>
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virt-2.6-virtio-pci-default.args b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virt-2.6-virtio-pci-default.args
+index df03c6e02..e99d412a7 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virt-2.6-virtio-pci-default.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virt-2.6-virtio-pci-default.args
+@@ -16,6 +16,7 @@ QEMU_AUDIO_DRV=none \
+ -nodefconfig \
+ -nodefaults \
+ -monitor unix:/tmp/lib/domain--1-aarch64test/monitor.sock,server,nowait \
++-no-acpi \
+ -boot c \
+ -kernel /aarch64.kernel \
+ -initrd /aarch64.initrd \
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virt-2.6-virtio-pci-default.xml b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virt-2.6-virtio-pci-default.xml
+index e745101f1..43bc0089c 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virt-2.6-virtio-pci-default.xml
++++ b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virt-2.6-virtio-pci-default.xml
+@@ -12,7 +12,6 @@
+     <cmdline>earlyprintk console=ttyAMA0,115200n8 rw root=/dev/vda rootwait</cmdline>
+   </os>
+   <features>
+-    <acpi/>
+     <apic/>
+     <pae/>
+   </features>
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virt-default-nic.args b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virt-default-nic.args
+index 29f65f6b9..47d77618b 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virt-default-nic.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virt-default-nic.args
+@@ -17,6 +17,7 @@ QEMU_AUDIO_DRV=none \
+ -nodefaults \
+ -monitor unix:/tmp/lib/domain--1-aarch64-virt-default/monitor.sock,server,\
+ nowait \
++-no-acpi \
+ -boot c \
+ -kernel /aarch64.kernel \
+ -initrd /aarch64.initrd \
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virt-default-nic.xml b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virt-default-nic.xml
+index 3a6f098d0..17ddc9096 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virt-default-nic.xml
++++ b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virt-default-nic.xml
+@@ -4,9 +4,6 @@
+   <memory>1048576</memory>
+   <currentMemory>1048576</currentMemory>
+   <vcpu>1</vcpu>
+-  <features>
+-    <acpi/>
+-  </features>
+   <cpu match='exact'>
+     <model>cortex-a53</model>
+   </cpu>
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virt-virtio.args b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virt-virtio.args
+index b5b010ca4..5fef3b488 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virt-virtio.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virt-virtio.args
+@@ -16,6 +16,7 @@ QEMU_AUDIO_DRV=none \
+ -nodefconfig \
+ -nodefaults \
+ -monitor unix:/tmp/lib/domain--1-aarch64test/monitor.sock,server,nowait \
++-no-acpi \
+ -boot c \
+ -kernel /aarch64.kernel \
+ -initrd /aarch64.initrd \
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virt-virtio.xml b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virt-virtio.xml
+index ad3461512..2692e61c4 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virt-virtio.xml
++++ b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virt-virtio.xml
+@@ -12,7 +12,6 @@
+     <cmdline>earlyprintk console=ttyAMA0,115200n8 rw root=/dev/vda rootwait</cmdline>
+   </os>
+   <features>
+-    <acpi/>
+     <apic/>
+     <pae/>
+   </features>
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virtio-pci-default.args b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virtio-pci-default.args
+index 46ac51d50..23a5fffd0 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virtio-pci-default.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virtio-pci-default.args
+@@ -16,6 +16,7 @@ QEMU_AUDIO_DRV=none \
+ -nodefconfig \
+ -nodefaults \
+ -monitor unix:/tmp/lib/domain--1-aarch64test/monitor.sock,server,nowait \
++-no-acpi \
+ -boot c \
+ -kernel /aarch64.kernel \
+ -initrd /aarch64.initrd \
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virtio-pci-default.xml b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virtio-pci-default.xml
+index 2a84a9669..72bf0c95c 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virtio-pci-default.xml
++++ b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virtio-pci-default.xml
+@@ -12,7 +12,6 @@
+     <cmdline>earlyprintk console=ttyAMA0,115200n8 rw root=/dev/vda rootwait</cmdline>
+   </os>
+   <features>
+-    <acpi/>
+     <apic/>
+     <pae/>
+   </features>
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virtio-pci-manual-addresses.args b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virtio-pci-manual-addresses.args
+index 06403996e..54244fdcf 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virtio-pci-manual-addresses.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virtio-pci-manual-addresses.args
+@@ -16,6 +16,7 @@ QEMU_AUDIO_DRV=none \
+ -nodefconfig \
+ -nodefaults \
+ -monitor unix:/tmp/lib/domain--1-aarch64test/monitor.sock,server,nowait \
++-no-acpi \
+ -boot c \
+ -kernel /aarch64.kernel \
+ -initrd /aarch64.initrd \
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virtio-pci-manual-addresses.xml b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virtio-pci-manual-addresses.xml
+index 5e1b494ed..fee32588f 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virtio-pci-manual-addresses.xml
++++ b/tests/qemuxml2argvdata/qemuxml2argv-aarch64-virtio-pci-manual-addresses.xml
+@@ -13,7 +13,6 @@
+     <boot dev='hd'/>
+   </os>
+   <features>
+-    <acpi/>
+     <apic/>
+     <pae/>
+   </features>
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-balloon-mmio-deflate.args b/tests/qemuxml2argvdata/qemuxml2argv-balloon-mmio-deflate.args
+index 10d136258..e568e3c39 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-balloon-mmio-deflate.args
++++ b/tests/qemuxml2argvdata/qemuxml2argv-balloon-mmio-deflate.args
+@@ -16,6 +16,7 @@ QEMU_AUDIO_DRV=none \
+ -nodefconfig \
+ -nodefaults \
+ -monitor unix:/tmp/lib/domain--1-aarch64test/monitor.sock,server,nowait \
++-no-acpi \
+ -boot c \
+ -kernel /aarch64.kernel \
+ -initrd /aarch64.initrd \
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-balloon-mmio-deflate.xml b/tests/qemuxml2argvdata/qemuxml2argv-balloon-mmio-deflate.xml
+index 1b5b48c42..49b7d2c60 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-balloon-mmio-deflate.xml
++++ b/tests/qemuxml2argvdata/qemuxml2argv-balloon-mmio-deflate.xml
+@@ -12,7 +12,6 @@
+     <cmdline>earlyprintk console=ttyAMA0,115200n8 rw root=/dev/vda rootwait</cmdline>
+   </os>
+   <features>
+-    <acpi/>
+     <apic/>
+     <pae/>
+   </features>
+diff --git a/tests/qemuxml2xmloutdata/qemuxml2xmlout-aarch64-aavmf-virtio-mmio.xml b/tests/qemuxml2xmloutdata/qemuxml2xmlout-aarch64-aavmf-virtio-mmio.xml
+index bea65990e..9e728300e 100644
+--- a/tests/qemuxml2xmloutdata/qemuxml2xmlout-aarch64-aavmf-virtio-mmio.xml
++++ b/tests/qemuxml2xmloutdata/qemuxml2xmlout-aarch64-aavmf-virtio-mmio.xml
+@@ -13,7 +13,6 @@
+     <boot dev='hd'/>
+   </os>
+   <features>
+-    <acpi/>
+     <apic/>
+     <pae/>
+     <gic version='2'/>
+diff --git a/tests/qemuxml2xmloutdata/qemuxml2xmlout-aarch64-video-virtio-gpu-pci.xml b/tests/qemuxml2xmloutdata/qemuxml2xmlout-aarch64-video-virtio-gpu-pci.xml
+index 2c765e7c3..8590f485e 100644
+--- a/tests/qemuxml2xmloutdata/qemuxml2xmlout-aarch64-video-virtio-gpu-pci.xml
++++ b/tests/qemuxml2xmloutdata/qemuxml2xmlout-aarch64-video-virtio-gpu-pci.xml
+@@ -8,7 +8,6 @@
+     <type arch='aarch64' machine='virt'>hvm</type>
+   </os>
+   <features>
+-    <acpi/>
+     <gic version='2'/>
+   </features>
+   <cpu mode='custom' match='exact' check='none'>
+diff --git a/tests/qemuxml2xmloutdata/qemuxml2xmlout-aarch64-virtio-pci-default.xml b/tests/qemuxml2xmloutdata/qemuxml2xmlout-aarch64-virtio-pci-default.xml
+index 88a6a6a0c..e5496424b 100644
+--- a/tests/qemuxml2xmloutdata/qemuxml2xmlout-aarch64-virtio-pci-default.xml
++++ b/tests/qemuxml2xmloutdata/qemuxml2xmlout-aarch64-virtio-pci-default.xml
+@@ -13,7 +13,6 @@
+     <boot dev='hd'/>
+   </os>
+   <features>
+-    <acpi/>
+     <apic/>
+     <pae/>
+     <gic version='2'/>
+diff --git a/tests/qemuxml2xmloutdata/qemuxml2xmlout-aarch64-virtio-pci-manual-addresses.xml b/tests/qemuxml2xmloutdata/qemuxml2xmlout-aarch64-virtio-pci-manual-addresses.xml
+index 83cf0d1f5..83d8dcc4a 100644
+--- a/tests/qemuxml2xmloutdata/qemuxml2xmlout-aarch64-virtio-pci-manual-addresses.xml
++++ b/tests/qemuxml2xmloutdata/qemuxml2xmlout-aarch64-virtio-pci-manual-addresses.xml
+@@ -13,7 +13,6 @@
+     <boot dev='hd'/>
+   </os>
+   <features>
+-    <acpi/>
+     <apic/>
+     <pae/>
+     <gic version='2'/>
+-- 
+2.12.2
+

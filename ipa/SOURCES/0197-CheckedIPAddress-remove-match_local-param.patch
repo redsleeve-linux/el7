@@ -1,0 +1,141 @@
+From c4482f0441e610c077d550c10b9525f97ea2f984 Mon Sep 17 00:00:00 2001
+From: Martin Basti <mbasti@redhat.com>
+Date: Wed, 14 Jun 2017 14:54:43 +0200
+Subject: [PATCH] CheckedIPAddress: remove match_local param
+
+This parameter is unused in code. We are no longer testing if IP address
+matches an interface in constructor.
+
+https://pagure.io/freeipa/issue/4317
+
+Reviewed-By: David Kupka <dkupka@redhat.com>
+---
+ ipapython/config.py                     |  5 ++---
+ ipapython/ipautil.py                    | 10 +---------
+ ipaserver/install/installutils.py       |  2 +-
+ ipaserver/plugins/dns.py                |  4 ++--
+ ipaserver/plugins/host.py               |  2 +-
+ ipatests/test_ipapython/test_ipautil.py |  3 +--
+ 6 files changed, 8 insertions(+), 18 deletions(-)
+
+diff --git a/ipapython/config.py b/ipapython/config.py
+index 9db2dcd4dbf3ed0fbe3e3166c3f0c5bae0f1716b..6349892fe88757629129f464401efce64e30f058 100644
+--- a/ipapython/config.py
++++ b/ipapython/config.py
+@@ -68,10 +68,9 @@ class IPAFormatter(IndentedHelpFormatter):
+ def check_ip_option(option, opt, value):
+     from ipapython.ipautil import CheckedIPAddress
+ 
+-    ip_local = option.ip_local is True
+     ip_netmask = option.ip_netmask is True
+     try:
+-        return CheckedIPAddress(value, parse_netmask=ip_netmask, match_local=ip_local)
++        return CheckedIPAddress(value, parse_netmask=ip_netmask)
+     except Exception as e:
+         raise OptionValueError("option %s: invalid IP address %s: %s" % (opt, value, e))
+ 
+@@ -86,7 +85,7 @@ class IPAOption(Option):
+     optparse.Option subclass with support of options labeled as
+     security-sensitive such as passwords.
+     """
+-    ATTRS = Option.ATTRS + ["sensitive", "ip_local", "ip_netmask"]
++    ATTRS = Option.ATTRS + ["sensitive", "ip_netmask"]
+     TYPES = Option.TYPES + ("ip", "dn")
+     TYPE_CHECKER = copy(Option.TYPE_CHECKER)
+     TYPE_CHECKER["ip"] = check_ip_option
+diff --git a/ipapython/ipautil.py b/ipapython/ipautil.py
+index 2c020e3ecbf4d8b969511a6dd9b36ee955ba1f15..5a6bf5a27d5a6e25c51fbaa6e2b1167652e2735d 100644
+--- a/ipapython/ipautil.py
++++ b/ipapython/ipautil.py
+@@ -135,7 +135,7 @@ class CheckedIPAddress(UnsafeIPAddress):
+ 
+     Reserved or link-local addresses are never accepted.
+     """
+-    def __init__(self, addr, match_local=False, parse_netmask=True,
++    def __init__(self, addr, parse_netmask=True,
+                  allow_loopback=False, allow_multicast=False):
+         try:
+             super(CheckedIPAddress, self).__init__(addr)
+@@ -166,14 +166,6 @@ class CheckedIPAddress(UnsafeIPAddress):
+         if not allow_multicast and self.is_multicast():
+             raise ValueError("cannot use multicast IP address {}".format(addr))
+ 
+-        if match_local:
+-            intf_details = self.get_matching_interface()
+-            if not intf_details:
+-                raise ValueError('no network interface matches the IP address '
+-                                 'and netmask {}'.format(addr))
+-            else:
+-                self.set_ip_net(intf_details.ifnet)
+-
+         if self._net is None:
+             if self.version == 4:
+                 self._net = netaddr.IPNetwork(
+diff --git a/ipaserver/install/installutils.py b/ipaserver/install/installutils.py
+index 3521d555914714351160213df60ed9167ac6e370..01930c4de6f0edd16b31aeba1c926fe581e9635b 100644
+--- a/ipaserver/install/installutils.py
++++ b/ipaserver/install/installutils.py
+@@ -585,7 +585,7 @@ def get_server_ip_address(host_name, unattended, setup_dns, ip_addresses):
+     if len(hostaddr):
+         for ha in hostaddr:
+             try:
+-                ips.append(ipautil.CheckedIPAddress(ha, match_local=False))
++                ips.append(ipautil.CheckedIPAddress(ha))
+             except ValueError as e:
+                 root_logger.warning("Invalid IP address %s for %s: %s", ha, host_name, unicode(e))
+ 
+diff --git a/ipaserver/plugins/dns.py b/ipaserver/plugins/dns.py
+index f0e6c48f06313def57cdd6a4c7114357c9d8de8a..f01baf515525c43824eddf06abc7af9fef228efe 100644
+--- a/ipaserver/plugins/dns.py
++++ b/ipaserver/plugins/dns.py
+@@ -567,7 +567,7 @@ def add_records_for_host_validation(option_name, host, domain, ip_addresses, che
+     for ip_address in ip_addresses:
+         try:
+             ip = CheckedIPAddress(
+-                ip_address, match_local=False, allow_multicast=True)
++                ip_address, allow_multicast=True)
+         except Exception as e:
+             raise errors.ValidationError(name=option_name, error=unicode(e))
+ 
+@@ -599,7 +599,7 @@ def add_records_for_host(host, domain, ip_addresses, add_forward=True, add_rever
+ 
+     for ip_address in ip_addresses:
+         ip = CheckedIPAddress(
+-            ip_address, match_local=False, allow_multicast=True)
++            ip_address, allow_multicast=True)
+ 
+         if add_forward:
+             add_forward_record(domain, host, unicode(ip))
+diff --git a/ipaserver/plugins/host.py b/ipaserver/plugins/host.py
+index 1e1f9d82dfdfcf9e7fef65ce729cd8ee7b76e605..364e5be6002eeb9c5e6b4c594b71f38169598227 100644
+--- a/ipaserver/plugins/host.py
++++ b/ipaserver/plugins/host.py
+@@ -245,7 +245,7 @@ def validate_ipaddr(ugettext, ipaddr):
+     Verify that we have either an IPv4 or IPv6 address.
+     """
+     try:
+-        CheckedIPAddress(ipaddr, match_local=False)
++        CheckedIPAddress(ipaddr)
+     except Exception as e:
+         return unicode(e)
+     return None
+diff --git a/ipatests/test_ipapython/test_ipautil.py b/ipatests/test_ipapython/test_ipautil.py
+index 6427935b162b087c55e069cb2a576a7379cbe7a7..9c351bd0ed9cd96488ac74deadf97996668a75d2 100644
+--- a/ipatests/test_ipapython/test_ipautil.py
++++ b/ipatests/test_ipapython/test_ipautil.py
+@@ -30,11 +30,10 @@ from ipapython import ipautil
+ 
+ pytestmark = pytest.mark.tier0
+ 
+-
+ def make_ipaddress_checker(addr, words=None, prefixlen=None):
+     def check_ipaddress():
+         try:
+-            ip = ipautil.CheckedIPAddress(addr, match_local=False)
++            ip = ipautil.CheckedIPAddress(addr)
+             assert ip.words == words and ip.prefixlen == prefixlen
+         except Exception:
+             assert words is None and prefixlen is None
+-- 
+2.9.4
+

@@ -1,6 +1,6 @@
-From 5114efc4a077a1fdfa9873e6f44a00d5f8101f65 Mon Sep 17 00:00:00 2001
+From e675e8ae59a4eb6a39fa9d1f13011fd4e718ce67 Mon Sep 17 00:00:00 2001
 From: Fam Zheng <famz@redhat.com>
-Date: Fri, 19 May 2017 00:35:08 +0200
+Date: Thu, 18 May 2017 09:21:16 +0200
 Subject: [PATCH 03/18] char/serial: serial_ioport_write: Factor out common
  code
 MIME-Version: 1.0
@@ -8,12 +8,12 @@ Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 
 RH-Author: Fam Zheng <famz@redhat.com>
-Message-id: <20170519003523.21163-4-famz@redhat.com>
-Patchwork-id: 75357
-O-Subject: [RHEL-7.3.z qemu-kvm PATCH 03/18] char/serial: serial_ioport_write: Factor out common code
-Bugzilla: 1452332
+Message-id: <20170518092131.16571-4-famz@redhat.com>
+Patchwork-id: 75295
+O-Subject: [RHEL-7.4 qemu-kvm PATCH v3 03/18] char/serial: serial_ioport_write: Factor out common code
+Bugzilla: 1451470
 RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
-RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
 RH-Acked-by: Eduardo Habkost <ehabkost@redhat.com>
 
 From: Peter Crosthwaite <peter.crosthwaite@xilinx.com>

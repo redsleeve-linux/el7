@@ -1,0 +1,35 @@
+From a2c387ae1687170e827e0aa2b49faf759c015798 Mon Sep 17 00:00:00 2001
+From: "Bryn M. Reeves" <bmr@redhat.com>
+Date: Wed, 19 Apr 2017 14:22:50 +0100
+Subject: [PATCH] [Pugin] revert 77eb4ab (do not return output from failed
+ commands)
+
+Revert this commit: individual plugins must test the command
+status (if they care): plugins that attempt to access command
+output without testing command status are buggy and need to be
+fixed.
+
+Resolves: #986.
+
+Signed-off-by: Bryn M. Reeves <bmr@redhat.com>
+---
+ sos/plugins/__init__.py | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/sos/plugins/__init__.py b/sos/plugins/__init__.py
+index 5286e4b..35edcb1 100644
+--- a/sos/plugins/__init__.py
++++ b/sos/plugins/__init__.py
+@@ -692,9 +692,6 @@ class Plugin(object):
+         if result['status'] == 126 or result['status'] == 127:
+             return None
+ 
+-        if result['status'] == 1:
+-            return None
+-
+         self._log_debug("collected output of '%s' in %s"
+                         % (exe.split()[0], time() - start))
+ 
+-- 
+2.7.4
+

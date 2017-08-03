@@ -5,7 +5,7 @@ Version:        3.10.1
 %if "%{?enable_native_atlas}" != "0"
 %define dist .native
 %endif
-Release:        10%{?dist}.redsleeve
+Release:        12%{?dist}
 Summary:        Automatically Tuned Linear Algebra Software
 
 Group:          System Environment/Libraries
@@ -44,6 +44,7 @@ Patch6:		atlas-affinity.patch
 Patch7:		atlas-aarch64port.patch
 Patch8:		atlas-genparse.patch
 
+Patch9:		atlas-memleak.patch
 # ppc64le patches
 Patch95:	initialize_malloc_memory.invtrsm.wms.oct23.patch
 Patch96:	xlf.command.not.found.patch
@@ -297,8 +298,7 @@ ix86 architecture.
 #beware - arch constant can change between releases
 %define arch_option -A 46 
 %define threads_option -t 2
-#%global armflags -mfpu=neon -mfloat-abi=hard
-%global armflags %{nil}
+%global armflags -mfpu=neon -mfloat-abi=hard
 %global mode %{nil}
 %else
 %global mode -b %{__isa_bits}
@@ -330,6 +330,7 @@ ix86 architecture.
 %patch7 -p1 -b .aarch64
 %endif
 %patch8 -p1 -b .genparse
+%patch9 -p1 -b .memleak
 cp %{SOURCE1} CONFIG/ARCHS/
 #cp %{SOURCE2} CONFIG/ARCHS/
 cp %{SOURCE3} doc
@@ -337,9 +338,17 @@ cp %{SOURCE11} CONFIG/ARCHS/
 cp %{SOURCE12} CONFIG/ARCHS/
 #cp %{SOURCE13} CONFIG/ARCHS/
 
-#cp %{SOURCE14} CONFIG/ARCHS/
+cp %{SOURCE14} CONFIG/ARCHS/
 #cp %{SOURCE8} CONFIG/ARCHS/
 #cp %{SOURCE9} CONFIG/ARCHS/
+
+%ifarch ppc ppc64
+%patch99 -p2
+#%patch98 -p2
+#%patch95 -p2
+#%patch100 -p2
+%patch110 -p1
+%endif
 
 %ifarch ppc64le
 %patch99 -p2
@@ -368,6 +377,8 @@ for type in %{types}; do
 	--libdir=%{buildroot}%{_libdir}/${libname}	\
 	--with-netlib-lapack-tarfile=%{SOURCE10}
 
+sed -i 's#F77FLAGS =\(.*\)#F77FLAGS=\1 -frecursive#' Make.inc
+
 %if "%{?enable_native_atlas}" == "0"
 %ifarch x86_64
 	if [ "$type" = "base" ]; then
@@ -375,18 +386,18 @@ for type in %{types}; do
 #		sed -i 's#ARCH =.*#ARCH = HAMMER64SSE3#' Make.inc
 		sed -i 's#ARCH =.*#ARCH = P4E64SSE3#' Make.inc
 #		sed -i 's#-DATL_SSE3##' Make.inc
-		sed -i 's#-DATL_AVX##' Make.inc 
-#		sed -i 's#-msse3#-msse2#' Make.inc 
-		sed -i 's#-mavx#-msse3#' Make.inc
-		echo 'base makefile edited' 
-#		sed -i 's#PMAKE = $(MAKE) .*#PMAKE = $(MAKE) -j 1#' Make.inc 
+		sed -i 's#-DATL_AVX\b##' Make.inc
+#		sed -i 's#-msse3#-msse2#' Make.inc
+		sed -i 's#-mavx\b#-msse3#' Make.inc
+		echo 'base makefile edited'
+#		sed -i 's#PMAKE = $(MAKE) .*#PMAKE = $(MAKE) -j 1#' Make.inc
 	elif [ "$type" = "sse3" ]; then
 #		sed -i 's#ARCH =.*#ARCH = Corei264AVX#' Make.inc
 #		sed -i 's#PMAKE = $(MAKE) .*#PMAKE = $(MAKE) -j 1#' Make.inc
-		sed -i 's#-DATL_AVX##' Make.inc
+		sed -i 's#-DATL_AVX\b##' Make.inc
 		sed -i 's#-DATL_SSE2##' Make.inc
-		sed -i 's#-mavx#-msse2#' Make.inc 
-		sed -i 's#-msse3#-msse2#' Make.inc 
+		sed -i 's#-mavx\b#-msse2#' Make.inc
+		sed -i 's#-msse3#-msse2#' Make.inc
 		echo 'sse makefile edited'
 		%define pr_sse3 %(echo $((%{__isa_bits}+4)))
 	fi
@@ -438,16 +449,16 @@ for type in %{types}; do
 	sed -i 's#ARCH =.*#ARCH = POWER332#' Make.inc
 	sed -i 's#-DATL_ARCH_POWER7#-DATL_ARCH_POWER3#g' Make.inc
 	sed -i 's#power7#power3#g' Make.inc
-	sed -i 's#-DATL_VSX##g' Make.inc
-	sed -i 's#-mvsx##g' Make.inc
+	sed -i 's#-DATL_VSX\b##g' Make.inc
+	sed -i 's#-mvsx\b##g' Make.inc
 	sed -i 's#-DATL_AltiVec##g' Make.inc
 	sed -i 's#-m64#-m32#g' Make.inc
 %endif
 
 %ifarch ppc64le
 	sed -i 's#-mvsx##g' Make.inc
-	sed -i 's#-DATL_VSX##g' Make.inc
-	sed -i 's#-DATL_AltiVec##g' Make.inc
+	sed -i 's#-DATL_VSX\b##g' Make.inc
+	sed -i 's#-DATL_AltiVec\b##g' Make.inc
 	sed -i 's#-maltivec##g' Make.inc
 	sed -i 's#ARCH =.*#ARCH = POWER464#' Make.inc
 %endif
@@ -786,8 +797,18 @@ fi
 %endif
 
 %changelog
-* Sat Nov 28 2015 Jacco Ligthart <jacco@redsleeve.org> - 3.10.1-10.redsleeve
-- changed arm behaviour to default, without hardfpu
+* Wed Mar 15 2017 Jakub Martisko <jamartis@redhat.com> - 3.10.1-12
+- cleanup: merge the application of ppc patches from previous commit
+  into single block
+- Related: rhbz#1350536
+
+* Mon Feb 27 2017 Jakub Martisko <jamartis@redhat.com> - 3.10.1-11
+- apply patches 99 and 110 to all ppc variants
+- build lapack with -frecursive flag (#1176026)
+- fix possible memory leak (#1350536)
+- fix wrong sed substitutions (#1402627)
+- Resolves: rhbz#1350536
+- Related: rhbz#1176026
 
 * Thu Oct 23 2014 Jaromir Capik <jcapik@redhat.com> - 3.10.1-10
 - patching for Power8 to pass performance tunings and tests on P8 builders

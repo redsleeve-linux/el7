@@ -1,0 +1,57 @@
+From 2d773381c7dd2d015a0890db36df64c76a6bfe46 Mon Sep 17 00:00:00 2001
+Message-Id: <2d773381c7dd2d015a0890db36df64c76a6bfe46@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 4 Apr 2017 09:31:23 +0200
+Subject: [PATCH] qemu: hotplug: Add validation for coldplug of individual
+ vcpus
+
+Validate that users don't try to disable vcpu 0.
+
+(cherry picked from commit ee86d45de35bff5f75d1583701cc9514b59e747c)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1437010
+---
+ src/qemu/qemu_hotplug.c | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)
+
+diff --git a/src/qemu/qemu_hotplug.c b/src/qemu/qemu_hotplug.c
+index 5488b1dd4..999c8b804 100644
+--- a/src/qemu/qemu_hotplug.c
++++ b/src/qemu/qemu_hotplug.c
+@@ -5875,6 +5875,21 @@ qemuDomainFilterHotplugVcpuEntities(virDomainDefPtr def,
+ }
+ 
+ 
++static int
++qemuDomainVcpuValidateConfig(virBitmapPtr map,
++                             bool state)
++{
++    /* vcpu 0 can't be disabled */
++    if (!state && virBitmapIsBitSet(map, 0)) {
++        virReportError(VIR_ERR_INVALID_ARG, "%s",
++                       _("vCPU '0' must be enabled"));
++        return -1;
++    }
++
++    return 0;
++}
++
++
+ int
+ qemuDomainSetVcpuInternal(virQEMUDriverPtr driver,
+                           virDomainObjPtr vm,
+@@ -5909,6 +5924,11 @@ qemuDomainSetVcpuInternal(virQEMUDriverPtr driver,
+         }
+     }
+ 
++    if (persistentDef) {
++        if (qemuDomainVcpuValidateConfig(map, state) < 0)
++            goto cleanup;
++    }
++
+     if (livevcpus &&
+         qemuDomainSetVcpusLive(driver, cfg, vm, livevcpus, state) < 0)
+         goto cleanup;
+-- 
+2.12.2
+

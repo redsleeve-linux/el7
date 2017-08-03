@@ -1,13 +1,13 @@
-From e0ec8bdaf64a147c83334ae6f59e279c4560d01b Mon Sep 17 00:00:00 2001
+From 4394f52159cec32cded60ec8f86cd4b92a85bfe5 Mon Sep 17 00:00:00 2001
 From: Gerd Hoffmann <kraxel@redhat.com>
 Date: Tue, 7 Feb 2017 10:07:47 +0100
-Subject: [PATCH 3/8] display: cirrus: check vga bits per pixel(bpp) value
+Subject: [PATCH 04/11] display: cirrus: check vga bits per pixel(bpp) value
 
 RH-Author: Gerd Hoffmann <kraxel@redhat.com>
 Message-id: <1486462072-32174-3-git-send-email-kraxel@redhat.com>
 Patchwork-id: 73568
 O-Subject: [RHEL-7.4 qemu-kvm PATCH 2/7] display: cirrus: check vga bits per pixel(bpp) value
-Bugzilla: 1418232
+Bugzilla: 1418233
 RH-Acked-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
 RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
 RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>

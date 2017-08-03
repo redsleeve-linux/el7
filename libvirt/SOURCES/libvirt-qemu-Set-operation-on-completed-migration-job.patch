@@ -1,0 +1,43 @@
+From 3a9924b5ea76945b0df16cd21fd0acbb6fe152fc Mon Sep 17 00:00:00 2001
+Message-Id: <3a9924b5ea76945b0df16cd21fd0acbb6fe152fc@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 31 May 2017 10:08:28 +0200
+Subject: [PATCH] qemu: Set operation on completed migration job
+
+Without this patch libvirt would just report the operation of a
+completed job as "unknown" instead of "incoming migration".
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1457052
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit 49d30bc2e292785bf2edc121c12bc5c10264d1d4)
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_migration_cookie.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/qemu/qemu_migration_cookie.c b/src/qemu/qemu_migration_cookie.c
+index 12887892db..559b1f0c15 100644
+--- a/src/qemu/qemu_migration_cookie.c
++++ b/src/qemu/qemu_migration_cookie.c
+@@ -1292,6 +1292,7 @@ qemuMigrationEatCookie(virQEMUDriverPtr driver,
+                        int cookieinlen,
+                        unsigned int flags)
+ {
++    qemuDomainObjPrivatePtr priv = dom->privateData;
+     qemuMigrationCookiePtr mig = NULL;
+ 
+     /* Parse & validate incoming cookie (if any) */
+@@ -1340,6 +1341,9 @@ qemuMigrationEatCookie(virQEMUDriverPtr driver,
+         }
+     }
+ 
++    if (flags & QEMU_MIGRATION_COOKIE_STATS && mig->jobInfo)
++        mig->jobInfo->operation = priv->job.current->operation;
++
+     return mig;
+ 
+  error:
+-- 
+2.13.1
+

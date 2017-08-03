@@ -117,7 +117,7 @@ update_dnssrv_servers() {
 set_dnssrv_timer() {
     local state=$1 name=$2
     local srv_file=$helper_dir/dnssrv@$name servers
-    local timer=$dnssrv_timer_prefix$name.timer
+    local timer=$dnssrv_timer_prefix$(systemd-escape "$name").timer
 
     check_dnssrv_name "$name" || return 1
 
@@ -133,7 +133,10 @@ set_dnssrv_timer() {
 
 list_dnssrv_timers() {
     systemctl --all --full -t timer list-units | grep "^$dnssrv_timer_prefix" | \
-        sed "s|^$dnssrv_timer_prefix\(.*\)\.timer.*|\1|"
+            sed "s|^$dnssrv_timer_prefix\(.*\)\.timer.*|\1|" |
+        while read -r name; do
+            systemd-escape --unescape "$name"
+        done
 }
 
 prepare_helper_dir() {

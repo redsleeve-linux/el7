@@ -1,0 +1,77 @@
+From 046e5f4d9cf163ec2f38ba201c7d4cbe7965d792 Mon Sep 17 00:00:00 2001
+Message-Id: <046e5f4d9cf163ec2f38ba201c7d4cbe7965d792@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 20 Jun 2017 10:22:40 +0200
+Subject: [PATCH] util: storage: Report errors when source host data is missing
+
+Merge the reporting of the missing source host data into the parser
+functions so that callers don't have to do it separately.
+
+(cherry picked from commit 299aff7e0cd52c50da518eeed676144d373e9281)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1461638
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+---
+ src/util/virstoragefile.c | 29 +++++++++++++++++++++++------
+ 1 file changed, 23 insertions(+), 6 deletions(-)
+
+diff --git a/src/util/virstoragefile.c b/src/util/virstoragefile.c
+index f67e714e3c..3f8bc43928 100644
+--- a/src/util/virstoragefile.c
++++ b/src/util/virstoragefile.c
+@@ -2803,8 +2803,18 @@ static int
+ virStorageSourceParseBackingJSONInetSocketAddress(virStorageNetHostDefPtr host,
+                                                   virJSONValuePtr json)
+ {
+-    const char *hostname = virJSONValueObjectGetString(json, "host");
+-    const char *port = virJSONValueObjectGetString(json, "port");
++    const char *hostname;
++    const char *port;
++
++    if (!json) {
++        virReportError(VIR_ERR_INVALID_ARG, "%s",
++                       _("missing remote server specification in JSON "
++                         "backing volume definition"));
++        return -1;
++    }
++
++    hostname = virJSONValueObjectGetString(json, "host");
++    port = virJSONValueObjectGetString(json, "port");
+ 
+     if (!hostname) {
+         virReportError(VIR_ERR_INVALID_ARG, "%s",
+@@ -2827,10 +2837,17 @@ static int
+ virStorageSourceParseBackingJSONSocketAddress(virStorageNetHostDefPtr host,
+                                               virJSONValuePtr json)
+ {
+-    const char *type = virJSONValueObjectGetString(json, "type");
+-    const char *socket = virJSONValueObjectGetString(json, "socket");
++    const char *type;
++    const char *socket;
+ 
+-    if (!type) {
++    if (!json) {
++        virReportError(VIR_ERR_INVALID_ARG, "%s",
++                       _("missing remote server specification in JSON "
++                         "backing volume definition"));
++        return -1;
++    }
++
++    if (!(type = virJSONValueObjectGetString(json, "type"))) {
+         virReportError(VIR_ERR_INVALID_ARG, "%s",
+                        _("missing socket address type in "
+                          "JSON backing volume definition"));
+@@ -2843,7 +2860,7 @@ virStorageSourceParseBackingJSONSocketAddress(virStorageNetHostDefPtr host,
+     } else if (STREQ(type, "unix")) {
+         host->transport = VIR_STORAGE_NET_HOST_TRANS_UNIX;
+ 
+-        if (!socket) {
++        if (!(socket = virJSONValueObjectGetString(json, "socket"))) {
+             virReportError(VIR_ERR_INVALID_ARG, "%s",
+                            _("missing socket path for udp backing server in "
+                              "JSON backing volume definition"));
+-- 
+2.13.1
+

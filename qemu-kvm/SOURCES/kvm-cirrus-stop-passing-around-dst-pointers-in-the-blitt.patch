@@ -1,16 +1,16 @@
-From c4928f394f862c78024f4dccb6ea1398dc743c49 Mon Sep 17 00:00:00 2001
+From f0327afe876acff27221cdeead1aca0444364133 Mon Sep 17 00:00:00 2001
 From: Gerd Hoffmann <kraxel@redhat.com>
-Date: Tue, 21 Mar 2017 09:58:05 +0100
+Date: Mon, 27 Mar 2017 10:01:20 +0200
 Subject: [PATCH 5/7] cirrus: stop passing around dst pointers in the blitter
 
 RH-Author: Gerd Hoffmann <kraxel@redhat.com>
-Message-id: <1490090287-1503-6-git-send-email-kraxel@redhat.com>
-Patchwork-id: 74421
-O-Subject: [RHEL-7.4 qemu-kvm PATCH 5/7] cirrus: stop passing around dst pointers in the blitter
-Bugzilla: 1430059
+Message-id: <1490608882-10242-6-git-send-email-kraxel@redhat.com>
+Patchwork-id: 74550
+O-Subject: [RHEL-7.4 qemu-kvm PATCH v2 5/7] cirrus: stop passing around dst pointers in the blitter
+Bugzilla: 1430060
 RH-Acked-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
 RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
-RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
 
 Instead pass around the address (aka offset into vga memory).  Calculate
 the pointer in the rop_* functions, after applying the mask to the

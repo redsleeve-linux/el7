@@ -1,5 +1,5 @@
-From 000869de9fabb90082dd1577610a04b545cdbf77 Mon Sep 17 00:00:00 2001
-Message-Id: <000869de9fabb90082dd1577610a04b545cdbf77@dist-git>
+From 8e998fbb777e15718145899a60cd3d65accf68c9 Mon Sep 17 00:00:00 2001
+Message-Id: <8e998fbb777e15718145899a60cd3d65accf68c9@dist-git>
 From: Martin Kletzander <mkletzan@redhat.com>
 Date: Mon, 23 Nov 2015 12:46:36 +0100
 Subject: [PATCH] RHEL: qemu: Support vhost-user-multiqueue with QEMU 2.3
@@ -16,10 +16,10 @@ Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
  1 file changed, 5 insertions(+), 2 deletions(-)
 
 diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
-index 206133d..9f1c0e1 100644
+index 629fc8a9b..83ebcd020 100644
 --- a/src/qemu/qemu_capabilities.c
 +++ b/src/qemu/qemu_capabilities.c
-@@ -3529,8 +3529,11 @@ virQEMUCapsInitQMPMonitor(virQEMUCapsPtr qemuCaps,
+@@ -4548,8 +4548,11 @@ virQEMUCapsInitQMPMonitor(virQEMUCapsPtr qemuCaps,
          virQEMUCapsSet(qemuCaps, QEMU_CAPS_CPU_AARCH64_OFF);
  
      /* vhost-user supports multi-queue from v2.4.0 onwards,
@@ -32,7 +32,7 @@ index 206133d..9f1c0e1 100644
 +    if (qemuCaps->version >= 2003000)
          virQEMUCapsSet(qemuCaps, QEMU_CAPS_VHOSTUSER_MULTIQUEUE);
  
-     /* Since 2.4.50 ARM virt machine supports gic-version option */
+     /* smm option is supported from v2.4.0 */
 -- 
-2.9.0
+2.12.2
 

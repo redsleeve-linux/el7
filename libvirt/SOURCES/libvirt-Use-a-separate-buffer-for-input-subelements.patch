@@ -1,0 +1,65 @@
+From c8fc71708382f37cfc7437b15f58e3d5ab1f2cb1 Mon Sep 17 00:00:00 2001
+Message-Id: <c8fc71708382f37cfc7437b15f58e3d5ab1f2cb1@dist-git>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Fri, 9 Jun 2017 12:48:51 +0200
+Subject: [PATCH] Use a separate buffer for <input> subelements
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Instead of figuring out upfront whether <input> will be a single
+or a pair element, format the subelements into a separate buffer
+and close <input/> early if this buffer is empty.
+
+(cherry picked from commit 51219e11b8c57c7a9755eedd72986269b78ccfb7)
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1283251
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/conf/domain_conf.c | 21 +++++++++++----------
+ 1 file changed, 11 insertions(+), 10 deletions(-)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index b473ce6b1e..4228cad610 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -23152,6 +23152,7 @@ virDomainInputDefFormat(virBufferPtr buf,
+ {
+     const char *type = virDomainInputTypeToString(def->type);
+     const char *bus = virDomainInputBusTypeToString(def->bus);
++    virBuffer childbuf = VIR_BUFFER_INITIALIZER;
+ 
+     /* don't format keyboard into migratable XML for backward compatibility */
+     if (flags & VIR_DOMAIN_DEF_FORMAT_MIGRATABLE &&
+@@ -23174,17 +23175,17 @@ virDomainInputDefFormat(virBufferPtr buf,
+     virBufferAsprintf(buf, "<input type='%s' bus='%s'",
+                       type, bus);
+ 
+-    if (virDomainDeviceInfoNeedsFormat(&def->info, flags) ||
+-        def->type == VIR_DOMAIN_INPUT_TYPE_PASSTHROUGH) {
+-        virBufferAddLit(buf, ">\n");
+-        virBufferAdjustIndent(buf, 2);
+-        virBufferEscapeString(buf, "<source evdev='%s'/>\n", def->source.evdev);
+-        if (virDomainDeviceInfoFormat(buf, &def->info, flags) < 0)
+-            return -1;
+-        virBufferAdjustIndent(buf, -2);
+-        virBufferAddLit(buf, "</input>\n");
+-    } else {
++    virBufferAdjustIndent(&childbuf, virBufferGetIndent(buf, false) + 2);
++    virBufferEscapeString(&childbuf, "<source evdev='%s'/>\n", def->source.evdev);
++    if (virDomainDeviceInfoFormat(&childbuf, &def->info, flags) < 0)
++        return -1;
++
++    if (!virBufferUse(&childbuf)) {
+         virBufferAddLit(buf, "/>\n");
++    } else {
++        virBufferAddLit(buf, ">\n");
++        virBufferAddBuffer(buf, &childbuf);
++        virBufferAddLit(buf, "</input>\n");
+     }
+ 
+     return 0;
+-- 
+2.13.1
+

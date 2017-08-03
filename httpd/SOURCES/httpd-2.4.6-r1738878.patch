@@ -1,0 +1,139 @@
+diff --git a/modules/proxy/ajp.h b/modules/proxy/ajp.h
+index c65ebe5..330573b 100644
+--- a/modules/proxy/ajp.h
++++ b/modules/proxy/ajp.h
+@@ -413,11 +413,13 @@ apr_status_t ajp_ilink_receive(apr_socket_t *sock, ajp_msg_t *msg);
+  * @param r         current request
+  * @param buffsize  max size of the AJP packet.
+  * @param uri       requested uri
++ * @param secret    authentication secret
+  * @return          APR_SUCCESS or error
+  */
+ apr_status_t ajp_send_header(apr_socket_t *sock, request_rec *r,
+                              apr_size_t buffsize,
+-                             apr_uri_t *uri);
++                             apr_uri_t *uri,
++                             const char *secret);
+
+ /**
+  * Read the ajp message and return the type of the message.
+diff --git a/modules/proxy/ajp_header.c b/modules/proxy/ajp_header.c
+index 074f0a8..53571ee 100644
+--- a/modules/proxy/ajp_header.c
++++ b/modules/proxy/ajp_header.c
+@@ -213,7 +213,8 @@ AJPV13_REQUEST/AJPV14_REQUEST=
+ 
+ static apr_status_t ajp_marshal_into_msgb(ajp_msg_t *msg,
+                                           request_rec *r,
+-                                          apr_uri_t *uri)
++                                          apr_uri_t *uri,
++                                          const char *secret)
+ {
+     int method;
+     apr_uint32_t i, num_headers = 0;
+@@ -293,17 +294,15 @@ static apr_status_t ajp_marshal_into_msgb(ajp_msg_t *msg,
+                    i, elts[i].key, elts[i].val);
+     }
+ 
+-/* XXXX need to figure out how to do this
+-    if (s->secret) {
++    if (secret) {
+         if (ajp_msg_append_uint8(msg, SC_A_SECRET) ||
+-            ajp_msg_append_string(msg, s->secret)) {
++            ajp_msg_append_string(msg, secret)) {
+             ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
+-                   "Error ajp_marshal_into_msgb - "
++                   "ajp_marshal_into_msgb: "
+                    "Error appending secret");
+             return APR_EGENERAL;
+         }
+     }
+- */
+ 
+     if (r->user) {
+         if (ajp_msg_append_uint8(msg, SC_A_REMOTE_USER) ||
+@@ -628,7 +627,8 @@ static apr_status_t ajp_unmarshal_response(ajp_msg_t *msg,
+ apr_status_t ajp_send_header(apr_socket_t *sock,
+                              request_rec *r,
+                              apr_size_t buffsize,
+-                             apr_uri_t *uri)
++                             apr_uri_t *uri,
++                             const char *secret)
+ {
+     ajp_msg_t *msg;
+     apr_status_t rc;
+@@ -640,7 +640,7 @@ apr_status_t ajp_send_header(apr_socket_t *sock,
+         return rc;
+     }
+ 
+-    rc = ajp_marshal_into_msgb(msg, r, uri);
++    rc = ajp_marshal_into_msgb(msg, r, uri, secret);
+     if (rc != APR_SUCCESS) {
+         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(00988)
+                "ajp_send_header: ajp_marshal_into_msgb failed");
+diff --git a/modules/proxy/mod_proxy.c b/modules/proxy/mod_proxy.c
+index 5517e08..e998f58 100644
+--- a/modules/proxy/mod_proxy.c
++++ b/modules/proxy/mod_proxy.c
+@@ -260,6 +260,12 @@ static const char *set_worker_param(apr_pool_t *p,
+             return "flusher name length must be < 16 characters";
+         PROXY_STRNCPY(worker->s->flusher, val);
+     }
++    else if (!strcasecmp(key, "secret")) {
++        if (PROXY_STRNCPY(worker->s->secret, val) != APR_SUCCESS) {
++             return apr_psprintf(p, "Secret length must be < %d characters",
++                                 (int)sizeof(worker->s->secret));
++        }
++    }
+     else {
+         return "unknown Worker parameter";
+     }
+diff --git a/modules/proxy/mod_proxy.h b/modules/proxy/mod_proxy.h
+index b702028..06f2b17 100644
+--- a/modules/proxy/mod_proxy.h
++++ b/modules/proxy/mod_proxy.h
+@@ -317,6 +317,7 @@ PROXY_WORKER_DISABLED | PROXY_WORKER_STOPPED | PROXY_WORKER_IN_ERROR )
+ #define PROXY_WORKER_MAX_HOSTNAME_SIZE  64
+ #define PROXY_BALANCER_MAX_HOSTNAME_SIZE PROXY_WORKER_MAX_HOSTNAME_SIZE
+ #define PROXY_BALANCER_MAX_STICKY_SIZE  64
++#define PROXY_WORKER_MAX_SECRET_SIZE    64
+ 
+ #define PROXY_MAX_PROVIDER_NAME_SIZE    16
+ 
+@@ -394,6 +395,7 @@ typedef struct {
+     unsigned int     disablereuse_set:1;
+     unsigned int     was_malloced:1;
+     unsigned int     is_name_matchable:1;
++    char      secret[PROXY_WORKER_MAX_SECRET_SIZE]; /* authentication secret (e.g. AJP13) */
+ } proxy_worker_shared;
+ 
+ #define ALIGNED_PROXY_WORKER_SHARED_SIZE (APR_ALIGN_DEFAULT(sizeof(proxy_worker_shared)))
+diff --git a/modules/proxy/mod_proxy_ajp.c b/modules/proxy/mod_proxy_ajp.c
+index 380b870..81039bf 100644
+--- a/modules/proxy/mod_proxy_ajp.c
++++ b/modules/proxy/mod_proxy_ajp.c
+@@ -196,6 +196,7 @@ static int ap_proxy_ajp_request(apr_pool_t *p, request_rec *r,
+     apr_off_t content_length = 0;
+     int original_status = r->status;
+     const char *original_status_line = r->status_line;
++    const char *secret = NULL;
+ 
+     if (psf->io_buffer_size_set)
+        maxsize = psf->io_buffer_size;
+@@ -205,12 +206,15 @@ static int ap_proxy_ajp_request(apr_pool_t *p, request_rec *r,
+        maxsize = AJP_MSG_BUFFER_SZ;
+     maxsize = APR_ALIGN(maxsize, 1024);
+ 
++    if (*conn->worker->s->secret)
++        secret = conn->worker->s->secret;
++
+     /*
+      * Send the AJP request to the remote server
+      */
+ 
+     /* send request headers */
+-    status = ajp_send_header(conn->sock, r, maxsize, uri);
++    status = ajp_send_header(conn->sock, r, maxsize, uri, secret);
+     if (status != APR_SUCCESS) {
+         conn->close = 1;
+         ap_log_rerror(APLOG_MARK, APLOG_ERR, status, r, APLOGNO(00868)

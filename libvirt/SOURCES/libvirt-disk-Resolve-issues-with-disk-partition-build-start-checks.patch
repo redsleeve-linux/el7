@@ -1,0 +1,40 @@
+From 5c1a822cfa7993b1f55f90b75b66c86787a063d1 Mon Sep 17 00:00:00 2001
+Message-Id: <5c1a822cfa7993b1f55f90b75b66c86787a063d1@dist-git>
+From: John Ferlan <jferlan@redhat.com>
+Date: Wed, 26 Apr 2017 08:41:08 -0400
+Subject: [PATCH] disk: Resolve issues with disk partition build/start checks
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1439132
+
+Commit id 'a48c674fb' added a check for format types "dvh" and "pc98"
+to use the parted print processing instead of using blkid processing
+in order to validate the label on the disk was what is expected for
+disk pool startup. However, commit id 'a4cb4a74f' really messed things
+up by missing an else condition causing PARTEDFindLabel to always
+return DIFFERENT.
+
+Signed-off-by: John Ferlan <jferlan@redhat.com>
+(cherry picked from commit f2a123203105b4fe010aea866e87f8bcf5f31193)
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/storage/storage_util.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/storage/storage_util.c b/src/storage/storage_util.c
+index 0ceaab6b9..7a458b828 100644
+--- a/src/storage/storage_util.c
++++ b/src/storage/storage_util.c
+@@ -3213,8 +3213,8 @@ virStorageBackendPARTEDFindLabel(const char *device,
+     /*  Does the on disk match what the pool desired? */
+     if (STREQ(start, format))
+         ret = VIR_STORAGE_PARTED_MATCH;
+-
+-    ret = VIR_STORAGE_PARTED_DIFFERENT;
++    else
++        ret = VIR_STORAGE_PARTED_DIFFERENT;
+ 
+  cleanup:
+     virCommandFree(cmd);
+-- 
+2.12.2
+

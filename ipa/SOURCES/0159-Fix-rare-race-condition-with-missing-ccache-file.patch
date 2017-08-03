@@ -1,0 +1,47 @@
+From 341d5790afb01e9d99c73ba336103e38e2b30091 Mon Sep 17 00:00:00 2001
+From: Simo Sorce <simo@redhat.com>
+Date: Mon, 22 May 2017 10:56:41 -0400
+Subject: [PATCH] Fix rare race condition with missing ccache file
+
+In some circumstances the ccache file may disappear while
+mod_auth_gssapi still has a valid cookie and the client is performing a
+json server call.
+
+This may lead to credentials getting sourced from the keytab.
+Make sure we enforce what GSS NAME we want to resolve so HTTP creds are
+never mistakenly sourced.
+
+Ticket: #6972
+
+Signed-off-by: Simo Sorce <simo@redhat.com>
+Reviewed-By: Alexander Bokovoy <abokovoy@redhat.com>
+---
+ ipaserver/rpcserver.py | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/ipaserver/rpcserver.py b/ipaserver/rpcserver.py
+index 4cde2815a0fe9332d67c84b531f573ff88b1a302..32f286148bbdf294f941116b4bdca85714a52837 100644
+--- a/ipaserver/rpcserver.py
++++ b/ipaserver/rpcserver.py
+@@ -777,8 +777,17 @@ class jsonserver_session(jsonserver, KerberosSession):
+             self.debug('no ccache, need login')
+             return self.need_login(start_response)
+ 
++        # If we have a ccache, make sure we have a GSS_NAME and use
++        # it to resolve the ccache name (Issue: 6972 )
++        principal = environ.get('GSS_NAME')
++        if principal is None:
++            self.debug('no GSS Name, need login')
++            return self.need_login(start_response)
++        gss_name = gssapi.Name(principal, gssapi.NameType.kerberos_principal)
++
+         # Redirect to login if Kerberos credentials are expired
+-        creds = get_credentials_if_valid(ccache_name=ccache_name)
++        creds = get_credentials_if_valid(name=gss_name,
++                                         ccache_name=ccache_name)
+         if not creds:
+             self.debug('ccache expired, deleting session, need login')
+             # The request is finished with the ccache, destroy it.
+-- 
+2.9.4
+

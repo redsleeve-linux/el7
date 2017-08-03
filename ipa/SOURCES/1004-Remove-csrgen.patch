@@ -1,0 +1,1666 @@
+From c211f36d3cc765379ff0ae324dfb052d7ce13b99 Mon Sep 17 00:00:00 2001
+From: Jan Cholasta <jcholast@redhat.com>
+Date: Thu, 16 Mar 2017 09:44:21 +0000
+Subject: [PATCH] Remove csrgen
+
+This reverts commits:
+* 72de679eb445c975ec70cd265d37d4927823ce5b
+* 177f07e163d6d591a1e609d35e0a6f6f5347551e
+* 80be18162921268be9c8981495c9e8a4de0c85cd
+* 83e2c2b65eeb5a3aa4a59c0535e9177aac5e4637
+* ada91c20588046bb147fc701718d3da4d2c080ca
+* 4350dcdea22fd2284836315d0ae7d38733a7620e
+* 39a5d9c5aae77687f67d9be02457733bdfb99ead
+* a26cf0d7910dd4c0a4da08682b4be8d3d94ba520
+* afd7c05d11432304bfdf183832a21d419f363689
+* f1a1c6eca1b294f24174d7b0e1f78de46d9d5b05
+* fc58eff6a3d7fe805e612b8b002304d8b9cd4ba9
+* 10ef5947860f5098182b1f95c08c1158e2da15f9
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1432630
+---
+ freeipa.spec.in                                    |  18 -
+ ipaclient/csrgen.py                                | 398 ---------------------
+ ipaclient/csrgen/profiles/caIPAserviceCert.json    |  15 -
+ ipaclient/csrgen/profiles/userCert.json            |  15 -
+ ipaclient/csrgen/rules/dataDNS.json                |  15 -
+ ipaclient/csrgen/rules/dataEmail.json              |  15 -
+ ipaclient/csrgen/rules/dataHostCN.json             |  15 -
+ ipaclient/csrgen/rules/dataSubjectBase.json        |  15 -
+ ipaclient/csrgen/rules/dataUsernameCN.json         |  15 -
+ ipaclient/csrgen/rules/syntaxSAN.json              |  15 -
+ ipaclient/csrgen/rules/syntaxSubject.json          |  16 -
+ ipaclient/csrgen/templates/certutil_base.tmpl      |  11 -
+ ipaclient/csrgen/templates/openssl_base.tmpl       |  35 --
+ ipaclient/csrgen/templates/openssl_macros.tmpl     |  29 --
+ ipaclient/plugins/cert.py                          |  96 +----
+ ipaclient/plugins/csrgen.py                        | 120 -------
+ ipaclient/setup.py                                 |  11 +-
+ ipalib/errors.py                                   |  28 --
+ ipatests/setup.py                                  |   2 -
+ ipatests/test_ipaclient/__init__.py                |   7 -
+ .../data/test_csrgen/profiles/profile.json         |   8 -
+ .../data/test_csrgen/rules/basic.json              |  12 -
+ .../data/test_csrgen/rules/options.json            |  18 -
+ .../scripts/caIPAserviceCert_certutil.sh           |  11 -
+ .../scripts/caIPAserviceCert_openssl.sh            |  34 --
+ .../data/test_csrgen/scripts/userCert_certutil.sh  |  11 -
+ .../data/test_csrgen/scripts/userCert_openssl.sh   |  34 --
+ .../data/test_csrgen/templates/identity_base.tmpl  |   1 -
+ ipatests/test_ipaclient/test_csrgen.py             | 298 ---------------
+ 29 files changed, 2 insertions(+), 1316 deletions(-)
+ delete mode 100644 ipaclient/csrgen.py
+ delete mode 100644 ipaclient/csrgen/profiles/caIPAserviceCert.json
+ delete mode 100644 ipaclient/csrgen/profiles/userCert.json
+ delete mode 100644 ipaclient/csrgen/rules/dataDNS.json
+ delete mode 100644 ipaclient/csrgen/rules/dataEmail.json
+ delete mode 100644 ipaclient/csrgen/rules/dataHostCN.json
+ delete mode 100644 ipaclient/csrgen/rules/dataSubjectBase.json
+ delete mode 100644 ipaclient/csrgen/rules/dataUsernameCN.json
+ delete mode 100644 ipaclient/csrgen/rules/syntaxSAN.json
+ delete mode 100644 ipaclient/csrgen/rules/syntaxSubject.json
+ delete mode 100644 ipaclient/csrgen/templates/certutil_base.tmpl
+ delete mode 100644 ipaclient/csrgen/templates/openssl_base.tmpl
+ delete mode 100644 ipaclient/csrgen/templates/openssl_macros.tmpl
+ delete mode 100644 ipaclient/plugins/csrgen.py
+ delete mode 100644 ipatests/test_ipaclient/__init__.py
+ delete mode 100644 ipatests/test_ipaclient/data/test_csrgen/profiles/profile.json
+ delete mode 100644 ipatests/test_ipaclient/data/test_csrgen/rules/basic.json
+ delete mode 100644 ipatests/test_ipaclient/data/test_csrgen/rules/options.json
+ delete mode 100644 ipatests/test_ipaclient/data/test_csrgen/scripts/caIPAserviceCert_certutil.sh
+ delete mode 100644 ipatests/test_ipaclient/data/test_csrgen/scripts/caIPAserviceCert_openssl.sh
+ delete mode 100644 ipatests/test_ipaclient/data/test_csrgen/scripts/userCert_certutil.sh
+ delete mode 100644 ipatests/test_ipaclient/data/test_csrgen/scripts/userCert_openssl.sh
+ delete mode 100644 ipatests/test_ipaclient/data/test_csrgen/templates/identity_base.tmpl
+ delete mode 100644 ipatests/test_ipaclient/test_csrgen.py
+
+diff --git a/freeipa.spec.in b/freeipa.spec.in
+index a075cbb4e2bd6fb0fecfca96a1568c07a27080af..f4576927c9be3d7c7b7f971f0184cad3166083b7 100644
+--- a/freeipa.spec.in
++++ b/freeipa.spec.in
+@@ -194,7 +194,6 @@ BuildRequires:  python-sssdconfig
+ BuildRequires:  python-nose
+ BuildRequires:  python-paste
+ BuildRequires:  systemd-python
+-BuildRequires:  python2-jinja2
+ BuildRequires:  python-augeas
+ 
+ %if 0%{?with_python3}
+@@ -232,7 +231,6 @@ BuildRequires:  python3-libsss_nss_idmap
+ BuildRequires:  python3-nose
+ BuildRequires:  python3-paste
+ BuildRequires:  python3-systemd
+-BuildRequires:  python3-jinja2
+ BuildRequires:  python3-augeas
+ %endif # with_python3
+ %endif # with_lint
+@@ -541,7 +539,6 @@ Requires: %{name}-client-common = %{version}-%{release}
+ Requires: %{name}-common = %{version}-%{release}
+ Requires: python2-ipalib = %{version}-%{release}
+ Requires: python-dns >= 1.15
+-Requires: python2-jinja2
+ 
+ %description -n python2-ipaclient
+ IPA is an integrated solution to provide centrally managed Identity (users,
+@@ -564,7 +561,6 @@ Requires: %{name}-client-common = %{version}-%{release}
+ Requires: %{name}-common = %{version}-%{release}
+ Requires: python3-ipalib = %{version}-%{release}
+ Requires: python3-dns >= 1.15
+-Requires: python3-jinja2
+ 
+ %description -n python3-ipaclient
+ IPA is an integrated solution to provide centrally managed Identity (users,
+@@ -1425,13 +1421,6 @@ fi
+ %dir %{python_sitelib}/ipaclient/remote_plugins
+ %{python_sitelib}/ipaclient/remote_plugins/*.py*
+ %{python_sitelib}/ipaclient/remote_plugins/2_*/*.py*
+-%dir %{python_sitelib}/ipaclient/csrgen
+-%dir %{python_sitelib}/ipaclient/csrgen/profiles
+-%{python_sitelib}/ipaclient/csrgen/profiles/*.json
+-%dir %{python_sitelib}/ipaclient/csrgen/rules
+-%{python_sitelib}/ipaclient/csrgen/rules/*.json
+-%dir %{python_sitelib}/ipaclient/csrgen/templates
+-%{python_sitelib}/ipaclient/csrgen/templates/*.tmpl
+ %{python_sitelib}/ipaclient-*.egg-info
+ 
+ 
+@@ -1455,13 +1444,6 @@ fi
+ %{python3_sitelib}/ipaclient/remote_plugins/__pycache__/*.py*
+ %{python3_sitelib}/ipaclient/remote_plugins/2_*/*.py
+ %{python3_sitelib}/ipaclient/remote_plugins/2_*/__pycache__/*.py*
+-%dir %{python3_sitelib}/ipaclient/csrgen
+-%dir %{python3_sitelib}/ipaclient/csrgen/profiles
+-%{python3_sitelib}/ipaclient/csrgen/profiles/*.json
+-%dir %{python3_sitelib}/ipaclient/csrgen/rules
+-%{python3_sitelib}/ipaclient/csrgen/rules/*.json
+-%dir %{python3_sitelib}/ipaclient/csrgen/templates
+-%{python3_sitelib}/ipaclient/csrgen/templates/*.tmpl
+ %{python3_sitelib}/ipaclient-*.egg-info
+ 
+ %endif # with_python3
+diff --git a/ipaclient/csrgen.py b/ipaclient/csrgen.py
+deleted file mode 100644
+index 8fb0b32c05490812b75f87db69f9df1ca38107f7..0000000000000000000000000000000000000000
+--- a/ipaclient/csrgen.py
++++ /dev/null
+@@ -1,398 +0,0 @@
+-#
+-# Copyright (C) 2016  FreeIPA Contributors see COPYING for license
+-#
+-
+-import collections
+-import errno
+-import json
+-import os.path
+-import pipes
+-import traceback
+-
+-import pkg_resources
+-
+-import jinja2
+-import jinja2.ext
+-import jinja2.sandbox
+-import six
+-
+-from ipalib import api
+-from ipalib import errors
+-from ipalib.text import _
+-from ipapython.ipa_log_manager import log_mgr
+-
+-if six.PY3:
+-    unicode = str
+-
+-__doc__ = _("""
+-Routines for constructing certificate signing requests using IPA data and
+-stored templates.
+-""")
+-
+-logger = log_mgr.get_logger(__name__)
+-
+-
+-class IndexableUndefined(jinja2.Undefined):
+-    def __getitem__(self, key):
+-        return jinja2.Undefined(
+-            hint=self._undefined_hint, obj=self._undefined_obj,
+-            name=self._undefined_name, exc=self._undefined_exception)
+-
+-
+-class IPAExtension(jinja2.ext.Extension):
+-    """Jinja2 extension providing useful features for CSR generation rules."""
+-
+-    def __init__(self, environment):
+-        super(IPAExtension, self).__init__(environment)
+-
+-        environment.filters.update(
+-            quote=self.quote,
+-            required=self.required,
+-        )
+-
+-    def quote(self, data):
+-        return pipes.quote(data)
+-
+-    def required(self, data, name):
+-        if not data:
+-            raise errors.CSRTemplateError(
+-                reason=_('Required CSR generation rule %(name)s is missing data') %
+-                {'name': name})
+-        return data
+-
+-
+-class Formatter(object):
+-    """
+-    Class for processing a set of CSR generation rules into a template.
+-
+-    The template can be rendered with user and database data to produce a
+-    script, which generates a CSR when run.
+-
+-    Subclasses of Formatter should set the value of base_template_name to the
+-    filename of a base template with spaces for the processed rules.
+-    Additionally, they should override the _get_template_params method to
+-    produce the correct output for the base template.
+-    """
+-    base_template_name = None
+-
+-    def __init__(self, csr_data_dir=None):
+-        # chain loaders:
+-        # 1) csr_data_dir/templates
+-        # 2) /etc/ipa/csrgen/templates
+-        # 3) ipaclient/csrgen/templates
+-        loaders = []
+-        if csr_data_dir is not None:
+-            loaders.append(jinja2.FileSystemLoader(
+-                os.path.join(csr_data_dir, 'templates'))
+-            )
+-        loaders.append(jinja2.FileSystemLoader(
+-            os.path.join(api.env.confdir, 'csrgen/templates'))
+-        )
+-        loaders.append(jinja2.PackageLoader('ipaclient', 'csrgen/templates'))
+-
+-        self.jinja2 = jinja2.sandbox.SandboxedEnvironment(
+-            loader=jinja2.ChoiceLoader(loaders),
+-            extensions=[jinja2.ext.ExprStmtExtension, IPAExtension],
+-            keep_trailing_newline=True, undefined=IndexableUndefined)
+-
+-        self.passthrough_globals = {}
+-
+-    def _define_passthrough(self, call):
+-        """Some macros are meant to be interpreted during the final render, not
+-        when data rules are interpolated into syntax rules. This method allows
+-        those macros to be registered so that calls to them are passed through
+-        to the prepared rule rather than interpreted.
+-        """
+-
+-        def passthrough(caller):
+-            return u'{%% call %s() %%}%s{%% endcall %%}' % (call, caller())
+-
+-        parts = call.split('.')
+-        current_level = self.passthrough_globals
+-        for part in parts[:-1]:
+-            if part not in current_level:
+-                current_level[part] = {}
+-            current_level = current_level[part]
+-        current_level[parts[-1]] = passthrough
+-
+-    def build_template(self, rules):
+-        """
+-        Construct a template that can produce CSR generator strings.
+-
+-        :param rules: list of FieldMapping to use to populate the template.
+-
+-        :returns: jinja2.Template that can be rendered to produce the CSR data.
+-        """
+-        syntax_rules = []
+-        for field_mapping in rules:
+-            data_rules_prepared = [
+-                self._prepare_data_rule(rule)
+-                for rule in field_mapping.data_rules]
+-
+-            data_sources = []
+-            for rule in field_mapping.data_rules:
+-                data_source = rule.options.get('data_source')
+-                if data_source:
+-                    data_sources.append(data_source)
+-
+-            syntax_rules.append(self._prepare_syntax_rule(
+-                field_mapping.syntax_rule, data_rules_prepared,
+-                field_mapping.description, data_sources))
+-
+-        template_params = self._get_template_params(syntax_rules)
+-        base_template = self.jinja2.get_template(
+-            self.base_template_name, globals=self.passthrough_globals)
+-
+-        try:
+-            combined_template_source = base_template.render(**template_params)
+-        except jinja2.UndefinedError:
+-            logger.debug(traceback.format_exc())
+-            raise errors.CSRTemplateError(reason=_(
+-                'Template error when formatting certificate data'))
+-
+-        logger.debug(
+-            'Formatting with template: %s' % combined_template_source)
+-        combined_template = self.jinja2.from_string(combined_template_source)
+-
+-        return combined_template
+-
+-    def _wrap_conditional(self, rule, condition):
+-        rule = '{%% if %s %%}%s{%% endif %%}' % (condition, rule)
+-        return rule
+-
+-    def _wrap_required(self, rule, description):
+-        template = '{%% filter required("%s") %%}%s{%% endfilter %%}' % (
+-            description, rule)
+-
+-        return template
+-
+-    def _prepare_data_rule(self, data_rule):
+-        template = data_rule.template
+-
+-        data_source = data_rule.options.get('data_source')
+-        if data_source:
+-            template = self._wrap_conditional(template, data_source)
+-
+-        return template
+-
+-    def _prepare_syntax_rule(
+-            self, syntax_rule, data_rules, description, data_sources):
+-        logger.debug('Syntax rule template: %s' % syntax_rule.template)
+-        template = self.jinja2.from_string(
+-            syntax_rule.template, globals=self.passthrough_globals)
+-        is_required = syntax_rule.options.get('required', False)
+-        try:
+-            prepared_template = template.render(datarules=data_rules)
+-        except jinja2.UndefinedError:
+-            logger.debug(traceback.format_exc())
+-            raise errors.CSRTemplateError(reason=_(
+-                'Template error when formatting certificate data'))
+-
+-        if data_sources:
+-            combinator = ' %s ' % syntax_rule.options.get(
+-                'data_source_combinator', 'or')
+-            condition = combinator.join(data_sources)
+-            prepared_template = self._wrap_conditional(
+-                prepared_template, condition)
+-
+-        if is_required:
+-            prepared_template = self._wrap_required(
+-                prepared_template, description)
+-
+-        return prepared_template
+-
+-    def _get_template_params(self, syntax_rules):
+-        """
+-        Package the syntax rules into fields expected by the base template.
+-
+-        :param syntax_rules: list of prepared syntax rules to be included in
+-            the template.
+-
+-        :returns: dict of values needed to render the base template.
+-        """
+-        raise NotImplementedError('Formatter class must be subclassed')
+-
+-
+-class OpenSSLFormatter(Formatter):
+-    """Formatter class supporting the openssl command-line tool."""
+-
+-    base_template_name = 'openssl_base.tmpl'
+-
+-    # Syntax rules are wrapped in this data structure, to keep track of whether
+-    # each goes in the extension or the root section
+-    SyntaxRule = collections.namedtuple(
+-        'SyntaxRule', ['template', 'is_extension'])
+-
+-    def __init__(self, *args, **kwargs):
+-        super(OpenSSLFormatter, self).__init__(*args, **kwargs)
+-        self._define_passthrough('openssl.section')
+-
+-    def _get_template_params(self, syntax_rules):
+-        parameters = [rule.template for rule in syntax_rules
+-                      if not rule.is_extension]
+-        extensions = [rule.template for rule in syntax_rules
+-                      if rule.is_extension]
+-
+-        return {'parameters': parameters, 'extensions': extensions}
+-
+-    def _prepare_syntax_rule(
+-            self, syntax_rule, data_rules, description, data_sources):
+-        """Overrides method to pull out whether rule is an extension or not."""
+-        prepared_template = super(OpenSSLFormatter, self)._prepare_syntax_rule(
+-            syntax_rule, data_rules, description, data_sources)
+-        is_extension = syntax_rule.options.get('extension', False)
+-        return self.SyntaxRule(prepared_template, is_extension)
+-
+-
+-class CertutilFormatter(Formatter):
+-    base_template_name = 'certutil_base.tmpl'
+-
+-    def _get_template_params(self, syntax_rules):
+-        return {'options': syntax_rules}
+-
+-
+-class FieldMapping(object):
+-    """Representation of the rules needed to construct a complete cert field.
+-
+-    Attributes:
+-        description: str, a name or description of this field, to be used in
+-            messages
+-        syntax_rule: Rule, the rule defining the syntax of this field
+-        data_rules: list of Rule, the rules that produce data to be stored in
+-            this field
+-    """
+-    __slots__ = ['description', 'syntax_rule', 'data_rules']
+-
+-    def __init__(self, description, syntax_rule, data_rules):
+-        self.description = description
+-        self.syntax_rule = syntax_rule
+-        self.data_rules = data_rules
+-
+-
+-class Rule(object):
+-    __slots__ = ['name', 'template', 'options']
+-
+-    def __init__(self, name, template, options):
+-        self.name = name
+-        self.template = template
+-        self.options = options
+-
+-
+-class RuleProvider(object):
+-    def rules_for_profile(self, profile_id, helper):
+-        """
+-        Return the rules needed to build a CSR using the given profile.
+-
+-        :param profile_id: str, name of the CSR generation profile to use
+-        :param helper: str, name of tool (e.g. openssl, certutil) that will be
+-            used to create CSR
+-
+-        :returns: list of FieldMapping, filled out with the appropriate rules
+-        """
+-        raise NotImplementedError('RuleProvider class must be subclassed')
+-
+-
+-class FileRuleProvider(RuleProvider):
+-    def __init__(self, csr_data_dir=None):
+-        self.rules = {}
+-        self._csrgen_data_dirs = []
+-        if csr_data_dir is not None:
+-            self._csrgen_data_dirs.append(csr_data_dir)
+-        self._csrgen_data_dirs.append(
+-            os.path.join(api.env.confdir, 'csrgen')
+-        )
+-        self._csrgen_data_dirs.append(
+-            pkg_resources.resource_filename('ipaclient', 'csrgen')
+-        )
+-
+-    def _open(self, subdir, filename):
+-        for data_dir in self._csrgen_data_dirs:
+-            path = os.path.join(data_dir, subdir, filename)
+-            try:
+-                return open(path)
+-            except IOError as e:
+-                if e.errno != errno.ENOENT:
+-                    raise
+-        raise IOError(
+-            errno.ENOENT,
+-            "'{}' not found in {}".format(
+-                os.path.join(subdir, filename),
+-                ", ".join(self._csrgen_data_dirs)
+-            )
+-        )
+-
+-    def _rule(self, rule_name, helper):
+-        if (rule_name, helper) not in self.rules:
+-            try:
+-                with self._open('rules', '%s.json' % rule_name) as f:
+-                    ruleset = json.load(f)
+-            except IOError:
+-                raise errors.NotFound(
+-                    reason=_('Ruleset %(ruleset)s does not exist.') %
+-                    {'ruleset': rule_name})
+-
+-            matching_rules = [r for r in ruleset['rules']
+-                              if r['helper'] == helper]
+-            if len(matching_rules) == 0:
+-                raise errors.EmptyResult(
+-                    reason=_('No transformation in "%(ruleset)s" rule supports'
+-                             ' helper "%(helper)s"') %
+-                    {'ruleset': rule_name, 'helper': helper})
+-            elif len(matching_rules) > 1:
+-                raise errors.RedundantMappingRule(
+-                    ruleset=rule_name, helper=helper)
+-            rule = matching_rules[0]
+-
+-            options = {}
+-            if 'options' in ruleset:
+-                options.update(ruleset['options'])
+-            if 'options' in rule:
+-                options.update(rule['options'])
+-
+-            self.rules[(rule_name, helper)] = Rule(
+-                rule_name, rule['template'], options)
+-
+-        return self.rules[(rule_name, helper)]
+-
+-    def rules_for_profile(self, profile_id, helper):
+-        try:
+-            with self._open('profiles', '%s.json' % profile_id) as f:
+-                profile = json.load(f)
+-        except IOError:
+-            raise errors.NotFound(
+-                reason=_('No CSR generation rules are defined for profile'
+-                         ' %(profile_id)s') % {'profile_id': profile_id})
+-
+-        field_mappings = []
+-        for field in profile:
+-            syntax_rule = self._rule(field['syntax'], helper)
+-            data_rules = [self._rule(name, helper) for name in field['data']]
+-            field_mappings.append(FieldMapping(
+-                syntax_rule.name, syntax_rule, data_rules))
+-        return field_mappings
+-
+-
+-class CSRGenerator(object):
+-    FORMATTERS = {
+-        'openssl': OpenSSLFormatter,
+-        'certutil': CertutilFormatter,
+-    }
+-
+-    def __init__(self, rule_provider):
+-        self.rule_provider = rule_provider
+-
+-    def csr_script(self, principal, config, profile_id, helper):
+-        render_data = {'subject': principal, 'config': config}
+-
+-        formatter = self.FORMATTERS[helper]()
+-        rules = self.rule_provider.rules_for_profile(profile_id, helper)
+-        template = formatter.build_template(rules)
+-
+-        try:
+-            script = template.render(render_data)
+-        except jinja2.UndefinedError:
+-            logger.debug(traceback.format_exc())
+-            raise errors.CSRTemplateError(reason=_(
+-                'Template error when formatting certificate data'))
+-
+-        return script
+diff --git a/ipaclient/csrgen/profiles/caIPAserviceCert.json b/ipaclient/csrgen/profiles/caIPAserviceCert.json
+deleted file mode 100644
+index 114d2ffd4e0d8eae833eaa594f6a17a79da909be..0000000000000000000000000000000000000000
+--- a/ipaclient/csrgen/profiles/caIPAserviceCert.json
++++ /dev/null
+@@ -1,15 +0,0 @@
+-[
+-    {
+-        "syntax": "syntaxSubject",
+-        "data": [
+-            "dataHostCN",
+-            "dataSubjectBase"
+-        ]
+-    },
+-    {
+-        "syntax": "syntaxSAN",
+-        "data": [
+-            "dataDNS"
+-        ]
+-    }
+-]
+diff --git a/ipaclient/csrgen/profiles/userCert.json b/ipaclient/csrgen/profiles/userCert.json
+deleted file mode 100644
+index d6cf5cfffcfadd604fc3e8283d1be15767278c7a..0000000000000000000000000000000000000000
+--- a/ipaclient/csrgen/profiles/userCert.json
++++ /dev/null
+@@ -1,15 +0,0 @@
+-[
+-    {
+-        "syntax": "syntaxSubject",
+-        "data": [
+-            "dataUsernameCN",
+-            "dataSubjectBase"
+-        ]
+-    },
+-    {
+-        "syntax": "syntaxSAN",
+-        "data": [
+-            "dataEmail"
+-        ]
+-    }
+-]
+diff --git a/ipaclient/csrgen/rules/dataDNS.json b/ipaclient/csrgen/rules/dataDNS.json
+deleted file mode 100644
+index 2663f114123a5a73b23f6a41c1b9b3162f157ea1..0000000000000000000000000000000000000000
+--- a/ipaclient/csrgen/rules/dataDNS.json
++++ /dev/null
+@@ -1,15 +0,0 @@
+-{
+-  "rules": [
+-    {
+-      "helper": "openssl",
+-      "template": "DNS = {{subject.krbprincipalname.0.partition('/')[2].partition('@')[0]}}"
+-    },
+-    {
+-      "helper": "certutil",
+-      "template": "dns:{{subject.krbprincipalname.0.partition('/')[2].partition('@')[0]|quote}}"
+-    }
+-  ],
+-  "options": {
+-    "data_source": "subject.krbprincipalname.0.partition('/')[2].partition('@')[0]"
+-  }
+-}
+diff --git a/ipaclient/csrgen/rules/dataEmail.json b/ipaclient/csrgen/rules/dataEmail.json
+deleted file mode 100644
+index 2eae9fb25e4f09d52ec5e29e2643236641c5cecd..0000000000000000000000000000000000000000
+--- a/ipaclient/csrgen/rules/dataEmail.json
++++ /dev/null
+@@ -1,15 +0,0 @@
+-{
+-  "rules": [
+-    {
+-      "helper": "openssl",
+-      "template": "email = {{subject.mail.0}}"
+-    },
+-    {
+-      "helper": "certutil",
+-      "template": "email:{{subject.mail.0|quote}}"
+-    }
+-  ],
+-  "options": {
+-    "data_source": "subject.mail.0"
+-  }
+-}
+diff --git a/ipaclient/csrgen/rules/dataHostCN.json b/ipaclient/csrgen/rules/dataHostCN.json
+deleted file mode 100644
+index 5c415bb8cf8911ad8c24820d2466beb57f0d9a82..0000000000000000000000000000000000000000
+--- a/ipaclient/csrgen/rules/dataHostCN.json
++++ /dev/null
+@@ -1,15 +0,0 @@
+-{
+-  "rules": [
+-    {
+-      "helper": "openssl",
+-      "template": "CN={{subject.krbprincipalname.0.partition('/')[2].partition('@')[0]}}"
+-    },
+-    {
+-      "helper": "certutil",
+-      "template": "CN={{subject.krbprincipalname.0.partition('/')[2].partition('@')[0]|quote}}"
+-    }
+-  ],
+-  "options": {
+-    "data_source": "subject.krbprincipalname.0.partition('/')[2].partition('@')[0]"
+-  }
+-}
+diff --git a/ipaclient/csrgen/rules/dataSubjectBase.json b/ipaclient/csrgen/rules/dataSubjectBase.json
+deleted file mode 100644
+index 309dfb1ed57b0dfe282386181a4c887228545c55..0000000000000000000000000000000000000000
+--- a/ipaclient/csrgen/rules/dataSubjectBase.json
++++ /dev/null
+@@ -1,15 +0,0 @@
+-{
+-  "rules": [
+-    {
+-      "helper": "openssl",
+-      "template": "{{config.ipacertificatesubjectbase.0}}"
+-    },
+-    {
+-      "helper": "certutil",
+-      "template": "{{config.ipacertificatesubjectbase.0|quote}}"
+-    }
+-  ],
+-  "options": {
+-    "data_source": "config.ipacertificatesubjectbase.0"
+-  }
+-}
+diff --git a/ipaclient/csrgen/rules/dataUsernameCN.json b/ipaclient/csrgen/rules/dataUsernameCN.json
+deleted file mode 100644
+index 37e7e0113ef3146a97383355285dc1d319029e0e..0000000000000000000000000000000000000000
+--- a/ipaclient/csrgen/rules/dataUsernameCN.json
++++ /dev/null
+@@ -1,15 +0,0 @@
+-{
+-  "rules": [
+-    {
+-      "helper": "openssl",
+-      "template": "CN={{subject.uid.0}}"
+-    },
+-    {
+-      "helper": "certutil",
+-      "template": "CN={{subject.uid.0|quote}}"
+-    }
+-  ],
+-  "options": {
+-    "data_source": "subject.uid.0"
+-  }
+-}
+diff --git a/ipaclient/csrgen/rules/syntaxSAN.json b/ipaclient/csrgen/rules/syntaxSAN.json
+deleted file mode 100644
+index 122eb12443e053490ac50a3984d02a62be61e7aa..0000000000000000000000000000000000000000
+--- a/ipaclient/csrgen/rules/syntaxSAN.json
++++ /dev/null
+@@ -1,15 +0,0 @@
+-{
+-  "rules": [
+-    {
+-      "helper": "openssl",
+-      "template": "subjectAltName = @{% call openssl.section() %}{{ datarules|join('\n') }}{% endcall %}",
+-      "options": {
+-        "extension": true
+-      }
+-    },
+-    {
+-      "helper": "certutil",
+-      "template": "--extSAN {{ datarules|join(',') }}"
+-    }
+-  ]
+-}
+diff --git a/ipaclient/csrgen/rules/syntaxSubject.json b/ipaclient/csrgen/rules/syntaxSubject.json
+deleted file mode 100644
+index af6ec03d3390ba8f9fac99ed3b6c485f4c1cd64f..0000000000000000000000000000000000000000
+--- a/ipaclient/csrgen/rules/syntaxSubject.json
++++ /dev/null
+@@ -1,16 +0,0 @@
+-{
+-  "rules": [
+-    {
+-      "helper": "openssl",
+-      "template": "distinguished_name = {% call openssl.section() %}{{ datarules|reverse|join('\n') }}{% endcall %}"
+-    },
+-    {
+-      "helper": "certutil",
+-      "template": "-s {{ datarules|join(',') }}"
+-    }
+-  ],
+-  "options": {
+-    "required": true,
+-    "data_source_combinator": "and"
+-  }
+-}
+diff --git a/ipaclient/csrgen/templates/certutil_base.tmpl b/ipaclient/csrgen/templates/certutil_base.tmpl
+deleted file mode 100644
+index a5556fda0e6ed854dfe67b816044b36db77d5f76..0000000000000000000000000000000000000000
+--- a/ipaclient/csrgen/templates/certutil_base.tmpl
++++ /dev/null
+@@ -1,11 +0,0 @@
+-#!/bin/bash -e
+-
+-if [[ $# -lt 1 ]]; then
+-echo "Usage: $0 <outfile> [<any> <certutil> <args>]"
+-echo "Called as: $0 $@"
+-exit 1
+-fi
+-
+-CSR="$1"
+-shift
+-certutil -R -a -z <(head -c 4096 /dev/urandom) -o "$CSR" {{ options|join(' ') }} "$@"
+diff --git a/ipaclient/csrgen/templates/openssl_base.tmpl b/ipaclient/csrgen/templates/openssl_base.tmpl
+deleted file mode 100644
+index 22b16862e88eb44c4176ee9c4580188f5b240854..0000000000000000000000000000000000000000
+--- a/ipaclient/csrgen/templates/openssl_base.tmpl
++++ /dev/null
+@@ -1,35 +0,0 @@
+-{% raw -%}
+-{% import "openssl_macros.tmpl" as openssl -%}
+-{%- endraw %}
+-#!/bin/bash -e
+-
+-if [[ $# -lt 2 ]]; then
+-echo "Usage: $0 <outfile> <keyfile> <other openssl arguments>"
+-echo "Called as: $0 $@"
+-exit 1
+-fi
+-
+-CONFIG="$(mktemp)"
+-CSR="$1"
+-KEYFILE="$2"
+-shift; shift
+-
+-echo \
+-{% raw %}{% filter quote %}{% endraw -%}
+-[ req ]
+-prompt = no
+-encrypt_key = no
+-
+-{{ parameters|join('\n') }}
+-{% raw %}{% set rendered_extensions -%}{% endraw %}
+-{{ extensions|join('\n') }}
+-{% raw -%}
+-{%- endset -%}
+-{% if rendered_extensions -%}
+-req_extensions = {% call openssl.section() %}{{ rendered_extensions }}{% endcall %}
+-{% endif %}
+-{{ openssl.openssl_sections|join('\n\n') }}
+-{% endfilter %}{%- endraw %} > "$CONFIG"
+-
+-openssl req -new -config "$CONFIG" -out "$CSR" -key "$KEYFILE" "$@"
+-rm "$CONFIG"
+diff --git a/ipaclient/csrgen/templates/openssl_macros.tmpl b/ipaclient/csrgen/templates/openssl_macros.tmpl
+deleted file mode 100644
+index d31b8fef5f2d85e1b3d5ecf425f00ec9c22ac301..0000000000000000000000000000000000000000
+--- a/ipaclient/csrgen/templates/openssl_macros.tmpl
++++ /dev/null
+@@ -1,29 +0,0 @@
+-{# List containing rendered sections to be included at end #}
+-{% set openssl_sections = [] %}
+-
+-{#
+-List containing one entry for each section name allocated. Because of
+-scoping rules, we need to use a list so that it can be a "per-render global"
+-that gets updated in place. Real globals are shared by all templates with the
+-same environment, and variables defined in the macro don't persist after the
+-macro invocation ends.
+-#}
+-{% set openssl_section_num = [] %}
+-
+-{% macro section() -%}
+-{% set name -%}
+-sec{{ openssl_section_num|length -}}
+-{% endset -%}
+-{% do openssl_section_num.append('') -%}
+-{% set contents %}{{ caller() }}{% endset -%}
+-{% if contents -%}
+-{% set sectiondata = formatsection(name, contents) -%}
+-{% do openssl_sections.append(sectiondata) -%}
+-{% endif -%}
+-{{ name -}}
+-{% endmacro %}
+-
+-{% macro formatsection(name, contents) -%}
+-[ {{ name }} ]
+-{{ contents -}}
+-{% endmacro %}
+diff --git a/ipaclient/plugins/cert.py b/ipaclient/plugins/cert.py
+index 93cd3cef1a14925bc0795b32e97e44d69897be5c..8195e04fc43ffbd8ca6589d2652559198759d9e6 100644
+--- a/ipaclient/plugins/cert.py
++++ b/ipaclient/plugins/cert.py
+@@ -20,10 +20,6 @@
+ # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ 
+ import base64
+-import subprocess
+-from tempfile import NamedTemporaryFile as NTF
+-
+-import six
+ 
+ from ipaclient.frontend import MethodOverride
+ from ipalib import errors
+@@ -33,9 +29,6 @@ from ipalib.parameters import File, Flag, Str
+ from ipalib.plugable import Registry
+ from ipalib.text import _
+ 
+-if six.PY3:
+-    unicode = str
+-
+ register = Registry()
+ 
+ 
+@@ -77,99 +70,12 @@ class CertRetrieveOverride(MethodOverride):
+ 
+ @register(override=True, no_fail=True)
+ class cert_request(CertRetrieveOverride):
+-    takes_options = CertRetrieveOverride.takes_options + (
+-        Str(
+-            'database?',
+-            label=_('Path to NSS database'),
+-            doc=_('Path to NSS database to use for private key'),
+-        ),
+-        Str(
+-            'private_key?',
+-            label=_('Path to private key file'),
+-            doc=_('Path to PEM file containing a private key'),
+-        ),
+-        Str(
+-            'password_file?',
+-            label=_(
+-                'File containing a password for the private key or database'),
+-        ),
+-        Str(
+-            'csr_profile_id?',
+-            label=_('Name of CSR generation profile (if not the same as'
+-                    ' profile_id)'),
+-        ),
+-    )
+-
+     def get_args(self):
+         for arg in super(cert_request, self).get_args():
+             if arg.name == 'csr':
+-                arg = arg.clone_retype(arg.name, File, required=False)
++                arg = arg.clone_retype(arg.name, File)
+             yield arg
+ 
+-    def forward(self, csr=None, **options):
+-        database = options.pop('database', None)
+-        private_key = options.pop('private_key', None)
+-        csr_profile_id = options.pop('csr_profile_id', None)
+-        password_file = options.pop('password_file', None)
+-
+-        if csr is None:
+-            if database:
+-                helper = u'certutil'
+-                helper_args = ['-d', database]
+-                if password_file:
+-                    helper_args += ['-f', password_file]
+-            elif private_key:
+-                helper = u'openssl'
+-                helper_args = [private_key]
+-                if password_file:
+-                    helper_args += ['-passin', 'file:%s' % password_file]
+-            else:
+-                raise errors.InvocationError(
+-                    message=u"One of 'database' or 'private_key' is required")
+-
+-            with NTF() as scriptfile, NTF() as csrfile:
+-                # If csr_profile_id is passed, that takes precedence.
+-                # Otherwise, use profile_id. If neither are passed, the default
+-                # in cert_get_requestdata will be used.
+-                profile_id = csr_profile_id
+-                if profile_id is None:
+-                    profile_id = options.get('profile_id')
+-
+-                self.api.Command.cert_get_requestdata(
+-                    profile_id=profile_id,
+-                    principal=options.get('principal'),
+-                    out=unicode(scriptfile.name),
+-                    helper=helper)
+-
+-                helper_cmd = [
+-                    'bash', '-e', scriptfile.name, csrfile.name] + helper_args
+-
+-                try:
+-                    subprocess.check_output(helper_cmd)
+-                except subprocess.CalledProcessError as e:
+-                    raise errors.CertificateOperationError(
+-                        error=(
+-                            _('Error running "%(cmd)s" to generate CSR:'
+-                              ' %(err)s') %
+-                            {'cmd': ' '.join(helper_cmd), 'err': e.output}))
+-
+-                try:
+-                    csr = unicode(csrfile.read())
+-                except IOError as e:
+-                    raise errors.CertificateOperationError(
+-                        error=(_('Unable to read generated CSR file: %(err)s')
+-                               % {'err': e}))
+-                if not csr:
+-                    raise errors.CertificateOperationError(
+-                        error=(_('Generated CSR was empty')))
+-        else:
+-            if database is not None or private_key is not None:
+-                raise errors.MutuallyExclusiveError(reason=_(
+-                    "Options 'database' and 'private_key' are not compatible"
+-                    " with 'csr'"))
+-
+-        return super(cert_request, self).forward(csr, **options)
+-
+ 
+ @register(override=True, no_fail=True)
+ class cert_show(CertRetrieveOverride):
+diff --git a/ipaclient/plugins/csrgen.py b/ipaclient/plugins/csrgen.py
+deleted file mode 100644
+index a0d99ef06445de268cd1872a025d0613e245ae6c..0000000000000000000000000000000000000000
+--- a/ipaclient/plugins/csrgen.py
++++ /dev/null
+@@ -1,120 +0,0 @@
+-#
+-# Copyright (C) 2016  FreeIPA Contributors see COPYING for license
+-#
+-
+-import six
+-
+-from ipaclient.csrgen import CSRGenerator, FileRuleProvider
+-from ipalib import api
+-from ipalib import errors
+-from ipalib import output
+-from ipalib import util
+-from ipalib.frontend import Local, Str
+-from ipalib.parameters import Principal
+-from ipalib.plugable import Registry
+-from ipalib.text import _
+-from ipapython import dogtag
+-
+-if six.PY3:
+-    unicode = str
+-
+-register = Registry()
+-
+-__doc__ = _("""
+-Commands to build certificate requests automatically
+-""")
+-
+-
+-@register()
+-class cert_get_requestdata(Local):
+-    __doc__ = _('Gather data for a certificate signing request.')
+-
+-    NO_CLI = True
+-
+-    takes_options = (
+-        Principal(
+-            'principal',
+-            label=_('Principal'),
+-            doc=_('Principal for this certificate (e.g.'
+-                  ' HTTP/test.example.com)'),
+-        ),
+-        Str(
+-            'profile_id?',
+-            label=_('Profile ID'),
+-            doc=_('CSR Generation Profile to use'),
+-        ),
+-        Str(
+-            'helper',
+-            label=_('Name of CSR generation tool'),
+-            doc=_('Name of tool (e.g. openssl, certutil) that will be used to'
+-                  ' create CSR'),
+-        ),
+-        Str(
+-            'out?',
+-            doc=_('Write CSR generation script to file'),
+-        ),
+-    )
+-
+-    has_output = (
+-        output.Output(
+-            'result',
+-            type=dict,
+-            doc=_('Dictionary mapping variable name to value'),
+-        ),
+-    )
+-
+-    has_output_params = (
+-        Str(
+-            'script',
+-            label=_('Generation script'),
+-        )
+-    )
+-
+-    def execute(self, *args, **options):
+-        if 'out' in options:
+-            util.check_writable_file(options['out'])
+-
+-        principal = options.get('principal')
+-        profile_id = options.get('profile_id')
+-        if profile_id is None:
+-            profile_id = dogtag.DEFAULT_PROFILE
+-        helper = options.get('helper')
+-
+-        if self.api.env.in_server:
+-            backend = self.api.Backend.ldap2
+-        else:
+-            backend = self.api.Backend.rpcclient
+-        if not backend.isconnected():
+-            backend.connect()
+-
+-        try:
+-            if principal.is_host:
+-                principal_obj = api.Command.host_show(
+-                    principal.hostname, all=True)
+-            elif principal.is_service:
+-                principal_obj = api.Command.service_show(
+-                    unicode(principal), all=True)
+-            elif principal.is_user:
+-                principal_obj = api.Command.user_show(
+-                    principal.username, all=True)
+-        except errors.NotFound:
+-            raise errors.NotFound(
+-                reason=_("The principal for this request doesn't exist."))
+-        principal_obj = principal_obj['result']
+-        config = api.Command.config_show()['result']
+-
+-        generator = CSRGenerator(FileRuleProvider())
+-
+-        script = generator.csr_script(
+-            principal_obj, config, profile_id, helper)
+-
+-        result = {}
+-        if 'out' in options:
+-            with open(options['out'], 'wb') as f:
+-                f.write(script)
+-        else:
+-            result = dict(script=script)
+-
+-        return dict(
+-            result=result
+-        )
+diff --git a/ipaclient/setup.py b/ipaclient/setup.py
+index f5be7ea61f554f04d7bde46c84182f6148820600..e3f31d2b9c46a2668a0e9264ea0cfda06aeeaa2e 100644
+--- a/ipaclient/setup.py
++++ b/ipaclient/setup.py
+@@ -43,18 +43,10 @@ if __name__ == '__main__':
+             "ipaclient.remote_plugins.2_156",
+             "ipaclient.remote_plugins.2_164",
+         ],
+-        package_data={
+-            'ipaclient': [
+-                'csrgen/profiles/*.json',
+-                'csrgen/rules/*.json',
+-                'csrgen/templates/*.tmpl',
+-            ],
+-        },
+         install_requires=[
+             "cryptography",
+             "ipalib",
+             "ipapython",
+-            "jinja2",
+             "python-yubico",
+             "pyusb",
+             "qrcode",
+@@ -63,6 +55,5 @@ if __name__ == '__main__':
+         extras_require={
+             "install": ["ipaplatform"],
+             "otptoken_yubikey": ["yubico", "usb"]
+-        },
+-        zip_safe=False,
++        }
+     )
+diff --git a/ipalib/errors.py b/ipalib/errors.py
+index 6aaca708a02e609f11c4aa5ef5fe2b4a8ae8a941..88707ac313fa7c5ec247b3f9b71f96925f5627e2 100644
+--- a/ipalib/errors.py
++++ b/ipalib/errors.py
+@@ -1422,34 +1422,6 @@ class HTTPRequestError(RemoteRetrieveError):
+     format = _('Request failed with status %(status)s: %(reason)s')
+ 
+ 
+-class RedundantMappingRule(SingleMatchExpected):
+-    """
+-    **4036** Raised when more than one rule in a CSR generation ruleset matches
+-    a particular helper.
+-
+-    For example:
+-
+-    >>> raise RedundantMappingRule(ruleset='syntaxSubject', helper='certutil')
+-    Traceback (most recent call last):
+-      ...
+-    RedundantMappingRule: Mapping ruleset "syntaxSubject" has more than one
+-    rule for the certutil helper.
+-    """
+-
+-    errno = 4036
+-    format = _('Mapping ruleset "%(ruleset)s" has more than one rule for the'
+-               ' %(helper)s helper')
+-
+-
+-class CSRTemplateError(ExecutionError):
+-    """
+-    **4037** Raised when evaluation of a CSR generation template fails
+-    """
+-
+-    errno = 4037
+-    format = _('%(reason)s')
+-
+-
+ class BuiltinError(ExecutionError):
+     """
+     **4100** Base class for builtin execution errors (*4100 - 4199*).
+diff --git a/ipatests/setup.py b/ipatests/setup.py
+index 46d51ff1ccdec7b2288955b8e5abdc2b971d3d17..fe65626ec7fe09701810a99a5fb8a8ede9697f46 100644
+--- a/ipatests/setup.py
++++ b/ipatests/setup.py
+@@ -38,7 +38,6 @@ if __name__ == '__main__':
+             "ipatests.test_cmdline",
+             "ipatests.test_install",
+             "ipatests.test_integration",
+-            "ipatests.test_ipaclient",
+             "ipatests.test_ipalib",
+             "ipatests.test_ipapython",
+             "ipatests.test_ipaserver",
+@@ -52,7 +51,6 @@ if __name__ == '__main__':
+         package_data={
+             'ipatests.test_install': ['*.update'],
+             'ipatests.test_integration': ['scripts/*'],
+-            'ipatests.test_ipaclient': ['data/*/*/*'],
+             'ipatests.test_ipalib': ['data/*'],
+             'ipatests.test_pkcs10': ['*.csr'],
+             "ipatests.test_ipaserver": ['data/*'],
+diff --git a/ipatests/test_ipaclient/__init__.py b/ipatests/test_ipaclient/__init__.py
+deleted file mode 100644
+index 0c428910cabe103af3ac9bfe4cdde6678acd1585..0000000000000000000000000000000000000000
+--- a/ipatests/test_ipaclient/__init__.py
++++ /dev/null
+@@ -1,7 +0,0 @@
+-#
+-# Copyright (C) 2016  FreeIPA Contributors see COPYING for license
+-#
+-
+-"""
+-Sub-package containing unit tests for `ipaclient` package.
+-"""
+diff --git a/ipatests/test_ipaclient/data/test_csrgen/profiles/profile.json b/ipatests/test_ipaclient/data/test_csrgen/profiles/profile.json
+deleted file mode 100644
+index 676f91bef696109976826e6e61be091718172798..0000000000000000000000000000000000000000
+--- a/ipatests/test_ipaclient/data/test_csrgen/profiles/profile.json
++++ /dev/null
+@@ -1,8 +0,0 @@
+-[
+-    {
+-        "syntax": "basic",
+-        "data": [
+-            "options"
+-        ]
+-    }
+-]
+diff --git a/ipatests/test_ipaclient/data/test_csrgen/rules/basic.json b/ipatests/test_ipaclient/data/test_csrgen/rules/basic.json
+deleted file mode 100644
+index feba3e91e53c5c9becb44c0d2190b5a98c04a928..0000000000000000000000000000000000000000
+--- a/ipatests/test_ipaclient/data/test_csrgen/rules/basic.json
++++ /dev/null
+@@ -1,12 +0,0 @@
+-{
+-  "rules": [
+-    {
+-      "helper": "openssl",
+-      "template": "openssl_rule"
+-    },
+-    {
+-      "helper": "certutil",
+-      "template": "certutil_rule"
+-    }
+-  ]
+-}
+diff --git a/ipatests/test_ipaclient/data/test_csrgen/rules/options.json b/ipatests/test_ipaclient/data/test_csrgen/rules/options.json
+deleted file mode 100644
+index 111a6d80c8faf27376dac342a18aede1fb1242ef..0000000000000000000000000000000000000000
+--- a/ipatests/test_ipaclient/data/test_csrgen/rules/options.json
++++ /dev/null
+@@ -1,18 +0,0 @@
+-{
+-  "rules": [
+-    {
+-      "helper": "openssl",
+-      "template": "openssl_rule",
+-      "options": {
+-        "helper_option": true
+-      }
+-    },
+-    {
+-      "helper": "certutil",
+-      "template": "certutil_rule"
+-    }
+-  ],
+-  "options": {
+-    "global_option": true
+-  }
+-}
+diff --git a/ipatests/test_ipaclient/data/test_csrgen/scripts/caIPAserviceCert_certutil.sh b/ipatests/test_ipaclient/data/test_csrgen/scripts/caIPAserviceCert_certutil.sh
+deleted file mode 100644
+index 74a704c2dd1765c7b775fded8ed957715b264b91..0000000000000000000000000000000000000000
+--- a/ipatests/test_ipaclient/data/test_csrgen/scripts/caIPAserviceCert_certutil.sh
++++ /dev/null
+@@ -1,11 +0,0 @@
+-#!/bin/bash -e
+-
+-if [[ $# -lt 1 ]]; then
+-echo "Usage: $0 <outfile> [<any> <certutil> <args>]"
+-echo "Called as: $0 $@"
+-exit 1
+-fi
+-
+-CSR="$1"
+-shift
+-certutil -R -a -z <(head -c 4096 /dev/urandom) -o "$CSR" -s CN=machine.example.com,O=DOMAIN.EXAMPLE.COM --extSAN dns:machine.example.com "$@"
+diff --git a/ipatests/test_ipaclient/data/test_csrgen/scripts/caIPAserviceCert_openssl.sh b/ipatests/test_ipaclient/data/test_csrgen/scripts/caIPAserviceCert_openssl.sh
+deleted file mode 100644
+index 811bfd763e27678adaf681a430e909b24680aeda..0000000000000000000000000000000000000000
+--- a/ipatests/test_ipaclient/data/test_csrgen/scripts/caIPAserviceCert_openssl.sh
++++ /dev/null
+@@ -1,34 +0,0 @@
+-#!/bin/bash -e
+-
+-if [[ $# -lt 2 ]]; then
+-echo "Usage: $0 <outfile> <keyfile> <other openssl arguments>"
+-echo "Called as: $0 $@"
+-exit 1
+-fi
+-
+-CONFIG="$(mktemp)"
+-CSR="$1"
+-KEYFILE="$2"
+-shift; shift
+-
+-echo \
+-'[ req ]
+-prompt = no
+-encrypt_key = no
+-
+-distinguished_name = sec0
+-req_extensions = sec2
+-
+-[ sec0 ]
+-O=DOMAIN.EXAMPLE.COM
+-CN=machine.example.com
+-
+-[ sec1 ]
+-DNS = machine.example.com
+-
+-[ sec2 ]
+-subjectAltName = @sec1
+-' > "$CONFIG"
+-
+-openssl req -new -config "$CONFIG" -out "$CSR" -key "$KEYFILE" "$@"
+-rm "$CONFIG"
+diff --git a/ipatests/test_ipaclient/data/test_csrgen/scripts/userCert_certutil.sh b/ipatests/test_ipaclient/data/test_csrgen/scripts/userCert_certutil.sh
+deleted file mode 100644
+index 4aaeda07aabd4c36d277e339d0b761f7a8a54baf..0000000000000000000000000000000000000000
+--- a/ipatests/test_ipaclient/data/test_csrgen/scripts/userCert_certutil.sh
++++ /dev/null
+@@ -1,11 +0,0 @@
+-#!/bin/bash -e
+-
+-if [[ $# -lt 1 ]]; then
+-echo "Usage: $0 <outfile> [<any> <certutil> <args>]"
+-echo "Called as: $0 $@"
+-exit 1
+-fi
+-
+-CSR="$1"
+-shift
+-certutil -R -a -z <(head -c 4096 /dev/urandom) -o "$CSR" -s CN=testuser,O=DOMAIN.EXAMPLE.COM --extSAN email:testuser@example.com "$@"
+diff --git a/ipatests/test_ipaclient/data/test_csrgen/scripts/userCert_openssl.sh b/ipatests/test_ipaclient/data/test_csrgen/scripts/userCert_openssl.sh
+deleted file mode 100644
+index 2edf067a528456877025f63dca76d68e7edde41e..0000000000000000000000000000000000000000
+--- a/ipatests/test_ipaclient/data/test_csrgen/scripts/userCert_openssl.sh
++++ /dev/null
+@@ -1,34 +0,0 @@
+-#!/bin/bash -e
+-
+-if [[ $# -lt 2 ]]; then
+-echo "Usage: $0 <outfile> <keyfile> <other openssl arguments>"
+-echo "Called as: $0 $@"
+-exit 1
+-fi
+-
+-CONFIG="$(mktemp)"
+-CSR="$1"
+-KEYFILE="$2"
+-shift; shift
+-
+-echo \
+-'[ req ]
+-prompt = no
+-encrypt_key = no
+-
+-distinguished_name = sec0
+-req_extensions = sec2
+-
+-[ sec0 ]
+-O=DOMAIN.EXAMPLE.COM
+-CN=testuser
+-
+-[ sec1 ]
+-email = testuser@example.com
+-
+-[ sec2 ]
+-subjectAltName = @sec1
+-' > "$CONFIG"
+-
+-openssl req -new -config "$CONFIG" -out "$CSR" -key "$KEYFILE" "$@"
+-rm "$CONFIG"
+diff --git a/ipatests/test_ipaclient/data/test_csrgen/templates/identity_base.tmpl b/ipatests/test_ipaclient/data/test_csrgen/templates/identity_base.tmpl
+deleted file mode 100644
+index 79111ab686b4fe25227796509b3cd3fcb54af728..0000000000000000000000000000000000000000
+--- a/ipatests/test_ipaclient/data/test_csrgen/templates/identity_base.tmpl
++++ /dev/null
+@@ -1 +0,0 @@
+-{{ options|join(";") }}
+diff --git a/ipatests/test_ipaclient/test_csrgen.py b/ipatests/test_ipaclient/test_csrgen.py
+deleted file mode 100644
+index 556f8e096976387d24057084c06d53bcb9998a69..0000000000000000000000000000000000000000
+--- a/ipatests/test_ipaclient/test_csrgen.py
++++ /dev/null
+@@ -1,298 +0,0 @@
+-#
+-# Copyright (C) 2016  FreeIPA Contributors see COPYING for license
+-#
+-
+-import os
+-import pytest
+-
+-from ipaclient import csrgen
+-from ipalib import errors
+-
+-BASE_DIR = os.path.dirname(__file__)
+-CSR_DATA_DIR = os.path.join(BASE_DIR, 'data', 'test_csrgen')
+-
+-
+-@pytest.fixture
+-def formatter():
+-    return csrgen.Formatter(csr_data_dir=CSR_DATA_DIR)
+-
+-
+-@pytest.fixture
+-def rule_provider():
+-    return csrgen.FileRuleProvider(csr_data_dir=CSR_DATA_DIR)
+-
+-
+-@pytest.fixture
+-def generator():
+-    return csrgen.CSRGenerator(csrgen.FileRuleProvider())
+-
+-
+-class StubRuleProvider(csrgen.RuleProvider):
+-    def __init__(self):
+-        self.syntax_rule = csrgen.Rule(
+-            'syntax', '{{datarules|join(",")}}', {})
+-        self.data_rule = csrgen.Rule('data', 'data_template', {})
+-        self.field_mapping = csrgen.FieldMapping(
+-            'example', self.syntax_rule, [self.data_rule])
+-        self.rules = [self.field_mapping]
+-
+-    def rules_for_profile(self, profile_id, helper):
+-        return self.rules
+-
+-
+-class IdentityFormatter(csrgen.Formatter):
+-    base_template_name = 'identity_base.tmpl'
+-
+-    def __init__(self):
+-        super(IdentityFormatter, self).__init__(csr_data_dir=CSR_DATA_DIR)
+-
+-    def _get_template_params(self, syntax_rules):
+-        return {'options': syntax_rules}
+-
+-
+-class IdentityCSRGenerator(csrgen.CSRGenerator):
+-    FORMATTERS = {'identity': IdentityFormatter}
+-
+-
+-class test_Formatter(object):
+-    def test_prepare_data_rule_with_data_source(self, formatter):
+-        data_rule = csrgen.Rule('uid', '{{subject.uid.0}}',
+-                                {'data_source': 'subject.uid.0'})
+-        prepared = formatter._prepare_data_rule(data_rule)
+-        assert prepared == '{% if subject.uid.0 %}{{subject.uid.0}}{% endif %}'
+-
+-    def test_prepare_data_rule_no_data_source(self, formatter):
+-        """Not a normal case, but we should handle it anyway"""
+-        data_rule = csrgen.Rule('uid', 'static_text', {})
+-        prepared = formatter._prepare_data_rule(data_rule)
+-        assert prepared == 'static_text'
+-
+-    def test_prepare_syntax_rule_with_data_sources(self, formatter):
+-        syntax_rule = csrgen.Rule(
+-            'example', '{{datarules|join(",")}}', {})
+-        data_rules = ['{{subject.field1}}', '{{subject.field2}}']
+-        data_sources = ['subject.field1', 'subject.field2']
+-        prepared = formatter._prepare_syntax_rule(
+-            syntax_rule, data_rules, 'example', data_sources)
+-
+-        assert prepared == (
+-            '{% if subject.field1 or subject.field2 %}{{subject.field1}},'
+-            '{{subject.field2}}{% endif %}')
+-
+-    def test_prepare_syntax_rule_with_combinator(self, formatter):
+-        syntax_rule = csrgen.Rule('example', '{{datarules|join(",")}}',
+-                                  {'data_source_combinator': 'and'})
+-        data_rules = ['{{subject.field1}}', '{{subject.field2}}']
+-        data_sources = ['subject.field1', 'subject.field2']
+-        prepared = formatter._prepare_syntax_rule(
+-            syntax_rule, data_rules, 'example', data_sources)
+-
+-        assert prepared == (
+-            '{% if subject.field1 and subject.field2 %}{{subject.field1}},'
+-            '{{subject.field2}}{% endif %}')
+-
+-    def test_prepare_syntax_rule_required(self, formatter):
+-        syntax_rule = csrgen.Rule('example', '{{datarules|join(",")}}',
+-                                  {'required': True})
+-        data_rules = ['{{subject.field1}}']
+-        data_sources = ['subject.field1']
+-        prepared = formatter._prepare_syntax_rule(
+-            syntax_rule, data_rules, 'example', data_sources)
+-
+-        assert prepared == (
+-            '{% filter required("example") %}{% if subject.field1 %}'
+-            '{{subject.field1}}{% endif %}{% endfilter %}')
+-
+-    def test_prepare_syntax_rule_passthrough(self, formatter):
+-        """
+-        Calls to macros defined as passthrough are still call tags in the final
+-        template.
+-        """
+-        formatter._define_passthrough('example.macro')
+-
+-        syntax_rule = csrgen.Rule(
+-            'example',
+-            '{% call example.macro() %}{{datarules|join(",")}}{% endcall %}',
+-            {})
+-        data_rules = ['{{subject.field1}}']
+-        data_sources = ['subject.field1']
+-        prepared = formatter._prepare_syntax_rule(
+-            syntax_rule, data_rules, 'example', data_sources)
+-
+-        assert prepared == (
+-            '{% if subject.field1 %}{% call example.macro() %}'
+-            '{{subject.field1}}{% endcall %}{% endif %}')
+-
+-    def test_prepare_syntax_rule_no_data_sources(self, formatter):
+-        """Not a normal case, but we should handle it anyway"""
+-        syntax_rule = csrgen.Rule(
+-            'example', '{{datarules|join(",")}}', {})
+-        data_rules = ['rule1', 'rule2']
+-        data_sources = []
+-        prepared = formatter._prepare_syntax_rule(
+-            syntax_rule, data_rules, 'example', data_sources)
+-
+-        assert prepared == 'rule1,rule2'
+-
+-
+-class test_FileRuleProvider(object):
+-    def test_rule_basic(self, rule_provider):
+-        rule_name = 'basic'
+-
+-        rule1 = rule_provider._rule(rule_name, 'openssl')
+-        rule2 = rule_provider._rule(rule_name, 'certutil')
+-
+-        assert rule1.template == 'openssl_rule'
+-        assert rule2.template == 'certutil_rule'
+-
+-    def test_rule_global_options(self, rule_provider):
+-        rule_name = 'options'
+-
+-        rule1 = rule_provider._rule(rule_name, 'openssl')
+-        rule2 = rule_provider._rule(rule_name, 'certutil')
+-
+-        assert rule1.options['global_option'] is True
+-        assert rule2.options['global_option'] is True
+-
+-    def test_rule_helper_options(self, rule_provider):
+-        rule_name = 'options'
+-
+-        rule1 = rule_provider._rule(rule_name, 'openssl')
+-        rule2 = rule_provider._rule(rule_name, 'certutil')
+-
+-        assert rule1.options['helper_option'] is True
+-        assert 'helper_option' not in rule2.options
+-
+-    def test_rule_nosuchrule(self, rule_provider):
+-        with pytest.raises(errors.NotFound):
+-            rule_provider._rule('nosuchrule', 'openssl')
+-
+-    def test_rule_nosuchhelper(self, rule_provider):
+-        with pytest.raises(errors.EmptyResult):
+-            rule_provider._rule('basic', 'nosuchhelper')
+-
+-    def test_rules_for_profile_success(self, rule_provider):
+-        rules = rule_provider.rules_for_profile('profile', 'certutil')
+-
+-        assert len(rules) == 1
+-        field_mapping = rules[0]
+-        assert field_mapping.syntax_rule.name == 'basic'
+-        assert len(field_mapping.data_rules) == 1
+-        assert field_mapping.data_rules[0].name == 'options'
+-
+-    def test_rules_for_profile_nosuchprofile(self, rule_provider):
+-        with pytest.raises(errors.NotFound):
+-            rule_provider.rules_for_profile('nosuchprofile', 'certutil')
+-
+-
+-class test_CSRGenerator(object):
+-    def test_userCert_OpenSSL(self, generator):
+-        principal = {
+-            'uid': ['testuser'],
+-            'mail': ['testuser@example.com'],
+-        }
+-        config = {
+-            'ipacertificatesubjectbase': [
+-                'O=DOMAIN.EXAMPLE.COM'
+-            ],
+-        }
+-
+-        script = generator.csr_script(principal, config, 'userCert', 'openssl')
+-        with open(os.path.join(
+-                CSR_DATA_DIR, 'scripts', 'userCert_openssl.sh')) as f:
+-            expected_script = f.read()
+-        assert script == expected_script
+-
+-    def test_userCert_Certutil(self, generator):
+-        principal = {
+-            'uid': ['testuser'],
+-            'mail': ['testuser@example.com'],
+-        }
+-        config = {
+-            'ipacertificatesubjectbase': [
+-                'O=DOMAIN.EXAMPLE.COM'
+-            ],
+-        }
+-
+-        script = generator.csr_script(
+-            principal, config, 'userCert', 'certutil')
+-
+-        with open(os.path.join(
+-                CSR_DATA_DIR, 'scripts', 'userCert_certutil.sh')) as f:
+-            expected_script = f.read()
+-        assert script == expected_script
+-
+-    def test_caIPAserviceCert_OpenSSL(self, generator):
+-        principal = {
+-            'krbprincipalname': [
+-                'HTTP/machine.example.com@DOMAIN.EXAMPLE.COM'
+-            ],
+-        }
+-        config = {
+-            'ipacertificatesubjectbase': [
+-                'O=DOMAIN.EXAMPLE.COM'
+-            ],
+-        }
+-
+-        script = generator.csr_script(
+-            principal, config, 'caIPAserviceCert', 'openssl')
+-        with open(os.path.join(
+-                CSR_DATA_DIR, 'scripts', 'caIPAserviceCert_openssl.sh')) as f:
+-            expected_script = f.read()
+-        assert script == expected_script
+-
+-    def test_caIPAserviceCert_Certutil(self, generator):
+-        principal = {
+-            'krbprincipalname': [
+-                'HTTP/machine.example.com@DOMAIN.EXAMPLE.COM'
+-            ],
+-        }
+-        config = {
+-            'ipacertificatesubjectbase': [
+-                'O=DOMAIN.EXAMPLE.COM'
+-            ],
+-        }
+-
+-        script = generator.csr_script(
+-            principal, config, 'caIPAserviceCert', 'certutil')
+-        with open(os.path.join(
+-                CSR_DATA_DIR, 'scripts', 'caIPAserviceCert_certutil.sh')) as f:
+-            expected_script = f.read()
+-        assert script == expected_script
+-
+-
+-class test_rule_handling(object):
+-    def test_optionalAttributeMissing(self, generator):
+-        principal = {'uid': 'testuser'}
+-        rule_provider = StubRuleProvider()
+-        rule_provider.data_rule.template = '{{subject.mail}}'
+-        rule_provider.data_rule.options = {'data_source': 'subject.mail'}
+-        generator = IdentityCSRGenerator(rule_provider)
+-
+-        script = generator.csr_script(
+-            principal, {}, 'example', 'identity')
+-        assert script == '\n'
+-
+-    def test_twoDataRulesOneMissing(self, generator):
+-        principal = {'uid': 'testuser'}
+-        rule_provider = StubRuleProvider()
+-        rule_provider.data_rule.template = '{{subject.mail}}'
+-        rule_provider.data_rule.options = {'data_source': 'subject.mail'}
+-        rule_provider.field_mapping.data_rules.append(csrgen.Rule(
+-            'data2', '{{subject.uid}}', {'data_source': 'subject.uid'}))
+-        generator = IdentityCSRGenerator(rule_provider)
+-
+-        script = generator.csr_script(principal, {}, 'example', 'identity')
+-        assert script == ',testuser\n'
+-
+-    def test_requiredAttributeMissing(self):
+-        principal = {'uid': 'testuser'}
+-        rule_provider = StubRuleProvider()
+-        rule_provider.data_rule.template = '{{subject.mail}}'
+-        rule_provider.data_rule.options = {'data_source': 'subject.mail'}
+-        rule_provider.syntax_rule.options = {'required': True}
+-        generator = IdentityCSRGenerator(rule_provider)
+-
+-        with pytest.raises(errors.CSRTemplateError):
+-            _script = generator.csr_script(
+-                principal, {}, 'example', 'identity')
+-- 
+2.9.4
+

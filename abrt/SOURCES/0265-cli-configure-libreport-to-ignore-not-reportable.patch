@@ -1,0 +1,46 @@
+From 3173508eef0b8b14020c9bef5bacb36feae83f4b Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Wed, 23 Nov 2016 16:03:51 +0100
+Subject: [PATCH] cli: configure libreport to ignore not-reportable
+
+The check for not-reportable is performed by libreport too.
+
+Related to #1257159
+Related to abrt/abrt#1166
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/cli/report.c | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/cli/report.c b/src/cli/report.c
+index 1e9067b..efdca2d 100644
+--- a/src/cli/report.c
++++ b/src/cli/report.c
+@@ -36,6 +36,7 @@ int _cmd_report(const char **dirs_strv, int flags)
+             continue;
+         }
+ 
++
+         const int not_reportable = test_exist_over_dbus(real_problem_id, FILENAME_NOT_REPORTABLE);
+         if (not_reportable != 0)
+         {
+@@ -57,9 +58,12 @@ int _cmd_report(const char **dirs_strv, int flags)
+             ++ret;
+             continue;
+         }
+-        int status = report_problem_in_dir(real_problem_id,
+-                                             LIBREPORT_WAIT
+-                                           | LIBREPORT_RUN_CLI);
++
++        int lr_flags = LIBREPORT_WAIT | LIBREPORT_RUN_CLI;
++        if (flags & CMD_REPORT_UNSAFE)
++            lr_flags |= LIBREPORT_IGNORE_NOT_REPORTABLE;
++
++        int status = report_problem_in_dir(real_problem_id, lr_flags);
+ 
+         /* the problem was successfully reported and option is -d */
+         if((flags & CMD_REPORT_REMOVE) && (status == 0 || status == EXIT_STOP_EVENT_RUN))
+-- 
+1.8.3.1
+

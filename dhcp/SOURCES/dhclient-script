@@ -197,6 +197,14 @@ exit_with_hooks() {
         . ${ETCDIR}/dhclient-exit-hooks
     fi
 
+    if [ -d ${ETCDIR}/dhclient-exit-hooks.d ]; then
+        for f in ${ETCDIR}/dhclient-exit-hooks.d/*.sh ; do
+            if [ -x ${f} ]; then
+                . ${f}
+            fi
+        done
+    fi
+
     exit ${exit_status}
 }
 

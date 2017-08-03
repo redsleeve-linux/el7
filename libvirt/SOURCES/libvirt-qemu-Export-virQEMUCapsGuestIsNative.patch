@@ -1,0 +1,47 @@
+From b06befbc433e1b6dc1a8ee5ee0814a20a2288685 Mon Sep 17 00:00:00 2001
+Message-Id: <b06befbc433e1b6dc1a8ee5ee0814a20a2288685@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Tue, 11 Jul 2017 15:15:01 +0200
+Subject: [PATCH] qemu: Export virQEMUCapsGuestIsNative
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit ee4180bef124cbc08a702689dda6fd95b21b1387)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1470582
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+---
+ src/qemu/qemu_capabilities.c | 2 +-
+ src/qemu/qemu_capabilities.h | 3 +++
+ 2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index eea57e4c9c..f22c11941c 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -491,7 +491,7 @@ static const char *virQEMUCapsArchToString(virArch arch)
+ 
+ /* Checks whether a domain with @guest arch can run natively on @host.
+  */
+-static bool
++bool
+ virQEMUCapsGuestIsNative(virArch host,
+                          virArch guest)
+ {
+diff --git a/src/qemu/qemu_capabilities.h b/src/qemu/qemu_capabilities.h
+index bbc6f6812f..c28c80d40a 100644
+--- a/src/qemu/qemu_capabilities.h
++++ b/src/qemu/qemu_capabilities.h
+@@ -569,4 +569,7 @@ int virQEMUCapsFillDomainCaps(virCapsPtr caps,
+                               virFirmwarePtr *firmwares,
+                               size_t nfirmwares);
+ 
++bool virQEMUCapsGuestIsNative(virArch host,
++                              virArch guest);
++
+ #endif /* __QEMU_CAPABILITIES_H__*/
+-- 
+2.13.2
+

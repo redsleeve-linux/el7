@@ -1,0 +1,54 @@
+From 8c00ca78eed4ffdb9238b89b58eb5975baf5e339 Mon Sep 17 00:00:00 2001
+Message-Id: <8c00ca78eed4ffdb9238b89b58eb5975baf5e339@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Fri, 19 May 2017 12:24:11 +0200
+Subject: [PATCH] conf: Don't assign value from ..TypeFromString directly to
+ enum
+
+Enums are unsigned, so it's impossible to check whether the helper
+returned -1 for invalid conversions.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1452454
+(cherry picked from commit 85d62624c5d02c38e00a275dc2b2957584454908)
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/conf/domain_conf.c | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 1653aa61d..a918ecd59 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -14065,6 +14065,7 @@ virDomainMemoryDefParseXML(xmlNodePtr memdevNode,
+     xmlNodePtr save = ctxt->node;
+     xmlNodePtr node;
+     virDomainMemoryDefPtr def;
++    int val;
+ 
+     ctxt->node = memdevNode;
+ 
+@@ -14084,12 +14085,14 @@ virDomainMemoryDefParseXML(xmlNodePtr memdevNode,
+     }
+     VIR_FREE(tmp);
+ 
+-    tmp = virXMLPropString(memdevNode, "access");
+-    if (tmp &&
+-        (def->access = virDomainMemoryAccessTypeFromString(tmp)) <= 0) {
+-        virReportError(VIR_ERR_XML_ERROR,
+-                       _("invalid access mode '%s'"), tmp);
+-        goto error;
++    if ((tmp = virXMLPropString(memdevNode, "access"))) {
++        if ((val = virDomainMemoryAccessTypeFromString(tmp)) <= 0) {
++            virReportError(VIR_ERR_XML_ERROR,
++                           _("invalid access mode '%s'"), tmp);
++            goto error;
++        }
++
++        def->access = val;
+     }
+     VIR_FREE(tmp);
+ 
+-- 
+2.13.0
+

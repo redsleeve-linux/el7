@@ -1,4 +1,4 @@
-From f7d6a76475d29e0edb5456e62492117b87f4bc41 Mon Sep 17 00:00:00 2001
+From 6b2d5dafa9847ce29e5cddeb369b35db5ce076b1 Mon Sep 17 00:00:00 2001
 From: Ladi Prosek <lprosek@redhat.com>
 Date: Thu, 10 Nov 2016 23:00:50 +0100
 Subject: [PATCH 7/8] virtio: add virtqueue_rewind()
@@ -7,7 +7,7 @@ RH-Author: Ladi Prosek <lprosek@redhat.com>
 Message-id: <1478797251-10302-1-git-send-email-lprosek@redhat.com>
 Patchwork-id: 72818
 O-Subject: [PATCH v2 7/6] virtio: add virtqueue_rewind()
-Bugzilla: 1393484
+Bugzilla: 1377968
 RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
 RH-Acked-by: Michael S. Tsirkin <mst@redhat.com>
 RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>

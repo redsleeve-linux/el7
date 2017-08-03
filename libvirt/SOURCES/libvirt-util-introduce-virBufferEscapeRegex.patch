@@ -1,0 +1,140 @@
+From e302b6b9505730e9f1d139027c87867c973d2a26 Mon Sep 17 00:00:00 2001
+Message-Id: <e302b6b9505730e9f1d139027c87867c973d2a26@dist-git>
+From: Pavel Hrdina <phrdina@redhat.com>
+Date: Tue, 16 May 2017 11:46:12 +0200
+Subject: [PATCH] util: introduce virBufferEscapeRegex
+
+Add a helper to escape all possible meta-characters used for
+POSIX extended regular expressions.
+
+Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit 0918b84968ab8aeb1dc17d5da839d68d947f478f)
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1446980
+
+Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/libvirt_private.syms |  1 +
+ src/util/virbuffer.c     | 19 +++++++++++++++++++
+ src/util/virbuffer.h     |  3 +++
+ tests/virbuftest.c       | 40 ++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 63 insertions(+)
+
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index 06c338384..7e1a06db3 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -1292,6 +1292,7 @@ virBufferCurrentContent;
+ virBufferError;
+ virBufferEscape;
+ virBufferEscapeN;
++virBufferEscapeRegex;
+ virBufferEscapeSexpr;
+ virBufferEscapeShell;
+ virBufferEscapeString;
+diff --git a/src/util/virbuffer.c b/src/util/virbuffer.c
+index 80c8e289d..f07b119c0 100644
+--- a/src/util/virbuffer.c
++++ b/src/util/virbuffer.c
+@@ -556,6 +556,25 @@ virBufferEscapeSexpr(virBufferPtr buf,
+ }
+ 
+ /**
++ * virBufferEscapeRegex:
++ * @buf: the buffer to append to
++ * @format: a printf like format string but with only one %s parameter
++ * @str: the string argument which needs to be escaped
++ *
++ * Do a formatted print with a single string to a buffer.  The @str is
++ * escaped to avoid using POSIX extended regular expression meta-characters.
++ * Escaping is not applied to characters specified in @format. Auto
++ * indentation may be applied.
++ */
++void
++virBufferEscapeRegex(virBufferPtr buf,
++                     const char *format,
++                     const char *str)
++{
++    virBufferEscape(buf, '\\', "^$.|?*+()[]{}\\", format, str);
++}
++
++/**
+  * virBufferEscape:
+  * @buf: the buffer to append to
+  * @escape: the escape character to inject
+diff --git a/src/util/virbuffer.h b/src/util/virbuffer.h
+index d1b64ca3a..7a7014aa7 100644
+--- a/src/util/virbuffer.h
++++ b/src/util/virbuffer.h
+@@ -88,6 +88,9 @@ void virBufferEscapeString(virBufferPtr buf, const char *format,
+                            const char *str);
+ void virBufferEscapeSexpr(virBufferPtr buf, const char *format,
+                           const char *str);
++void virBufferEscapeRegex(virBufferPtr buf,
++                          const char *format,
++                          const char *str);
+ void virBufferEscapeShell(virBufferPtr buf, const char *str);
+ void virBufferURIEncodeString(virBufferPtr buf, const char *str);
+ 
+diff --git a/tests/virbuftest.c b/tests/virbuftest.c
+index 8ec6ce51e..6f8d4b72c 100644
+--- a/tests/virbuftest.c
++++ b/tests/virbuftest.c
+@@ -405,6 +405,35 @@ testBufEscapeN(const void *opaque)
+ 
+ 
+ static int
++testBufEscapeRegex(const void *opaque)
++{
++    const struct testBufAddStrData *data = opaque;
++    virBuffer buf = VIR_BUFFER_INITIALIZER;
++    char *actual;
++    int ret = -1;
++
++    virBufferEscapeRegex(&buf, "%s", data->data);
++
++    if (!(actual = virBufferContentAndReset(&buf))) {
++        VIR_TEST_DEBUG("testBufEscapeN: buf is empty");
++        goto cleanup;
++    }
++
++    if (STRNEQ_NULLABLE(actual, data->expect)) {
++        VIR_TEST_DEBUG("testBufEscapeN: Strings don't match:\n");
++        virTestDifference(stderr, data->expect, actual);
++        goto cleanup;
++    }
++
++    ret = 0;
++
++ cleanup:
++    VIR_FREE(actual);
++    return ret;
++}
++
++
++static int
+ testBufSetIndent(const void *opaque ATTRIBUTE_UNUSED)
+ {
+     virBuffer buf = VIR_BUFFER_INITIALIZER;
+@@ -492,6 +521,17 @@ mymain(void)
+     DO_TEST_ESCAPEN("equal=escape", "equal\\=escape");
+     DO_TEST_ESCAPEN("comma,equal=escape", "comma,,equal\\=escape");
+ 
++#define DO_TEST_ESCAPE_REGEX(data, expect)                                  \
++    do {                                                                    \
++        struct testBufAddStrData info = { data, expect };                   \
++        if (virTestRun("Buf: EscapeRegex", testBufEscapeRegex, &info) < 0)  \
++            ret = -1;                                                       \
++    } while (0)
++
++    DO_TEST_ESCAPE_REGEX("noescape", "noescape");
++    DO_TEST_ESCAPE_REGEX("^$.|?*+()[]{}\\",
++                         "\\^\\$\\.\\|\\?\\*\\+\\(\\)\\[\\]\\{\\}\\\\");
++
+     return ret == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+ }
+ 
+-- 
+2.13.0
+

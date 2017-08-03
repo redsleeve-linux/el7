@@ -1,0 +1,49 @@
+From d8a9ed4e2fc164962d76773b57277f97bca84270 Mon Sep 17 00:00:00 2001
+From: Jan Cholasta <jcholast@redhat.com>
+Date: Thu, 16 Mar 2017 12:51:29 +0000
+Subject: [PATCH] tasks: run `systemctl daemon-reload` after httpd.service.d
+ updates
+
+Run `systemctl daemon-reload` after
+`/etc/systemd/system/httpd.service.d/ipa.conf` is created or deleted,
+otherwise systemd will not merge the file into httpd.service and therefore
+required environment variables will not be set for httpd.
+
+This fixes authentication failures ("No valid Negotiate header in server
+response") due to missing `GSS_USE_PROXY=yes` in httpd environment.
+
+https://pagure.io/freeipa/issue/6773
+
+Reviewed-By: Martin Babinsky <mbabinsk@redhat.com>
+---
+ ipaplatform/redhat/tasks.py | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/ipaplatform/redhat/tasks.py b/ipaplatform/redhat/tasks.py
+index c1b574e06fc52839b684cbe96587365fa107b2eb..d0ef5fbd1ceb8110dd417dda44a74dc63898456a 100644
+--- a/ipaplatform/redhat/tasks.py
++++ b/ipaplatform/redhat/tasks.py
+@@ -483,6 +483,9 @@ class RedHatTaskNamespace(BaseTaskNamespace):
+         os.chmod(paths.SYSTEMD_SYSTEM_HTTPD_IPA_CONF, 0o644)
+         self.restore_context(paths.SYSTEMD_SYSTEM_HTTPD_IPA_CONF)
+ 
++        ipautil.run([paths.SYSTEMCTL, "--system", "daemon-reload"],
++                    raiseonerr=False)
++
+     def configure_http_gssproxy_conf(self):
+         ipautil.copy_template_file(
+             os.path.join(paths.USR_SHARE_IPA_DIR, 'gssproxy.conf.template'),
+@@ -513,6 +516,10 @@ class RedHatTaskNamespace(BaseTaskNamespace):
+                     'Error removing %s: %s',
+                     paths.SYSTEMD_SYSTEM_HTTPD_IPA_CONF, e
+                 )
++            return
++
++        ipautil.run([paths.SYSTEMCTL, "--system", "daemon-reload"],
++                    raiseonerr=False)
+ 
+     def set_hostname(self, hostname):
+         ipautil.run([paths.BIN_HOSTNAMECTL, 'set-hostname', hostname])
+-- 
+2.12.1
+

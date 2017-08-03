@@ -1,0 +1,110 @@
+From 2bd0e49b7a7ba98a8ee6872cc7c3e619578c4431 Mon Sep 17 00:00:00 2001
+From: Martin Babinsky <mbabinsk@redhat.com>
+Date: Wed, 5 Apr 2017 17:29:26 +0200
+Subject: [PATCH] Stop requesting anonymous keytab and purge all references of
+ it
+
+anonymous kinit using keytab never worked so we may safely remove all
+code that requests/uses it.
+
+https://pagure.io/freeipa/issue/6830
+
+Reviewed-By: Alexander Bokovoy <abokovoy@redhat.com>
+Reviewed-By: Jan Cholasta <jcholast@redhat.com>
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+Reviewed-By: Simo Sorce <ssorce@redhat.com>
+---
+ ipaplatform/base/paths.py           |  1 -
+ ipaserver/install/httpinstance.py   | 17 -----------------
+ ipaserver/install/ipa_backup.py     |  1 -
+ ipaserver/install/server/upgrade.py |  1 -
+ 4 files changed, 20 deletions(-)
+
+diff --git a/ipaplatform/base/paths.py b/ipaplatform/base/paths.py
+index dbdd71ed0b4d69c1101db4aeb7d93152ab8aa730..f80c9e95ab875222887e3692ab80151f84345469 100644
+--- a/ipaplatform/base/paths.py
++++ b/ipaplatform/base/paths.py
+@@ -50,7 +50,6 @@ class BasePathNamespace(object):
+     HTTPD_SSL_CONF = "/etc/httpd/conf.d/ssl.conf"
+     OLD_IPA_KEYTAB = "/etc/httpd/conf/ipa.keytab"
+     HTTP_KEYTAB = "/var/lib/ipa/gssproxy/http.keytab"
+-    ANON_KEYTAB = "/var/lib/ipa/api/anon.keytab"
+     HTTPD_PASSWORD_CONF = "/etc/httpd/conf/password.conf"
+     IDMAPD_CONF = "/etc/idmapd.conf"
+     ETC_IPA = "/etc/ipa"
+diff --git a/ipaserver/install/httpinstance.py b/ipaserver/install/httpinstance.py
+index f0a477e0bf16b03ed8b937279dad88e6e2b3aab6..7898c53bc02785e2750dba61a5696f079355c9d7 100644
+--- a/ipaserver/install/httpinstance.py
++++ b/ipaserver/install/httpinstance.py
+@@ -30,7 +30,6 @@ import locale
+ 
+ import six
+ 
+-from ipalib.constants import IPAAPI_USER
+ from ipalib.install import certmonger
+ from ipaserver.install import service
+ from ipaserver.install import certs
+@@ -42,7 +41,6 @@ from ipapython.ipa_log_manager import root_logger
+ import ipapython.errors
+ from ipaserver.install import sysupgrade
+ from ipalib import api
+-from ipalib.constants import ANON_USER
+ from ipaplatform.constants import constants
+ from ipaplatform.tasks import tasks
+ from ipaplatform.paths import paths
+@@ -158,7 +156,6 @@ class HTTPInstance(service.Service):
+         self.step("adding URL rewriting rules", self.__add_include)
+         self.step("configuring httpd", self.__configure_http)
+         self.step("setting up httpd keytab", self.request_service_keytab)
+-        self.step("retrieving anonymous keytab", self.request_anon_keytab)
+         self.step("configuring Gssproxy", self.configure_gssproxy)
+         self.step("setting up ssl", self.__setup_ssl)
+         if self.ca_is_configured:
+@@ -304,20 +301,6 @@ class HTTPInstance(service.Service):
+             if certmonger_stopped:
+                 certmonger.stop()
+ 
+-    def request_anon_keytab(self):
+-        parent = os.path.dirname(paths.ANON_KEYTAB)
+-        if not os.path.exists(parent):
+-            os.makedirs(parent, 0o755)
+-
+-        self.clean_previous_keytab(keytab=paths.ANON_KEYTAB)
+-        self.run_getkeytab(self.api.env.ldap_uri, paths.ANON_KEYTAB, ANON_USER)
+-
+-        pent = pwd.getpwnam(IPAAPI_USER)
+-        os.chmod(parent, 0o700)
+-        os.chown(parent, pent.pw_uid, pent.pw_gid)
+-
+-        self.set_keytab_owner(keytab=paths.ANON_KEYTAB, owner=IPAAPI_USER)
+-
+     def create_password_conf(self):
+         """
+         This is the format of mod_nss pin files.
+diff --git a/ipaserver/install/ipa_backup.py b/ipaserver/install/ipa_backup.py
+index f71a40bb06545c8d89d1e3fdbc37d5e6e1fe8d58..40f08d7d727a8b97b5996f15d27c1e20788e1473 100644
+--- a/ipaserver/install/ipa_backup.py
++++ b/ipaserver/install/ipa_backup.py
+@@ -120,7 +120,6 @@ class Backup(admintool.AdminTool):
+     )
+ 
+     files = (
+-        paths.ANON_KEYTAB,
+         paths.NAMED_CONF,
+         paths.NAMED_KEYTAB,
+         paths.RESOLV_CONF,
+diff --git a/ipaserver/install/server/upgrade.py b/ipaserver/install/server/upgrade.py
+index 927acb011172de926773196eb1d032af8376f3d9..ea2918f5037898b6b8dc601441a439b6150d54e5 100644
+--- a/ipaserver/install/server/upgrade.py
++++ b/ipaserver/install/server/upgrade.py
+@@ -1795,7 +1795,6 @@ def upgrade_configuration():
+                         KDC_KEY=paths.KDC_KEY,
+                         CACERT_PEM=paths.CACERT_PEM)
+     krb.add_anonymous_principal()
+-    http.request_anon_keytab()
+     setup_pkinit(krb)
+ 
+     if not ds_running:
+-- 
+2.12.2
+

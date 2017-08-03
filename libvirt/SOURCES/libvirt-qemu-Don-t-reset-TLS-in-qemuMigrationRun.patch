@@ -1,0 +1,66 @@
+From 0811efa2bcaae69e59fe09432083224e77eafa1d Mon Sep 17 00:00:00 2001
+Message-Id: <0811efa2bcaae69e59fe09432083224e77eafa1d@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 5 Apr 2017 10:24:47 +0200
+Subject: [PATCH] qemu: Don't reset TLS in qemuMigrationRun
+
+Finished qemuMigrationRun does not mean the migration itself finished
+(it might have just switched to post-copy mode). While resetting TLS
+parameters is probably OK at this point even if migration is still
+running, we want to consolidate the code which resets various migration
+parameters. Thus qemuMigrationResetTLS will be called from the Confirm
+phase (or at the end of the Perform phase in case of v2 protocol), when
+migration is either canceled or finished.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit a88c250d8693ae198d42cf26e2b7b1e190e94637)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1425003
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_migration.c | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/qemu/qemu_migration.c b/src/qemu/qemu_migration.c
+index 992b6bd4a..d8d89b011 100644
+--- a/src/qemu/qemu_migration.c
++++ b/src/qemu/qemu_migration.c
+@@ -3216,6 +3216,9 @@ qemuMigrationConfirmPhase(virQEMUDriverPtr driver,
+             qemuDomainEventQueue(driver, event);
+         }
+ 
++        qemuMigrationResetTLS(driver, vm, QEMU_ASYNC_JOB_MIGRATION_OUT,
++                              NULL, NULL);
++
+         if (virDomainSaveStatus(driver->xmlopt, cfg->stateDir, vm, driver->caps) < 0)
+             VIR_WARN("Failed to save status on vm %s", vm->def->name);
+     }
+@@ -3848,10 +3851,6 @@ qemuMigrationRun(virQEMUDriverPtr driver,
+             ret = -1;
+     }
+ 
+-    if (qemuMigrationResetTLS(driver, vm, QEMU_ASYNC_JOB_MIGRATION_OUT,
+-                              tlsAlias, secAlias) < 0)
+-        ret = -1;
+-
+     VIR_FREE(tlsAlias);
+     VIR_FREE(secAlias);
+     virObjectUnref(cfg);
+@@ -4827,6 +4826,13 @@ qemuMigrationPerformJob(virQEMUDriverPtr driver,
+     if (ret < 0)
+         orig_err = virSaveLastError();
+ 
++    /* v2 proto has no confirm phase so we need to reset migration parameters
++     * here
++     */
++    if (!v3proto && ret < 0)
++        qemuMigrationResetTLS(driver, vm, QEMU_ASYNC_JOB_MIGRATION_OUT,
++                              NULL, NULL);
++
+     if (qemuMigrationRestoreDomainState(conn, vm)) {
+         event = virDomainEventLifecycleNewFromObj(vm,
+                                          VIR_DOMAIN_EVENT_RESUMED,
+-- 
+2.12.2
+

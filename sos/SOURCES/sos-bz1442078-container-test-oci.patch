@@ -1,0 +1,180 @@
+From 471d8e86c3c174f7b075c306542c732f30893281 Mon Sep 17 00:00:00 2001
+From: "Bryn M. Reeves" <bmr@redhat.com>
+Date: Wed, 3 May 2017 16:39:25 +0100
+Subject: [PATCH 1/3] [reporting] imrove readability of Six string workaround
+
+Improve the readability of the changes to work around Six issue
+emphasise the fact that the buffer contains line oriented data,
+and introduce a helper function to test whether the string needs
+the workaround to be applied or not: this shortens the list
+comprehension which would otherwise overflow a single line due
+to the longer buffer variable name.
+
+Signed-off-by: Bryn M. Reeves <bmr@redhat.com>
+---
+ sos/reporting.py | 25 ++++++++++++++++++-------
+ 1 file changed, 18 insertions(+), 7 deletions(-)
+
+diff --git a/sos/reporting.py b/sos/reporting.py
+index 0bb7d29..a4941ad 100644
+--- a/sos/reporting.py
++++ b/sos/reporting.py
+@@ -118,6 +118,17 @@ class Note(Leaf):
+         self.data = content
+ 
+ 
++def ends_bs(string):
++    """ Return True if 'string' ends with a backslash, and False otherwise.
++
++        Define this as a named function for no other reason than that pep8
++        now forbids binding of a lambda expression to a name:
++
++        'E731 do not assign a lambda expression, use a def'
++    """
++    return string.endswith('\\')
++
++
+ class PlainTextReport(object):
+     """Will generate a plain text report from a top_level Report object"""
+ 
+@@ -134,16 +145,16 @@ class PlainTextReport(object):
+         (Note, NOTE,         "-  notes:"),
+     )
+ 
+-    buf = []
++    line_buf = []
+ 
+     def __init__(self, report_node):
+         self.report_node = report_node
+ 
+     def unicode(self):
+-        self.buf = buf = []
++        self.line_buf = line_buf = []
+         for section_name, section_contents in sorted(iteritems(
+                 self.report_node.data)):
+-            buf.append(section_name + "\n" + self.DIVIDER)
++            line_buf.append(section_name + "\n" + self.DIVIDER)
+             for type_, format_, header in self.subsections:
+                 self.process_subsection(section_contents, type_.ADDS_TO,
+                                         header, format_)
+@@ -151,10 +162,10 @@ class PlainTextReport(object):
+         # Workaround python.six mishandling of strings ending in '/' by
+         # adding a single space following any '\' at end-of-line.
+         # See Six issue #60.
+-        buf = [(val + " ") if val.endswith('\\') else val for val in buf]
++        line_buf = [line + " " if ends_bs(line) else line for line in line_buf]
+ 
+         output = u'\n'.join(map(lambda i: (i if isinstance(i, six.text_type)
+-                                           else six.u(i)), buf))
++                                           else six.u(i)), line_buf))
+         if six.PY3:
+             return output
+         else:
+@@ -162,8 +173,8 @@ class PlainTextReport(object):
+ 
+     def process_subsection(self, section, key, header, format_):
+         if key in section:
+-            self.buf.append(header)
++            self.line_buf.append(header)
+             for item in section.get(key):
+-                self.buf.append(format_ % item)
++                self.line_buf.append(format_ % item)
+ 
+ # vim: set et ts=4 sw=4 :
+-- 
+2.7.4
+
+
+From a81243cdd3f0e7db152251caeb478c19cd801277 Mon Sep 17 00:00:00 2001
+From: "Bryn M. Reeves" <bmr@redhat.com>
+Date: Wed, 3 May 2017 16:42:10 +0100
+Subject: [PATCH 2/3] [plugins] work around Six string problems in HTML reports
+
+A workaround for Six string encoding problems involving strings
+that end in '\' characters was introduced for plain text reports
+in commit 3d23564: a similar fix is also needed for HTML reports,
+since the same string encoding problem can occur there too:
+
+> /usr/lib/python2.7/site-packages/six.py(647)u()
+-> return unicode(s.replace(r'\\', r'\\\\'), "unicode_escape")
+(Pdb) bt
+  /usr/sbin/sosreport(25)<module>()
+-> main(sys.argv[1:])
+  /usr/lib/python2.7/site-packages/sos/sosreport.py(1632)main()
+-> sos.execute()
+  /usr/lib/python2.7/site-packages/sos/sosreport.py(1606)execute()
+-> self.html_report()
+  /usr/lib/python2.7/site-packages/sos/sosreport.py(1373)html_report()
+-> self._html_report()
+  /usr/lib/python2.7/site-packages/sos/sosreport.py(1434)_html_report()
+-> self.handle_exception()
+  /usr/lib/python2.7/site-packages/sos/sosreport.py(1432)_html_report()
+-> html = plug.report()
+  /usr/lib/python2.7/site-packages/sos/plugins/__init__.py(930)report()
+-> + "/" + _to_u(cmd['file'])
+  /usr/lib/python2.7/site-packages/sos/plugins/__init__.py(44)_to_u()
+-> s = six.u(s)
+> /usr/lib/python2.7/site-packages/six.py(647)u()
+-> return unicode(s.replace(r'\\', r'\\\\'), "unicode_escape")
+
+Avoid this by applying the same workaround ('\$' -> '\ $') in the
+existing Plugin _to_u() helper function.
+
+Signed-off-by: Bryn M. Reeves <bmr@redhat.com>
+---
+ sos/plugins/__init__.py | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/sos/plugins/__init__.py b/sos/plugins/__init__.py
+index 49da6f2..cd34d19 100644
+--- a/sos/plugins/__init__.py
++++ b/sos/plugins/__init__.py
+@@ -36,6 +36,11 @@ from six.moves import zip, filter
+ 
+ def _to_u(s):
+     if not isinstance(s, six.text_type):
++        # Workaround python.six mishandling of strings ending in '\' by
++        # adding a single space following any '\' at end-of-line.
++        # See Six issue #60.
++        if s.endswith('\\'):
++            s += " "
+         s = six.u(s)
+     return s
+ 
+-- 
+2.7.4
+
+
+From 5e3ae1cf78cbd7dd122ed229add39e89aefdc21e Mon Sep 17 00:00:00 2001
+From: "Bryn M. Reeves" <bmr@redhat.com>
+Date: Wed, 3 May 2017 16:47:04 +0100
+Subject: [PATCH 3/3] [policies/redhat] accept 'oci' as a valid container type
+
+Currently the Red Hat container policy accepts 'container=docker'
+as a valid indication that we are running in a container and to
+enable sysroot and host sysroot checks.
+
+More recent Red Hat container infrastructure has change to setting
+'container=oci', so recognise this value as well.
+
+Signed-off-by: Bryn M. Reeves <bmr@redhat.com>
+---
+ sos/policies/redhat.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sos/policies/redhat.py b/sos/policies/redhat.py
+index a1565c6..a6e3712 100644
+--- a/sos/policies/redhat.py
++++ b/sos/policies/redhat.py
+@@ -84,7 +84,7 @@ class RedHatPolicy(LinuxPolicy):
+         specific initialisation based on ENV_HOST_SYSROOT.
+         """
+         if ENV_CONTAINER in os.environ:
+-            if os.environ[ENV_CONTAINER] == 'docker':
++            if os.environ[ENV_CONTAINER] in ['docker', 'oci']:
+                 self._in_container = True
+         if ENV_HOST_SYSROOT in os.environ:
+             self._host_sysroot = os.environ[ENV_HOST_SYSROOT]
+-- 
+2.7.4
+

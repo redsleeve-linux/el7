@@ -1,0 +1,53 @@
+From 37ddd26bc4b2f99dfa27b2ad45219290a2f44ec5 Mon Sep 17 00:00:00 2001
+From: Jan Cholasta <jcholast@redhat.com>
+Date: Fri, 7 Apr 2017 07:46:58 +0200
+Subject: [PATCH] renew agent: revert to host keytab authentication
+
+Fixes an issue where the renew agent uses GSSAPI for LDAP connection but
+fails because it is not authenticated.
+
+This reverts commit 7462adec13c5b25b6868d2863dc38062c97d0ff7.
+
+https://pagure.io/freeipa/issue/6757
+
+Reviewed-By: Martin Babinsky <mbabinsk@redhat.com>
+---
+ install/certmonger/dogtag-ipa-ca-renew-agent-submit | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/install/certmonger/dogtag-ipa-ca-renew-agent-submit b/install/certmonger/dogtag-ipa-ca-renew-agent-submit
+index 5782db703c49d7c2e92c806e24e9925e8e7d710a..3389447a99d9ab9dac159b0d57ca02f60698ce0c 100755
+--- a/install/certmonger/dogtag-ipa-ca-renew-agent-submit
++++ b/install/certmonger/dogtag-ipa-ca-renew-agent-submit
+@@ -40,6 +40,7 @@ from cryptography.hazmat.backends import default_backend
+ 
+ import six
+ 
++from ipalib.install.kinit import kinit_keytab
+ from ipapython import ipautil
+ from ipapython.dn import DN
+ from ipalib import api, errors, x509
+@@ -132,7 +133,7 @@ def ldap_connect():
+     conn = None
+     try:
+         conn = ldap2(api)
+-        conn.connect(autobind=True)
++        conn.connect(ccache=os.environ['KRB5CCNAME'])
+         yield conn
+     finally:
+         if conn is not None and conn.isconnected():
+@@ -526,6 +527,11 @@ def main():
+     tmpdir = tempfile.mkdtemp(prefix="tmp-")
+     certs.renewal_lock.acquire()
+     try:
++        principal = str('host/%s@%s' % (api.env.host, api.env.realm))
++        ccache_filename = os.path.join(tmpdir, 'ccache')
++        os.environ['KRB5CCNAME'] = ccache_filename
++        kinit_keytab(principal, paths.KRB5_KEYTAB, ccache_filename)
++
+         profile = os.environ.get('CERTMONGER_CA_PROFILE')
+         if is_replicated():
+             if profile or is_renewal_master():
+-- 
+2.9.3
+

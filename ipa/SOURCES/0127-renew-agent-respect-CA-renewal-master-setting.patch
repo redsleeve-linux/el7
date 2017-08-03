@@ -1,0 +1,54 @@
+From 55e779b19714532744c8b22e514e9e49563350e3 Mon Sep 17 00:00:00 2001
+From: Jan Cholasta <jcholast@redhat.com>
+Date: Mon, 24 Apr 2017 05:24:24 +0000
+Subject: [PATCH] renew agent: respect CA renewal master setting
+
+Do not bypass the renewal master check when a non-virtual profile is used
+in dogtag-ipa-ca-renew-agent-submit.
+
+This fixes dogtag-ipa-ca-renew-agent not respecting the CA renewal master
+setting for certificates tracked with a real profile. (Note that there
+currently aren't any such certificates tracked by us.)
+
+Request the RA certificate using dogtag-submit rather than
+dogtag-ipa-ca-renew-agent-submit as the CA renewal master setting is not
+available so early in the install process.
+
+https://pagure.io/freeipa/issue/5799
+
+Reviewed-By: David Kupka <dkupka@redhat.com>
+Reviewed-By: Stanislav Laznicka <slaznick@redhat.com>
+---
+ install/certmonger/dogtag-ipa-ca-renew-agent-submit | 2 +-
+ ipaserver/install/cainstance.py                     | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/install/certmonger/dogtag-ipa-ca-renew-agent-submit b/install/certmonger/dogtag-ipa-ca-renew-agent-submit
+index 7a3d9551884c0fe43566dd9012699211a39294eb..f253fd9587ac1ef3ece712ca9999c1ea4f3d55d8 100755
+--- a/install/certmonger/dogtag-ipa-ca-renew-agent-submit
++++ b/install/certmonger/dogtag-ipa-ca-renew-agent-submit
+@@ -535,7 +535,7 @@ def main():
+ 
+         profile = os.environ.get('CERTMONGER_CA_PROFILE')
+         if is_replicated():
+-            if profile or is_renewal_master():
++            if is_renewal_master():
+                 handler = request_and_store_cert
+             else:
+                 handler = retrieve_cert_continuous
+diff --git a/ipaserver/install/cainstance.py b/ipaserver/install/cainstance.py
+index d72feb884964ecf49fe0166cbfeb3cb2c10737fe..97baa606c960806376e025b5654eea816da207ed 100644
+--- a/ipaserver/install/cainstance.py
++++ b/ipaserver/install/cainstance.py
+@@ -822,7 +822,7 @@ class CAInstance(DogtagInstance):
+              "-out", chain_file.name,
+              ], stdin=data, capture_output=False)
+ 
+-        agent_args = [paths.DOGTAG_IPA_CA_RENEW_AGENT_SUBMIT,
++        agent_args = [paths.CERTMONGER_DOGTAG_SUBMIT,
+                       "--dbdir", self.tmp_agent_db,
+                       "--nickname", "ipa-ca-agent",
+                       "--cafile", chain_file.name,
+-- 
+2.9.3
+

@@ -1,0 +1,49 @@
+From caa2c2b6e4b6ac29774dc7f8ec7c3f5210e2f828 Mon Sep 17 00:00:00 2001
+From: Stanislav Laznicka <slaznick@redhat.com>
+Date: Mon, 27 Mar 2017 10:31:36 +0200
+Subject: [PATCH] Remove publish_ca_cert() method from NSSDatabase
+
+NSSDatabase.publish_ca_cert() is not used anymore, remove it.
+
+https://pagure.io/freeipa/issue/6806
+
+Reviewed-By: Jan Cholasta <jcholast@redhat.com>
+---
+ ipapython/certdb.py        | 9 ---------
+ ipaserver/install/certs.py | 3 ---
+ 2 files changed, 12 deletions(-)
+
+diff --git a/ipapython/certdb.py b/ipapython/certdb.py
+index f1410e5ae4290263573e9554ab4e66873d4344a1..0665f944457fb09820eb244c742cb1782e515ad1 100644
+--- a/ipapython/certdb.py
++++ b/ipapython/certdb.py
+@@ -596,12 +596,3 @@ class NSSDatabase(object):
+         finally:
+             del certdb, cert
+             nss.nss_shutdown()
+-
+-    def publish_ca_cert(self, canickname, location):
+-        args = ["-L", "-n", canickname, "-a"]
+-        result = self.run_certutil(args, capture_output=True)
+-        cert = result.output
+-        fd = open(location, "w+")
+-        fd.write(cert)
+-        fd.close()
+-        os.chmod(location, 0o444)
+diff --git a/ipaserver/install/certs.py b/ipaserver/install/certs.py
+index 0ca971358030db6a6e7e410e58a984675bcf53ac..16139f81f0d0bd6889a9f38948204bb5bc018028 100644
+--- a/ipaserver/install/certs.py
++++ b/ipaserver/install/certs.py
+@@ -640,9 +640,6 @@ class CertDB(object):
+ 
+         self.export_ca_cert(nickname, False)
+ 
+-    def publish_ca_cert(self, location):
+-        self.nssdb.publish_ca_cert(self.cacert_name, location)
+-
+     def export_pem_cert(self, nickname, location):
+         return self.nssdb.export_pem_cert(nickname, location)
+ 
+-- 
+2.12.2
+

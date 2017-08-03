@@ -1,0 +1,40 @@
+From 44f3e7332516f09738dc865e943eb70eceb50553 Mon Sep 17 00:00:00 2001
+From: "Bryn M. Reeves" <bmr@redhat.com>
+Date: Thu, 20 Apr 2017 16:19:46 +0100
+Subject: [PATCH] [ceph] fix list formatting
+
+Fix the formatting of the add_copy_spec() lists in ceph: make the
+first conform to the sos bracing and indenting rules for lists in
+argument tuples, and fix a missing comma in the second.
+
+Signed-off-by: Bryn M. Reeves <bmr@redhat.com>
+---
+ sos/plugins/ceph.py | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/sos/plugins/ceph.py b/sos/plugins/ceph.py
+index 06b8605..afb6e24 100644
+--- a/sos/plugins/ceph.py
++++ b/sos/plugins/ceph.py
+@@ -40,7 +40,8 @@ class Ceph(Plugin, RedHatPlugin, UbuntuPlugin):
+             self.add_copy_spec([
+                 "/var/log/ceph/*.log",
+                 "/var/log/radosgw/*.log",
+-                "/var/log/calamari/*.log"], sizelimit=limit)
++                "/var/log/calamari/*.log"
++            ], sizelimit=limit)
+         else:
+             self.add_copy_spec([
+                 "/var/log/ceph/",
+@@ -50,7 +51,7 @@ class Ceph(Plugin, RedHatPlugin, UbuntuPlugin):
+ 
+         self.add_copy_spec([
+             "/etc/ceph/",
+-            "/etc/calamari/"
++            "/etc/calamari/",
+             "/var/lib/ceph/",
+             "/var/run/ceph/"
+         ])
+-- 
+2.7.4
+

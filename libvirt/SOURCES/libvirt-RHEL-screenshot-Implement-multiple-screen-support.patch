@@ -1,5 +1,5 @@
-From 9e5ccc797249afe0c44232b6b0d2cae4ff7d8d21 Mon Sep 17 00:00:00 2001
-Message-Id: <9e5ccc797249afe0c44232b6b0d2cae4ff7d8d21@dist-git>
+From 647ae3f777d7b2b20e6e0caa4603c0b162cca9ec Mon Sep 17 00:00:00 2001
+Message-Id: <647ae3f777d7b2b20e6e0caa4603c0b162cca9ec@dist-git>
 From: Michal Privoznik <mprivozn@redhat.com>
 Date: Fri, 26 Aug 2011 16:41:17 +0800
 Subject: [PATCH] RHEL: screenshot: Implement multiple screen support
@@ -34,10 +34,10 @@ Conflicts:
  5 files changed, 57 insertions(+), 10 deletions(-)
 
 diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
-index 0507be8..7bdf329 100644
+index 3cc4f4d66..3f3eca440 100644
 --- a/src/qemu/qemu_driver.c
 +++ b/src/qemu/qemu_driver.c
-@@ -3768,6 +3768,8 @@ qemuDomainScreenshot(virDomainPtr dom,
+@@ -3791,6 +3791,8 @@ qemuDomainScreenshot(virDomainPtr dom,
      char *ret = NULL;
      bool unlink_tmp = false;
      virQEMUDriverConfigPtr cfg = NULL;
@@ -46,7 +46,7 @@ index 0507be8..7bdf329 100644
  
      virCheckFlags(0, NULL);
  
-@@ -3789,12 +3791,15 @@ qemuDomainScreenshot(virDomainPtr dom,
+@@ -3812,12 +3814,15 @@ qemuDomainScreenshot(virDomainPtr dom,
          goto endjob;
      }
  
@@ -68,9 +68,9 @@ index 0507be8..7bdf329 100644
          goto endjob;
      }
  
-@@ -3809,8 +3814,11 @@ qemuDomainScreenshot(virDomainPtr dom,
+@@ -3832,8 +3837,11 @@ qemuDomainScreenshot(virDomainPtr dom,
  
-     virSecurityManagerSetSavedStateLabel(qemu_driver->securityManager, vm->def, tmp);
+     qemuSecuritySetSavedStateLabel(driver->securityManager, vm->def, tmp);
  
 +    if (video_index)
 +        video_id = vm->def->videos[video_index]->info.alias;
@@ -82,10 +82,10 @@ index 0507be8..7bdf329 100644
          goto endjob;
      }
 diff --git a/src/qemu/qemu_monitor.c b/src/qemu/qemu_monitor.c
-index 098e654..1e27470 100644
+index a4fa6eca6..8bc00bc1e 100644
 --- a/src/qemu/qemu_monitor.c
 +++ b/src/qemu/qemu_monitor.c
-@@ -3022,12 +3022,22 @@ qemuMonitorSendKey(qemuMonitorPtr mon,
+@@ -3409,12 +3409,22 @@ qemuMonitorSendKey(qemuMonitorPtr mon,
  
  int
  qemuMonitorScreendump(qemuMonitorPtr mon,
@@ -111,10 +111,10 @@ index 098e654..1e27470 100644
          return qemuMonitorJSONScreendump(mon, file);
      else
 diff --git a/src/qemu/qemu_monitor.h b/src/qemu/qemu_monitor.h
-index cb4cca8..6e4e09d 100644
+index 91ab9057e..c1506b0fc 100644
 --- a/src/qemu/qemu_monitor.h
 +++ b/src/qemu/qemu_monitor.h
-@@ -759,7 +759,8 @@ int qemuMonitorArbitraryCommand(qemuMonitorPtr mon,
+@@ -876,7 +876,8 @@ int qemuMonitorArbitraryCommand(qemuMonitorPtr mon,
  int qemuMonitorInjectNMI(qemuMonitorPtr mon);
  
  int qemuMonitorScreendump(qemuMonitorPtr mon,
@@ -125,10 +125,10 @@ index cb4cca8..6e4e09d 100644
  int qemuMonitorSendKey(qemuMonitorPtr mon,
                         unsigned int holdtime,
 diff --git a/src/qemu/qemu_monitor_json.c b/src/qemu/qemu_monitor_json.c
-index bb426dc..35e38a9 100644
+index aeb777d37..2010657e3 100644
 --- a/src/qemu/qemu_monitor_json.c
 +++ b/src/qemu/qemu_monitor_json.c
-@@ -4155,6 +4155,30 @@ int qemuMonitorJSONSendKey(qemuMonitorPtr mon,
+@@ -4262,6 +4262,30 @@ int qemuMonitorJSONSendKey(qemuMonitorPtr mon,
      return ret;
  }
  
@@ -160,10 +160,10 @@ index bb426dc..35e38a9 100644
                                const char *file)
  {
 diff --git a/src/qemu/qemu_monitor_json.h b/src/qemu/qemu_monitor_json.h
-index 37a739e..4e6f2bc 100644
+index d090d5709..fb697033c 100644
 --- a/src/qemu/qemu_monitor_json.h
 +++ b/src/qemu/qemu_monitor_json.h
-@@ -287,6 +287,10 @@ int qemuMonitorJSONSendKey(qemuMonitorPtr mon,
+@@ -291,6 +291,10 @@ int qemuMonitorJSONSendKey(qemuMonitorPtr mon,
                             unsigned int *keycodes,
                             unsigned int nkeycodes);
  
@@ -175,5 +175,5 @@ index 37a739e..4e6f2bc 100644
                                const char *file);
  
 -- 
-2.9.0
+2.12.2
 

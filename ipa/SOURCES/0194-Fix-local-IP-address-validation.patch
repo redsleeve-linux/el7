@@ -1,0 +1,45 @@
+From 935029c3192221c480c88b870a507cfac4c4b954 Mon Sep 17 00:00:00 2001
+From: Martin Basti <mbasti@redhat.com>
+Date: Tue, 13 Jun 2017 17:03:30 +0200
+Subject: [PATCH] Fix local IP address validation
+
+Previously bf9886a84393d1d1546db7e49b102e08a16a83e7 match_local has
+undesirable side effect that CheckedIPAddress object has set self._net
+from local interface.
+
+However with the recent changes, match_local is usually set to False,
+thus this side effect stops happening and default mask per address class
+is used. This causes validation error because mask on interface and mask
+used for provided IP addresses differ (reporducible only with classless
+masks).
+
+FreeIPA should compare only IP addresses with local addresses without masks
+
+https://pagure.io/freeipa/issue/4317
+
+Reviewed-By: David Kupka <dkupka@redhat.com>
+---
+ ipapython/ipautil.py | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/ipapython/ipautil.py b/ipapython/ipautil.py
+index a277ed87473f3c591f34fcc00e1159f3bbfe3e9b..647ee833ae33f246de6d6b13703fac6e20eef7bc 100644
+--- a/ipapython/ipautil.py
++++ b/ipapython/ipautil.py
+@@ -216,10 +216,10 @@ class CheckedIPAddress(UnsafeIPAddress):
+                     addr=ifaddr,
+                     netmask=ifdata['netmask']
+                 ))
+-                if ifnet == self._net or (
+-                                self._net is None and ifnet.ip == self):
+-                    self._net = ifnet
++
++                if ifnet.ip == self:
+                     iface = interface
++                    self._net = ifnet
+                     break
+ 
+         return iface
+-- 
+2.9.4
+

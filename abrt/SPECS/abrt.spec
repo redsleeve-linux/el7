@@ -27,13 +27,13 @@
 %define desktopvendor fedora
 %endif
 
-%define libreport_ver 2.1.11-34
+%define libreport_ver 2.1.11-36
 %define satyr_ver 0.13-10
 
 Summary: Automatic bug detection and reporting tool
 Name: abrt
 Version: 2.1.11
-Release: 45%{?dist}.redsleeve
+Release: 48%{?dist}
 License: GPLv2+
 Group: Applications/System
 URL: https://fedorahosted.org/abrt/
@@ -54,7 +54,6 @@ Patch12: 0012-configui-show-Close-button-in-the-dialog.patch
 Patch13: 0013-applet-do-not-say-the-report-is-anonymous-when-urepo.patch
 #Patch14: 0014-spec-abrt-cli-requires-a-pkg-providing-workflows.patch
 #Patch15: 0015-testsuite-encourage-users-to-create-a-case-in-RHTS.patch
-Patch16: 0016-cli-list-show-a-hint-about-creating-a-case-in-RHTS.patch
 Patch17: 0017-harvest-vmcore-properly-handle-inaccessible-dir-erro.patch
 Patch18: 0018-don-t-break-the-event-run-by-failures-of-abrt-action.patch
 Patch19: 0019-Fix-handling-of-Machine-Check-Exceptions.patch
@@ -117,7 +116,6 @@ Patch75: 0075-Translation-updates.patch
 Patch76: 0076-Revert-gdb-disable-loading-of-auto-loaded-files.patch
 Patch77: 0077-gdb-make-gdb-aware-of-the-abrt-s-debuginfo-dir.patch
 #Patch78: 0078-spec-update-the-required-gdb-version.patch
-Patch79: 0079-cli-mark-the-suggestion-text-for-translation.patch
 Patch80: 0080-auto-reporting-add-options-to-specify-auth-type.patch
 #Patch81: 0081-testsuite-abrt-auto-reporting-uReport-authentication.patch
 Patch82: 0082-translations-pull-the-newest-PO-files.patch
@@ -322,15 +320,28 @@ Patch254: 0254-daemon-send-base-names-from-abrt-server-to-abrtd.patch
 # git format-patch 2.1.11-44.el7 -N --start-number 255 --topo-order
 #Patch255: 0255-testsuite-make-dumpdir_completedness-test-runnable-o.patch
 Patch256: 0256-Translation-updates.patch
-# git format-patch 2.1.11-44.el7 -N --start-number 255 --topo-order
+# git format-patch 2.1.11-45.el7 -N --start-number 257 --topo-order
+#Patch257: 0257-testsuite-use-exported-gpg-keys-in-dumpdir_completed.patch
+Patch258: 0258-lib-don-t-expect-kernel-s-version-2.6.-or-3.patch
+Patch259: 0259-koops-do-not-assume-version-has-3-levels.patch
+Patch260: 0260-xorg-rewrite-skip_pfx-function-to-work-with-journal-.patch
+#Patch261: 0261-testsuite-add-tescase-for-a-dump-xorg.patch
+Patch262: 0262-lib-stop-printing-out-a-debug-message-adding.patch
+Patch263: 0263-cli-don-t-start-reporting-of-not-reportable-problems.patch
+Patch264: 0264-cli-introduce-unsafe-reporting-for-not-reporable-pro.patch
+Patch265: 0265-cli-configure-libreport-to-ignore-not-reportable.patch
+Patch266: 0266-cli-print-out-the-not-reportable-reason.patch
+#Patch267: 0267-testsuite-add-cli-process-test-case.patch
+Patch268: 0268-vmcore-remove-not-implemented-option-AttemptHardlink.patch
+# git format-patch 2.1.11-46.el7 -N --start-number 269 --topo-order
+Patch269: 0269-ccpp-add-h-parameter-into-abrt-hook-ccpp.patch
+#Patch270: 0270-testsuite-add-test-for-core-template-substitution.patch
+# git format-patch 2.1.11-47.el7 -N --start-number 271 --topo-order
+Patch271: 0271-Translation-updates.patch
+Patch272: event-don-t-run-the-reporter-bugzilla-h-on-RHEL-and-.patch
+Patch273: plugin-set-URL-to-retrace-server.patch
+Patch274: turn-sosreport-off.patch
 
-Patch1000: 1000-event-don-t-run-the-reporter-bugzilla-h-on-RHEL-and-.patch
-#Patch1001: 1001-spec-added-dependency-to-libreport-centos.patch
-#Patch1002: 1002-plugin-set-URL-to-retrace-server.patch
-#Patch1003: 1003-spec-add-dependenci-on-abrt-retrace-client.patch
-Patch1004: 1004-turn-sosreport-off.patch
-Patch1005: 1005-cli-list-revert-patch-7966e5737e8d3af43b1ecdd6a82323.patch
-#Patch1006: 1006-spec-disable-authenticated-autoreporting.patch
 
 # git is need for '%%autosetup -S git' which automatically applies all the
 # patches above. Please, be aware that the patches must be generated
@@ -373,9 +384,9 @@ Requires: python-augeas
 Requires: python-dbus
 Requires: python-dmidecode
 Requires: libreport-plugin-ureport >= %{libreport_ver}
-#%if 0%{?rhel}
-#Requires: libreport-plugin-rhtsupport
-#%endif
+%if 0%{?rhel}
+Requires: libreport-plugin-rhtsupport
+%endif
 
 # we used to have abrt-plugin-bodhi, but we have removed it
 # and we want allow users to update abrt without necessity to
@@ -558,14 +569,14 @@ Requires: abrt-addon-ccpp
 Requires: abrt-addon-python
 Requires: abrt-addon-xorg
 %if 0%{?rhel}
-#%if 0%{?centos_ver}
-#Requires: libreport-centos >= %{libreport_ver}
-#Requires: libreport-plugin-mantisbt >= %{libreport_ver}
-#%else
-#Requires: libreport-rhel >= %{libreport_ver}
-#Requires: libreport-plugin-rhtsupport >= %{libreport_ver}
-#%endif
-#%else
+%if 0%{?centos_ver}
+Requires: libreport-centos >= %{libreport_ver}
+Requires: libreport-plugin-mantisbt >= %{libreport_ver}
+%else
+Requires: libreport-rhel >= %{libreport_ver}
+Requires: libreport-plugin-rhtsupport >= %{libreport_ver}
+%endif
+%else
 Requires: abrt-retrace-client
 Requires: libreport-plugin-bugzilla >= %{libreport_ver}
 Requires: libreport-plugin-logger >= %{libreport_ver}
@@ -597,19 +608,19 @@ Requires: elfutils
 Requires: abrt-gui
 Requires: gnome-abrt
 %if 0%{?rhel}
-#%if 0%{?centos_ver}
-#Requires: libreport-centos >= %{libreport_ver}
-#Requires: libreport-plugin-mantisbt >= %{libreport_ver}
-#%else
-#Requires: libreport-rhel >= %{libreport_ver}
-#Requires: libreport-plugin-rhtsupport >= %{libreport_ver}
-#%endif
-#%else
+%if 0%{?centos_ver}
+Requires: libreport-centos >= %{libreport_ver}
+Requires: libreport-plugin-mantisbt >= %{libreport_ver}
+%else
+Requires: libreport-rhel >= %{libreport_ver}
+Requires: libreport-plugin-rhtsupport >= %{libreport_ver}
+%endif
+%else
 Requires: abrt-retrace-client
 Requires: libreport-plugin-bugzilla >= %{libreport_ver}
 Requires: libreport-plugin-logger >= %{libreport_ver}
 Requires: libreport-plugin-ureport >= %{libreport_ver}
-#Requires: libreport-fedora >= %{libreport_ver}
+Requires: libreport-fedora >= %{libreport_ver}
 %endif
 #Requires: abrt-plugin-firefox
 Provides: bug-buddy = 2.28.0
@@ -677,13 +688,17 @@ to the shell
 
 %build
 autoconf
-CFLAGS="%{optflags} -Werror" %configure --enable-doxygen-docs --disable-silent-rules \
+# -Wno-error=deprecated-declarations because there are some warning about
+# deprecated gtk3 functions because of gtk3 rebase
+CFLAGS="%{optflags} -Werror -Wno-error=deprecated-declarations" %configure --enable-doxygen-docs \
+        --disable-silent-rules \
         --without-bodhi \
 %ifnarch arm armhfp armv7hl armv7l aarch64
         --enable-native-unwinder \
 %endif
         --enable-dump-time-unwind \
-        --enable-suggest-autoreporting
+        --enable-suggest-autoreporting \
+        --enable-authenticated-autoreporting
 make %{?_smp_mflags}
 
 %install
@@ -1159,10 +1174,7 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 %config(noreplace) %{_sysconfdir}/profile.d/abrt-console-notification.sh
 
 %changelog
-* Sat Dec 03 2016 Jacco Ligthart <jacco@redsleeve.org> - 2.1.11-45.el7.redsleeve
-- removed requirements to proprietary CentOS end RHEL libreport packages
-
-* Thu Nov 03 2016 CentOS Sources <bugs@centos.org> - 2.1.11-45.el7.centos
+* Mon Jul 31 2017 CentOS Sources <bugs@centos.org> - 2.1.11-48.el7.centos
 - Drop RHTS hint
 -  Change by David Mansfield <david@orthanc.cobite.com>
 -  Per http://bugs.centos.org/view.php?id=7192
@@ -1170,6 +1182,21 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 - set URL to retrace server
 - update to not run sosreport
 -  Per http://bugs.centos.org/view.php?id=7913
+
+* Tue May 30 2017 Matej Habrnal <mhabrnal@redhat.com> - 2.1.11-48
+- Translation updates
+- Related: #1449488
+
+* Tue Feb 21 2017 Matej Habrnal <mhabrnal@redhat.com> - 2.1.11-47
+- add %h parameter into abrt-hook-ccpp
+- Related: #1364899
+
+* Wed Feb  8 2017 Matej Habrnal <mhabrnal@redhat.com> - 2.1.11-46
+- remove not implemented option AttemptHardlink in vmcore.conf
+- introduce unsafe reporting for not-reporable problems
+- rewrite skip_pfx() function to work with journal msgs
+- don't expect kernel's version '2.6.*' or '3.*.*'
+- Related: #1416586, #1257159, #1328264, #1378469
 
 * Thu Sep  1 2016 Matej Habrnal <mhabrnal@redhat.com> - 2.1.11-45
 - Translation updates

@@ -1,0 +1,112 @@
+From 56208ffe874c42274add74ba412059345e5c018d Mon Sep 17 00:00:00 2001
+Message-Id: <56208ffe874c42274add74ba412059345e5c018d@dist-git>
+From: Andrea Bolognani <abologna@redhat.com>
+Date: Tue, 4 Apr 2017 14:59:27 +0200
+Subject: [PATCH] qemu: Split virQEMUCapsInitArchQMPBasic()
+
+Instead of having a single function that probes the
+architecture from the monitor and then sets a bunch of
+basic capabilities based on it, have a separate function
+for each part: virQEMUCapsInitQMPArch() only sets the
+architecture, and virQEMUCapsInitQMPBasicArch() only sets
+the capabilities.
+
+This split will be useful later on, when we will want to
+set basic capabilities from the test suite without having
+to go through the pain of mocking the monitor.
+
+(cherry picked from commit a8fc7ef83439c235a3b1115cf6d7b80e096f4af2)
+
+Bug: https://bugzilla.redhat.com/show_bug.cgi?id=1429509
+
+Signed-off-by: Andrea Bolognani <abologna@redhat.com>
+---
+ src/qemu/qemu_capabilities.c | 42 +++++++++++++++++++++++++++++++-----------
+ 1 file changed, 31 insertions(+), 11 deletions(-)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index 83ebcd020..b568a0f5e 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -4262,18 +4262,25 @@ virQEMUCapsInitQMPBasic(virQEMUCapsPtr qemuCaps)
+     virQEMUCapsSet(qemuCaps, QEMU_CAPS_DISPLAY);
+ }
+ 
+-/* Capabilities that are architecture depending
+- * initialized for QEMU.
++
++/**
++ * virQEMUCapsInitQMPArch:
++ * @qemuCaps: QEMU capabilities
++ * @mon: QEMU monitor
++ *
++ * Initialize the architecture for @qemuCaps by asking @mon.
++ *
++ * Returns: 0 on success, <0 on failure
+  */
+ static int
+-virQEMUCapsInitArchQMPBasic(virQEMUCapsPtr qemuCaps,
++virQEMUCapsInitQMPArch(virQEMUCapsPtr qemuCaps,
+                             qemuMonitorPtr mon)
+ {
+     char *archstr = NULL;
+     int ret = -1;
+ 
+     if (!(archstr = qemuMonitorGetTargetArch(mon)))
+-        return -1;
++        goto cleanup;
+ 
+     if ((qemuCaps->arch = virQEMUCapsArchFromString(archstr)) == VIR_ARCH_NONE) {
+         virReportError(VIR_ERR_INTERNAL_ERROR,
+@@ -4281,18 +4288,29 @@ virQEMUCapsInitArchQMPBasic(virQEMUCapsPtr qemuCaps,
+         goto cleanup;
+     }
+ 
++    ret = 0;
++
++ cleanup:
++    VIR_FREE(archstr);
++    return ret;
++}
++
++
++/**
++ * virQEMUCapsInitQMPBasicArch:
++ * @qemuCaps: QEMU capabilities
++ *
++ * Initialize @qemuCaps with basic architecture-dependent capabilities.
++ */
++static void
++virQEMUCapsInitQMPBasicArch(virQEMUCapsPtr qemuCaps)
++{
+     /* ACPI/HPET/KVM PIT are x86 specific */
+     if (ARCH_IS_X86(qemuCaps->arch)) {
+         virQEMUCapsSet(qemuCaps, QEMU_CAPS_NO_ACPI);
+         virQEMUCapsSet(qemuCaps, QEMU_CAPS_NO_HPET);
+         virQEMUCapsSet(qemuCaps, QEMU_CAPS_NO_KVM_PIT);
+     }
+-
+-    ret = 0;
+-
+- cleanup:
+-    VIR_FREE(archstr);
+-    return ret;
+ }
+ 
+ 
+@@ -4517,9 +4535,11 @@ virQEMUCapsInitQMPMonitor(virQEMUCapsPtr qemuCaps,
+ 
+     virQEMUCapsInitQMPBasic(qemuCaps);
+ 
+-    if (virQEMUCapsInitArchQMPBasic(qemuCaps, mon) < 0)
++    if (virQEMUCapsInitQMPArch(qemuCaps, mon) < 0)
+         goto cleanup;
+ 
++    virQEMUCapsInitQMPBasicArch(qemuCaps);
++
+     /* USB option is supported v1.3.0 onwards */
+     if (qemuCaps->version >= 1003000)
+         virQEMUCapsSet(qemuCaps, QEMU_CAPS_MACHINE_USB_OPT);
+-- 
+2.12.2
+

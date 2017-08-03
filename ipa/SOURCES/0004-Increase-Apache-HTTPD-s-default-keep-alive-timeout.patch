@@ -1,0 +1,41 @@
+From 2905ebdb1a6c668da1a12d79824c6710e3f0eb94 Mon Sep 17 00:00:00 2001
+From: Christian Heimes <cheimes@redhat.com>
+Date: Mon, 20 Mar 2017 08:47:56 +0100
+Subject: [PATCH] Increase Apache HTTPD's default keep alive timeout
+
+Apache has a default keep alive timeout of 5 seconds. That's too low for
+interactive commands, e.g. password prompts. 30 seconds sounds like a
+good compromise.
+
+Signed-off-by: Christian Heimes <cheimes@redhat.com>
+Reviewed-By: Tomas Krizek <tkrizek@redhat.com>
+---
+ install/conf/ipa.conf | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/install/conf/ipa.conf b/install/conf/ipa.conf
+index 164231c729a8b3d64982ea0d9592e949635d7418..e1f1a581b4e8a91b899bcf165ca81f266fa9e516 100644
+--- a/install/conf/ipa.conf
++++ b/install/conf/ipa.conf
+@@ -1,5 +1,5 @@
+ #
+-# VERSION 24 - DO NOT REMOVE THIS LINE
++# VERSION 25 - DO NOT REMOVE THIS LINE
+ #
+ # This file may be overwritten on upgrades.
+ #
+@@ -20,6 +20,11 @@ DirectoryIndex index.html
+ # requests, ticket #2767. This should easily support a 64KiB PAC.
+ LimitRequestFieldSize 100000
+ 
++# Increase connection keep alive time. Default value is 5 seconds, which is too
++# short for interactive ipa commands. 30 seconds is a good compromise.
++KeepAlive On
++KeepAliveTimeout 30
++
+ # ipa-rewrite.conf is loaded separately
+ 
+ # This is required so the auto-configuration works with Firefox 2+
+-- 
+2.12.1
+

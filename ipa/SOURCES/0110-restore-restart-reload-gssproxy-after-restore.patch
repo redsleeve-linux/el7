@@ -1,0 +1,77 @@
+From 5a2424fc07c931be1788bca19726df41f02479e7 Mon Sep 17 00:00:00 2001
+From: Petr Vobornik <pvoborni@redhat.com>
+Date: Wed, 26 Apr 2017 18:47:53 +0200
+Subject: [PATCH] restore: restart/reload gssproxy after restore
+
+So that gssproxy picks up new configuration and therefore related
+usages like authentication of CLI against server works
+
+https://pagure.io/freeipa/issue/6902
+
+Reviewed-By: Tomas Krizek <tkrizek@redhat.com>
+---
+ ipaplatform/base/services.py     | 21 ++++++++++++++++++---
+ ipaserver/install/ipa_restore.py |  3 +++
+ 2 files changed, 21 insertions(+), 3 deletions(-)
+
+diff --git a/ipaplatform/base/services.py b/ipaplatform/base/services.py
+index 068b9723cab2773ca2e274e1734723371410675a..fca6298fc07e03ab4ceeba0b51286e33ae168fcc 100644
+--- a/ipaplatform/base/services.py
++++ b/ipaplatform/base/services.py
+@@ -154,6 +154,10 @@ class PlatformService(object):
+ 
+         return
+ 
++    def reload_or_restart(self, instance_name="", capture_output=True,
++                          wait=True):
++        return
++
+     def restart(self, instance_name="", capture_output=True, wait=True):
+         return
+ 
+@@ -298,14 +302,25 @@ class SystemdService(PlatformService):
+             instance_name,
+             update_service_list=update_service_list)
+ 
+-    def restart(self, instance_name="", capture_output=True, wait=True):
+-        ipautil.run([paths.SYSTEMCTL, "restart",
+-                     self.service_instance(instance_name)],
++    def _restart_base(self, instance_name, operation, capture_output=True,
++                      wait=False):
++
++        ipautil.run([paths.SYSTEMCTL, operation,
++                    self.service_instance(instance_name)],
+                     skip_output=not capture_output)
+ 
+         if wait and self.is_running(instance_name):
+             self.wait_for_open_ports(self.service_instance(instance_name))
+ 
++    def reload_or_restart(self, instance_name="", capture_output=True,
++                          wait=True):
++        self._restart_base(instance_name, "reload-or-restart",
++                           capture_output, wait)
++
++    def restart(self, instance_name="", capture_output=True, wait=True):
++        self._restart_base(instance_name, "restart",
++                           capture_output, wait)
++
+     def is_running(self, instance_name="", wait=True):
+         instance = self.service_instance(instance_name, 'is-active')
+ 
+diff --git a/ipaserver/install/ipa_restore.py b/ipaserver/install/ipa_restore.py
+index 378c013b6f4a4656768d7a484d2014a0f9eef3c0..96fc493c774f5de4c8149bf477cb66ec4960de4f 100644
+--- a/ipaserver/install/ipa_restore.py
++++ b/ipaserver/install/ipa_restore.py
+@@ -401,6 +401,9 @@ class Restore(admintool.AdminTool):
+                 services.knownservices.pki_tomcatd.enable()
+                 services.knownservices.pki_tomcatd.disable()
+ 
++                self.log.info('Restarting GSS-proxy')
++                gssproxy = services.service('gssproxy', api)
++                gssproxy.reload_or_restart()
+                 self.log.info('Starting IPA services')
+                 run(['ipactl', 'start'])
+                 self.log.info('Restarting SSSD')
+-- 
+2.12.2
+

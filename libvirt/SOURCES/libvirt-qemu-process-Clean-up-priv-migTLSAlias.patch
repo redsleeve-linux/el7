@@ -1,0 +1,33 @@
+From 3bd19fa5ff139e72fcb0e2982969263d554f6940 Mon Sep 17 00:00:00 2001
+Message-Id: <3bd19fa5ff139e72fcb0e2982969263d554f6940@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Fri, 28 Apr 2017 10:45:18 +0200
+Subject: [PATCH] qemu: process: Clean up priv->migTLSAlias
+
+The alias would be leaked, since it's not freed on the vm stop path.
+
+(cherry picked from commit 8c1fee5f12e607a775199b65915715bb5a2b581d)
+https://bugzilla.redhat.com/show_bug.cgi?id=1445627
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_process.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index c23982db6..2eee70203 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -6443,6 +6443,9 @@ void qemuProcessStop(virQEMUDriverPtr driver,
+     virDomainUSBAddressSetFree(priv->usbaddrs);
+     priv->usbaddrs = NULL;
+ 
++    /* clean up migration data */
++    VIR_FREE(priv->migTLSAlias);
++
+     /* The "release" hook cleans up additional resources */
+     if (virHookPresent(VIR_HOOK_DRIVER_QEMU)) {
+         char *xml = qemuDomainDefFormatXML(driver, vm->def, 0);
+-- 
+2.12.2
+

@@ -1,4 +1,4 @@
-From b5c6f7a910c5c16ac34ef2436d0a56991e0166e3 Mon Sep 17 00:00:00 2001
+From 06ca4cab12a4216d40c297d8a79c83a4df4dd80e Mon Sep 17 00:00:00 2001
 From: Ladi Prosek <lprosek@redhat.com>
 Date: Wed, 5 Oct 2016 17:22:24 +0200
 Subject: [PATCH 2/8] virtio: introduce virtqueue_discard()
@@ -7,7 +7,7 @@ RH-Author: Ladi Prosek <lprosek@redhat.com>
 Message-id: <1475666548-9186-3-git-send-email-lprosek@redhat.com>
 Patchwork-id: 72481
 O-Subject: [RHEL-7.4 qemu-kvm v2 PATCH 2/6] virtio: introduce virtqueue_discard()
-Bugzilla: 1393484
+Bugzilla: 1377968
 RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
 RH-Acked-by: Michael S. Tsirkin <mst@redhat.com>
 RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>

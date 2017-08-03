@@ -15,10 +15,10 @@
 Summary: Apache HTTP Server
 Name: httpd
 Version: 2.4.6
-Release: 45%{?dist}.4.redsleeve
+Release: 67%{?dist}
 URL: http://httpd.apache.org/
 Source0: http://www.apache.org/dist/httpd/httpd-%{version}.tar.bz2
-Source1: index.html
+Source1: centos-noindex.tar.gz
 Source2: httpd.logrotate
 Source3: httpd.sysconf
 Source4: httpd-ssl-pass-dialog
@@ -126,7 +126,35 @@ Patch105: httpd-2.4.6-r1560093.patch
 Patch106: httpd-2.4.6-r1748212.patch
 Patch107: httpd-2.4.6-r1570327.patch
 Patch108: httpd-2.4.6-r1631119.patch
-Patch109: httpd-2.4.6-r1587053.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1406184
+Patch109: httpd-2.4.6-r1593002.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1389535
+Patch110: httpd-2.4.6-r1662640.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1348019
+Patch111: httpd-2.4.6-r1348019.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1396197
+Patch112: httpd-2.4.6-r1587053.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1376835
+Patch113: httpd-2.4.6-mpm-segfault.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1372692
+Patch114: httpd-2.4.6-r1681114.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1371876
+Patch115: httpd-2.4.6-r1775832.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1353740
+Patch116: httpd-2.4.6-r1726019.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1364604
+Patch117: httpd-2.4.6-r1683112.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1378946
+Patch118: httpd-2.4.6-r1651653.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1414258
+Patch119: httpd-2.4.6-r1634529.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1397241
+Patch120: httpd-2.4.6-r1738878.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1445885
+Patch121: httpd-2.4.6-http-protocol-options-define.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1332242
+Patch122: httpd-2.4.6-statements-comment.patch
+
 # Security fixes
 Patch200: httpd-2.4.6-CVE-2013-6438.patch
 Patch201: httpd-2.4.6-CVE-2014-0098.patch
@@ -331,7 +359,20 @@ rm modules/ssl/ssl_engine_dh.c
 %patch106 -p1 -b .r1748212
 %patch107 -p1 -b .r1570327
 %patch108 -p1 -b .r1631119
-%patch109 -p1 -b .r1587053
+%patch109 -p1 -b .r1593002
+%patch110 -p1 -b .r1662640
+%patch111 -p1 -b .r1348019
+%patch112 -p1 -b .r1587053
+%patch113 -p1 -b .mpmsegfault
+%patch114 -p1 -b .r1681114
+%patch115 -p1 -b .r1371876
+%patch116 -p1 -b .r1726019
+%patch117 -p1 -b .r1683112
+%patch118 -p1 -b .r1651653
+%patch119 -p1 -b .r1634529
+%patch120 -p1 -b .r1738878
+%patch121 -p1 -b .httpprotdefine
+%patch122 -p1 -b .statement-comment
 
 %patch200 -p1 -b .cve6438
 %patch201 -p1 -b .cve0098
@@ -501,8 +542,9 @@ EOF
 
 # Handle contentdir
 mkdir $RPM_BUILD_ROOT%{contentdir}/noindex
-install -m 644 -p $RPM_SOURCE_DIR/index.html \
-        $RPM_BUILD_ROOT%{contentdir}/noindex/index.html
+tar xzf $RPM_SOURCE_DIR/centos-noindex.tar.gz \
+        -C $RPM_BUILD_ROOT%{contentdir}/noindex/ \
+        --strip-components=1
 
 rm -rf %{contentdir}/htdocs
 
@@ -526,7 +568,7 @@ rm -v $RPM_BUILD_ROOT%{docroot}/html/*.html \
       $RPM_BUILD_ROOT%{docroot}/cgi-bin/*
 
 # Symlink for the powered-by-$DISTRO image:
-ln -s ../../pixmaps/poweredby.png \
+ln -s ../noindex/images/poweredby.png \
         $RPM_BUILD_ROOT%{contentdir}/icons/poweredby.png
 
 # symlinks for /etc/httpd
@@ -586,7 +628,7 @@ rm -rf $RPM_BUILD_ROOT/etc/httpd/conf/{original,extra}
 %pre
 # Add the "apache" group and user
 /usr/sbin/groupadd -g 48 -r apache 2> /dev/null || :
-/usr/sbin/useradd -c "Apache" -u 48 -g 48 \
+/usr/sbin/useradd -c "Apache" -u 48 -g apache \
 	-s /sbin/nologin -r -d %{contentdir} apache 2> /dev/null || :
 
 %post
@@ -712,7 +754,7 @@ rm -rf $RPM_BUILD_ROOT
 %{contentdir}/error/README
 %{contentdir}/error/*.var
 %{contentdir}/error/include/*.html
-%{contentdir}/noindex/index.html
+%{contentdir}/noindex/*
 
 %dir %{docroot}
 %dir %{docroot}/cgi-bin
@@ -778,29 +820,98 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/rpm/macros.httpd
 
 %changelog
-* Fri Apr 14 2017 Jacco Ligthart <jacco@redsleeve.org> - 2.4.6-45.el7.4.redsleeve
-- roll in redsleeve branding, based on RHEL
-
-* Wed Apr 12 2017 CentOS Sources <bugs@centos.org> - 2.4.6-45.el7.centos.4
+* Mon Jul 31 2017 CentOS Sources <bugs@centos.org> - 2.4.6-67.el7.centos
 - Remove index.html, add centos-noindex.tar.gz
 - change vstring
 - change symlink for poweredby.png
 - update welcome.conf with proper aliases
 
-* Wed Mar 08 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-45.4
+* Tue May 09 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-67
+- Related: #1332242 - Explicitly disallow the '#' character in allow,deny
+  directives
+
+* Tue May 09 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-66
+- Related: #1332242 - Explicitly disallow the '#' character in allow,deny
+  directives
+
+* Thu Apr 27 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-65
+- Resolves: #1445885 - define _RH_HAS_HTTPPROTOCOLOPTIONS
+
+* Tue Apr 18 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-64
+- Resolves: #1442872 - apache user is not created during httpd installation
+  when apache group already exist with GID other than 48
+
+* Wed Mar 22 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-63
+- Related: #1412976 - CVE-2016-0736 CVE-2016-2161 CVE-2016-8743
+  httpd: various flaws
+
+* Wed Mar 15 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-62
+- Resolves: #1397241 - Backport Apache Bug 53098 - mod_proxy_ajp:
+  patch to set worker secret passed to tomcat
+
+* Wed Mar 15 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-61
+- Related: #1414258 - Crash during restart or at startup in mod_ssl,
+  in certinfo_free() function registered by ssl_stapling_ex_init()
+
+* Tue Mar 14 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-60
+- Resolves: #1414258 - Crash during restart or at startup in mod_ssl,
+  in certinfo_free() function registered by ssl_stapling_ex_init()
+
+* Mon Mar 13 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-59
+- Resolves: #1378946 - Backport of apache bug 55910: Continuation lines
+  are broken during buffer resize
+
+* Fri Mar 10 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-58
+- Resolves: #1364604 - Upstream Bug 56925 - ErrorDocument directive misbehaves
+  with mod_proxy_http and mod_proxy_ajp
+
+* Thu Mar 09 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-57
+- Resolves: #1324416 - Error 404 when switching language in HTML manual
+  more than once
+
+* Wed Mar 08 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-56
+- Resolves: #1353740 - Backport Apache PR58118 to fix mod_proxy_fcgi
+  spamming non-errors: AH01075: Error dispatching request to : (passing
+  brigade to output filters)
+
+* Wed Mar 08 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-55
+- Resolves: #1371876 - Apache httpd returns "200 OK" for a request
+  exceeding LimitRequestBody when enabling mod_ext_filter
+
+* Tue Mar 07 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-54
+- Resolves: #1372692 - Apache httpd does not log status code "413" in
+  access_log when exceeding LimitRequestBody
+
+* Tue Mar 07 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-53
+- Resolves: #1376835 - httpd with worker/event mpm segfaults after multiple
+  successive graceful reloads
+
+* Tue Mar 07 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-52
+- Resolves: #1332242 - Explicitly disallow the '#' character in allow,deny
+  directives
+
+* Mon Mar 06 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-51
 - Resolves: #1396197 - Backport: mod_proxy_wstunnel - AH02447: err/hup
   on backconn
 
-* Tue Feb 14 2017 Joe Orton <jorton@redhat.com> - 2.4.6-45.3
+* Mon Mar 06 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-50
+- Resolves: #1348019 - mod_proxy: Fix a race condition that caused a failed
+  worker to be retried before the retry period is over
+
+* Mon Mar 06 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-49
+- Resolves: #1389535 - Segmentation fault in SSL_renegotiate
+
+* Mon Mar 06 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-48
+- Resolves: #1406184 - stapling_renew_response: abort early
+  (before apr_uri_parse) if ocspuri is empty
+
+* Tue Feb  7 2017 Joe Orton <jorton@redhat.com> - 2.4.6-47
 - prefork: fix delay completing graceful restart (#1327624)
 - mod_ldap: fix authz regression, failing to rebind (#1415257)
 
-* Tue Feb 14 2017 Joe Orton <jorton@redhat.com> - 2.4.6-45.2
-- updated patch for CVE-2016-8743
-
-* Mon Jan 30 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-45.1
-- Resolves: #1412975 - CVE-2016-0736 CVE-2016-2161 CVE-2016-8743 httpd: various
-  flaws
+* Thu Jan 26 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-46
+- Resolves: #1412976 - CVE-2016-0736 CVE-2016-2161 CVE-2016-8743
+  httpd: various flaws
 
 * Wed Aug 03 2016 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-45
 - RFE: run mod_rewrite external mapping program as non-root (#1316900)

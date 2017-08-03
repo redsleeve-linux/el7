@@ -1,0 +1,51 @@
+From e42a328573e2cfc9e2715d2497ca98b55c067878 Mon Sep 17 00:00:00 2001
+Message-Id: <e42a328573e2cfc9e2715d2497ca98b55c067878@dist-git>
+From: Erik Skultety <eskultet@redhat.com>
+Date: Wed, 31 May 2017 08:21:34 +0200
+Subject: [PATCH] qemu: json: Fix daemon crash on handling domain shutdown
+ event
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1384007
+
+commit a8eba5036 added further checking of the guest shutdown cause, but
+this enhancement is available since qemu 2.10, causing a crash because
+of a NULL pointer dereference on older qemus.
+
+Thread 1 "libvirtd" received signal SIGSEGV, Segmentation fault.
+0x00007ffff72441af in virJSONValueObjectGet (object=0x0,
+                                             key=0x7fffd5ef11bf "guest")
+    at util/virjson.c:769
+769	    if (object->type != VIR_JSON_TYPE_OBJECT)
+(gdb) bt
+0  in virJSONValueObjectGet
+1  in virJSONValueObjectGetBoolean
+2  in qemuMonitorJSONHandleShutdown
+3  in qemuMonitorJSONIOProcessEvent
+4  in qemuMonitorJSONIOProcessLine
+5  in qemuMonitorJSONIOProcess
+6  in qemuMonitorIOProcess
+
+Signed-off-by: Erik Skultety <eskultet@redhat.com>
+(cherry picked from commit f9b69c828994ceea61759d4be43f66da67559033)
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_monitor_json.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_monitor_json.c b/src/qemu/qemu_monitor_json.c
+index f22df3007..a244403b5 100644
+--- a/src/qemu/qemu_monitor_json.c
++++ b/src/qemu/qemu_monitor_json.c
+@@ -528,7 +528,7 @@ static void qemuMonitorJSONHandleShutdown(qemuMonitorPtr mon, virJSONValuePtr da
+     bool guest = false;
+     virTristateBool guest_initiated = VIR_TRISTATE_BOOL_ABSENT;
+ 
+-    if (virJSONValueObjectGetBoolean(data, "guest", &guest) == 0)
++    if (data && virJSONValueObjectGetBoolean(data, "guest", &guest) == 0)
+         guest_initiated = guest ? VIR_TRISTATE_BOOL_YES : VIR_TRISTATE_BOOL_NO;
+ 
+     qemuMonitorEmitShutdown(mon, guest_initiated);
+-- 
+2.13.0
+

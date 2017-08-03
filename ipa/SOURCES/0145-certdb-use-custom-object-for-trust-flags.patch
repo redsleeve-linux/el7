@@ -1,0 +1,358 @@
+From e8805e118446a1ad542d183e2f6bea0f87651795 Mon Sep 17 00:00:00 2001
+From: Jan Cholasta <jcholast@redhat.com>
+Date: Thu, 27 Apr 2017 09:37:38 +0200
+Subject: [PATCH] certdb: use custom object for trust flags
+
+Replace trust flag strings with `TrustFlags` objects. The `TrustFlags`
+class encapsulates `certstore` key policy and has an additional flag
+indicating the presence of a private key.
+
+https://pagure.io/freeipa/issue/6831
+
+Reviewed-By: Stanislav Laznicka <slaznick@redhat.com>
+Reviewed-By: Martin Babinsky <mbabinsk@redhat.com>
+---
+ install/restart_scripts/renew_ca_cert       |   2 +-
+ ipalib/install/certstore.py                 |  49 +------------
+ ipapython/certdb.py                         | 109 ++++++++++++++++++++++++++--
+ ipaserver/install/installutils.py           |   2 +-
+ ipaserver/install/ipa_cacert_manage.py      |   6 +-
+ ipaserver/install/ipa_server_certinstall.py |   4 +-
+ ipaserver/install/plugins/upload_cacrt.py   |   2 +-
+ ipaserver/install/server/upgrade.py         |   2 +-
+ 8 files changed, 117 insertions(+), 59 deletions(-)
+
+diff --git a/install/restart_scripts/renew_ca_cert b/install/restart_scripts/renew_ca_cert
+index 7a54b4c7e05a35b40b17e46b75ff8d47db1b2d23..bb31defc0e2bdca044e68ae067f42fb3bd41a57f 100644
+--- a/install/restart_scripts/renew_ca_cert
++++ b/install/restart_scripts/renew_ca_cert
+@@ -125,7 +125,7 @@ def _main():
+ 
+             # Remove old external CA certificates
+             for ca_nick, ca_flags in db.list_certs():
+-                if 'u' in ca_flags:
++                if ca_flags.has_key:
+                     continue
+                 # Delete *all* certificates that use the nickname
+                 while True:
+diff --git a/ipalib/install/certstore.py b/ipalib/install/certstore.py
+index 310e08ed2273badba6fde4ada0ee52501fddc72c..bc2079fb12873444cbe6796eebfdfcfebd0e284d 100644
+--- a/ipalib/install/certstore.py
++++ b/ipalib/install/certstore.py
+@@ -25,7 +25,7 @@ LDAP shared certificate store.
+ from pyasn1.error import PyAsn1Error
+ 
+ from ipapython.dn import DN
+-from ipapython.certdb import get_ca_nickname
++from ipapython.certdb import get_ca_nickname, TrustFlags
+ from ipalib import errors, x509
+ 
+ def _parse_cert(dercert):
+@@ -344,57 +344,14 @@ def trust_flags_to_key_policy(trust_flags):
+     """
+     Convert certutil trust flags to certificate store key policy.
+     """
+-    if 'p' in trust_flags:
+-        if 'C' in trust_flags or 'P' in trust_flags or 'T' in trust_flags:
+-            raise ValueError("cannot be both trusted and not trusted")
+-        return False, None, None
+-    elif 'C' in trust_flags or 'T' in trust_flags:
+-        if 'P' in trust_flags:
+-            raise ValueError("cannot be both CA and not CA")
+-        ca = True
+-    elif 'P' in trust_flags:
+-        ca = False
+-    else:
+-        return None, None, set()
+-
+-    trust_flags = trust_flags.split(',')
+-    ext_key_usage = set()
+-    for i, kp in enumerate((x509.EKU_SERVER_AUTH,
+-                            x509.EKU_EMAIL_PROTECTION,
+-                            x509.EKU_CODE_SIGNING)):
+-        if 'C' in trust_flags[i] or 'P' in trust_flags[i]:
+-            ext_key_usage.add(kp)
+-    if 'T' in trust_flags[0]:
+-        ext_key_usage.add(x509.EKU_CLIENT_AUTH)
+-
+-    return True, ca, ext_key_usage
++    return trust_flags[1:]
+ 
+ 
+ def key_policy_to_trust_flags(trusted, ca, ext_key_usage):
+     """
+     Convert certificate store key policy to certutil trust flags.
+     """
+-    if trusted is False:
+-        return 'p,p,p'
+-    elif trusted is None or ca is None:
+-        return ',,'
+-    elif ext_key_usage is None:
+-        if ca:
+-            return 'CT,C,C'
+-        else:
+-            return 'P,P,P'
+-
+-    trust_flags = ['', '', '']
+-    for i, kp in enumerate((x509.EKU_SERVER_AUTH,
+-                            x509.EKU_EMAIL_PROTECTION,
+-                            x509.EKU_CODE_SIGNING)):
+-        if kp in ext_key_usage:
+-            trust_flags[i] += ('C' if ca else 'P')
+-    if ca and x509.EKU_CLIENT_AUTH in ext_key_usage:
+-        trust_flags[0] += 'T'
+-
+-    trust_flags = ','.join(trust_flags)
+-    return trust_flags
++    return TrustFlags(False, trusted, ca, ext_key_usage)
+ 
+ 
+ def put_ca_cert_nss(ldap, base_dn, dercert, nickname, trust_flags,
+diff --git a/ipapython/certdb.py b/ipapython/certdb.py
+index 88dcae750de5881ae7b4921ca1ae23daa9c5d4b0..af95eba3cbad1c354615457ed0501f97bff0e22d 100644
+--- a/ipapython/certdb.py
++++ b/ipapython/certdb.py
+@@ -17,6 +17,7 @@
+ # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ #
+ 
++import collections
+ import os
+ import io
+ import pwd
+@@ -52,10 +53,26 @@ CA_NICKNAME_FMT = "%s IPA CA"
+ 
+ NSS_FILES = ("cert8.db", "key3.db", "secmod.db", "pwdfile.txt")
+ 
+-EMPTY_TRUST_FLAGS = ',,'
+-IPA_CA_TRUST_FLAGS = 'CT,C,C'
+-EXTERNAL_CA_TRUST_FLAGS = 'C,,'
+-TRUSTED_PEER_TRUST_FLAGS = 'P,,'
++TrustFlags = collections.namedtuple('TrustFlags', 'has_key trusted ca usages')
++
++EMPTY_TRUST_FLAGS = TrustFlags(False, None, None, None)
++
++IPA_CA_TRUST_FLAGS = TrustFlags(
++    False, True, True, frozenset({
++        x509.EKU_SERVER_AUTH,
++        x509.EKU_CLIENT_AUTH,
++        x509.EKU_CODE_SIGNING,
++        x509.EKU_EMAIL_PROTECTION,
++    }),
++)
++
++EXTERNAL_CA_TRUST_FLAGS = TrustFlags(
++    False, True, True, frozenset({x509.EKU_SERVER_AUTH}),
++)
++
++TRUSTED_PEER_TRUST_FLAGS = TrustFlags(
++    False, True, False, frozenset({x509.EKU_SERVER_AUTH}),
++)
+ 
+ 
+ def get_ca_nickname(realm, format=CA_NICKNAME_FMT):
+@@ -87,6 +104,82 @@ def get_file_cont(slot, token, filename):
+         return f.read()
+ 
+ 
++def parse_trust_flags(trust_flags):
++    """
++    Convert certutil trust flags to TrustFlags object.
++    """
++    has_key = 'u' in trust_flags
++
++    if 'p' in trust_flags:
++        if 'C' in trust_flags or 'P' in trust_flags or 'T' in trust_flags:
++            raise ValueError("cannot be both trusted and not trusted")
++        return False, None, None
++    elif 'C' in trust_flags or 'T' in trust_flags:
++        if 'P' in trust_flags:
++            raise ValueError("cannot be both CA and not CA")
++        ca = True
++    elif 'P' in trust_flags:
++        ca = False
++    else:
++        return TrustFlags(has_key, None, None, frozenset())
++
++    trust_flags = trust_flags.split(',')
++    ext_key_usage = set()
++    for i, kp in enumerate((x509.EKU_SERVER_AUTH,
++                            x509.EKU_EMAIL_PROTECTION,
++                            x509.EKU_CODE_SIGNING)):
++        if 'C' in trust_flags[i] or 'P' in trust_flags[i]:
++            ext_key_usage.add(kp)
++    if 'T' in trust_flags[0]:
++        ext_key_usage.add(x509.EKU_CLIENT_AUTH)
++
++    return TrustFlags(has_key, True, ca, frozenset(ext_key_usage))
++
++
++def unparse_trust_flags(trust_flags):
++    """
++    Convert TrustFlags object to certutil trust flags.
++    """
++    has_key, trusted, ca, ext_key_usage = trust_flags
++
++    if trusted is False:
++        if has_key:
++            return 'pu,pu,pu'
++        else:
++            return 'p,p,p'
++    elif trusted is None or ca is None:
++        if has_key:
++            return 'u,u,u'
++        else:
++            return ',,'
++    elif ext_key_usage is None:
++        if ca:
++            if has_key:
++                return 'CTu,Cu,Cu'
++            else:
++                return 'CT,C,C'
++        else:
++            if has_key:
++                return 'Pu,Pu,Pu'
++            else:
++                return 'P,P,P'
++
++    trust_flags = ['', '', '']
++    for i, kp in enumerate((x509.EKU_SERVER_AUTH,
++                            x509.EKU_EMAIL_PROTECTION,
++                            x509.EKU_CODE_SIGNING)):
++        if kp in ext_key_usage:
++            trust_flags[i] += ('C' if ca else 'P')
++    if ca and x509.EKU_CLIENT_AUTH in ext_key_usage:
++        trust_flags[0] += 'T'
++    if has_key:
++        for i in range(3):
++            trust_flags[i] += 'u'
++
++    trust_flags = ','.join(trust_flags)
++    return trust_flags
++
++
+ class NSSDatabase(object):
+     """A general-purpose wrapper around a NSS cert database
+ 
+@@ -205,7 +298,9 @@ class NSSDatabase(object):
+         for cert in certs:
+             match = re.match(r'^(.+?)\s+(\w*,\w*,\w*)\s*$', cert)
+             if match:
+-                certlist.append(match.groups())
++                nickname = match.group(1)
++                trust_flags = parse_trust_flags(match.group(2))
++                certlist.append((nickname, trust_flags))
+ 
+         return tuple(certlist)
+ 
+@@ -218,7 +313,7 @@ class NSSDatabase(object):
+         """
+         server_certs = []
+         for name, flags in self.list_certs():
+-            if 'u' in flags:
++            if flags.has_key:
+                 server_certs.append((name, flags))
+ 
+         return server_certs
+@@ -477,6 +572,7 @@ class NSSDatabase(object):
+                 "No need to add trust for built-in root CAs, skipping %s" %
+                 root_nickname)
+         else:
++            trust_flags = unparse_trust_flags(trust_flags)
+             try:
+                 self.run_certutil(["-M", "-n", root_nickname,
+                                    "-t", trust_flags])
+@@ -538,6 +634,7 @@ class NSSDatabase(object):
+                              location)
+ 
+     def add_cert(self, cert, nick, flags, pem=False):
++        flags = unparse_trust_flags(flags)
+         args = ["-A", "-n", nick, "-t", flags]
+         if pem:
+             args.append("-a")
+diff --git a/ipaserver/install/installutils.py b/ipaserver/install/installutils.py
+index 0445a1d3c403fab690e5afb7c8801ed85773b1e0..5bce9894780bd920db11196b925492a7fe8f22d0 100644
+--- a/ipaserver/install/installutils.py
++++ b/ipaserver/install/installutils.py
+@@ -1034,7 +1034,7 @@ def load_pkcs12(cert_files, key_password, key_nickname, ca_cert_files,
+                 raise ScriptError(str(e))
+ 
+         for nickname, trust_flags in nssdb.list_certs():
+-            if 'u' in trust_flags:
++            if trust_flags.has_key:
+                 key_nickname = nickname
+                 continue
+             nssdb.trust_root_cert(nickname, EXTERNAL_CA_TRUST_FLAGS)
+diff --git a/ipaserver/install/ipa_cacert_manage.py b/ipaserver/install/ipa_cacert_manage.py
+index 88b40d45e10281d272882d21e06f5d53cf5a701d..d28a5966f054141819463cdb1dfef48ee1e46e92 100644
+--- a/ipaserver/install/ipa_cacert_manage.py
++++ b/ipaserver/install/ipa_cacert_manage.py
+@@ -26,7 +26,9 @@ import gssapi
+ 
+ from ipalib.install import certmonger, certstore
+ from ipapython import admintool, ipautil
+-from ipapython.certdb import EMPTY_TRUST_FLAGS, EXTERNAL_CA_TRUST_FLAGS
++from ipapython.certdb import (EMPTY_TRUST_FLAGS,
++                              EXTERNAL_CA_TRUST_FLAGS,
++                              parse_trust_flags)
+ from ipapython.dn import DN
+ from ipaplatform.paths import paths
+ from ipalib import api, errors, x509
+@@ -366,6 +368,8 @@ class CACertManage(admintool.AdminTool):
+             len(trust_flags.split(',')) != 3):
+             raise admintool.ScriptError("Invalid trust flags")
+ 
++        trust_flags = parse_trust_flags(trust_flags)
++
+         try:
+             certstore.put_ca_cert_nss(
+                 api.Backend.ldap2, api.env.basedn, cert, nickname, trust_flags)
+diff --git a/ipaserver/install/ipa_server_certinstall.py b/ipaserver/install/ipa_server_certinstall.py
+index ee93535edfd258fe71099881c54c413516b24d17..9f2cd9573a156949ae979e7b69fbd23adaf2feb8 100644
+--- a/ipaserver/install/ipa_server_certinstall.py
++++ b/ipaserver/install/ipa_server_certinstall.py
+@@ -170,13 +170,13 @@ class ServerCertInstall(admintool.AdminTool):
+             # this leaves only the server certs in the temp db
+             tempnssdb.import_pkcs12(pkcs12_filename, pkcs12_pin)
+             for nickname, flags in tempnssdb.list_certs():
+-                if 'u' not in flags:
++                if not flags.has_key:
+                     while tempnssdb.has_nickname(nickname):
+                         tempnssdb.delete_cert(nickname)
+ 
+             # import all the CA certs from nssdb into the temp db
+             for nickname, flags in nssdb.list_certs():
+-                if 'u' not in flags:
++                if not flags.has_key:
+                     cert = nssdb.get_cert_from_db(nickname)
+                     tempnssdb.add_cert(cert, nickname, flags)
+ 
+diff --git a/ipaserver/install/plugins/upload_cacrt.py b/ipaserver/install/plugins/upload_cacrt.py
+index 7d294ff971bd109e5fbb3570bfff0198f24b68d3..73cc91d8f6dd5811ec74efecd6c885cd8937a0f2 100644
+--- a/ipaserver/install/plugins/upload_cacrt.py
++++ b/ipaserver/install/plugins/upload_cacrt.py
+@@ -52,7 +52,7 @@ class update_upload_cacrt(Updater):
+         ldap = self.api.Backend.ldap2
+ 
+         for nickname, trust_flags in db.list_certs():
+-            if 'u' in trust_flags:
++            if trust_flags.has_key:
+                 continue
+             if nickname == ca_nickname and ca_enabled:
+                 trust_flags = certdb.IPA_CA_TRUST_FLAGS
+diff --git a/ipaserver/install/server/upgrade.py b/ipaserver/install/server/upgrade.py
+index 73a4f1108a56a766cdbbcb93d7050482a8264a75..c244958f4cddba0d1edded5165a295b1e1ee2b8a 100644
+--- a/ipaserver/install/server/upgrade.py
++++ b/ipaserver/install/server/upgrade.py
+@@ -1547,7 +1547,7 @@ def disable_httpd_system_trust(http):
+ 
+     db = certs.CertDB(api.env.realm, nssdir=paths.HTTPD_ALIAS_DIR)
+     for nickname, trust_flags in db.list_certs():
+-        if 'u' not in trust_flags:
++        if not trust_flags.has_key:
+             cert = db.get_cert_from_db(nickname, pem=False)
+             if cert:
+                 ca_certs.append((cert, nickname, trust_flags))
+-- 
+2.9.4
+

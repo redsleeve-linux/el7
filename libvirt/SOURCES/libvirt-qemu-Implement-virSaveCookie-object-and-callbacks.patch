@@ -1,0 +1,166 @@
+From e43851128b407dea2a55a813bdbefc5a639f1914 Mon Sep 17 00:00:00 2001
+Message-Id: <e43851128b407dea2a55a813bdbefc5a639f1914@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Fri, 2 Jun 2017 22:50:18 +0200
+Subject: [PATCH] qemu: Implement virSaveCookie object and callbacks
+
+This patch implements a new save cookie object and callbacks for qemu
+driver. The actual useful content will be added in the object later.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit 215476b64226275ac090ca0e957bfca76ba1549e)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1441662
+
+Conflicts:
+	src/qemu/qemu_domain.c - no qemuDomainLogContextClass in 7.4
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_conf.c   |  2 +-
+ src/qemu/qemu_domain.c | 83 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/qemu/qemu_domain.h |  9 ++++++
+ 3 files changed, 93 insertions(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_conf.c b/src/qemu/qemu_conf.c
+index 96956b7779..51a42883dc 100644
+--- a/src/qemu/qemu_conf.c
++++ b/src/qemu/qemu_conf.c
+@@ -909,7 +909,7 @@ virQEMUDriverCreateXMLConf(virQEMUDriverPtr driver)
+                                  &virQEMUDriverPrivateDataCallbacks,
+                                  &virQEMUDriverDomainXMLNamespace,
+                                  &virQEMUDriverDomainABIStability,
+-                                 NULL);
++                                 &virQEMUDriverDomainSaveCookie);
+ }
+ 
+ 
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index 09903bdd5f..63fcde8024 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -120,6 +120,24 @@ struct _qemuDomainLogContext {
+     virLogManagerPtr manager;
+ };
+ 
++static virClassPtr qemuDomainSaveCookieClass;
++
++static void qemuDomainSaveCookieDispose(void *obj);
++
++static int
++qemuDomainOnceInit(void)
++{
++    if (!(qemuDomainSaveCookieClass = virClassNew(virClassForObject(),
++                                                  "qemuDomainSaveCookie",
++                                                  sizeof(qemuDomainSaveCookie),
++                                                  qemuDomainSaveCookieDispose)))
++        return -1;
++
++    return 0;
++}
++
++VIR_ONCE_GLOBAL_INIT(qemuDomain)
++
+ const char *
+ qemuDomainAsyncJobPhaseToString(qemuDomainAsyncJob job,
+                                 int phase ATTRIBUTE_UNUSED)
+@@ -9080,3 +9098,68 @@ qemuDomainGetStorageSourceByDevstr(const char *devstr,
+     VIR_FREE(target);
+     return src;
+ }
++
++
++static void
++qemuDomainSaveCookieDispose(void *obj)
++{
++    qemuDomainSaveCookiePtr cookie = obj;
++
++    VIR_DEBUG("cookie=%p", cookie);
++}
++
++
++qemuDomainSaveCookiePtr
++qemuDomainSaveCookieNew(virDomainObjPtr vm ATTRIBUTE_UNUSED)
++{
++    qemuDomainSaveCookiePtr cookie = NULL;
++
++    if (qemuDomainInitialize() < 0)
++        goto error;
++
++    if (!(cookie = virObjectNew(qemuDomainSaveCookieClass)))
++        goto error;
++
++    VIR_DEBUG("Save cookie %p", cookie);
++
++    return cookie;
++
++ error:
++    virObjectUnref(cookie);
++    return NULL;
++}
++
++
++static int
++qemuDomainSaveCookieParse(xmlXPathContextPtr ctxt ATTRIBUTE_UNUSED,
++                          virObjectPtr *obj)
++{
++    qemuDomainSaveCookiePtr cookie = NULL;
++
++    if (qemuDomainInitialize() < 0)
++        goto error;
++
++    if (!(cookie = virObjectNew(qemuDomainSaveCookieClass)))
++        goto error;
++
++    *obj = (virObjectPtr) cookie;
++    return 0;
++
++ error:
++    virObjectUnref(cookie);
++    return -1;
++}
++
++
++static int
++qemuDomainSaveCookieFormat(virBufferPtr buf ATTRIBUTE_UNUSED,
++                           virObjectPtr obj ATTRIBUTE_UNUSED)
++{
++    return 0;
++}
++
++
++virSaveCookieCallbacks virQEMUDriverDomainSaveCookie = {
++    .parse = qemuDomainSaveCookieParse,
++    .format = qemuDomainSaveCookieFormat,
++};
+diff --git a/src/qemu/qemu_domain.h b/src/qemu/qemu_domain.h
+index 4db92fac8a..80d80e4554 100644
+--- a/src/qemu/qemu_domain.h
++++ b/src/qemu/qemu_domain.h
+@@ -416,6 +416,14 @@ struct qemuProcessEvent {
+ typedef struct _qemuDomainLogContext qemuDomainLogContext;
+ typedef qemuDomainLogContext *qemuDomainLogContextPtr;
+ 
++typedef struct _qemuDomainSaveCookie qemuDomainSaveCookie;
++typedef qemuDomainSaveCookie *qemuDomainSaveCookiePtr;
++struct _qemuDomainSaveCookie {
++    virObject parent;
++};
++
++qemuDomainSaveCookiePtr qemuDomainSaveCookieNew(virDomainObjPtr vm);
++
+ const char *qemuDomainAsyncJobPhaseToString(qemuDomainAsyncJob job,
+                                             int phase);
+ int qemuDomainAsyncJobPhaseFromString(qemuDomainAsyncJob job,
+@@ -640,6 +648,7 @@ extern virDomainXMLPrivateDataCallbacks virQEMUDriverPrivateDataCallbacks;
+ extern virDomainXMLNamespace virQEMUDriverDomainXMLNamespace;
+ extern virDomainDefParserConfig virQEMUDriverDomainDefParserConfig;
+ extern virDomainABIStability virQEMUDriverDomainABIStability;
++extern virSaveCookieCallbacks virQEMUDriverDomainSaveCookie;
+ 
+ int qemuDomainUpdateDeviceList(virQEMUDriverPtr driver,
+                                virDomainObjPtr vm, int asyncJob);
+-- 
+2.13.1
+

@@ -1,0 +1,133 @@
+From 51a842ccdf1c02ec00ba96217658b0db31a6addb Mon Sep 17 00:00:00 2001
+Message-Id: <51a842ccdf1c02ec00ba96217658b0db31a6addb@dist-git>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Fri, 9 Jun 2017 12:49:02 +0200
+Subject: [PATCH] Add virtio-related options to disks
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1283251
+
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit 1bc2cb3b3205dca7174147ac970e2b82c8af69da)
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ docs/formatdomain.html.in                              |  5 +++++
+ docs/schemas/domaincommon.rng                          |  1 +
+ src/conf/domain_conf.c                                 | 15 +++++++++++++++
+ src/conf/domain_conf.h                                 |  1 +
+ tests/qemuxml2argvdata/qemuxml2argv-virtio-options.xml |  2 +-
+ 5 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/docs/formatdomain.html.in b/docs/formatdomain.html.in
+index 2556f383fc..bb7a85a1a1 100644
+--- a/docs/formatdomain.html.in
++++ b/docs/formatdomain.html.in
+@@ -3008,6 +3008,11 @@
+             <code>bus</code> and "pci" or "ccw" <code>address</code> types.
+             <span class='since'>Since 1.2.8 (QEMU 2.1)</span>
+           </li>
++          <li>
++          For virtio disks,
++          <a href="#elementsVirtio">Virtio-specific options</a> can also be
++          set. (<span class="since">Since 3.5.0</span>)
++          </li>
+         </ul>
+       </dd>
+       <dt><code>backenddomain</code></dt>
+diff --git a/docs/schemas/domaincommon.rng b/docs/schemas/domaincommon.rng
+index f571af6706..f838dc55fd 100644
+--- a/docs/schemas/domaincommon.rng
++++ b/docs/schemas/domaincommon.rng
+@@ -1716,6 +1716,7 @@
+       <optional>
+         <ref name="detect_zeroes"/>
+       </optional>
++      <ref name="virtioOptions"/>
+       <empty/>
+     </element>
+   </define>
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 4768d02029..a4b4f70855 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -1745,6 +1745,7 @@ virDomainDiskDefFree(virDomainDiskDefPtr def)
+     VIR_FREE(def->product);
+     VIR_FREE(def->domain_name);
+     VIR_FREE(def->blkdeviotune.group_name);
++    VIR_FREE(def->virtio);
+     virDomainDeviceInfoClear(&def->info);
+     virObjectUnref(def->privateData);
+ 
+@@ -4440,6 +4441,10 @@ virDomainDeviceDefPostParseInternal(virDomainDeviceDefPtr dev,
+             }
+         }
+ 
++        if (disk->bus != VIR_DOMAIN_DISK_BUS_VIRTIO &&
++            virDomainCheckVirtioOptions(disk->virtio) < 0)
++            return -1;
++
+         if (disk->info.type == VIR_DOMAIN_DEVICE_ADDRESS_TYPE_NONE &&
+             virDomainDiskDefAssignAddress(xmlopt, disk, def) < 0)
+             return -1;
+@@ -8420,6 +8425,9 @@ virDomainDiskDefParseXML(virDomainXMLOptionPtr xmlopt,
+         }
+     }
+ 
++    if (virDomainVirtioOptionsParseXML(ctxt, &def->virtio) < 0)
++        goto error;
++
+     /* Disk volume types will have authentication information handled in
+      * virStorageTranslateDiskSourcePool
+      */
+@@ -19146,6 +19154,10 @@ virDomainDiskDefCheckABIStability(virDomainDiskDefPtr src,
+         return false;
+     }
+ 
++    if (src->virtio && dst->virtio &&
++        !virDomainVirtioOptionsCheckABIStability(src->virtio, dst->virtio))
++        return false;
++
+     if (!virDomainDeviceInfoCheckABIStability(&src->info, &dst->info))
+         return false;
+ 
+@@ -21307,6 +21319,9 @@ virDomainDiskDefFormat(virBufferPtr buf,
+         virBufferAsprintf(&driverBuf, " iothread='%u'", def->iothread);
+     if (def->detect_zeroes)
+         virBufferAsprintf(&driverBuf, " detect_zeroes='%s'", detect_zeroes);
++
++    virDomainVirtioOptionsFormat(&driverBuf, def->virtio);
++
+     if (virBufferUse(&driverBuf)) {
+         virBufferAddLit(buf, "<driver");
+         virBufferAddBuffer(buf, &driverBuf);
+diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
+index f1f9208b91..eac1919175 100644
+--- a/src/conf/domain_conf.h
++++ b/src/conf/domain_conf.h
+@@ -668,6 +668,7 @@ struct _virDomainDiskDef {
+     unsigned int iothread; /* unused = 0, > 0 specific thread # */
+     int detect_zeroes; /* enum virDomainDiskDetectZeroes */
+     char *domain_name; /* backend domain name */
++    virDomainVirtioOptionsPtr virtio;
+ };
+ 
+ 
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-virtio-options.xml b/tests/qemuxml2argvdata/qemuxml2argv-virtio-options.xml
+index b16a9847fe..6dd82de648 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-virtio-options.xml
++++ b/tests/qemuxml2argvdata/qemuxml2argv-virtio-options.xml
+@@ -15,7 +15,7 @@
+   <devices>
+     <emulator>/usr/bin/qemu-system-x86_64</emulator>
+     <disk type='file' device='disk'>
+-      <driver name='qemu' type='raw'/>
++      <driver name='qemu' type='raw' iommu='on' ats='on'/>
+       <source file='/var/lib/libvirt/images/img1'/>
+       <target dev='vda' bus='virtio'/>
+       <address type='pci' domain='0x0000' bus='0x00' slot='0x0a' function='0x0'/>
+-- 
+2.13.1
+

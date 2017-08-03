@@ -1,16 +1,16 @@
-From de457fc23e747a0c622e0fd23e49893c1f1da460 Mon Sep 17 00:00:00 2001
+From 9bd81fb917c9ac22055e0dc7b3a89a22d5cfbfc1 Mon Sep 17 00:00:00 2001
 From: Gerd Hoffmann <kraxel@redhat.com>
-Date: Tue, 21 Mar 2017 09:58:02 +0100
+Date: Mon, 27 Mar 2017 10:01:17 +0200
 Subject: [PATCH 2/7] cirrus/vnc: zap bitblit support from console code.
 
 RH-Author: Gerd Hoffmann <kraxel@redhat.com>
-Message-id: <1490090287-1503-3-git-send-email-kraxel@redhat.com>
-Patchwork-id: 74418
-O-Subject: [RHEL-7.4 qemu-kvm PATCH 2/7] cirrus/vnc: zap bitblit support from console code.
-Bugzilla: 1430059
+Message-id: <1490608882-10242-3-git-send-email-kraxel@redhat.com>
+Patchwork-id: 74554
+O-Subject: [RHEL-7.4 qemu-kvm PATCH v2 2/7] cirrus/vnc: zap bitblit support from console code.
+Bugzilla: 1430060
 RH-Acked-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
 RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
-RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
 
 There is a special code path (dpy_gfx_copy) to allow graphic emulation
 notify user interface code about bitblit operations carryed out by
@@ -51,11 +51,11 @@ Conflicts:
 	include/ui/console.h
 	ui/vnc.c
 ---
- hw/display/cirrus_vga.c | 12 ++-----
+ hw/display/cirrus_vga.c | 12 ++----
  include/ui/console.h    |  7 ----
- ui/console.c            | 28 ---------------
- ui/vnc.c                | 96 -------------------------------------------------
- 4 files changed, 3 insertions(+), 140 deletions(-)
+ ui/console.c            | 28 --------------
+ ui/vnc.c                | 99 -------------------------------------------------
+ 4 files changed, 3 insertions(+), 143 deletions(-)
 
 diff --git a/hw/display/cirrus_vga.c b/hw/display/cirrus_vga.c
 index 1b972db..83cef70 100644
@@ -165,7 +165,7 @@ index d422083..fb08ec0 100644
  {
      return console->surface;
 diff --git a/ui/vnc.c b/ui/vnc.c
-index a0e2d33..c7a7853 100644
+index b68918e..1834db0 100644
 --- a/ui/vnc.c
 +++ b/ui/vnc.c
 @@ -417,7 +417,6 @@ out_error:
@@ -176,7 +176,7 @@ index a0e2d33..c7a7853 100644
  static void vnc_disconnect_start(VncState *vs);
  
  static void vnc_colordepth(VncState *vs);
-@@ -721,93 +720,6 @@ int vnc_send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
+@@ -728,96 +727,6 @@ int vnc_send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
      return n;
  }
  
@@ -228,11 +228,12 @@ index a0e2d33..c7a7853 100644
 -        y = dst_y + h - 1;
 -        inc = -1;
 -    }
--    w_lim = w - (16 - (dst_x % 16));
--    if (w_lim < 0)
+-    w_lim = w - (VNC_DIRTY_PIXELS_PER_BIT - (dst_x % VNC_DIRTY_PIXELS_PER_BIT));
+-    if (w_lim < 0) {
 -        w_lim = w;
--    else
--        w_lim = w - (w_lim % 16);
+-    } else {
+-        w_lim = w - (w_lim % VNC_DIRTY_PIXELS_PER_BIT);
+-    }
 -    for (i = 0; i < h; i++) {
 -        for (x = 0; x <= w_lim;
 -                x += s, src_row += cmp_bytes, dst_row += cmp_bytes) {
@@ -240,10 +241,11 @@ index a0e2d33..c7a7853 100644
 -                if ((s = w - w_lim) == 0)
 -                    break;
 -            } else if (!x) {
--                s = (16 - (dst_x % 16));
+-                s = (VNC_DIRTY_PIXELS_PER_BIT -
+-                    (dst_x % VNC_DIRTY_PIXELS_PER_BIT));
 -                s = MIN(s, w_lim);
 -            } else {
--                s = 16;
+-                s = VNC_DIRTY_PIXELS_PER_BIT;
 -            }
 -            cmp_bytes = s * VNC_SERVER_FB_BYTES;
 -            if (memcmp(src_row, dst_row, cmp_bytes) == 0)
@@ -251,7 +253,8 @@ index a0e2d33..c7a7853 100644
 -            memmove(dst_row, src_row, cmp_bytes);
 -            QTAILQ_FOREACH(vs, &vd->clients, next) {
 -                if (!vnc_has_feature(vs, VNC_FEATURE_COPYRECT)) {
--                    set_bit(((x + dst_x) / 16), vs->dirty[y]);
+-                    set_bit(((x + dst_x) / VNC_DIRTY_PIXELS_PER_BIT),
+-                            vs->dirty[y]);
 -                }
 -            }
 -        }
@@ -270,7 +273,7 @@ index a0e2d33..c7a7853 100644
  static void vnc_mouse_set(DisplayChangeListener *dcl,
                            int x, int y, int visible)
  {
-@@ -873,13 +785,6 @@ static int find_and_clear_dirty_height(struct VncState *vs,
+@@ -883,13 +792,6 @@ static int find_and_clear_dirty_height(struct VncState *vs,
      return h;
  }
  
@@ -284,7 +287,7 @@ index a0e2d33..c7a7853 100644
  static int vnc_update_client(VncState *vs, int has_dirty)
  {
      if (vs->need_update && vs->csock != -1) {
-@@ -2912,7 +2817,6 @@ static void vnc_listen_websocket_read(void *opaque)
+@@ -2936,7 +2838,6 @@ static void vnc_listen_websocket_read(void *opaque)
  static const DisplayChangeListenerOps dcl_ops = {
      .dpy_name          = "vnc",
      .dpy_refresh       = vnc_refresh,

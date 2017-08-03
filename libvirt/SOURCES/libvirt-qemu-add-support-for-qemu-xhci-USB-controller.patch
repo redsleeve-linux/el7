@@ -1,0 +1,263 @@
+From 41750fbfbd634a090bbe399e18196d080e89b014 Mon Sep 17 00:00:00 2001
+Message-Id: <41750fbfbd634a090bbe399e18196d080e89b014@dist-git>
+From: Pavel Hrdina <phrdina@redhat.com>
+Date: Fri, 28 Apr 2017 11:59:50 +0200
+Subject: [PATCH] qemu: add support for qemu-xhci USB controller
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1438682
+
+Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
+Acked-by: Andrea Bolognani <abologna@redhat.com>
+(cherry picked from commit 278e70f8f8bac9e6482099d7f3f1a7a8f2109b5f)
+Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ docs/formatdomain.html.in                             |  4 ++--
+ docs/schemas/domaincommon.rng                         |  1 +
+ src/conf/domain_addr.c                                |  1 +
+ src/conf/domain_conf.c                                |  1 +
+ src/conf/domain_conf.h                                |  1 +
+ src/qemu/qemu_command.c                               |  8 ++++++--
+ src/qemu/qemu_domain.c                                | 12 +++++++-----
+ src/qemu/qemu_domain_address.c                        |  1 +
+ .../qemuxml2argv-usb-controller-qemu-xhci-limit.xml   | 14 ++++++++++++++
+ ...uxml2argv-usb-controller-qemu-xhci-unavailable.xml |  1 +
+ .../qemuxml2argv-usb-controller-qemu-xhci.args        | 19 +++++++++++++++++++
+ .../qemuxml2argv-usb-controller-qemu-xhci.xml         | 14 ++++++++++++++
+ tests/qemuxml2argvtest.c                              |  4 ++++
+ 13 files changed, 72 insertions(+), 9 deletions(-)
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-usb-controller-qemu-xhci-limit.xml
+ create mode 120000 tests/qemuxml2argvdata/qemuxml2argv-usb-controller-qemu-xhci-unavailable.xml
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-usb-controller-qemu-xhci.args
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-usb-controller-qemu-xhci.xml
+
+diff --git a/docs/formatdomain.html.in b/docs/formatdomain.html.in
+index c82cd69a2..2dc5e751a 100644
+--- a/docs/formatdomain.html.in
++++ b/docs/formatdomain.html.in
+@@ -3495,8 +3495,8 @@
+         <code>model</code>, which is one of "piix3-uhci", "piix4-uhci",
+         "ehci", "ich9-ehci1", "ich9-uhci1", "ich9-uhci2", "ich9-uhci3",
+         "vt82c686b-uhci", "pci-ohci", "nec-xhci", "qusb1" (xen pvusb
+-        with qemu backend, version 1.1) or "qusb2" (xen pvusb with qemu
+-        backend, version 2.0). Additionally,
++        with qemu backend, version 1.1), "qusb2" (xen pvusb with qemu
++        backend, version 2.0) or "qemu-xhci". Additionally,
+          <span class="since">since 0.10.0</span>, if the USB bus needs to
+          be explicitly disabled for the guest, <code>model='none'</code>
+          may be used.  <span class="since">Since 1.0.5</span>, no default
+diff --git a/docs/schemas/domaincommon.rng b/docs/schemas/domaincommon.rng
+index 7a9b4b702..7271f0113 100644
+--- a/docs/schemas/domaincommon.rng
++++ b/docs/schemas/domaincommon.rng
+@@ -1877,6 +1877,7 @@
+                   <value>none</value>
+                   <value>qusb1</value>
+                   <value>qusb2</value>
++                  <value>qemu-xhci</value>
+                 </choice>
+               </attribute>
+             </optional>
+diff --git a/src/conf/domain_addr.c b/src/conf/domain_addr.c
+index 8b6109199..639168eff 100644
+--- a/src/conf/domain_addr.c
++++ b/src/conf/domain_addr.c
+@@ -1673,6 +1673,7 @@ virDomainUSBAddressControllerModelToPorts(virDomainControllerDefPtr cont)
+         return 3;
+ 
+     case VIR_DOMAIN_CONTROLLER_MODEL_USB_NEC_XHCI:
++    case VIR_DOMAIN_CONTROLLER_MODEL_USB_QEMU_XHCI:
+         if (cont->opts.usbopts.ports != -1)
+             return cont->opts.usbopts.ports;
+         return 4;
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 2d5d00cf2..7ab5e5051 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -366,6 +366,7 @@ VIR_ENUM_IMPL(virDomainControllerModelUSB, VIR_DOMAIN_CONTROLLER_MODEL_USB_LAST,
+               "nec-xhci",
+               "qusb1",
+               "qusb2",
++              "qemu-xhci",
+               "none")
+ 
+ VIR_ENUM_IMPL(virDomainFS, VIR_DOMAIN_FS_TYPE_LAST,
+diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
+index 1dbbcdc51..c91791262 100644
+--- a/src/conf/domain_conf.h
++++ b/src/conf/domain_conf.h
+@@ -735,6 +735,7 @@ typedef enum {
+     VIR_DOMAIN_CONTROLLER_MODEL_USB_NEC_XHCI,
+     VIR_DOMAIN_CONTROLLER_MODEL_USB_QUSB1,
+     VIR_DOMAIN_CONTROLLER_MODEL_USB_QUSB2,
++    VIR_DOMAIN_CONTROLLER_MODEL_USB_QEMU_XHCI,
+     VIR_DOMAIN_CONTROLLER_MODEL_USB_NONE,
+ 
+     VIR_DOMAIN_CONTROLLER_MODEL_USB_LAST
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index 9ce90c25b..30feef1de 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -152,6 +152,7 @@ VIR_ENUM_IMPL(qemuControllerModelUSB, VIR_DOMAIN_CONTROLLER_MODEL_USB_LAST,
+               "nec-usb-xhci",
+               "qusb1",
+               "qusb2",
++              "qemu-xhci",
+               "none");
+ 
+ VIR_ENUM_DECL(qemuDomainFSDriver)
+@@ -2558,6 +2559,8 @@ qemuControllerModelUSBToCaps(int model)
+         return QEMU_CAPS_PCI_OHCI;
+     case VIR_DOMAIN_CONTROLLER_MODEL_USB_NEC_XHCI:
+         return QEMU_CAPS_NEC_USB_XHCI;
++    case VIR_DOMAIN_CONTROLLER_MODEL_USB_QEMU_XHCI:
++        return QEMU_CAPS_DEVICE_QEMU_XHCI;
+     default:
+         return -1;
+     }
+@@ -2592,8 +2595,9 @@ qemuBuildUSBControllerDevStr(virDomainControllerDefPtr def,
+     virBufferAsprintf(buf, "%s", smodel);
+ 
+     if (def->opts.usbopts.ports != -1) {
+-        if (model != VIR_DOMAIN_CONTROLLER_MODEL_USB_NEC_XHCI ||
+-            !virQEMUCapsGet(qemuCaps, QEMU_CAPS_NEC_USB_XHCI_PORTS)) {
++        if ((model != VIR_DOMAIN_CONTROLLER_MODEL_USB_NEC_XHCI ||
++             !virQEMUCapsGet(qemuCaps, QEMU_CAPS_NEC_USB_XHCI_PORTS)) &&
++            model != VIR_DOMAIN_CONTROLLER_MODEL_USB_QEMU_XHCI) {
+             virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+                            _("usb controller type %s doesn't support 'ports' "
+                              "with this QEMU binary"), smodel);
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index 25ab1f639..4d7de60cb 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -3194,7 +3194,7 @@ qemuDomainShmemDefPostParse(virDomainShmemDefPtr shm)
+ }
+ 
+ 
+-#define QEMU_USB_NEC_XHCI_MAXPORTS 15
++#define QEMU_USB_XHCI_MAXPORTS 15
+ 
+ 
+ static int
+@@ -3262,11 +3262,13 @@ qemuDomainControllerDefPostParse(virDomainControllerDefPtr cont,
+                            virDomainVirtTypeToString(def->virtType));
+             return -1;
+         }
+-        if (cont->model == VIR_DOMAIN_CONTROLLER_MODEL_USB_NEC_XHCI &&
+-            cont->opts.usbopts.ports > QEMU_USB_NEC_XHCI_MAXPORTS) {
++        if ((cont->model == VIR_DOMAIN_CONTROLLER_MODEL_USB_NEC_XHCI ||
++             cont->model == VIR_DOMAIN_CONTROLLER_MODEL_USB_QEMU_XHCI) &&
++            cont->opts.usbopts.ports > QEMU_USB_XHCI_MAXPORTS) {
+             virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+-                           _("nec-xhci controller only supports up to %u ports"),
+-                           QEMU_USB_NEC_XHCI_MAXPORTS);
++                           _("'%s' controller only supports up to '%u' ports"),
++                           virDomainControllerModelUSBTypeToString(cont->model),
++                           QEMU_USB_XHCI_MAXPORTS);
+             return -1;
+         }
+         break;
+diff --git a/src/qemu/qemu_domain_address.c b/src/qemu/qemu_domain_address.c
+index 064d05079..3da6b7369 100644
+--- a/src/qemu/qemu_domain_address.c
++++ b/src/qemu/qemu_domain_address.c
+@@ -502,6 +502,7 @@ qemuDomainDeviceCalculatePCIConnectFlags(virDomainDeviceDefPtr dev,
+         case VIR_DOMAIN_CONTROLLER_TYPE_USB:
+             switch ((virDomainControllerModelUSB) cont->model) {
+             case VIR_DOMAIN_CONTROLLER_MODEL_USB_NEC_XHCI:
++            case VIR_DOMAIN_CONTROLLER_MODEL_USB_QEMU_XHCI:
+                 return pcieFlags;
+ 
+             case VIR_DOMAIN_CONTROLLER_MODEL_USB_EHCI:
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-usb-controller-qemu-xhci-limit.xml b/tests/qemuxml2argvdata/qemuxml2argv-usb-controller-qemu-xhci-limit.xml
+new file mode 100644
+index 000000000..27cc99127
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-usb-controller-qemu-xhci-limit.xml
+@@ -0,0 +1,14 @@
++<domain type='qemu'>
++  <name>QEMUGuest1</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219136</memory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='x86_64' machine='pc'>hvm</type>
++  </os>
++  <devices>
++    <emulator>/usr/bin/qemu-system-x86_64</emulator>
++    <controller type='usb' index='0' model='qemu-xhci' ports='16'/>
++    <memballoon model='none'/>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-usb-controller-qemu-xhci-unavailable.xml b/tests/qemuxml2argvdata/qemuxml2argv-usb-controller-qemu-xhci-unavailable.xml
+new file mode 120000
+index 000000000..989306fa7
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-usb-controller-qemu-xhci-unavailable.xml
+@@ -0,0 +1 @@
++qemuxml2argv-usb-controller-qemu-xhci.xml
+\ No newline at end of file
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-usb-controller-qemu-xhci.args b/tests/qemuxml2argvdata/qemuxml2argv-usb-controller-qemu-xhci.args
+new file mode 100644
+index 000000000..8adb3022f
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-usb-controller-qemu-xhci.args
+@@ -0,0 +1,19 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/home/test \
++USER=test \
++LOGNAME=test \
++QEMU_AUDIO_DRV=none \
++/usr/bin/qemu-system-x86_64 \
++-name QEMUGuest1 \
++-S \
++-M pc-0.11 \
++-m 214 \
++-smp 1,sockets=1,cores=1,threads=1 \
++-uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
++-nographic \
++-nodefaults \
++-monitor unix:/tmp/lib/domain--1-QEMUGuest1/monitor.sock,server,nowait \
++-no-acpi \
++-boot c \
++-device qemu-xhci,p2=8,p3=8,id=usb,bus=pci.0,addr=0x3
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-usb-controller-qemu-xhci.xml b/tests/qemuxml2argvdata/qemuxml2argv-usb-controller-qemu-xhci.xml
+new file mode 100644
+index 000000000..b63f9e1c4
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-usb-controller-qemu-xhci.xml
+@@ -0,0 +1,14 @@
++<domain type='qemu'>
++  <name>QEMUGuest1</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219136</memory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='x86_64' machine='pc'>hvm</type>
++  </os>
++  <devices>
++    <emulator>/usr/bin/qemu-system-x86_64</emulator>
++    <controller type='usb' index='0' model='qemu-xhci' ports='8'/>
++    <memballoon model='none'/>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2argvtest.c b/tests/qemuxml2argvtest.c
+index ca1d23c10..317f17e74 100644
+--- a/tests/qemuxml2argvtest.c
++++ b/tests/qemuxml2argvtest.c
+@@ -1424,6 +1424,10 @@ mymain(void)
+     DO_TEST_PARSE_ERROR("usb-controller-xhci-limit",
+             QEMU_CAPS_CHARDEV, QEMU_CAPS_NODEFCONFIG, QEMU_CAPS_PIIX3_USB_UHCI,
+             QEMU_CAPS_NEC_USB_XHCI, QEMU_CAPS_NEC_USB_XHCI_PORTS);
++    DO_TEST("usb-controller-qemu-xhci", QEMU_CAPS_DEVICE_QEMU_XHCI);
++    DO_TEST_FAILURE("usb-controller-qemu-xhci-unavailable", NONE);
++    DO_TEST_PARSE_ERROR("usb-controller-qemu-xhci-limit",
++                        QEMU_CAPS_DEVICE_QEMU_XHCI);
+ 
+     DO_TEST("smbios", QEMU_CAPS_SMBIOS_TYPE);
+     DO_TEST_PARSE_ERROR("smbios-date", QEMU_CAPS_SMBIOS_TYPE);
+-- 
+2.12.2
+

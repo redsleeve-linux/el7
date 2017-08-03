@@ -1,0 +1,110 @@
+From bf20b6cf07e5462c892b5e3c3d76a3c354606ea4 Mon Sep 17 00:00:00 2001
+Message-Id: <bf20b6cf07e5462c892b5e3c3d76a3c354606ea4@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 14 Jun 2017 13:43:37 +0200
+Subject: [PATCH] qemu: Add qemuDomainCheckABIStability
+
+When making ABI stability checks for an active domain, we need to make
+sure we use the same migratable definition which virDomainGetXMLDesc
+with the MIGRATABLE flag provides, otherwise the ABI check will fail.
+This is implemented in the new qemuDomainCheckABIStability which takes a
+domain object and generates the right migratable definition from it.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit 063b2b8788db204d0ac2e1d367fd0c5eb9b81451)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1460952
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_domain.c | 41 ++++++++++++++++++++++++++++++++++++-----
+ src/qemu/qemu_domain.h |  4 ++++
+ 2 files changed, 40 insertions(+), 5 deletions(-)
+
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index b3dc2bc3ac..1528c6a137 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -5909,6 +5909,10 @@ qemuDomainMigratableDefCheckABIStability(virQEMUDriverPtr driver,
+ }
+ 
+ 
++#define COPY_FLAGS (VIR_DOMAIN_XML_SECURE | \
++                    VIR_DOMAIN_XML_UPDATE_CPU | \
++                    VIR_DOMAIN_XML_MIGRATABLE)
++
+ bool
+ qemuDomainDefCheckABIStability(virQEMUDriverPtr driver,
+                                virDomainDefPtr src,
+@@ -5916,13 +5920,10 @@ qemuDomainDefCheckABIStability(virQEMUDriverPtr driver,
+ {
+     virDomainDefPtr migratableDefSrc = NULL;
+     virDomainDefPtr migratableDefDst = NULL;
+-    const unsigned int flags = VIR_DOMAIN_XML_SECURE |
+-                               VIR_DOMAIN_XML_UPDATE_CPU |
+-                               VIR_DOMAIN_XML_MIGRATABLE;
+     bool ret = false;
+ 
+-    if (!(migratableDefSrc = qemuDomainDefCopy(driver, src, flags)) ||
+-        !(migratableDefDst = qemuDomainDefCopy(driver, dst, flags)))
++    if (!(migratableDefSrc = qemuDomainDefCopy(driver, src, COPY_FLAGS)) ||
++        !(migratableDefDst = qemuDomainDefCopy(driver, dst, COPY_FLAGS)))
+         goto cleanup;
+ 
+     ret = qemuDomainMigratableDefCheckABIStability(driver,
+@@ -5935,6 +5936,36 @@ qemuDomainDefCheckABIStability(virQEMUDriverPtr driver,
+     return ret;
+ }
+ 
++
++bool
++qemuDomainCheckABIStability(virQEMUDriverPtr driver,
++                            virDomainObjPtr vm,
++                            virDomainDefPtr dst)
++{
++    virDomainDefPtr migratableSrc = NULL;
++    virDomainDefPtr migratableDst = NULL;
++    char *xml = NULL;
++    bool ret = false;
++
++    if (!(xml = qemuDomainFormatXML(driver, vm, COPY_FLAGS)) ||
++        !(migratableSrc = qemuDomainDefFromXML(driver, xml)) ||
++        !(migratableDst = qemuDomainDefCopy(driver, dst, COPY_FLAGS)))
++        goto cleanup;
++
++    ret = qemuDomainMigratableDefCheckABIStability(driver,
++                                                   vm->def, migratableSrc,
++                                                   dst, migratableDst);
++
++ cleanup:
++    VIR_FREE(xml);
++    virDomainDefFree(migratableSrc);
++    virDomainDefFree(migratableDst);
++    return ret;
++}
++
++#undef COPY_FLAGS
++
++
+ bool
+ qemuDomainAgentAvailable(virDomainObjPtr vm,
+                          bool reportError)
+diff --git a/src/qemu/qemu_domain.h b/src/qemu/qemu_domain.h
+index d635d2995f..7ad34e563e 100644
+--- a/src/qemu/qemu_domain.h
++++ b/src/qemu/qemu_domain.h
+@@ -668,6 +668,10 @@ bool qemuDomainDefCheckABIStability(virQEMUDriverPtr driver,
+                                     virDomainDefPtr src,
+                                     virDomainDefPtr dst);
+ 
++bool qemuDomainCheckABIStability(virQEMUDriverPtr driver,
++                                 virDomainObjPtr vm,
++                                 virDomainDefPtr dst);
++
+ bool qemuDomainAgentAvailable(virDomainObjPtr vm,
+                               bool reportError);
+ 
+-- 
+2.13.1
+

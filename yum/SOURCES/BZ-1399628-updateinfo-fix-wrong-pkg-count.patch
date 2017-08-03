@@ -1,0 +1,76 @@
+commit 9474b6a7be57cd1c83da4a5db3fc0f48c61f6056
+Author: Valentina Mukhamedzhanova <vmukhame@redhat.com>
+Date:   Wed Oct 26 13:42:04 2016 +0200
+
+    Filter duplicate packages from different repos in doPackageLists(pkgnarrow='obsoletes').
+
+diff --git a/yum/__init__.py b/yum/__init__.py
+index 9e38320..9780d96 100644
+--- a/yum/__init__.py
++++ b/yum/__init__.py
+@@ -3109,9 +3109,13 @@ much more problems).
+                 pkgs = self.pkgSack.searchNevra(name=n, arch=a, ver=v, rel=r, epoch=e)
+                 pkgs = misc.filter_pkgs_repoid(pkgs, repoid)
+                 instpo = self.getInstalledPackageObject(instTup)
+-                for po in pkgs:
+-                    obsoletes.append(po)
+-                    obsoletesTuples.append((po, instpo))
++                if len(pkgs) > 1:
++                    self.verbose_logger.log(logginglevels.DEBUG_1,
++                        _('More than one identical match in sack for %s'),
++                        pkgs[0])
++                if len(pkgs) >= 1:
++                    obsoletes.append(pkgs[0])
++                    obsoletesTuples.append((pkgs[0], instpo))
+             if patterns:
+                 exactmatch, matched, unmatched = \
+                    parsePackages(obsoletes, patterns, casematch=not ignore_case)
+
+commit 400e248d3334d54fcf98d106d1cd84acae2e6e15
+Author: Valentina Mukhamedzhanova <vmukhame@redhat.com>
+Date:   Mon Oct 31 10:28:04 2016 +0100
+
+    Filter duplicates when counting security updates.
+
+diff --git a/yum/updateinfo.py b/yum/updateinfo.py
+index 5dcd7df..35e4c0f 100644
+--- a/yum/updateinfo.py
++++ b/yum/updateinfo.py
+@@ -456,8 +456,8 @@ def exclude_updates(base, filters=None):
+         for p in base.doPackageLists(pkgnarrow='available', patterns=pkgs_to_del, showdups=True).available:
+             ysp_del_pkg(p)
+ 
+-    cnt = len(base.doPackageLists(pkgnarrow='updates').updates) + \
+-          len(base.doPackageLists(pkgnarrow='obsoletes').obsoletes)
++    cnt = len(set(base.doPackageLists(pkgnarrow='updates').updates + \
++                  base.doPackageLists(pkgnarrow='obsoletes').obsoletes))
+ 
+     _ysp_chk_used_map(used_map, lambda x: base.verbose_logger.warn("%s", x))
+ 
+
+commit 02753215c8e28dbc75aacff678c33343d0539b33
+Author: Michal Domonkos <mdomonko@redhat.com>
+Date:   Wed Feb 15 16:51:57 2017 +0100
+
+    updateinfo: filter pkg dupes from total count. BZ 1399628
+    
+    This complements commit 400e248.
+
+diff --git a/yum/updateinfo.py b/yum/updateinfo.py
+index 35e4c0f..b6a42ea 100644
+--- a/yum/updateinfo.py
++++ b/yum/updateinfo.py
+@@ -436,11 +436,8 @@ def exclude_updates(base, filters=None):
+ 
+     used_map = _ysp_gen_used_map(opts)
+ 
+-    upds = base.doPackageLists(pkgnarrow='updates')
+-    tot = len(upds.updates)
+-    # In theory we don't need to do this in some cases, but meh.
+-    upds = base.doPackageLists(pkgnarrow='obsoletes')
+-    tot += len(upds.obsoletes)
++    tot = len(set(base.doPackageLists(pkgnarrow='updates').updates + \
++                  base.doPackageLists(pkgnarrow='obsoletes').obsoletes))
+ 
+     pkgs = base.pkgSack.returnPackages()
+     name2tup = _get_name2oldpkgtup(base)

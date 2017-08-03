@@ -1,16 +1,16 @@
-From 1882bb1a0967e7d513b0d5bd060fa214bc44efcb Mon Sep 17 00:00:00 2001
+From 3ad8bb6f424f7ff1d4bbf73237fb1590f0ce1810 Mon Sep 17 00:00:00 2001
 From: Fam Zheng <famz@redhat.com>
-Date: Fri, 19 May 2017 00:35:15 +0200
+Date: Thu, 18 May 2017 09:21:23 +0200
 Subject: [PATCH 10/18] serial: check if backed by a physical serial port at
  realize time
 
 RH-Author: Fam Zheng <famz@redhat.com>
-Message-id: <20170519003523.21163-11-famz@redhat.com>
-Patchwork-id: 75366
-O-Subject: [RHEL-7.3.z qemu-kvm PATCH 10/18] serial: check if backed by a physical serial port at realize time
-Bugzilla: 1452332
+Message-id: <20170518092131.16571-11-famz@redhat.com>
+Patchwork-id: 75299
+O-Subject: [RHEL-7.4 qemu-kvm PATCH v3 10/18] serial: check if backed by a physical serial port at realize time
+Bugzilla: 1451470
 RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
-RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
 RH-Acked-by: Eduardo Habkost <ehabkost@redhat.com>
 
 From: Paolo Bonzini <pbonzini@redhat.com>

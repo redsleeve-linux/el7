@@ -1,0 +1,70 @@
+From 3ffd39767ed4dec1233f91744184c518396acc8c Mon Sep 17 00:00:00 2001
+Message-Id: <3ffd39767ed4dec1233f91744184c518396acc8c@dist-git>
+From: John Ferlan <jferlan@redhat.com>
+Date: Thu, 25 May 2017 12:59:12 -0400
+Subject: [PATCH] virsh: Track when create pkttyagent
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1374126
+
+Due to how the processing for authentication using polkit works, the
+virshConnect code must first "attempt" an virConnectOpenAuth and then
+check for a "special" return error code VIR_ERR_AUTH_UNAVAILABLE in
+order to attempt to "retry" the authentication after performing a creation
+of a pkttyagent to handle the challenge/response for the client.
+
+However, if pkttyagent creation is not possible for the authentication
+being attempted (such as perhaps a "qemu+ssh://someuser@localhost/system"),
+then the same failure pattern would be returned and another attempt to
+create a pkttyagent would be done. This would continue "forever" until
+someone forced quit (e.g. ctrl-c) from virsh as the 'authfail' was not
+incremented when creating the pkttyagent.
+
+So add a 'agentCreated' boolean to track if we've attempted to create the
+agent at least once and force a failure if that creation returned the same
+error pattern.
+
+This resolves a possible never ending loop and will generate an error:
+
+error: failed to connect to the hypervisor
+error: authentication unavailable: no polkit agent available to authenticate action 'org.libvirt.unix.manage'
+
+NB: If the authentication was for a sufficiently privileged client, such as
+qemu+ssh://root@localhost/system, then the remoteDispatchAuthList "allows"
+the authentication to use libvirt since @callerUid would be 0.
+
+(cherry picked from commit 2453501fc82d3b247affb6c9054dc65bf2f669b3)
+Signed-off-by: John Ferlan <jferlan@redhat.com>
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ tools/virsh.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/tools/virsh.c b/tools/virsh.c
+index 7eb51ab7d..0b4365b0f 100644
+--- a/tools/virsh.c
++++ b/tools/virsh.c
+@@ -145,6 +145,7 @@ virshConnect(vshControl *ctl, const char *uri, bool readonly)
+     bool keepalive_forced = false;
+     virPolkitAgentPtr pkagent = NULL;
+     int authfail = 0;
++    bool agentCreated = false;
+ 
+     if (ctl->keepalive_interval >= 0) {
+         interval = ctl->keepalive_interval;
+@@ -166,10 +167,12 @@ virshConnect(vshControl *ctl, const char *uri, bool readonly)
+             goto cleanup;
+ 
+         err = virGetLastError();
+-        if (err && err->domain == VIR_FROM_POLKIT &&
++        if (!agentCreated &&
++            err && err->domain == VIR_FROM_POLKIT &&
+             err->code == VIR_ERR_AUTH_UNAVAILABLE) {
+             if (!pkagent && !(pkagent = virPolkitAgentCreate()))
+                 goto cleanup;
++            agentCreated = true;
+         } else if (err && err->domain == VIR_FROM_POLKIT &&
+                    err->code == VIR_ERR_AUTH_FAILED) {
+             authfail++;
+-- 
+2.13.0
+

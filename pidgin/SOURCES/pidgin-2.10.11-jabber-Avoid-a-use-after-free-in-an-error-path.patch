@@ -1,0 +1,88 @@
+From 6cb247f13fb773baea64b5efaf08984b5368cc4a Mon Sep 17 00:00:00 2001
+From: Debarshi Ray <rishi@gnu.org>
+Date: Wed, 26 Apr 2017 19:54:42 +0200
+Subject: [PATCH] jabber: Avoid a use-after-free in an error path
+
+If jabber_buddy_find_resource returned NULL, 'resource' was being used
+to print an error after it had already been freed. The easiest way to
+prevent that is to consolidate all the local resource deallocation and
+exit paths in one place.
+
+Fixes #17200
+---
+ libpurple/protocols/jabber/jingle/rtp.c | 21 ++++++++++++---------
+ 1 file changed, 12 insertions(+), 9 deletions(-)
+
+diff --git a/libpurple/protocols/jabber/jingle/rtp.c b/libpurple/protocols/jabber/jingle/rtp.c
+index 57783abe413d..38d536c342ba 100644
+--- a/libpurple/protocols/jabber/jingle/rtp.c
++++ b/libpurple/protocols/jabber/jingle/rtp.c
+@@ -950,6 +950,7 @@ jingle_rtp_initiate_media(JabberStream *js, const gchar *who,
+ 	JingleTransport *transport;
+ 	JabberBuddy *jb;
+ 	JabberBuddyResource *jbr;
++	gboolean ret = FALSE;
+ 	const gchar *transport_type;
+ 
+ 	gchar *resource = NULL, *me = NULL, *sid = NULL;
+@@ -958,16 +959,15 @@ jingle_rtp_initiate_media(JabberStream *js, const gchar *who,
+ 	jb = jabber_buddy_find(js, who, FALSE);
+ 	if (!jb) {
+ 		purple_debug_error("jingle-rtp", "Could not find Jabber buddy\n");
+-		return FALSE;
++		goto out;
+ 	}
+ 
+ 	resource = jabber_get_resource(who);
+ 	jbr = jabber_buddy_find_resource(jb, resource);
+-	g_free(resource);
+ 
+ 	if (!jbr) {
+ 		purple_debug_error("jingle-rtp", "Could not find buddy's resource - %s\n", resource);
+-		return FALSE;
++		goto out;
+ 	}
+ 
+ 	if (jabber_resource_has_capability(jbr, JINGLE_TRANSPORT_ICEUDP)) {
+@@ -977,7 +977,7 @@ jingle_rtp_initiate_media(JabberStream *js, const gchar *who,
+ 	} else {
+ 		purple_debug_error("jingle-rtp", "Resource doesn't support "
+ 				"the same transport types\n");
+-		return FALSE;
++		goto out;
+ 	}
+ 
+ 	/* set ourselves as initiator */
+@@ -985,7 +985,6 @@ jingle_rtp_initiate_media(JabberStream *js, const gchar *who,
+ 
+ 	sid = jabber_get_next_id(js);
+ 	session = jingle_session_create(js, sid, me, who, TRUE);
+-	g_free(sid);
+ 
+ 
+ 	if (type & PURPLE_MEDIA_AUDIO) {
+@@ -1005,13 +1004,17 @@ jingle_rtp_initiate_media(JabberStream *js, const gchar *who,
+ 		jingle_rtp_init_media(content);
+ 	}
+ 
+-	g_free(me);
+-
+ 	if (jingle_rtp_get_media(session) == NULL) {
+-		return FALSE;
++		goto out;
+ 	}
+ 
+-	return TRUE;
++	ret = TRUE;
++
++out:
++	g_free(me);
++	g_free(resource);
++	g_free(sid);
++	return ret;
+ }
+ 
+ void
+-- 
+2.9.3
+

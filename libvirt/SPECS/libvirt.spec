@@ -1,9 +1,10 @@
 # -*- rpm-spec -*-
 
-# This spec file assumes you are building for Fedora 20 or newer,
-# or for RHEL 6 or newer. It may need some tweaks for other distros.
+# This spec file assumes you are building on a Fedora or RHEL version
+# that's still supported by the vendor: that means Fedora 23 or newer,
+# or RHEL 6 or newer. It may need some tweaks for other distros.
 # If neither fedora nor rhel was defined, try to guess them from dist
-%if (0%{?fedora} && 0%{?fedora} >= 20) || (0%{?rhel} && 0%{?rhel} >= 6)
+%if (0%{?fedora} && 0%{?fedora} >= 23) || (0%{?rhel} && 0%{?rhel} >= 6)
     %define supported_platform 1
 %else
     %define supported_platform 0
@@ -80,6 +81,7 @@
 %define with_firewalld     0%{!?_without_firewalld:0}
 %define with_libssh2       0%{!?_without_libssh2:0}
 %define with_wireshark     0%{!?_without_wireshark:0}
+%define with_libssh        0%{!?_without_libssh:0}
 %define with_pm_utils      1
 
 # Finally set the OS / architecture specific special cases
@@ -168,8 +170,13 @@
 %endif
 
 # Enable wireshark plugins for all distros shipping libvirt 1.2.2 or newer
-%if 0%{?fedora} >= 21
+%if 0%{?fedora}
     %define with_wireshark 0%{!?_without_wireshark:1}
+%endif
+
+# Enable libssh transport for new enough distros
+%if 0%{?fedora}
+    %define with_libssh 0%{!?_without_libssh:1}
 %endif
 
 
@@ -207,17 +214,21 @@
     %define enable_werror --disable-werror
 %endif
 
-%if 0%{?fedora} >= 21
-    %define tls_priority "@SYSTEM"
+%if 0%{?fedora} >= 25
+    %define tls_priority "@LIBVIRT,SYSTEM"
 %else
-    %define tls_priority "NORMAL"
+    %if 0%{?fedora}
+        %define tls_priority "@SYSTEM"
+    %else
+        %define tls_priority "NORMAL"
+    %endif
 %endif
 
 
 Summary: Library providing a simple virtualization API
 Name: libvirt
-Version: 2.0.0
-Release: 10%{?dist}.9%{?extra_release}.redsleeve
+Version: 3.2.0
+Release: 14%{?dist}.2%{?extra_release}
 License: LGPLv2+
 Group: Development/Libraries
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
@@ -239,306 +250,237 @@ Patch7: libvirt-RHEL-Add-rhel-machine-types-to-qemuDomainMachineNeedsFDC.patch
 Patch8: libvirt-RHEL-qemu-Add-ability-to-set-sgio-values-for-hostdev.patch
 Patch9: libvirt-RHEL-qemu-Add-check-for-unpriv-sgio-for-SCSI-generic-host-device.patch
 Patch10: libvirt-RHEL-qemu-Support-vhost-user-multiqueue-with-QEMU-2.3.patch
-Patch11: libvirt-qemu-Use-bootindex-whenever-possible.patch
-Patch12: libvirt-qemu-Properly-reset-spiceMigration-flag.patch
-Patch13: libvirt-qemu-Drop-useless-SPICE-migration-code.patch
-Patch14: libvirt-qemu-Memory-locking-is-only-required-for-KVM-guests-on-ppc64.patch
-Patch15: libvirt-virtlogd-make-max-file-size-number-of-backups-configurable.patch
-Patch16: libvirt-virtlogd-increase-max-file-size-to-2-MB.patch
-Patch17: libvirt-qemu-getAutoDumpPath-return-value-should-be-dumpfile-not-domname.patch
-Patch18: libvirt-qemu-Copy-complete-domain-def-in-qemuDomainDefFormatBuf.patch
-Patch19: libvirt-qemu-Drop-default-channel-path-during-migration.patch
-Patch20: libvirt-qemu-Fix-migration-from-old-libvirt.patch
-Patch21: libvirt-Add-USB-addresses-to-qemuhotplug-test-cases.patch
-Patch22: libvirt-Introduce-virDomainUSBDeviceDefForeach.patch
-Patch23: libvirt-Allow-omitting-USB-port.patch
-Patch24: libvirt-Store-USB-port-path-as-an-array-of-integers.patch
-Patch25: libvirt-Introduce-virDomainUSBAddressSet.patch
-Patch26: libvirt-Add-functions-for-adding-USB-controllers-to-addrs.patch
-Patch27: libvirt-Add-functions-for-adding-USB-hubs-to-addrs.patch
-Patch28: libvirt-Reserve-existing-USB-addresses.patch
-Patch29: libvirt-Add-tests-for-USB-address-assignment.patch
-Patch30: libvirt-Assign-addresses-to-USB-devices.patch
-Patch31: libvirt-Assign-addresses-on-USB-device-hotplug.patch
-Patch32: libvirt-Auto-add-one-hub-if-there-are-too-many-USB-devices.patch
-Patch33: libvirt-qemu-hotplug-fix-changeable-media-ejection.patch
-Patch34: libvirt-lxc-Don-t-crash-by-forgetting-to-ref-transient-domains.patch
-Patch35: libvirt-Introduce-iommu-device.patch
-Patch36: libvirt-Add-QEMU_CAPS_DEVICE_INTEL_IOMMU.patch
-Patch37: libvirt-qemu-format-intel-iommu-on-the-command-line.patch
-Patch38: libvirt-qemu_monitor_json-add-support-to-search-QOM-device-path-by-device-alias.patch
-Patch39: libvirt-hvsupport-Introduce-parseSymsFile.patch
-Patch40: libvirt-hvsupport-use-a-regex-instead-of-XML-XPath.patch
-Patch41: libvirt-hvsupport-construct-the-group-regex-upfront.patch
-Patch42: libvirt-hvsupport-skip-non-matching-lines-early.patch
-Patch43: libvirt-virconf-Fix-config-file-path-construction.patch
-Patch44: libvirt-virDomainHostdevDefFree-Don-t-leak-privateData.patch
-Patch45: libvirt-virt-admin-Output-srv-threadpool-info-data-as-unsigned-int-rather-than-signed.patch
-Patch46: libvirt-util-Introduce-virISCSINodeNew.patch
-Patch47: libvirt-iscsi-Establish-connection-to-target-via-static-target-login.patch
-Patch48: libvirt-storage-Document-wiping-formatted-volume-types.patch
-Patch49: libvirt-admin-Retrieve-the-SASL-context-for-both-local-and-remote-connection.patch
-Patch50: libvirt-daemon-sasl-Don-t-forget-to-save-SASL-username-to-client-s-identity.patch
-Patch51: libvirt-vsh-Make-vshInitDebug-return-int-instead-of-void.patch
-Patch52: libvirt-tools-Make-use-of-the-correct-environment-variables.patch
-Patch53: libvirt-util-Add-usage-for-encryption.patch
-Patch54: libvirt-virStorageEncryptionSecretFree-Don-t-leak-secret-lookup-definition.patch
-Patch55: libvirt-encryption-Add-luks-parsing-for-storageencryption.patch
-Patch56: libvirt-encryption-Add-cipher-and-ivgen-to-encryption.patch
-Patch57: libvirt-qemu-Introduce-helper-qemuDomainSecretDiskCapable.patch
-Patch58: libvirt-tests-Adjust-LUKS-tests-to-use-volume-secret-type.patch
-Patch59: libvirt-docs-Update-docs-to-reflect-LUKS-secret-changes.patch
-Patch60: libvirt-qemu-Alter-error-path-cleanup-for-qemuDomainAttachHostSCSIDevice.patch
-Patch61: libvirt-qemu-Alter-error-path-cleanup-for-qemuDomainAttachVirtioDiskDevice.patch
-Patch62: libvirt-qemu-Alter-error-path-cleanup-for-qemuDomainAttachSCSIDisk.patch
-Patch63: libvirt-qemu-Move-and-rename-qemuBufferEscapeComma.patch
-Patch64: libvirt-storage-Add-support-to-create-a-luks-volume.patch
-Patch65: libvirt-qemu-Add-secinfo-for-hotplug-virtio-disk.patch
-Patch66: libvirt-qemu-Alter-the-qemuDomainGetSecretAESAlias-to-add-new-arg.patch
-Patch67: libvirt-qemu-Add-luks-support-for-domain-disk.patch
-Patch68: libvirt-qemu-Move-setting-of-obj-bools-for-qemuDomainAttachVirtioDiskDevice.patch
-Patch69: libvirt-qemu-Move-setting-of-encobjAdded-for-qemuDomainAttachSCSIDisk.patch
-Patch70: libvirt-storage-Fix-error-path.patch
-Patch71: libvirt-qemu-Disallow-usage-of-luks-encryption-if-aes-secret-not-possible.patch
-Patch72: libvirt-storage-Add-extra-failure-condition-for-luks-volume-creation.patch
-Patch73: libvirt-virstoragefile-refactor-virStorageFileMatchesNNN-methods.patch
-Patch74: libvirt-qemu-Make-qemuDomainCheckDiskStartupPolicy-self-contained.patch
-Patch75: libvirt-qemu-Remove-unnecessary-label-and-its-only-reference.patch
-Patch76: libvirt-qemu-Fix-support-for-startupPolicy-with-volume-pool-disks.patch
-Patch77: libvirt-virsh-Report-error-when-explicit-connection-fails.patch
-Patch78: libvirt-tests-Add-testing-of-backing-store-string-parser.patch
-Patch79: libvirt-util-json-Make-first-argument-of-virJSONValueObjectForeachKeyValue-const.patch
-Patch80: libvirt-util-qemu-Add-wrapper-for-JSON-commandline-conversion.patch
-Patch81: libvirt-util-qemu-Add-support-for-user-passed-strings-in-JSON-commandline.patch
-Patch82: libvirt-util-qemu-Allow-nested-objects-in-JSON-commandline-generator.patch
-Patch83: libvirt-util-qemu-Allow-for-different-approaches-to-format-JSON-arrays.patch
-Patch84: libvirt-util-qemu-Don-t-generate-any-extra-commas-in-virQEMUBuildCommandLineJSON.patch
-Patch85: libvirt-util-json-Make-first-argument-of-virJSONValueCopy-const.patch
-Patch86: libvirt-util-storage-Add-parser-for-qemu-s-json-backing-pseudo-protocol.patch
-Patch87: libvirt-util-storage-Add-support-for-host-device-backing-specified-via-JSON.patch
-Patch88: libvirt-util-storage-Add-support-for-URI-based-backing-volumes-in-qemu-s-JSON-pseudo-protocol.patch
-Patch89: libvirt-util-storage-Add-json-pseudo-protocol-support-for-gluster-volumes.patch
-Patch90: libvirt-util-storage-Add-json-pseudo-protocol-support-for-iSCSI-volumes.patch
-Patch91: libvirt-util-storage-Add-JSON-backing-volume-parser-for-nbd-protocol.patch
-Patch92: libvirt-util-storage-Add-JSON-backing-store-parser-for-sheepdog-protocol.patch
-Patch93: libvirt-util-storage-Add-ssh-network-storage-protocol.patch
-Patch94: libvirt-util-storage-Add-JSON-backing-volume-parser-for-ssh-protocol.patch
-Patch95: libvirt-qemu-command-Rename-qemuBuildNetworkDriveURI-to-qemuBuildNetworkDriveStr.patch
-Patch96: libvirt-qemu-command-Split-out-network-disk-URI-building.patch
-Patch97: libvirt-qemu-command-Extract-drive-source-command-line-formatter.patch
-Patch98: libvirt-qemu-command-Refactor-code-extracted-to-qemuBuildDriveSourceStr.patch
-Patch99: libvirt-storage-gluster-Support-multiple-hosts-in-backend-functions.patch
-Patch100: libvirt-util-qemu-Add-support-for-numbered-array-members.patch
-Patch101: libvirt-qemu-command-Add-infrastructure-for-object-specified-disk-sources.patch
-Patch102: libvirt-qemu-command-Add-support-for-multi-host-gluster-disks.patch
-Patch103: libvirt-qemu-Need-to-free-fileprops-in-error-path.patch
-Patch104: libvirt-storage-remove-luks-storage-volume-type.patch
-Patch105: libvirt-RHEL-docs-Introduce-subsite-xsl.patch
-Patch106: libvirt-qemu-Fix-domain-state-after-reset.patch
-Patch107: libvirt-rpc-virnetserver-Rename-ClientSetProcessingControls-to-ClientSetLimits.patch
-Patch108: libvirt-rpc-virnetserver-Move-virNetServerCheckLimits-which-is-static-up-in-the-file.patch
-Patch109: libvirt-rpc-virnetserver-Add-code-to-CheckLimits-to-handle-suspending-of-services.patch
-Patch110: libvirt-admin-rpc-virnetserver-Fix-updating-of-the-client-limits.patch
-Patch111: libvirt-rpc-virnetserver-Remove-dead-code-checking-the-client-limits.patch
-Patch112: libvirt-storage-Fix-a-NULL-ptr-dereference-in-virStorageBackendCreateQemuImg.patch
-Patch113: libvirt-qemu-Introduce-qemuAliasFromHostdev.patch
-Patch114: libvirt-qemu-Use-the-hostdev-alias-in-qemuDomainAttachHostSCSIDevice-error-path.patch
-Patch115: libvirt-storage-Don-t-remove-the-pool-for-buildPool-failure-in-storagePoolCreate.patch
-Patch116: libvirt-lxcDomainCreateXMLWithFiles-Avoid-crash.patch
-Patch117: libvirt-admin-Fix-the-default-uri-for-session-daemon-to-libvirtd-session.patch
-Patch118: libvirt-docs-Distribute-subsite.xsl.patch
-Patch119: libvirt-qemuBuildMachineCommandLine-Follow-our-pattern.patch
-Patch120: libvirt-Introduce-SMM-feature.patch
-Patch121: libvirt-Introduce-secure-attribute-to-os-loader-element.patch
-Patch122: libvirt-qemu-Enable-secure-boot.patch
-Patch123: libvirt-qemu-Advertise-OVMF_CODE.secboot.fd.patch
-Patch124: libvirt-tests-Fix-broken-build.patch
-Patch125: libvirt-cpu_x86-Introduce-x86FeatureIsMigratable.patch
-Patch126: libvirt-cpu_x86-Properly-drop-non-migratable-features.patch
-Patch127: libvirt-tests-Add-a-test-for-host-model-CPU-with-CMT-feature.patch
-Patch128: libvirt-cpu_x86-Fix-host-model-CPUs-on-hosts-with-CMT.patch
-Patch129: libvirt-virt-admin-Fix-the-error-when-an-invalid-URI-has-been-provided.patch
-Patch130: libvirt-conf-improve-error-log-when-PCI-devices-don-t-match-requested-controller.patch
-Patch131: libvirt-conf-don-t-allow-connecting-upstream-port-directly-to-pce-expander-bus.patch
-Patch132: libvirt-conf-restrict-where-dmi-to-pci-bridge-can-be-connected.patch
-Patch133: libvirt-conf-restrict-expander-buses-to-connect-only-to-a-root-bus.patch
-Patch134: libvirt-virNetDevMacVLanCreateWithVPortProfile-Don-t-mask-virNetDevMacVLanTapOpen-error.patch
-Patch135: libvirt-qemu_command-don-t-modify-heads-for-graphics-device.patch
-Patch136: libvirt-virsh-Fix-core-for-cmdSecretGetValue.patch
-Patch137: libvirt-conf-report-an-error-message-for-non-existing-USB-hubs.patch
-Patch138: libvirt-conf-free-the-ports-array-of-a-USB-hub.patch
-Patch139: libvirt-utils-storage-Fix-JSON-field-name-for-uri-based-storage.patch
-Patch140: libvirt-qemu-Adjust-the-cur_ballon-on-coldplug-unplug-of-dimms.patch
-Patch141: libvirt-conf-Provide-error-on-undefined-iothreadsched-entry.patch
-Patch142: libvirt-qemu-Fix-the-command-line-generation-for-rbd-auth-using-aes-secrets.patch
-Patch143: libvirt-qemu-Fix-crash-hot-plugging-luks-volume.patch
-Patch144: libvirt-Revert-admin-Fix-the-default-uri-for-session-daemon-to-libvirtd-session.patch
-Patch145: libvirt-libvirt-convert-to-typesafe-virConf-accessors.patch
-Patch146: libvirt-admin-Fix-default-uri-config-option-name-s-admin_uri_default-uri_default.patch
-Patch147: libvirt-virt-admin-Properly-fix-the-default-session-daemon-URI-to-admin-server.patch
-Patch148: libvirt-qemu-caps-Always-assume-QEMU_CAPS_SMP_TOPOLOGY.patch
-Patch149: libvirt-conf-Extract-code-formatting-vCPU-info.patch
-Patch150: libvirt-conf-Rename-virDomainVcpuInfoPtr-to-virDomainVcpuDefPtr.patch
-Patch151: libvirt-conf-Don-t-report-errors-from-virDomainDefGetVcpu.patch
-Patch152: libvirt-tests-qemuxml2xml-Format-status-XML-header-dynamically.patch
-Patch153: libvirt-conf-convert-def-vcpus-to-a-array-of-pointers.patch
-Patch154: libvirt-conf-Add-private-data-for-virDomainVcpuDef.patch
-Patch155: libvirt-qemu-domain-Add-vcpu-private-data-structure.patch
-Patch156: libvirt-qemu-domain-Extract-formating-and-parsing-of-vCPU-thread-ids.patch
-Patch157: libvirt-qemu-Add-cpu-ID-to-the-vCPU-pid-list-in-the-status-XML.patch
-Patch158: libvirt-qemu-Store-vCPU-thread-ids-in-vcpu-private-data-objects.patch
-Patch159: libvirt-Fix-logic-in-qemuDomainObjPrivateXMLParseVcpu.patch
-Patch160: libvirt-qemu-Add-qemuProcessSetupPid-and-use-it-in-qemuProcessSetupIOThread.patch
-Patch161: libvirt-qemu-Use-qemuProcessSetupPid-in-qemuProcessSetupEmulator.patch
-Patch162: libvirt-qemu-Use-qemuProcessSetupPid-in-qemuProcessSetupVcpu.patch
-Patch163: libvirt-qemuBuildCpuCommandLine-Don-t-leak-buf.patch
-Patch164: libvirt-conf-Make-really-sure-we-don-t-access-non-existing-vCPUs.patch
-Patch165: libvirt-conf-Make-really-sure-we-don-t-access-non-existing-vCPUs-again.patch
-Patch166: libvirt-qemu-capabilities-Drop-unused-function-virQEMUCapsGetMachineTypes.patch
-Patch167: libvirt-qemu-caps-Sanitize-storage-of-machine-type-related-data.patch
-Patch168: libvirt-qemu-cap-Refactor-access-to-array-in-virQEMUCapsProbeQMPMachineTypes.patch
-Patch169: libvirt-qemu-monitor-Add-monitor-API-for-device_add-supporting-JSON-objects.patch
-Patch170: libvirt-qemu-monitor-Add-do-while-block-to-QEMU_CHECK_MONITOR_FULL.patch
-Patch171: libvirt-qemu-Improve-error-message-in-virDomainGetVcpus.patch
-Patch172: libvirt-qemu-domain-Rename-qemuDomainDetectVcpuPids-to-qemuDomainRefreshVcpuInfo.patch
-Patch173: libvirt-qemu-monitor-Rename-qemuMonitor-JSON-Text-GetCPUInfo.patch
-Patch174: libvirt-qemu-domain-Improve-vCPU-data-checking-in-qemuDomainRefreshVcpu.patch
-Patch175: libvirt-qemu-domain-Simplify-return-values-of-qemuDomainRefreshVcpuInfo.patch
-Patch176: libvirt-internal-Introduce-macro-for-stealing-pointers.patch
-Patch177: libvirt-tests-qemucapabilities-Add-data-for-qemu-2.7.0.patch
-Patch178: libvirt-qemu-setcpus-Report-better-errors.patch
-Patch179: libvirt-qemu-setvcpus-Extract-setting-of-maximum-vcpu-count.patch
-Patch180: libvirt-qemu-driver-Extract-setting-of-live-vcpu-count.patch
-Patch181: libvirt-qemu-driver-Split-out-regular-vcpu-hotplug-code-into-a-function.patch
-Patch182: libvirt-conf-Provide-error-on-undefined-vcpusched-entry.patch
-Patch183: libvirt-qemu-monitor-Return-structures-from-qemuMonitorGetCPUInfo.patch
-Patch184: libvirt-qemu-monitor-Return-struct-from-qemuMonitor-Text-Json-QueryCPUs.patch
-Patch185: libvirt-qemu-Add-capability-for-query-hotpluggable-cpus-command.patch
-Patch186: libvirt-qemu-Forbid-config-when-topology-based-cpu-count-doesn-t-match-the-config.patch
-Patch187: libvirt-qemu-capabilities-Extract-availability-of-new-cpu-hotplug-for-machine-types.patch
-Patch188: libvirt-qemu-monitor-Extract-QOM-path-from-query-cpus-reply.patch
-Patch189: libvirt-qemu-monitor-Add-support-for-calling-query-hotpluggable-cpus.patch
-Patch190: libvirt-qemu-monitor-Add-algorithm-for-combining-query-hotpluggable-cpus-data.patch
-Patch191: libvirt-tests-Add-test-infrastructure-for-qemuMonitorGetCPUInfo.patch
-Patch192: libvirt-tests-cpu-hotplug-Add-data-for-x86-hotplug-with-11-vcpus.patch
-Patch193: libvirt-tests-cpu-hotplug-Add-data-for-ppc64-platform-including-hotplug.patch
-Patch194: libvirt-tests-cpu-hotplug-Add-data-for-ppc64-out-of-order-hotplug.patch
-Patch195: libvirt-tests-cpu-hotplug-Add-data-for-ppc64-without-threads-enabled.patch
-Patch196: libvirt-qemu-domain-Extract-cpu-hotplug-related-data.patch
-Patch197: libvirt-qemu-domain-Prepare-for-VCPUs-vanishing-while-libvirt-is-not-running.patch
-Patch198: libvirt-util-Extract-and-rename-qemuDomainDelCgroupForThread-to-virCgroupDelThread.patch
-Patch199: libvirt-conf-Add-XML-for-individual-vCPU-hotplug.patch
-Patch200: libvirt-qemu-migration-Prepare-for-non-contiguous-vcpu-configurations.patch
-Patch201: libvirt-qemu-command-Add-helper-to-convert-vcpu-definition-to-JSON-props.patch
-Patch202: libvirt-qemu-process-Copy-final-vcpu-order-information-into-the-vcpu-definition.patch
-Patch203: libvirt-qemu-command-Add-support-for-sparse-vcpu-topologies.patch
-Patch204: libvirt-qemu-Use-modern-vcpu-hotplug-approach-if-possible.patch
-Patch205: libvirt-qemu-hotplug-Allow-marking-unplugged-devices-by-alias.patch
-Patch206: libvirt-qemu-hotplug-Add-support-for-VCPU-unplug.patch
-Patch207: libvirt-virsh-vcpuinfo-Report-vcpu-number-from-the-structure-rather-than-it-s-position.patch
-Patch208: libvirt-qemu-driver-Fix-qemuDomainHelperGetVcpus-for-sparse-vcpu-topologies.patch
-Patch209: libvirt-doc-clarify-documentation-for-vcpu-order.patch
-Patch210: libvirt-conf-Don-t-validate-vcpu-count-in-XML-parser.patch
-Patch211: libvirt-qemu-driver-Validate-configuration-when-setting-maximum-vcpu-count.patch
-Patch212: libvirt-conf-Fix-build-with-picky-GCC.patch
-Patch213: libvirt-util-storage-Properly-set-protocol-type-when-parsing-gluster-json-string.patch
-Patch214: libvirt-conf-Add-IOThread-quota-and-period-scheduler-cputune-defs.patch
-Patch215: libvirt-qemu-Add-support-to-get-set-IOThread-period-and-quota-cgroup-values.patch
-Patch216: libvirt-network-new-network-forward-mode-open.patch
-Patch217: libvirt-virtlogd.socket-Tie-lifecycle-to-libvirtd.service.patch
-Patch218: libvirt-cpu_x86-Fix-minimum-match-custom-CPUs-on-hosts-with-CMT.patch
-Patch219: libvirt-qemu-cgroup-Extract-temporary-relaxing-of-cgroup-setting-for-vcpu-hotplug.patch
-Patch220: libvirt-qemu-process-Fix-start-with-unpluggable-vcpus-with-NUMA-pinning.patch
-Patch221: libvirt-Add-helper-for-removing-transient-definition.patch
-Patch222: libvirt-qemu-Remove-stale-transient-def-when-migration-fails.patch
-Patch223: libvirt-qemu-Don-t-use-query-migrate-on-destination.patch
-Patch224: libvirt-conf-allow-hotplugging-legacy-PCI-device-to-manually-addressed-PCIe-slot.patch
-Patch225: libvirt-conf-Add-support-for-virtio-net.rx_queue_size.patch
-Patch226: libvirt-qemu_capabilities-Introduce-virtio-net-.rx_queue_size.patch
-Patch227: libvirt-qemu-Implement-virtio-net-rx_queue_size.patch
-Patch228: libvirt-audit-Audit-information-about-shmem-devices.patch
-Patch229: libvirt-qemu-monitor-Use-a-more-obvious-iterator-name.patch
-Patch230: libvirt-qemu-monitor-qemuMonitorGetCPUInfoHotplug-Add-iterator-anycpu.patch
-Patch231: libvirt-qemu-monitor-Add-vcpu-state-information-to-monitor-data.patch
-Patch232: libvirt-qemu-domain-Don-t-infer-vcpu-state.patch
-Patch233: libvirt-virtlogd-Don-t-stop-or-restart-along-with-libvirtd.patch
-Patch234: libvirt-qemu-allow-32-slots-on-pcie-expander-bus-not-just-1.patch
-Patch235: libvirt-qemu-Reset-post-copy-capability-after-migration.patch
-Patch236: libvirt-qemuhotplugtest-Only-read-result_filename-if-used.patch
-Patch237: libvirt-schema-Allow-shmem-to-have-alias.patch
-Patch238: libvirt-conf-Allow-copying-of-shmem-defs.patch
-Patch239: libvirt-qemu-Make-qemuBuildShmemDevStr-static.patch
-Patch240: libvirt-qemu-Rename-qemuBuildShmemDevStr-to-qemuBuildShmemDevLegacyStr.patch
-Patch241: libvirt-qemu-Move-common-checks-outside-qemuBuildShmemDevLegacyStr.patch
-Patch242: libvirt-qemu-Reorder-shmem-params-nicely.patch
-Patch243: libvirt-qemu-Abstract-shmem-socket-path-preparation.patch
-Patch244: libvirt-qemu-Rename-qemuBuildShmemBackendStr-to-qemuBuildShmemBackendChrStr.patch
-Patch245: libvirt-qemu-Add-qemuAssignDeviceShmemAlias-and-use-it.patch
-Patch246: libvirt-conf-Add-some-shmem-helpers-for-future-use.patch
-Patch247: libvirt-conf-Remove-incorrect-check-when-encoding-shmem-audit-message.patch
-Patch248: libvirt-conf-Fix-virDomainShmemDefFind.patch
-Patch249: libvirt-conf-Don-t-complicate-find-loop.patch
-Patch250: libvirt-qemu-Disable-migration-with-ivshmem.patch
-Patch251: libvirt-conf-qemu-Add-support-for-shmem-model.patch
-Patch252: libvirt-conf-qemu-Add-newer-shmem-models.patch
-Patch253: libvirt-qemu-Add-capabilities-for-ivshmem-plain-doorbell.patch
-Patch254: libvirt-qemu-Save-various-defaults-for-shmem.patch
-Patch255: libvirt-qemu-Support-newer-ivshmem-device-variants.patch
-Patch256: libvirt-qemu-Add-support-for-hot-cold-un-plug-of-shmem-devices.patch
-Patch257: libvirt-qemu-Fix-double-free-when-live-attaching-shmem.patch
-Patch258: libvirt-qemu-Make-sure-shmem-memory-is-shared.patch
-Patch259: libvirt-virDomainNetDefParseXML-Realign.patch
-Patch260: libvirt-virDomainNetGetActualType-Return-type-is-virDomainNetType.patch
-Patch261: libvirt-qemuBuildInterfaceCommandLine-Move-hostdev-handling-a-bit-further.patch
-Patch262: libvirt-qemuBuildInterfaceCommandLine-Move-vhostuser-handling-a-bit-further.patch
-Patch263: libvirt-qemuBuildInterfaceCommandLine-Move-from-if-else-forest-to-switch.patch
-Patch264: libvirt-qemuDomainAttachNetDevice-Move-hostdev-handling-a-bit-further.patch
-Patch265: libvirt-qemuDomainAttachNetDevice-Explicitly-list-allowed-types-for-hotplug.patch
-Patch266: libvirt-qemuBuildHostNetStr-Explicitly-enumerate-net-types.patch
-Patch267: libvirt-qemuBuildChrChardevStr-Introduce-nowait-argument.patch
-Patch268: libvirt-qemuBuildVhostuserCommandLine-Reuse-qemuBuildChrChardevStr.patch
-Patch269: libvirt-qemuBuildVhostuserCommandLine-Unify-netdev-creation.patch
-Patch270: libvirt-qemuBuildHostNetStr-Support-VIR_DOMAIN_NET_TYPE_VHOSTUSER.patch
-Patch271: libvirt-qemu_hotplug-Support-interface-type-of-vhost-user-hotplug.patch
-Patch272: libvirt-qemu-snapshot-Don-t-attempt-to-resume-cpus-if-they-were-not-paused.patch
-Patch273: libvirt-qemuDomainAttachNetDevice-Don-t-overwrite-error-on-rollback.patch
-Patch274: libvirt-qemuDomainAttachNetDevice-Enable-multiqueue-for-vhost-user.patch
-Patch275: libvirt-qemuDomainAttachNetDevice-pass-mq-and-vectors-for-vhost-user-with-multiqueue.patch
-Patch276: libvirt-qemuDomainAttachNetDevice-Avoid-originalError-leak.patch
-Patch277: libvirt-qemu-snapshot-Resume-VM-after-live-snapshot.patch
-Patch278: libvirt-qemu-Add-support-for-using-AES-secret-for-SCSI-hotplug.patch
-Patch279: libvirt-qemu-Don-t-assume-secret-provided-for-LUKS-encryption.patch
-Patch280: libvirt-qemu-Allow-empty-script-path-to-interface.patch
-Patch281: libvirt-Increase-default-file-handle-limits-for-daemons.patch
-Patch282: libvirt-util-permit-querying-a-VF-MAC-address-or-VLAN-tag-by-itself.patch
-Patch283: libvirt-util-remove-unused-args-from-virNetDevSetVfConfig.patch
-Patch284: libvirt-util-use-cleanup-label-consistently-in-virHostdevNetConfigReplace.patch
-Patch285: libvirt-util-eliminate-useless-local-variable.patch
-Patch286: libvirt-util-make-virMacAddrParse-more-versatile.patch
-Patch287: libvirt-util-change-virPCIGetNetName-to-not-return-error-if-device-has-no-net-name.patch
-Patch288: libvirt-util-make-virPCIGetDeviceAddressFromSysfsLink-public.patch
-Patch289: libvirt-util-new-function-virPCIDeviceRebind.patch
-Patch290: libvirt-util-new-internal-function-to-permit-silent-failure-of-virNetDevSetMAC.patch
-Patch291: libvirt-util-new-function-virNetDevPFGetVF.patch
-Patch292: libvirt-util-new-functions-virNetDev-Save-Read-Set-NetConfig.patch
-Patch293: libvirt-util-use-new-virNetDev-NetConfig-functions-for-macvtap-setup-teardown.patch
-Patch294: libvirt-util-use-new-virNetDev-NetConfig-functions-for-hostdev-setup-teardown.patch
-Patch295: libvirt-util-replace-virHostdevNetConfigReplace-with-.-Save-Set-NetConfig.patch
-Patch296: libvirt-util-save-hostdev-network-device-config-before-unbinding-from-host-driver.patch
-Patch297: libvirt-util-after-hostdev-assignment-restore-VF-MAC-address-via-setting-admin-MAC.patch
-Patch298: libvirt-util-remove-unused-functions-from-virnetdev.c.patch
-Patch299: libvirt-util-if-setting-admin-MAC-to-00-00-00-00-00-00-fails-try-02-00-00-00-00-00.patch
-Patch300: libvirt-util-try-really-hard-to-set-the-MAC-address-of-an-SRIOV-VF.patch
-Patch301: libvirt-util-log-all-setting-of-MAC-addresses-and-vlan-tags.patch
-Patch302: libvirt-util-rename-virHostdevNetConfigRestore-to-virHostdevRestoreNetConfig.patch
-Patch303: libvirt-util-allow-ignoring-SIOCSIFHWADDR-when-errno-is-EPERM.patch
-Patch304: libvirt-qemuDomainAttachNetDevice-Support-attach-of-type-user.patch
-Patch305: libvirt-conf-Rename-mode-parameter-in-virCPUDefParseXML.patch
-Patch306: libvirt-Add-support-for-CPU-cache-specification.patch
-Patch307: libvirt-RHEL-qemuxml2argvtest-Properly-reset-host-CPU-arch.patch
-Patch308: libvirt-qemu-Add-support-for-guest-CPU-cache.patch
-
-Patch1000: libvirt-tests-nsslinktest:-also-build-virAtomic.h-redsleeve.patch
+Patch11: libvirt-storage-Fix-capacity-value-for-LUKS-encrypted-volumes.patch
+Patch12: libvirt-qemu-Add-device-id-for-mediated-devices-on-qemu-command-line.patch
+Patch13: libvirt-qemu-hotplug-Iterate-over-vcpu-0-in-individual-vcpu-hotplug-code.patch
+Patch14: libvirt-qemu-hotplug-Fix-formatting-strings-in-qemuDomainFilterHotplugVcpuEntities.patch
+Patch15: libvirt-qemu-hotplug-Clear-vcpu-ordering-for-coldplug-of-vcpus.patch
+Patch16: libvirt-qemu-hotplug-Add-validation-for-coldplug-of-individual-vcpus.patch
+Patch17: libvirt-qemu-hotplug-Validate-that-vcpu-hotplug-does-not-break-config.patch
+Patch18: libvirt-qemu-Split-virQEMUCapsInitArchQMPBasic.patch
+Patch19: libvirt-tests-Initialize-basic-capabilities-properly.patch
+Patch20: libvirt-qemu-Remove-redundant-capabilities.patch
+Patch21: libvirt-qemu-Advertise-ACPI-support-for-aarch64-guests.patch
+Patch22: libvirt-qemu-Enforce-ACPI-UEFI-requirements.patch
+Patch23: libvirt-tests-Test-ACPI-UEFI-requirements.patch
+Patch24: libvirt-qemu-Fix-regression-when-hyperv-vendor_id-feature-is-used.patch
+Patch25: libvirt-qemu-Fix-resource-leak-in-qemuDomainAddChardevTLSObjects-error-path.patch
+Patch26: libvirt-qemu-Break-endless-loop-if-qemuMigrationResetTLS-fails.patch
+Patch27: libvirt-qemu-Properly-reset-TLS-in-qemuProcessRecoverMigrationIn.patch
+Patch28: libvirt-qemu-Drop-resume-label-in-qemuProcessRecoverMigrationOut.patch
+Patch29: libvirt-qemu-Always-reset-TLS-in-qemuProcessRecoverMigrationOut.patch
+Patch30: libvirt-qemu-Don-t-reset-TLS-in-qemuMigrationRun.patch
+Patch31: libvirt-qemu-Don-t-reset-TLS-in-qemuMigrationCancel.patch
+Patch32: libvirt-qemu-Introduce-qemuMigrationReset.patch
+Patch33: libvirt-qemu-Simplify-qemuMigrationResetTLS.patch
+Patch34: libvirt-qemu-Properly-reset-all-migration-capabilities.patch
+Patch35: libvirt-qemu-Don-t-overwrite-existing-error-in-qemuMigrationReset.patch
+Patch36: libvirt-qemu-Fix-mdev-checking-for-VFIO-support.patch
+Patch37: libvirt-pci-recognize-report-GEN4-PCIe-4.0-card-16GT-s-Link-speed.patch
+Patch38: libvirt-qemu-refactor-qemuDomainMachine-functions.patch
+Patch39: libvirt-qemu-report-IDE-bus-in-domain-capabilities-only-if-it-s-supported.patch
+Patch40: libvirt-qemu-do-not-crash-on-USB-address-with-no-port-and-invalid-bus.patch
+Patch41: libvirt-conf-Add-check-for-non-scsi_host-parent-during-vport-delete.patch
+Patch42: libvirt-conf-add-a-new-parse-flag-VIR_DOMAIN_DEF_PARSE_ABI_UPDATE_MIGRATION.patch
+Patch43: libvirt-qemu_domain-use-correct-default-USB-controller-on-ppc64.patch
+Patch44: libvirt-qemu-hotplug-Unexport-qemuDomainHotplugDelVcpu.patch
+Patch45: libvirt-qemu-hotplug-Don-t-save-status-XML-when-monitor-is-closed.patch
+Patch46: libvirt-util-check-ifa_addr-pointer-before-accessing-its-elements.patch
+Patch47: libvirt-util-allow-ignoring-SIOCSIFHWADDR-when-errno-is-EPERM.patch
+Patch48: libvirt-qemu-Ignore-missing-query-migrate-parameters.patch
+Patch49: libvirt-locking-Add-support-for-sanlock_strerror.patch
+Patch50: libvirt-qemu-Properly-reset-non-p2p-migration.patch
+Patch51: libvirt-qemu-Don-t-fail-if-physical-size-can-t-be-updated-in-qemuDomainGetBlockInfo.patch
+Patch52: libvirt-qemu-process-Clean-automatic-NUMA-cpu-pinning-information-on-shutdown.patch
+Patch53: libvirt-qemu-process-Don-t-leak-priv-usbaddrs-after-VM-restart.patch
+Patch54: libvirt-qemu-process-Clean-up-priv-migTLSAlias.patch
+Patch55: libvirt-Add-VIR_DOMAIN_JOB_OPERATION-typed-parameter.patch
+Patch56: libvirt-qemu-Report-VIR_DOMAIN_JOB_OPERATION.patch
+Patch57: libvirt-conf-Rename-mode-parameter-in-virCPUDefParseXML.patch
+Patch58: libvirt-Add-support-for-CPU-cache-specification.patch
+Patch59: libvirt-qemu-Add-support-for-guest-CPU-cache.patch
+Patch60: libvirt-qemu-Don-t-reset-events-migration-capability.patch
+Patch61: libvirt-qemu-Fix-persistent-migration-of-transient-domains.patch
+Patch62: libvirt-Fix-padding-of-encrypted-data.patch
+Patch63: libvirt-cpu-Introduce-virCPUCopyMigratable.patch
+Patch64: libvirt-qemu-Move-common-code-in-virQEMUCapsInitCPUModel-one-layer-up.patch
+Patch65: libvirt-qemu-Add-migratable-parameter-to-virQEMUCapsInitCPUModel.patch
+Patch66: libvirt-qemu-Introduce-virQEMUCapsSetHostModel.patch
+Patch67: libvirt-qemu-Move-qemuCaps-CPU-data-copying-into-a-separate-function.patch
+Patch68: libvirt-qemu-Introduce-virQEMUCapsHostCPUDataClear.patch
+Patch69: libvirt-qemu-Move-qemuCaps-host-CPU-data-in-a-struct.patch
+Patch70: libvirt-qemu-Prepare-qemuCaps-for-multiple-host-CPU-defs.patch
+Patch71: libvirt-qemu-Pass-migratable-host-CPU-model-to-virCPUUpdate.patch
+Patch72: libvirt-cpu-Drop-feature-filtering-from-virCPUUpdate.patch
+Patch73: libvirt-cpu-Introduce-virCPUGetHostIsSupported.patch
+Patch74: libvirt-qemu-Use-more-data-for-comparing-CPUs.patch
+Patch75: libvirt-qemu-don-t-kill-qemu-process-on-restart-if-networkNotify-fails.patch
+Patch76: libvirt-network-better-log-message-when-network-is-inactive-during-reconnect.patch
+Patch77: libvirt-disk-Resolve-issues-with-disk-partition-build-start-checks.patch
+Patch78: libvirt-disk-Force-usage-of-parted-when-checking-disk-format-for-bsd.patch
+Patch79: libvirt-storage-Modify-storageBackendWipeLocal-to-allow-zero-from-end-of-device.patch
+Patch80: libvirt-storage-Introduce-virStorageBackendZeroPartitionTable.patch
+Patch81: libvirt-logical-Use-virStorageBackendZeroPartitionTable.patch
+Patch82: libvirt-logical-Increase-the-size-of-the-data-to-wipe.patch
+Patch83: libvirt-disk-Use-virStorageBackendZeroPartitionTable.patch
+Patch84: libvirt-util-Add-virNetDevSetCoalesce-function.patch
+Patch85: libvirt-conf-docs-Add-support-for-coalesce-setting-s.patch
+Patch86: libvirt-Set-coalesce-settings-for-domain-interfaces.patch
+Patch87: libvirt-docs-fix-typo-in-closing-HTML-element.patch
+Patch88: libvirt-Don-t-leak-str-in-virDomainNetDefCoalesceParseXML.patch
+Patch89: libvirt-Remove-pointless-check-for-ret-in-virDomainNetDefCoalesceParseXML.patch
+Patch90: libvirt-Define-ETHTOOL_-GS-COALESCE-when-building-on-older-kernels.patch
+Patch91: libvirt-qemu-change-the-logic-of-setting-default-USB-controller.patch
+Patch92: libvirt-qemu-use-nec-usb-xhci-as-a-default-controller-for-aarch64-if-available.patch
+Patch93: libvirt-qemu-introduce-QEMU_CAPS_DEVICE_QEMU_XHCI.patch
+Patch94: libvirt-qemu-add-support-for-qemu-xhci-USB-controller.patch
+Patch95: libvirt-qemu-use-qemu-xhci-USB-controller-by-default-for-ppc64-and-aarch64.patch
+Patch96: libvirt-util-make-macvtap-macvlan-generated-name-defines-available-to-other-files.patch
+Patch97: libvirt-conf-don-t-ignore-target-dev-blah-for-macvtap-interfaces.patch
+Patch98: libvirt-util-rename-move-VIR_NET_GENERATED_PREFIX-to-be-consistent.patch
+Patch99: libvirt-util-mdev-Use-a-local-variable-instead-of-a-direct-pointer-access.patch
+Patch100: libvirt-mdev-Fix-daemon-crash-on-domain-shutdown-after-reconnect.patch
+Patch101: libvirt-qemu-Provide-a-much-clearer-message-on-device-hot-plug.patch
+Patch102: libvirt-virsh-Add-tls-description-for-the-virsh-man-page.patch
+Patch103: libvirt-conf-Check-CPU-cache-for-ABI-stability.patch
+Patch104: libvirt-qemuDomainBuildNamespace-Move-dev-mountpoints-later.patch
+Patch105: libvirt-qemuDomainCreateDeviceRecursive-pass-a-structure-instead-of-bare-path.patch
+Patch106: libvirt-qemuDomainCreateDeviceRecursive-Don-t-try-to-create-devices-under-preserved-mount-points.patch
+Patch107: libvirt-qemuDomainAttachDeviceMknodRecursive-Don-t-try-to-create-devices-under-preserved-mount-points.patch
+Patch108: libvirt-qemuDomainDetachDeviceUnlink-Don-t-unlink-files-we-haven-t-created.patch
+Patch109: libvirt-util-introduce-virStringMatch.patch
+Patch110: libvirt-util-introduce-virBufferEscapeRegex.patch
+Patch111: libvirt-qemu-improve-detection-of-UNIX-path-generated-by-libvirt.patch
+Patch112: libvirt-Adding-POWER9-cpu-model-to-cpu_map.xml.patch
+Patch113: libvirt-qemu-driver-Allow-passing-disk-target-as-top-image-with-block-commit.patch
+Patch114: libvirt-qemu-monitor-Don-t-bother-extracting-vCPU-halted-state-in-text-monitor.patch
+Patch115: libvirt-conf-Don-t-assign-value-from-.TypeFromString-directly-to-enum.patch
+Patch116: libvirt-nodedev-Make-use-of-the-compile-time-missing-enum-in-switch-error.patch
+Patch117: libvirt-conf-nodedev-Split-virNodeDeviceDefFormat-into-more-functions.patch
+Patch118: libvirt-docs-Provide-a-nodedev-driver-stub-documentation.patch
+Patch119: libvirt-mdev-Pass-a-uuidstr-rather-than-an-mdev-object-to-some-util-functions.patch
+Patch120: libvirt-nodedev-conf-Split-PCI-sub-capability-parsing-to-separate-methods.patch
+Patch121: libvirt-nodedev-Introduce-new-mdev_types-and-mdev-nodedev-capabilities.patch
+Patch122: libvirt-nodedev-Introduce-the-mdev-capability-to-a-PCI-parent-device.patch
+Patch123: libvirt-nodedev-Introduce-mdev-capability-for-mediated-devices.patch
+Patch124: libvirt-docs-Document-the-mediated-devices-within-the-nodedev-driver.patch
+Patch125: libvirt-Do-not-release-unreserved-address-in-qemuDomainAttachRNGDevice.patch
+Patch126: libvirt-qemu-process-Clear-priv-namespaces-on-VM-shutdown.patch
+Patch127: libvirt-Revert-qemu-propagate-bridge-MTU-into-qemu-host_mtu-option.patch
+Patch128: libvirt-qemu-Properly-check-return-value-of-VIR_STRDUP-in-qemuDomainGetBlockIoTune.patch
+Patch129: libvirt-rpc-Bump-maximum-message-size-to-32M.patch
+Patch130: libvirt-Split-out-virDomainIOMMUDefFormat.patch
+Patch131: libvirt-qemu-allow-conditional-device-property-probing.patch
+Patch132: libvirt-qemu-refactor-qemuBuildIOMMUCommandLine.patch
+Patch133: libvirt-conf-add-ioapic-driver-to-features.patch
+Patch134: libvirt-qemu-format-kernel_irqchip-on-the-command-line.patch
+Patch135: libvirt-conf-add-driver-intremap-to-iommu.patch
+Patch136: libvirt-qemu-format-intel-iommu-intremap-on-the-command-line.patch
+Patch137: libvirt-conf-add-caching_mode-attribute-to-iommu-device.patch
+Patch138: libvirt-qemu-format-caching-mode-on-iommu-command-line.patch
+Patch139: libvirt-conf-split-out-virDomainIOMMUDefCheckABIStability.patch
+Patch140: libvirt-conf-add-ABI-stability-checks-for-IOMMU-options.patch
+Patch141: libvirt-conf-Resolve-corner-case-on-fc_host-deletion.patch
+Patch142: libvirt-pci-fix-link-maximum-speed-detection.patch
+Patch143: libvirt-qemu-Use-correct-variable-in-qemuDomainSetBlockIoTune.patch
+Patch144: libvirt-virsh-Track-when-create-pkttyagent.patch
+Patch145: libvirt-conf-add-eim-attribute-to-iommu-driver.patch
+Patch146: libvirt-qemu-format-eim-on-intel-iommu-command-line.patch
+Patch147: libvirt-rpc-Double-buffer-size-instead-of-quadrupling-buffer-size.patch
+Patch148: libvirt-rpc-Allow-up-to-256K-records-to-be-returned-per-domain-from-virConnectGetAllDomainStats.patch
+Patch149: libvirt-nodedev-Increase-the-netlink-socket-buffer-size-to-the-one-used-by-udev.patch
+Patch150: libvirt-util-hostcpu-Correctly-report-total-number-of-vcpus-in-virHostCPUGetMap.patch
+Patch151: libvirt-qemu-Report-shutdown-event-details.patch
+Patch152: libvirt-qemu-json-Fix-daemon-crash-on-handling-domain-shutdown-event.patch
+Patch153: libvirt-qemu-mkdir-memory_backing_dir-on-startup.patch
+Patch154: libvirt-qemu-Don-t-error-out-if-allocation-info-can-t-be-queried.patch
+Patch155: libvirt-daemon-Don-t-initialize-SASL-context-if-not-necessary.patch
+Patch156: libvirt-virDomainXMLOption-Introduce-virDomainABIStabilityDomain.patch
+Patch157: libvirt-virQEMUDriverDomainABIStability-Check-for-memoryBacking.patch
+Patch158: libvirt-qemu-process-Save-vcpu-ordering-information-on-reconnect.patch
+Patch159: libvirt-audit-Fix-the-output-message-for-shmem.patch
+Patch160: libvirt-qemu-Set-operation-on-completed-migration-job.patch
+Patch161: libvirt-qemu-Conditionally-allow-block-copy-for-persistent-domains.patch
+Patch162: libvirt-virsh-Add-support-for-VIR_DOMAIN_BLOCK_COPY_TRANSIENT_JOB.patch
+Patch163: libvirt-qemu-Fix-serial-stub-console-allocation.patch
+Patch164: libvirt-conf-Make-error-reporting-in-virCPUDefIsEqual-optional.patch
+Patch165: libvirt-conf-Refactor-virCPUDefParseXML.patch
+Patch166: libvirt-conf-Make-virDomainSnapshotDefFormat-easier-to-read.patch
+Patch167: libvirt-conf-Pass-xmlopt-to-virDomainSnapshotDefFormat.patch
+Patch168: libvirt-qemu-Rename-xml_len-in-virQEMUSaveHeader-as-data_len.patch
+Patch169: libvirt-qemu-Fix-memory-leaks-in-qemuDomainSaveImageOpen.patch
+Patch170: libvirt-qemu-Introduce-virQEMUSaveData-New-Free.patch
+Patch171: libvirt-qemu-Introduce-virQEMUSaveDataFinish.patch
+Patch172: libvirt-qemu-Refactor-qemuDomainSaveHeader.patch
+Patch173: libvirt-qemu-Introduce-virQEMUSaveData-structure.patch
+Patch174: libvirt-conf-Introduce-virSaveCookie.patch
+Patch175: libvirt-conf-Add-save-cookie-callbacks-to-xmlopt.patch
+Patch176: libvirt-qemu-Implement-virSaveCookie-object-and-callbacks.patch
+Patch177: libvirt-qemu-Store-save-cookie-in-save-images-and-snapshots.patch
+Patch178: libvirt-qemu-Remember-CPU-def-from-domain-start.patch
+Patch179: libvirt-qemu-Report-the-original-CPU-in-migratable-xml.patch
+Patch180: libvirt-qemu-Always-send-persistent-XML-during-migration.patch
+Patch181: libvirt-qemu-Send-updated-CPU-in-migration-cookie.patch
+Patch182: libvirt-qemu-Store-updated-CPU-in-save-cookie.patch
+Patch183: libvirt-qemu-Use-updated-CPU-when-starting-QEMU-if-possible.patch
+Patch184: libvirt-docs-correct-improper-information-about-domain-states-in-virsh-manpage.patch
+Patch185: libvirt-qemu-Set-iface-MTU-on-hotplug.patch
+Patch186: libvirt-Use-a-separate-buffer-for-input-subelements.patch
+Patch187: libvirt-Use-a-separate-buffer-for-disk-driver.patch
+Patch188: libvirt-Use-a-separate-buffer-for-controller-driver.patch
+Patch189: libvirt-Use-a-separate-buffer-for-filesystem-driver.patch
+Patch190: libvirt-conf-introduce-virDomainControllerDriverFormat.patch
+Patch191: libvirt-conf-add-iotlb-attribute-to-iommu.patch
+Patch192: libvirt-qemu-format-device-iotlb-on-intel-iommu-command-line.patch
+Patch193: libvirt-qemuxml2xmltest-add-virtio-options-test.patch
+Patch194: libvirt-conf-use-a-leading-space-in-virDomainVirtioNetDriverFormat.patch
+Patch195: libvirt-Add-virtio-related-options-to-interfaces.patch
+Patch196: libvirt-add-virtio-related-options-to-memballoon.patch
+Patch197: libvirt-Add-virtio-related-options-to-disks.patch
+Patch198: libvirt-Add-virtio-related-options-to-controllers.patch
+Patch199: libvirt-Add-virtio-related-options-to-filesystems.patch
+Patch200: libvirt-Add-virtio-related-options-to-rng-devices.patch
+Patch201: libvirt-Add-virtio-related-options-to-video.patch
+Patch202: libvirt-Add-virtio-related-options-to-input-devices.patch
+Patch203: libvirt-qemuxml2argvtest-add-virtio-options-test-case.patch
+Patch204: libvirt-qemu-format-virtio-related-options-on-the-command-line.patch
+Patch205: libvirt-qemu-Allow-memAccess-for-hugepages-again.patch
+Patch206: libvirt-qemu-Prefer-hugepages-over-mem-source-file.patch
+Patch207: libvirt-qemu-Don-t-try-to-use-hugepages-if-not-enabled.patch
+Patch208: libvirt-qemu-Introduce-qemuDomainDefFromXML-helper.patch
+Patch209: libvirt-qemu-Add-qemuDomainMigratableDefCheckABIStability.patch
+Patch210: libvirt-qemu-Add-qemuDomainCheckABIStability.patch
+Patch211: libvirt-qemu-Use-qemuDomainCheckABIStability-where-needed.patch
+Patch212: libvirt-util-storage-Output-parsed-network-backing-store-string-to-debug-log.patch
+Patch213: libvirt-util-storage-Add-missing-return-to-virStorageSourceParseBackingJSONGluster.patch
+Patch214: libvirt-util-storage-make-virStorageSourceParseBackingJSONGlusterHost-universal.patch
+Patch215: libvirt-util-storage-Add-support-for-type-inet-in-virStorageSourceParseBackingJSONSocketAddress.patch
+Patch216: libvirt-util-storage-Split-out-parsing-of-TCP-network-host-from-JSON-pseudoprotocol.patch
+Patch217: libvirt-util-storage-Report-errors-when-source-host-data-is-missing.patch
+Patch218: libvirt-util-storage-Add-JSON-parser-for-new-options-in-iSCSI-protocol.patch
+Patch219: libvirt-util-storage-adapt-to-changes-in-JSON-format-for-NBD.patch
+Patch220: libvirt-util-storage-adapt-to-changes-in-JSON-format-for-ceph-rbd.patch
+Patch221: libvirt-util-storage-adapt-to-changes-in-JSON-format-for-ssh.patch
+Patch222: libvirt-util-storage-adapt-to-changes-in-JSON-format-for-sheepdog.patch
+Patch223: libvirt-qemu-Allow-live-updates-of-coalesce-settings.patch
+Patch224: libvirt-qemu-Pass-the-number-of-heads-even-with-vga-qxl.patch
+Patch225: libvirt-util-storage-Export-virStorageIsRelative.patch
+Patch226: libvirt-storage-Add-helper-to-retrieve-the-backing-store-string-of-a-storage-volume.patch
+Patch227: libvirt-qemu-snapshot-Load-data-necessary-for-relative-block-commit-to-work.patch
+Patch228: libvirt-util-storage-Make-backingFormat-optional-in-virStorageFileGetMetadataInternal.patch
+Patch229: libvirt-qemu-Change-coalesce-settings-on-hotplug-when-they-are-different.patch
+Patch230: libvirt-qemu-Do-not-skip-virCPUUpdateLive-if-priv-origCPU-is-set.patch
+Patch231: libvirt-qemu-Don-t-update-CPU-when-checking-ABI-stability.patch
+Patch232: libvirt-cpu_x86-Properly-disable-unknown-CPU-features.patch
+Patch233: libvirt-qemu-Add-qemuProcessFetchGuestCPU.patch
+Patch234: libvirt-qemu-Add-qemuProcessVerifyCPU.patch
+Patch235: libvirt-qemu-Rename-qemuProcessUpdateLiveGuestCPU.patch
+Patch236: libvirt-qemu-Add-qemuProcessUpdateLiveGuestCPU.patch
+Patch237: libvirt-qemu-Export-virQEMUCapsGuestIsNative.patch
+Patch238: libvirt-qemu-Move-qemuProcessReconnect-to-the-end-of-qemu_process.c.patch
+Patch239: libvirt-qemu-Update-host-model-CPUs-on-reconnect.patch
+Patch240: libvirt-qemu-Fix-qemuDomainGetBlockInfo-allocation-value-setting.patch
+Patch241: libvirt-qemuDomainBuildNamespace-Handle-special-file-mount-points.patch
 
 Requires: libvirt-daemon = %{version}-%{release}
 Requires: libvirt-daemon-config-network = %{version}-%{release}
@@ -569,6 +511,7 @@ Requires: libvirt-daemon-driver-storage = %{version}-%{release}
 Requires: libvirt-daemon-driver-network = %{version}-%{release}
 Requires: libvirt-daemon-driver-nodedev = %{version}-%{release}
 Requires: libvirt-client = %{version}-%{release}
+Requires: libvirt-libs = %{version}-%{release}
 
 # All build-time requirements. Run-time requirements are
 # listed against each sub-RPM
@@ -612,7 +555,7 @@ BuildRequires: libudev-devel >= 145
 BuildRequires: libpciaccess-devel >= 0.10.9
 BuildRequires: yajl-devel
 %if %{with_sanlock}
-BuildRequires: sanlock-devel >= 2.4
+BuildRequires: sanlock-devel >= 3.5
 %endif
 BuildRequires: libpcap-devel
 %if 0%{?rhel} && 0%{?rhel} < 7
@@ -641,6 +584,8 @@ BuildRequires: polkit-devel >= 0.93
 # For mount/umount in FS driver
 BuildRequires: util-linux
 %if %{with_qemu}
+# For managing ACLs
+BuildRequires: libacl-devel
 # From QEMU RPMs
 BuildRequires: /usr/bin/qemu-img
 %else
@@ -718,7 +663,15 @@ BuildRequires: numad
 %endif
 
 %if %{with_wireshark}
-BuildRequires: wireshark-devel
+    %if 0%{fedora} >= 24
+BuildRequires: wireshark-devel >= 2.1.0
+    %else
+BuildRequires: wireshark-devel >= 1.12.1
+    %endif
+%endif
+
+%if %{with_libssh}
+BuildRequires: libssh-devel >= 0.7.0
 %endif
 
 Provides: bundled(gnulib)
@@ -743,8 +696,8 @@ Group: Development/Libraries
 # All runtime requirements for the libvirt package (runtime requrements
 # for subpackages are listed later in those subpackages)
 
-# The client side, i.e. shared libs and virsh are in a subpackage
-Requires: %{name}-client = %{version}-%{release}
+# The client side, i.e. shared libs are in a subpackage
+Requires: %{name}-libs = %{version}-%{release}
 
 # for modprobe of pci devices
 Requires: module-init-tools
@@ -876,31 +829,13 @@ Requires: libvirt-daemon = %{version}-%{release}
 The secret driver plugin for the libvirtd daemon, providing
 an implementation of the secret key APIs.
 
-
-%package daemon-driver-storage
-Summary: Storage driver plugin for the libvirtd daemon
+%package daemon-driver-storage-core
+Summary: Storage driver plugin including base backends for the libvirtd daemon
 Group: Development/Libraries
 Requires: libvirt-daemon = %{version}-%{release}
 Requires: nfs-utils
 # For mkfs
 Requires: util-linux
-# For glusterfs
-%if 0%{?fedora}
-Requires: glusterfs-client >= 2.0.1
-%endif
-# For LVM drivers
-Requires: lvm2
-# For ISCSI driver
-Requires: iscsi-initiator-utils
-# For disk driver
-Requires: parted
-Requires: device-mapper
-# For multipath support
-Requires: device-mapper
-%if %{with_storage_sheepdog}
-# For Sheepdog support
-Requires: sheepdog
-%endif
 %if %{with_qemu}
 # From QEMU RPMs
 Requires: /usr/bin/qemu-img
@@ -911,6 +846,128 @@ Requires: /usr/sbin/qcow-create
     %endif
 %endif
 
+%description daemon-driver-storage-core
+The storage driver plugin for the libvirtd daemon, providing
+an implementation of the storage APIs using files, local disks, LVM, SCSI,
+iSCSI, and multipath storage.
+
+%package daemon-driver-storage-logical
+Summary: Storage driver plugin for lvm volumes
+Group: Development/Libraries
+Requires: libvirt-daemon-driver-storage-core = %{version}-%{release}
+Requires: lvm2
+
+%description daemon-driver-storage-logical
+The storage driver backend adding implementation of the storage APIs for block
+volumes using lvm.
+
+
+%package daemon-driver-storage-disk
+Summary: Storage driver plugin for disk
+Group: Development/Libraries
+Requires: libvirt-daemon-driver-storage-core = %{version}-%{release}
+Requires: parted
+Requires: device-mapper
+
+%description daemon-driver-storage-disk
+The storage driver backend adding implementation of the storage APIs for block
+volumes using the host disks.
+
+
+%package daemon-driver-storage-scsi
+Summary: Storage driver plugin for local scsi devices
+Group: Development/Libraries
+Requires: libvirt-daemon-driver-storage-core = %{version}-%{release}
+
+%description daemon-driver-storage-scsi
+The storage driver backend adding implementation of the storage APIs for scsi
+host devices.
+
+
+%package daemon-driver-storage-iscsi
+Summary: Storage driver plugin for iscsi
+Group: Development/Libraries
+Requires: libvirt-daemon-driver-storage-core = %{version}-%{release}
+Requires: iscsi-initiator-utils
+
+%description daemon-driver-storage-iscsi
+The storage driver backend adding implementation of the storage APIs for iscsi
+volumes using the host iscsi stack.
+
+
+%package daemon-driver-storage-mpath
+Summary: Storage driver plugin for multipath volumes
+Group: Development/Libraries
+Requires: libvirt-daemon-driver-storage-core = %{version}-%{release}
+Requires: device-mapper
+
+%description daemon-driver-storage-mpath
+The storage driver backend adding implementation of the storage APIs for
+multipath storage using device mapper.
+
+
+%if %{with_storage_gluster}
+%package daemon-driver-storage-gluster
+Summary: Storage driver plugin for gluster
+Group: Development/Libraries
+Requires: libvirt-daemon-driver-storage-core = %{version}-%{release}
+    %if 0%{?fedora}
+Requires: glusterfs-client >= 2.0.1
+    %endif
+    %if (0%{?fedora} || 0%{?with_storage_gluster})
+Requires: /usr/sbin/gluster
+    %endif
+
+%description daemon-driver-storage-gluster
+The storage driver backend adding implementation of the storage APIs for gluster
+volumes using libgfapi.
+%endif
+
+
+%if %{with_storage_rbd}
+%package daemon-driver-storage-rbd
+Summary: Storage driver plugin for rbd
+Group: Development/Libraries
+Requires: libvirt-daemon-driver-storage-core = %{version}-%{release}
+
+%description daemon-driver-storage-rbd
+The storage driver backend adding implementation of the storage APIs for rbd
+volumes using the ceph protocol.
+%endif
+
+
+%if %{with_storage_sheepdog}
+%package daemon-driver-storage-sheepdog
+Summary: Storage driver plugin for sheepdog
+Group: Development/Libraries
+Requires: libvirt-daemon-driver-storage-core = %{version}-%{release}
+Requires: sheepdog
+
+%description daemon-driver-storage-sheepdog
+The storage driver backend adding implementation of the storage APIs for
+sheepdog volumes using.
+%endif
+
+
+%package daemon-driver-storage
+Summary: Storage driver plugin including all backends for the libvirtd daemon
+Group: Development/Libraries
+Requires: libvirt-daemon-driver-storage-core = %{version}-%{release}
+Requires: libvirt-daemon-driver-storage-disk = %{version}-%{release}
+Requires: libvirt-daemon-driver-storage-logical = %{version}-%{release}
+Requires: libvirt-daemon-driver-storage-scsi = %{version}-%{release}
+Requires: libvirt-daemon-driver-storage-iscsi = %{version}-%{release}
+Requires: libvirt-daemon-driver-storage-mpath = %{version}-%{release}
+%if %{with_storage_gluster}
+Requires: libvirt-daemon-driver-storage-gluster = %{version}-%{release}
+%endif
+%if %{with_storage_rbd}
+Requires: libvirt-daemon-driver-storage-rbd = %{version}-%{release}
+%endif
+%if %{with_storage_sheepdog}
+Requires: libvirt-daemon-driver-storage-sheepdog = %{version}-%{release}
+%endif
+
 %description daemon-driver-storage
 The storage driver plugin for the libvirtd daemon, providing
 an implementation of the storage APIs using LVM, iSCSI,
@@ -919,18 +976,21 @@ parted and more.
 
 %if %{with_qemu}
 %package daemon-driver-qemu
-Summary: Qemu driver plugin for the libvirtd daemon
+Summary: QEMU driver plugin for the libvirtd daemon
 Group: Development/Libraries
 Requires: libvirt-daemon = %{version}-%{release}
 # There really is a hard cross-driver dependency here
 Requires: libvirt-daemon-driver-network = %{version}-%{release}
-Requires: libvirt-daemon-driver-storage = %{version}-%{release}
+Requires: libvirt-daemon-driver-storage-core = %{version}-%{release}
 Requires: /usr/bin/qemu-img
 # For image compression
 Requires: gzip
 Requires: bzip2
 Requires: lzop
 Requires: xz
+    %if 0%{?fedora} >= 24
+Requires: systemd-container
+    %endif
 
 %description daemon-driver-qemu
 The qemu driver plugin for the libvirtd daemon, providing
@@ -946,6 +1006,9 @@ Group: Development/Libraries
 Requires: libvirt-daemon = %{version}-%{release}
 # There really is a hard cross-driver dependency here
 Requires: libvirt-daemon-driver-network = %{version}-%{release}
+    %if 0%{?fedora} >= 24
+Requires: systemd-container
+    %endif
 
 %description daemon-driver-lxc
 The LXC driver plugin for the libvirtd daemon, providing
@@ -1141,13 +1204,11 @@ capabilities of VirtualBox
 %endif
 
 %package client
-Summary: Client side library and utilities of the libvirt library
+Summary: Client side utilities of the libvirt library
 Group: Development/Libraries
+Requires: %{name}-libs = %{version}-%{release}
 Requires: readline
 Requires: ncurses
-# So remote clients can access libvirt over SSH tunnel
-# (client invokes 'nc' against the UNIX socket on the server)
-Requires: nc
 # Needed by /usr/libexec/libvirt-guests.sh script.
 Requires: gettext
 # Needed by virt-pki-validate script.
@@ -1156,21 +1217,40 @@ Requires: gnutls-utils
 # Needed for probing the power management features of the host.
 Requires: pm-utils
 %endif
-Requires: cyrus-sasl
-# Not technically required, but makes 'out-of-box' config
-# work correctly & doesn't have onerous dependencies
-Requires: cyrus-sasl-md5
 
 %description client
-Shared libraries and client binaries needed to access to the
-virtualization capabilities of recent versions of Linux (and other OSes).
+The client binaries needed to access the virtualization
+capabilities of recent versions of Linux (and other OSes).
+
+%package libs
+Summary: Client side libraries
+Group: Development/Libraries
+# So remote clients can access libvirt over SSH tunnel
+# (client invokes 'nc' against the UNIX socket on the server)
+Requires: nc
+Requires: cyrus-sasl
+# Needed by default sasl.conf - no onerous extra deps, since
+# 100's of other things on a system already pull in krb5-libs
+Requires: cyrus-sasl-gssapi
+
+%description libs
+Shared libraries for accessing the libvirt daemon.
+
+%package admin
+Summary: Set of tools to control libvirt daemon
+Group: Development/Libraries
+Requires: %{name}-libs = %{version}-%{release}
+Requires: readline
+
+%description admin
+The client side utilities to control the libvirt daemon.
 
 %if %{with_wireshark}
 %package wireshark
 Summary: Wireshark dissector plugin for libvirt RPC transactions
 Group: Development/Libraries
 Requires: wireshark >= 1.12.6-4
-Requires: %{name}-client = %{version}-%{release}
+Requires: %{name}-libs = %{version}-%{release}
 
 %description wireshark
 Wireshark dissector plugin for better analysis of libvirt RPC traffic.
@@ -1180,7 +1260,7 @@ Wireshark dissector plugin for better analysis of libvirt RPC traffic.
 %package login-shell
 Summary: Login shell for connecting users to an LXC container
 Group: Development/Libraries
-Requires: %{name}-client = %{version}-%{release}
+Requires: %{name}-libs = %{version}-%{release}
 
 %description login-shell
 Provides the set-uid virt-login-shell binary that is used to
@@ -1191,7 +1271,7 @@ namespaces.
 %package devel
 Summary: Libraries, includes, etc. to compile with the libvirt library
 Group: Development/Libraries
-Requires: %{name}-client = %{version}-%{release}
+Requires: %{name}-libs = %{version}-%{release}
 Requires: pkgconfig
 
 %description devel
@@ -1201,11 +1281,11 @@ Include header files & development libraries for the libvirt C library.
 %package lock-sanlock
 Summary: Sanlock lock manager plugin for QEMU driver
 Group: Development/Libraries
-Requires: sanlock >= 2.4
+Requires: sanlock >= 3.5
 #for virt-sanlock-cleanup require augeas
 Requires: augeas
 Requires: %{name}-daemon = %{version}-%{release}
-Requires: %{name}-client = %{version}-%{release}
+Requires: %{name}-libs = %{version}-%{release}
 
 %description lock-sanlock
 Includes the Sanlock lock manager plugin for the QEMU
@@ -1462,11 +1542,14 @@ rm -f po/stamp-po
            --with-storage-fs \
            --with-storage-lvm \
            --with-storage-iscsi \
+           --with-storage-scsi \
            --with-storage-disk \
            --with-storage-mpath \
            %{?arg_storage_rbd} \
            %{?arg_storage_sheepdog} \
            %{?arg_storage_gluster} \
+           --without-storage-zfs \
+           --without-storage-vstorage \
            %{?arg_numactl} \
            %{?arg_numad} \
            --with-capng \
@@ -1506,9 +1589,9 @@ rm -fr %{buildroot}
 # Avoid using makeinstall macro as it changes prefixes rather than setting
 # DESTDIR. Newer make_install macro would be better but it's not available
 # on RHEL 5, thus we need to expand it here.
-make install DESTDIR=%{?buildroot} SYSTEMD_UNIT_DIR=%{_unitdir}
+make %{?_smp_mflags} install DESTDIR=%{?buildroot} SYSTEMD_UNIT_DIR=%{_unitdir}
 
-make -C examples distclean
+make %{?_smp_mflags} -C examples distclean
 
 rm -f $RPM_BUILD_ROOT%{_libdir}/*.la
 rm -f $RPM_BUILD_ROOT%{_libdir}/*.a
@@ -1516,10 +1599,16 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/libvirt/lock-driver/*.la
 rm -f $RPM_BUILD_ROOT%{_libdir}/libvirt/lock-driver/*.a
 rm -f $RPM_BUILD_ROOT%{_libdir}/libvirt/connection-driver/*.la
 rm -f $RPM_BUILD_ROOT%{_libdir}/libvirt/connection-driver/*.a
+rm -f $RPM_BUILD_ROOT%{_libdir}/libvirt/storage-backend/*.la
+rm -f $RPM_BUILD_ROOT%{_libdir}/libvirt/storage-backend/*.a
 %if %{with_wireshark}
+    %if 0%{fedora} >= 24
+rm -f $RPM_BUILD_ROOT%{_libdir}/wireshark/plugins/libvirt.la
+    %else
 rm -f $RPM_BUILD_ROOT%{_libdir}/wireshark/plugins/*/libvirt.la
 mv $RPM_BUILD_ROOT%{_libdir}/wireshark/plugins/*/libvirt.so \
-   $RPM_BUILD_ROOT%{_libdir}/wireshark/plugins/libvirt.so
+      $RPM_BUILD_ROOT%{_libdir}/wireshark/plugins/libvirt.so
+    %endif
 %endif
 
 install -d -m 0755 $RPM_BUILD_ROOT%{_datadir}/lib/libvirt/dnsmasq/
@@ -1531,6 +1620,13 @@ cp $RPM_BUILD_ROOT%{_sysconfdir}/libvirt/qemu/networks/default.xml \
    $RPM_BUILD_ROOT%{_datadir}/libvirt/networks/default.xml
 rm -f $RPM_BUILD_ROOT%{_sysconfdir}/libvirt/qemu/networks/default.xml
 rm -f $RPM_BUILD_ROOT%{_sysconfdir}/libvirt/qemu/networks/autostart/default.xml
+
+# nwfilter files are installed in /usr/share/libvirt and copied to /etc in %post
+# to avoid verification errors on changed files in /etc
+install -d -m 0755 $RPM_BUILD_ROOT%{_datadir}/libvirt/nwfilter/
+cp -a $RPM_BUILD_ROOT%{_sysconfdir}/libvirt/nwfilter/*.xml \
+    $RPM_BUILD_ROOT%{_datadir}/libvirt/nwfilter/
+
 # Strip auto-generated UUID - we need it generated per-install
 sed -i -e "/<uuid>/d" $RPM_BUILD_ROOT%{_datadir}/libvirt/networks/default.xml
 %if ! %{with_qemu}
@@ -1582,7 +1678,6 @@ rm -fr %{buildroot}
 
 %check
 cd tests
-make
 # These tests don't current work in a mock build root
 for i in nodeinfotest seclabeltest
 do
@@ -1591,7 +1686,7 @@ do
   printf '#!/bin/sh\nexit 0\n' > $i
   chmod +x $i
 done
-if ! make check VIR_TEST_DEBUG=1
+if ! make %{?_smp_mflags} check VIR_TEST_DEBUG=1
 then
   cat test-suite.log || true
   exit 1
@@ -1758,6 +1853,17 @@ if test $1 -eq 1 && test ! -f %{_sysconfdir}/libvirt/qemu/networks/default.xml ;
 
 fi
 
+
+%post daemon-config-nwfilter
+cp %{_datadir}/libvirt/nwfilter/*.xml %{_sysconfdir}/libvirt/nwfilter/
+# Make sure libvirt picks up the new nwfilter defininitons
+%if %{with_systemd}
+    /bin/systemctl try-restart libvirtd.service >/dev/null 2>&1 ||:
+%else
+    /sbin/service libvirtd condrestart > /dev/null 2>&1 || :
+%endif
+
+
 %if %{with_systemd}
 %triggerun -- libvirt < 0.9.4
 %{_bindir}/systemd-sysv-convert --save libvirtd >/dev/null 2>&1 ||:
@@ -1872,6 +1978,7 @@ exit 0
 
 %if %{with_systemd}
 %{_unitdir}/libvirtd.service
+%{_unitdir}/virt-guest-shutdown.target
 %{_unitdir}/virtlogd.service
 %{_unitdir}/virtlogd.socket
 %{_unitdir}/virtlockd.service
@@ -1938,7 +2045,9 @@ exit 0
 %{_datadir}/libvirt/networks/default.xml
 
 %files daemon-config-nwfilter
-%{_sysconfdir}/libvirt/nwfilter/*.xml
+%dir %{_datadir}/libvirt/nwfilter/
+%{_datadir}/libvirt/nwfilter/*.xml
+%ghost %{_sysconfdir}/libvirt/nwfilter/*.xml
 
 %files daemon-driver-interface
 %{_libdir}/%{name}/connection-driver/libvirt_driver_interface.so
@@ -1965,8 +2074,41 @@ exit 0
 %{_libdir}/%{name}/connection-driver/libvirt_driver_secret.so
 
 %files daemon-driver-storage
+
+%files daemon-driver-storage-core
 %attr(0755, root, root) %{_libexecdir}/libvirt_parthelper
 %{_libdir}/%{name}/connection-driver/libvirt_driver_storage.so
+%{_libdir}/%{name}/storage-backend/libvirt_storage_backend_fs.so
+
+%files daemon-driver-storage-disk
+%{_libdir}/%{name}/storage-backend/libvirt_storage_backend_disk.so
+
+%files daemon-driver-storage-logical
+%{_libdir}/%{name}/storage-backend/libvirt_storage_backend_logical.so
+
+%files daemon-driver-storage-scsi
+%{_libdir}/%{name}/storage-backend/libvirt_storage_backend_scsi.so
+
+%files daemon-driver-storage-iscsi
+%{_libdir}/%{name}/storage-backend/libvirt_storage_backend_iscsi.so
+
+%files daemon-driver-storage-mpath
+%{_libdir}/%{name}/storage-backend/libvirt_storage_backend_mpath.so
+
+%if %{with_storage_gluster}
+%files daemon-driver-storage-gluster
+%{_libdir}/%{name}/storage-backend/libvirt_storage_backend_gluster.so
+%endif
+
+%if %{with_storage_rbd}
+%files daemon-driver-storage-rbd
+%{_libdir}/%{name}/storage-backend/libvirt_storage_backend_rbd.so
+%endif
+
+%if %{with_storage_sheepdog}
+%files daemon-driver-storage-sheepdog
+%{_libdir}/%{name}/storage-backend/libvirt_storage_backend_sheepdog.so
+%endif
 
 %if %{with_qemu}
 %files daemon-driver-qemu
@@ -2070,35 +2212,44 @@ exit 0
 %attr(0755, root, root) %{_libexecdir}/libvirt_sanlock_helper
 %endif
 
-%files client -f %{name}.lang
-%doc COPYING COPYING.LESSER
-
-%config(noreplace) %{_sysconfdir}/libvirt/libvirt.conf
-%config(noreplace) %{_sysconfdir}/libvirt/libvirt-admin.conf
+%files client
 %{_mandir}/man1/virsh.1*
-%{_mandir}/man1/virt-admin.1*
 %{_mandir}/man1/virt-xml-validate.1*
 %{_mandir}/man1/virt-pki-validate.1*
 %{_mandir}/man1/virt-host-validate.1*
 %{_bindir}/virsh
-%{_bindir}/virt-admin
 %{_bindir}/virt-xml-validate
 %{_bindir}/virt-pki-validate
 %{_bindir}/virt-host-validate
-%{_libdir}/libvirt.so.*
-%{_libdir}/libvirt-qemu.so.*
-%{_libdir}/libvirt-lxc.so.*
-%{_libdir}/libvirt-admin.so.*
 
 %{_datadir}/systemtap/tapset/libvirt_probes*.stp
 %{_datadir}/systemtap/tapset/libvirt_qemu_probes*.stp
 %{_datadir}/systemtap/tapset/libvirt_functions.stp
 
+
+%if %{with_systemd}
+%{_unitdir}/libvirt-guests.service
+%else
+%{_sysconfdir}/rc.d/init.d/libvirt-guests
+%endif
+%config(noreplace) %{_sysconfdir}/sysconfig/libvirt-guests
+%attr(0755, root, root) %{_libexecdir}/libvirt-guests.sh
+
+%files libs -f %{name}.lang
+%doc COPYING COPYING.LESSER
+%config(noreplace) %{_sysconfdir}/libvirt/libvirt.conf
+%config(noreplace) %{_sysconfdir}/libvirt/libvirt-admin.conf
+%{_libdir}/libvirt.so.*
+%{_libdir}/libvirt-qemu.so.*
+%{_libdir}/libvirt-lxc.so.*
+%{_libdir}/libvirt-admin.so.*
 %dir %{_datadir}/libvirt/
 %dir %{_datadir}/libvirt/schemas/
+%dir %attr(0755, root, root) %{_localstatedir}/lib/libvirt/
 
 %{_datadir}/libvirt/schemas/basictypes.rng
 %{_datadir}/libvirt/schemas/capability.rng
+%{_datadir}/libvirt/schemas/cputypes.rng
 %{_datadir}/libvirt/schemas/domain.rng
 %{_datadir}/libvirt/schemas/domaincaps.rng
 %{_datadir}/libvirt/schemas/domaincommon.rng
@@ -2114,18 +2265,15 @@ exit 0
 %{_datadir}/libvirt/schemas/storagevol.rng
 
 %{_datadir}/libvirt/cpu_map.xml
-%{_datadir}/libvirt/libvirtLogo.png
 
-%if %{with_systemd}
-%{_unitdir}/libvirt-guests.service
-%else
-%{_sysconfdir}/rc.d/init.d/libvirt-guests
-%endif
-%config(noreplace) %{_sysconfdir}/sysconfig/libvirt-guests
-%attr(0755, root, root) %{_libexecdir}/libvirt-guests.sh
-%dir %attr(0755, root, root) %{_localstatedir}/lib/libvirt/
+%{_datadir}/libvirt/test-screenshot.png
 
 %config(noreplace) %{_sysconfdir}/sasl2/libvirt.conf
+
+%files admin
+%{_mandir}/man1/virt-admin.1*
+%{_bindir}/virt-admin
+
 
 %if %{with_wireshark}
 %files wireshark
@@ -2134,6 +2282,7 @@ exit 0
 
 %files nss
 %{_libdir}/libnss_libvirt.so.2
+%{_libdir}/libnss_libvirt_guest.so.2
 
 %if %{with_lxc}
 %files login-shell
@@ -2180,101 +2329,341 @@ exit 0
 
 
 %changelog
-* Thu May 25 2017 Jacco Ligthart <jacco@redsleeve.org> - 2.0.0-10.el7.9.redsleeve
-- add a patch to be able to build the tests
+* Tue Jul 18 2017 Jiri Denemark <jdenemar@redhat.com> - 3.2.0-14.el7_4.2
+- qemu: Fix qemuDomainGetBlockInfo allocation value setting (rhbz#1470127)
+- qemuDomainBuildNamespace: Handle special file mount points (rhbz#1471660)
 
-* Thu May  4 2017 Jiri Denemark <jdenemar@redhat.com> - 2.0.0-10.el7_3.9
-- qemuDomainAttachNetDevice: Support attach of type="user" (rhbz#1445231)
-- conf: Rename mode parameter in virCPUDefParseXML (rhbz#1447612)
-- Add support for CPU cache specification (rhbz#1447612)
-- RHEL: qemuxml2argvtest: Properly reset host CPU arch (rhbz#1447612)
-- qemu: Add support for guest CPU cache (rhbz#1447612)
+* Thu Jul 13 2017 Jiri Denemark <jdenemar@redhat.com> - 3.2.0-14.el7_4.1
+- qemu: Don't update CPU when checking ABI stability (rhbz#1470582)
+- cpu_x86: Properly disable unknown CPU features (rhbz#1470582)
+- qemu: Add qemuProcessFetchGuestCPU (rhbz#1470582)
+- qemu: Add qemuProcessVerifyCPU (rhbz#1470582)
+- qemu: Rename qemuProcessUpdateLiveGuestCPU (rhbz#1470582)
+- qemu: Add qemuProcessUpdateLiveGuestCPU (rhbz#1470582)
+- qemu: Export virQEMUCapsGuestIsNative (rhbz#1470582)
+- qemu: Move qemuProcessReconnect to the end of qemu_process.c (rhbz#1470582)
+- qemu: Update host-model CPUs on reconnect (rhbz#1470582)
 
-* Mon Apr 24 2017 Jiri Denemark <jdenemar@redhat.com> - 2.0.0-10.el7_3.8
-- util: allow ignoring SIOCSIFHWADDR when errno is EPERM (rhbz#1442040)
+* Wed Jun 21 2017 Jiri Denemark <jdenemar@redhat.com> - 3.2.0-14
+- qemu: Do not skip virCPUUpdateLive if priv->origCPU is set (rhbz#1441662)
 
-* Wed Apr 19 2017 Jiri Denemark <jdenemar@redhat.com> - 2.0.0-10.el7_3.7
-- Increase default file handle limits for daemons (rhbz#1442043)
-- util: permit querying a VF MAC address or VLAN tag by itself (rhbz#1442040)
-- util: remove unused args from virNetDevSetVfConfig() (rhbz#1442040)
-- util: use cleanup label consistently in virHostdevNetConfigReplace() (rhbz#1442040)
-- util: eliminate useless local variable (rhbz#1442040)
-- util: make virMacAddrParse more versatile (rhbz#1442040)
-- util: change virPCIGetNetName() to not return error if device has no net name (rhbz#1442040)
-- util: make virPCIGetDeviceAddressFromSysfsLink() public (rhbz#1442040)
-- util: new function virPCIDeviceRebind() (rhbz#1442040)
-- util: new internal function to permit silent failure of virNetDevSetMAC() (rhbz#1442040)
-- util: new function virNetDevPFGetVF() (rhbz#1442040)
-- util: new functions virNetDev(Save|Read|Set)NetConfig() (rhbz#1442040)
-- util: use new virNetDev*NetConfig() functions for macvtap setup/teardown (rhbz#1442040)
-- util: use new virNetDev*NetConfig() functions for hostdev setup/teardown (rhbz#1442040)
-- util: replace virHostdevNetConfigReplace with ...(Save|Set)NetConfig() (rhbz#1442040)
-- util: save hostdev network device config before unbinding from host driver (rhbz#1442040)
-- util: after hostdev assignment, restore VF MAC address via setting admin MAC (rhbz#1442040)
-- util: remove unused functions from virnetdev.c (rhbz#1442040)
-- util: if setting admin MAC to 00:00:00:00:00:00 fails, try 02:00:00:00:00:00 (rhbz#1442040)
-- util: try *really* hard to set the MAC address of an SRIOV VF (rhbz#1442040)
-- util: log all setting of MAC addresses and vlan tags (rhbz#1442040)
-- util: rename virHostdevNetConfigRestore() to virHostdevRestoreNetConfig() (rhbz#1442040)
+* Wed Jun 21 2017 Jiri Denemark <jdenemar@redhat.com> - 3.2.0-13
+- qemu: Change coalesce settings on hotplug when they are different (rhbz#1414627)
 
-* Fri Mar 31 2017 Jiri Denemark <jdenemar@redhat.com> - 2.0.0-10.el7_3.6
-- qemu: Allow empty script path to <interface/> (rhbz#1429510)
+* Wed Jun 21 2017 Jiri Denemark <jdenemar@redhat.com> - 3.2.0-12
+- util: storage: Make @backingFormat optional in virStorageFileGetMetadataInternal (rhbz#1461303)
 
-* Fri Feb 10 2017 Jiri Denemark <jdenemar@redhat.com> - 2.0.0-10.el7_3.5
-- qemu: Add support for using AES secret for SCSI hotplug (rhbz#1411398)
-- qemu: Don't assume secret provided for LUKS encryption (rhbz#1411394)
+* Tue Jun 20 2017 Jiri Denemark <jdenemar@redhat.com> - 3.2.0-11
+- util: storage: Output parsed network backing store string to debug log (rhbz#1461638)
+- util: storage: Add missing return to virStorageSourceParseBackingJSONGluster (rhbz#1461638)
+- util: storage: make virStorageSourceParseBackingJSONGlusterHost universal (rhbz#1461638)
+- util: storage: Add support for type 'inet' in virStorageSourceParseBackingJSONSocketAddress (rhbz#1461638)
+- util: storage: Split out parsing of TCP network host from JSON pseudoprotocol (rhbz#1461638)
+- util: storage: Report errors when source host data is missing (rhbz#1461638)
+- util: storage: Add JSON parser for new options in iSCSI protocol (rhbz#1461638)
+- util: storage: adapt to changes in JSON format for NBD (rhbz#1461638)
+- util: storage: adapt to changes in JSON format for ceph/rbd (rhbz#1461638)
+- util: storage: adapt to changes in JSON format for ssh (rhbz#1461638)
+- util: storage: adapt to changes in JSON format for sheepdog (rhbz#1461638)
+- qemu: Allow live-updates of coalesce settings (rhbz#1414627)
+- qemu: Pass the number of heads even with -vga qxl (rhbz#1283207)
+- util: storage: Export virStorageIsRelative (rhbz#1461303)
+- storage: Add helper to retrieve the backing store string of a storage volume (rhbz#1461303)
+- qemu: snapshot: Load data necessary for relative block commit to work (rhbz#1461303)
 
-* Thu Jan  5 2017 Jiri Denemark <jdenemar@redhat.com> - 2.0.0-10.el7_3.4
-- qemuDomainAttachNetDevice: Avoid @originalError leak (rhbz#1404186)
-- qemu: snapshot: Resume VM after live snapshot (rhbz#1406765)
+* Wed Jun 14 2017 Jiri Denemark <jdenemar@redhat.com> - 3.2.0-10
+- qemu: Set iface MTU on hotplug (rhbz#1408701)
+- Use a separate buffer for <input> subelements (rhbz#1283251)
+- Use a separate buffer for <disk><driver> (rhbz#1283251)
+- Use a separate buffer for <controller><driver> (rhbz#1283251)
+- Use a separate buffer for <filesystem><driver> (rhbz#1283251)
+- conf: introduce virDomainControllerDriverFormat (rhbz#1283251)
+- conf: add iotlb attribute to iommu (rhbz#1283251)
+- qemu: format device-iotlb on intel-iommu command line (rhbz#1283251)
+- qemuxml2xmltest: add virtio-options test (rhbz#1283251)
+- conf: use a leading space in virDomainVirtioNetDriverFormat (rhbz#1283251)
+- Add virtio-related options to interfaces (rhbz#1283251)
+- add virtio-related options to memballoon (rhbz#1283251)
+- Add virtio-related options to disks (rhbz#1283251)
+- Add virtio-related options to controllers (rhbz#1283251)
+- Add virtio-related options to filesystems (rhbz#1283251)
+- Add virtio-related options to rng devices (rhbz#1283251)
+- Add virtio-related options to video (rhbz#1283251)
+- Add virtio-related options to input devices (rhbz#1283251)
+- qemuxml2argvtest: add virtio-options test case (rhbz#1283251)
+- qemu: format virtio-related options on the command line (rhbz#1283251)
+- qemu: Allow memAccess for hugepages again (rhbz#1214369, rhbz#1458638)
+- qemu: Prefer hugepages over mem source='file' (rhbz#1214369)
+- qemu: Don't try to use hugepages if not enabled (rhbz#1214369)
+- qemu: Introduce qemuDomainDefFromXML helper (rhbz#1460952)
+- qemu: Add qemuDomainMigratableDefCheckABIStability (rhbz#1460952)
+- qemu: Add qemuDomainCheckABIStability (rhbz#1460952)
+- qemu: Use qemuDomainCheckABIStability where needed (rhbz#1460952)
 
-* Wed Dec 21 2016 Jiri Denemark <jdenemar@redhat.com> - 2.0.0-10.el7_3.3
-- virDomainNetDefParseXML: Realign (rhbz#1392032)
-- virDomainNetGetActualType: Return type is virDomainNetType (rhbz#1392032)
-- qemuBuildInterfaceCommandLine: Move hostdev handling a bit further (rhbz#1392032)
-- qemuBuildInterfaceCommandLine: Move vhostuser handling a bit further (rhbz#1392032)
-- qemuBuildInterfaceCommandLine: Move from if-else forest to switch (rhbz#1392032)
-- qemuDomainAttachNetDevice: Move hostdev handling a bit further (rhbz#1392032)
-- qemuDomainAttachNetDevice: Explicitly list allowed types for hotplug (rhbz#1392032)
-- qemuBuildHostNetStr: Explicitly enumerate net types (rhbz#1392032)
-- qemuBuildChrChardevStr: Introduce @nowait argument (rhbz#1392032)
-- qemuBuildVhostuserCommandLine: Reuse qemuBuildChrChardevStr (rhbz#1392032)
-- qemuBuildVhostuserCommandLine: Unify -netdev creation (rhbz#1392032)
-- qemuBuildHostNetStr: Support VIR_DOMAIN_NET_TYPE_VHOSTUSER (rhbz#1392032)
-- qemu_hotplug: Support interface type of vhost-user hotplug (rhbz#1392032)
-- qemu: snapshot: Don't attempt to resume cpus if they were not paused (rhbz#1406765)
-- qemuDomainAttachNetDevice: Don't overwrite error on rollback (rhbz#1404186)
-- qemuDomainAttachNetDevice: Enable multiqueue for vhost-user (rhbz#1404186)
-- qemuDomainAttachNetDevice: pass mq and vectors for vhost-user with multiqueue (rhbz#1404186)
+* Wed Jun  7 2017 Jiri Denemark <jdenemar@redhat.com> - 3.2.0-9
+- Rebuild
 
-* Thu Nov 10 2016 Jiri Denemark <jdenemar@redhat.com> - 2.0.0-10.el7_3.2
-- qemu: Fix double free when live-attaching shmem (rhbz#1392031)
-- qemu: Make sure shmem memory is shared (rhbz#1392031)
+* Wed Jun  7 2017 Jiri Denemark <jdenemar@redhat.com> - 3.2.0-8
+- qemu: mkdir memory_backing_dir on startup (rhbz#1214369)
+- qemu: Don't error out if allocation info can't be queried (rhbz#1452045)
+- daemon: Don't initialize SASL context if not necessary (rhbz#1450095)
+- virDomainXMLOption: Introduce virDomainABIStabilityDomain (rhbz#1450349)
+- virQEMUDriverDomainABIStability: Check for memoryBacking (rhbz#1450349)
+- qemu: process: Save vcpu ordering information on reconnect (rhbz#1451251)
+- audit: Fix the output message for shmem (rhbz#1218603)
+- qemu: Set operation on completed migration job (rhbz#1457052)
+- qemu: Conditionally allow block-copy for persistent domains (rhbz#1459113)
+- virsh: Add support for VIR_DOMAIN_BLOCK_COPY_TRANSIENT_JOB (rhbz#1459113)
+- qemu: Fix serial stub console allocation (rhbz#1434278)
+- conf: Make error reporting in virCPUDefIsEqual optional (rhbz#1441662)
+- conf: Refactor virCPUDefParseXML (rhbz#1441662)
+- conf: Make virDomainSnapshotDefFormat easier to read (rhbz#1441662)
+- conf: Pass xmlopt to virDomainSnapshotDefFormat (rhbz#1441662)
+- qemu: Rename xml_len in virQEMUSaveHeader as data_len (rhbz#1441662)
+- qemu: Fix memory leaks in qemuDomainSaveImageOpen (rhbz#1441662)
+- qemu: Introduce virQEMUSaveData{New,Free} (rhbz#1441662)
+- qemu: Introduce virQEMUSaveDataFinish (rhbz#1441662)
+- qemu: Refactor qemuDomainSaveHeader (rhbz#1441662)
+- qemu: Introduce virQEMUSaveData structure (rhbz#1441662)
+- conf: Introduce virSaveCookie (rhbz#1441662)
+- conf: Add save cookie callbacks to xmlopt (rhbz#1441662)
+- qemu: Implement virSaveCookie object and callbacks (rhbz#1441662)
+- qemu: Store save cookie in save images and snapshots (rhbz#1441662)
+- qemu: Remember CPU def from domain start (rhbz#1441662)
+- qemu: Report the original CPU in migratable xml (rhbz#1441662)
+- qemu: Always send persistent XML during migration (rhbz#1441662)
+- qemu: Send updated CPU in migration cookie (rhbz#1441662)
+- qemu: Store updated CPU in save cookie (rhbz#1441662)
+- qemu: Use updated CPU when starting QEMU if possible (rhbz#1441662)
+- docs: correct improper information about domain states in virsh manpage (rhbz#1408778)
 
-* Fri Nov  4 2016 Jiri Denemark <jdenemar@redhat.com> - 2.0.0-10.el7_3.1
-- qemu: allow 32 slots on pcie-expander-bus, not just 1 (rhbz#1389369)
-- qemu: Reset post-copy capability after migration (rhbz#1392030)
-- qemuhotplugtest: Only read result_filename if used (rhbz#1392031)
-- schema: Allow shmem to have alias (rhbz#1392031)
-- conf: Allow copying of shmem defs (rhbz#1392031)
-- qemu: Make qemuBuildShmemDevStr static (rhbz#1392031)
-- qemu: Rename qemuBuildShmemDevStr to qemuBuildShmemDevLegacyStr (rhbz#1392031)
-- qemu: Move common checks outside qemuBuildShmemDevLegacyStr (rhbz#1392031)
-- qemu: Reorder shmem params nicely (rhbz#1392031)
-- qemu: Abstract shmem socket path preparation (rhbz#1392031)
-- qemu: Rename qemuBuildShmemBackendStr to qemuBuildShmemBackendChrStr (rhbz#1392031)
-- qemu: Add qemuAssignDeviceShmemAlias and use it (rhbz#1392031)
-- conf: Add some shmem helpers for future use (rhbz#1392031)
-- conf: Remove incorrect check when encoding shmem audit message (rhbz#1389013)
-- conf: Fix virDomainShmemDefFind (rhbz#1392031)
-- conf: Don't complicate find loop (rhbz#1392031)
-- qemu: Disable migration with ivshmem (rhbz#1392031)
-- conf, qemu: Add support for shmem model (rhbz#1392031)
-- conf, qemu: Add newer shmem models (rhbz#1392031)
-- qemu: Add capabilities for ivshmem-{plain, doorbell} (rhbz#1392031)
-- qemu: Save various defaults for shmem (rhbz#1392031)
-- qemu: Support newer ivshmem device variants (rhbz#1392031)
-- qemu: Add support for hot/cold-(un)plug of shmem devices (rhbz#1392031)
+* Wed May 31 2017 Jiri Denemark <jdenemar@redhat.com> - 3.2.0-7
+- conf: Resolve corner case on fc_host deletion (rhbz#1420740)
+- pci: fix link maximum speed detection (rhbz#1455017)
+- qemu: Use correct variable in qemuDomainSetBlockIoTune (rhbz#1455510)
+- virsh: Track when create pkttyagent (rhbz#1374126)
+- conf: add eim attribute to <iommu><driver> (rhbz#1451282, rhbz#1289153)
+- qemu: format eim on intel-iommu command line (rhbz#1451282, rhbz#1289153)
+- rpc: Double buffer size instead of quadrupling buffer size. (rhbz#1440683)
+- rpc: Allow up to 256K records to be returned per domain from virConnectGetAllDomainStats. (rhbz#1440683)
+- nodedev: Increase the netlink socket buffer size to the one used by udev (rhbz#1450960, rhbz#1442307)
+- util: hostcpu: Correctly report total number of vcpus in virHostCPUGetMap (rhbz#1456793)
+- qemu: Report shutdown event details (rhbz#1384007)
+- qemu: json: Fix daemon crash on handling domain shutdown event (rhbz#1384007)
+
+* Wed May 24 2017 Jiri Denemark <jdenemar@redhat.com> - 3.2.0-6
+- util: introduce virStringMatch (rhbz#1446980)
+- util: introduce virBufferEscapeRegex (rhbz#1446980)
+- qemu: improve detection of UNIX path generated by libvirt (rhbz#1446980)
+- Adding POWER9 cpu model to cpu_map.xml (rhbz#1450189)
+- qemu: driver: Allow passing disk target as top image with block commit (rhbz#1451394)
+- qemu: monitor: Don't bother extracting vCPU halted state in text monitor (rhbz#1452106)
+- conf: Don't assign value from ..TypeFromString directly to enum (rhbz#1452454)
+- nodedev: Make use of the compile-time missing enum in switch error (rhbz#1452072)
+- conf: nodedev: Split virNodeDeviceDefFormat into more functions (rhbz#1452072)
+- docs: Provide a nodedev driver stub documentation (rhbz#1452072)
+- mdev: Pass a uuidstr rather than an mdev object to some util functions (rhbz#1452072)
+- nodedev: conf: Split PCI sub-capability parsing to separate methods (rhbz#1452072)
+- nodedev: Introduce new mdev_types and mdev nodedev capabilities (rhbz#1452072)
+- nodedev: Introduce the mdev capability to a PCI parent device (rhbz#1452072)
+- nodedev: Introduce mdev capability for mediated devices (rhbz#1452072)
+- docs: Document the mediated devices within the nodedev driver (rhbz#1452072)
+- Do not release unreserved address in qemuDomainAttachRNGDevice (rhbz#1452581)
+- qemu: process: Clear priv->namespaces on VM shutdown (rhbz#1453142)
+- Revert "qemu: propagate bridge MTU into qemu "host_mtu" option" (rhbz#1449346)
+- qemu: Properly check return value of VIR_STRDUP in qemuDomainGetBlockIoTune (rhbz#1433183)
+- rpc: Bump maximum message size to 32M (rhbz#1440683)
+- Split out virDomainIOMMUDefFormat (rhbz#1427005)
+- qemu: allow conditional device property probing (rhbz#1427005)
+- qemu: refactor qemuBuildIOMMUCommandLine (rhbz#1427005)
+- conf: add <ioapic driver> to <features> (rhbz#1427005)
+- qemu: format kernel_irqchip on the command line (rhbz#1427005)
+- conf: add <driver intremap> to <iommu> (rhbz#1427005)
+- qemu: format intel-iommu, intremap on the command line (rhbz#1427005)
+- conf: add caching_mode attribute to iommu device (rhbz#1427005)
+- qemu: format caching-mode on iommu command line (rhbz#1427005)
+- conf: split out virDomainIOMMUDefCheckABIStability (rhbz#1427005)
+- conf: add ABI stability checks for IOMMU options (rhbz#1427005)
+
+* Mon May 15 2017 Jiri Denemark <jdenemar@redhat.com> - 3.2.0-5
+- util: mdev: Use a local variable instead of a direct pointer access (rhbz#1446455)
+- mdev: Fix daemon crash on domain shutdown after reconnect (rhbz#1446455)
+- qemu: Provide a much clearer message on device hot-plug (rhbz#1450072)
+- virsh: Add --tls description for the virsh man page (rhbz#1448806)
+- conf: Check CPU cache for ABI stability (rhbz#1449595)
+- qemuDomainBuildNamespace: Move /dev/* mountpoints later (rhbz#1449510)
+- qemuDomainCreateDeviceRecursive: pass a structure instead of bare path (rhbz#1449510)
+- qemuDomainCreateDeviceRecursive: Don't try to create devices under preserved mount points (rhbz#1449510)
+- qemuDomainAttachDeviceMknodRecursive: Don't try to create devices under preserved mount points (rhbz#1449510)
+- qemuDomainDetachDeviceUnlink: Don't unlink files we haven't created (rhbz#1449510)
+
+* Wed May  3 2017 Jiri Denemark <jdenemar@redhat.com> - 3.2.0-4
+- conf: add a new parse flag VIR_DOMAIN_DEF_PARSE_ABI_UPDATE_MIGRATION (rhbz#1373184)
+- qemu_domain: use correct default USB controller on ppc64 (rhbz#1373184)
+- qemu: hotplug: Unexport qemuDomainHotplugDelVcpu (rhbz#1439452)
+- qemu: hotplug: Don't save status XML when monitor is closed (rhbz#1439452)
+- util: check ifa_addr pointer before accessing its elements (rhbz#1444408)
+- util: allow ignoring SIOCSIFHWADDR when errno is EPERM (rhbz#1415609)
+- qemu: Ignore missing query-migrate-parameters (rhbz#1441934)
+- locking: Add support for sanlock_strerror (rhbz#1409511)
+- RHEL: spec: Require sanlock >= 3.5 (rhbz#1409511)
+- qemu: Properly reset non-p2p migration (rhbz#1425003)
+- qemu: Don't fail if physical size can't be updated in qemuDomainGetBlockInfo (rhbz#1442344)
+- qemu: process: Clean automatic NUMA/cpu pinning information on shutdown (rhbz#1445627)
+- qemu: process: Don't leak priv->usbaddrs after VM restart (rhbz#1445627)
+- qemu: process: Clean up priv->migTLSAlias (rhbz#1445627)
+- Add VIR_DOMAIN_JOB_OPERATION typed parameter (rhbz#1441563)
+- qemu: Report VIR_DOMAIN_JOB_OPERATION (rhbz#1441563)
+- conf: Rename mode parameter in virCPUDefParseXML (rhbz#1428952)
+- Add support for CPU cache specification (rhbz#1428952)
+- qemu: Add support for guest CPU cache (rhbz#1428952)
+- qemu: Don't reset "events" migration capability (rhbz#1441165)
+- qemu: Fix persistent migration of transient domains (rhbz#1446205)
+- Fix padding of encrypted data (rhbz#1447297)
+- cpu: Introduce virCPUCopyMigratable (rhbz#1444421)
+- qemu: Move common code in virQEMUCapsInitCPUModel one layer up (rhbz#1444421)
+- qemu: Add migratable parameter to virQEMUCapsInitCPUModel (rhbz#1444421)
+- qemu: Introduce virQEMUCapsSetHostModel (rhbz#1444421)
+- qemu: Move qemuCaps CPU data copying into a separate function (rhbz#1444421)
+- qemu: Introduce virQEMUCapsHostCPUDataClear (rhbz#1444421)
+- qemu: Move qemuCaps host CPU data in a struct (rhbz#1444421)
+- qemu: Prepare qemuCaps for multiple host CPU defs (rhbz#1444421)
+- qemu: Pass migratable host CPU model to virCPUUpdate (rhbz#1444421)
+- cpu: Drop feature filtering from virCPUUpdate (rhbz#1444421)
+- cpu: Introduce virCPUGetHostIsSupported (rhbz#1444421)
+- qemu: Use more data for comparing CPUs (rhbz#1444421)
+- qemu: don't kill qemu process on restart if networkNotify fails (rhbz#1442700)
+- network: better log message when network is inactive during reconnect (rhbz#1442700)
+- disk: Resolve issues with disk partition build/start checks (rhbz#1439132)
+- disk: Force usage of parted when checking disk format for "bsd" (rhbz#1439132)
+- storage: Modify storageBackendWipeLocal to allow zero from end of device (rhbz#1439132)
+- storage: Introduce virStorageBackendZeroPartitionTable (rhbz#1439132)
+- logical: Use virStorageBackendZeroPartitionTable (rhbz#1373711, rhbz#1439132)
+- logical: Increase the size of the data to wipe (rhbz#1373711, rhbz#1439132)
+- disk: Use virStorageBackendZeroPartitionTable (rhbz#1439132)
+- util: Add virNetDevSetCoalesce function (rhbz#1414627)
+- conf, docs: Add support for coalesce setting(s) (rhbz#1414627)
+- Set coalesce settings for domain interfaces (rhbz#1414627)
+- docs: fix typo in closing HTML element (rhbz#1414627)
+- Don't leak str in virDomainNetDefCoalesceParseXML (rhbz#1414627)
+- Remove pointless check for !ret in virDomainNetDefCoalesceParseXML (rhbz#1414627)
+- Define ETHTOOL_[GS]COALESCE when building on older kernels (rhbz#1414627)
+- qemu: change the logic of setting default USB controller (rhbz#1438682)
+- qemu: use nec-usb-xhci as a default controller for aarch64 if available (rhbz#1438682)
+- qemu: introduce QEMU_CAPS_DEVICE_QEMU_XHCI (rhbz#1438682)
+- qemu: add support for qemu-xhci USB controller (rhbz#1438682)
+- qemu: use qemu-xhci USB controller by default for ppc64 and aarch64 (rhbz#1438682)
+- util: make macvtap/macvlan generated name #defines available to other files (rhbz#1335798)
+- conf: don't ignore <target dev='blah'/> for macvtap interfaces (rhbz#1335798)
+- util: rename/move VIR_NET_GENERATED_PREFIX to be consistent (rhbz#1335798)
+
+* Wed Apr 19 2017 Jiri Denemark <jdenemar@redhat.com> - 3.2.0-3
+- qemu: Fix mdev checking for VFIO support (rhbz#1441291)
+- pci: recognize/report GEN4 (PCIe 4.0) card 16GT/s Link speed (rhbz#1442831)
+- qemu: refactor qemuDomainMachine* functions (rhbz#1441964)
+- qemu: report IDE bus in domain capabilities only if it's supported (rhbz#1441964)
+- qemu: do not crash on USB address with no port and invalid bus (rhbz#1441589)
+- spec: Avoid RPM verification errors on nwfilter XMLs (rhbz#1378774)
+- conf: Add check for non scsi_host parent during vport delete (rhbz#1420740)
+
+* Mon Apr 10 2017 Jiri Denemark <jdenemar@redhat.com> - 3.2.0-2
+- storage: Fix capacity value for LUKS encrypted volumes (rhbz#1371892)
+- qemu: Add device id for mediated devices on qemu command line (rhbz#1438431)
+- qemu: hotplug: Iterate over vcpu 0 in individual vcpu hotplug code (rhbz#1437013)
+- qemu: hotplug: Fix formatting strings in qemuDomainFilterHotplugVcpuEntities (rhbz#1437010)
+- qemu: hotplug: Clear vcpu ordering for coldplug of vcpus (rhbz#1437010)
+- qemu: hotplug: Add validation for coldplug of individual vcpus (rhbz#1437010)
+- qemu: hotplug: Validate that vcpu-hotplug does not break config (rhbz#1437010)
+- qemu: Split virQEMUCapsInitArchQMPBasic() (rhbz#1429509)
+- tests: Initialize basic capabilities properly (rhbz#1429509)
+- qemu: Remove redundant capabilities (rhbz#1429509)
+- qemu: Advertise ACPI support for aarch64 guests (rhbz#1429509)
+- qemu: Enforce ACPI, UEFI requirements (rhbz#1429509)
+- tests: Test ACPI, UEFI requirements (rhbz#1429509)
+- qemu: Fix regression when hyperv/vendor_id feature is used (rhbz#1439736)
+- qemu: Fix resource leak in qemuDomainAddChardevTLSObjects error path (rhbz#1300769)
+- qemu: Break endless loop if qemuMigrationResetTLS fails (rhbz#1300769)
+- qemu: Properly reset TLS in qemuProcessRecoverMigrationIn (rhbz#1425003)
+- qemu: Drop resume label in qemuProcessRecoverMigrationOut (rhbz#1425003)
+- qemu: Always reset TLS in qemuProcessRecoverMigrationOut (rhbz#1425003)
+- qemu: Don't reset TLS in qemuMigrationRun (rhbz#1425003)
+- qemu: Don't reset TLS in qemuMigrationCancel (rhbz#1425003)
+- qemu: Introduce qemuMigrationReset (rhbz#1425003)
+- qemu: Simplify qemuMigrationResetTLS (rhbz#1425003)
+- qemu: Properly reset all migration capabilities (rhbz#1425003)
+- qemu: Don't overwrite existing error in qemuMigrationReset (rhbz#1439130)
+
+* Mon Apr  3 2017 Jiri Denemark <jdenemar@redhat.com> - 3.2.0-1
+- Rebased to libvirt-3.2.0 (rhbz#1382640)
+- The rebase also fixes the following bugs:
+    rhbz#822148, rhbz#824989, rhbz#1004676, rhbz#1018251, rhbz#1181659
+    rhbz#1181899, rhbz#1270403, rhbz#1292451, rhbz#1300769, rhbz#1329090
+    rhbz#1366088, rhbz#1371617, rhbz#1372581, rhbz#1389313, rhbz#1398087
+    rhbz#1404627, rhbz#1406791, rhbz#1408808, rhbz#1410225, rhbz#1415609
+    rhbz#1422318, rhbz#1426176, rhbz#1428209, rhbz#1428893, rhbz#1429551
+    rhbz#1430275, rhbz#1430634, rhbz#1430672, rhbz#1430679, rhbz#1431112
+    rhbz#1431793, rhbz#1431852, rhbz#1433180, rhbz#1433183, rhbz#1434882
+    rhbz#1436119, rhbz#1436999
+
+* Wed Mar  8 2017 Jiri Denemark <jdenemar@redhat.com> - 3.1.0-2
+- qemuDomainSaveImageUpdateDef: Don't overwrite errors from virDomainDefCheckABIStability (rhbz#1379200)
+- qemu_process: don't probe iothreads if it's not supported by QEMU (rhbz#1430258)
+
+* Fri Mar  3 2017 Jiri Denemark <jdenemar@redhat.com> - 3.1.0-1
+- Rebased to libvirt-3.1.0 (rhbz#1382640)
+- The rebase also fixes the following bugs:
+    rhbz#1268906, rhbz#1316774, rhbz#1330024, rhbz#1336564, rhbz#1343094
+    rhbz#1344897, rhbz#1346566, rhbz#1349441, rhbz#1352529, rhbz#1374128
+    rhbz#1375410, rhbz#1375417, rhbz#1378540, rhbz#1382640, rhbz#1383039
+    rhbz#1397440, rhbz#1408701, rhbz#1410188, rhbz#1412834, rhbz#1414393
+    rhbz#1417203, rhbz#1420205, rhbz#1420668, rhbz#1420718, rhbz#1421036
+
+* Thu Feb  9 2017 Jiri Denemark <jdenemar@redhat.com> - 3.0.0-2
+- Enable use of namespaces by default (rhbz#1382640)
+- virProcessRunInMountNamespace: Report errors from child
+- util: Introduce virFileReadLink
+- qemuDomainPrepareDisk: Fix ordering
+- qemuSecurityRestoreAllLabel: Don't use transactions
+- qemu_security: Use more transactions
+- qemuDomain{Attach,Detach}Device NS helpers: Don't relabel devices
+- qemuDomainCreateDevice: Properly deal with symlinks
+- qemuDomainCreateDevice: Don't loop endlessly
+- qemuDomainAttachDeviceMknod: Deal with symlinks
+- qemuDomainAttachDeviceMknod: Don't loop endlessly
+- qemuDomainAttachSCSIVHostDevice: Prefer qemuSecurity wrappers
+- qemuDomainAttachSCSIVHostDevice: manage /dev entry
+- qemu_security: Drop qemuSecuritySetRestoreAllLabelData struct
+- qemu_domain: Don't pass virDomainDeviceDefPtr to ns helpers
+- qemuDomainNamespaceSetupDisk: Drop useless @src variable
+- qemuDomainNamespace{Setup,Teardown}Disk: Don't pass pointer to full disk
+- qemuDomainDiskChainElement{Prepare,Revoke}: manage /dev entry
+- qemuDomainNamespaceSetupDisk: Simplify disk check
+- qemu_security: Introduce ImageLabel APIs
+
+* Tue Feb  7 2017 Jiri Denemark <jdenemar@redhat.com> - 3.0.0-1
+- Rebased to libvirt-3.0.0 (rhbz#1382640)
+- The rebase also fixes the following bugs:
+    rhbz#1191901, rhbz#1257813, rhbz#1292984, rhbz#1300177, rhbz#1302168
+    rhbz#1302171, rhbz#1332019, rhbz#1336564, rhbz#1349696, rhbz#1363586
+    rhbz#1370357, rhbz#1373711, rhbz#1386466, rhbz#1396040, rhbz#1397940
+    rhbz#1402690, rhbz#1402726, rhbz#1403691, rhbz#1404952, rhbz#1405269
+    rhbz#1406442
+
+* Tue Dec  6 2016 Jiri Denemark <jdenemar@redhat.com> - 2.5.0-1
+- Rebased to libvirt-2.5.0 (rhbz#1382640)
+- The rebase also fixes the following bugs:
+    rhbz#1106416, rhbz#1106419, rhbz#1207095, rhbz#1247005, rhbz#1300776
+    rhbz#1343858, rhbz#1347049, rhbz#1349898, rhbz#1354253, rhbz#1356769
+    rhbz#1356881, rhbz#1357358, rhbz#1357416, rhbz#1358181, rhbz#1359135
+    rhbz#1360533, rhbz#1365779, rhbz#1366108, rhbz#1366460, rhbz#1366505
+    rhbz#1368351, rhbz#1368368, rhbz#1369633, rhbz#1370357, rhbz#1370360
+    rhbz#1371039, rhbz#1371358, rhbz#1371758, rhbz#1372580, rhbz#1373535
+    rhbz#1373783, rhbz#1373849, rhbz#1374718, rhbz#1375268, rhbz#1375424
+    rhbz#1375524, rhbz#1375887, rhbz#1375920, rhbz#1375939, rhbz#1376009
+    rhbz#1376083, rhbz#1377602, rhbz#1377913, rhbz#1378290, rhbz#1378401
+    rhbz#1379196, rhbz#1379212, rhbz#1379895, rhbz#1382079, rhbz#1386976
+    rhbz#1387665, rhbz#1387666, rhbz#1393854, rhbz#1396597, rhbz#1399260
+    rhbz#1401054
 
 * Wed Sep 21 2016 Jiri Denemark <jdenemar@redhat.com> - 2.0.0-10
 - virtlogd: Don't stop or restart along with libvirtd (rhbz#1372576)

@@ -1,0 +1,100 @@
+From 910db8ca0b1a92d8d7ed9763b2ced958142dcaa4 Mon Sep 17 00:00:00 2001
+Message-Id: <910db8ca0b1a92d8d7ed9763b2ced958142dcaa4@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Fri, 2 Jun 2017 22:52:03 +0200
+Subject: [PATCH] qemu: Store updated CPU in save cookie
+
+Since the domain XML saved in a snapshot or saved image uses the
+original guest CPU definition but we still want to enforce ABI when
+restoring the domain if libvirt and QEMU are new enough, we save the
+live updated CPU definition in a save cookie.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit 8c19fbf452372c7c1becf987497525ee8b61abbf)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1441662
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_domain.c | 22 +++++++++++++++++++---
+ src/qemu/qemu_domain.h |  2 ++
+ 2 files changed, 21 insertions(+), 3 deletions(-)
+
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index 514b56b33c..7897a44634 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -9152,12 +9152,15 @@ qemuDomainSaveCookieDispose(void *obj)
+     qemuDomainSaveCookiePtr cookie = obj;
+ 
+     VIR_DEBUG("cookie=%p", cookie);
++
++    virCPUDefFree(cookie->cpu);
+ }
+ 
+ 
+ qemuDomainSaveCookiePtr
+ qemuDomainSaveCookieNew(virDomainObjPtr vm ATTRIBUTE_UNUSED)
+ {
++    qemuDomainObjPrivatePtr priv = vm->privateData;
+     qemuDomainSaveCookiePtr cookie = NULL;
+ 
+     if (qemuDomainInitialize() < 0)
+@@ -9166,7 +9169,10 @@ qemuDomainSaveCookieNew(virDomainObjPtr vm ATTRIBUTE_UNUSED)
+     if (!(cookie = virObjectNew(qemuDomainSaveCookieClass)))
+         goto error;
+ 
+-    VIR_DEBUG("Save cookie %p", cookie);
++    if (priv->origCPU && !(cookie->cpu = virCPUDefCopy(vm->def->cpu)))
++        goto error;
++
++    VIR_DEBUG("Save cookie %p, cpu=%p", cookie, cookie->cpu);
+ 
+     return cookie;
+ 
+@@ -9188,6 +9194,10 @@ qemuDomainSaveCookieParse(xmlXPathContextPtr ctxt ATTRIBUTE_UNUSED,
+     if (!(cookie = virObjectNew(qemuDomainSaveCookieClass)))
+         goto error;
+ 
++    if (virCPUDefParseXML(ctxt, "./cpu[1]", VIR_CPU_TYPE_GUEST,
++                          &cookie->cpu) < 0)
++        goto error;
++
+     *obj = (virObjectPtr) cookie;
+     return 0;
+ 
+@@ -9198,9 +9208,15 @@ qemuDomainSaveCookieParse(xmlXPathContextPtr ctxt ATTRIBUTE_UNUSED,
+ 
+ 
+ static int
+-qemuDomainSaveCookieFormat(virBufferPtr buf ATTRIBUTE_UNUSED,
+-                           virObjectPtr obj ATTRIBUTE_UNUSED)
++qemuDomainSaveCookieFormat(virBufferPtr buf,
++                           virObjectPtr obj)
+ {
++    qemuDomainSaveCookiePtr cookie = (qemuDomainSaveCookiePtr) obj;
++
++    if (cookie->cpu &&
++        virCPUDefFormatBufFull(buf, cookie->cpu, NULL, false) < 0)
++        return -1;
++
+     return 0;
+ }
+ 
+diff --git a/src/qemu/qemu_domain.h b/src/qemu/qemu_domain.h
+index 9567458849..2eea7924fb 100644
+--- a/src/qemu/qemu_domain.h
++++ b/src/qemu/qemu_domain.h
+@@ -424,6 +424,8 @@ typedef struct _qemuDomainSaveCookie qemuDomainSaveCookie;
+ typedef qemuDomainSaveCookie *qemuDomainSaveCookiePtr;
+ struct _qemuDomainSaveCookie {
+     virObject parent;
++
++    virCPUDefPtr cpu;
+ };
+ 
+ qemuDomainSaveCookiePtr qemuDomainSaveCookieNew(virDomainObjPtr vm);
+-- 
+2.13.1
+

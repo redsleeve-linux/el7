@@ -1,0 +1,55 @@
+From f032a2a22052128bd0b3d41d2b5574ce27259eef Mon Sep 17 00:00:00 2001
+Message-Id: <f032a2a22052128bd0b3d41d2b5574ce27259eef@dist-git>
+From: John Ferlan <jferlan@redhat.com>
+Date: Mon, 3 Apr 2017 12:53:33 -0400
+Subject: [PATCH] qemu: Fix resource leak in qemuDomainAddChardevTLSObjects
+ error path
+
+On any failure, call virJSONValueFree for the *Props.
+
+Signed-off-by: John Ferlan <jferlan@redhat.com>
+(cherry picked from commit 2e8c60958ac32624296eee263bf34bb21a32360c)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1300769
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_migration.c | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/qemu/qemu_migration.c b/src/qemu/qemu_migration.c
+index dabfe10c0..fcd3a38a1 100644
+--- a/src/qemu/qemu_migration.c
++++ b/src/qemu/qemu_migration.c
+@@ -213,7 +213,7 @@ qemuMigrationAddTLSObjects(virQEMUDriverPtr driver,
+                                 cfg->migrateTLSx509verify,
+                                 QEMU_MIGRATION_TLS_ALIAS_BASE,
+                                 &tlsProps, tlsAlias, &secProps, secAlias) < 0)
+-        return -1;
++        goto error;
+ 
+     /* Ensure the domain doesn't already have the TLS objects defined...
+      * This should prevent any issues just in case some cleanup wasn't
+@@ -223,12 +223,17 @@ qemuMigrationAddTLSObjects(virQEMUDriverPtr driver,
+ 
+     if (qemuDomainAddTLSObjects(driver, vm, asyncJob, *secAlias, &secProps,
+                                 *tlsAlias, &tlsProps) < 0)
+-        return -1;
++        goto error;
+ 
+     if (VIR_STRDUP(migParams->migrateTLSAlias, *tlsAlias) < 0)
+-        return -1;
++        goto error;
+ 
+     return 0;
++
++ error:
++    virJSONValueFree(tlsProps);
++    virJSONValueFree(secProps);
++    return -1;
+ }
+ 
+ 
+-- 
+2.12.2
+

@@ -1,0 +1,36 @@
+From e4f21a17762e3dcdbe05d9d62255fff9a7e2c8fa Mon Sep 17 00:00:00 2001
+From: Stanislav Laznicka <slaznick@redhat.com>
+Date: Tue, 4 Apr 2017 10:41:23 +0200
+Subject: [PATCH] server-install: remove broken no-pkinit check
+
+Don't check for no-pkinit option in case pkinit cert file was
+provided. Setting no-pkinit is prohibited in this case, so without
+this fix we have an impossible option-check if we want to provide
+an own pkinit certificate and private key.
+
+https://pagure.io/freeipa/issue/6807
+
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+---
+ ipaserver/install/server/install.py | 5 -----
+ 1 file changed, 5 deletions(-)
+
+diff --git a/ipaserver/install/server/install.py b/ipaserver/install/server/install.py
+index 197f01ccef58bb3564eb4c6b5b4d615bff1e523d..b899b4be4028e6cdfd95bb9868fba8be25a07b65 100644
+--- a/ipaserver/install/server/install.py
++++ b/ipaserver/install/server/install.py
+@@ -513,11 +513,6 @@ def install_check(installer):
+         dirsrv_pkcs12_info = (dirsrv_pkcs12_file.name, dirsrv_pin)
+ 
+     if options.pkinit_cert_files:
+-        if not options.no_pkinit:
+-            raise ScriptError("Cannot create KDC PKINIT certificate and use "
+-                              "provided external PKINIT certificate at the "
+-                              "same time. Please choose one of them.")
+-
+         if options.pkinit_pin is None:
+             options.pkinit_pin = read_password(
+                 "Enter Kerberos KDC private key unlock",
+-- 
+2.12.2
+

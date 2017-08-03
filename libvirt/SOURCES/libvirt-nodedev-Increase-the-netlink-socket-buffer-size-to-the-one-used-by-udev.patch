@@ -1,0 +1,53 @@
+From c0b489c317a0cd3b709008d742d6653634455ded Mon Sep 17 00:00:00 2001
+Message-Id: <c0b489c317a0cd3b709008d742d6653634455ded@dist-git>
+From: "ning.bo" <ning.bo9@zte.com.cn>
+Date: Mon, 29 May 2017 16:22:50 +0200
+Subject: [PATCH] nodedev: Increase the netlink socket buffer size to the one
+ used by udev
+
+When a number of SRIOV VFs (up to 128 on Intel XL710) is created:
+for i in `seq 0 1`; do
+  echo 63 > /sys/class/net/<interface>/device/sriov_numvfs
+done
+
+libvirtd will then report "udev_monitor_receive_device returned NULL"
+error because the netlink socket buffer is not big enough (using GDB on
+libudev confirmed this with ENOBUFFS) and thus some udev events were
+dropped. This results in some devices being missing in the nodedev-list
+output. This patch overrides the system's rmem_max limit but for that,
+we need to make sure we've got root privileges.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1450960
+
+Signed-off-by: ning.bo <ning.bo9@zte.com.cn>
+Signed-off-by: Erik Skultety <eskultet@redhat.com>
+(cherry picked from commit d1eea6c12aad5cb503562a52915138bf0d0a70a2)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1442307
+Signed-off-by: Erik Skultety <eskultet@redhat.com>
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/node_device/node_device_udev.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/src/node_device/node_device_udev.c b/src/node_device/node_device_udev.c
+index 37528ee48..20c0fc837 100644
+--- a/src/node_device/node_device_udev.c
++++ b/src/node_device/node_device_udev.c
+@@ -1732,6 +1732,13 @@ static int nodeStateInitialize(bool privileged,
+ 
+     udev_monitor_enable_receiving(priv->udev_monitor);
+ 
++    /* mimic udevd's behaviour and override the systems rmem_max limit in case
++     * there's a significant number of device 'add' events
++     */
++    if (geteuid() == 0)
++        udev_monitor_set_receive_buffer_size(priv->udev_monitor,
++                                             128 * 1024 * 1024);
++
+     /* We register the monitor with the event callback so we are
+      * notified by udev of device changes before we enumerate existing
+      * devices because libvirt will simply recreate the device if we
+-- 
+2.13.0
+

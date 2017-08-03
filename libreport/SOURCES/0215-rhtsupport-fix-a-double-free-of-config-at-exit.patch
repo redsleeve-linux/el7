@@ -1,0 +1,33 @@
+From 696fcadc7d494fc14ad5ac23f19b7da6a7f98c3b Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Mon, 5 Sep 2016 10:42:11 +0200
+Subject: [PATCH] rhtsupport: fix a double free of config at exit
+
+Introduced in commit 028b35b where I forgot on the code added in commit
+5ff7f36.
+
+Related: rhbz#1373094
+---
+ src/plugins/reporter-rhtsupport.c | 5 -----
+ 1 file changed, 5 deletions(-)
+
+diff --git a/src/plugins/reporter-rhtsupport.c b/src/plugins/reporter-rhtsupport.c
+index 63a24a5..14b3864 100644
+--- a/src/plugins/reporter-rhtsupport.c
++++ b/src/plugins/reporter-rhtsupport.c
+@@ -811,12 +811,7 @@ int main(int argc, char **argv)
+             /* Check for hints and show them if we have something */
+             log(_("Checking for hints"));
+             if (check_for_hints(base_api_url, &login, &password, ssl_verify, tempfile))
+-            {
+-                ureport_server_config_destroy(&urconf);
+-                free_map_string(ursettings);
+-                free(bthash);
+                 goto ret;
+-            }
+         }
+ 
+         log(_("Creating a new case"));
+-- 
+1.8.3.1
+

@@ -1,0 +1,60 @@
+From e0361b1688c82f9fbfa07d2683effedac870ae17 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Mon, 13 Feb 2017 13:12:39 +0100
+Subject: [PATCH] ccpp: add %h parameter into abrt-hook-ccpp
+
+Without this commit core_pattern's parameter %h was not translated to hostname.
+
+Example:
+If 'core_pattern = core.%h.%e.%p.%t' the result was
+core.%h.sleep.26284.1469805542 not core.myshostmane.sleep.26284.1469805542.
+
+Related to #1364899
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/hooks/abrt-hook-ccpp.c          | 6 +++---
+ src/hooks/abrt-install-ccpp-hook.in | 4 ++--
+ 2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/hooks/abrt-hook-ccpp.c b/src/hooks/abrt-hook-ccpp.c
+index 581a540..cb4d1e0 100644
+--- a/src/hooks/abrt-hook-ccpp.c
++++ b/src/hooks/abrt-hook-ccpp.c
+@@ -161,14 +161,14 @@ static struct dump_dir *dd;
+  * %g - gid
+  * %t - UNIX time of dump
+  * %e - executable filename
+- * %I - global crash thread tid
+  * %P - global pid
++ * %I - global crash thread tid
++ * %h - hostname
+  * %% - output one "%"
+  */
+ /* Hook must be installed with exactly the same sequence of %c specifiers.
+- * Last one, %h, may be omitted (we can find it out).
+  */
+-static const char percent_specifiers[] = "%scpugtePI";
++static const char percent_specifiers[] = "%scpugtePIh";
+ static char *core_basename = (char*) "core";
+ 
+ static char* get_executable(pid_t pid, int *fd_p)
+diff --git a/src/hooks/abrt-install-ccpp-hook.in b/src/hooks/abrt-install-ccpp-hook.in
+index 707c57d..171bd4a 100755
+--- a/src/hooks/abrt-install-ccpp-hook.in
++++ b/src/hooks/abrt-install-ccpp-hook.in
+@@ -11,9 +11,9 @@ SAVED_PATTERN_DIR="@VAR_RUN@/abrt"
+ SAVED_PATTERN_FILE="@VAR_RUN@/abrt/saved_core_pattern"
+ HOOK_BIN="@libexecdir@/abrt-hook-ccpp"
+ # Must match percent_specifiers[] order in abrt-hook-ccpp.c:
+-PATTERN="|$HOOK_BIN %s %c %p %u %g %t %e %P %I"
++PATTERN="|$HOOK_BIN %s %c %p %u %g %t %e %P %I %h"
+ # Same, but with bogus "executable name" parameter
+-PATTERN1="|$HOOK_BIN %s %c %p %u %g %t e %P %I"
++PATTERN1="|$HOOK_BIN %s %c %p %u %g %t e %P %I %h"
+ 
+ # core_pipe_limit specifies how many dump_helpers can run at the same time
+ # 0 - means unlimited, but it's not guaranteed that /proc/<pid> of crashing
+-- 
+1.8.3.1
+

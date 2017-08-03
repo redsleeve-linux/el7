@@ -1,0 +1,54 @@
+From 5ccffb9ca109d820c5535140713a5b6672aa4f71 Mon Sep 17 00:00:00 2001
+From: Pavel Vomacka <pvomacka@redhat.com>
+Date: Fri, 24 Mar 2017 10:19:21 +0100
+Subject: [PATCH] WebUI: Fix showing vault in selfservice view
+
+Vaults menu item was shown even when the KRA service was not installed.
+That was caused by different path to the menu item in admin's view
+and in selfservice view.
+
+The path is now set correctly for both situations. 'network_service/vault'
+for admin's view and 'vault' for selfservice view.
+
+https://pagure.io/freeipa/issue/6812
+
+Reviewed-By: Petr Vobornik <pvoborni@redhat.com>
+---
+ install/ui/src/freeipa/navigation/menu_spec.js | 1 +
+ install/ui/src/freeipa/vault.js                | 8 +++++---
+ 2 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/install/ui/src/freeipa/navigation/menu_spec.js b/install/ui/src/freeipa/navigation/menu_spec.js
+index 9329694c14a47cbe1ec244554327b40743044d7b..0c30459691d8f652dc35ccf74ed27fae7654020d 100644
+--- a/install/ui/src/freeipa/navigation/menu_spec.js
++++ b/install/ui/src/freeipa/navigation/menu_spec.js
+@@ -326,6 +326,7 @@ nav.self_service = {
+         { entity: 'user' },
+         { entity: 'otptoken' },
+         {
++            name: 'vault',
+             entity: 'vault',
+             facet: 'search',
+             children: [
+diff --git a/install/ui/src/freeipa/vault.js b/install/ui/src/freeipa/vault.js
+index b5cdc810adea9b521df77eb328b55475a707580a..36a4838ee108020cf6ad7a20c59e4ab5403f3528 100644
+--- a/install/ui/src/freeipa/vault.js
++++ b/install/ui/src/freeipa/vault.js
+@@ -809,9 +809,11 @@ vault.config_sidebar_policy = function(spec) {
+ 
+ 
+ vault.remove_vault_menu_item = function() {
+-    if (!IPA.vault_enabled) {
+-        menu.remove_item('network_services/vault');
+-    }
++    if (IPA.vault_enabled) return;
++
++    var menu_location = IPA.is_selfservice ? 'vault' : 'network_services/vault';
++
++    menu.remove_item(menu_location);
+ };
+ 
+ vault.my_vault_spec = make_my_vault_spec();
+-- 
+2.12.1
+

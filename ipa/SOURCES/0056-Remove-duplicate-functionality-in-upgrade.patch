@@ -1,0 +1,53 @@
+From dd300d7db884db2d0aa228c08d2447539ce14c1c Mon Sep 17 00:00:00 2001
+From: Martin Babinsky <mbabinsk@redhat.com>
+Date: Wed, 22 Mar 2017 16:52:14 +0100
+Subject: [PATCH] Remove duplicate functionality in upgrade
+
+Since krbinstance code can now handle all operations of the
+`enabled_anonymous_principal` function from upgrade we can remove
+extraneous function altogether.
+
+https://pagure.io/freeipa/issue/6799
+
+Reviewed-By: Stanislav Laznicka <slaznick@redhat.com>
+---
+ ipaserver/install/server/upgrade.py | 16 +---------------
+ 1 file changed, 1 insertion(+), 15 deletions(-)
+
+diff --git a/ipaserver/install/server/upgrade.py b/ipaserver/install/server/upgrade.py
+index 0db764cb80f6d0fb22f00719dadf1f921f97bf62..25b86297af3ae9d5f21cebb93f493b90670dcfc3 100644
+--- a/ipaserver/install/server/upgrade.py
++++ b/ipaserver/install/server/upgrade.py
+@@ -1482,20 +1482,6 @@ def add_default_caacl(ca):
+     sysupgrade.set_upgrade_state('caacl', 'add_default_caacl', True)
+ 
+ 
+-def enable_anonymous_principal(krb):
+-    princ_realm = krb.get_anonymous_principal_name()
+-    dn = DN(('krbprincipalname', princ_realm), krb.get_realm_suffix())
+-    try:
+-        _ = api.Backend.ldap2.get_entry(dn)  # pylint: disable=unused-variable
+-    except ipalib.errors.NotFound:
+-        krb.add_anonymous_principal()
+-
+-    try:
+-        api.Backend.ldap2.set_entry_active(dn, True)
+-    except ipalib.errors.AlreadyActive:
+-        pass
+-
+-
+ def setup_pkinit(krb):
+     root_logger.info("[Setup PKINIT]")
+ 
+@@ -1809,7 +1795,7 @@ def upgrade_configuration():
+                         KDC_CERT=paths.KDC_CERT,
+                         KDC_KEY=paths.KDC_KEY,
+                         CACERT_PEM=paths.CACERT_PEM)
+-    enable_anonymous_principal(krb)
++    krb.add_anonymous_principal()
+     http.request_anon_keytab()
+     setup_pkinit(krb)
+ 
+-- 
+2.12.2
+

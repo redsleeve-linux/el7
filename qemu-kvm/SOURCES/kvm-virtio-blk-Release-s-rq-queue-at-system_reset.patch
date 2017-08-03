@@ -1,16 +1,16 @@
-From cc9a8ce29ba364abcf019f6fe44b218255b9e4d7 Mon Sep 17 00:00:00 2001
+From 200748826a6069c31f5004dde00614675bac659b Mon Sep 17 00:00:00 2001
 From: Fam Zheng <famz@redhat.com>
-Date: Wed, 8 Feb 2017 07:05:34 +0100
-Subject: [PATCH 1/8] virtio-blk: Release s->rq queue at system_reset
+Date: Tue, 7 Feb 2017 09:21:53 +0100
+Subject: [PATCH 02/11] virtio-blk: Release s->rq queue at system_reset
 
 RH-Author: Fam Zheng <famz@redhat.com>
-Message-id: <20170208070534.10571-1-famz@redhat.com>
-Patchwork-id: 73642
-O-Subject: [RHEL-7.3.z qemu-kvm PATCH] virtio-blk: Release s->rq queue at system_reset
-Bugzilla: 1420049
-RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+Message-id: <20170207092153.8331-1-famz@redhat.com>
+Patchwork-id: 73553
+O-Subject: [RHEL-7.4 qemu-kvm PATCH] virtio-blk: Release s->rq queue at system_reset
+Bugzilla: 1361488
 RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
-RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
 
 At system_reset, there is no point in retrying the queued request,
 because the driver that issued the request won't be around any more.

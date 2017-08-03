@@ -1,0 +1,85 @@
+From 9d41cae9942d2909be00261b3ae2a2e1ec717808 Mon Sep 17 00:00:00 2001
+Message-Id: <9d41cae9942d2909be00261b3ae2a2e1ec717808@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Tue, 11 Jul 2017 13:26:12 +0200
+Subject: [PATCH] qemu: Add qemuProcessVerifyCPU
+
+Separated from qemuProcessUpdateLiveGuestCPU. The function makes sure
+a guest CPU provides all features required by a domain definition.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit 5cac2fe108f957b2629a29bea1747fdb3c8d7aa3)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1470582
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+---
+ src/qemu/qemu_process.c | 35 ++++++++++++++++++++++++++++-------
+ 1 file changed, 28 insertions(+), 7 deletions(-)
+
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index d3fa8ef41e..3f7a9f4c02 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -3946,6 +3946,31 @@ qemuProcessFetchGuestCPU(virQEMUDriverPtr driver,
+ 
+ 
+ static int
++qemuProcessVerifyCPU(virDomainObjPtr vm,
++                     virCPUDataPtr cpu)
++{
++    virDomainDefPtr def = vm->def;
++
++    if (!cpu)
++        return 0;
++
++    if (qemuProcessVerifyKVMFeatures(def, cpu) < 0 ||
++        qemuProcessVerifyHypervFeatures(def, cpu) < 0)
++        return -1;
++
++    if (!def->cpu ||
++        (def->cpu->mode == VIR_CPU_MODE_CUSTOM &&
++         !def->cpu->model))
++        return 0;
++
++    if (qemuProcessVerifyCPUFeatures(def, cpu) < 0)
++        return -1;
++
++    return 0;
++}
++
++
++static int
+ qemuProcessUpdateLiveGuestCPU(virQEMUDriverPtr driver,
+                               virDomainObjPtr vm,
+                               qemuDomainAsyncJob asyncJob)
+@@ -3961,11 +3986,10 @@ qemuProcessUpdateLiveGuestCPU(virQEMUDriverPtr driver,
+     if (qemuProcessFetchGuestCPU(driver, vm, asyncJob, &cpu, &disabled) < 0)
+         goto cleanup;
+ 
+-    if (cpu) {
+-        if (qemuProcessVerifyKVMFeatures(def, cpu) < 0 ||
+-            qemuProcessVerifyHypervFeatures(def, cpu) < 0)
+-            goto cleanup;
++    if (qemuProcessVerifyCPU(vm, cpu) < 0)
++        goto cleanup;
+ 
++    if (cpu) {
+         if (!def->cpu ||
+             (def->cpu->mode == VIR_CPU_MODE_CUSTOM &&
+              !def->cpu->model)) {
+@@ -3973,9 +3997,6 @@ qemuProcessUpdateLiveGuestCPU(virQEMUDriverPtr driver,
+             goto cleanup;
+         }
+ 
+-        if (qemuProcessVerifyCPUFeatures(def, cpu) < 0)
+-            goto cleanup;
+-
+         if (!(orig = virCPUDefCopy(def->cpu)))
+             goto cleanup;
+ 
+-- 
+2.13.2
+

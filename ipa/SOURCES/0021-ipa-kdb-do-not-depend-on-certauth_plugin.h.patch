@@ -1,0 +1,85 @@
+From 1c421b3874488c0021a5e0d344be31c84c2b4bd0 Mon Sep 17 00:00:00 2001
+From: Sumit Bose <sbose@redhat.com>
+Date: Mon, 27 Mar 2017 13:19:57 +0200
+Subject: [PATCH] ipa-kdb: do not depend on certauth_plugin.h
+
+Related to https://pagure.io/freeipa/issue/4905
+
+Reviewed-By: Christian Heimes <cheimes@redhat.com>
+---
+ configure.ac              | 2 ++
+ daemons/ipa-kdb/ipa_kdb.c | 2 ++
+ daemons/ipa-kdb/ipa_kdb.h | 8 ++++++++
+ 3 files changed, 12 insertions(+)
+
+diff --git a/configure.ac b/configure.ac
+index 8d4b82e4590e9e122f7aa5684fd78834c4b6a204..ded1d71fd079a5f6947ef0627fb699783c8cc109 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -231,6 +231,8 @@ dnl ---------------------------------------------------------------------------
+ AM_CONDITIONAL([BUILD_IPA_CERTAUTH_PLUGIN],
+                [test x$have_certauth_plugin = xyes -a x"$SSSCERTMAP_LIBS" != x])
+ AM_COND_IF([BUILD_IPA_CERTAUTH_PLUGIN], [
++    AC_DEFINE([HAVE_KRB5_CERTAUTH_PLUGIN], [1],
++        [MIT Kerberos version supports certauth plugin])
+     AM_COND_IF([ENABLE_SERVER],
+                [AC_MSG_NOTICE([Build IPA KDB certauth plugin])],
+                [AC_MSG_WARN([Cannot build IPA KDB certauth plugin])])
+diff --git a/daemons/ipa-kdb/ipa_kdb.c b/daemons/ipa-kdb/ipa_kdb.c
+index a961e4e57cf5379eb237551d56e3bc8dc82d952d..050bfc90cef1bce4c932f54bb6050438c60ca79f 100644
+--- a/daemons/ipa-kdb/ipa_kdb.c
++++ b/daemons/ipa-kdb/ipa_kdb.c
+@@ -67,7 +67,9 @@ static void ipadb_context_free(krb5_context kcontext,
+         }
+         free(cfg->authz_data);
+ 
++#ifdef HAVE_KRB5_CERTAUTH_PLUGIN
+         ipa_certauth_free_moddata(&((*ctx)->certauth_moddata));
++#endif
+ 
+         free(*ctx);
+         *ctx = NULL;
+diff --git a/daemons/ipa-kdb/ipa_kdb.h b/daemons/ipa-kdb/ipa_kdb.h
+index 632c1979d15e88aec86d5e408ed6c7017d8362b8..72573a61adecfae152796d61b88b6c43b3a975a3 100644
+--- a/daemons/ipa-kdb/ipa_kdb.h
++++ b/daemons/ipa-kdb/ipa_kdb.h
+@@ -30,6 +30,8 @@
+  * filtering purposes */
+ #define SECURID 1
+ 
++#include "config.h"
++
+ #include <errno.h>
+ #include <kdb.h>
+ #include <ldap.h>
+@@ -40,7 +42,9 @@
+ #include <arpa/inet.h>
+ #include <endian.h>
+ #include <unistd.h>
++#ifdef HAVE_KRB5_CERTAUTH_PLUGIN
+ #include <krb5/certauth_plugin.h>
++#endif
+ 
+ #include "ipa_krb5.h"
+ #include "ipa_pwd.h"
+@@ -112,7 +116,9 @@ struct ipadb_context {
+     krb5_key_salt_tuple *def_encs;
+     int n_def_encs;
+     struct ipadb_mspac *mspac;
++#ifdef HAVE_KRB5_CERTAUTH_PLUGIN
+     krb5_certauth_moddata certauth_moddata;
++#endif
+ 
+     /* Don't access this directly, use ipadb_get_global_config(). */
+     struct ipadb_global_config config;
+@@ -334,5 +340,7 @@ int ipadb_get_enc_salt_types(struct ipadb_context *ipactx, LDAPMessage *entry,
+                              char *attr, krb5_key_salt_tuple **enc_salt_types,
+                              int *n_enc_salt_types);
+ 
++#ifdef HAVE_KRB5_CERTAUTH_PLUGIN
+ /* CERTAUTH PLUGIN */
+ void ipa_certauth_free_moddata(krb5_certauth_moddata *moddata);
++#endif
+-- 
+2.12.1
+

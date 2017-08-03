@@ -1,0 +1,26 @@
+From ca831062bafa88f5be651d2cf6c8afd2162dea04 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?G=C3=BCnther=20Deschner?= <gd@samba.org>
+Date: Mon, 29 May 2017 15:47:29 +0200
+Subject: [PATCH] [samba] Fix dc-connect winbind logfile path
+
+Guenther
+
+Signed-off-by: Guenther Deschner <gd@samba.org>
+---
+ sos/plugins/samba.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sos/plugins/samba.py b/sos/plugins/samba.py
+index 377eb889..dfe01d49 100644
+--- a/sos/plugins/samba.py
++++ b/sos/plugins/samba.py
+@@ -35,7 +35,7 @@ def setup(self):
+         self.add_copy_spec("/var/log/samba/log.winbindd", sizelimit=self.limit)
+         self.add_copy_spec("/var/log/samba/log.winbindd-idmap",
+                            sizelimit=self.limit)
+-        self.add_copy_spec("/var/log/samba/log.winbindd-dc-connet",
++        self.add_copy_spec("/var/log/samba/log.winbindd-dc-connect",
+                            sizelimit=self.limit)
+         self.add_copy_spec("/var/log/samba/log.wb-*", sizelimit=self.limit)
+ 
+

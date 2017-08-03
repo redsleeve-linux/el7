@@ -1,16 +1,16 @@
-From 319f3876fafc35412bbf0ef6797c6764c95af6f3 Mon Sep 17 00:00:00 2001
+From 04b0eed67c2564cf9c10a62f57ed606f627c9317 Mon Sep 17 00:00:00 2001
 From: Gerd Hoffmann <kraxel@redhat.com>
-Date: Tue, 21 Mar 2017 09:58:03 +0100
+Date: Mon, 27 Mar 2017 10:01:18 +0200
 Subject: [PATCH 3/7] cirrus: add option to disable blitter
 
 RH-Author: Gerd Hoffmann <kraxel@redhat.com>
-Message-id: <1490090287-1503-4-git-send-email-kraxel@redhat.com>
-Patchwork-id: 74424
-O-Subject: [RHEL-7.4 qemu-kvm PATCH 3/7] cirrus: add option to disable blitter
-Bugzilla: 1430059
+Message-id: <1490608882-10242-4-git-send-email-kraxel@redhat.com>
+Patchwork-id: 74551
+O-Subject: [RHEL-7.4 qemu-kvm PATCH v2 3/7] cirrus: add option to disable blitter
+Bugzilla: 1430060
 RH-Acked-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
 RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
-RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
 
 Ok, we have this beast in the cirrus code which is not used at all by
 modern guests, except when you try to find security holes in qemu.  So,

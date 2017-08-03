@@ -1,0 +1,453 @@
+From 73e87a037ccd6d9fd02c3fd0a082f014412c7555 Mon Sep 17 00:00:00 2001
+Message-Id: <73e87a037ccd6d9fd02c3fd0a082f014412c7555@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Mon, 19 Jun 2017 13:18:52 +0200
+Subject: [PATCH] cpu_x86: Properly disable unknown CPU features
+
+CPU features unknown to a hypervisor will not be present in dataDisabled
+even though the features won't naturally be enabled because.
+Thus any features we asked for which are not in dataEnabled should be
+considered disabled.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit 83e081b8ab32dd990b4e4ccc7bf8a1a416fc51c2)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1470582
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+---
+ src/cpu/cpu_x86.c                                  |   9 +-
+ tests/cputest.c                                    |   1 +
+ .../x86_64-cpuid-Core-i7-5600U-arat-disabled.xml   |   5 +
+ .../x86_64-cpuid-Core-i7-5600U-arat-enabled.xml    |   8 +
+ .../x86_64-cpuid-Core-i7-5600U-arat-guest.xml      |  29 +++
+ .../x86_64-cpuid-Core-i7-5600U-arat-host.xml       |  30 +++
+ .../x86_64-cpuid-Core-i7-5600U-arat-json.xml       |  14 ++
+ .../x86_64-cpuid-Core-i7-5600U-arat.json           | 202 +++++++++++++++++++++
+ .../x86_64-cpuid-Core-i7-5600U-arat.xml            |  41 +++++
+ 9 files changed, 335 insertions(+), 4 deletions(-)
+ create mode 100644 tests/cputestdata/x86_64-cpuid-Core-i7-5600U-arat-disabled.xml
+ create mode 100644 tests/cputestdata/x86_64-cpuid-Core-i7-5600U-arat-enabled.xml
+ create mode 100644 tests/cputestdata/x86_64-cpuid-Core-i7-5600U-arat-guest.xml
+ create mode 100644 tests/cputestdata/x86_64-cpuid-Core-i7-5600U-arat-host.xml
+ create mode 100644 tests/cputestdata/x86_64-cpuid-Core-i7-5600U-arat-json.xml
+ create mode 100644 tests/cputestdata/x86_64-cpuid-Core-i7-5600U-arat.json
+ create mode 100644 tests/cputestdata/x86_64-cpuid-Core-i7-5600U-arat.xml
+
+diff --git a/src/cpu/cpu_x86.c b/src/cpu/cpu_x86.c
+index 53359ff9b6..2864454211 100644
+--- a/src/cpu/cpu_x86.c
++++ b/src/cpu/cpu_x86.c
+@@ -2664,12 +2664,11 @@ virCPUx86UpdateLive(virCPUDefPtr cpu,
+         x86DataCopy(&disabled, &dataDisabled->data.x86) < 0)
+         goto cleanup;
+ 
+-    x86DataSubtract(&enabled, &model->data);
+-
+     for (i = 0; i < map->nfeatures; i++) {
+         virCPUx86FeaturePtr feature = map->features[i];
+ 
+-        if (x86DataIsSubset(&enabled, &feature->data)) {
++        if (x86DataIsSubset(&enabled, &feature->data) &&
++            !x86DataIsSubset(&model->data, &feature->data)) {
+             VIR_DEBUG("Feature '%s' enabled by the hypervisor", feature->name);
+             if (cpu->check == VIR_CPU_CHECK_FULL)
+                 virBufferAsprintf(&bufAdded, "%s,", feature->name);
+@@ -2678,7 +2677,9 @@ virCPUx86UpdateLive(virCPUDefPtr cpu,
+                 goto cleanup;
+         }
+ 
+-        if (x86DataIsSubset(&disabled, &feature->data)) {
++        if (x86DataIsSubset(&disabled, &feature->data) ||
++            (x86DataIsSubset(&model->data, &feature->data) &&
++             !x86DataIsSubset(&enabled, &feature->data))) {
+             VIR_DEBUG("Feature '%s' disabled by the hypervisor", feature->name);
+             if (cpu->check == VIR_CPU_CHECK_FULL)
+                 virBufferAsprintf(&bufRemoved, "%s,", feature->name);
+diff --git a/tests/cputest.c b/tests/cputest.c
+index 97b34de9ed..5190a83467 100644
+--- a/tests/cputest.c
++++ b/tests/cputest.c
+@@ -991,6 +991,7 @@ mymain(void)
+     DO_TEST_CPUID(VIR_ARCH_X86_64, "Core-i7-4600U", true);
+     DO_TEST_CPUID(VIR_ARCH_X86_64, "Core-i7-4510U", true);
+     DO_TEST_CPUID(VIR_ARCH_X86_64, "Core-i7-5600U", true);
++    DO_TEST_CPUID(VIR_ARCH_X86_64, "Core-i7-5600U-arat", true);
+     DO_TEST_CPUID(VIR_ARCH_X86_64, "Core2-E6850", true);
+     DO_TEST_CPUID(VIR_ARCH_X86_64, "Core2-Q9500", false);
+     DO_TEST_CPUID(VIR_ARCH_X86_64, "FX-8150", false);
+diff --git a/tests/cputestdata/x86_64-cpuid-Core-i7-5600U-arat-disabled.xml b/tests/cputestdata/x86_64-cpuid-Core-i7-5600U-arat-disabled.xml
+new file mode 100644
+index 0000000000..4a0477f788
+--- /dev/null
++++ b/tests/cputestdata/x86_64-cpuid-Core-i7-5600U-arat-disabled.xml
+@@ -0,0 +1,5 @@
++<!-- Features disabled by QEMU -->
++<cpudata arch='x86'>
++  <cpuid eax_in='0x00000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x0800c1dc' edx='0xb0600000'/>
++  <cpuid eax_in='0x80000007' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000100'/>
++</cpudata>
+diff --git a/tests/cputestdata/x86_64-cpuid-Core-i7-5600U-arat-enabled.xml b/tests/cputestdata/x86_64-cpuid-Core-i7-5600U-arat-enabled.xml
+new file mode 100644
+index 0000000000..5cffacef59
+--- /dev/null
++++ b/tests/cputestdata/x86_64-cpuid-Core-i7-5600U-arat-enabled.xml
+@@ -0,0 +1,8 @@
++<!-- Features enabled by QEMU -->
++<cpudata arch='x86'>
++  <cpuid eax_in='0x00000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0xf7fa3223' edx='0x0f8bfbff'/>
++  <cpuid eax_in='0x00000007' ecx_in='0x00' eax='0x00000000' ebx='0x001c0fbb' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x0000000d' ecx_in='0x01' eax='0x00000001' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x40000001' ecx_in='0x00' eax='0x010000fa' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x80000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000121' edx='0x2c100800'/>
++</cpudata>
+diff --git a/tests/cputestdata/x86_64-cpuid-Core-i7-5600U-arat-guest.xml b/tests/cputestdata/x86_64-cpuid-Core-i7-5600U-arat-guest.xml
+new file mode 100644
+index 0000000000..877895cf15
+--- /dev/null
++++ b/tests/cputestdata/x86_64-cpuid-Core-i7-5600U-arat-guest.xml
+@@ -0,0 +1,29 @@
++<cpu mode='custom' match='exact'>
++  <model fallback='forbid'>Broadwell</model>
++  <vendor>Intel</vendor>
++  <feature policy='require' name='vme'/>
++  <feature policy='require' name='ds'/>
++  <feature policy='require' name='acpi'/>
++  <feature policy='require' name='ss'/>
++  <feature policy='require' name='ht'/>
++  <feature policy='require' name='tm'/>
++  <feature policy='require' name='pbe'/>
++  <feature policy='require' name='dtes64'/>
++  <feature policy='require' name='monitor'/>
++  <feature policy='require' name='ds_cpl'/>
++  <feature policy='require' name='vmx'/>
++  <feature policy='require' name='smx'/>
++  <feature policy='require' name='est'/>
++  <feature policy='require' name='tm2'/>
++  <feature policy='require' name='xtpr'/>
++  <feature policy='require' name='pdcm'/>
++  <feature policy='require' name='osxsave'/>
++  <feature policy='require' name='f16c'/>
++  <feature policy='require' name='rdrand'/>
++  <feature policy='require' name='arat'/>
++  <feature policy='require' name='tsc_adjust'/>
++  <feature policy='require' name='xsaveopt'/>
++  <feature policy='require' name='pdpe1gb'/>
++  <feature policy='require' name='abm'/>
++  <feature policy='require' name='invtsc'/>
++</cpu>
+diff --git a/tests/cputestdata/x86_64-cpuid-Core-i7-5600U-arat-host.xml b/tests/cputestdata/x86_64-cpuid-Core-i7-5600U-arat-host.xml
+new file mode 100644
+index 0000000000..9b24941e0e
+--- /dev/null
++++ b/tests/cputestdata/x86_64-cpuid-Core-i7-5600U-arat-host.xml
+@@ -0,0 +1,30 @@
++<cpu>
++  <arch>x86_64</arch>
++  <model>Broadwell</model>
++  <vendor>Intel</vendor>
++  <feature name='vme'/>
++  <feature name='ds'/>
++  <feature name='acpi'/>
++  <feature name='ss'/>
++  <feature name='ht'/>
++  <feature name='tm'/>
++  <feature name='pbe'/>
++  <feature name='dtes64'/>
++  <feature name='monitor'/>
++  <feature name='ds_cpl'/>
++  <feature name='vmx'/>
++  <feature name='smx'/>
++  <feature name='est'/>
++  <feature name='tm2'/>
++  <feature name='xtpr'/>
++  <feature name='pdcm'/>
++  <feature name='osxsave'/>
++  <feature name='f16c'/>
++  <feature name='rdrand'/>
++  <feature name='arat'/>
++  <feature name='tsc_adjust'/>
++  <feature name='xsaveopt'/>
++  <feature name='pdpe1gb'/>
++  <feature name='abm'/>
++  <feature name='invtsc'/>
++</cpu>
+diff --git a/tests/cputestdata/x86_64-cpuid-Core-i7-5600U-arat-json.xml b/tests/cputestdata/x86_64-cpuid-Core-i7-5600U-arat-json.xml
+new file mode 100644
+index 0000000000..4f253fc08a
+--- /dev/null
++++ b/tests/cputestdata/x86_64-cpuid-Core-i7-5600U-arat-json.xml
+@@ -0,0 +1,14 @@
++<cpu mode='custom' match='exact'>
++  <model fallback='forbid'>Broadwell</model>
++  <vendor>Intel</vendor>
++  <feature policy='require' name='vme'/>
++  <feature policy='require' name='ss'/>
++  <feature policy='require' name='vmx'/>
++  <feature policy='require' name='f16c'/>
++  <feature policy='require' name='rdrand'/>
++  <feature policy='require' name='hypervisor'/>
++  <feature policy='require' name='tsc_adjust'/>
++  <feature policy='require' name='xsaveopt'/>
++  <feature policy='require' name='pdpe1gb'/>
++  <feature policy='require' name='abm'/>
++</cpu>
+diff --git a/tests/cputestdata/x86_64-cpuid-Core-i7-5600U-arat.json b/tests/cputestdata/x86_64-cpuid-Core-i7-5600U-arat.json
+new file mode 100644
+index 0000000000..f2aa7f3185
+--- /dev/null
++++ b/tests/cputestdata/x86_64-cpuid-Core-i7-5600U-arat.json
+@@ -0,0 +1,202 @@
++{
++  "return": {
++    "model": {
++      "name": "base",
++      "props": {
++        "pfthreshold": false,
++        "pku": false,
++        "rtm": true,
++        "tsc_adjust": true,
++        "tsc-deadline": true,
++        "xstore-en": false,
++        "tsc-scale": false,
++        "sse": true,
++        "smap": true,
++        "stepping": 4,
++        "tce": false,
++        "kvm_steal_time": true,
++        "smep": true,
++        "rdpid": false,
++        "xcrypt": false,
++        "sse4_2": true,
++        "monitor": false,
++        "sse4_1": true,
++        "kvm-mmu": false,
++        "flushbyasid": false,
++        "kvm-steal-time": true,
++        "lm": true,
++        "tsc": true,
++        "adx": true,
++        "fxsr": true,
++        "sha-ni": false,
++        "tm": false,
++        "pclmuldq": true,
++        "xgetbv1": false,
++        "xstore": false,
++        "vmcb_clean": false,
++        "vme": true,
++        "vendor": "GenuineIntel",
++        "ffxsr": false,
++        "de": true,
++        "avx512f": false,
++        "pse": true,
++        "ds-cpl": false,
++        "tbm": false,
++        "ia64": false,
++        "phe-en": false,
++        "f16c": true,
++        "ds": false,
++        "mpx": false,
++        "tsc-adjust": true,
++        "aes": true,
++        "avx2": true,
++        "pbe": false,
++        "cx16": true,
++        "ds_cpl": false,
++        "movbe": true,
++        "perfctr-nb": false,
++        "nrip_save": false,
++        "kvm_mmu": false,
++        "ospke": false,
++        "avx512ifma": false,
++        "vmx": true,
++        "sep": true,
++        "xsaveopt": true,
++        "sse4a": false,
++        "avx512dq": false,
++        "i64": true,
++        "avx512-4vnniw": false,
++        "xsave": true,
++        "erms": true,
++        "hle": true,
++        "nodeid_msr": false,
++        "est": false,
++        "svm_lock": false,
++        "xop": false,
++        "model-id": "Intel(R) Core(TM) i7-5600U CPU @ 2.60GHz",
++        "abm": true,
++        "avx512er": false,
++        "sse4.1": true,
++        "sse4.2": true,
++        "pause-filter": false,
++        "lahf-lm": true,
++        "kvm-nopiodelay": true,
++        "cmp_legacy": false,
++        "acpi": false,
++        "fma4": false,
++        "popcnt": true,
++        "mmx": true,
++        "osxsave": false,
++        "pcommit": false,
++        "avx512pf": false,
++        "clwb": false,
++        "dca": false,
++        "pdcm": false,
++        "xcrypt-en": false,
++        "3dnow": false,
++        "invtsc": false,
++        "tm2": false,
++        "hypervisor": true,
++        "kvmclock-stable-bit": true,
++        "fxsr-opt": false,
++        "pcid": true,
++        "sse4-1": true,
++        "sse4-2": true,
++        "avx512-vpopcntdq": false,
++        "avx512-4fmaps": false,
++        "pause_filter": false,
++        "svm-lock": false,
++        "rdrand": true,
++        "nrip-save": false,
++        "avx512vl": false,
++        "x2apic": true,
++        "kvmclock": true,
++        "pge": true,
++        "family": 6,
++        "dtes64": false,
++        "xd": true,
++        "kvm_pv_eoi": true,
++        "ace2": false,
++        "kvm_pv_unhalt": true,
++        "xtpr": false,
++        "perfctr_nb": false,
++        "avx512bw": false,
++        "nx": true,
++        "lwp": false,
++        "msr": true,
++        "ace2-en": false,
++        "decodeassists": false,
++        "perfctr-core": false,
++        "pn": false,
++        "fma": true,
++        "nodeid-msr": false,
++        "kvm_asyncpf": true,
++        "clflush": true,
++        "cx8": true,
++        "mce": true,
++        "avx512cd": false,
++        "cr8legacy": false,
++        "mca": true,
++        "pni": true,
++        "rdseed": true,
++        "apic": true,
++        "fsgsbase": true,
++        "cmp-legacy": false,
++        "kvm-pv-unhalt": true,
++        "rdtscp": true,
++        "mmxext": false,
++        "cid": false,
++        "ssse3": true,
++        "extapic": false,
++        "pse36": true,
++        "mtrr": true,
++        "ibs": false,
++        "la57": false,
++        "avx": true,
++        "syscall": true,
++        "umip": false,
++        "invpcid": true,
++        "avx512vbmi": false,
++        "kvm-asyncpf": true,
++        "vmcb-clean": false,
++        "pmm": false,
++        "cmov": true,
++        "perfctr_core": false,
++        "misalignsse": false,
++        "clflushopt": false,
++        "pat": true,
++        "lbrv": false,
++        "3dnowprefetch": true,
++        "fpu": true,
++        "pae": true,
++        "wdt": false,
++        "tsc_scale": false,
++        "skinit": false,
++        "fxsr_opt": false,
++        "kvm_nopiodelay": true,
++        "pmm-en": false,
++        "phe": false,
++        "3dnowext": false,
++        "osvw": false,
++        "ht": false,
++        "pdpe1gb": true,
++        "kvm-pv-eoi": true,
++        "npt": false,
++        "xsavec": false,
++        "lahf_lm": true,
++        "pclmulqdq": true,
++        "svm": false,
++        "sse3": true,
++        "sse2": true,
++        "ss": true,
++        "topoext": false,
++        "smx": false,
++        "bmi1": true,
++        "bmi2": true,
++        "xsaves": false,
++        "model": 61
++      }
++    }
++  },
++  "id": "model-expansion"
++}
+diff --git a/tests/cputestdata/x86_64-cpuid-Core-i7-5600U-arat.xml b/tests/cputestdata/x86_64-cpuid-Core-i7-5600U-arat.xml
+new file mode 100644
+index 0000000000..ecb4a6e15c
+--- /dev/null
++++ b/tests/cputestdata/x86_64-cpuid-Core-i7-5600U-arat.xml
+@@ -0,0 +1,41 @@
++<!-- Intel(R) Core(TM) i7-5600U CPU @ 2.60GHz -->
++<cpudata arch='x86'>
++  <cpuid eax_in='0x00000000' ecx_in='0x00' eax='0x00000014' ebx='0x756e6547' ecx='0x6c65746e' edx='0x49656e69'/>
++  <cpuid eax_in='0x00000001' ecx_in='0x00' eax='0x000306d4' ebx='0x00100800' ecx='0x7ffafbff' edx='0xbfebfbff'/>
++  <cpuid eax_in='0x00000002' ecx_in='0x00' eax='0x76036301' ebx='0x00f0b5ff' ecx='0x00000000' edx='0x00c30000'/>
++  <cpuid eax_in='0x00000003' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x00000004' ecx_in='0x00' eax='0x1c004121' ebx='0x01c0003f' ecx='0x0000003f' edx='0x00000000'/>
++  <cpuid eax_in='0x00000004' ecx_in='0x01' eax='0x1c004122' ebx='0x01c0003f' ecx='0x0000003f' edx='0x00000000'/>
++  <cpuid eax_in='0x00000004' ecx_in='0x02' eax='0x1c004143' ebx='0x01c0003f' ecx='0x000001ff' edx='0x00000000'/>
++  <cpuid eax_in='0x00000004' ecx_in='0x03' eax='0x1c03c163' ebx='0x03c0003f' ecx='0x00000fff' edx='0x00000006'/>
++  <cpuid eax_in='0x00000005' ecx_in='0x00' eax='0x00000040' ebx='0x00000040' ecx='0x00000003' edx='0x11142120'/>
++  <cpuid eax_in='0x00000006' ecx_in='0x00' eax='0x00000077' ebx='0x00000002' ecx='0x00000009' edx='0x00000000'/>
++  <cpuid eax_in='0x00000007' ecx_in='0x00' eax='0x00000000' ebx='0x021c2fbb' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x00000008' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x00000009' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x0000000a' ecx_in='0x00' eax='0x07300403' ebx='0x00000000' ecx='0x00000000' edx='0x00000603'/>
++  <cpuid eax_in='0x0000000b' ecx_in='0x00' eax='0x00000001' ebx='0x00000002' ecx='0x00000100' edx='0x00000000'/>
++  <cpuid eax_in='0x0000000b' ecx_in='0x01' eax='0x00000004' ebx='0x00000004' ecx='0x00000201' edx='0x00000000'/>
++  <cpuid eax_in='0x0000000c' ecx_in='0x00' eax='0x00000000' ebx='0x00000001' ecx='0x00000001' edx='0x00000000'/>
++  <cpuid eax_in='0x0000000d' ecx_in='0x00' eax='0x00000007' ebx='0x00000340' ecx='0x00000340' edx='0x00000000'/>
++  <cpuid eax_in='0x0000000d' ecx_in='0x01' eax='0x00000001' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x0000000d' ecx_in='0x02' eax='0x00000100' ebx='0x00000240' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x0000000e' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x0000000f' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x00000010' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x00000011' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x00000012' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x00000013' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x00000014' ecx_in='0x00' eax='0x00000000' ebx='0x00000001' ecx='0x00000001' edx='0x00000000'/>
++  <cpuid eax_in='0x80000000' ecx_in='0x00' eax='0x80000008' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x80000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000121' edx='0x2c100800'/>
++  <cpuid eax_in='0x80000002' ecx_in='0x00' eax='0x65746e49' ebx='0x2952286c' ecx='0x726f4320' edx='0x4d542865'/>
++  <cpuid eax_in='0x80000003' ecx_in='0x00' eax='0x37692029' ebx='0x3036352d' ecx='0x43205530' edx='0x40205550'/>
++  <cpuid eax_in='0x80000004' ecx_in='0x00' eax='0x362e3220' ebx='0x7a484730' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x80000005' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x80000006' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x01006040' edx='0x00000000'/>
++  <cpuid eax_in='0x80000007' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000100'/>
++  <cpuid eax_in='0x80000008' ecx_in='0x00' eax='0x00003027' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x80860000' ecx_in='0x00' eax='0x00000000' ebx='0x00000001' ecx='0x00000001' edx='0x00000000'/>
++  <cpuid eax_in='0xc0000000' ecx_in='0x00' eax='0x00000000' ebx='0x00000001' ecx='0x00000001' edx='0x00000000'/>
++</cpudata>
+-- 
+2.13.2
+

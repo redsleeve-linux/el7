@@ -1,0 +1,61 @@
+From d260867d18aa20c4d79f4319b82453120d209eae Mon Sep 17 00:00:00 2001
+Message-Id: <d260867d18aa20c4d79f4319b82453120d209eae@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Tue, 27 Jun 2017 15:06:10 +0200
+Subject: [PATCH] qemu: Don't update CPU when checking ABI stability
+
+When checking ABI stability between two domain definitions, we first
+make migratable copies of them. However, we also asked for the guest CPU
+to be updated, even though the updated CPU is supposed to be already
+included in the original definitions. Moreover, if we do this on the
+destination host during migration, we're potentially updating the
+definition with according to an incompatible host CPU.
+
+While updating the CPU when checking ABI stability doesn't make any
+sense, it actually just worked because updating the CPU doesn't do
+anything for custom CPUs (only host-model CPUs are affected) and we
+updated both definitions in the same way.
+
+Less then a year ago commit v2.3.0-rc1~42 stopped updating the CPU in
+the definition we got internally and only the user supplied definition
+was updated. However, the same commit started updating host-model CPUs
+to custom CPUs which are not affected by the request to update the CPU.
+So it still seemed to work right, unless a user upgraded libvirt 2.2.0
+to a newer version while there were some domains with host-model CPUs
+running on the host. Such domains couldn't be migrated with a user
+supplied XML since libvirt would complain:
+
+    Target CPU mode custom does not match source host-model
+
+The fix is pretty straightforward, we just need to stop updating the CPU
+when checking ABI stability.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1463957
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit ee68bb391efb684341edb6286a1278631167f08c)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1470582
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+---
+ src/qemu/qemu_domain.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index 1528c6a137..6ccc9f6f5b 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -5910,7 +5910,6 @@ qemuDomainMigratableDefCheckABIStability(virQEMUDriverPtr driver,
+ 
+ 
+ #define COPY_FLAGS (VIR_DOMAIN_XML_SECURE | \
+-                    VIR_DOMAIN_XML_UPDATE_CPU | \
+                     VIR_DOMAIN_XML_MIGRATABLE)
+ 
+ bool
+-- 
+2.13.2
+

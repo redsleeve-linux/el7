@@ -1,0 +1,38 @@
+From c7d19fca09f7398af63ceffb915afc9b5d507e1e Mon Sep 17 00:00:00 2001
+From: Florence Blanc-Renaud <flo@redhat.com>
+Date: Fri, 24 Mar 2017 11:02:33 +0100
+Subject: [PATCH] dogtag-ipa-ca-renew-agent-submit: fix the is_replicated()
+ function
+
+dogtag-ipa-ca-renew-agent-submit behaves differently depending on the
+certificate it needs to renew. For instance, some certificates (such as IPA RA)
+are the same on all the hosts and the renewal is actually done only on
+the renewal master. On other nodes, the new cert is downloaded from LDAP.
+
+The function is_replicated() is returning the opposite as what it should. If
+the cert nickname is IPA RA, it should return that the cert is replicated but
+it doesn't, and this leads to a wrong code path to renew the cert.
+
+https://pagure.io/freeipa/issue/6813
+
+Reviewed-By: Jan Cholasta <jcholast@redhat.com>
+---
+ install/certmonger/dogtag-ipa-ca-renew-agent-submit | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/install/certmonger/dogtag-ipa-ca-renew-agent-submit b/install/certmonger/dogtag-ipa-ca-renew-agent-submit
+index cc690b8fa26854a5ab683915a5ba6a8d3c0d4ae4..5782db703c49d7c2e92c806e24e9925e8e7d710a 100755
+--- a/install/certmonger/dogtag-ipa-ca-renew-agent-submit
++++ b/install/certmonger/dogtag-ipa-ca-renew-agent-submit
+@@ -119,7 +119,7 @@ def is_renewable():
+ 
+ 
+ def is_replicated():
+-    return not get_nickname()
++    return bool(get_nickname())
+ 
+ 
+ def is_renewal_master():
+-- 
+2.12.1
+

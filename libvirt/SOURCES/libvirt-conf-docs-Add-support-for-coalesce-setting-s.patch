@@ -1,0 +1,557 @@
+From 705cbf8998e405b98f2d536f6d92c524755fe219 Mon Sep 17 00:00:00 2001
+Message-Id: <705cbf8998e405b98f2d536f6d92c524755fe219@dist-git>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Tue, 25 Apr 2017 13:41:16 +0200
+Subject: [PATCH] conf, docs: Add support for coalesce setting(s)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1414627
+
+We are currently parsing only rx/frames/max because that's the only
+value that makes sense for us.  The tun device just added support for
+this one and the others are only supported by hardware devices which
+we don't need to worry about as the only way we'd pass those to the
+domain is using <hostdev/> or <interface type='hostdev'/>.  And in
+those cases the guest can modify the settings itself.
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit 523c9960621eaf307ae8d4ae2735fb66f89d5634)
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ docs/formatdomain.html.in                          |  27 +++++
+ docs/schemas/domaincommon.rng                      | 131 +++++++++++++++++++++
+ src/conf/domain_conf.c                             |  80 +++++++++++++
+ src/conf/domain_conf.h                             |   2 +
+ src/qemu/qemu_domain.c                             |  31 +++++
+ .../qemuxml2argvdata/qemuxml2argv-net-coalesce.xml |  68 +++++++++++
+ .../qemuxml2xmlout-net-coalesce.xml                |  71 +++++++++++
+ tests/qemuxml2xmltest.c                            |   1 +
+ 8 files changed, 411 insertions(+)
+ create mode 100644 tests/qemuxml2argvdata/qemuxml2argv-net-coalesce.xml
+ create mode 100644 tests/qemuxml2xmloutdata/qemuxml2xmlout-net-coalesce.xml
+
+diff --git a/docs/formatdomain.html.in b/docs/formatdomain.html.in
+index aee1e1442..7374cb243 100644
+--- a/docs/formatdomain.html.in
++++ b/docs/formatdomain.html.in
+@@ -5437,6 +5437,33 @@ qemu-kvm -net nic,model=? /dev/null
+       <span class="since">Since 3.1.0</span>
+     </p>
+ 
++    <h5><a name="coalesce">Coalesce settings</a></h5>
++<pre>
++...
++&lt;devices&gt;
++  &lt;interface type='network'&gt;
++    &lt;source network='default'/&gt;
++    &lt;target dev='vnet0'/&gt;
++    <b>&lt;coalesce&gt;
++      &lt;rx&gt;
++        &lt;frames max='7'/&gt;
++      &lt;/rx&gt;
++    &lt;/coalesce&gt;</b>
++  &lt;/interface&gt;
++&lt;/devices&gt;
++...</pre>
++
++    <p>
++      This element provides means of setting coalesce settings for
++      some interface devices (currently only type <code>network</code>
++      and <code>bridge</code>.  Currently there is just one attribute,
++      <code>max</code>, to tweak, in element <code>frames<code> for
++      the <code>rx</code> group, which accepts a non-negative integer
++      that specifies the maximum number of packets that will be
++      received before an interrupt.
++      <span class="since">Since 3.3.0</span>
++    </p>
++
+     <h5><a name="ipconfig">IP configuration</a></h5>
+ <pre>
+ ...
+diff --git a/docs/schemas/domaincommon.rng b/docs/schemas/domaincommon.rng
+index d5c28ee3c..7a9b4b702 100644
+--- a/docs/schemas/domaincommon.rng
++++ b/docs/schemas/domaincommon.rng
+@@ -2509,6 +2509,9 @@
+         <ref name="mtu"/>
+       </optional>
+       <optional>
++        <ref name="coalesce"/>
++      </optional>
++      <optional>
+         <element name="target">
+           <attribute name="dev">
+             <ref name="deviceName"/>
+@@ -5746,4 +5749,132 @@
+       </choice>
+     </attribute>
+   </define>
++
++  <define name="coalesce">
++    <element name="coalesce">
++      <interleave>
++        <optional>
++          <element name="rx">
++            <optional>
++              <element name="frames">
++                <optional>
++                  <attribute name="max">
++                    <ref name="unsignedInt"/>
++                  </attribute>
++                </optional>
++                <!--
++                    This is how we'd add more Rx-related settings for
++                    frames, like irq, high, and low
++
++                <optional>
++                  <attribute name="irq">
++                    <ref name="unsignedInt"/>
++                  </attribute>
++                </optional>
++                <optional>
++                  <attribute name="high">
++                    <ref name="unsignedInt"/>
++                  </attribute>
++                </optional>
++                <optional>
++                  <attribute name="low">
++                    <ref name="unsignedInt"/>
++                  </attribute>
++                </optional>
++
++              -->
++              </element>
++            </optional>
++            <!--
++                This is how we'd add more Rx-related settings, like
++                usecs
++
++            <optional>
++              <element name="usecs">
++                <optional>
++                  <attribute name="max">
++                    <ref name="unsignedInt"/>
++                  </attribute>
++                </optional>
++                <optional>
++                  <attribute name="irq">
++                    <ref name="unsignedInt"/>
++                  </attribute>
++                </optional>
++                <optional>
++                  <attribute name="high">
++                    <ref name="unsignedInt"/>
++                  </attribute>
++                </optional>
++                <optional>
++                  <attribute name="low">
++                    <ref name="unsignedInt"/>
++                  </attribute>
++                </optional>
++              </element>
++            </optional>
++              -->
++          </element>
++        </optional>
++        <!--
++            This is how you would add more coalesce settings, like
++            Tx-related ones
++
++        <optional>
++          <element name="tx">
++            <optional>
++              <element name="frames">
++                <optional>
++                  <attribute name="max">
++                    <ref name="unsignedInt"/>
++                  </attribute>
++                </optional>
++                <optional>
++                  <attribute name="irq">
++                    <ref name="unsignedInt"/>
++                  </attribute>
++                </optional>
++                <optional>
++                  <attribute name="high">
++                    <ref name="unsignedInt"/>
++                  </attribute>
++                </optional>
++                <optional>
++                  <attribute name="low">
++                    <ref name="unsignedInt"/>
++                  </attribute>
++                </optional>
++              </element>
++            </optional>
++            <optional>
++              <element name="usecs">
++                <optional>
++                  <attribute name="max">
++                    <ref name="unsignedInt"/>
++                  </attribute>
++                </optional>
++                <optional>
++                  <attribute name="irq">
++                    <ref name="unsignedInt"/>
++                  </attribute>
++                </optional>
++                <optional>
++                  <attribute name="high">
++                    <ref name="unsignedInt"/>
++                  </attribute>
++                </optional>
++                <optional>
++                  <attribute name="low">
++                    <ref name="unsignedInt"/>
++                  </attribute>
++                </optional>
++              </element>
++            </optional>
++          </element>
++        </optional>
++        -->
++      </interleave>
++    </element>
++  </define>
++
+ </grammar>
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 71f0c95c3..f2801ec84 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -6759,6 +6759,77 @@ virDomainNetIPInfoParseXML(const char *source,
+     return ret;
+ }
+ 
++
++static virNetDevCoalescePtr
++virDomainNetDefCoalesceParseXML(xmlNodePtr node,
++                                xmlXPathContextPtr ctxt)
++{
++    virNetDevCoalescePtr ret = NULL;
++    xmlNodePtr save = NULL;
++    char *str = NULL;
++    unsigned long long tmp = 0;
++
++    save = ctxt->node;
++    ctxt->node = node;
++
++    str = virXPathString("string(./rx/frames/@max)", ctxt);
++    if (!str)
++        goto cleanup;
++
++    if (!ret && VIR_ALLOC(ret) < 0)
++        goto cleanup;
++
++    if (virStrToLong_ullp(str, NULL, 10, &tmp) < 0) {
++        virReportError(VIR_ERR_XML_DETAIL,
++                       _("cannot parse value '%s' for coalesce parameter"),
++                       str);
++        VIR_FREE(str);
++        goto error;
++    }
++    VIR_FREE(str);
++
++    if (tmp > UINT32_MAX) {
++        virReportError(VIR_ERR_OVERFLOW,
++                       _("value '%llu' is too big for coalesce "
++                         "parameter, maximum is '%lu'"),
++                       tmp, (unsigned long) UINT32_MAX);
++        goto error;
++    }
++    ret->rx_max_coalesced_frames = tmp;
++
++ cleanup:
++    ctxt->node = save;
++    return ret;
++
++ error:
++    VIR_FREE(ret);
++    goto cleanup;
++}
++
++static void
++virDomainNetDefCoalesceFormatXML(virBufferPtr buf,
++                                 virNetDevCoalescePtr coalesce)
++{
++    if (!coalesce || !coalesce->rx_max_coalesced_frames)
++        return;
++
++    virBufferAddLit(buf, "<coalesce>\n");
++    virBufferAdjustIndent(buf, 2);
++
++    virBufferAddLit(buf, "<rx>\n");
++    virBufferAdjustIndent(buf, 2);
++
++    virBufferAsprintf(buf, "<frames max='%u'/>\n",
++                      coalesce->rx_max_coalesced_frames);
++
++    virBufferAdjustIndent(buf, -2);
++    virBufferAddLit(buf, "</rx>\n");
++
++    virBufferAdjustIndent(buf, -2);
++    virBufferAddLit(buf, "</coalesce>\n");
++}
++
++
+ static int
+ virDomainHostdevDefParseXMLCaps(xmlNodePtr node ATTRIBUTE_UNUSED,
+                                 xmlXPathContextPtr ctxt,
+@@ -10242,6 +10313,13 @@ virDomainNetDefParseXML(virDomainXMLOptionPtr xmlopt,
+         goto error;
+     }
+ 
++    node = virXPathNode("./coalesce", ctxt);
++    if (node) {
++        def->coalesce = virDomainNetDefCoalesceParseXML(node, ctxt);
++        if (!def->coalesce)
++            goto error;
++    }
++
+  cleanup:
+     ctxt->node = oldnode;
+     VIR_FREE(macaddr);
+@@ -22135,6 +22213,8 @@ virDomainNetDefFormat(virBufferPtr buf,
+     if (def->mtu)
+         virBufferAsprintf(buf, "<mtu size='%u'/>\n", def->mtu);
+ 
++    virDomainNetDefCoalesceFormatXML(buf, def->coalesce);
++
+     if (virDomainDeviceInfoFormat(buf, &def->info,
+                                   flags | VIR_DOMAIN_DEF_FORMAT_ALLOW_BOOT
+                                   | VIR_DOMAIN_DEF_FORMAT_ALLOW_ROM) < 0)
+diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
+index 71e651975..1dbbcdc51 100644
+--- a/src/conf/domain_conf.h
++++ b/src/conf/domain_conf.h
+@@ -41,6 +41,7 @@
+ # include "numa_conf.h"
+ # include "virnetdevmacvlan.h"
+ # include "virsysinfo.h"
++# include "virnetdev.h"
+ # include "virnetdevip.h"
+ # include "virnetdevvportprofile.h"
+ # include "virnetdevbandwidth.h"
+@@ -1036,6 +1037,7 @@ struct _virDomainNetDef {
+     int trustGuestRxFilters; /* enum virTristateBool */
+     int linkstate;
+     unsigned int mtu;
++    virNetDevCoalescePtr coalesce;
+ };
+ 
+ /* Used for prefix of ifname of any network name generated dynamically
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index d31645fd1..53586878b 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -3012,6 +3012,30 @@ qemuDomainDefValidate(const virDomainDef *def,
+ }
+ 
+ 
++static bool
++qemuDomainNetSupportsCoalesce(virDomainNetType type)
++{
++    switch (type) {
++    case VIR_DOMAIN_NET_TYPE_NETWORK:
++    case VIR_DOMAIN_NET_TYPE_BRIDGE:
++        return true;
++    case VIR_DOMAIN_NET_TYPE_VHOSTUSER:
++    case VIR_DOMAIN_NET_TYPE_ETHERNET:
++    case VIR_DOMAIN_NET_TYPE_DIRECT:
++    case VIR_DOMAIN_NET_TYPE_HOSTDEV:
++    case VIR_DOMAIN_NET_TYPE_USER:
++    case VIR_DOMAIN_NET_TYPE_SERVER:
++    case VIR_DOMAIN_NET_TYPE_CLIENT:
++    case VIR_DOMAIN_NET_TYPE_MCAST:
++    case VIR_DOMAIN_NET_TYPE_INTERNAL:
++    case VIR_DOMAIN_NET_TYPE_UDP:
++    case VIR_DOMAIN_NET_TYPE_LAST:
++        break;
++    }
++    return false;
++}
++
++
+ static int
+ qemuDomainDeviceDefValidate(const virDomainDeviceDef *dev,
+                             const virDomainDef *def ATTRIBUTE_UNUSED,
+@@ -3046,6 +3070,13 @@ qemuDomainDeviceDefValidate(const virDomainDeviceDef *dev,
+                            virDomainNetTypeToString(net->type));
+             goto cleanup;
+         }
++
++        if (net->coalesce && !qemuDomainNetSupportsCoalesce(net->type)) {
++            virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
++                           _("coalesce settings on interface type %s are not supported"),
++                           virDomainNetTypeToString(net->type));
++            goto cleanup;
++        }
+     }
+ 
+     ret = 0;
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-net-coalesce.xml b/tests/qemuxml2argvdata/qemuxml2argv-net-coalesce.xml
+new file mode 100644
+index 000000000..b51032442
+--- /dev/null
++++ b/tests/qemuxml2argvdata/qemuxml2argv-net-coalesce.xml
+@@ -0,0 +1,68 @@
++<domain type='qemu'>
++  <name>test</name>
++  <uuid>15d091de-0181-456b-9554-e4382dc1f1ab</uuid>
++  <memory unit='KiB'>1048576</memory>
++  <currentMemory unit='KiB'>1048576</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='x86_64' machine='pc-0.13'>hvm</type>
++    <boot dev='cdrom'/>
++    <boot dev='hd'/>
++    <bootmenu enable='yes'/>
++  </os>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>restart</on_crash>
++  <devices>
++    <emulator>/usr/bin/qemu-system-x86_64</emulator>
++    <disk type='file' device='disk'>
++      <driver name='qemu' type='qcow2' event_idx='on'/>
++      <source file='/var/lib/libvirt/images/f14.img'/>
++      <target dev='vda' bus='virtio'/>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/>
++    </disk>
++    <disk type='file' device='cdrom'>
++      <driver name='qemu' type='raw'/>
++      <source file='/var/lib/libvirt/Fedora-14-x86_64-Live-KDE.iso'/>
++      <target dev='hdc' bus='ide'/>
++      <readonly/>
++      <address type='drive' controller='0' bus='1' target='0' unit='0'/>
++    </disk>
++    <controller type='usb' index='0'/>
++    <controller type='virtio-serial' index='0'>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x06' function='0x0'/>
++    </controller>
++    <controller type='ide' index='0'/>
++    <controller type='pci' index='0' model='pci-root'/>
++    <interface type='network'>
++      <source network='default'/>
++      <mac address='52:54:00:e5:48:58'/>
++      <model type='virtio'/>
++      <coalesce>
++        <rx>
++          <frames max='7'/>
++        </rx>
++      </coalesce>
++    </interface>
++    <interface type='network'>
++      <source network='default'/>
++      <mac address='52:54:00:e5:48:59'/>
++      <model type='virtio'/>
++      <coalesce>
++        <rx>
++          <frames max='0'/>
++        </rx>
++      </coalesce>
++    </interface>
++    <serial type='pty'>
++      <target port='0'/>
++    </serial>
++    <console type='pty'>
++      <target type='serial' port='0'/>
++    </console>
++    <input type='mouse' bus='ps2'/>
++    <input type='keyboard' bus='ps2'/>
++    <memballoon model='virtio'/>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2xmloutdata/qemuxml2xmlout-net-coalesce.xml b/tests/qemuxml2xmloutdata/qemuxml2xmlout-net-coalesce.xml
+new file mode 100644
+index 000000000..fd5fdbece
+--- /dev/null
++++ b/tests/qemuxml2xmloutdata/qemuxml2xmlout-net-coalesce.xml
+@@ -0,0 +1,71 @@
++<domain type='qemu'>
++  <name>test</name>
++  <uuid>15d091de-0181-456b-9554-e4382dc1f1ab</uuid>
++  <memory unit='KiB'>1048576</memory>
++  <currentMemory unit='KiB'>1048576</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='x86_64' machine='pc-0.13'>hvm</type>
++    <boot dev='cdrom'/>
++    <boot dev='hd'/>
++    <bootmenu enable='yes'/>
++  </os>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>restart</on_crash>
++  <devices>
++    <emulator>/usr/bin/qemu-system-x86_64</emulator>
++    <disk type='file' device='disk'>
++      <driver name='qemu' type='qcow2' event_idx='on'/>
++      <source file='/var/lib/libvirt/images/f14.img'/>
++      <target dev='vda' bus='virtio'/>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/>
++    </disk>
++    <disk type='file' device='cdrom'>
++      <driver name='qemu' type='raw'/>
++      <source file='/var/lib/libvirt/Fedora-14-x86_64-Live-KDE.iso'/>
++      <target dev='hdc' bus='ide'/>
++      <readonly/>
++      <address type='drive' controller='0' bus='1' target='0' unit='0'/>
++    </disk>
++    <controller type='usb' index='0'>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x2'/>
++    </controller>
++    <controller type='virtio-serial' index='0'>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x06' function='0x0'/>
++    </controller>
++    <controller type='ide' index='0'>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x1'/>
++    </controller>
++    <controller type='pci' index='0' model='pci-root'/>
++    <interface type='network'>
++      <mac address='52:54:00:e5:48:58'/>
++      <source network='default'/>
++      <model type='virtio'/>
++      <coalesce>
++        <rx>
++          <frames max='7'/>
++        </rx>
++      </coalesce>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x03' function='0x0'/>
++    </interface>
++    <interface type='network'>
++      <mac address='52:54:00:e5:48:59'/>
++      <source network='default'/>
++      <model type='virtio'/>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x05' function='0x0'/>
++    </interface>
++    <serial type='pty'>
++      <target port='0'/>
++    </serial>
++    <console type='pty'>
++      <target type='serial' port='0'/>
++    </console>
++    <input type='mouse' bus='ps2'/>
++    <input type='keyboard' bus='ps2'/>
++    <memballoon model='virtio'>
++      <address type='pci' domain='0x0000' bus='0x00' slot='0x07' function='0x0'/>
++    </memballoon>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2xmltest.c b/tests/qemuxml2xmltest.c
+index eae999dd6..26a2259fd 100644
+--- a/tests/qemuxml2xmltest.c
++++ b/tests/qemuxml2xmltest.c
+@@ -532,6 +532,7 @@ mymain(void)
+     DO_TEST("net-bandwidth", NONE);
+     DO_TEST("net-bandwidth2", NONE);
+     DO_TEST("net-mtu", NONE);
++    DO_TEST("net-coalesce", NONE);
+ 
+     DO_TEST("serial-vc", NONE);
+     DO_TEST("serial-pty", NONE);
+-- 
+2.12.2
+

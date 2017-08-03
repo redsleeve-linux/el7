@@ -1,13 +1,13 @@
-From 900ccf5cf6497234e1d3b1e80f4dfa8a60bcfb06 Mon Sep 17 00:00:00 2001
+From 8d230a5a57512c84545bd6345775e69b4b3b1983 Mon Sep 17 00:00:00 2001
 From: Gerd Hoffmann <kraxel@redhat.com>
 Date: Tue, 7 Feb 2017 10:07:46 +0100
-Subject: [PATCH 2/8] cirrus_vga: fix off-by-one in blit_region_is_unsafe
+Subject: [PATCH 03/11] cirrus_vga: fix off-by-one in blit_region_is_unsafe
 
 RH-Author: Gerd Hoffmann <kraxel@redhat.com>
 Message-id: <1486462072-32174-2-git-send-email-kraxel@redhat.com>
 Patchwork-id: 73564
 O-Subject: [RHEL-7.4 qemu-kvm PATCH 1/7] cirrus_vga: fix off-by-one in blit_region_is_unsafe
-Bugzilla: 1418232
+Bugzilla: 1418233
 RH-Acked-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
 RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
 RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>

@@ -1,16 +1,16 @@
-From d27fae125c1efd59ba3263260d41f8e054b070a2 Mon Sep 17 00:00:00 2001
+From f9b9adc4b66f991e655f51f2ef67dac46f6bd7d4 Mon Sep 17 00:00:00 2001
 From: Gerd Hoffmann <kraxel@redhat.com>
-Date: Tue, 21 Mar 2017 09:58:01 +0100
+Date: Mon, 27 Mar 2017 10:01:16 +0200
 Subject: [PATCH 1/7] fix :cirrus_vga fix OOB read case qemu Segmentation fault
 
 RH-Author: Gerd Hoffmann <kraxel@redhat.com>
-Message-id: <1490090287-1503-2-git-send-email-kraxel@redhat.com>
-Patchwork-id: 74419
-O-Subject: [RHEL-7.4 qemu-kvm PATCH 1/7] fix :cirrus_vga fix OOB read case qemu Segmentation fault
-Bugzilla: 1430059
+Message-id: <1490608882-10242-2-git-send-email-kraxel@redhat.com>
+Patchwork-id: 74553
+O-Subject: [RHEL-7.4 qemu-kvm PATCH v2 1/7] fix :cirrus_vga fix OOB read case qemu Segmentation fault
+Bugzilla: 1430060
 RH-Acked-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
 RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
-RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
 
 From: hangaohuai <hangaohuai@huawei.com>
 

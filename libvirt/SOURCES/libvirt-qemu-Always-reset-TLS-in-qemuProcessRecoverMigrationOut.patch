@@ -1,0 +1,42 @@
+From 4b3819d67eaf7c9ed31a2d306968d24fecae68ea Mon Sep 17 00:00:00 2001
+Message-Id: <4b3819d67eaf7c9ed31a2d306968d24fecae68ea@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 5 Apr 2017 12:04:09 +0200
+Subject: [PATCH] qemu: Always reset TLS in qemuProcessRecoverMigrationOut
+
+qemuProcessRecoverMigrationOut doesn't explicitly call
+qemuMigrationResetTLS relying on two things:
+
+    - qemuMigrationCancel resets TLS parameters
+    - our migration code resets TLS before entering
+      QEMU_MIGRATION_PHASE_PERFORM3_DONE phase
+
+But this is not obvious and the assumptions will be broken soon. Let's
+explicitly reset TLS parameters on all paths which do not kill the
+domain.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+(cherry picked from commit 9d677e6a6ba075f489f791b6922a5dadf0e0c79f)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1425003
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_process.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 70b06a28f..2e0f859ce 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -3077,6 +3077,7 @@ qemuProcessRecoverMigrationOut(virQEMUDriverPtr driver,
+         }
+     }
+ 
++    qemuMigrationResetTLS(driver, vm, QEMU_ASYNC_JOB_NONE, NULL, NULL);
+     return 0;
+ }
+ 
+-- 
+2.12.2
+

@@ -1,13 +1,13 @@
-From fdb1ec384fe65b7ca2ab7303b56c2731e5999058 Mon Sep 17 00:00:00 2001
+From a5ce32ef09ab8eb8ba2467e12d37020048c8803f Mon Sep 17 00:00:00 2001
 From: Gerd Hoffmann <kraxel@redhat.com>
 Date: Tue, 7 Feb 2017 10:07:51 +0100
-Subject: [PATCH 7/8] cirrus: fix blit address mask handling
+Subject: [PATCH 08/11] cirrus: fix blit address mask handling
 
 RH-Author: Gerd Hoffmann <kraxel@redhat.com>
 Message-id: <1486462072-32174-7-git-send-email-kraxel@redhat.com>
 Patchwork-id: 73570
 O-Subject: [RHEL-7.4 qemu-kvm PATCH 6/7] cirrus: fix blit address mask handling
-Bugzilla: 1418232
+Bugzilla: 1418233
 RH-Acked-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
 RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
 RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>

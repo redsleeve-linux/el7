@@ -18,7 +18,7 @@
 Summary:  Dynamic host configuration protocol software
 Name:     dhcp
 Version:  4.2.5
-Release:  47%{?dist}.redsleeve
+Release:  58%{?dist}
 # NEVER CHANGE THE EPOCH on this package.  The previous maintainer (prior to
 # dcantrell maintaining the package) made incorrect use of the epoch and
 # that's why it is at 12 now.  It should have never been used, but it was.
@@ -36,6 +36,8 @@ Source5:  56dhclient
 Source6:  dhcpd.service
 Source7:  dhcpd6.service
 Source8:  dhcrelay.service
+Source9: azure-cloud.sh
+Source10: README.scripts
 
 
 Patch0:   dhcp-4.2.0-errwarn-message.patch
@@ -93,7 +95,9 @@ Patch59:  dhcp-dns_client_cancelupdate.patch
 Patch60:  dhcp-prepend.patch
 Patch61:  dhcp-addignore.patch
 Patch62:  dhcp-max-fd-value.patch
-Patch63:  dhcp-4.2.5-redsleeve-branding.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1355827
+Patch63:  dhcp-4.2.5-rh1355827.patch
+Patch64:  dhcp-4.2.5-centos-branding.patch
 
 BuildRequires: autoconf
 BuildRequires: automake
@@ -400,7 +404,10 @@ rm -rf includes/isc-dhcp
 
 # unclosed TCP connections to OMAPI or failover ports can cause DoS (CVE-2016-2774)
 %patch62 -p1 -b .max-fd
+
+# https://bugzilla.redhat.com/show_bug.cgi?id=1355827
 %patch63 -p1
+%patch64 -p1
 
 # Update paths in all man pages
 for page in client/dhclient.conf.5 client/dhclient.leases.5 \
@@ -461,6 +468,14 @@ CFLAGS="%{optflags} -fno-strict-aliasing" \
 
 # Empty directory for dhclient.d scripts
 %{__mkdir} -p %{buildroot}%{dhcpconfdir}/dhclient.d
+
+# Install sample configuration file for Microsoft Azure
+%{__mkdir} -p %{buildroot}%{dhcpconfdir}/dhclient-exit-hooks.d/
+%{__install} -p -m 0644 %{SOURCE9} %{buildroot}%{dhcpconfdir}/dhclient-exit-hooks.d/
+
+# Create directory for on-commit scripts
+%{__mkdir} -p %{buildroot}%{dhcpconfdir}/scripts
+%{__install} -p -m 0644 %{SOURCE10} %{buildroot}%{dhcpconfdir}/scripts/
 
 # NetworkManager dispatcher script
 %{__mkdir} -p %{buildroot}%{_sysconfdir}/NetworkManager/dispatcher.d
@@ -606,7 +621,6 @@ done
 %files
 %doc server/dhcpd.conf.example server/dhcpd6.conf.example
 %doc contrib/ldap/
-%attr(0750,root,root) %dir %{dhcpconfdir}
 %attr(0755,dhcpd,dhcpd) %dir %{_localstatedir}/lib/dhcpd
 %attr(0644,dhcpd,dhcpd) %verify(mode) %config(noreplace) %{_localstatedir}/lib/dhcpd/dhcpd.leases
 %attr(0644,dhcpd,dhcpd) %verify(mode) %config(noreplace) %{_localstatedir}/lib/dhcpd/dhcpd6.leases
@@ -631,11 +645,16 @@ done
 %if %sdt
 %{tapsetdir}/*.stp
 %endif
+# This is needed for on-commit scripts
+# Directory must be accessible by dhcpd process
+%attr(0750,root,dhcpd) %dir %{dhcpconfdir}/scripts
+%attr(0640,root,dhcpd) %{dhcpconfdir}/scripts/README.scripts
 
 %files -n dhclient
 %doc client/dhclient.conf.example client/dhclient6.conf.example README.dhclient.d
-%attr(0750,root,root) %dir %{dhcpconfdir}
 %dir %{dhcpconfdir}/dhclient.d
+%dir %{dhcpconfdir}/dhclient-exit-hooks.d/
+%{dhcpconfdir}/dhclient-exit-hooks.d/azure-cloud.sh
 %dir %{_localstatedir}/lib/dhclient
 %dir %{_sysconfdir}/NetworkManager
 %dir %{_sysconfdir}/NetworkManager/dispatcher.d
@@ -652,6 +671,8 @@ done
 %doc LICENSE README RELNOTES doc/References.txt
 %attr(0644,root,root) %{_mandir}/man5/dhcp-options.5.gz
 %attr(0644,root,root) %{_mandir}/man5/dhcp-eval.5.gz
+%attr(0750,root,root) %dir %{dhcpconfdir}
+
 
 %files libs
 %{_libdir}/libdhcpctl.so.*
@@ -668,11 +689,39 @@ done
 
 
 %changelog
-* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> - 4.2.5-47.el7.redsleeve
-- Roll in RedSleeve Branding
-
-* Thu Nov 03 2016 CentOS Sources <bugs@centos.org> - 4.2.5-47.el7.centos
+* Mon Jul 31 2017 CentOS Sources <bugs@centos.org> - 4.2.5-58.el7.centos
 - Roll in CentOS Branding
+
+* Tue May 16 2017 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-58
+- Resolves 1374119: Add dns server variable to azure-cloud.sh script
+
+* Thu May  4 2017 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-57
+- Move scripts to dhcp package
+- Do not relax permissions of scripts as we don't need this now
+
+* Thu May  4 2017 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-55
+- Resolves: #1349044 - Add disclamer for chaging /etc/dhcp permission for scripts
+- Fix syntax error in attr
+
+* Tue May 02 2017 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-53
+- Fix ownership of %{dhcpconfdir} to allow daemon access it
+
+* Mon Mar 27 2017 Pavel Šimerda <psimerda@redhat.com> - 12:4.2.5-52
+- Resolves: #1349044 - move /etc/dhcp and /etc/dhcp/scripts to dhcp-common
+  subpackage
+
+* Mon Mar 27 2017 Pavel Šimerda <psimerda@redhat.com> - 12:4.2.5-51
+- Resolves: #1349044 - add /etc/dhcp/scripts directory for on-commit scripts
+
+* Thu Feb 16 2017 Pavel Šimerda <psimerda@redhat.com> - 12:4.2.5-50
+- Resolves: #1321945 - dhclient hook script for Azure cloud
+
+* Thu Feb 16 2017 Pavel Šimerda <psimerda@redhat.com> - 12:4.2.5-49
+- Resolves: #1355827 - dhcpd has a segfault at startup with a big ip range
+
+* Thu Feb 16 2017 Pavel Šimerda <psimerda@redhat.com> - 12:4.2.5-48
+- Resolves: #1302282 - systemd fails to keep dhcpd running after repeated
+  restarts by NetworkManager dispatcher.d script
 
 * Tue Aug 09 2016 Jiri Popelka <jpopelka@redhat.com> - 12:4.2.5-47
 - 1269596 - fix undefined variable in dhclient-script

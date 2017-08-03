@@ -1,0 +1,77 @@
+From 5238dd8211d06fc8c7003bb608e41bb2a4653dec Mon Sep 17 00:00:00 2001
+Message-Id: <5238dd8211d06fc8c7003bb608e41bb2a4653dec@dist-git>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Fri, 9 Jun 2017 12:48:59 +0200
+Subject: [PATCH] conf: use a leading space in virDomainVirtioNetDriverFormat
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Instead of formatting a space after every option.
+
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit d1feb4773d41b928dc1079dfc19d17b5a0e5957b)
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1283251
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/conf/domain_conf.c | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 701a6d2136..4652e1c72b 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -22053,29 +22053,27 @@ virDomainVirtioNetDriverFormat(char **outstr,
+ {
+     virBuffer buf = VIR_BUFFER_INITIALIZER;
+     if (def->driver.virtio.name) {
+-        virBufferAsprintf(&buf, "name='%s' ",
++        virBufferAsprintf(&buf, " name='%s'",
+                           virDomainNetBackendTypeToString(def->driver.virtio.name));
+     }
+     if (def->driver.virtio.txmode) {
+-        virBufferAsprintf(&buf, "txmode='%s' ",
++        virBufferAsprintf(&buf, " txmode='%s'",
+                           virDomainNetVirtioTxModeTypeToString(def->driver.virtio.txmode));
+     }
+     if (def->driver.virtio.ioeventfd) {
+-        virBufferAsprintf(&buf, "ioeventfd='%s' ",
++        virBufferAsprintf(&buf, " ioeventfd='%s'",
+                           virTristateSwitchTypeToString(def->driver.virtio.ioeventfd));
+     }
+     if (def->driver.virtio.event_idx) {
+-        virBufferAsprintf(&buf, "event_idx='%s' ",
++        virBufferAsprintf(&buf, " event_idx='%s'",
+                           virTristateSwitchTypeToString(def->driver.virtio.event_idx));
+     }
+     if (def->driver.virtio.queues)
+-        virBufferAsprintf(&buf, "queues='%u' ", def->driver.virtio.queues);
++        virBufferAsprintf(&buf, " queues='%u'", def->driver.virtio.queues);
+     if (def->driver.virtio.rx_queue_size)
+-        virBufferAsprintf(&buf, "rx_queue_size='%u' ",
++        virBufferAsprintf(&buf, " rx_queue_size='%u'",
+                           def->driver.virtio.rx_queue_size);
+ 
+-    virBufferTrim(&buf, " ", -1);
+-
+     if (virBufferCheckError(&buf) < 0)
+         return -1;
+ 
+@@ -22323,10 +22321,10 @@ virDomainNetDefFormat(virBufferPtr buf,
+ 
+             if (!gueststr && !hoststr) {
+                 if (str)
+-                    virBufferAsprintf(buf, "<driver %s/>\n", str);
++                    virBufferAsprintf(buf, "<driver%s/>\n", str);
+             } else {
+                 if (str)
+-                    virBufferAsprintf(buf, "<driver %s>\n", str);
++                    virBufferAsprintf(buf, "<driver%s>\n", str);
+                 else
+                     virBufferAddLit(buf, "<driver>\n");
+                 virBufferAdjustIndent(buf, 2);
+-- 
+2.13.1
+

@@ -1,14 +1,14 @@
-From 3178cae91f9fc3ddd025f1daa415b74ed387b6ca Mon Sep 17 00:00:00 2001
+From 23ae0a2bec72997626c3ba834f036b9a3626eedc Mon Sep 17 00:00:00 2001
 From: Gerd Hoffmann <kraxel@redhat.com>
 Date: Tue, 7 Feb 2017 10:07:48 +0100
-Subject: [PATCH 4/8] display: cirrus: ignore source pitch value as needed in
+Subject: [PATCH 05/11] display: cirrus: ignore source pitch value as needed in
  blit_is_unsafe
 
 RH-Author: Gerd Hoffmann <kraxel@redhat.com>
 Message-id: <1486462072-32174-4-git-send-email-kraxel@redhat.com>
 Patchwork-id: 73563
 O-Subject: [RHEL-7.4 qemu-kvm PATCH 3/7] display: cirrus: ignore source pitch value as needed in blit_is_unsafe
-Bugzilla: 1418232
+Bugzilla: 1418233
 RH-Acked-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
 RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
 RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>

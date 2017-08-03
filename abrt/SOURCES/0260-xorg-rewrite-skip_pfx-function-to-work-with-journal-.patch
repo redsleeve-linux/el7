@@ -1,0 +1,57 @@
+From e001949d7ef821d7934e9d1756856ea8630968e5 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Mon, 23 Jan 2017 11:36:16 +0100
+Subject: [PATCH] xorg: rewrite skip_pfx() function to work with journal msgs
+
+skip_pfx() removes substrings which starts with '[' and end with ']'.
+Xorg journal messages which we can remove can also start with "(EE)" and end
+with ']'.
+
+Related to #1328264
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/plugins/abrt-dump-xorg.c | 26 +++++++++++++++++---------
+ 1 file changed, 17 insertions(+), 9 deletions(-)
+
+diff --git a/src/plugins/abrt-dump-xorg.c b/src/plugins/abrt-dump-xorg.c
+index 434dc76..14fd561 100644
+--- a/src/plugins/abrt-dump-xorg.c
++++ b/src/plugins/abrt-dump-xorg.c
+@@ -44,16 +44,24 @@ static unsigned g_bt_count = 0;
+ static unsigned g_opts;
+ static const char *debug_dumps_dir = ".";
+ 
+-static char *skip_pfx(char *p)
++static char *skip_pfx(char *str)
+ {
+-    if (p[0] != '[')
+-        return p;
+-    char *q = strchr(p, ']');
+-    if (!q)
+-        return p;
+-    if (q[1] == ' ')
+-        return q + 2;
+-    return p;
++    if (str[0] == '[')
++    {
++        char *q = strchr(str, ']');
++        if (q)
++            str = q + 1;
++    }
++
++    if (str[0] == ' ')
++        ++str;
++
++    /* if there is (EE), ignore it */
++    if (strncmp(str, "(EE)", 4) == 0)
++        /* if ' ' follows (EE), ignore it too */
++        return str + (4 + (str[4] == ' '));
++
++    return str;
+ }
+ 
+ static char *list2lines(GList *list)
+-- 
+1.8.3.1
+

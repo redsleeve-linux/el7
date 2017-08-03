@@ -1,0 +1,25 @@
+From e3f38eb6b18f4bf0272e4a88b57e9d7af545bd7c Mon Sep 17 00:00:00 2001
+From: Tomasz Wasilczyk <twasilczyk@pidgin.im>
+Date: Mon, 3 Feb 2014 04:41:24 +0100
+Subject: [PATCH] Try to fix a signed/unsigned warning
+
+---
+ libpurple/protocols/jabber/auth_cyrus.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libpurple/protocols/jabber/auth_cyrus.c b/libpurple/protocols/jabber/auth_cyrus.c
+index 0c4278c656f0..2c4d4ba54e24 100644
+--- a/libpurple/protocols/jabber/auth_cyrus.c
++++ b/libpurple/protocols/jabber/auth_cyrus.c
+@@ -181,7 +181,7 @@ auth_no_pass_cb(PurpleConnection *gc, PurpleRequestFields *fields)
+ static gboolean remove_current_mech(JabberStream *js) {
+ 	char *pos;
+ 	if ((pos = strstr(js->sasl_mechs->str, js->current_mech))) {
+-		int len = strlen(js->current_mech);
++		size_t len = strlen(js->current_mech);
+ 		/* Clean up space that separated this Mech from the one before or after it */
+ 		if (pos > js->sasl_mechs->str && *(pos - 1) == ' ') {
+ 			/* Handle removing space before when current_mech isn't the first mech in the list */
+-- 
+2.9.3
+

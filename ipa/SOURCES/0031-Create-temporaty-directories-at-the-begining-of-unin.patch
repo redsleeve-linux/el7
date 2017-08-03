@@ -1,0 +1,36 @@
+From e344a42bfff8c9d124b13ae43baec72c5329e29f Mon Sep 17 00:00:00 2001
+From: David Kupka <dkupka@redhat.com>
+Date: Thu, 23 Mar 2017 12:48:06 +0100
+Subject: [PATCH] Create temporaty directories at the begining of uninstall
+
+Since commit 38c6689 temporary directories are no longer created at package
+install time. Instead they're created at server install time.
+Some steps in uninstall also assume that temporary direcories exist. Creating
+the directories in the begining of server uninstall ensure that the uninstall
+will go through.
+
+https://pagure.io/freeipa/issue/6715
+
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+---
+ ipaserver/install/server/install.py | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/ipaserver/install/server/install.py b/ipaserver/install/server/install.py
+index de6b5b31274c87ceca5d98bcf8e80230ec6ae1f7..d7eb0bfacd0815026c82f59d76962f527e2b7dad 100644
+--- a/ipaserver/install/server/install.py
++++ b/ipaserver/install/server/install.py
+@@ -1042,6 +1042,10 @@ def uninstall(installer):
+ 
+     rv = 0
+ 
++    # further steps assumes that temporary directories exists so rather
++    # ensure they are created
++    tasks.create_tmpfiles_dirs()
++
+     print("Shutting down all IPA services")
+     try:
+         services.knownservices.ipa.stop()
+-- 
+2.12.1
+

@@ -1,4 +1,4 @@
-From 1cd1297bf694c0a91d75a87b4fd22c2b80807b49 Mon Sep 17 00:00:00 2001
+From abfd9c2acaf70c60ec70807ba4d021ade69c7b79 Mon Sep 17 00:00:00 2001
 From: Gerd Hoffmann <kraxel@redhat.com>
 Date: Fri, 10 Feb 2017 08:30:14 +0100
 Subject: [PATCH 2/3] Revert "cirrus: allow zero source pitch in pattern fill
@@ -8,7 +8,7 @@ RH-Author: Gerd Hoffmann <kraxel@redhat.com>
 Message-id: <1486715415-3462-3-git-send-email-kraxel@redhat.com>
 Patchwork-id: 73774
 O-Subject: [virt-devel] [RHEL-7.4 qemu-kvm PATCH 2/3] Revert "cirrus: allow zero source pitch in pattern fill rops"
-Bugzilla: 1420490
+Bugzilla: 1420492
 CVE: CVE-2017-2620/20170221
 RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
 RH-Acked-by: Dr. David Alan Gilbert <dgilbert@redhat.com>

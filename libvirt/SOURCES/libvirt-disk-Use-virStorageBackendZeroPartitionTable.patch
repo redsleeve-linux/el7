@@ -1,0 +1,56 @@
+From 9aeaadcf7d7f33cc5208bcbc788676f27691843a Mon Sep 17 00:00:00 2001
+Message-Id: <9aeaadcf7d7f33cc5208bcbc788676f27691843a@dist-git>
+From: John Ferlan <jferlan@redhat.com>
+Date: Wed, 26 Apr 2017 08:41:14 -0400
+Subject: [PATCH] disk: Use virStorageBackendZeroPartitionTable
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1439132
+
+During 'matrix' testing of all possible combinations I found that if
+device is formated with "gpt" first, then an attempt is made to format
+using "mac", a startup will fail.
+
+Deeper analysis by Peter Krempa indicates that the "mac" table fits
+into the first block on the disk. Since the GPT disklabel is stored
+at LBA address 1 it is not overwritten at all. Thus it's apparent that
+the (blkid) detection tool then prefers GPT over a older disklabel.
+
+The GPT disklabel has also a secondary copy at the last LBA of the disk.
+
+So, follow the same logic as the logical pool in clearing a 1MB swath
+at the beginning and end of the device to avoid potential issues with
+larger sector sizes for the device.
+
+Also fixed a minor formatting nit in virStorageBackendDeviceIsEmpty call.
+
+(cherry picked from commit 3c4f2e3fb725054921f855a229afc7daca7119ae)
+Signed-off-by: John Ferlan <jferlan@redhat.com>
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/storage/storage_backend_disk.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/storage/storage_backend_disk.c b/src/storage/storage_backend_disk.c
+index 39371f2d9..e8f67bb00 100644
+--- a/src/storage/storage_backend_disk.c
++++ b/src/storage/storage_backend_disk.c
+@@ -491,11 +491,15 @@ virStorageBackendDiskBuildPool(virConnectPtr conn ATTRIBUTE_UNUSED,
+         ok_to_mklabel = true;
+     } else {
+         if (virStorageBackendDeviceIsEmpty(pool->def->source.devices[0].path,
+-                                              fmt, true))
++                                           fmt, true))
+             ok_to_mklabel = true;
+     }
+ 
+     if (ok_to_mklabel) {
++        if (virStorageBackendZeroPartitionTable(pool->def->source.devices[0].path,
++                                                1024 * 1024) < 0)
++            goto error;
++
+         /* eg parted /dev/sda mklabel --script msdos */
+         if (format == VIR_STORAGE_POOL_DISK_UNKNOWN)
+             format = pool->def->source.format = VIR_STORAGE_POOL_DISK_DOS;
+-- 
+2.12.2
+

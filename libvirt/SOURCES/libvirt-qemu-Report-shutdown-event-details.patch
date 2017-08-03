@@ -1,0 +1,194 @@
+From f0747aa9c94a5a79c9766959fcd479e04a56da3e Mon Sep 17 00:00:00 2001
+Message-Id: <f0747aa9c94a5a79c9766959fcd479e04a56da3e@dist-git>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Wed, 31 May 2017 08:21:33 +0200
+Subject: [PATCH] qemu: Report shutdown event details
+
+QEMU will likely report the details of it shutting down, particularly
+whether the shutdown was initiated by the guest or host.  We should
+forward that information along, at least for shutdown events.  Reset
+has that as well, however that is not a lifecycle event and would add
+extra constants that might not be used.  It can be added later on.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1384007
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit a8eba5036cb4b0e2ec827e9e6e019ce70e451377)
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ examples/object-events/event-test.c |  6 ++++++
+ include/libvirt/libvirt-domain.h    | 11 ++++++++++-
+ src/qemu/qemu_monitor.c             |  6 +++---
+ src/qemu/qemu_monitor.h             |  3 ++-
+ src/qemu/qemu_monitor_json.c        | 10 ++++++++--
+ src/qemu/qemu_process.c             | 21 +++++++++++++++++++--
+ tools/virsh-domain.c                |  4 +++-
+ 7 files changed, 51 insertions(+), 10 deletions(-)
+
+diff --git a/examples/object-events/event-test.c b/examples/object-events/event-test.c
+index 12690cac0..78d200806 100644
+--- a/examples/object-events/event-test.c
++++ b/examples/object-events/event-test.c
+@@ -240,6 +240,12 @@ eventDetailToString(int event,
+             case VIR_DOMAIN_EVENT_SHUTDOWN_FINISHED:
+                 return "Finished";
+ 
++            case VIR_DOMAIN_EVENT_SHUTDOWN_GUEST:
++                return "Guest request";
++
++            case VIR_DOMAIN_EVENT_SHUTDOWN_HOST:
++                return "Host request";
++
+             case VIR_DOMAIN_EVENT_SHUTDOWN_LAST:
+                 break;
+             }
+diff --git a/include/libvirt/libvirt-domain.h b/include/libvirt/libvirt-domain.h
+index c9e96a6c9..720db32f7 100644
+--- a/include/libvirt/libvirt-domain.h
++++ b/include/libvirt/libvirt-domain.h
+@@ -2983,7 +2983,16 @@ typedef enum {
+  * Details on the cause of a 'shutdown' lifecycle event
+  */
+ typedef enum {
+-    VIR_DOMAIN_EVENT_SHUTDOWN_FINISHED = 0, /* Guest finished shutdown sequence */
++    /* Guest finished shutdown sequence */
++    VIR_DOMAIN_EVENT_SHUTDOWN_FINISHED = 0,
++
++    /* Domain finished shutting down after request from the guest itself
++     * (e.g. hardware-specific action) */
++    VIR_DOMAIN_EVENT_SHUTDOWN_GUEST = 1,
++
++    /* Domain finished shutting down after request from the host (e.g. killed by
++     * a signal) */
++    VIR_DOMAIN_EVENT_SHUTDOWN_HOST = 2,
+ 
+ # ifdef VIR_ENUM_SENTINELS
+     VIR_DOMAIN_EVENT_SHUTDOWN_LAST
+diff --git a/src/qemu/qemu_monitor.c b/src/qemu/qemu_monitor.c
+index 488d761fb..b5e890607 100644
+--- a/src/qemu/qemu_monitor.c
++++ b/src/qemu/qemu_monitor.c
+@@ -1303,12 +1303,12 @@ qemuMonitorEmitEvent(qemuMonitorPtr mon, const char *event,
+ 
+ 
+ int
+-qemuMonitorEmitShutdown(qemuMonitorPtr mon)
++qemuMonitorEmitShutdown(qemuMonitorPtr mon, virTristateBool guest)
+ {
+     int ret = -1;
+-    VIR_DEBUG("mon=%p", mon);
++    VIR_DEBUG("mon=%p guest=%u", mon, guest);
+ 
+-    QEMU_MONITOR_CALLBACK(mon, ret, domainShutdown, mon->vm);
++    QEMU_MONITOR_CALLBACK(mon, ret, domainShutdown, mon->vm, guest);
+     return ret;
+ }
+ 
+diff --git a/src/qemu/qemu_monitor.h b/src/qemu/qemu_monitor.h
+index c1506b0fc..9901203b1 100644
+--- a/src/qemu/qemu_monitor.h
++++ b/src/qemu/qemu_monitor.h
+@@ -130,6 +130,7 @@ typedef int (*qemuMonitorDomainEventCallback)(qemuMonitorPtr mon,
+                                               void *opaque);
+ typedef int (*qemuMonitorDomainShutdownCallback)(qemuMonitorPtr mon,
+                                                  virDomainObjPtr vm,
++                                                 virTristateBool guest,
+                                                  void *opaque);
+ typedef int (*qemuMonitorDomainResetCallback)(qemuMonitorPtr mon,
+                                               virDomainObjPtr vm,
+@@ -342,7 +343,7 @@ int qemuMonitorGetDiskSecret(qemuMonitorPtr mon,
+ int qemuMonitorEmitEvent(qemuMonitorPtr mon, const char *event,
+                          long long seconds, unsigned int micros,
+                          const char *details);
+-int qemuMonitorEmitShutdown(qemuMonitorPtr mon);
++int qemuMonitorEmitShutdown(qemuMonitorPtr mon, virTristateBool guest);
+ int qemuMonitorEmitReset(qemuMonitorPtr mon);
+ int qemuMonitorEmitPowerdown(qemuMonitorPtr mon);
+ int qemuMonitorEmitStop(qemuMonitorPtr mon);
+diff --git a/src/qemu/qemu_monitor_json.c b/src/qemu/qemu_monitor_json.c
+index 601aa3e74..f22df3007 100644
+--- a/src/qemu/qemu_monitor_json.c
++++ b/src/qemu/qemu_monitor_json.c
+@@ -523,9 +523,15 @@ qemuMonitorJSONKeywordStringToJSON(const char *str, const char *firstkeyword)
+ }
+ 
+ 
+-static void qemuMonitorJSONHandleShutdown(qemuMonitorPtr mon, virJSONValuePtr data ATTRIBUTE_UNUSED)
++static void qemuMonitorJSONHandleShutdown(qemuMonitorPtr mon, virJSONValuePtr data)
+ {
+-    qemuMonitorEmitShutdown(mon);
++    bool guest = false;
++    virTristateBool guest_initiated = VIR_TRISTATE_BOOL_ABSENT;
++
++    if (virJSONValueObjectGetBoolean(data, "guest", &guest) == 0)
++        guest_initiated = guest ? VIR_TRISTATE_BOOL_YES : VIR_TRISTATE_BOOL_NO;
++
++    qemuMonitorEmitShutdown(mon, guest_initiated);
+ }
+ 
+ static void qemuMonitorJSONHandleReset(qemuMonitorPtr mon, virJSONValuePtr data ATTRIBUTE_UNUSED)
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 6f0d07242..998dbeb6b 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -634,12 +634,14 @@ qemuProcessHandleEvent(qemuMonitorPtr mon ATTRIBUTE_UNUSED,
+ static int
+ qemuProcessHandleShutdown(qemuMonitorPtr mon ATTRIBUTE_UNUSED,
+                           virDomainObjPtr vm,
++                          virTristateBool guest_initiated,
+                           void *opaque)
+ {
+     virQEMUDriverPtr driver = opaque;
+     qemuDomainObjPrivatePtr priv;
+     virObjectEventPtr event = NULL;
+     virQEMUDriverConfigPtr cfg = virQEMUDriverGetConfig(driver);
++    int detail = 0;
+ 
+     VIR_DEBUG("vm=%p", vm);
+ 
+@@ -662,9 +664,24 @@ qemuProcessHandleShutdown(qemuMonitorPtr mon ATTRIBUTE_UNUSED,
+     virDomainObjSetState(vm,
+                          VIR_DOMAIN_SHUTDOWN,
+                          VIR_DOMAIN_SHUTDOWN_UNKNOWN);
++
++    switch (guest_initiated) {
++    case VIR_TRISTATE_BOOL_YES:
++        detail = VIR_DOMAIN_EVENT_SHUTDOWN_GUEST;
++        break;
++
++    case VIR_TRISTATE_BOOL_NO:
++        detail = VIR_DOMAIN_EVENT_SHUTDOWN_HOST;
++        break;
++
++    default:
++        detail = VIR_DOMAIN_EVENT_SHUTDOWN_FINISHED;
++        break;
++    }
++
+     event = virDomainEventLifecycleNewFromObj(vm,
+-                                     VIR_DOMAIN_EVENT_SHUTDOWN,
+-                                     VIR_DOMAIN_EVENT_SHUTDOWN_FINISHED);
++                                              VIR_DOMAIN_EVENT_SHUTDOWN,
++                                              detail);
+ 
+     if (virDomainSaveStatus(driver->xmlopt, cfg->stateDir, vm, driver->caps) < 0) {
+         VIR_WARN("Unable to save status on vm %s after state change",
+diff --git a/tools/virsh-domain.c b/tools/virsh-domain.c
+index bc0ded686..3374f2c8b 100644
+--- a/tools/virsh-domain.c
++++ b/tools/virsh-domain.c
+@@ -12385,7 +12385,9 @@ VIR_ENUM_IMPL(virshDomainEventStopped,
+ VIR_ENUM_DECL(virshDomainEventShutdown)
+ VIR_ENUM_IMPL(virshDomainEventShutdown,
+               VIR_DOMAIN_EVENT_SHUTDOWN_LAST,
+-              N_("Finished"))
++              N_("Finished"),
++              N_("Finished after guest request"),
++              N_("Finished after host request"))
+ 
+ VIR_ENUM_DECL(virshDomainEventPMSuspended)
+ VIR_ENUM_IMPL(virshDomainEventPMSuspended,
+-- 
+2.13.0
+

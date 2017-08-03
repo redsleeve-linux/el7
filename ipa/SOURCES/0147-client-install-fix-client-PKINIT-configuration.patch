@@ -1,0 +1,254 @@
+From e5491b62d3ec21feb7809f7f65797151d256c580 Mon Sep 17 00:00:00 2001
+From: Jan Cholasta <jcholast@redhat.com>
+Date: Wed, 3 May 2017 06:48:57 +0000
+Subject: [PATCH] client install: fix client PKINIT configuration
+
+Set `pkinit_anchors` in `krb5.conf` to a CA certificate bundle of CAs
+trusted to issue KDC certificates rather than `/etc/ipa/ca.crt`.
+
+Set `pkinit_pool` in `krb5.conf` to a CA certificate bundle of all CAs
+known to IPA.
+
+Make sure both bundles are exported in all installation code paths.
+
+https://pagure.io/freeipa/issue/6831
+
+Reviewed-By: Stanislav Laznicka <slaznick@redhat.com>
+Reviewed-By: Martin Babinsky <mbabinsk@redhat.com>
+---
+ client/Makefile.am                         |  1 +
+ freeipa.spec.in                            | 10 ++++++++++
+ install/share/krb5.conf.template           |  3 ++-
+ ipaclient/install/client.py                | 15 ++++++++++++++-
+ ipaclient/install/ipa_certupdate.py        |  2 ++
+ ipaplatform/base/paths.py                  |  2 ++
+ ipaserver/install/cainstance.py            | 11 +++++++----
+ ipaserver/install/ipa_backup.py            |  2 ++
+ ipaserver/install/krbinstance.py           |  4 +++-
+ ipaserver/install/server/install.py        | 10 ++++++++++
+ ipaserver/install/server/replicainstall.py |  4 ++++
+ ipaserver/install/server/upgrade.py        |  4 +++-
+ 12 files changed, 60 insertions(+), 8 deletions(-)
+
+diff --git a/client/Makefile.am b/client/Makefile.am
+index b6c9dea437460b0f912854a6a2fb9d1f30f3b1e7..e354cb41a4ee0d7da04197abe0e750c5d727bb4d 100644
+--- a/client/Makefile.am
++++ b/client/Makefile.am
+@@ -101,4 +101,5 @@ EXTRA_DIST =			\
+ 
+ install-data-hook:
+ 	$(INSTALL) -d -m 755 $(DESTDIR)$(IPA_SYSCONF_DIR)/nssdb
++	$(INSTALL) -d -m 755 $(DESTDIR)$(localstatedir)/lib/ipa-client/pki
+ 	$(INSTALL) -d -m 755 $(DESTDIR)$(localstatedir)/lib/ipa-client/sysrestore
+diff --git a/freeipa.spec.in b/freeipa.spec.in
+index 0335a9970be82e80e98696f3d7fd4ec64894ef5f..6cb37ae53b039aa1d0e0509f62a3237504be6555 100644
+--- a/freeipa.spec.in
++++ b/freeipa.spec.in
+@@ -1097,6 +1097,15 @@ if [ $1 -gt 1 ] ; then
+         fi
+     fi
+ 
++    if [ $restore -ge 2 ]; then
++        if grep -E -q '\s*pkinit_anchors = FILE:/etc/ipa/ca.crt$' /etc/krb5.conf 2>/dev/null; then
++            sed -E 's|(\s*)pkinit_anchors = FILE:/etc/ipa/ca.crt$|\1pkinit_anchors = FILE:/var/lib/ipa-client/pki/kdc-ca-bundle.pem\n\1pkinit_pool = FILE:/var/lib/ipa-client/pki/ca-bundle.pem|' /etc/krb5.conf >/etc/krb5.conf.ipanew
++            mv -Z /etc/krb5.conf.ipanew /etc/krb5.conf
++            cp /etc/ipa/ca.crt /var/lib/ipa-client/pki/kdc-ca-bundle.pem
++            cp /etc/ipa/ca.crt /var/lib/ipa-client/pki/ca-bundle.pem
++        fi
++    fi
++
+     if [ -f '/etc/sysconfig/ntpd' -a $restore -ge 2 ]; then
+         if grep -E -q 'OPTIONS=.*-u ntp:ntp' /etc/sysconfig/ntpd 2>/dev/null; then
+             sed -r '/OPTIONS=/ { s/\s+-u ntp:ntp\s+/ /; s/\s*-u ntp:ntp\s*// }' /etc/sysconfig/ntpd >/etc/sysconfig/ntpd.ipanew
+@@ -1468,6 +1477,7 @@ fi
+ %ghost %config(noreplace) %{_sysconfdir}/ipa/nssdb/pwdfile.txt
+ %ghost %config(noreplace) %{_sysconfdir}/pki/ca-trust/source/ipa.p11-kit
+ %dir %{_localstatedir}/lib/ipa-client
++%dir %{_localstatedir}/lib/ipa-client/pki
+ %dir %{_localstatedir}/lib/ipa-client/sysrestore
+ %{_mandir}/man5/default.conf.5*
+ 
+diff --git a/install/share/krb5.conf.template b/install/share/krb5.conf.template
+index e8b2ad8dace8264cd9345285f55c42422bf81ca3..1f18ff90d34ccccb42c4b64d188e7d70e9892b71 100644
+--- a/install/share/krb5.conf.template
++++ b/install/share/krb5.conf.template
+@@ -21,7 +21,8 @@ $OTHER_LIBDEFAULTS
+   master_kdc = $FQDN:88
+   admin_server = $FQDN:749
+   default_domain = $DOMAIN
+-  pkinit_anchors = FILE:/etc/ipa/ca.crt
++  pkinit_anchors = FILE:$KDC_CA_BUNDLE_PEM
++  pkinit_pool = FILE:$CA_BUNDLE_PEM
+ }
+ 
+ [domain_realm]
+diff --git a/ipaclient/install/client.py b/ipaclient/install/client.py
+index e78be904dd6bad491d9f3c1bb1e1410bc1779d45..6f10f5258747881b9af8c6b70b499f9ff7d577ff 100644
+--- a/ipaclient/install/client.py
++++ b/ipaclient/install/client.py
+@@ -710,7 +710,11 @@ def configure_krb5_conf(
+         kropts.append(krbconf.setOption('default_domain', cli_domain))
+ 
+     kropts.append(
+-        krbconf.setOption('pkinit_anchors', 'FILE:%s' % paths.IPA_CA_CRT))
++        krbconf.setOption('pkinit_anchors',
++                          'FILE:%s' % paths.KDC_CA_BUNDLE_PEM))
++    kropts.append(
++        krbconf.setOption('pkinit_pool',
++                          'FILE:%s' % paths.CA_BUNDLE_PEM))
+     ropts = [{
+         'name': cli_realm,
+         'type': 'subsection',
+@@ -2770,6 +2774,13 @@ def _install(options):
+     ca_certs_trust = [(c, n, certstore.key_policy_to_trust_flags(t, True, u))
+                       for (c, n, t, u) in ca_certs]
+ 
++    x509.write_certificate_list(
++        [c for c, n, t, u in ca_certs if t is not False],
++        paths.KDC_CA_BUNDLE_PEM)
++    x509.write_certificate_list(
++        [c for c, n, t, u in ca_certs if t is not False],
++        paths.CA_BUNDLE_PEM)
++
+     # Add the CA certificates to the IPA NSS database
+     root_logger.debug("Adding CA certificates to the IPA NSS database.")
+     ipa_db = certdb.NSSDatabase(paths.IPA_NSSDB_DIR)
+@@ -3317,6 +3328,8 @@ def uninstall(options):
+ 
+     # Remove the CA cert
+     remove_file(paths.IPA_CA_CRT)
++    remove_file(paths.KDC_CA_BUNDLE_PEM)
++    remove_file(paths.CA_BUNDLE_PEM)
+ 
+     root_logger.info("Client uninstall complete.")
+ 
+diff --git a/ipaclient/install/ipa_certupdate.py b/ipaclient/install/ipa_certupdate.py
+index 7dc88f07ae14e5416f6fe3dc8400b7d4bcabef72..7e8527e1fcb575844e8f4c90016435124b70e381 100644
+--- a/ipaclient/install/ipa_certupdate.py
++++ b/ipaclient/install/ipa_certupdate.py
+@@ -113,6 +113,8 @@ class CertUpdate(admintool.AdminTool):
+ 
+     def update_client(self, certs):
+         self.update_file(paths.IPA_CA_CRT, certs)
++        self.update_file(paths.KDC_CA_BUNDLE_PEM, certs)
++        self.update_file(paths.CA_BUNDLE_PEM, certs)
+ 
+         ipa_db = certdb.NSSDatabase(api.env.nss_dir)
+ 
+diff --git a/ipaplatform/base/paths.py b/ipaplatform/base/paths.py
+index f80c9e95ab875222887e3692ab80151f84345469..804fddee60f787e161947bbe4b1914995257ceb4 100644
+--- a/ipaplatform/base/paths.py
++++ b/ipaplatform/base/paths.py
+@@ -331,6 +331,8 @@ class BasePathNamespace(object):
+     VAR_RUN_DIRSRV_DIR = "/var/run/dirsrv"
+     IPA_CCACHES = "/var/run/ipa/ccaches"
+     HTTP_CCACHE = "/var/lib/ipa/gssproxy/http.ccache"
++    CA_BUNDLE_PEM = "/var/lib/ipa-client/pki/ca-bundle.pem"
++    KDC_CA_BUNDLE_PEM = "/var/lib/ipa-client/pki/kdc-ca-bundle.pem"
+     IPA_RENEWAL_LOCK = "/var/run/ipa/renewal.lock"
+     SVC_LIST_FILE = "/var/run/ipa/services.list"
+     KRB5CC_SAMBA = "/var/run/samba/krb5cc_samba"
+diff --git a/ipaserver/install/cainstance.py b/ipaserver/install/cainstance.py
+index a4aa4f2069277181501ebd92f3795c452b10acd0..b8c8cc4fc4532fc2c911ec174d363f8280ce863b 100644
+--- a/ipaserver/install/cainstance.py
++++ b/ipaserver/install/cainstance.py
+@@ -794,10 +794,13 @@ class CAInstance(DogtagInstance):
+         certlist = x509.pkcs7_to_pems(data, x509.DER)
+ 
+         # We have all the certificates in certlist, write them to a PEM file
+-        with open(paths.IPA_CA_CRT, 'w') as ipaca_pem:
+-            for cert in certlist:
+-                ipaca_pem.write(cert)
+-                ipaca_pem.write('\n')
++        for path in [paths.IPA_CA_CRT,
++                     paths.KDC_CA_BUNDLE_PEM,
++                     paths.CA_BUNDLE_PEM]:
++            with open(path, 'w') as ipaca_pem:
++                for cert in certlist:
++                    ipaca_pem.write(cert)
++                    ipaca_pem.write('\n')
+ 
+     def __request_ra_certificate(self):
+         # create a temp file storing the pwd
+diff --git a/ipaserver/install/ipa_backup.py b/ipaserver/install/ipa_backup.py
+index 40f08d7d727a8b97b5996f15d27c1e20788e1473..f8cdd56d26636678279ba5afb423c5eef10c33d0 100644
+--- a/ipaserver/install/ipa_backup.py
++++ b/ipaserver/install/ipa_backup.py
+@@ -150,6 +150,8 @@ class Backup(admintool.AdminTool):
+         paths.SSHD_CONFIG,
+         paths.SSH_CONFIG,
+         paths.KRB5_CONF,
++        paths.KDC_CA_BUNDLE_PEM,
++        paths.CA_BUNDLE_PEM,
+         paths.IPA_CA_CRT,
+         paths.IPA_DEFAULT_CONF,
+         paths.DS_KEYTAB,
+diff --git a/ipaserver/install/krbinstance.py b/ipaserver/install/krbinstance.py
+index 2f14ff592064d3446f73b31e615b2de88d6d786c..e52577bbaa15064946f9a3c9720aa40ffc3251aa 100644
+--- a/ipaserver/install/krbinstance.py
++++ b/ipaserver/install/krbinstance.py
+@@ -261,7 +261,9 @@ class KrbInstance(service.Service):
+                              KRB5KDC_KADM5_KEYTAB=paths.KRB5KDC_KADM5_KEYTAB,
+                              KDC_CERT=paths.KDC_CERT,
+                              KDC_KEY=paths.KDC_KEY,
+-                             CACERT_PEM=paths.CACERT_PEM)
++                             CACERT_PEM=paths.CACERT_PEM,
++                             KDC_CA_BUNDLE_PEM=paths.KDC_CA_BUNDLE_PEM,
++                             CA_BUNDLE_PEM=paths.CA_BUNDLE_PEM)
+ 
+         # IPA server/KDC is not a subdomain of default domain
+         # Proper domain-realm mapping needs to be specified
+diff --git a/ipaserver/install/server/install.py b/ipaserver/install/server/install.py
+index 25c21db721c58388ae8fd6ab1fbc443d513a4324..c1bdce6c8459dfeabd0096d105e535ec4ee56a2a 100644
+--- a/ipaserver/install/server/install.py
++++ b/ipaserver/install/server/install.py
+@@ -796,6 +796,16 @@ def install(installer):
+         x509.write_certificate(http_ca_cert, paths.IPA_CA_CRT)
+         os.chmod(paths.IPA_CA_CRT, 0o444)
+ 
++        if not options.no_pkinit:
++            x509.write_certificate(http_ca_cert, paths.KDC_CA_BUNDLE_PEM)
++        else:
++            with open(paths.KDC_CA_BUNDLE_PEM, 'w'):
++                pass
++        os.chmod(paths.KDC_CA_BUNDLE_PEM, 0o444)
++
++        x509.write_certificate(http_ca_cert, paths.CA_BUNDLE_PEM)
++        os.chmod(paths.CA_BUNDLE_PEM, 0o444)
++
+     # we now need to enable ssl on the ds
+     ds.enable_ssl()
+ 
+diff --git a/ipaserver/install/server/replicainstall.py b/ipaserver/install/server/replicainstall.py
+index c19edceec42845f3169adc923762f700739232f2..66d7ba44645aed69b12f0e5ea14f5080492fe5ef 100644
+--- a/ipaserver/install/server/replicainstall.py
++++ b/ipaserver/install/server/replicainstall.py
+@@ -1390,6 +1390,10 @@ def install(installer):
+ 
+         # Update and istall updated CA file
+         cafile = install_ca_cert(conn, api.env.basedn, api.env.realm, cafile)
++        install_ca_cert(conn, api.env.basedn, api.env.realm, cafile,
++                        destfile=paths.KDC_CA_BUNDLE_PEM)
++        install_ca_cert(conn, api.env.basedn, api.env.realm, cafile,
++                        destfile=paths.CA_BUNDLE_PEM)
+ 
+         # Configure dirsrv
+         ds = install_replica_ds(config, options, ca_enabled,
+diff --git a/ipaserver/install/server/upgrade.py b/ipaserver/install/server/upgrade.py
+index c244958f4cddba0d1edded5165a295b1e1ee2b8a..648dc1f29c44f89d9fbceb7b50373d93c88b5c1a 100644
+--- a/ipaserver/install/server/upgrade.py
++++ b/ipaserver/install/server/upgrade.py
+@@ -1831,7 +1831,9 @@ def upgrade_configuration():
+                         KRB5KDC_KADM5_KEYTAB=paths.KRB5KDC_KADM5_KEYTAB,
+                         KDC_CERT=paths.KDC_CERT,
+                         KDC_KEY=paths.KDC_KEY,
+-                        CACERT_PEM=paths.CACERT_PEM)
++                        CACERT_PEM=paths.CACERT_PEM,
++                        KDC_CA_BUNDLE_PEM=paths.KDC_CA_BUNDLE_PEM,
++                        CA_BUNDLE_PEM=paths.CA_BUNDLE_PEM)
+     krb.add_anonymous_principal()
+     setup_pkinit(krb)
+ 
+-- 
+2.9.4
+

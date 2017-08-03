@@ -1,0 +1,71 @@
+From 0ca6807c400aa86fb9316f4fa481c253f0de1311 Mon Sep 17 00:00:00 2001
+Message-Id: <0ca6807c400aa86fb9316f4fa481c253f0de1311@dist-git>
+From: Pavel Hrdina <phrdina@redhat.com>
+Date: Fri, 28 Apr 2017 11:59:49 +0200
+Subject: [PATCH] qemu: introduce QEMU_CAPS_DEVICE_QEMU_XHCI
+
+Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
+Acked-by: Andrea Bolognani <abologna@redhat.com>
+(cherry picked from commit 5237a74d4aeb073255a2a7165144a56b9e2e3b53)
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1438682
+
+Conflicts:
+    - resolved capabilities flag conflicts due to missing capability
+      in downstream code
+
+Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_capabilities.c                     | 2 ++
+ src/qemu/qemu_capabilities.h                     | 1 +
+ tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml | 1 +
+ 3 files changed, 4 insertions(+)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index 49de506ed..b76b79342 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -365,6 +365,7 @@ VIR_ENUM_IMPL(virQEMUCaps, QEMU_CAPS_LAST,
+               "block-write-threshold",
+               "query-named-block-nodes",
+               "cpu-cache",
++              "qemu-xhci",
+     );
+ 
+ 
+@@ -1611,6 +1612,7 @@ struct virQEMUCapsStringFlags virQEMUCapsObjectTypes[] = {
+     { "vhost-scsi", QEMU_CAPS_DEVICE_VHOST_SCSI },
+     { "nvdimm", QEMU_CAPS_DEVICE_NVDIMM },
+     { "pcie-root-port", QEMU_CAPS_DEVICE_PCIE_ROOT_PORT },
++    { "qemu-xhci", QEMU_CAPS_DEVICE_QEMU_XHCI },
+ };
+ 
+ static struct virQEMUCapsStringFlags virQEMUCapsObjectPropsVirtioBalloon[] = {
+diff --git a/src/qemu/qemu_capabilities.h b/src/qemu/qemu_capabilities.h
+index 644b8e27b..1cd3ec37d 100644
+--- a/src/qemu/qemu_capabilities.h
++++ b/src/qemu/qemu_capabilities.h
+@@ -402,6 +402,7 @@ typedef enum {
+     QEMU_CAPS_BLOCK_WRITE_THRESHOLD, /* BLOCK_WRITE_THRESHOLD event */
+     QEMU_CAPS_QUERY_NAMED_BLOCK_NODES, /* qmp query-named-block-nodes */
+     QEMU_CAPS_CPU_CACHE, /* -cpu supports host-cache-info and l3-cache properties */
++    QEMU_CAPS_DEVICE_QEMU_XHCI, /* -device qemu-xhci */
+ 
+     QEMU_CAPS_LAST /* this must always be the last item */
+ } virQEMUCapsFlags;
+diff --git a/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml b/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml
+index 496c9ceb8..83ed0f1c6 100644
+--- a/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml
++++ b/tests/qemucapabilitiesdata/caps_2.9.0.x86_64.xml
+@@ -208,6 +208,7 @@
+   <flag name='block-write-threshold'/>
+   <flag name='query-named-block-nodes'/>
+   <flag name='cpu-cache'/>
++  <flag name='qemu-xhci'/>
+   <version>2008090</version>
+   <kvmVersion>0</kvmVersion>
+   <package> (v2.9.0-rc0-142-g940a8ce)</package>
+-- 
+2.12.2
+

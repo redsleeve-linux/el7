@@ -1,0 +1,64 @@
+From 4383e358e2d8a85bd46936c997071c3b776fffd0 Mon Sep 17 00:00:00 2001
+Message-Id: <4383e358e2d8a85bd46936c997071c3b776fffd0@dist-git>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Tue, 16 May 2017 10:44:59 +0200
+Subject: [PATCH] conf: add ABI stability checks for IOMMU options
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1427005
+(cherry picked from commit 935d927aa881753fff30f6236eedcf9680bca638)
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/conf/domain_conf.c | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index 7bf480f2a..370916396 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -19682,6 +19682,16 @@ virDomainDefFeaturesCheckABIStability(virDomainDefPtr src,
+         }
+     }
+ 
++    /* ioapic */
++    if (src->ioapic != dst->ioapic) {
++        virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
++                       _("State of ioapic differs: "
++                         "source: '%s', destination: '%s'"),
++                       virDomainIOAPICTypeToString(src->ioapic),
++                       virDomainIOAPICTypeToString(dst->ioapic));
++        return false;
++    }
++
+     return true;
+ }
+ 
+@@ -19821,6 +19831,22 @@ virDomainIOMMUDefCheckABIStability(virDomainIOMMUDefPtr src,
+                        virDomainIOMMUModelTypeToString(src->model));
+         return false;
+     }
++    if (src->intremap != dst->intremap) {
++        virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
++                       _("Target domain IOMMU device intremap value '%s' "
++                         "does not match source '%s'"),
++                       virTristateSwitchTypeToString(dst->intremap),
++                       virTristateSwitchTypeToString(src->intremap));
++        return false;
++    }
++    if (src->caching_mode != dst->caching_mode) {
++        virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
++                       _("Target domain IOMMU device caching mode '%s' "
++                         "does not match source '%s'"),
++                       virTristateSwitchTypeToString(dst->caching_mode),
++                       virTristateSwitchTypeToString(src->caching_mode));
++        return false;
++    }
+     return true;
+ }
+ 
+-- 
+2.13.0
+

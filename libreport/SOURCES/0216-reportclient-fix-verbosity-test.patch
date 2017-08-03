@@ -1,0 +1,33 @@
+From 10fb97f11e27c4ac2144005f0ac28b8beff14733 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Wed, 8 Feb 2017 14:50:49 +0100
+Subject: [PATCH] reportclient: fix verbosity test
+
+Imported missing report module.
+
+Related #1257159
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ tests/client_python.at | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/tests/client_python.at b/tests/client_python.at
+index 656b1b2..9f1c1c1 100644
+--- a/tests/client_python.at
++++ b/tests/client_python.at
+@@ -13,7 +13,11 @@ import unittest
+ 
+ sys.path.insert(0, "../../../src/client-python")
+ sys.path.insert(0, "../../../src/client-python/.libs")
++sys.path.insert(0, "../../../src/report-python")
++sys.path.insert(0, "../../../src/report-python/.libs")
+ 
++report = __import__("report-python", globals(), locals(), [], -1)
++sys.modules["report"] = report
+ 
+ class TestReportClientVerbose(unittest.TestCase):
+     def setUp(self):
+-- 
+1.8.3.1
+

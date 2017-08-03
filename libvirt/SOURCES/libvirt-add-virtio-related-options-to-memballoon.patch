@@ -1,0 +1,147 @@
+From f9a338cd5d0477291a0001a527d0add941f7ea37 Mon Sep 17 00:00:00 2001
+Message-Id: <f9a338cd5d0477291a0001a527d0add941f7ea37@dist-git>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Fri, 9 Jun 2017 12:49:01 +0200
+Subject: [PATCH] add virtio-related options to memballoon
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1283251
+
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit 82223f9364a9f47a39b7c66c241b82ae62f9fb4b)
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ docs/formatdomain.html.in                          |  7 +++++++
+ docs/schemas/domaincommon.rng                      |  5 +++++
+ src/conf/domain_conf.c                             | 24 ++++++++++++++++++++++
+ src/conf/domain_conf.h                             |  1 +
+ .../qemuxml2argv-virtio-options.xml                |  1 +
+ 5 files changed, 38 insertions(+)
+
+diff --git a/docs/formatdomain.html.in b/docs/formatdomain.html.in
+index 23546daae9..2556f383fc 100644
+--- a/docs/formatdomain.html.in
++++ b/docs/formatdomain.html.in
+@@ -6913,6 +6913,7 @@ qemu-kvm -net nic,model=? /dev/null
+     &lt;memballoon model='virtio'&gt;
+       &lt;address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x0'/&gt;
+       &lt;stats period='10'/&gt;
++      &lt;driver iommu='on' ats='on'/&gt;
+     &lt;/memballoon&gt;
+   &lt;/devices&gt;
+ &lt;/domain&gt;</pre>
+@@ -6957,6 +6958,12 @@ qemu-kvm -net nic,model=? /dev/null
+           <span class='since'>Since 1.1.1, requires QEMU 1.5</span>
+         </p>
+       </dd>
++      <dt><code>driver</code></dt>
++      <dd>
++        For model <code>virtio</code> memballoon,
++        <a href="#elementsVirtio">Virtio-specific options</a> can also be
++        set. (<span class="since">Since 3.5.0</span>)
++      </dd>
+     </dl>
+     <h4><a name="elementsRng">Random number generator device</a></h4>
+ 
+diff --git a/docs/schemas/domaincommon.rng b/docs/schemas/domaincommon.rng
+index 9e68bbc52d..f571af6706 100644
+--- a/docs/schemas/domaincommon.rng
++++ b/docs/schemas/domaincommon.rng
+@@ -3730,6 +3730,11 @@
+             </attribute>
+           </element>
+         </optional>
++        <optional>
++          <element name="driver">
++            <ref name="virtioOptions"/>
++          </element>
++        </optional>
+       </interleave>
+     </element>
+   </define>
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index bba50cf3fd..4768d02029 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -2292,6 +2292,7 @@ void virDomainMemballoonDefFree(virDomainMemballoonDefPtr def)
+         return;
+ 
+     virDomainDeviceInfoClear(&def->info);
++    VIR_FREE(def->virtio);
+ 
+     VIR_FREE(def);
+ }
+@@ -12970,6 +12971,9 @@ virDomainMemballoonDefParseXML(xmlNodePtr node,
+     else if (virDomainDeviceInfoParseXML(node, NULL, &def->info, flags) < 0)
+         goto error;
+ 
++    if (virDomainVirtioOptionsParseXML(ctxt, &def->virtio) < 0)
++        goto error;
++
+  cleanup:
+     VIR_FREE(model);
+     VIR_FREE(deflate);
+@@ -19582,6 +19586,10 @@ virDomainMemballoonDefCheckABIStability(virDomainMemballoonDefPtr src,
+         return false;
+     }
+ 
++    if (src->virtio && dst->virtio &&
++        !virDomainVirtioOptionsCheckABIStability(src->virtio, dst->virtio))
++        return false;
++
+     if (!virDomainDeviceInfoCheckABIStability(&src->info, &dst->info))
+         return false;
+ 
+@@ -22934,6 +22942,22 @@ virDomainMemballoonDefFormat(virBufferPtr buf,
+         return -1;
+     }
+ 
++    if (def->virtio) {
++        virBuffer driverBuf = VIR_BUFFER_INITIALIZER;
++
++        virDomainVirtioOptionsFormat(&driverBuf, def->virtio);
++
++        if (virBufferCheckError(&driverBuf) < 0) {
++            virBufferFreeAndReset(&childrenBuf);
++            return -1;
++        }
++        if (virBufferUse(&driverBuf)) {
++            virBufferAddLit(&childrenBuf, "<driver");
++            virBufferAddBuffer(&childrenBuf, &driverBuf);
++            virBufferAddLit(&childrenBuf, "/>\n");
++        }
++    }
++
+     if (!virBufferUse(&childrenBuf)) {
+         virBufferAddLit(buf, "/>\n");
+     } else {
+diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
+index 603d35bd50..f1f9208b91 100644
+--- a/src/conf/domain_conf.h
++++ b/src/conf/domain_conf.h
+@@ -1609,6 +1609,7 @@ struct _virDomainMemballoonDef {
+     virDomainDeviceInfo info;
+     int period; /* seconds between collections */
+     int autodeflate; /* enum virTristateSwitch */
++    virDomainVirtioOptionsPtr virtio;
+ };
+ 
+ struct _virDomainNVRAMDef {
+diff --git a/tests/qemuxml2argvdata/qemuxml2argv-virtio-options.xml b/tests/qemuxml2argvdata/qemuxml2argv-virtio-options.xml
+index 3357bc6d1b..b16a9847fe 100644
+--- a/tests/qemuxml2argvdata/qemuxml2argv-virtio-options.xml
++++ b/tests/qemuxml2argvdata/qemuxml2argv-virtio-options.xml
+@@ -73,6 +73,7 @@
+     </video>
+     <memballoon model='virtio'>
+       <address type='pci' domain='0x0000' bus='0x00' slot='0x0c' function='0x0'/>
++      <driver iommu='on' ats='on'/>
+     </memballoon>
+     <rng model='virtio'>
+       <backend model='random'>/dev/random</backend>
+-- 
+2.13.1
+

@@ -1,0 +1,97 @@
+From 993d41e5105653412cec40b8e2a386da802a62bb Mon Sep 17 00:00:00 2001
+From: Jan Cholasta <jcholast@redhat.com>
+Date: Mon, 24 Apr 2017 07:10:41 +0000
+Subject: [PATCH] ipa-cacert-manage: add --external-ca-type
+
+Add the `--external-ca-type`, as known from `ipa-server-install` and
+`ipa-ca-install`, to `ipa-cacert-manage`.
+
+This allows creating IPA CA CSRs suitable for use with Microsoft CS using
+`ipa-cacert-manage`:
+
+```
+ipa-cacert-manage renew --external-ca --external-ca-type=ms-cs
+```
+
+https://pagure.io/freeipa/issue/5799
+
+Reviewed-By: David Kupka <dkupka@redhat.com>
+Reviewed-By: Stanislav Laznicka <slaznick@redhat.com>
+---
+ install/tools/man/ipa-cacert-manage.1  |  3 +++
+ ipaserver/install/ipa_cacert_manage.py | 21 +++++++++++++++++----
+ 2 files changed, 20 insertions(+), 4 deletions(-)
+
+diff --git a/install/tools/man/ipa-cacert-manage.1 b/install/tools/man/ipa-cacert-manage.1
+index 128edd8bd2500a09f406da8dc01a53b269007ab0..e36258d0f96aa1050fe88b05f4fe9a1a8f9a7978 100644
+--- a/install/tools/man/ipa-cacert-manage.1
++++ b/install/tools/man/ipa-cacert-manage.1
+@@ -78,6 +78,9 @@ Sign the renewed certificate by itself.
+ \fB\-\-external\-ca\fR
+ Sign the renewed certificate by external CA.
+ .TP
++\fB\-\-external\-ca\-type\fR=\fITYPE\fR
++Type of the external CA. Possible values are "generic", "ms-cs". Default value is "generic". Use "ms-cs" to include template name required by Microsoft Certificate Services (MS CS) in the generated CSR.
++.TP
+ \fB\-\-external\-cert\-file\fR=\fIFILE\fR
+ File containing the IPA CA certificate and the external CA certificate chain. The file is accepted in PEM and DER certificate and PKCS#7 certificate chain formats. This option may be used multiple times.
+ .RE
+diff --git a/ipaserver/install/ipa_cacert_manage.py b/ipaserver/install/ipa_cacert_manage.py
+index 6d28c62b36b3909c9a3d95a5c6c84d1779fe4c33..3b732e4dcbb5c9b4dfbb9e3608bc7d7afd3e10c2 100644
+--- a/ipaserver/install/ipa_cacert_manage.py
++++ b/ipaserver/install/ipa_cacert_manage.py
+@@ -54,6 +54,12 @@ class CACertManage(admintool.AdminTool):
+             "--self-signed", dest='self_signed',
+             action='store_true',
+             help="Sign the renewed certificate by itself")
++        ext_cas = ("generic", "ms-cs")
++        renew_group.add_option(
++            "--external-ca-type", dest="external_ca_type",
++            type="choice", choices=ext_cas,
++            metavar="{{{0}}}".format(",".join(ext_cas)),
++            help="Type of the external CA. Default: generic")
+         renew_group.add_option(
+             "--external-ca", dest='self_signed',
+             action='store_false',
+@@ -179,7 +185,12 @@ class CACertManage(admintool.AdminTool):
+     def renew_external_step_1(self, ca):
+         print("Exporting CA certificate signing request, please wait")
+ 
+-        self.resubmit_request('dogtag-ipa-ca-renew-agent-reuse')
++        if self.options.external_ca_type == 'ms-cs':
++            profile = 'SubCA'
++        else:
++            profile = ''
++
++        self.resubmit_request('dogtag-ipa-ca-renew-agent-reuse', profile)
+ 
+         print(("The next step is to get %s signed by your CA and re-run "
+               "ipa-cacert-manage as:" % paths.IPA_CA_CSR))
+@@ -286,11 +297,11 @@ class CACertManage(admintool.AdminTool):
+ 
+         print("CA certificate successfully renewed")
+ 
+-    def resubmit_request(self, ca='dogtag-ipa-ca-renew-agent'):
++    def resubmit_request(self, ca='dogtag-ipa-ca-renew-agent', profile=''):
+         timeout = api.env.startup_timeout + 60
+ 
+         self.log.debug("resubmitting certmonger request '%s'", self.request_id)
+-        certmonger.resubmit_request(self.request_id, ca=ca, profile='')
++        certmonger.resubmit_request(self.request_id, ca=ca, profile=profile)
+         try:
+             state = certmonger.wait_for_request(self.request_id, timeout)
+         except RuntimeError:
+@@ -304,7 +315,9 @@ class CACertManage(admintool.AdminTool):
+                 "please check the request manually" % self.request_id)
+ 
+         self.log.debug("modifying certmonger request '%s'", self.request_id)
+-        certmonger.modify(self.request_id, ca='dogtag-ipa-ca-renew-agent')
++        certmonger.modify(self.request_id,
++                          ca='dogtag-ipa-ca-renew-agent',
++                          profile='')
+ 
+     def install(self):
+         print("Installing CA certificate, please wait")
+-- 
+2.9.3
+

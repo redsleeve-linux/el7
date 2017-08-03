@@ -1,0 +1,43 @@
+From 8c9296cbe21657aadbc4bff88eabd617168349f6 Mon Sep 17 00:00:00 2001
+Message-Id: <8c9296cbe21657aadbc4bff88eabd617168349f6@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Fri, 2 Jun 2017 15:07:59 +0200
+Subject: [PATCH] daemon: Don't initialize SASL context if not necessary
+
+SASL context would be initialized even if the corresponding TCP or TLS
+sockets are not enabled.
+
+fe772f24a68 attempted to fix the symptom by commenting out the settings,
+but that did not fix the root cause. 3c647ee4bbb later reverted those
+changes so that the more secure algorithm is used.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1450095
+(cherry picked from commit ed914284ba74afb7dd16dcb623073bb1a1d5cd21)
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ daemon/libvirtd.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/daemon/libvirtd.c b/daemon/libvirtd.c
+index 891238bcbe..bac4bc1b65 100644
+--- a/daemon/libvirtd.c
++++ b/daemon/libvirtd.c
+@@ -613,11 +613,11 @@ daemonSetupNetworking(virNetServerPtr srv,
+ 
+ #if WITH_SASL
+     if (config->auth_unix_rw == REMOTE_AUTH_SASL ||
+-        config->auth_unix_ro == REMOTE_AUTH_SASL ||
++        (sock_path_ro && config->auth_unix_ro == REMOTE_AUTH_SASL) ||
+ # if WITH_GNUTLS
+-        config->auth_tls == REMOTE_AUTH_SASL ||
++        (ipsock && config->listen_tls && config->auth_tls == REMOTE_AUTH_SASL) ||
+ # endif
+-        config->auth_tcp == REMOTE_AUTH_SASL) {
++        (ipsock && config->listen_tcp && config->auth_tcp == REMOTE_AUTH_SASL)) {
+         saslCtxt = virNetSASLContextNewServer(
+             (const char *const*)config->sasl_allowed_username_list);
+         if (!saslCtxt)
+-- 
+2.13.1
+

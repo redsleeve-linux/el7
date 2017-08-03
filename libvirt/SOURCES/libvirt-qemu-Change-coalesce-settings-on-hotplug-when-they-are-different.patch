@@ -1,0 +1,38 @@
+From 1ed2c3a16d7a4eaffafa07edf66a5148230726bf Mon Sep 17 00:00:00 2001
+Message-Id: <1ed2c3a16d7a4eaffafa07edf66a5148230726bf@dist-git>
+From: Martin Kletzander <mkletzan@redhat.com>
+Date: Wed, 21 Jun 2017 09:46:25 +0200
+Subject: [PATCH] qemu: Change coalesce settings on hotplug when they are
+ different
+
+Part of the condition was reverted so no value update was propagated
+through.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1414627
+
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+(cherry picked from commit ff7bae6e4fb74a52239d53af3672900c69801508)
+Signed-off-by: Martin Kletzander <mkletzan@redhat.com>
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_hotplug.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/qemu/qemu_hotplug.c b/src/qemu/qemu_hotplug.c
+index fbc9177669..a6274273dd 100644
+--- a/src/qemu/qemu_hotplug.c
++++ b/src/qemu/qemu_hotplug.c
+@@ -3296,8 +3296,8 @@ qemuDomainChangeNet(virQEMUDriverPtr driver,
+ 
+     if (!!olddev->coalesce != !!newdev->coalesce ||
+         (olddev->coalesce && newdev->coalesce &&
+-         !memcmp(olddev->coalesce, newdev->coalesce,
+-                 sizeof(*olddev->coalesce))))
++         memcmp(olddev->coalesce, newdev->coalesce,
++                sizeof(*olddev->coalesce))))
+         needCoalesceChange = true;
+ 
+     /* FINALLY - actually perform the required actions */
+-- 
+2.13.1
+

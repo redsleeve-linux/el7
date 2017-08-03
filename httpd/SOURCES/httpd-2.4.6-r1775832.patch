@@ -1,0 +1,16 @@
+--- a/modules/filters/mod_ext_filter.c 2016/12/23 12:35:43 1775831
++++ b/modules/filters/mod_ext_filter.c 2016/12/23 12:36:26 1775832
+@@ -757,6 +757,13 @@
+             break;
+         }
+ 
++        if (AP_BUCKET_IS_ERROR(b)) {
++            apr_bucket *cpy;
++            apr_bucket_copy(b, &cpy);
++            APR_BRIGADE_INSERT_TAIL(bb_tmp, cpy);
++            break;
++        }
++
+         rv = apr_bucket_read(b, &data, &len, APR_BLOCK_READ);
+         if (rv != APR_SUCCESS) {
+             ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r, APLOGNO(01463) "apr_bucket_read()");

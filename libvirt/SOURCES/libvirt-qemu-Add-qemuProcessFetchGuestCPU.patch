@@ -1,0 +1,102 @@
+From 57a9f46878f57d1602a030cfd8484c8566201c40 Mon Sep 17 00:00:00 2001
+Message-Id: <57a9f46878f57d1602a030cfd8484c8566201c40@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Tue, 11 Jul 2017 13:18:45 +0200
+Subject: [PATCH] qemu: Add qemuProcessFetchGuestCPU
+
+Separated from qemuProcessUpdateLiveGuestCPU. Its purpose is to fetch
+guest CPU data from a running QEMU process. The data can later be used
+to verify and update the active guest CPU definition.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit 40d246a22b46f1691d09cbce5904c79d712d8c16)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1470582
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+---
+ src/qemu/qemu_process.c | 58 +++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 44 insertions(+), 14 deletions(-)
+
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index 4d7c8d8e40..d3fa8ef41e 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -3905,6 +3905,47 @@ qemuProcessVerifyCPUFeatures(virDomainDefPtr def,
+ 
+ 
+ static int
++qemuProcessFetchGuestCPU(virQEMUDriverPtr driver,
++                         virDomainObjPtr vm,
++                         qemuDomainAsyncJob asyncJob,
++                         virCPUDataPtr *enabled,
++                         virCPUDataPtr *disabled)
++{
++    qemuDomainObjPrivatePtr priv = vm->privateData;
++    virCPUDataPtr dataEnabled = NULL;
++    virCPUDataPtr dataDisabled = NULL;
++    int rc;
++
++    *enabled = NULL;
++    *disabled = NULL;
++
++    if (!ARCH_IS_X86(vm->def->os.arch))
++        return 0;
++
++    if (qemuDomainObjEnterMonitorAsync(driver, vm, asyncJob) < 0)
++        goto error;
++
++    rc = qemuMonitorGetGuestCPU(priv->mon, vm->def->os.arch,
++                                &dataEnabled, &dataDisabled);
++
++    if (qemuDomainObjExitMonitor(driver, vm) < 0)
++        goto error;
++
++    if (rc == -1)
++        goto error;
++
++    *enabled = dataEnabled;
++    *disabled = dataDisabled;
++    return 0;
++
++ error:
++    virCPUDataFree(dataEnabled);
++    virCPUDataFree(dataDisabled);
++    return -1;
++}
++
++
++static int
+ qemuProcessUpdateLiveGuestCPU(virQEMUDriverPtr driver,
+                               virDomainObjPtr vm,
+                               qemuDomainAsyncJob asyncJob)
+@@ -3917,21 +3958,10 @@ qemuProcessUpdateLiveGuestCPU(virQEMUDriverPtr driver,
+     int ret = -1;
+     virCPUDefPtr orig = NULL;
+ 
+-    if (ARCH_IS_X86(def->os.arch)) {
+-        if (qemuDomainObjEnterMonitorAsync(driver, vm, asyncJob) < 0)
+-            goto cleanup;
+-
+-        rc = qemuMonitorGetGuestCPU(priv->mon, def->os.arch, &cpu, &disabled);
+-
+-        if (qemuDomainObjExitMonitor(driver, vm) < 0)
+-            goto cleanup;
+-
+-        if (rc < 0) {
+-            if (rc == -2)
+-                ret = 0;
+-            goto cleanup;
+-        }
++    if (qemuProcessFetchGuestCPU(driver, vm, asyncJob, &cpu, &disabled) < 0)
++        goto cleanup;
+ 
++    if (cpu) {
+         if (qemuProcessVerifyKVMFeatures(def, cpu) < 0 ||
+             qemuProcessVerifyHypervFeatures(def, cpu) < 0)
+             goto cleanup;
+-- 
+2.13.2
+

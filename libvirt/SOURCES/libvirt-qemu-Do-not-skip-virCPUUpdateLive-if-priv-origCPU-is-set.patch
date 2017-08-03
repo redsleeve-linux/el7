@@ -1,0 +1,60 @@
+From 6d2400987412f61857070407a43dc88705cf34f6 Mon Sep 17 00:00:00 2001
+Message-Id: <6d2400987412f61857070407a43dc88705cf34f6@dist-git>
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 21 Jun 2017 15:31:38 +0200
+Subject: [PATCH] qemu: Do not skip virCPUUpdateLive if priv->origCPU is set
+
+Even though we got both the original CPU (used for starting a domain)
+and the updated version (the CPU really provided by QEMU) during
+incoming migration, restore, or snapshot revert, we still need to update
+the CPU according to the data we got from the freshly started QEMU.
+Otherwise we don't know whether the CPU we got from QEMU matches the one
+before migration. We just need to keep the original CPU in
+priv->origCPU.
+
+Messed up by me in v3.4.0-58-g8e34f4781.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+(cherry picked from commit eabb0002ca0bba3c5a94d16fb385783de7b144a5)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1441662
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+---
+ src/qemu/qemu_process.c | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)
+
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index a7abfc720e..4d7c8d8e40 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -3946,20 +3946,16 @@ qemuProcessUpdateLiveGuestCPU(virQEMUDriverPtr driver,
+         if (qemuProcessVerifyCPUFeatures(def, cpu) < 0)
+             goto cleanup;
+ 
+-        /* Don't update the CPU if we already did so when starting a domain
+-         * during migration, restore or snapshot revert. */
+-        if (priv->origCPU) {
+-            ret = 0;
+-            goto cleanup;
+-        }
+-
+         if (!(orig = virCPUDefCopy(def->cpu)))
+             goto cleanup;
+ 
+         if ((rc = virCPUUpdateLive(def->os.arch, def->cpu, cpu, disabled)) < 0) {
+             goto cleanup;
+         } else if (rc == 0) {
+-            if (!virCPUDefIsEqual(def->cpu, orig, false))
++            /* Store the original CPU in priv if QEMU changed it and we didn't
++             * get the original CPU via migration, restore, or snapshot revert.
++             */
++            if (!priv->origCPU && !virCPUDefIsEqual(def->cpu, orig, false))
+                 VIR_STEAL_PTR(priv->origCPU, orig);
+ 
+             def->cpu->check = VIR_CPU_CHECK_FULL;
+-- 
+2.13.1
+

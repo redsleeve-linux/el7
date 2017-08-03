@@ -1,5 +1,5 @@
-From c6b70e343c1050b9fc497b3e1d8b5190f3889e1e Mon Sep 17 00:00:00 2001
-Message-Id: <c6b70e343c1050b9fc497b3e1d8b5190f3889e1e@dist-git>
+From 43caa2e812f3329221b875bbef4f0dcd07f8da05 Mon Sep 17 00:00:00 2001
+Message-Id: <43caa2e812f3329221b875bbef4f0dcd07f8da05@dist-git>
 From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
 Date: Mon, 22 Feb 2016 12:51:51 +0100
 Subject: [PATCH] RHEL: Add rhel machine types to qemuDomainMachineNeedsFDC
@@ -17,10 +17,10 @@ Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
  1 file changed, 3 insertions(+)
 
 diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
-index fd25669..0edcc04 100644
+index 589eb1889..9f165c1da 100644
 --- a/src/qemu/qemu_domain.c
 +++ b/src/qemu/qemu_domain.c
-@@ -4918,6 +4918,9 @@ qemuDomainMachineNeedsFDC(const virDomainDef *def)
+@@ -5889,6 +5889,9 @@ qemuDomainMachineNeedsFDC(const virDomainDef *def)
              STRPREFIX(p, "2.2") ||
              STRPREFIX(p, "2.3"))
              return false;
@@ -31,5 +31,5 @@ index fd25669..0edcc04 100644
      }
      return false;
 -- 
-2.9.0
+2.12.2
 

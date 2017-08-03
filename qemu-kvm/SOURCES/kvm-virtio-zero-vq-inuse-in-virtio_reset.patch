@@ -1,4 +1,4 @@
-From e3e5226d8ed3907bb818eb8db74175c08c011459 Mon Sep 17 00:00:00 2001
+From f5f0d9ed92f4ba1ea746529ccc945cf60d4973c8 Mon Sep 17 00:00:00 2001
 From: Ladi Prosek <lprosek@redhat.com>
 Date: Wed, 5 Oct 2016 17:22:28 +0200
 Subject: [PATCH 6/8] virtio: zero vq->inuse in virtio_reset()
@@ -7,7 +7,7 @@ RH-Author: Ladi Prosek <lprosek@redhat.com>
 Message-id: <1475666548-9186-7-git-send-email-lprosek@redhat.com>
 Patchwork-id: 72485
 O-Subject: [RHEL-7.4 qemu-kvm v2 PATCH 6/6] virtio: zero vq->inuse in virtio_reset()
-Bugzilla: 1393484
+Bugzilla: 1377968
 RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
 RH-Acked-by: Michael S. Tsirkin <mst@redhat.com>
 RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>

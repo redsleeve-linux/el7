@@ -1,0 +1,44 @@
+From 9ec8e5c529b06ccbd1e1c4888118fd278ef4393b Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Thu, 24 Nov 2016 09:06:09 +0100
+Subject: [PATCH] cli: print out the not-reportable reason
+
+But only in verbose mode. Users might be wondering why the problem is
+not reportable. Users will intuitively try to run the command in verbose
+mode to find out why the problem is not reportable.
+
+Related to #1257159
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/cli/report.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cli/report.c b/src/cli/report.c
+index efdca2d..a76923f 100644
+--- a/src/cli/report.c
++++ b/src/cli/report.c
+@@ -36,12 +36,19 @@ int _cmd_report(const char **dirs_strv, int flags)
+             continue;
+         }
+ 
+-
+         const int not_reportable = test_exist_over_dbus(real_problem_id, FILENAME_NOT_REPORTABLE);
+         if (not_reportable != 0)
+         {
+             if (!(flags & CMD_REPORT_UNSAFE))
+             {
++                if (g_verbose > 0)
++                {
++                    char *reason = load_text_over_dbus(real_problem_id, FILENAME_NOT_REPORTABLE);
++                    if (reason != NULL)
++                        log("%s\n", reason);
++                    free(reason);
++                }
++
+                 error_msg(_("Problem '%s' cannot be reported"), real_problem_id);
+                 free(real_problem_id);
+                 ++ret;
+-- 
+1.8.3.1
+

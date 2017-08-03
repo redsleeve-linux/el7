@@ -1,0 +1,114 @@
+From 103d784865c4ebab9085e8edda34f9cb47d70150 Mon Sep 17 00:00:00 2001
+From: Stanislav Laznicka <slaznick@redhat.com>
+Date: Thu, 27 Apr 2017 12:51:30 +0200
+Subject: [PATCH] Refresh Dogtag RestClient.ca_host property
+
+Refresh the ca_host property of the Dogtag's RestClient class when
+it's requested as a context manager.
+
+This solves the problem which would occur on DL0 when installing
+CA which needs to perform a set of steps against itself accessing
+8443 port. This port should however only be available locally so
+trying to connect to remote master would fail. We need to make
+sure the right CA host is accessed.
+
+https://pagure.io/freeipa/issue/6878
+
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+Reviewed-By: Christian Heimes <cheimes@redhat.com>
+---
+ ipaserver/install/cainstance.py |  5 ++---
+ ipaserver/plugins/dogtag.py     | 30 ++++++++++++++++++------------
+ 2 files changed, 20 insertions(+), 15 deletions(-)
+
+diff --git a/ipaserver/install/cainstance.py b/ipaserver/install/cainstance.py
+index 84d60bfddc0fb968f31706e54e36557e9543846e..d72feb884964ecf49fe0166cbfeb3cb2c10737fe 100644
+--- a/ipaserver/install/cainstance.py
++++ b/ipaserver/install/cainstance.py
+@@ -425,6 +425,8 @@ class CAInstance(DogtagInstance):
+                 self.step("Configure HTTP to proxy connections",
+                           self.http_proxy)
+                 self.step("restarting certificate server", self.restart_instance)
++                self.step("updating IPA configuration", update_ipa_conf)
++                self.step("enabling CA instance", self.__enable_instance)
+                 if not promote:
+                     self.step("migrating certificate profiles to LDAP",
+                               migrate_profiles_to_ldap)
+@@ -432,9 +434,6 @@ class CAInstance(DogtagInstance):
+                               import_included_profiles)
+                     self.step("adding default CA ACL", ensure_default_caacl)
+                     self.step("adding 'ipa' CA entry", ensure_ipa_authority_entry)
+-                self.step("updating IPA configuration", update_ipa_conf)
+-
+-                self.step("enabling CA instance", self.__enable_instance)
+ 
+                 self.step("configuring certmonger renewal for lightweight CAs",
+                           self.__add_lightweight_ca_tracking_requests)
+diff --git a/ipaserver/plugins/dogtag.py b/ipaserver/plugins/dogtag.py
+index 3997531032746a22243a4219250af4172e9ae5b3..bddaab58a546196958811f10bb4d049db4aea524 100644
+--- a/ipaserver/plugins/dogtag.py
++++ b/ipaserver/plugins/dogtag.py
+@@ -1202,7 +1202,6 @@ import os
+ import random
+ from ipaserver.plugins import rabase
+ from ipalib.constants import TYPE_ERROR
+-from ipalib.util import cachedproperty
+ from ipalib import _
+ from ipaplatform.paths import paths
+ 
+@@ -1250,34 +1249,41 @@ class RestClient(Backend):
+             self.client_keyfile = paths.RA_AGENT_KEY
+         super(RestClient, self).__init__(api)
+ 
++        self._ca_host = None
+         # session cookie
+         self.override_port = None
+         self.cookie = None
+ 
+-    @cachedproperty
++    @property
+     def ca_host(self):
+         """
+-        :return:   host
+-                   as str
++        :returns: FQDN of a host hopefully providing a CA service
+ 
+-        Select our CA host.
++        Select our CA host, cache it for the first time.
+         """
++        if self._ca_host is not None:
++            return self._ca_host
++
+         ldap2 = self.api.Backend.ldap2
+         if host_has_service(api.env.ca_host, ldap2, "CA"):
+-            return api.env.ca_host
+-        if api.env.host != api.env.ca_host:
++            object.__setattr__(self, '_ca_host', api.env.ca_host)
++        elif api.env.host != api.env.ca_host:
+             if host_has_service(api.env.host, ldap2, "CA"):
+-                return api.env.host
+-        host = select_any_master(ldap2)
+-        if host:
+-            return host
++                object.__setattr__(self, '_ca_host', api.env.host)
+         else:
+-            return api.env.ca_host
++            object.__setattr__(self, '_ca_host', select_any_master(ldap2))
++        if self._ca_host is None:
++            object.__setattr__(self, '_ca_host', api.env.ca_host)
++        return self._ca_host
+ 
+     def __enter__(self):
+         """Log into the REST API"""
+         if self.cookie is not None:
+             return
++
++        # Refresh the ca_host property
++        object.__setattr__(self, '_ca_host', None)
++
+         status, resp_headers, _resp_body = dogtag.https_request(
+             self.ca_host, self.override_port or self.env.ca_agent_port,
+             url='/ca/rest/account/login',
+-- 
+2.12.2
+

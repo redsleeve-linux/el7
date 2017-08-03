@@ -49,6 +49,9 @@ rm -rf ${WORK}/${softokn_dir}/nss/cmd
 rm -rf ${WORK}/${softokn_dir}/nss/tests
 rm -rf ${WORK}/${softokn_dir}/nss/lib
 rm -rf ${WORK}/${softokn_dir}/nss/pkg
+rm -rf ${WORK}/${softokn_dir}/nss/automation
+rm -rf ${WORK}/${softokn_dir}/nss/external_tests
+rm -rf ${WORK}/${softokn_dir}/nss/doc
 # start with an empty lib directory and copy only what we need
 mkdir ${WORK}/${softokn_dir}/nss/lib
 # copy the top files from nss/lib/
@@ -66,8 +69,13 @@ topFilesN=`find ${nss_source_dir}/nss/ -maxdepth 1 -mindepth 1 -type f`
 for f in $topFilesN; do
   cp -p $f ${WORK}/${softokn_dir}/nss/
 done
+# copy private headers that nss-softoken needs
+for f in verref.h; do
+  cp -p ${nss_source_dir}/nss/lib/util/$f ${WORK}/${softokn_dir}/nss/lib/util
+done
 
-# we do need bltest, lib, lowhashtest, and shlibsign from nss/cmd
+# we do need bltest, ecperf, fbectest, lib, lowhashtest, and shlibsign
+# from nss/cmd
 mkdir ${WORK}/${softokn_dir}/nss/cmd
 # copy some files at the top and the slhlib subdirectory
 topFilesC=`find ${nss_source_dir}/nss/cmd/ -maxdepth 1 -mindepth 1 -type f`
@@ -76,6 +84,8 @@ for f in $topFilesC; do
 done
 
 cp -a ${nss_source_dir}/nss/cmd/bltest ${WORK}/${softokn_dir}/nss/cmd/bltest
+cp -a ${nss_source_dir}/nss/cmd/ecperf ${WORK}/${softokn_dir}/nss/cmd/ecperf
+cp -a ${nss_source_dir}/nss/cmd/fbectest ${WORK}/${softokn_dir}/nss/cmd/fbectest
 cp -a ${nss_source_dir}/nss/cmd/fipstest ${WORK}/${softokn_dir}/nss/cmd/fipstest
 cp -a ${nss_source_dir}/nss/cmd/lib ${WORK}/${softokn_dir}/nss/cmd/lib
 cp -a ${nss_source_dir}/nss/cmd/lowhashtest ${WORK}/${softokn_dir}/nss/cmd/lowhashtest
@@ -87,7 +97,7 @@ topFilesT=`find ${nss_source_dir}/nss/tests/ -maxdepth 1 -mindepth 1 -type f`
 for f in $topFilesT; do
   cp -p $f ${WORK}/${softokn_dir}/nss/tests/
 done
-keepers="cipher common lowhash"
+keepers="cipher common ec lowhash"
 for t in $keepers; do
   cp -a ${nss_source_dir}/nss/tests/$t ${WORK}/${softokn_dir}/nss/tests/$t
 done
@@ -100,4 +110,6 @@ popd
 # cleanup after ourselves
 rm -fr ${nss_source_dir}
 rm -rf ${WORK}
+
+
 

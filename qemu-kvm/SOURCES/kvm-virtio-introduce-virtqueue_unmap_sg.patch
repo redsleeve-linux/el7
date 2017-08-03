@@ -1,4 +1,4 @@
-From fc6f666f00182fe587068bd45e4e9e6d135d03fb Mon Sep 17 00:00:00 2001
+From 9d3ccec3b8323f7cfbce932f8c6530aa4105ba02 Mon Sep 17 00:00:00 2001
 From: Ladi Prosek <lprosek@redhat.com>
 Date: Wed, 5 Oct 2016 17:22:23 +0200
 Subject: [PATCH 1/8] virtio: introduce virtqueue_unmap_sg()
@@ -7,7 +7,7 @@ RH-Author: Ladi Prosek <lprosek@redhat.com>
 Message-id: <1475666548-9186-2-git-send-email-lprosek@redhat.com>
 Patchwork-id: 72480
 O-Subject: [RHEL-7.4 qemu-kvm v2 PATCH 1/6] virtio: introduce virtqueue_unmap_sg()
-Bugzilla: 1393484
+Bugzilla: 1377968
 RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
 RH-Acked-by: Michael S. Tsirkin <mst@redhat.com>
 RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>

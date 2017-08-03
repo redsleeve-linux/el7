@@ -1,0 +1,37 @@
+From f50331d2f9f34ae17a3d5323e74982ca87eba12e Mon Sep 17 00:00:00 2001
+From: Florence Blanc-Renaud <flo@redhat.com>
+Date: Thu, 20 Apr 2017 16:31:53 +0200
+Subject: [PATCH] upgrade: adtrust update_tdo_gidnumber plugin must check if
+ adtrust is installed
+
+During upgrade, the plugin update_tdo_gidnumber is launched in order to
+add a gidnumber to the Trusted Domain Object.
+This plugin should not be run when ad trust is not installed, otherwise an
+error message is displayed.
+
+https://pagure.io/freeipa/issue/6881
+
+Reviewed-By: Alexander Bokovoy <abokovoy@redhat.com>
+---
+ ipaserver/install/plugins/adtrust.py | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/ipaserver/install/plugins/adtrust.py b/ipaserver/install/plugins/adtrust.py
+index 075f197780edc2aadf42fa82b71e9e2b29e66ea9..a72af00635649ddf54640738c2f28cb09c7e91bb 100644
+--- a/ipaserver/install/plugins/adtrust.py
++++ b/ipaserver/install/plugins/adtrust.py
+@@ -329,6 +329,11 @@ class update_tdo_gidnumber(Updater):
+     def execute(self, **options):
+         ldap = self.api.Backend.ldap2
+ 
++        # First, see if trusts are enabled on the server
++        if not self.api.Command.adtrust_is_enabled()['result']:
++            self.log.debug('AD Trusts are not enabled on this server')
++            return False, []
++
+         # Read the gidnumber of the fallback group
+         dn = DN(('cn', ADTRUSTInstance.FALLBACK_GROUP_NAME),
+                 self.api.env.container_group,
+-- 
+2.12.2
+

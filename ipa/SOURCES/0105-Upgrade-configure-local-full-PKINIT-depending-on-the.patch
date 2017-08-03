@@ -1,0 +1,52 @@
+From c40683f85776f401b3e6bb0a3a69a48a206ab633 Mon Sep 17 00:00:00 2001
+From: Martin Babinsky <mbabinsk@redhat.com>
+Date: Thu, 6 Apr 2017 18:52:05 +0200
+Subject: [PATCH] Upgrade: configure local/full PKINIT depending on the master
+ status
+
+The upgrader has been modified to configure either local or full PKINIT
+depending on the CA status. Additionally, the new PKINIT configuration
+will be written to the master's KDC entry.
+
+https://pagure.io/freeipa/issue/6830
+http://www.freeipa.org/page/V4/Kerberos_PKINIT
+
+Reviewed-By: Alexander Bokovoy <abokovoy@redhat.com>
+Reviewed-By: Jan Cholasta <jcholast@redhat.com>
+Reviewed-By: Martin Basti <mbasti@redhat.com>
+Reviewed-By: Simo Sorce <ssorce@redhat.com>
+---
+ ipaserver/install/server/upgrade.py | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/ipaserver/install/server/upgrade.py b/ipaserver/install/server/upgrade.py
+index ea2918f5037898b6b8dc601441a439b6150d54e5..8da918114066598ec5a74098d85dfef06d22bf86 100644
+--- a/ipaserver/install/server/upgrade.py
++++ b/ipaserver/install/server/upgrade.py
+@@ -1485,14 +1485,17 @@ def add_default_caacl(ca):
+ def setup_pkinit(krb):
+     root_logger.info("[Setup PKINIT]")
+ 
+-    if not api.Command.ca_is_enabled()['result']:
+-        root_logger.info("CA is not enabled")
+-        return
++    pkinit_is_enabled = krbinstance.is_pkinit_enabled()
++    ca_is_enabled = api.Command.ca_is_enabled()['result']
+ 
+-    if not os.path.exists(paths.KDC_CERT):
+-        root_logger.info("Requesting PKINIT certificate")
+-        krb.setup_pkinit()
++    if not pkinit_is_enabled:
++        if ca_is_enabled:
++            krb.issue_ipa_ca_signed_pkinit_certs()
++        else:
++            krb.issue_selfsigned_pkinit_certs()
+ 
++    # reconfigure KDC just in case in order to handle potentially broken
++    # 4.5.0 -> 4.5.1 upgrade path
+     replacevars = dict()
+     replacevars['pkinit_identity'] = 'FILE:{},{}'.format(
+         paths.KDC_CERT,paths.KDC_KEY)
+-- 
+2.12.2
+

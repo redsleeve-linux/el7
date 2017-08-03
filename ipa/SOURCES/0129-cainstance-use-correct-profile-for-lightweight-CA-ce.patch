@@ -1,0 +1,182 @@
+From 1b17dfa9fb62215eeb1ceadc7902785a7ed384e9 Mon Sep 17 00:00:00 2001
+From: Jan Cholasta <jcholast@redhat.com>
+Date: Tue, 28 Feb 2017 10:58:28 +0000
+Subject: [PATCH] cainstance: use correct profile for lightweight CA
+ certificates
+
+Use Dogtag's `caCACert` CA certificate profile rather than the
+`ipaCACertRenewal` virtual profile for lightweight CA certificates.
+
+The `ipaCACertRenewal` virtual profile adds special handling of externally
+signed CA certificates and LDAP replication of issued certificates on top
+of `caCACert`, neither of which is relevant for lightweight CA
+certificates.
+
+Remove all of the special casing of lightweight CA certificates from
+dogtag-ipa-ca-renew-agent-submit.
+
+Make sure existing lightweight CA certmonger tracking requests are updated
+on server upgrade.
+
+https://pagure.io/freeipa/issue/5799
+
+Reviewed-By: David Kupka <dkupka@redhat.com>
+Reviewed-By: Stanislav Laznicka <slaznick@redhat.com>
+---
+ .../certmonger/dogtag-ipa-ca-renew-agent-submit    | 36 +++-------------------
+ ipaserver/install/cainstance.py                    |  7 ++---
+ ipaserver/install/server/upgrade.py                | 16 ++++++++++
+ 3 files changed, 23 insertions(+), 36 deletions(-)
+
+diff --git a/install/certmonger/dogtag-ipa-ca-renew-agent-submit b/install/certmonger/dogtag-ipa-ca-renew-agent-submit
+index f253fd9587ac1ef3ece712ca9999c1ea4f3d55d8..51b0880c5b57758845e2ffa0c9545bbca7e8c751 100755
+--- a/install/certmonger/dogtag-ipa-ca-renew-agent-submit
++++ b/install/certmonger/dogtag-ipa-ca-renew-agent-submit
+@@ -98,25 +98,7 @@ def get_nickname():
+         DN('CN=IPA RA', subject_base): 'ipaCert',
+     }
+ 
+-    try:
+-        return nickname_by_subject_dn[DN(subject)]
+-    except KeyError:
+-        cas = api.Command.ca_find(ipacasubjectdn=DN(subject))['result']
+-        if len(cas) == 0:
+-            return None
+-        return 'caSigningCert cert-pki-ca {}'.format(cas[0]['ipacaid'][0])
+-
+-
+-def is_lightweight_ca():
+-    nickname = get_nickname() or ''
+-    return nickname != IPA_CA_NICKNAME and nickname.startswith(IPA_CA_NICKNAME)
+-
+-def is_renewable():
+-    cert = os.environ.get('CERTMONGER_CERTIFICATE')
+-    if not cert:
+-        return False
+-    else:
+-        return x509.is_self_signed(cert) or is_lightweight_ca()
++    return nickname_by_subject_dn.get(DN(subject))
+ 
+ 
+ def is_replicated():
+@@ -276,11 +258,6 @@ def store_cert():
+     if not cert:
+         return (REJECTED, "New certificate requests not supported")
+ 
+-    if is_lightweight_ca():
+-        # Lightweight CAs are updated in Dogtag's NSSDB
+-        # by Dogtag itself, so do not store it
+-        return (ISSUED, cert)
+-
+     dercert = x509.normalize_certificate(cert)
+ 
+     dn = DN(('cn', nickname), ('cn', 'ca_renewal'),
+@@ -405,12 +382,6 @@ def retrieve_cert_continuous():
+     if old_cert:
+         old_cert = x509.normalize_certificate(old_cert)
+ 
+-    if is_lightweight_ca():
+-        # Lightweight CAs are updated in Dogtag's NSSDB
+-        # by Dogtag itself, so do not try to retrieve it.
+-        # Everything is fine as is.
+-        return (ISSUED, os.environ.get('CERTMONGER_CERTIFICATE'))
+-
+     result = call_handler(retrieve_or_reuse_cert)
+     if result[0] != ISSUED:
+         return result
+@@ -466,12 +437,13 @@ def renew_ca_cert():
+     cert = os.environ.get('CERTMONGER_CERTIFICATE')
+     if not cert:
+         return (REJECTED, "New certificate requests not supported")
++    is_self_signed = x509.is_self_signed(cert)
+ 
+     operation = os.environ.get('CERTMONGER_OPERATION')
+     if operation == 'SUBMIT':
+         state = 'retrieve'
+ 
+-        if is_renewable() and is_renewal_master():
++        if is_self_signed and is_renewal_master():
+             state = 'request'
+     elif operation == 'POLL':
+         cookie = os.environ.get('CERTMONGER_CA_COOKIE')
+@@ -489,7 +461,7 @@ def renew_ca_cert():
+ 
+     if state == 'retrieve':
+         result = call_handler(retrieve_cert)
+-        if result[0] == REJECTED and not is_renewable():
++        if result[0] == REJECTED and not is_self_signed:
+             syslog.syslog(syslog.LOG_ALERT,
+                           "Certificate with subject '%s' is about to expire, "
+                           "use ipa-cacert-manage to renew it"
+diff --git a/ipaserver/install/cainstance.py b/ipaserver/install/cainstance.py
+index 97baa606c960806376e025b5654eea816da207ed..546e1b7b39b323bbaeae3fb57d31ea4152d5e418 100644
+--- a/ipaserver/install/cainstance.py
++++ b/ipaserver/install/cainstance.py
+@@ -436,7 +436,7 @@ class CAInstance(DogtagInstance):
+                     self.step("adding 'ipa' CA entry", ensure_ipa_authority_entry)
+ 
+                 self.step("configuring certmonger renewal for lightweight CAs",
+-                          self.__add_lightweight_ca_tracking_requests)
++                          self.add_lightweight_ca_tracking_requests)
+ 
+         if ra_only:
+             runtime = None
+@@ -1246,7 +1246,7 @@ class CAInstance(DogtagInstance):
+         os.chmod(keyfile, 0o600)
+         os.chown(keyfile, pent.pw_uid, pent.pw_gid)
+ 
+-    def __add_lightweight_ca_tracking_requests(self):
++    def add_lightweight_ca_tracking_requests(self):
+         try:
+             lwcas = api.Backend.ldap2.get_entries(
+                 base_dn=api.env.basedn,
+@@ -1810,11 +1810,10 @@ def add_lightweight_ca_tracking_requests(logger, lwcas):
+                     pin=certmonger.get_pin('internal'),
+                     nickname=nickname,
+                     ca=ipalib.constants.RENEWAL_CA_NAME,
++                    profile='caCACert',
+                     pre_command='stop_pkicad',
+                     post_command='renew_ca_cert "%s"' % nickname,
+                 )
+-                request_id = certmonger.get_request_id(criteria)
+-                certmonger.modify(request_id, profile='ipaCACertRenewal')
+                 logger.debug(
+                     'Lightweight CA renewal: '
+                     'added tracking request for "%s"', nickname)
+diff --git a/ipaserver/install/server/upgrade.py b/ipaserver/install/server/upgrade.py
+index 855056dc1fa20e813d82ecc5090a14cfc4f91831..96fdadf751ef619e198a861d9f62440c98f3abae 100644
+--- a/ipaserver/install/server/upgrade.py
++++ b/ipaserver/install/server/upgrade.py
+@@ -974,6 +974,21 @@ def certificate_renewal_update(ca, ds, http):
+         root_logger.info('CA is not configured')
+         return False
+ 
++    db = certs.CertDB(api.env.realm, paths.PKI_TOMCAT_ALIAS_DIR)
++    for nickname, _trust_flags in db.list_certs():
++        if nickname.startswith('caSigningCert cert-pki-ca '):
++            requests.append(
++                {
++                    'cert-database': paths.PKI_TOMCAT_ALIAS_DIR,
++                    'cert-nickname': nickname,
++                    'ca': 'dogtag-ipa-ca-renew-agent',
++                    'cert-presave-command': template % 'stop_pkicad',
++                    'cert-postsave-command':
++                        (template % ('renew_ca_cert "%s"' % nickname)),
++                    'template-profile': 'caCACert',
++                }
++            )
++
+     # State not set, lets see if we are already configured
+     for request in requests:
+         request_id = certmonger.get_request_id(request)
+@@ -998,6 +1013,7 @@ def certificate_renewal_update(ca, ds, http):
+     ca.configure_renewal()
+     ca.configure_agent_renewal()
+     ca.track_servercert()
++    ca.add_lightweight_ca_tracking_requests()
+     ds.start_tracking_certificates(serverid)
+     http.start_tracking_certificates()
+ 
+-- 
+2.9.3
+

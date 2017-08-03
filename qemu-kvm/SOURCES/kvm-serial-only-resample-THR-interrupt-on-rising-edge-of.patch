@@ -1,16 +1,16 @@
-From 95388b9e0745ca0125012f050c53f651811b5189 Mon Sep 17 00:00:00 2001
+From 0c6d2ffcebff88c6cda738aa46fa77c09b93b78b Mon Sep 17 00:00:00 2001
 From: Fam Zheng <famz@redhat.com>
-Date: Fri, 19 May 2017 00:35:19 +0200
+Date: Thu, 18 May 2017 09:21:27 +0200
 Subject: [PATCH 14/18] serial: only resample THR interrupt on rising edge of
  IER.THRI
 
 RH-Author: Fam Zheng <famz@redhat.com>
-Message-id: <20170519003523.21163-15-famz@redhat.com>
-Patchwork-id: 75370
-O-Subject: [RHEL-7.3.z qemu-kvm PATCH 14/18] serial: only resample THR interrupt on rising edge of IER.THRI
-Bugzilla: 1452332
+Message-id: <20170518092131.16571-15-famz@redhat.com>
+Patchwork-id: 75304
+O-Subject: [RHEL-7.4 qemu-kvm PATCH v3 14/18] serial: only resample THR interrupt on rising edge of IER.THRI
+Bugzilla: 1451470
 RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
-RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
 RH-Acked-by: Eduardo Habkost <ehabkost@redhat.com>
 
 From: Paolo Bonzini <pbonzini@redhat.com>

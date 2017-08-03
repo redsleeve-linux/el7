@@ -1,0 +1,136 @@
+From 128490bb35079d77c0fa04f2e254bd6a0acc382a Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Thu, 24 Nov 2016 07:54:21 +0100
+Subject: [PATCH] reportclient: honor ABRT_VERBOSE
+
+libreport's verbosity can be configured via ABRT_VERBOSE environment
+variable and reportclient must be aware of that.
+
+Related to #1257159
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/client-python/__init__.py |  9 ++++++++
+ tests/Makefile.am             |  1 +
+ tests/client_python.at        | 53 +++++++++++++++++++++++++++++++++++++++++++
+ tests/testsuite.at            |  1 +
+ 4 files changed, 64 insertions(+)
+ create mode 100644 tests/client_python.at
+
+diff --git a/src/client-python/__init__.py b/src/client-python/__init__.py
+index 8966f22..f10f710 100644
+--- a/src/client-python/__init__.py
++++ b/src/client-python/__init__.py
+@@ -31,6 +31,7 @@ from report import EXIT_STOP_EVENT_RUN as RETURN_STOP_EVENT_RUN
+ 
+ 
+ GETTEXT_PROGNAME = "libreport"
++import os
+ import locale
+ import gettext
+ 
+@@ -52,10 +53,18 @@ def init_gettext():
+ init_gettext()
+ 
+ verbose = 0
++ABRT_VERBOSE = os.getenv("ABRT_VERBOSE")
++if ABRT_VERBOSE:
++    try:
++        verbose = int(ABRT_VERBOSE)
++    except:
++        pass
++
+ 
+ def set_verbosity(verbosity):
+     global verbose
+     verbose = verbosity
++    os.environ["ABRT_VERBOSE"] = str(verbose)
+ 
+ def log(fmt, *args):
+     sys.stderr.write("%s\n" % (fmt % args))
+diff --git a/tests/Makefile.am b/tests/Makefile.am
+index b45f2d9..52dfce4 100644
+--- a/tests/Makefile.am
++++ b/tests/Makefile.am
+@@ -40,6 +40,7 @@ TESTSUITE_AT = \
+   libreport_types.at \
+   xml_definition.at \
+   report_python.at \
++  client_python.at \
+   xfuncs.at \
+   string_list.at \
+   ureport.at \
+diff --git a/tests/client_python.at b/tests/client_python.at
+new file mode 100644
+index 0000000..656b1b2
+--- /dev/null
++++ b/tests/client_python.at
+@@ -0,0 +1,53 @@
++# -*- Autotest -*-
++
++AT_BANNER([client_python])
++
++## --------- ##
++## verbosity ##
++## --------- ##
++
++AT_PYTESTFUN([verbosity], [[
++import sys
++import os
++import unittest
++
++sys.path.insert(0, "../../../src/client-python")
++sys.path.insert(0, "../../../src/client-python/.libs")
++
++
++class TestReportClientVerbose(unittest.TestCase):
++    def setUp(self):
++        try:
++            del os.environ["ABRT_VERBOSE"]
++        except:
++            pass
++        os.unsetenv("ABRT_VERBOSE")
++        self.clientpython = __import__("client-python", globals(), locals(), [], -1)
++        reload(self.clientpython)
++        sys.modules["clientpython"] = self.clientpython
++
++    def tearDown(self):
++        del sys.modules["clientpython"]
++
++    def test_default(self):
++        self.assertEquals(self.clientpython.verbose, 0)
++
++    def test_assign(self):
++        self.clientpython.set_verbosity(1)
++        self.assertEquals(self.clientpython.verbose, 1)
++        self.assertEquals(os.environ["ABRT_VERBOSE"], "1")
++
++    def test_load_from_environ(self):
++        os.environ["ABRT_VERBOSE"] = "2"
++        reload(self.clientpython)
++        self.assertEquals(self.clientpython.verbose, 2)
++
++    def test_recover_from_invalid_environ(self):
++        os.environ["ABRT_VERBOSE"] = "foo"
++        reload(self.clientpython)
++        self.assertEquals(self.clientpython.verbose, 0)
++
++
++if __name__ == "__main__":
++    unittest.main()
++]])
+diff --git a/tests/testsuite.at b/tests/testsuite.at
+index ccb37d1..8ded735 100644
+--- a/tests/testsuite.at
++++ b/tests/testsuite.at
+@@ -15,6 +15,7 @@ m4_include([make_description.at])
+ m4_include([libreport_types.at])
+ m4_include([xml_definition.at])
+ m4_include([report_python.at])
++m4_include([client_python.at])
+ m4_include([string_list.at])
+ m4_include([ureport.at])
+ m4_include([problem_report.at])
+-- 
+1.8.3.1
+

@@ -1,0 +1,239 @@
+From c26ab810bf4b55516a477d96d551f51f0087156c Mon Sep 17 00:00:00 2001
+From: Martin Schuppert <mschuppert@redhat.com>
+Date: Tue, 2 May 2017 11:56:50 +0200
+Subject: [PATCH] [openstack_*] fix issue with --verify option
+
+If --verify option got specified, the package list was not handled
+properly and resulted in trace.
+
+Resolves: #1000.
+
+Signed-off-by: Martin Schuppert <mschuppe@redhat.com>
+Signed-off-by: Bryn M. Reeves <bmr@redhat.com>
+---
+ sos/plugins/openstack_ceilometer.py | 2 +-
+ sos/plugins/openstack_cinder.py     | 2 +-
+ sos/plugins/openstack_glance.py     | 2 +-
+ sos/plugins/openstack_heat.py       | 2 +-
+ sos/plugins/openstack_horizon.py    | 2 +-
+ sos/plugins/openstack_instack.py    | 2 +-
+ sos/plugins/openstack_ironic.py     | 2 +-
+ sos/plugins/openstack_keystone.py   | 2 +-
+ sos/plugins/openstack_neutron.py    | 2 +-
+ sos/plugins/openstack_nova.py       | 2 +-
+ sos/plugins/openstack_sahara.py     | 2 +-
+ sos/plugins/openstack_swift.py      | 2 +-
+ sos/plugins/openstack_trove.py      | 2 +-
+ 13 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/sos/plugins/openstack_ceilometer.py b/sos/plugins/openstack_ceilometer.py
+index 94b73b6..571723c 100644
+--- a/sos/plugins/openstack_ceilometer.py
++++ b/sos/plugins/openstack_ceilometer.py
+@@ -38,7 +38,7 @@ class OpenStackCeilometer(Plugin):
+                                sizelimit=self.limit)
+         self.add_copy_spec("/etc/ceilometer/")
+         if self.get_option("verify"):
+-            self.add_cmd_output("rpm -V %s" % ' '.join(packages))
++            self.add_cmd_output("rpm -V %s" % ' '.join(self.packages))
+ 
+     def postproc(self):
+         protect_keys = [
+diff --git a/sos/plugins/openstack_cinder.py b/sos/plugins/openstack_cinder.py
+index 157f23d..a46dd56 100644
+--- a/sos/plugins/openstack_cinder.py
++++ b/sos/plugins/openstack_cinder.py
+@@ -45,7 +45,7 @@ class OpenStackCinder(Plugin):
+             self.add_copy_spec("/var/log/cinder/*.log", sizelimit=self.limit)
+ 
+         if self.get_option("verify"):
+-            self.add_cmd_output("rpm -V %s" % ' '.join(packages))
++            self.add_cmd_output("rpm -V %s" % ' '.join(self.packages))
+ 
+     def postproc(self):
+         protect_keys = [
+diff --git a/sos/plugins/openstack_glance.py b/sos/plugins/openstack_glance.py
+index e18be9c..0db5025 100644
+--- a/sos/plugins/openstack_glance.py
++++ b/sos/plugins/openstack_glance.py
+@@ -45,7 +45,7 @@ class OpenStackGlance(Plugin):
+         self.add_copy_spec("/etc/glance/")
+ 
+         if self.get_option("verify"):
+-            self.add_cmd_output("rpm -V %s" % ' '.join(packages))
++            self.add_cmd_output("rpm -V %s" % ' '.join(self.packages))
+ 
+         vars = [p in os.environ for p in [
+                 'OS_USERNAME', 'OS_PASSWORD', 'OS_TENANT_NAME']]
+diff --git a/sos/plugins/openstack_heat.py b/sos/plugins/openstack_heat.py
+index c002bbd..3638aa3 100644
+--- a/sos/plugins/openstack_heat.py
++++ b/sos/plugins/openstack_heat.py
+@@ -52,7 +52,7 @@ class OpenStackHeat(Plugin):
+         self.add_copy_spec("/etc/heat/")
+ 
+         if self.get_option("verify"):
+-            self.add_cmd_output("rpm -V %s" % ' '.join(packages))
++            self.add_cmd_output("rpm -V %s" % ' '.join(self.packages))
+ 
+     def postproc(self):
+         protect_keys = [
+diff --git a/sos/plugins/openstack_horizon.py b/sos/plugins/openstack_horizon.py
+index 25a9916..88ed910 100644
+--- a/sos/plugins/openstack_horizon.py
++++ b/sos/plugins/openstack_horizon.py
+@@ -40,7 +40,7 @@ class OpenStackHorizon(Plugin):
+         self.add_forbidden_path("*.py[co]")
+ 
+         if self.get_option("verify"):
+-            self.add_cmd_output("rpm -V %s" % ' '.join(packages))
++            self.add_cmd_output("rpm -V %s" % ' '.join(self.packages))
+ 
+     def postproc(self):
+         protect_keys = [
+diff --git a/sos/plugins/openstack_instack.py b/sos/plugins/openstack_instack.py
+index 30acecf..3cbc008 100644
+--- a/sos/plugins/openstack_instack.py
++++ b/sos/plugins/openstack_instack.py
+@@ -30,7 +30,7 @@ class OpenStackInstack(Plugin):
+         self.add_copy_spec("/home/stack/instackenv.json")
+         self.add_copy_spec("/home/stack/undercloud.conf")
+         if self.get_option("verify"):
+-            self.add_cmd_output("rpm -V %s" % ' '.join(packages))
++            self.add_cmd_output("rpm -V %s" % ' '.join(self.packages))
+ 
+         self.limit = self.get_option("log_size")
+         if self.get_option("all_logs"):
+diff --git a/sos/plugins/openstack_ironic.py b/sos/plugins/openstack_ironic.py
+index 760ca43..6a75124 100644
+--- a/sos/plugins/openstack_ironic.py
++++ b/sos/plugins/openstack_ironic.py
+@@ -38,7 +38,7 @@ class OpenStackIronic(Plugin):
+         self.add_cmd_output('ls -laRt /var/lib/ironic/')
+ 
+         if self.get_option("verify"):
+-            self.add_cmd_output("rpm -V %s" % ' '.join(packages))
++            self.add_cmd_output("rpm -V %s" % ' '.join(self.packages))
+ 
+         vars = [p in os.environ for p in [
+                 'OS_USERNAME', 'OS_PASSWORD', 'OS_TENANT_NAME']]
+diff --git a/sos/plugins/openstack_keystone.py b/sos/plugins/openstack_keystone.py
+index ce177fb..e7cda2f 100644
+--- a/sos/plugins/openstack_keystone.py
++++ b/sos/plugins/openstack_keystone.py
+@@ -42,7 +42,7 @@ class OpenStackKeystone(Plugin):
+             self.add_copy_spec("/var/log/keystone/*.log", sizelimit=self.limit)
+ 
+         if self.get_option("verify"):
+-            self.add_cmd_output("rpm -V %s" % ' '.join(packages))
++            self.add_cmd_output("rpm -V %s" % ' '.join(self.packages))
+ 
+         vars = [p in os.environ for p in [
+                 'OS_USERNAME', 'OS_PASSWORD', 'OS_TENANT_NAME']]
+diff --git a/sos/plugins/openstack_neutron.py b/sos/plugins/openstack_neutron.py
+index 590194c..8cf7357 100644
+--- a/sos/plugins/openstack_neutron.py
++++ b/sos/plugins/openstack_neutron.py
+@@ -36,7 +36,7 @@ class OpenStackNeutron(Plugin):
+         self.add_copy_spec("/etc/neutron/")
+         self.add_copy_spec("/var/lib/neutron/")
+         if self.get_option("verify"):
+-            self.add_cmd_output("rpm -V %s" % ' '.join(packages))
++            self.add_cmd_output("rpm -V %s" % ' '.join(self.packages))
+ 
+         vars = [p in os.environ for p in [
+                 'OS_USERNAME', 'OS_PASSWORD', 'OS_TENANT_NAME']]
+diff --git a/sos/plugins/openstack_nova.py b/sos/plugins/openstack_nova.py
+index 8e0a19a..14bdfbd 100644
+--- a/sos/plugins/openstack_nova.py
++++ b/sos/plugins/openstack_nova.py
+@@ -70,7 +70,7 @@ class OpenStackNova(Plugin):
+         self.add_copy_spec("/etc/nova/")
+ 
+         if self.get_option("verify"):
+-            self.add_cmd_output("rpm -V %s" % ' '.join(packages))
++            self.add_cmd_output("rpm -V %s" % ' '.join(self.packages))
+ 
+     def postproc(self):
+         protect_keys = [
+diff --git a/sos/plugins/openstack_sahara.py b/sos/plugins/openstack_sahara.py
+index 5a2a5c3..cbc5bd9 100644
+--- a/sos/plugins/openstack_sahara.py
++++ b/sos/plugins/openstack_sahara.py
+@@ -37,7 +37,7 @@ class OpenStackSahara(Plugin):
+             self.add_copy_spec("/var/log/sahara/*.log", sizelimit=self.limit)
+ 
+         if self.get_option("verify"):
+-            self.add_cmd_output("rpm -V %s" % ' '.join(packages))
++            self.add_cmd_output("rpm -V %s" % ' '.join(self.packages))
+ 
+     def postproc(self):
+         protect_keys = [
+diff --git a/sos/plugins/openstack_swift.py b/sos/plugins/openstack_swift.py
+index 1ac3509..6edc056 100644
+--- a/sos/plugins/openstack_swift.py
++++ b/sos/plugins/openstack_swift.py
+@@ -38,7 +38,7 @@ class OpenStackSwift(Plugin):
+         self.add_copy_spec("/etc/swift/")
+ 
+         if self.get_option("verify"):
+-            self.add_cmd_output("rpm -V %s" % ' '.join(packages))
++            self.add_cmd_output("rpm -V %s" % ' '.join(self.packages))
+ 
+     def postproc(self):
+         protect_keys = [
+diff --git a/sos/plugins/openstack_trove.py b/sos/plugins/openstack_trove.py
+index e8306e5..539cbb3 100644
+--- a/sos/plugins/openstack_trove.py
++++ b/sos/plugins/openstack_trove.py
+@@ -37,7 +37,7 @@ class OpenStackTrove(Plugin):
+         self.add_copy_spec('/etc/trove/')
+ 
+         if self.get_option("verify"):
+-            self.add_cmd_output("rpm -V %s" % ' '.join(packages))
++            self.add_cmd_output("rpm -V %s" % ' '.join(self.packages))
+ 
+     def postproc(self):
+ 
+-- 
+2.7.4
+
+From 02b95e468211406989fd488e649f99bf9e9dfc1c Mon Sep 17 00:00:00 2001
+From: Martin Schuppert <mschuppert@redhat.com>
+Date: Tue, 2 May 2017 12:14:47 +0200
+Subject: [PATCH] [openstack_instack] extended packages list
+
+Extended packages list to verify triplo packages if --verify is
+specified.
+
+Resolves: #1001.
+
+Signed-off-by: Martin Schuppert <mschuppe@redhat.com>
+Signed-off-by: Bryn M. Reeves <bmr@redhat.com>
+---
+ sos/plugins/openstack_instack.py | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/sos/plugins/openstack_instack.py b/sos/plugins/openstack_instack.py
+index 3cbc008..bd836ba 100644
+--- a/sos/plugins/openstack_instack.py
++++ b/sos/plugins/openstack_instack.py
+@@ -114,6 +114,15 @@ class RedHatRDOManager(OpenStackInstack, RedHatPlugin):
+     packages = [
+         'instack',
+         'instack-undercloud',
++        'openstack-tripleo',
++        'openstack-tripleo-common',
++        'openstack-tripleo-heat-templates',
++        'openstack-tripleo-image-elements',
++        'openstack-tripleo-puppet-elements',
++        'openstack-tripleo-ui',
++        'openstack-tripleo-validations',
++        'puppet-tripleo',
++        'python-tripleoclient'
+     ]
+ 
+     def setup(self):
+-- 
+2.7.4
+

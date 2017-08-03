@@ -1,0 +1,60 @@
+From 542c31e057cbd4bd6261abcc883ace14f69719d6 Mon Sep 17 00:00:00 2001
+From: Simo Sorce <simo@redhat.com>
+Date: Mon, 10 Apr 2017 15:32:54 -0400
+Subject: [PATCH] Fix s4u2self with adtrust
+
+When ADtrust is installed we add a PAC to all tickets, during protocol
+transition we need to generate a new PAC for the requested user ticket,
+not check the existing PAC on the requestor ticket.
+
+https://pagure.io/freeipa/issue/6862
+
+Signed-off-by: Simo Sorce <simo@redhat.com>
+Reviewed-By: Florence Blanc-Renaud <frenaud@redhat.com>
+Reviewed-By: Alexander Bokovoy <abokovoy@redhat.com>
+---
+ daemons/ipa-kdb/ipa_kdb_mspac.c | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/daemons/ipa-kdb/ipa_kdb_mspac.c b/daemons/ipa-kdb/ipa_kdb_mspac.c
+index cf1bd5b4eaf6ac8eba92639cc48cb7c333a6e836..00cc19ca1e757e28530eafcd38ebf73003e251e3 100644
+--- a/daemons/ipa-kdb/ipa_kdb_mspac.c
++++ b/daemons/ipa-kdb/ipa_kdb_mspac.c
+@@ -2117,6 +2117,7 @@ krb5_error_code ipadb_sign_authdata(krb5_context context,
+     struct ipadb_context *ipactx;
+     bool with_pac;
+     bool with_pad;
++    bool make_ad = false;
+     int result;
+     krb5_db_entry *client_entry = NULL;
+     krb5_boolean is_equal;
+@@ -2165,7 +2166,14 @@ krb5_error_code ipadb_sign_authdata(krb5_context context,
+                                   "currently not supported.");
+     }
+ 
+-    if (is_as_req && with_pac && (flags & KRB5_KDB_FLAG_INCLUDE_PAC)) {
++    /* we need to create a PAC if we are requested one and this is an AS REQ,
++     * or we are doing protocol transition (s4u2self) */
++    if ((is_as_req && (flags & KRB5_KDB_FLAG_INCLUDE_PAC)) ||
++        (flags & KRB5_KDB_FLAG_PROTOCOL_TRANSITION)) {
++        make_ad = true;
++    }
++
++    if (with_pac && make_ad) {
+         /* Be aggressive here: special case for discovering range type
+          * immediately after establishing the trust by IPA framework */
+         if ((krb5_princ_size(context, ks_client_princ) == 2) &&
+@@ -2188,9 +2196,7 @@ krb5_error_code ipadb_sign_authdata(krb5_context context,
+         if (kerr != 0 && kerr != ENOENT) {
+             goto done;
+         }
+-    }
+-
+-    if (!is_as_req && with_pac) {
++    } else if (with_pac && !is_as_req) {
+         /* find the existing PAC, if present */
+         kerr = krb5_find_authdata(context, tgt_auth_data, NULL,
+                                   KRB5_AUTHDATA_WIN2K_PAC, &pac_auth_data);
+-- 
+2.9.3
+

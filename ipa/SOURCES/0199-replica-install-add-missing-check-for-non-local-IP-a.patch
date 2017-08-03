@@ -1,0 +1,29 @@
+From 56c6b8432a50c7b857303ffc4345c75171e0ac92 Mon Sep 17 00:00:00 2001
+From: Martin Basti <mbasti@redhat.com>
+Date: Thu, 15 Jun 2017 10:26:03 +0200
+Subject: [PATCH] replica install: add missing check for non-local IP address
+
+Add missing warning for used non-local IP address.
+
+https://pagure.io/freeipa/issue/4317
+
+Reviewed-By: David Kupka <dkupka@redhat.com>
+---
+ ipaserver/install/server/replicainstall.py | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/ipaserver/install/server/replicainstall.py b/ipaserver/install/server/replicainstall.py
+index 6620f0222f9d38112ce0d0fd72381e5673921cba..9e328bf83bbdb2883ba823cb098b70eeaa078403 100644
+--- a/ipaserver/install/server/replicainstall.py
++++ b/ipaserver/install/server/replicainstall.py
+@@ -854,6 +854,7 @@ def install_check(installer):
+             # check addresses here, dns module is doing own check
+             network_ip_address_warning(config.ips)
+             broadcast_ip_address_warning(config.ips)
++            no_matching_interface_for_ip_address_warning(config.ips)
+ 
+         if options.setup_adtrust:
+             adtrust.install_check(False, options, remote_api)
+-- 
+2.9.4
+

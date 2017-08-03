@@ -1,0 +1,31 @@
+From d6b5cbc2b8f444f283df9c12eac6ce70d6101a2c Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Thu, 24 Nov 2016 09:10:46 +0100
+Subject: [PATCH] lib: stop printing out a debug message 'adding: '
+
+The muted message is a debug message for sure and is printed out when the
+user runs:
+
+  abrt-cli report -v <ID>
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/lib/abrt_glib.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib/abrt_glib.c b/src/lib/abrt_glib.c
+index 60e104f..2b841de 100644
+--- a/src/lib/abrt_glib.c
++++ b/src/lib/abrt_glib.c
+@@ -27,7 +27,7 @@ GList *string_list_from_variant(GVariant *variant)
+     gchar *str;
+     while (g_variant_iter_loop(&iter, "s", &str))
+     {
+-        log_notice("adding: %s", str);
++        log_debug("adding: %s", str);
+         list = g_list_prepend(list, xstrdup(str));
+     }
+ 
+-- 
+1.8.3.1
+

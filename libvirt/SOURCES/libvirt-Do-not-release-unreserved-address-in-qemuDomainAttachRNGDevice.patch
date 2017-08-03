@@ -1,0 +1,46 @@
+From 595b527d46c885352dce5fd9b2e226a1d17c1ef4 Mon Sep 17 00:00:00 2001
+Message-Id: <595b527d46c885352dce5fd9b2e226a1d17c1ef4@dist-git>
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Mon, 22 May 2017 10:50:56 +0200
+Subject: [PATCH] Do not release unreserved address in
+ qemuDomainAttachRNGDevice
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Only set releaseaddr to true after the address has been
+reserved successfully.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1452581
+
+Reviewed-by: John Ferlan <jferlan@redhat.com>
+(cherry picked from commit f25f30aff548636d0c8782d3eaee049c77548dd5)
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/qemu/qemu_hotplug.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_hotplug.c b/src/qemu/qemu_hotplug.c
+index 6e5678f16..5c3660922 100644
+--- a/src/qemu/qemu_hotplug.c
++++ b/src/qemu/qemu_hotplug.c
+@@ -2090,7 +2090,6 @@ qemuDomainAttachRNGDevice(virConnectPtr conn,
+                                             rng->source.file))
+             goto cleanup;
+     }
+-    releaseaddr = true;
+ 
+     if (rng->info.type == VIR_DOMAIN_DEVICE_ADDRESS_TYPE_NONE ||
+         rng->info.type == VIR_DOMAIN_DEVICE_ADDRESS_TYPE_PCI) {
+@@ -2103,6 +2102,7 @@ qemuDomainAttachRNGDevice(virConnectPtr conn,
+                                       !rng->info.addr.ccw.assigned) < 0)
+             goto cleanup;
+     }
++    releaseaddr = true;
+ 
+     if (qemuDomainNamespaceSetupRNG(driver, vm, rng) < 0)
+         goto cleanup;
+-- 
+2.13.0
+

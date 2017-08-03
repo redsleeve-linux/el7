@@ -1,0 +1,40 @@
+From 3c2e5075ef3be22f203177cc9a1a912546d37ffe Mon Sep 17 00:00:00 2001
+Message-Id: <3c2e5075ef3be22f203177cc9a1a912546d37ffe@dist-git>
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 4 Apr 2017 09:31:22 +0200
+Subject: [PATCH] qemu: hotplug: Clear vcpu ordering for coldplug of vcpus
+
+Vcpu order is required to stay sequential. Clear the order on cpu
+coldplug to avoid issues with removing vcpus out of sequence.
+
+(cherry picked from commit b416a33a6f49b7755a65d0de4ee09c770b79cc8d)
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1437010
+---
+ src/qemu/qemu_hotplug.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_hotplug.c b/src/qemu/qemu_hotplug.c
+index 48de6b815..5488b1dd4 100644
+--- a/src/qemu/qemu_hotplug.c
++++ b/src/qemu/qemu_hotplug.c
+@@ -5784,13 +5784,15 @@ qemuDomainSetVcpuConfig(virDomainDefPtr def,
+ 
+     def->individualvcpus = true;
+ 
++    /* ordering information may become invalid, thus clear it */
++    virDomainDefVcpuOrderClear(def);
++
+     while ((next = virBitmapNextSetBit(map, next)) >= 0) {
+         if (!(vcpu = virDomainDefGetVcpu(def, next)))
+             continue;
+ 
+         vcpu->online = state;
+         vcpu->hotpluggable = VIR_TRISTATE_BOOL_YES;
+-        vcpu->order = 0;
+     }
+ }
+ 
+-- 
+2.12.2
+

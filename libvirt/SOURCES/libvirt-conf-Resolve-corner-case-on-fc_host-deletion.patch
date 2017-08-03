@@ -1,0 +1,59 @@
+From 70c60798f09324a9e4d91f787cad493a1ceca5d9 Mon Sep 17 00:00:00 2001
+Message-Id: <70c60798f09324a9e4d91f787cad493a1ceca5d9@dist-git>
+From: John Ferlan <jferlan@redhat.com>
+Date: Wed, 24 May 2017 10:27:57 -0400
+Subject: [PATCH] conf: Resolve corner case on fc_host deletion
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1420740
+
+Testing found an inventive way to cause an error at shutdown by providing the
+parent name for the fc host creation using the "same name" as the HBA. Since
+the code thus assumed the parent host name provided was the parent HBA and
+just extracted out the host number and sent that along to the vport_destroy
+this avoided checks made for equality.
+
+So just add the equality check to that path to resolve.
+
+(cherry picked from commit 2c8e30ee7e287d6490f643ccd2d7653a834e75e5)
+Signed-off-by: John Ferlan <jferlan@redhat.com>
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+---
+ src/conf/node_device_conf.c | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/conf/node_device_conf.c b/src/conf/node_device_conf.c
+index ac61db34c..2d0b14850 100644
+--- a/src/conf/node_device_conf.c
++++ b/src/conf/node_device_conf.c
+@@ -2300,17 +2300,25 @@ virNodeDeviceDeleteVport(virConnectPtr conn,
+         goto cleanup;
+     }
+ 
++    if (virAsprintf(&scsi_host_name, "scsi_%s", name) < 0)
++        goto cleanup;
++
+     /* If at startup time we provided a parent, then use that to
+      * get the parent_host value; otherwise, we have to determine
+      * the parent scsi_host which we did not save at startup time
+      */
+     if (fchost->parent) {
++        /* Someone provided a parent string at startup time that
++         * was the same as the scsi_host - meaning we have a pool
++         * backed to an HBA, so there won't be a vHBA to delete */
++        if (STREQ(scsi_host_name, fchost->parent)) {
++            ret = 0;
++            goto cleanup;
++        }
++
+         if (virSCSIHostGetNumber(fchost->parent, &parent_host) < 0)
+             goto cleanup;
+     } else {
+-        if (virAsprintf(&scsi_host_name, "scsi_%s", name) < 0)
+-            goto cleanup;
+-
+         if (!(vhba_parent = virNodeDeviceGetParentName(conn, scsi_host_name)))
+             goto cleanup;
+ 
+-- 
+2.13.0
+

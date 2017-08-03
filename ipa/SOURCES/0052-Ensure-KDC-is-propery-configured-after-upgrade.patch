@@ -1,0 +1,47 @@
+From 73ed5d59d0777329450cb8d6dce78f8ee862068b Mon Sep 17 00:00:00 2001
+From: Martin Babinsky <mbabinsk@redhat.com>
+Date: Wed, 22 Mar 2017 11:56:18 +0100
+Subject: [PATCH] Ensure KDC is propery configured after upgrade
+
+https://pagure.io/freeipa/issue/6792
+
+Reviewed-By: Stanislav Laznicka <slaznick@redhat.com>
+---
+ ipaserver/install/server/upgrade.py | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/ipaserver/install/server/upgrade.py b/ipaserver/install/server/upgrade.py
+index be07d78585d4772eb6dd0aaa8fb4ccb588c42c65..0db764cb80f6d0fb22f00719dadf1f921f97bf62 100644
+--- a/ipaserver/install/server/upgrade.py
++++ b/ipaserver/install/server/upgrade.py
+@@ -1499,15 +1499,14 @@ def enable_anonymous_principal(krb):
+ def setup_pkinit(krb):
+     root_logger.info("[Setup PKINIT]")
+ 
+-    if os.path.exists(paths.KDC_CERT):
+-        root_logger.info("PKINIT already set up")
+-        return
+-
+     if not api.Command.ca_is_enabled()['result']:
+         root_logger.info("CA is not enabled")
+         return
+ 
+-    krb.setup_pkinit()
++    if not os.path.exists(paths.KDC_CERT):
++        root_logger.info("Requesting PKINIT certificate")
++        krb.setup_pkinit()
++
+     replacevars = dict()
+     replacevars['pkinit_identity'] = 'FILE:{},{}'.format(
+         paths.KDC_CERT,paths.KDC_KEY)
+@@ -1519,6 +1518,7 @@ def setup_pkinit(krb):
+     if krb.is_running():
+         krb.stop()
+     krb.start()
++    krb.test_anonymous_pkinit()
+ 
+ 
+ def disable_httpd_system_trust(http):
+-- 
+2.12.2
+
