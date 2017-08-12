@@ -1,6 +1,6 @@
-From 7996efeca8d1f53fe0b046d624e4531e470fef44 Mon Sep 17 00:00:00 2001
+From 87a3728a9a12d25c68e304cb7384d795e3769e0c Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Tue, 13 Dec 2016 21:35:23 +0100
+Date: Fri, 4 Aug 2017 10:25:42 +0200
 Subject: [PATCH] added arm to exclusive archs
 
 ---
@@ -8,36 +8,36 @@ Subject: [PATCH] added arm to exclusive archs
  1 file changed, 5 insertions(+), 2 deletions(-)
 
 diff --git a/SPECS/corosync.spec b/SPECS/corosync.spec
-index 457df13..f10ebd4 100644
+index aa7d3b1..7d4cf85 100644
 --- a/SPECS/corosync.spec
 +++ b/SPECS/corosync.spec
 @@ -23,7 +23,7 @@
  Name: corosync
  Summary: The Corosync Cluster Engine and Application Programming Interfaces
  Version: 2.4.0
--Release: 4%{?gitver}%{?dist}
-+Release: 4%{?gitver}%{?dist}.redsleeve
+-Release: 9%{?gitver}%{?dist}
++Release: 9%{?gitver}%{?dist}.redsleeve
  License: BSD
  Group: System Environment/Base
  URL: http://corosync.github.io/corosync/
-@@ -35,7 +35,7 @@ Patch2: bz1367813-2-man-mention-qdevice-incompatibilites-in-votequorum.5.patch
- Patch3: bz1367813-3-Qnetd-LMS-Fix-two-partition-use-case.patch
+@@ -53,7 +53,7 @@ Patch20: bz1434534-2-logconfig-Do-not-overwrite-logger_subsys-priority.patch
+ Patch21: bz1445001-1-Main-Call-mlockall-after-fork.patch
  
  %if 0%{?rhel}
--ExclusiveArch: i686 x86_64 s390x
-+ExclusiveArch: i686 x86_64 s390x %{arm}
+-ExclusiveArch: i686 x86_64 s390x ppc64le
++ExclusiveArch: i686 x86_64 s390x ppc64le %{arm}
  %endif
  
  # Runtime bits
-@@ -519,6 +519,9 @@ fi
+@@ -555,6 +555,9 @@ fi
  %endif
  
  %changelog
-+* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> 2.4.0-4.redsleeve
++* Fri Aug 04 2017 Jacco Ligthart <jacco@redsleeve.org> 2.4.0-9.redsleeve
 +- added arm to exclusive archs
 +
- * Wed Aug 31 2016 Jan Friesse <jfriesse@redhat.com> 2.4.0-4
- - Resolves: rhbz#1367813
+ * Wed Apr 26 2017 Jan Friesse <jfriesse@redhat.com> 2.4.0-9
+ - Resolves: rhbz#1445001
  
 -- 
 1.8.3.1
