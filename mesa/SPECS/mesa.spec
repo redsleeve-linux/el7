@@ -61,7 +61,7 @@
 Summary: Mesa graphics libraries
 Name: mesa
 Version: 17.0.1
-Release: 6.%{gitdate}%{?dist}
+Release: 6.%{gitdate}%{?dist}.redsleeve
 License: MIT
 Group: System Environment/Libraries
 URL: http://www.mesa3d.org
@@ -112,7 +112,7 @@ BuildRequires: python-mako
 BuildRequires: gettext
 %if 0%{?with_llvm}
 %if 0%{?with_private_llvm}
-BuildRequires: mesa-private-llvm-devel >= 3.9
+BuildRequires: mesa-private-llvm-devel
 %else
 BuildRequires: llvm-devel >= 3.0
 %endif
@@ -389,7 +389,7 @@ export CXXFLAGS="$RPM_OPT_FLAGS -fno-rtti -fno-exceptions"
     --enable-dri \
 %if %{with_hardware}
     %{?with_vmware:--enable-xa} \
-    --with-gallium-drivers=%{?with_vmware:svga,}%{?with_radeonsi:radeonsi,}%{?with_llvm:swrast,r600,r300}%{?with_freedreno:freedreno,},nouveau,virgl \
+    --with-gallium-drivers=%{?with_vmware:svga,}%{?with_radeonsi:radeonsi,}%{?with_llvm:swrast,r600,r300}%{?with_freedreno:,freedreno},nouveau,virgl \
 %else
     --with-gallium-drivers=%{?with_llvm:swrast} \
 %endif
@@ -513,6 +513,7 @@ rm -rf $RPM_BUILD_ROOT
 %endif
 %if 0%{?with_freedreno}
 %{_libdir}/dri/kgsl_dri.so
+%{_libdir}/dri/msm_dri.so
 %endif
 %{_libdir}/dri/nouveau_dri.so
 %{_libdir}/dri/virtio_gpu_dri.so
@@ -654,6 +655,11 @@ rm -rf $RPM_BUILD_ROOT
 %endif
 
 %changelog
+* Fri Aug 04 2017 Jacco Ligthart <jacco@redsleeve.org> - 17.0.1-6.20170307.redsleeve
+- add msm_dri.so to the %files section
+- drop the version number from the mesa-private-llvm BuildRequire
+- fixed typo around freedreno
+
 * Thu May 11 2017 Dave Airlie <airlied@redhat.com> - 17.0.1-6.20170307
 - enable VDPAU drivers (#1297276)
 
