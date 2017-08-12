@@ -14,7 +14,7 @@
     %global have_usbredir 0
 %endif
 
-%ifnarch s390 s390x
+%ifnarch s390 s390x %{arm}
     %global have_librdma 1
     %global have_tcmalloc 1
 %endif
@@ -41,6 +41,10 @@
 %ifarch aarch64
     %global kvm_target    aarch64
 %endif
+%ifarch %{arm}
+    %global kvm_target    arm
+%endif
+
 
 #Versions of various parts:
 
@@ -76,13 +80,13 @@ Obsoletes: %1 < %{obsoletes_version}                                      \
 Summary: QEMU is a machine emulator and virtualizer
 Name: %{pkgname}%{?pkgsuffix}
 Version: 1.5.3
-Release: 141%{?dist}
+Release: 141%{?dist}.redsleeve
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 Epoch: 10
 License: GPLv2+ and LGPLv2+ and BSD
 Group: Development/Tools
 URL: http://www.qemu.org/
-ExclusiveArch: x86_64 %{power64} aarch64 s390x
+ExclusiveArch: x86_64 %{power64} aarch64 s390x %{arm}
 Requires: seabios-bin >= 1.7.2.2-5
 Requires: sgabios-bin
 Requires: seavgabios-bin
@@ -5987,6 +5991,10 @@ sh %{_sysconfdir}/sysconfig/modules/kvm.modules &> /dev/null || :
 %{_mandir}/man8/qemu-nbd.8*
 
 %changelog
+* Fri Aug 04 2017 Jacco Ligthart <jacco@redsleeve.org> - 1.5.3-141.el7.redsleeve
+- added kvm_target arm
+- do not use rdma-core
+
 * Tue Jun 13 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-141.el7
 - kvm-Fix-memory-slot-page-alignment-logic-bug-1455745.patch [bz#1455745]
 - kvm-Do-not-hang-on-full-PTY.patch [bz#1452067]

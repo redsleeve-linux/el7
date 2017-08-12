@@ -1,16 +1,25 @@
-From d4fc872af1f68e0c510e233604146366123aad97 Mon Sep 17 00:00:00 2001
+From 9ce1fbd7bddfa5b7cb1aeb599bd752fd45a67196 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Tue, 13 Jun 2017 22:28:26 +0200
+Date: Fri, 4 Aug 2017 13:24:16 +0200
 Subject: [PATCH] added kvm_target arm
 
 ---
- SPECS/qemu-kvm.spec | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ SPECS/qemu-kvm.spec | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)
 
 diff --git a/SPECS/qemu-kvm.spec b/SPECS/qemu-kvm.spec
-index e9786e4..6aa32db 100644
+index fc54cb1..06eaf53 100644
 --- a/SPECS/qemu-kvm.spec
 +++ b/SPECS/qemu-kvm.spec
+@@ -14,7 +14,7 @@
+     %global have_usbredir 0
+ %endif
+ 
+-%ifnarch s390 s390x
++%ifnarch s390 s390x %{arm}
+     %global have_librdma 1
+     %global have_tcmalloc 1
+ %endif
 @@ -41,6 +41,10 @@
  %ifarch aarch64
      %global kvm_target    aarch64
@@ -22,25 +31,33 @@ index e9786e4..6aa32db 100644
  
  #Versions of various parts:
  
-@@ -76,7 +80,7 @@ Obsoletes: %1 < %{obsoletes_version}                                      \
- Summary: QEMU is a FAST! processor emulator
+@@ -76,13 +80,13 @@ Obsoletes: %1 < %{obsoletes_version}                                      \
+ Summary: QEMU is a machine emulator and virtualizer
  Name: %{pkgname}%{?pkgsuffix}
  Version: 1.5.3
--Release: 126%{?dist}.9
-+Release: 126%{?dist}.9.redsleeve
+-Release: 141%{?dist}
++Release: 141%{?dist}.redsleeve
  # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
  Epoch: 10
  License: GPLv2+ and LGPLv2+ and BSD
-@@ -5826,6 +5830,9 @@ sh %{_sysconfdir}/sysconfig/modules/kvm.modules &> /dev/null || :
+ Group: Development/Tools
+ URL: http://www.qemu.org/
+-ExclusiveArch: x86_64 %{power64} aarch64 s390x
++ExclusiveArch: x86_64 %{power64} aarch64 s390x %{arm}
+ Requires: seabios-bin >= 1.7.2.2-5
+ Requires: sgabios-bin
+ Requires: seavgabios-bin
+@@ -5987,6 +5991,10 @@ sh %{_sysconfdir}/sysconfig/modules/kvm.modules &> /dev/null || :
  %{_mandir}/man8/qemu-nbd.8*
  
  %changelog
-+* Tue Jun 13 2017 Jacco Ligthart <jacco@redsleeve.org> - 1.5.3-126.el7.9.redsleeve
++* Fri Aug 04 2017 Jacco Ligthart <jacco@redsleeve.org> - 1.5.3-141.el7.redsleeve
 +- added kvm_target arm
++- do not use rdma-core
 +
- * Tue Jun 06 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-126.el7_3.9
- - kvm-spice-fix-spice_chr_add_watch-pre-condition.patch [bz#1452332]
- - Resolves: bz#1452332
+ * Tue Jun 13 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-141.el7
+ - kvm-Fix-memory-slot-page-alignment-logic-bug-1455745.patch [bz#1455745]
+ - kvm-Do-not-hang-on-full-PTY.patch [bz#1452067]
 -- 
 1.8.3.1
 
