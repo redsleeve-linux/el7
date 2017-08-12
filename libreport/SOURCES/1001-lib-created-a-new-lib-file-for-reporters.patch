@@ -1,0 +1,405 @@
+From 8d9f7ba8a42ec1cfd39e6c249aef15e9295fe0a1 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Tue, 13 Jan 2015 19:23:08 -0500
+Subject: [PATCH 1001/1015] lib: created a new lib file for reporters
+
+Moved some functions from rhbz.c to src/lib/reporters.c and src/lib/strbuf.c.
+
+Related to #272
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ po/POTFILES.in                   |  1 +
+ src/include/Makefile.am          |  3 +-
+ src/include/internal_libreport.h |  5 +++
+ src/include/reporters.h          | 36 ++++++++++++++++++
+ src/lib/Makefile.am              |  3 +-
+ src/lib/reporters.c              | 80 ++++++++++++++++++++++++++++++++++++++++
+ src/lib/strbuf.c                 | 60 ++++++++++++++++++++++++++++++
+ src/plugins/rhbz.c               | 78 +--------------------------------------
+ src/plugins/rhbz.h               |  2 -
+ 9 files changed, 188 insertions(+), 80 deletions(-)
+ create mode 100644 src/include/reporters.h
+ create mode 100644 src/lib/reporters.c
+
+diff --git a/po/POTFILES.in b/po/POTFILES.in
+index 4246e06..003e686 100644
+--- a/po/POTFILES.in
++++ b/po/POTFILES.in
+@@ -27,6 +27,7 @@ src/lib/parse_options.c
+ src/lib/problem_data.c
+ src/lib/problem_report.c
+ src/lib/reported_to.c
++src/lib/reporters.c
+ src/lib/run_event.c
+ src/plugins/abrt_rh_support.c
+ src/plugins/report_Bugzilla.xml.in
+diff --git a/src/include/Makefile.am b/src/include/Makefile.am
+index 87e5e60..4d8c6a5 100644
+--- a/src/include/Makefile.am
++++ b/src/include/Makefile.am
+@@ -15,7 +15,8 @@ libreport_include_HEADERS = \
+     file_obj.h \
+     internal_libreport.h \
+     internal_abrt_dbus.h \
+-    xml_parser.h
++    xml_parser.h \
++    reporters.h
+ 
+ if BUILD_UREPORT
+ libreport_include_HEADERS += ureport.h
+diff --git a/src/include/internal_libreport.h b/src/include/internal_libreport.h
+index cf5730c..a867649 100644
+--- a/src/include/internal_libreport.h
++++ b/src/include/internal_libreport.h
+@@ -98,6 +98,7 @@ int vdprintf(int d, const char *format, va_list ap);
+ #include "workflow.h"
+ #include "file_obj.h"
+ #include "libreport_types.h"
++#include "reporters.h"
+ 
+ #ifdef __cplusplus
+ extern "C" {
+@@ -107,6 +108,10 @@ extern "C" {
+ int prefixcmp(const char *str, const char *prefix);
+ #define suffixcmp libreport_suffixcmp
+ int suffixcmp(const char *str, const char *suffix);
++#define trim_all_whitespace libreport_trim_all_whitespace
++char *trim_all_whitespace(const char *str);
++#define shorten_string_to_length libreport_shorten_string_to_length
++char *shorten_string_to_length(const char *str, unsigned length);
+ #define strtrim libreport_strtrim
+ char *strtrim(char *str);
+ #define strtrimch libreport_strtrimch
+diff --git a/src/include/reporters.h b/src/include/reporters.h
+new file mode 100644
+index 0000000..d415b7f
+--- /dev/null
++++ b/src/include/reporters.h
+@@ -0,0 +1,36 @@
++/*
++    Copyright (C) 2014  ABRT team
++    Copyright (C) 2014  RedHat Inc
++
++    This program is free software; you can redistribute it and/or modify
++    it under the terms of the GNU General Public License as published by
++    the Free Software Foundation; either version 2 of the License, or
++    (at your option) any later version.
++
++    This program is distributed in the hope that it will be useful,
++    but WITHOUT ANY WARRANTY; without even the implied warranty of
++    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++    GNU General Public License for more details.
++
++    You should have received a copy of the GNU General Public License along
++    with this program; if not, write to the Free Software Foundation, Inc.,
++    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
++*/
++
++#ifndef REPORTERS_H
++#define REPORTERS_H
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++#define is_comment_dup libreport_is_comment_dup
++int is_comment_dup(GList *comments, const char *comment);
++#define comments_find_best_bt_rating libreport_comments_find_best_bt_rating
++unsigned comments_find_best_bt_rating(GList *comments);
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif
+diff --git a/src/lib/Makefile.am b/src/lib/Makefile.am
+index c11a42d..d41e543 100644
+--- a/src/lib/Makefile.am
++++ b/src/lib/Makefile.am
+@@ -58,7 +58,8 @@ libreport_la_SOURCES = \
+     xml_parser.c \
+     libreport_init.c \
+     global_configuration.c \
+-    uriparser.c
++    uriparser.c \
++    reporters.c
+ 
+ libreport_la_CPPFLAGS = \
+     -I$(srcdir)/../include \
+diff --git a/src/lib/reporters.c b/src/lib/reporters.c
+new file mode 100644
+index 0000000..e3305ca
+--- /dev/null
++++ b/src/lib/reporters.c
+@@ -0,0 +1,80 @@
++/*
++    String buffer implementation
++
++    Copyright (C) 2015  RedHat inc.
++
++    This program is free software; you can redistribute it and/or modify
++    it under the terms of the GNU General Public License as published by
++    the Free Software Foundation; either version 2 of the License, or
++    (at your option) any later version.
++
++    This program is distributed in the hope that it will be useful,
++    but WITHOUT ANY WARRANTY; without even the implied warranty of
++    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++    GNU General Public License for more details.
++
++    You should have received a copy of the GNU General Public License along
++    with this program; if not, write to the Free Software Foundation, Inc.,
++    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
++*/
++
++#include "internal_libreport.h"
++
++int
++is_comment_dup(GList *comments, const char *comment)
++{
++    char * const trim_comment = trim_all_whitespace(comment);
++    bool same_comments = false;
++
++    for (GList *l = comments; l && !same_comments; l = l->next)
++    {
++        const char * const comment_body = (const char *) l->data;
++        char * const trim_comment_body = trim_all_whitespace(comment_body);
++        same_comments = (strcmp(trim_comment_body, trim_comment) == 0);
++        free(trim_comment_body);
++    }
++
++    free(trim_comment);
++    return same_comments;
++}
++
++unsigned
++comments_find_best_bt_rating(GList *comments)
++{
++    if (comments == NULL)
++        return 0;
++
++    unsigned best_rating = 0;
++    for (GList *l = comments; l; l = l->next)
++    {
++        char *comment_body = (char *) l->data;
++
++        char *start_rating_line = strstr(comment_body, FILENAME_RATING": ");
++        if (!start_rating_line)
++        {
++            log_debug(_("Note does not contain rating"));
++            continue;
++        }
++
++        start_rating_line += strlen(FILENAME_RATING": ");
++
++        errno = 0;
++        char *e;
++        long rating = strtoul(start_rating_line, &e, 10);
++        /*
++         * Note: we intentionally check for '\n'. Any other terminator
++         * (even '\0') is not ok in this case.
++         */
++        if (errno || e == start_rating_line || (*e != '\n' && *e != '\r') || (unsigned long)rating > UINT_MAX)
++        {
++            /* error / no digits / illegal trailing chars */
++            continue;
++        }
++
++        if (rating > best_rating)
++            best_rating = rating;
++    }
++
++    return best_rating;
++}
++
+diff --git a/src/lib/strbuf.c b/src/lib/strbuf.c
+index ef8bda8..f0cd1b8 100644
+--- a/src/lib/strbuf.c
++++ b/src/lib/strbuf.c
+@@ -37,6 +37,66 @@ int suffixcmp(const char *str, const char *suffix)
+         return strcmp(str + len_minus_suflen, suffix);
+ }
+ 
++char *trim_all_whitespace(const char *str)
++{
++    char *trim = xzalloc(sizeof(char) * strlen(str) + 1);
++    int i = 0;
++    while (*str)
++    {
++        if (!isspace(*str))
++            trim[i++] = *str;
++        str++;
++    }
++
++    return trim;
++}
++
++/* If str is longer than max allowed length then
++ * try to find first ' ' from the end of acceptable long str string
++ *
++ * If ' ' is found replace string after that by "..."
++ *
++ * If ' ' is NOT found in maximal allowed range, cut str string on
++ * lenght (MAX_SUMMARY_LENGTH - strlen("...")) and append "..."
++ *
++ * If MAX_LENGTH is 15 and max allowed cut is 5:
++ *
++ *   0123456789ABCDEF -> 0123456789AB...
++ *   0123456789 BCDEF -> 0123456789 ...
++ *   012345 789ABCDEF -> 012345 789AB...
++ */
++char *
++shorten_string_to_length(const char *str, unsigned length)
++{
++    char *dup_str = xstrdup(str);
++    if (strlen(str) > length)
++    {
++        char *max_end = dup_str + (length - strlen("..."));
++
++        /* maximal number of characters to cut due to attempt cut dup_str
++         * string after last ' '
++         */
++        int max_cut = 16;
++
++        /* start looking for ' ' one char before the last possible character */
++        char *buf = max_end - 1;
++        while (buf[0] != ' ' && max_cut--)
++            --buf;
++
++        if (buf[0] != ' ')
++            buf = max_end;
++        else
++            ++buf;
++
++        buf[0] = '.';
++        buf[1] = '.';
++        buf[2] = '.';
++        buf[3] = '\0';
++    }
++
++    return dup_str;
++}
++
+ /*
+  * Trims whitespace characters both from left and right side of a string.
+  * Modifies the string in-place. Returns the trimmed string.
+diff --git a/src/plugins/rhbz.c b/src/plugins/rhbz.c
+index a227c62..fdcfff9 100644
+--- a/src/plugins/rhbz.c
++++ b/src/plugins/rhbz.c
+@@ -133,41 +133,6 @@ static GList *rhbz_comments(struct abrt_xmlrpc *ax, int bug_id)
+     return g_list_reverse(comments);
+ }
+ 
+-static char *trim_all_whitespace(const char *str)
+-{
+-    func_entry();
+-
+-    char *trim = xzalloc(sizeof(char) * strlen(str) + 1);
+-    int i = 0;
+-    while (*str)
+-    {
+-        if (!isspace(*str))
+-            trim[i++] = *str;
+-        str++;
+-    }
+-
+-    return trim;
+-}
+-
+-int is_comment_dup(GList *comments, const char *comment)
+-{
+-    func_entry();
+-
+-    char * const trim_comment = trim_all_whitespace(comment);
+-    bool same_comments = false;
+-
+-    for (GList *l = comments; l && !same_comments; l = l->next)
+-    {
+-        const char * const comment_body = (const char *) l->data;
+-        char * const trim_comment_body = trim_all_whitespace(comment_body);
+-        same_comments = (strcmp(trim_comment_body, trim_comment) == 0);
+-        free(trim_comment_body);
+-    }
+-
+-    free(trim_comment);
+-    return same_comments;
+-}
+-
+ static unsigned find_best_bt_rating_in_comments(GList *comments)
+ {
+     func_entry();
+@@ -553,46 +518,7 @@ int rhbz_new_bug(struct abrt_xmlrpc *ax,
+     if (!duphash) duphash    = problem_data_get_content_or_NULL(problem_data,
+                                                                 "global_uuid");
+ 
+-    /* If summary is longer than max allowed summary length then
+-     * try to find first ' ' from the end of acceptable long summary string
+-     *
+-     * If ' ' is found replace string after that by "..."
+-     *
+-     * If ' ' is NOT found in maximal allowed range, cut summary string on
+-     * lenght (MAX_SUMMARY_LENGTH - strlen("...")) and append "..."
+-     *
+-     * If MAX_SUMMARY_LENGTH is 15 and max allowed cut is 5:
+-     *
+-     *   0123456789ABCDEF -> 0123456789AB...
+-     *   0123456789 BCDEF -> 0123456789 ...
+-     *   012345 789ABCDEF -> 012345 789AB...
+-     */
+-    char *summary = NULL;
+-    if (strlen(bzsummary) > MAX_SUMMARY_LENGTH)
+-    {
+-        summary = xstrdup(bzsummary);
+-        char *max_end = summary + (MAX_SUMMARY_LENGTH - strlen("..."));
+-
+-        /* maximal number of characters to cut due to attempt cut summary
+-         * string after last ' '
+-         */
+-        int max_cut = 16;
+-
+-        /* start looking for ' ' one char before the last possible character */
+-        char *buf = max_end - 1;
+-        while (buf[0] != ' ' && max_cut--)
+-            --buf;
+-
+-        if (buf[0] != ' ')
+-            buf = max_end;
+-        else
+-            ++buf;
+-
+-        buf[0] = '.';
+-        buf[1] = '.';
+-        buf[2] = '.';
+-        buf[3] = '\0';
+-    }
++    char *summary = shorten_string_to_length(bzsummary, MAX_SUMMARY_LENGTH);
+ 
+     char *status_whiteboard = xasprintf("abrt_hash:%s", duphash);
+ 
+@@ -604,7 +530,7 @@ int rhbz_new_bug(struct abrt_xmlrpc *ax,
+     abrt_xmlrpc_params_add_string(&env, params, "product", product);
+     abrt_xmlrpc_params_add_string(&env, params, "component", component);
+     abrt_xmlrpc_params_add_string(&env, params, "version", version);
+-    abrt_xmlrpc_params_add_string(&env, params, "summary", (summary ? summary : bzsummary));
++    abrt_xmlrpc_params_add_string(&env, params, "summary", summary);
+     abrt_xmlrpc_params_add_string(&env, params, "description", bzcomment);
+     abrt_xmlrpc_params_add_string(&env, params, "status_whiteboard", status_whiteboard);
+ 
+diff --git a/src/plugins/rhbz.h b/src/plugins/rhbz.h
+index 15e7699..86632a3 100644
+--- a/src/plugins/rhbz.h
++++ b/src/plugins/rhbz.h
+@@ -105,8 +105,6 @@ int rhbz_attach_blob(struct abrt_xmlrpc *ax, const char *bug_id,
+ int rhbz_attach_fd(struct abrt_xmlrpc *ax, const char *bug_id,
+                 const char *att_name, int fd, int flags);
+ 
+-int is_comment_dup(GList *comments, const char *comment);
+-
+ GList *rhbz_bug_cc(xmlrpc_value *result_xml);
+ 
+ struct bug_info *rhbz_bug_info(struct abrt_xmlrpc *ax, int bug_id);
+-- 
+1.8.3.1
+

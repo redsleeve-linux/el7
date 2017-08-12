@@ -1,0 +1,27 @@
+From 2221fee2d3b930f171fa5181439ded9a1748ff00 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Mon, 2 Feb 2015 16:31:51 +0100
+Subject: [PATCH 1003/1015] ureport: set url to public faf server
+
+Set url to public faf server because the private one doesn't return URL to
+known issues, bthash, possible solution etc.
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/plugins/ureport.conf | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/plugins/ureport.conf b/src/plugins/ureport.conf
+index 2256a7f..b82b0e1 100644
+--- a/src/plugins/ureport.conf
++++ b/src/plugins/ureport.conf
+@@ -1,5 +1,5 @@
+ # Base URL to uReport server
+-# URL = http://bug-report.itos.redhat.com
++URL = https://retrace.fedoraproject.org/faf
+ 
+ # no means that ssl certificates will not be checked
+ # SSLVerify = no
+-- 
+1.8.3.1
+

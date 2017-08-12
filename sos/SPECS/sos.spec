@@ -28,7 +28,7 @@ Patch8: sos-bz1449904-ceph-tmp-mount-exclude.patch
 Patch9: sos-bz1393961-missing-filesystem-nonfatal.patch
 Patch10: sos-bz1400407-samba-dc-connect.patch
 Patch11: sos-bz1470573-tripleo-add-ui-logs.patch
-Patch12: sos-centos-branding.patch
+Patch12: sos-3.4-centos-branding.patch
 
 %description
 Sos is a set of tools that gathers information about system

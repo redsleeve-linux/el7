@@ -1,0 +1,42 @@
+From 08a7c9c82f51f95f69de42b8eaa38eb75e71a93a Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Fri, 30 Jan 2015 17:52:25 +0100
+Subject: [PATCH 1002/1006] plugin: set URL to retrace server
+
+Changed default retrace server URL from localhost to retrace.fedoraproject.org.
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/plugins/analyze_CCpp.xml.in          | 2 +-
+ src/plugins/analyze_RetraceServer.xml.in | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/plugins/analyze_CCpp.xml.in b/src/plugins/analyze_CCpp.xml.in
+index 6f02692..a7ce4dd 100644
+--- a/src/plugins/analyze_CCpp.xml.in
++++ b/src/plugins/analyze_CCpp.xml.in
+@@ -26,7 +26,7 @@
+     <options>
+         <option type="text" name="RETRACE_SERVER_URL">
+            <_label>Retrace server URL</_label>
+-           <default-value>localhost</default-value>
++           <default-value>retrace.fedoraproject.org</default-value>
+            <allow-empty>no</allow-empty>
+            <_description>Address of the retrace server</_description>
+        </option>
+diff --git a/src/plugins/analyze_RetraceServer.xml.in b/src/plugins/analyze_RetraceServer.xml.in
+index cf1d25a..e437cac 100644
+--- a/src/plugins/analyze_RetraceServer.xml.in
++++ b/src/plugins/analyze_RetraceServer.xml.in
+@@ -12,7 +12,7 @@
+     <options>
+         <option type="text" name="RETRACE_SERVER_URL">
+            <_label>Retrace server URL</_label>
+-           <default-value>localhost</default-value>
++           <default-value>retrace.fedoraproject.org</default-value>
+            <allow-empty>no</allow-empty>
+            <_description>Address of the retrace server</_description>
+        </option>
+-- 
+1.8.3.1
+

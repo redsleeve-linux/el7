@@ -1,0 +1,115 @@
+From 035f7e2280686b563709e663d2cd3c42647ef25c Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Mon, 30 Nov 2015 17:13:43 +0100
+Subject: [PATCH 1005/1006] cli list: revert patch
+ '7966e5737e8d3af43b1ecdd6a823234b8d25931d'
+
+This patch cannot be in CentOS7 because is related only to RHEL.
+
+Removing the patch here because previous patches depends on this patch and
+cannot be applied without conflict.
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ configure.ac        |  2 --
+ src/cli/Makefile.am |  3 +--
+ src/cli/list.c      | 49 -------------------------------------------------
+ 3 files changed, 1 insertion(+), 53 deletions(-)
+
+diff --git a/configure.ac b/configure.ac
+index 02d7e0e..9481b7f 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -139,7 +139,6 @@ PLUGINS_CONF_DIR='${sysconfdir}/${PACKAGE_NAME}/plugins'
+ DEFAULT_PLUGINS_CONF_DIR='${datadir}/${PACKAGE_NAME}/conf.d/plugins'
+ EVENTS_DIR='${datadir}/libreport/events'
+ EVENTS_CONF_DIR='${sysconfdir}/libreport/events.d'
+-WORKFLOWS_DIR='${datadir}/libreport/workflows'
+ ENABLE_SOCKET_OR_DBUS='-DENABLE_DBUS=1'
+ DEFAULT_DUMP_DIR_MODE=$($PKG_CONFIG --variable=dd_mode libreport)
+ LIBREPORT_PLUGINS_CONF_DIR=$($PKG_CONFIG --variable=plugins_conf_dir libreport)
+@@ -252,7 +251,6 @@ AC_SUBST(VAR_RUN)
+ AC_SUBST(PLUGINS_CONF_DIR)
+ AC_SUBST(DEFAULT_PLUGINS_CONF_DIR)
+ AC_SUBST(EVENTS_CONF_DIR)
+-AC_SUBST(WORKFLOWS_DIR)
+ AC_SUBST(EVENTS_DIR)
+ AC_SUBST(DEFAULT_DUMP_LOCATION)
+ AC_SUBST(DEFAULT_DUMP_DIR_MODE)
+diff --git a/src/cli/Makefile.am b/src/cli/Makefile.am
+index a7c76ef..92dc20a 100644
+--- a/src/cli/Makefile.am
++++ b/src/cli/Makefile.am
+@@ -17,8 +17,7 @@ abrt_cli_CFLAGS = \
+ 	-I$(srcdir)/../include \
+ 	-I$(srcdir)/../lib \
+ 	$(LIBREPORT_CFLAGS) \
+-	$(POLKIT_AGENT_CFLAGS) \
+-	-DWORKFLOWS_DIR=\"${WORKFLOWS_DIR}\"
++	$(POLKIT_AGENT_CFLAGS)
+ 
+ if SUGGEST_AUTOREPORTING
+ abrt_cli_CFLAGS += -DSUGGEST_AUTOREPORTING=1
+diff --git a/src/cli/list.c b/src/cli/list.c
+index e688d2f..d069695 100644
+--- a/src/cli/list.c
++++ b/src/cli/list.c
+@@ -77,55 +77,6 @@ static void print_crash(problem_data_t *problem_data, int detailed, int text_siz
+                             /*names_to_skip:*/ NULL,
+                             /*max_text_size:*/ text_size,
+                             MAKEDESC_SHOW_ONLY_LIST | MAKEDESC_SHOW_URLS);
+-
+-        /*
+-         * If the problem is reportable and has not yet been reported into RHTS
+-         * and there is at least one applicable Workflow which contains
+-         * 'report_RHTSupport' event, then append a short message informing
+-         * user that he can create a new case in Red Hat Customer Portal.
+-         */
+-        const char *const not_reportable =  problem_data_get_content_or_NULL(problem_data, FILENAME_NOT_REPORTABLE);
+-        const char *const reported_to    =  not_reportable            ? NULL : problem_data_get_content_or_NULL(problem_data, FILENAME_REPORTED_TO);
+-        report_result_t *const report    = !reported_to               ? NULL : find_in_reported_to_data(reported_to, "RHTSupport");
+-
+-        if (!not_reportable && !report)
+-        {
+-            /* The lines below should be replaced by something simpler, I'd
+-             * like to see:
+-             * GHashTable *possible_worfklows = load_applicable_workflows_for_dump();
+-             *
+-             * However, this feature (rhbz#1055565) is intended for RHEL only
+-             * and I'm not sure whether it's worth to file another bug against
+-             * libreport and try to improve libreport public API.
+-             */
+-            const char *const dump_dir_name = problem_data_get_content_or_NULL(problem_data, CD_DUMPDIR);
+-            GList *const wf_names = list_possible_events_problem_data_glist(problem_data, dump_dir_name, "workflow");
+-            GHashTable *const possible_workflows = load_workflow_config_data_from_list(wf_names, WORKFLOWS_DIR);
+-            g_list_free_full(wf_names, free);
+-
+-            int event_found = 0;
+-
+-            GHashTableIter iter;
+-            gpointer key = NULL;
+-            gpointer value = NULL;
+-
+-            g_hash_table_iter_init(&iter, possible_workflows);
+-            while (!event_found && g_hash_table_iter_next(&iter, &key, &value))
+-            {
+-                GList *const event_names = wf_get_event_names((workflow_t *)value);
+-                event_found = !!g_list_find_custom(event_names, "report_RHTSupport", (GCompareFunc)g_strcmp0);
+-                g_list_free_full(event_names, free);
+-            }
+-
+-            g_hash_table_destroy(possible_workflows);
+-
+-            if (event_found)
+-            {
+-                char *tmp = xasprintf(_("%sRun 'abrt-cli report %s' for creating a case in Red Hat Customer Portal\n"), desc, dump_dir_name);
+-                free(desc);
+-                desc = tmp;
+-            }
+-        }
+     }
+     fputs(desc, stdout);
+     free(desc);
+-- 
+1.8.3.1
+

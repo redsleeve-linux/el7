@@ -27,7 +27,7 @@
 %define desktopvendor fedora
 %endif
 
-%define libreport_ver 2.1.11-36
+%define libreport_ver 2.1.11-38
 %define satyr_ver 0.13-10
 
 Summary: Automatic bug detection and reporting tool
@@ -54,6 +54,7 @@ Patch12: 0012-configui-show-Close-button-in-the-dialog.patch
 Patch13: 0013-applet-do-not-say-the-report-is-anonymous-when-urepo.patch
 #Patch14: 0014-spec-abrt-cli-requires-a-pkg-providing-workflows.patch
 #Patch15: 0015-testsuite-encourage-users-to-create-a-case-in-RHTS.patch
+Patch16: 0016-cli-list-show-a-hint-about-creating-a-case-in-RHTS.patch
 Patch17: 0017-harvest-vmcore-properly-handle-inaccessible-dir-erro.patch
 Patch18: 0018-don-t-break-the-event-run-by-failures-of-abrt-action.patch
 Patch19: 0019-Fix-handling-of-Machine-Check-Exceptions.patch
@@ -116,6 +117,7 @@ Patch75: 0075-Translation-updates.patch
 Patch76: 0076-Revert-gdb-disable-loading-of-auto-loaded-files.patch
 Patch77: 0077-gdb-make-gdb-aware-of-the-abrt-s-debuginfo-dir.patch
 #Patch78: 0078-spec-update-the-required-gdb-version.patch
+Patch79: 0079-cli-mark-the-suggestion-text-for-translation.patch
 Patch80: 0080-auto-reporting-add-options-to-specify-auth-type.patch
 #Patch81: 0081-testsuite-abrt-auto-reporting-uReport-authentication.patch
 Patch82: 0082-translations-pull-the-newest-PO-files.patch
@@ -338,10 +340,14 @@ Patch269: 0269-ccpp-add-h-parameter-into-abrt-hook-ccpp.patch
 #Patch270: 0270-testsuite-add-test-for-core-template-substitution.patch
 # git format-patch 2.1.11-47.el7 -N --start-number 271 --topo-order
 Patch271: 0271-Translation-updates.patch
-Patch272: event-don-t-run-the-reporter-bugzilla-h-on-RHEL-and-.patch
-Patch273: plugin-set-URL-to-retrace-server.patch
-Patch274: turn-sosreport-off.patch
 
+Patch1000: 1000-event-don-t-run-the-reporter-bugzilla-h-on-RHEL-and-.patch
+#Patch1001: 1001-spec-added-dependency-to-libreport-centos.patch
+Patch1002: 1002-plugin-set-URL-to-retrace-server.patch
+#Patch1003: 1003-spec-add-dependenci-on-abrt-retrace-client.patch
+Patch1004: 1004-turn-sosreport-off.patch
+Patch1005: 1005-cli-list-revert-patch-7966e5737e8d3af43b1ecdd6a82323.patch
+#Patch1006: 1006-spec-disable-authenticated-autoreporting.patch
 
 # git is need for '%%autosetup -S git' which automatically applies all the
 # patches above. Please, be aware that the patches must be generated
@@ -698,7 +704,6 @@ CFLAGS="%{optflags} -Werror -Wno-error=deprecated-declarations" %configure --ena
 %endif
         --enable-dump-time-unwind \
         --enable-suggest-autoreporting \
-        --enable-authenticated-autoreporting
 make %{?_smp_mflags}
 
 %install
