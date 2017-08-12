@@ -1,6 +1,6 @@
-From 58b9c51c07fdd5f8a28b8fececc916181d671eee Mon Sep 17 00:00:00 2001
+From 42e606a898ad23f5e5a66e75df8e0ad5448105db Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Tue, 13 Dec 2016 21:59:33 +0100
+Date: Fri, 4 Aug 2017 12:14:42 +0200
 Subject: [PATCH] added "--tag=CC" to the make command due to libtool errors
 
 ---
@@ -8,19 +8,19 @@ Subject: [PATCH] added "--tag=CC" to the make command due to libtool errors
  1 file changed, 7 insertions(+), 4 deletions(-)
 
 diff --git a/SPECS/pidgin.spec b/SPECS/pidgin.spec
-index e94ba69..865d849 100644
+index 5610aab..5066bf6 100644
 --- a/SPECS/pidgin.spec
 +++ b/SPECS/pidgin.spec
-@@ -112,7 +112,7 @@
+@@ -117,7 +117,7 @@
  
  Name:           pidgin
- Version:        2.10.7
--Release:        26%{?dist}
-+Release:        26%{?dist}.redsleeve
+ Version:        2.10.11
+-Release:        5%{?dist}
++Release:        5%{?dist}.redsleeve
  License:        GPLv2+ and GPLv2 and MIT
  # GPLv2+ - libpurple, gnt, finch, pidgin, most prpls
  # GPLv2 - silc & novell prpls
-@@ -579,11 +579,11 @@ autoreconf --force --install
+@@ -552,11 +552,11 @@ autoreconf --force --install
             --enable-tcl --enable-tk \
             --disable-schemas-install $SWITCHES
  
@@ -34,7 +34,7 @@ index e94ba69..865d849 100644
  cd -
  
  %if %{api_docs}
-@@ -593,7 +593,7 @@ find doc/html -empty -delete
+@@ -566,7 +566,7 @@ find doc/html -empty -delete
  
  %install
  rm -rf $RPM_BUILD_ROOT
@@ -43,16 +43,16 @@ index e94ba69..865d849 100644
  
  install -m 0755 libpurple/plugins/one_time_password.so $RPM_BUILD_ROOT%{_libdir}/purple-2/
  
-@@ -796,6 +796,9 @@ rm -rf $RPM_BUILD_ROOT
+@@ -770,6 +770,9 @@ rm -rf $RPM_BUILD_ROOT
  %endif
  
  %changelog
-+* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> 2.10.7-25.el7.redsleeve
++* Fri Aug 04 2017 Jacco Ligthart <jacco@redsleeve.org> 2.10.11-5.el7.redsleeve
 +- added "--tag=CC" to the make command due to libtool errors
 +
- * Thu Mar 24 2016 Debarshi Ray <rishi@fedoraproject.org> - 2.10.7-26
- - Bump release to be higher than the EPEL build
-   Resolves: #1297461
+ * Fri May 19 2017 Debarshi Ray <rishi@fedoraproject.org> - 2.10.11-5
+ - Drop MXit support in RHEL
+   Resolves: #1439296
 -- 
 1.8.3.1
 
