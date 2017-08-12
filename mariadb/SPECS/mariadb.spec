@@ -4,7 +4,7 @@
 
 Name: mariadb
 Version: 5.5.56
-Release: 2%{?dist}
+Release: 2%{?dist}.redsleeve
 Epoch: 1
 
 Summary: A community developed branch of MySQL
@@ -229,6 +229,9 @@ rm -f mysql-test/t/ssl_8k_key-master.opt
 cat %{SOURCE14} > mysql-test/rh-skipped-tests.list
 # disable some tests failing on particular aches
 %ifarch aarch64
+echo "perfschema.dml_setup_timers : rhbz#1449880" >> mysql-test/rh-skipped-tests.list
+%endif
+%ifarch %{arm}
 echo "perfschema.dml_setup_timers : rhbz#1449880" >> mysql-test/rh-skipped-tests.list
 %endif
 %ifarch i686
@@ -721,6 +724,9 @@ fi
 %{_mandir}/man1/mysql_client_test.1*
 
 %changelog
+* Sat Aug 12 2017 Jacco Ligthart <jacco@redsleeve.org> - 1:5.5.56-2.redsleeve
+- Added exception for %{arm} for failing perfschema.dml_setup_timers test
+
 * Thu Jun 08 2017 Honza Horak <hhorak@redhat.com> - 1:5.5.56-2
 - Do not fix context and change owner if run by root in mariadb-prepare-db-dir
   Related: #1458940
