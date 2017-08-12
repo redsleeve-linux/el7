@@ -1,26 +1,20 @@
-From 875261673a8663bdbd1b3367341bd7f418c025e4 Mon Sep 17 00:00:00 2001
+From 52aa503fb430730f161445e42c18d7efce8589ad Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Tue, 13 Dec 2016 22:02:24 +0100
+Date: Fri, 4 Aug 2017 13:05:38 +0200
 Subject: [PATCH] Issue #17998: Fix an internal error in regular expression
  engine.
 
 ---
  SOURCES/python-2.7.5-Fix-re-engine-redsleeve.patch | 106 ++++++++++++++
  .../python-2.7.5-Fix-re-engine2-redsleeve.patch    | 160 +++++++++++++++++++++
- .../python-2.7.5-Fix-re-engine3-redsleeve.patch    |  48 +++++++
- .../python-2.7.5-Fix-re-engine4-redsleeve.patch    |  44 ++++++
- .../python-2.7.5-Fix-re-engine5-redsleeve.patch    |  23 +++
- SPECS/python.spec                                  |  21 ++-
- 6 files changed, 401 insertions(+), 1 deletion(-)
+ SPECS/python.spec                                  |  14 +-
+ 3 files changed, 279 insertions(+), 1 deletion(-)
  create mode 100644 SOURCES/python-2.7.5-Fix-re-engine-redsleeve.patch
  create mode 100644 SOURCES/python-2.7.5-Fix-re-engine2-redsleeve.patch
- create mode 100644 SOURCES/python-2.7.5-Fix-re-engine3-redsleeve.patch
- create mode 100644 SOURCES/python-2.7.5-Fix-re-engine4-redsleeve.patch
- create mode 100644 SOURCES/python-2.7.5-Fix-re-engine5-redsleeve.patch
 
 diff --git a/SOURCES/python-2.7.5-Fix-re-engine-redsleeve.patch b/SOURCES/python-2.7.5-Fix-re-engine-redsleeve.patch
 new file mode 100644
-index 0000000..fe7d684
+index 0000000..fb0f6cd
 --- /dev/null
 +++ b/SOURCES/python-2.7.5-Fix-re-engine-redsleeve.patch
 @@ -0,0 +1,106 @@
@@ -49,9 +43,9 @@ index 0000000..fe7d684
 ++                self.assertEqual(re.compile(pattern, re.S).findall(b'xyz'),
 ++                                 [b'xyz'], msg=pattern)
 ++
-+ 
-+ def run_re_tests():
-+     from test.re_tests import tests, SUCCEED, FAIL, SYNTAX_ERROR
++     def test_bug_2537(self):
++         # issue 2537: empty submatches
++         for outer_op in ('{0,}', '*', '+', '{1,187}'):
 +diff --git a/Modules/_sre.c b/Modules/_sre.c
 +--- a/Modules/_sre.c
 ++++ b/Modules/_sre.c
@@ -296,192 +290,52 @@ index 0000000..47fba50
 +     return match;
 + }
 +
-diff --git a/SOURCES/python-2.7.5-Fix-re-engine3-redsleeve.patch b/SOURCES/python-2.7.5-Fix-re-engine3-redsleeve.patch
-new file mode 100644
-index 0000000..fb5e589
---- /dev/null
-+++ b/SOURCES/python-2.7.5-Fix-re-engine3-redsleeve.patch
-@@ -0,0 +1,48 @@
-+
-+# HG changeset patch
-+# User Serhiy Storchaka <storchaka@gmail.com>
-+# Date 1376942026 -10800
-+# Node ID d10c287c200cd5fd5ecc3549dcfb547e5a2d1ca4
-+# Parent  5d691723bfbd5a16b7c0646738528c8d606706e6
-+Issue #18647: Correctly bound calculated min/max width of a subexpression.
-+
-+Now max width is MAXREPEAT on 32- and 64-bit platforms when one of
-+subexpressions is unbounded repetition.
-+
-+diff --git a/Lib/sre_parse.py b/Lib/sre_parse.py
-+--- a/Lib/sre_parse.py
-++++ b/Lib/sre_parse.py
-+@@ -142,12 +142,12 @@ class SubPattern:
-+         # determine the width (min, max) for this subpattern
-+         if self.width:
-+             return self.width
-+-        lo = hi = 0L
-++        lo = hi = 0
-+         UNITCODES = (ANY, RANGE, IN, LITERAL, NOT_LITERAL, CATEGORY)
-+         REPEATCODES = (MIN_REPEAT, MAX_REPEAT)
-+         for op, av in self.data:
-+             if op is BRANCH:
-+-                i = sys.maxint
-++                i = MAXREPEAT - 1
-+                 j = 0
-+                 for av in av[1]:
-+                     l, h = av.getwidth()
-+@@ -165,14 +165,14 @@ class SubPattern:
-+                 hi = hi + j
-+             elif op in REPEATCODES:
-+                 i, j = av[2].getwidth()
-+-                lo = lo + long(i) * av[0]
-+-                hi = hi + long(j) * av[1]
-++                lo = lo + i * av[0]
-++                hi = hi + j * av[1]
-+             elif op in UNITCODES:
-+                 lo = lo + 1
-+                 hi = hi + 1
-+             elif op == SUCCESS:
-+                 break
-+-        self.width = int(min(lo, sys.maxint)), int(min(hi, sys.maxint))
-++        self.width = min(lo, MAXREPEAT - 1), min(hi, MAXREPEAT)
-+         return self.width
-+ 
-+ class Tokenizer:
-+
-diff --git a/SOURCES/python-2.7.5-Fix-re-engine4-redsleeve.patch b/SOURCES/python-2.7.5-Fix-re-engine4-redsleeve.patch
-new file mode 100644
-index 0000000..c75c7fd
---- /dev/null
-+++ b/SOURCES/python-2.7.5-Fix-re-engine4-redsleeve.patch
-@@ -0,0 +1,44 @@
-+
-+# HG changeset patch
-+# User Serhiy Storchaka <storchaka@gmail.com>
-+# Date 1376943607 -10800
-+# Node ID 7b867a46a8b42efa2c6e306695678ab33f3b1188
-+# Parent  c2dc99ec46bc2012772b0f817e3547dfac484370
-+Issue #2537: Remove breaked check which prevented valid regular expressions.
-+Patch by Meador Inge.
-+
-+See also issue #18647.
-+
-+diff --git a/Lib/sre_compile.py b/Lib/sre_compile.py
-+--- a/Lib/sre_compile.py
-++++ b/Lib/sre_compile.py
-+@@ -355,8 +355,6 @@ def _optimize_unicode(charset, fixup):
-+ def _simple(av):
-+     # check if av is a "simple" operator
-+     lo, hi = av[2].getwidth()
-+-    if lo == 0 and hi == MAXREPEAT:
-+-        raise error, "nothing to repeat"
-+     return lo == hi == 1 and av[2][0][0] != SUBPATTERN
-+ 
-+ def _compile_info(code, pattern, flags):
-+diff --git a/Lib/test/test_re.py b/Lib/test/test_re.py
-+--- a/Lib/test/test_re.py
-++++ b/Lib/test/test_re.py
-+@@ -908,6 +908,16 @@ class ReTests(unittest.TestCase):
-+                                  [b'xyz'], msg=pattern)
-+ 
-+ 
-++    def test_bug_2537(self):
-++        # issue 2537: empty submatches
-++        for outer_op in ('{0,}', '*', '+', '{1,187}'):
-++            for inner_op in ('{0,}', '*', '?'):
-++                r = re.compile("^((x|y)%s)%s" % (inner_op, outer_op))
-++                m = r.match("xyyzy")
-++                self.assertEqual(m.group(0), "xyy")
-++                self.assertEqual(m.group(1), "")
-++                self.assertEqual(m.group(2), "y")
-++
-+ def run_re_tests():
-+     from test.re_tests import tests, SUCCEED, FAIL, SYNTAX_ERROR
-+     if verbose:
-+
-diff --git a/SOURCES/python-2.7.5-Fix-re-engine5-redsleeve.patch b/SOURCES/python-2.7.5-Fix-re-engine5-redsleeve.patch
-new file mode 100644
-index 0000000..c019d91
---- /dev/null
-+++ b/SOURCES/python-2.7.5-Fix-re-engine5-redsleeve.patch
-@@ -0,0 +1,23 @@
-+
-+# HG changeset patch
-+# User Serhiy Storchaka <storchaka@gmail.com>
-+# Date 1376942692 -10800
-+# Node ID c2dc99ec46bc2012772b0f817e3547dfac484370
-+# Parent  d10c287c200cd5fd5ecc3549dcfb547e5a2d1ca4
-+Issue #18647: A regular expression in the doctest module rewritten so that
-+determined minimal width of repeated subexpression is >0 (an empty line was
-+not matched in any case).
-+
-+diff --git a/Lib/doctest.py b/Lib/doctest.py
-+--- a/Lib/doctest.py
-++++ b/Lib/doctest.py
-+@@ -564,7 +564,7 @@ class DocTestParser:
-+         # Want consists of any non-blank lines that do not start with PS1.
-+         (?P<want> (?:(?![ ]*$)    # Not a blank line
-+                      (?![ ]*>>>)  # Not a line starting with PS1
-+-                     .*$\n?       # But any other line
-++                     .+$\n?       # But any other line
-+                   )*)
-+         ''', re.MULTILINE | re.VERBOSE)
-+ 
-+
 diff --git a/SPECS/python.spec b/SPECS/python.spec
-index 8e64529..b22db29 100644
+index a9fd32f..0654096 100644
 --- a/SPECS/python.spec
 +++ b/SPECS/python.spec
 @@ -106,7 +106,7 @@ Summary: An interpreted, interactive, object-oriented programming language
  Name: %{python}
  # Remember to also rebase python-docs when changing this:
  Version: 2.7.5
--Release: 48%{?dist}
-+Release: 48%{?dist}.redsleeve
+-Release: 58%{?dist}
++Release: 58%{?dist}.redsleeve
  License: Python
  Group: Development/Languages
  Requires: %{python}-libs%{?_isa} = %{version}-%{release}
-@@ -1133,6 +1133,12 @@ Patch242: 00242-CVE-2016-1000110-httpoxy.patch
+@@ -1195,6 +1195,9 @@ Patch268: 00268-set-stream-name-to-None.patch
  # above:
  Patch5000: 05000-autotool-intermediates.patch
  
 +Patch6001: python-2.7.5-Fix-re-engine-redsleeve.patch
 +Patch6002: python-2.7.5-Fix-re-engine2-redsleeve.patch
-+Patch6003: python-2.7.5-Fix-re-engine3-redsleeve.patch
-+Patch6004: python-2.7.5-Fix-re-engine4-redsleeve.patch
-+Patch6005: python-2.7.5-Fix-re-engine5-redsleeve.patch
 +
  # ======================================================
  # Additional metadata, and subpackages
  # ======================================================
-@@ -1522,6 +1528,11 @@ find -name "*~" |xargs rm -f
+@@ -1591,6 +1594,8 @@ find -name "*~" |xargs rm -f
  %patch5000 -p0 -b .autotool-intermediates
  %endif
  
 +%patch6001 -p1
 +%patch6002 -p1
-+%patch6003 -p1
-+%patch6004 -p1
-+%patch6005 -p1
  
  # ======================================================
  # Configuring and building the code:
-@@ -2380,6 +2391,14 @@ rm -fr %{buildroot}
+@@ -2451,6 +2456,13 @@ rm -fr %{buildroot}
  # ======================================================
  
  %changelog
-+* Sun Nov 13 2016 Jacco Ligthart <jacco@ligthart.nu> - 2.7.5-48.redsleeve
++* Mon Jun 26 2017 Jacco Ligthart <jacco@ligthart.nu> - 2.7.5-58.redsleeve
 +- Issue #17998: Fix an internal error in regular expression engine.
 +- https://github.com/OpenSCAP/scap-security-guide/issues/1332
 +- https://bugs.python.org/issue17998
-+- and related issues #18684 and #18647
++- and related issues #18684
 +- https://bugs.python.org/issue18684
-+- https://bugs.python.org/issue18647
 +
- * Mon Aug 01 2016 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-48
- - Fix for CVE-2016-1000110 HTTPoxy attack
- Resolves: rhbz#1359164
+ * Wed May 03 2017 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-58
+ - Set stream to None in case an _open() fails.
+ Resolves: rhbz#1432003
 -- 
 1.8.3.1
 

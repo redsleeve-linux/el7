@@ -106,7 +106,7 @@ Summary: An interpreted, interactive, object-oriented programming language
 Name: %{python}
 # Remember to also rebase python-docs when changing this:
 Version: 2.7.5
-Release: 58%{?dist}
+Release: 58%{?dist}.redsleeve
 License: Python
 Group: Development/Languages
 Requires: %{python}-libs%{?_isa} = %{version}-%{release}
@@ -1195,6 +1195,9 @@ Patch268: 00268-set-stream-name-to-None.patch
 # above:
 Patch5000: 05000-autotool-intermediates.patch
 
+Patch6001: python-2.7.5-Fix-re-engine-redsleeve.patch
+Patch6002: python-2.7.5-Fix-re-engine2-redsleeve.patch
+
 # ======================================================
 # Additional metadata, and subpackages
 # ======================================================
@@ -1591,6 +1594,8 @@ find -name "*~" |xargs rm -f
 %patch5000 -p0 -b .autotool-intermediates
 %endif
 
+%patch6001 -p1
+%patch6002 -p1
 
 # ======================================================
 # Configuring and building the code:
@@ -2451,6 +2456,13 @@ rm -fr %{buildroot}
 # ======================================================
 
 %changelog
+* Mon Jun 26 2017 Jacco Ligthart <jacco@ligthart.nu> - 2.7.5-58.redsleeve
+- Issue #17998: Fix an internal error in regular expression engine.
+- https://github.com/OpenSCAP/scap-security-guide/issues/1332
+- https://bugs.python.org/issue17998
+- and related issues #18684
+- https://bugs.python.org/issue18684
+
 * Wed May 03 2017 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-58
 - Set stream to None in case an _open() fails.
 Resolves: rhbz#1432003
