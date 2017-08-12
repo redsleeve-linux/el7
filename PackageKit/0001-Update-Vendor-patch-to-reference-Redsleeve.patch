@@ -1,6 +1,6 @@
-From 762c83dc4e74dbc26936fe0f50475c59aebd21b8 Mon Sep 17 00:00:00 2001
+From 703ed8647c49079b3f6a93e1631e07538809da21 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Tue, 13 Dec 2016 21:57:52 +0100
+Date: Fri, 4 Aug 2017 11:45:24 +0200
 Subject: [PATCH] Update Vendor patch to reference Redsleeve
 
 ---
@@ -26,35 +26,31 @@ index 0000000..46a5846
 ++VendorName=RedSleeve
 ++VendorIcon=fedora-logo-small
 diff --git a/SPECS/PackageKit.spec b/SPECS/PackageKit.spec
-index 0b9f198..8f08149 100644
+index a770bd6..3db5081 100644
 --- a/SPECS/PackageKit.spec
 +++ b/SPECS/PackageKit.spec
-@@ -6,7 +6,7 @@
+@@ -6,11 +6,11 @@
  Summary:   Package management service
  Name:      PackageKit
- Version:   1.0.7
--Release:   6%{?dist}
-+Release:   6%{?dist}.redsleeve
+ Version:   1.1.5
+-Release:   1%{?dist}
++Release:   1%{?dist}.redsleeve
  License:   GPLv2+ and LGPLv2+
  URL:       http://www.freedesktop.org/software/PackageKit/
  Source0:   http://www.freedesktop.org/software/PackageKit/releases/%{name}-%{version}.tar.xz
-@@ -21,7 +21,7 @@ Patch2:    0001-yum-Add-support-for-GetDetailsLocal.patch
+-Patch0:	CentOS-Vendor-Branding.patch
++Patch0:	RedSleeve-Vendor-Branding.patch
  
- # Backported from upstream; make BE safe
- Patch3:    0001-Make-pk_console_get_prompt-big-endian-safe.patch
--Patch0:    CentOS-Vendor-Branding.patch
-+Patch0:    RedSleeve-Vendor-Branding.patch
+ # Fedora-specific: set Vendor.conf up for Fedora.
  
- Requires: %{name}-glib%{?_isa} = %{version}-%{release}
- Requires: PackageKit-backend
-@@ -343,6 +343,9 @@ systemctl disable packagekit-offline-update.service > /dev/null 2>&1 || :
- %{_datadir}/gtk-doc/html/PackageKit
+@@ -300,6 +300,9 @@ systemctl disable packagekit-offline-update.service > /dev/null 2>&1 || :
+ %{_datadir}/vala/vapi/packagekit-glib2.vapi
  
  %changelog
-+* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> - 1.0.7-6.el7.redsleeve
++* Fri Aug 04 2017 Jacco Ligthart <jacco@redsleeve.org> - 1.1.5-1.el7.redsleeve
 +- Update Vendor patch to reference Redsleeve
 +
- * Thu Nov 03 2016 CentOS Sources <bugs@centos.org> - 1.0.7-6.el7.centos
+ * Mon Jul 31 2017 CentOS Sources <bugs@centos.org> - 1.1.5-1.el7.centos
  - remove old branding patch
  - Update Vendor patch to reference CentOS
 -- 

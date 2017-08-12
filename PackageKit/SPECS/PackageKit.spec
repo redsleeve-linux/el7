@@ -6,11 +6,11 @@
 Summary:   Package management service
 Name:      PackageKit
 Version:   1.1.5
-Release:   1%{?dist}
+Release:   1%{?dist}.redsleeve
 License:   GPLv2+ and LGPLv2+
 URL:       http://www.freedesktop.org/software/PackageKit/
 Source0:   http://www.freedesktop.org/software/PackageKit/releases/%{name}-%{version}.tar.xz
-Patch0:	CentOS-Vendor-Branding.patch
+Patch0:	RedSleeve-Vendor-Branding.patch
 
 # Fedora-specific: set Vendor.conf up for Fedora.
 
@@ -300,6 +300,9 @@ systemctl disable packagekit-offline-update.service > /dev/null 2>&1 || :
 %{_datadir}/vala/vapi/packagekit-glib2.vapi
 
 %changelog
+* Fri Aug 04 2017 Jacco Ligthart <jacco@redsleeve.org> - 1.1.5-1.el7.redsleeve
+- Update Vendor patch to reference Redsleeve
+
 * Mon Jul 31 2017 CentOS Sources <bugs@centos.org> - 1.1.5-1.el7.centos
 - remove old branding patch
 - Update Vendor patch to reference CentOS
