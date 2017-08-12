@@ -1,6 +1,6 @@
-From c3846d9722075e3c63e7489991ca12d8dfbb1668 Mon Sep 17 00:00:00 2001
+From 6db0ca5d24eded8b5a854de5de9274cc8cc45547 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sat, 10 Dec 2016 15:57:15 +0100
+Date: Fri, 4 Aug 2017 10:16:42 +0200
 Subject: [PATCH] removed neon for arm
 
 ---
@@ -8,19 +8,19 @@ Subject: [PATCH] removed neon for arm
  1 file changed, 7 insertions(+), 3 deletions(-)
 
 diff --git a/SPECS/atlas.spec b/SPECS/atlas.spec
-index 6a352d4..e268c48 100644
+index a97e4fa..31ca07f 100644
 --- a/SPECS/atlas.spec
 +++ b/SPECS/atlas.spec
 @@ -5,7 +5,7 @@ Version:        3.10.1
  %if "%{?enable_native_atlas}" != "0"
  %define dist .native
  %endif
--Release:        10%{?dist}
-+Release:        10%{?dist}.redsleeve
+-Release:        12%{?dist}
++Release:        12%{?dist}.redsleeve
  Summary:        Automatically Tuned Linear Algebra Software
  
  Group:          System Environment/Libraries
-@@ -297,7 +297,8 @@ ix86 architecture.
+@@ -298,7 +298,8 @@ ix86 architecture.
  #beware - arch constant can change between releases
  %define arch_option -A 46 
  %define threads_option -t 2
@@ -30,7 +30,7 @@ index 6a352d4..e268c48 100644
  %global mode %{nil}
  %else
  %global mode -b %{__isa_bits}
-@@ -336,7 +337,7 @@ cp %{SOURCE11} CONFIG/ARCHS/
+@@ -338,7 +339,7 @@ cp %{SOURCE11} CONFIG/ARCHS/
  cp %{SOURCE12} CONFIG/ARCHS/
  #cp %{SOURCE13} CONFIG/ARCHS/
  
@@ -39,16 +39,16 @@ index 6a352d4..e268c48 100644
  #cp %{SOURCE8} CONFIG/ARCHS/
  #cp %{SOURCE9} CONFIG/ARCHS/
  
-@@ -785,6 +786,9 @@ fi
+@@ -797,6 +798,9 @@ fi
  %endif
  
  %changelog
-+* Sat Nov 28 2015 Jacco Ligthart <jacco@redsleeve.org> - 3.10.1-10.redsleeve
++* Mon Jun 26 2017 Jacco Ligthart <jacco@redsleeve.org> - 3.10.1-12.redsleeve
 +- changed arm behaviour to default, without hardfpu
 +
- * Thu Oct 23 2014 Jaromir Capik <jcapik@redhat.com> - 3.10.1-10
- - patching for Power8 to pass performance tunings and tests on P8 builders
- - re-enabling tests on ppc64le
+ * Wed Mar 15 2017 Jakub Martisko <jamartis@redhat.com> - 3.10.1-12
+ - cleanup: merge the application of ppc patches from previous commit
+   into single block
 -- 
 1.8.3.1
 
