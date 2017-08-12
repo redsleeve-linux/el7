@@ -4,7 +4,7 @@
 
 Name:           chrony
 Version:        3.1
-Release:        2%{?dist}
+Release:        2%{?dist}.redsleeve
 Summary:        An NTP client/server
 
 Group:          System Environment/Daemons
@@ -45,7 +45,7 @@ clocks, system real-time clock or manual input as time references.
 
 %if 0%{!?vendorzone:1}
 %{?fedora: %global vendorzone fedora.}
-%{?rhel: %global vendorzone centos.}
+%{?rhel: %global vendorzone redsleeve.}
 %endif
 
 %prep
@@ -174,6 +174,9 @@ getent passwd chrony > /dev/null || /usr/sbin/useradd -r -g chrony \
 %dir %attr(-,chrony,chrony) %{_localstatedir}/log/chrony
 
 %changelog
+* Fri Aug 04 2017 Jacco Ligthart <jacco@redsleeve.org> - 3.1-2.el7.redsleeve
+- rebrand vendorzone
+
 * Mon Jul 31 2017 CentOS Sources <bugs@centos.org> - 3.1-2.el7.centos
 - rebrand vendorzone
 
