@@ -51,6 +51,10 @@
     %global kvm_target    aarch64
     %global have_fdt     1
 %endif
+%ifarch %{arm}
+    %global kvm_target    arm
+    %global have_fdt     1
+%endif
 
 #Versions of various parts:
 
@@ -59,7 +63,7 @@
 Summary: QEMU guest agent
 Name: qemu-guest-agent
 Version: 2.8.0
-Release: 2%{?dist}
+Release: 2%{?dist}.redsleeve
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 Epoch: 10
 License: GPLv2+ and LGPLv2+ and BSD
@@ -256,6 +260,9 @@ install -m 0644  qemu-ga.8 ${RPM_BUILD_ROOT}%{_mandir}/man8/
 
 
 %changelog
+* Fri Aug 04 2017 Jacco Ligthart <jacco@redsleeve.org> - 2.8.0-2.el7.redsleeve
+- added kvm_target arm
+
 * Fri May 19 2017 Miroslav Rezanina <mrezanin@redhat.com> - 2.8.0-2.el7
 - qemuga-Remove-unnecessary-dependencies.patch [bz#1441999]
 - Resolves: bz#1441999
