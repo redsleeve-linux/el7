@@ -18,7 +18,7 @@
 
 Name:           webkitgtk4
 Version:        2.14.7
-Release:        2%{?dist}
+Release:        2%{?dist}.redsleeve
 Summary:        GTK+ Web content engine library
 
 License:        LGPLv2
@@ -92,6 +92,8 @@ Patch56: icu-rhbz1360340-icu-changeset-39109.patch
 Patch57: icu-diff-icu_trunk_source_common_locid.cpp-from-39282-to-39384.patch
 Patch58: icu-dont_use_clang_even_if_installed.patch
 %endif
+
+Patch1000: webkitgtk4-arm-no-atomic.patch
 
 BuildRequires:  at-spi2-core-devel
 BuildRequires:  bison
@@ -260,6 +262,8 @@ Support for the GTK+ 2 based NPAPI plugins (such as Adobe Flash) for %{name}.
 %autosetup -p1 -n webkitgtk-%{version}
 %endif
 
+%patch1000 -p1
+
 # Remove bundled libraries
 rm -rf Source/ThirdParty/gtest/
 rm -rf Source/ThirdParty/qunit/
@@ -347,13 +351,13 @@ pushd %{_target_platform}
 %endif
   -DENABLE_GTKDOC=ON \
   -DENABLE_MINIBROWSER=ON \
-%ifarch s390 aarch64
+%ifarch s390 aarch64 %{arm}
   -DUSE_LD_GOLD=OFF \
 %endif
-%ifarch s390 s390x ppc %{power64} aarch64 %{mips}
+%ifarch s390 s390x ppc %{power64} aarch64 %{mips} %{arm}
   -DENABLE_JIT=OFF \
 %endif
-%ifarch s390 s390x ppc %{power64} aarch64 %{mips}
+%ifarch s390 s390x ppc %{power64} aarch64 %{mips} %{arm}
   -DUSE_SYSTEM_MALLOC=ON \
 %endif
   ..
@@ -440,6 +444,11 @@ popd
 %{_datadir}/gtk-doc/html/webkitdomgtk-4.0/
 
 %changelog
+* Fri Aug 04 2017 Jacco Ligthart <jacco@redsleeve.com> - 2.14.7-2.redsleeve
+- disabled LD_GOLD4, JIT for arm
+- use system malloc for arm
+- added a patch: https://bugs.webkit.org/show_bug.cgi?id=161900
+
 * Fri Jun 16 2017 Tomas Popela <tpopela@redhat.com> - 2.14.7-2
 - Fix a CLoop patch that was not correctly backported from upstream, causing
   crashes on big endian machines
