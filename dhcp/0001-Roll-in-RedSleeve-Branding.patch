@@ -1,6 +1,6 @@
-From 4e8d3f46a5b6a27038fb9a9b54c749d3c76b9f3f Mon Sep 17 00:00:00 2001
+From 2cd5b94c8bb3b7c5df82cd0185a7b303a535689f Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Tue, 13 Dec 2016 21:37:28 +0100
+Date: Fri, 4 Aug 2017 10:37:27 +0200
 Subject: [PATCH] Roll in RedSleeve Branding
 
 ---
@@ -11,7 +11,7 @@ Subject: [PATCH] Roll in RedSleeve Branding
 
 diff --git a/SOURCES/dhcp-4.2.5-redsleeve-branding.patch b/SOURCES/dhcp-4.2.5-redsleeve-branding.patch
 new file mode 100644
-index 0000000..c146110
+index 0000000..cc034f5
 --- /dev/null
 +++ b/SOURCES/dhcp-4.2.5-redsleeve-branding.patch
 @@ -0,0 +1,14 @@
@@ -24,41 +24,41 @@ index 0000000..c146110
 +   log_error ("%s", "");
 +-  log_error ("Please report for this software via the Red Hat Bugzilla site:");
 +-  log_error ("    http://bugzilla.redhat.com");
-++  log_error ("Please report for this software via the RedSleeve Bugtracker site:");
-++  log_error ("    https://bugs.redsleeve.org/");
+++  log_error ("Please report for this software via the RedSleeve github site:");
+++  log_error ("    https://https://github.com/redsleeve-linux/el7/issues");
 +   log_error ("%s", "");
 +   log_error ("exiting.");
 + #endif
 diff --git a/SPECS/dhcp.spec b/SPECS/dhcp.spec
-index 352e3d5..5ac8f61 100644
+index 9647a5a..57a2aa1 100644
 --- a/SPECS/dhcp.spec
 +++ b/SPECS/dhcp.spec
 @@ -18,7 +18,7 @@
  Summary:  Dynamic host configuration protocol software
  Name:     dhcp
  Version:  4.2.5
--Release:  47%{?dist}
-+Release:  47%{?dist}.redsleeve
+-Release:  58%{?dist}
++Release:  58%{?dist}.redsleeve
  # NEVER CHANGE THE EPOCH on this package.  The previous maintainer (prior to
  # dcantrell maintaining the package) made incorrect use of the epoch and
  # that's why it is at 12 now.  It should have never been used, but it was.
-@@ -93,7 +93,7 @@ Patch59:  dhcp-dns_client_cancelupdate.patch
- Patch60:  dhcp-prepend.patch
- Patch61:  dhcp-addignore.patch
+@@ -97,7 +97,7 @@ Patch61:  dhcp-addignore.patch
  Patch62:  dhcp-max-fd-value.patch
--Patch63:  dhcp-4.2.5-centos-branding.patch
-+Patch63:  dhcp-4.2.5-redsleeve-branding.patch
+ # https://bugzilla.redhat.com/show_bug.cgi?id=1355827
+ Patch63:  dhcp-4.2.5-rh1355827.patch
+-Patch64:  dhcp-4.2.5-centos-branding.patch
++Patch64:  dhcp-4.2.5-redsleeve-branding.patch
  
  BuildRequires: autoconf
  BuildRequires: automake
-@@ -668,6 +668,9 @@ done
+@@ -689,6 +689,9 @@ done
  
  
  %changelog
-+* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> - 4.2.5-47.el7.redsleeve
++* Fri Aug 04 2017 Jacco Ligthart <jacco@redsleeve.org> - 4.2.5-58.el7.redsleeve
 +- Roll in RedSleeve Branding
 +
- * Thu Nov 03 2016 CentOS Sources <bugs@centos.org> - 4.2.5-47.el7.centos
+ * Mon Jul 31 2017 CentOS Sources <bugs@centos.org> - 4.2.5-58.el7.centos
  - Roll in CentOS Branding
  
 -- 
