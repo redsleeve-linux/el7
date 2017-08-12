@@ -1,6 +1,6 @@
-From 25ef736b1575682a1a401c52cc4f7bf8e7bac51f Mon Sep 17 00:00:00 2001
+From 6c4871443dfb2d20f845d9bdea11b7d5eb8219c8 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Tue, 20 Jun 2017 19:39:55 +0200
+Date: Fri, 4 Aug 2017 10:54:26 +0200
 Subject: [PATCH] enhanced the patch for rh1256317 to build on arm
 
 ---
@@ -27,10 +27,10 @@ index 0000000..d9a61a1
 + 	cfi_register (lr, ip)
 + 	mov r1, r0
 diff --git a/SPECS/glibc.spec b/SPECS/glibc.spec
-index a069c89..630bda9 100644
+index 1d01f86..372d39f 100644
 --- a/SPECS/glibc.spec
 +++ b/SPECS/glibc.spec
-@@ -125,7 +125,7 @@
+@@ -131,7 +131,7 @@
  Summary: The GNU libc libraries
  Name: glibc
  Version: %{glibcversion}
@@ -39,7 +39,7 @@ index a069c89..630bda9 100644
  # GPLv2+ is used in a bunch of programs, LGPLv2+ is used for libraries.
  # Things that are linked directly into dynamically linked programs
  # and shared libraries (e.g. crt files, lib*_nonshared.a) have an additional
-@@ -1017,6 +1017,8 @@ Patch2082: glibc-rh1452720-4.patch
+@@ -1210,6 +1210,8 @@ Patch2091: glibc-rh1452721-4.patch
  # End of glibc patches.
  ##############################################################################
  
@@ -48,24 +48,24 @@ index a069c89..630bda9 100644
  ##############################################################################
  # Continued list of core "glibc" package information:
  ##############################################################################
-@@ -1819,6 +1821,8 @@ package or when debugging this package.
- %patch1755 -p1
- %patch1756 -p1
+@@ -2133,6 +2135,8 @@ cp %{_sourcedir}/syscall-names.list sysdeps/unix/sysv/linux/
+ %patch1859 -p1
+ %patch1860 -p1
  
 +%patch3000 -p1
 +
  ##############################################################################
  # %%prep - Additional prep required...
  ##############################################################################
-@@ -2965,6 +2969,9 @@ rm -f *.filelist*
+@@ -3282,6 +3286,9 @@ rm -f *.filelist*
  %endif
  
  %changelog
-+* Tue Jun 20 2017 Jacco Ligthart <jacco@redsleeve.org> 2.17-157.4.redsleeve
++* Fri Aug 04 2017 Jacco Ligthart <jacco@redsleeve.org> 2.17-196.redsleeve
 +- enhanced the patch for rh1256317 to build on arm
 +
- * Fri May 26 2017 Florian Weimer <fweimer@redhat.com> - 2.17-157.4
- - Avoid large allocas in the dynamic linker (#1452720)
+ * Fri Jun 16 2017 Florian Weimer <fweimer@redhat.com> - 2.17-196
+ - Avoid large allocas in the dynamic linker (#1452721)
  
 -- 
 1.8.3.1
