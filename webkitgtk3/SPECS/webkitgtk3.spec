@@ -14,7 +14,7 @@
 
 Name:           webkitgtk3
 Version:        2.4.11
-Release:        2%{?dist}
+Release:        2%{?dist}.redsleeve
 Summary:        GTK+ Web content engine library
 
 Group:          Development/Libraries
@@ -118,7 +118,7 @@ chmod 644 Source/WebCore/html/canvas/CanvasRenderingContext2D.cpp
 %configure                                      \
         --with-gtk=3.0                          \
         --disable-webkit2                       \
-%ifarch s390 s390x ppc %{power64} aarch64
+%ifarch s390 s390x ppc %{power64} aarch64 %{arm}
         --disable-jit                           \
 %else
         --enable-jit                            \
@@ -197,6 +197,9 @@ find $RPM_BUILD_ROOT%{_libdir} -name "*.la" -delete
 %{_datadir}/gtk-doc/html/webkitdomgtk
 
 %changelog
+* Thu Jun 29 2017 Jacco Ligthart <jacco@redsleeve.org> - 2.4.11-2.redsleeve
+- disabled jit for arm
+
 * Mon Feb 27 2017 Tomas Popela <tpopela@redhat.com> - 2.4.11-2
 - Don't build WebKit2 as it's build in webkitgtk4 package
 - Resolves: rhbz#1383614
