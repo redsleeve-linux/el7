@@ -1,6 +1,6 @@
-From 9c2c6873bc5fa2d1aeed1b63dbe92c37e24186b2 Mon Sep 17 00:00:00 2001
+From d775aba046cfb0be1b546ac1f7ecbd1d7efb9c53 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Thu, 29 Jun 2017 20:55:19 +0200
+Date: Fri, 4 Aug 2017 11:22:29 +0200
 Subject: [PATCH] added arm to the ExclusiveArch and nobuildarches lists
 
 ---
@@ -8,10 +8,10 @@ Subject: [PATCH] added arm to the ExclusiveArch and nobuildarches lists
  1 file changed, 11 insertions(+), 3 deletions(-)
 
 diff --git a/SPECS/kernel.spec b/SPECS/kernel.spec
-index d33f39c..5d8e16d 100644
+index 24d9535..ccaa483 100644
 --- a/SPECS/kernel.spec
 +++ b/SPECS/kernel.spec
-@@ -198,6 +198,11 @@ Summary: The Linux kernel
+@@ -199,6 +199,11 @@ Summary: The Linux kernel
  %define with_kdump 1
  %endif
  
@@ -23,7 +23,7 @@ index d33f39c..5d8e16d 100644
  #cross compile make
  %if %{with_cross}
  %define cross_opts CROSS_COMPILE=%{cross_target}-linux-gnu-
-@@ -216,7 +221,7 @@ Summary: The Linux kernel
+@@ -217,7 +222,7 @@ Summary: The Linux kernel
  # Which is a BadThing(tm).
  
  # We only build kernel-headers on the following...
@@ -32,7 +32,7 @@ index d33f39c..5d8e16d 100644
  
  %ifarch %nobuildarches
  %define with_default 0
-@@ -296,10 +301,10 @@ Group: System Environment/Kernel
+@@ -304,10 +309,10 @@ Group: System Environment/Kernel
  License: GPLv2
  URL: http://www.kernel.org/
  Version: %{rpmversion}
@@ -45,14 +45,14 @@ index d33f39c..5d8e16d 100644
  ExclusiveOS: Linux
  
  %kernel_reqprovconf
-@@ -1573,6 +1578,9 @@ fi
+@@ -1591,6 +1596,9 @@ fi
  %kernel_variant_files %{with_kdump} kdump
  
  %changelog
-+* Thu Jun 29 2017 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-514.26.1.el7.redsleeve
++* Fri Aug 04 2017 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-693.el7.redsleeve
 +- added arm to the ExclusiveArch and nobuildarches lists
 +
- * Wed Jun 28 2017 CentOS Sources <bugs@centos.org> - 3.10.0-514.26.1.el7
+ * Mon Jul 31 2017 CentOS Sources <bugs@centos.org> - 3.10.0-693.el7.centos
  - Apply debranding changes
  
 -- 
