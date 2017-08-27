@@ -7,7 +7,7 @@
 
 Name:           cloud-init
 Version:        0.7.9
-Release:        9%{?dist}
+Release:        9%{?dist}.redsleeve
 Summary:        Cloud instance init scripts
 
 Group:          System Environment/Base
@@ -44,7 +44,7 @@ Patch0019: 0019-Add-missing-sysconfig-unit-test-data.patch
 Patch0020: 0020-Fix-ipv6-subnet-detection.patch
 Patch0021: 0021-azure-ensure-that-networkmanager-hook-script-runs.patch
 Patch0022: 0022-RHEL-CentOS-Fix-default-routes-for-IPv4-IPv6-configu.patch
-Patch9999: cloud-init-add-centos-os.patch
+Patch9999: cloud-init-add-redsleeve-os.patch
 
 # Deal with noarch -> arch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1067089
@@ -180,6 +180,9 @@ fi
 %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
 
 %changelog
+* Sat Aug 27 2017 Jacco Ligthart <jacco@redsleeve.org 0.7.9-9.redsleeve
+- rebrand for redsleeve
+
 * Thu Jun 22 2017 Lars Kellogg-Stedman <lars@redhat.com> 0.7.9-9
 - RHEL/CentOS: Fix default routes for IPv4/IPv6 configuration. (rhbz#1438082)
 - azure: ensure that networkmanager hook script runs (rhbz#1440831 rhbz#1460206)

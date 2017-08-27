@@ -1,0 +1,97 @@
+From ec2afe7b0cd574c4fcde85477b09c580a9e84c35 Mon Sep 17 00:00:00 2001
+From: Jacco Ligthart <jacco@redsleeve.org>
+Date: Sun, 27 Aug 2017 23:29:00 +0200
+Subject: [PATCH] rebrand for redsleeve
+
+---
+ SOURCES/cloud-init-add-redsleeve-os.patch | 31 +++++++++++++++++++++++++++++++
+ SOURCES/cloud-init-rhel.cfg               |  2 +-
+ SPECS/cloud-init.spec                     |  7 +++++--
+ 3 files changed, 37 insertions(+), 3 deletions(-)
+ create mode 100644 SOURCES/cloud-init-add-redsleeve-os.patch
+
+diff --git a/SOURCES/cloud-init-add-redsleeve-os.patch b/SOURCES/cloud-init-add-redsleeve-os.patch
+new file mode 100644
+index 0000000..0f7f884
+--- /dev/null
++++ b/SOURCES/cloud-init-add-redsleeve-os.patch
+@@ -0,0 +1,31 @@
++diff --git a/cloudinit/distros/__init__.py b/cloudinit/distros/__init__.py
++index f56c0cf..1fd48a7 100755
++--- a/cloudinit/distros/__init__.py
+++++ b/cloudinit/distros/__init__.py
++@@ -32,7 +32,7 @@ from cloudinit.distros.parsers import hosts
++ 
++ OSFAMILIES = {
++     'debian': ['debian', 'ubuntu'],
++-    'redhat': ['fedora', 'rhel'],
+++    'redhat': ['redsleeve', 'fedora', 'rhel'],
++     'gentoo': ['gentoo'],
++     'freebsd': ['freebsd'],
++     'suse': ['sles'],
++diff --git a/cloudinit/distros/redsleeve.py b/cloudinit/distros/redsleeve.py
++new file mode 100644
++index 0000000..4b803d2
++--- /dev/null
+++++ b/cloudinit/distros/redsleeve.py
++@@ -0,0 +1,12 @@
+++# This file is part of cloud-init. See LICENSE file for license information.
+++
+++from cloudinit.distros import rhel
+++from cloudinit import log as logging
+++
+++LOG = logging.getLogger(__name__)
+++
+++
+++class Distro(rhel.Distro):
+++    pass
+++
+++# vi: ts=4 expandtab
+diff --git a/SOURCES/cloud-init-rhel.cfg b/SOURCES/cloud-init-rhel.cfg
+index d097c1d..68b22af 100644
+--- a/SOURCES/cloud-init-rhel.cfg
++++ b/SOURCES/cloud-init-rhel.cfg
+@@ -51,7 +51,7 @@ cloud_final_modules:
+ 
+ system_info:
+   default_user:
+-    name: centos 
++    name: resleeve 
+     lock_passwd: true
+     gecos: Cloud User
+     groups: [wheel, adm, systemd-journal]
+diff --git a/SPECS/cloud-init.spec b/SPECS/cloud-init.spec
+index b79a940..d6cc9e2 100644
+--- a/SPECS/cloud-init.spec
++++ b/SPECS/cloud-init.spec
+@@ -7,7 +7,7 @@
+ 
+ Name:           cloud-init
+ Version:        0.7.9
+-Release:        9%{?dist}
++Release:        9%{?dist}.redsleeve
+ Summary:        Cloud instance init scripts
+ 
+ Group:          System Environment/Base
+@@ -44,7 +44,7 @@ Patch0019: 0019-Add-missing-sysconfig-unit-test-data.patch
+ Patch0020: 0020-Fix-ipv6-subnet-detection.patch
+ Patch0021: 0021-azure-ensure-that-networkmanager-hook-script-runs.patch
+ Patch0022: 0022-RHEL-CentOS-Fix-default-routes-for-IPv4-IPv6-configu.patch
+-Patch9999: cloud-init-add-centos-os.patch
++Patch9999: cloud-init-add-redsleeve-os.patch
+ 
+ # Deal with noarch -> arch
+ # https://bugzilla.redhat.com/show_bug.cgi?id=1067089
+@@ -180,6 +180,9 @@ fi
+ %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
+ 
+ %changelog
++* Sat Aug 27 2017 Jacco Ligthart <jacco@redsleeve.org 0.7.9-9.redsleeve
++- rebrand for redsleeve
++
+ * Thu Jun 22 2017 Lars Kellogg-Stedman <lars@redhat.com> 0.7.9-9
+ - RHEL/CentOS: Fix default routes for IPv4/IPv6 configuration. (rhbz#1438082)
+ - azure: ensure that networkmanager hook script runs (rhbz#1440831 rhbz#1460206)
+-- 
+1.8.3.1
+
