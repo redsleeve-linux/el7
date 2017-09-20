@@ -24,7 +24,7 @@
 Name: corosync
 Summary: The Corosync Cluster Engine and Application Programming Interfaces
 Version: 2.4.0
-Release: 9%{?gitver}%{?dist}.2
+Release: 9%{?gitver}%{?dist}.2.redsleeve
 License: BSD
 Group: System Environment/Base
 URL: http://corosync.github.io/corosync/
@@ -60,7 +60,7 @@ Patch26: bz1484264-3-totemcrypto-Use-different-method-to-import-key.patch
 Patch27: bz1484264-4-totemcrypto-Fix-compiler-warning.patch
 
 %if 0%{?rhel}
-ExclusiveArch: i686 x86_64 s390x ppc64le
+ExclusiveArch: i686 x86_64 s390x ppc64le %{arm}
 %endif
 
 # Runtime bits
@@ -574,6 +574,9 @@ fi
 %endif
 
 %changelog
+* Thu Sep 21 2017 Jacco Ligthart <jacco@redsleeve.org> 2.4.0-9.2.redsleeve
+- added arm to exclusive archs
+
 * Thu Aug 24 2017 Jan Friesse <jfriesse@redhat.com> 2.4.0-9.2
 - Resolves: rhbz#1484264
 
