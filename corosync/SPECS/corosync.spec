@@ -16,6 +16,7 @@
 %bcond_without runautogen
 %bcond_without qdevices
 %bcond_without qnetd
+%bcond_without libcgroup
 
 %global gitver %{?numcomm:.%{numcomm}}%{?alphatag:.%{alphatag}}%{?dirty:.%{dirty}}
 %global gittarver %{?numcomm:.%{numcomm}}%{?alphatag:-%{alphatag}}%{?dirty:-%{dirty}}
@@ -23,7 +24,7 @@
 Name: corosync
 Summary: The Corosync Cluster Engine and Application Programming Interfaces
 Version: 2.4.0
-Release: 9%{?gitver}%{?dist}.redsleeve
+Release: 9%{?gitver}%{?dist}.2
 License: BSD
 Group: System Environment/Base
 URL: http://corosync.github.io/corosync/
@@ -51,9 +52,15 @@ Patch18: bz1434529-8-doc-document-watchdog_device-parameter.patch
 Patch19: bz1434534-1-Logsys-Change-logsys-syslog_priority-priority.patch
 Patch20: bz1434534-2-logconfig-Do-not-overwrite-logger_subsys-priority.patch
 Patch21: bz1445001-1-Main-Call-mlockall-after-fork.patch
+Patch22: bz1477461-1-main-Add-option-to-set-priority.patch
+Patch23: bz1477461-2-main-Add-support-for-libcgroup.patch
+Patch24: bz1484264-1-totem-Propagate-totem-initialization-failure.patch
+Patch25: bz1484264-2-totemcrypto-Refactor-symmetric-key-importing.patch
+Patch26: bz1484264-3-totemcrypto-Use-different-method-to-import-key.patch
+Patch27: bz1484264-4-totemcrypto-Fix-compiler-warning.patch
 
 %if 0%{?rhel}
-ExclusiveArch: i686 x86_64 s390x ppc64le %{arm}
+ExclusiveArch: i686 x86_64 s390x ppc64le
 %endif
 
 # Runtime bits
@@ -100,6 +107,9 @@ Requires: nss-tools
 %if %{with qnetd}
 BuildRequires: sed
 %endif
+%if %{with libcgroup}
+BuildRequires: libcgroup-devel
+%endif
 
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
@@ -127,6 +137,12 @@ BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 %patch19 -p1 -b .bz1434534-1
 %patch20 -p1 -b .bz1434534-2
 %patch21 -p1 -b .bz1445001-1
+%patch22 -p1 -b .bz1477461-1
+%patch23 -p1 -b .bz1477461-2
+%patch24 -p1 -b .bz1484264-1
+%patch25 -p1 -b .bz1484264-2
+%patch26 -p1 -b .bz1484264-3
+%patch27 -p1 -b .bz1484264-4
 
 %build
 %if %{with runautogen}
@@ -172,6 +188,9 @@ export rdmacm_LIBS=-lrdmacm \
 %endif
 %if %{with qnetd}
 	--enable-qnetd \
+%endif
+%if %{with libcgroup}
+	--enable-libcgroup \
 %endif
 	--with-initddir=%{_initrddir} \
 	--with-systemddir=%{_unitdir} \
@@ -555,8 +574,25 @@ fi
 %endif
 
 %changelog
-* Fri Aug 04 2017 Jacco Ligthart <jacco@redsleeve.org> 2.4.0-9.redsleeve
-- added arm to exclusive archs
+* Thu Aug 24 2017 Jan Friesse <jfriesse@redhat.com> 2.4.0-9.2
+- Resolves: rhbz#1484264
+
+- totem: Propagate totem initialization failure (rhbz#1484264)
+- merge upstream commit 0413a8f4672352171f0df731b7d9c1fe20acbc4c (rhbz#1484264)
+- totemcrypto: Refactor symmetric key importing (rhbz#1484264)
+- merge upstream commit a885868181c07ba9ab5cdfdad1d66d387b2a4428 (rhbz#1484264)
+- totemcrypto: Use different method to import key (rhbz#1484264)
+- merge upstream commit 5dadebd21862074deaeb9a337fc9e49f5e9f692a (rhbz#1484264)
+- totemcrypto: Fix compiler warning (rhbz#1484264)
+- merge upstream commit fdeed33f514e0056e322a45d9a0a04ca4b9a2709 (rhbz#1484264)
+
+* Wed Aug 02 2017 Jan Friesse <jfriesse@redhat.com> 2.4.0-9.1
+- Resolves: rhbz#1477461
+
+- main: Add option to set priority (rhbz#1477461)
+- merge upstream commit a008448efb2b1d45c432867caf08f0bcf2b4b9b0 (rhbz#1477461)
+- main: Add support for libcgroup (rhbz#1477461)
+- merge upstream commit c56086c701d08fc17cf6d8ef603caf505a4021b7 (rhbz#1477461)
 
 * Wed Apr 26 2017 Jan Friesse <jfriesse@redhat.com> 2.4.0-9
 - Resolves: rhbz#1445001
