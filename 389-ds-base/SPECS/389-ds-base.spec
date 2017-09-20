@@ -11,7 +11,8 @@
 %global use_Socket6 0
 %global use_nunc_stans 1
 
-%if %{_arch} != "s390x" && %{_arch} != "s390"
+#%if %{_arch} != "s390x" && %{_arch} != "s390"
+%ifnarch s390 s390x %{arm}
 %global use_tcmalloc 1
 %else
 %global use_tcmalloc 0
@@ -30,7 +31,7 @@
 Summary:          389 Directory Server (base)
 Name:             389-ds-base
 Version:          1.3.6.1
-Release:          %{?relprefix}19%{?prerel}%{?dist}
+Release:          %{?relprefix}19%{?prerel}%{?dist}.redsleeve
 License:          GPLv3+
 URL:              https://www.port389.org/
 Group:            System Environment/Daemons
@@ -558,6 +559,9 @@ fi
 %{_sysconfdir}/%{pkgname}/dirsrvtests
 
 %changelog
+* Thu Sep 21 2017 Jacco Ligthart <jacco@redsleeve.org> - 1.3.6.1-19-1.redsleeve
+- disabled tcmalloc for arm
+
 * Mon Aug 21 2017 Mark Reynolds <mreynolds@redhat.com> - 1.3.6.19-1
 - Bump version to 1.3.6.19-1
 - Remove old mozldap and db4 requirements
