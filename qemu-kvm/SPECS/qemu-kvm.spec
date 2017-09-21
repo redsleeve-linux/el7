@@ -14,7 +14,7 @@
     %global have_usbredir 0
 %endif
 
-%ifnarch s390 s390x %{arm}
+%ifnarch s390 s390x
     %global have_librdma 1
     %global have_tcmalloc 1
 %endif
@@ -41,10 +41,6 @@
 %ifarch aarch64
     %global kvm_target    aarch64
 %endif
-%ifarch %{arm}
-    %global kvm_target    arm
-%endif
-
 
 #Versions of various parts:
 
@@ -80,13 +76,13 @@ Obsoletes: %1 < %{obsoletes_version}                                      \
 Summary: QEMU is a machine emulator and virtualizer
 Name: %{pkgname}%{?pkgsuffix}
 Version: 1.5.3
-Release: 141%{?dist}.redsleeve
+Release: 141%{?dist}.2
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 Epoch: 10
 License: GPLv2+ and LGPLv2+ and BSD
 Group: Development/Tools
 URL: http://www.qemu.org/
-ExclusiveArch: x86_64 %{power64} aarch64 s390x %{arm}
+ExclusiveArch: x86_64 %{power64} aarch64 s390x
 Requires: seabios-bin >= 1.7.2.2-5
 Requires: sgabios-bin
 Requires: seavgabios-bin
@@ -3598,6 +3594,12 @@ Patch1768: kvm-serial-reinstate-watch-after-migration.patch
 Patch1769: kvm-nbd-Fully-initialize-client-in-case-of-failed-negoti.patch
 # For bz#1451614 - CVE-2017-9524 qemu-kvm: segment fault when private user nmap qemu-nbd server [rhel-7.4]
 Patch1770: kvm-nbd-Fix-regression-on-resiliency-to-port-scan.patch
+# For bz#1468107 - CVE-2017-10664 qemu-kvm: Qemu: qemu-nbd: server breaks with SIGPIPE upon client abort [rhel-7.4.z]
+Patch1771: kvm-qemu-nbd-Ignore-SIGPIPE.patch
+# For bz#1482468 - KVM: windows guest migration from EL6 to EL7 fails. [rhel-7.4.z]
+Patch1772: kvm-virtio-net-dynamic-network-offloads-configuration.patch
+# For bz#1482468 - KVM: windows guest migration from EL6 to EL7 fails. [rhel-7.4.z]
+Patch1773: kvm-Workaround-rhel6-ctrl_guest_offloads-machine-type-mi.patch
 
 
 BuildRequires: zlib-devel
@@ -5546,6 +5548,9 @@ tar -xf %{SOURCE21}
 %patch1768 -p1
 %patch1769 -p1
 %patch1770 -p1
+%patch1771 -p1
+%patch1772 -p1
+%patch1773 -p1
 
 %build
 buildarch="%{kvm_target}-softmmu"
@@ -5991,9 +5996,16 @@ sh %{_sysconfdir}/sysconfig/modules/kvm.modules &> /dev/null || :
 %{_mandir}/man8/qemu-nbd.8*
 
 %changelog
-* Fri Aug 04 2017 Jacco Ligthart <jacco@redsleeve.org> - 1.5.3-141.el7.redsleeve
-- added kvm_target arm
-- do not use rdma-core
+* Mon Aug 21 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-141.el7_4.2
+- kvm-virtio-net-dynamic-network-offloads-configuration.patch [bz#1482468]
+- kvm-Workaround-rhel6-ctrl_guest_offloads-machine-type-mi.patch [bz#1482468]
+- Resolves: bz#1482468
+  (KVM: windows guest migration from EL6 to EL7 fails. [rhel-7.4.z])
+
+* Tue Jul 11 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-141.el7_4.1
+- kvm-qemu-nbd-Ignore-SIGPIPE.patch [bz#1468107]
+- Resolves: bz#1468107
+  (CVE-2017-10664 qemu-kvm: Qemu: qemu-nbd: server breaks with SIGPIPE upon client abort [rhel-7.4.z])
 
 * Tue Jun 13 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-141.el7
 - kvm-Fix-memory-slot-page-alignment-logic-bug-1455745.patch [bz#1455745]
