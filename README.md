@@ -25,29 +25,31 @@ Some packages needed some manual love and care to build, but not really a patch:
 |---|---|---
 | base64coder | base64coder-20101219-10.el7.src.rpm | needs to be build with java-1.7.0-openjdk-devel-1.7.0.51
 | dnssec-trigger | dnssec-trigger-0.11-22.el7.src.rpm | needs NetworkManager to be installed by hand for successful build
-| file-roller | file-roller-3.14.2-10.el7.src.rpm | needs to be build with glib2-devel-2.42.2-5.el7.armv5tel.rpm
+| flatpak | flatpak-0.8.7-1.el7.src.rpm | needs to be build with redhat-rpm-config from 7.3
 | gawk | gawk-4.0.2-4.el7_3.1.src.rpm | needs 'util-linux' to be installed by hand for successful build
 | gc | gc-7.2d-7.el7.src.rpm | needs to be build with '-D "check exit 0" -D "debug_package %{nil}"'
-| gedit | gedit-3.14.3-18.el7.src.rpm | needs to be build with glib2-devel-2.42.2-5.el7.armv5tel.rpm
 | glassfish-fastinfoset | glassfish-fastinfoset-1.2.12-9.el7.src.rpm | needs to be build with java-1.7.0-openjdk-devel-1.7.0.51
-| gnome-clocks | gnome-clocks-3.14.1-2.el7.src.rpm | needs to be build with glib2-devel-2.42.2-5.el7.armv5tel.rpm
-| gnome-dictionary | gnome-dictionary-3.14.2-2.el7.src.rpm | needs to be build with glib2-devel-2.42.2-5.el7.armv5tel.rpm
-| golang | golang-1.6.3-2.el7.redsleeve.src.rpm | needs to be build with tzdata-2016f
 | gsl | gsl-1.15-13.el7.src.rpm | needs to be build with '-D "check exit 0"'
+| gstreamer-plugins-bad-free | gstreamer-plugins-bad-free-0.10.23-23.el7.src.rpm | needs to be build with redsleeve 7.3
+| gstreamer-plugins-good | gstreamer-plugins-good-0.10.31-13.el7.src.rpm | needs to be build with redsleeve 7.3
 | gutenprint | gutenprint-5.2.9-18.el7.src.rpm | needs to be build with '-D "check exit 0"'
-| irqbalance | irqbalance-1.0.7-6.el7.src.rpm | needs systemd-devel to be installed by hand for successful build
+| irqbalance | irqbalance-1.0.7-9.el7.src.rpm | needs systemd-devel to be installed by hand for successful build
 | jflex | jflex-1.4.3-20.el7.src.rpm | needs to be build with java-1.7.0-openjdk-devel-1.7.0.51
 | libcmis | libcmis-0.5.1-2.el7.src.rpm | needs to be build with '-D "check exit 0"'
+| libepoxy | libepoxy-1.3.1-1.el7.src.rpm | needs to be build with '-D "check exit 0" -D "debug_package %{nil}"'
+| libusnic_verbs | libusnic_verbs-2.0.1-5.el7.src.rpm | needs to be build with redsleeve 7.3
+| log4j | log4j-1.2.17-16.el7_4.src.rpm | needs to be build without java-1.8.0-openjdk
 | m2crypto | m2crypto-0.21.1-17.el7.src.rpm | needs to be build with '-D "check exit 0" -D "debug_package %{nil}"'
 | maven | maven-3.0.5-17.el7.src.rpm | needs to be build without java-1.8.0-openjdk
 | mesa-private-llvm | mesa-private-llvm-3.8.x | version to new for armv5, downgraded to 3.7.1 
 | msv | msv-2013.5.1-7.el7.src.rpm | needs to be build without java-1.8.0-openjdk
-| nss | nss-3.21.3-2.el7_3.src.rpm | clock needs to be set before 2016-12-16 for the tests to succeed
 | prelink | prelink-0.5.0-9.el7.src.rpm | needs to be build with older versions of: binutils, cpp, gcc*, glibc*, libgcc, libgomp, libstdc* (the 7.2 versions). Not sure what is wrong with the 7.3 versions
-| ruby | ruby-2.0.0.648-29.el7.src.rpm | needs to be build with openssl*-1.0.1e-51.el7.5.armv5tel
-| tigervnc | tigervnc-1.3.1-9.el7.src.rpm | needs to be build with xorg-x11-server-source-1.17.2-10.el7.noarch.rpm
+| tog-pegasus | tog-pegasus-2.14.1-5.el7.src.rpm | needs to be build with redsleeve 7.3
+| uom-lib | uom-lib-1.0.1-5.el7.src.rpm | needs to be build without java-1.8.0-openjdk
 | velocity | velocity-1.7-10.el7.src.rpm | needs to be build with java-1.7.0-openjdk-devel-1.7.0.51
 | xmvn | xmvn-1.3.0-6.el7_3.src.rpm | needs to be build without java-1.8.0-openjdk
+| xdg-desktop-portal | xdg-desktop-portal-0.5-2.el7.src.rpm | needs to be build with redhat-rpm-config from 7.3
+
 
 
 ## Packages not included in RedSleeve
