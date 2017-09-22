@@ -159,6 +159,8 @@ Some packages that are present upstream are not in Redsleeve for a variety of re
 
 | Package | SRPM | error
 |---|---|---
+| ceph-common | ceph-common-0.94.5-2.el7.src.rpm | #error You must enable NEON instructions (e.g. -mfloat-abi=softfp -mfpu=neon) to use arm_neon.h
+| cockpit | cockpit-138-9.el7.src.rpm | cannot be installed due to missing deps
 | compat-dapl | compat-dapl-1.2.19-4.el7.src.rpm | depends on dapl which is not available for arm
 | compat-gcc-32 | compat-gcc-32-3.2.3-72.el7.src.rpm | Error: selected processor does not support ARM mode
 | compat-gcc-34 | compat-gcc-34-3.4.6-32.el7.src.rpm | Error: selected processor does not support ARM mode
@@ -166,13 +168,15 @@ Some packages that are present upstream are not in Redsleeve for a variety of re
 | compat-glibc | compat-glibc-2.12-4.el7.centos.src.rpm | configure: error: The armv5tel is not supported.
 | dapl | dapl-2.1.5-2.el7.src.rpm | error: #error UNDEFINED ARCH
 | ksc | ksc-0.9.18-1.el7.src.rpm | cannot be installed due to missing deps
-| mpitests | mpitests-4.1-1.el7.src.rpm | depends on mvapich2-devel which doesnt build on arm
-| mstflint | mstflint-4.3.0-1.49.g9b9af70.1.el7.src.rpm | error Unknown CPU architecture using the linux OS
-| mvapich2 | mvapich2-2.2-0.3.rc1.el7.src.rpm | fatal error: asm/timex.h: No such file or directory
+| llvm-private | llvm-private-3.9.1-9.el7.src.rpm | stl_deque.h:539:65: error: invalid application of 'sizeof' to incomplete type 'std::packaged_task<void()>'
+| mpitests | mpitests-4.1-1.el7.src.rpm | depends on mvapich2-devel which doesnt build on arm   
+| mstflint | mstflint-4.6.0-2.el7.src.rpm | error Unknown CPU architecture using the linux OS   
+| mvapich2 | mvapich2-2.2-1.el7.src.rpm | fatal error: asm/timex.h: No such file or directory   
 | openssl098e | openssl098e-0.9.8e-29.el7.centos.3.src.rpm | linux-arm not on the supported compiler list
-| perftest | perftest-3.0-7.el7.src.rpm | fatal error: asm/timex.h: No such file or directory
+| perftest | perftest-3.4-1.el7.src.rpm | fatal error: asm/timex.h: No such file or directory   
+| pykickstart | pykickstart-1.99.66.12-1.el7.src.rpm | FAIL: runTest (packages.ExcludeGroups_TestCase)
 | tbb | tbb-4.1-9.20130314.el7.src.rpm | error: #error Threading Building Blocks ARM port requires an ARMv7-a architecture.
-| tuned | tuned-2.7.1-3.el7_3.1.src.rpm | cannot be installed due to missing deps
-| pcs | pcs-0.9.152-10.el7.centos.src.rpm | depends on pacemaker which doesnt build on arm
+| tuned | tuned-2.8.0-5.el7.src.rpm | cannot be installed due to missing deps
+| usbguard | usbguard-0.7.0-3.el7.src.rpm | tuple:1090:70: error: using invalid field 'std::pair<_T1, _T2>::second'
 | xorg-x11-drivers | xorg-x11-drivers-7.7-6.el7.src.rpm | cannot be installed due to missing deps
-| xorg-x11-drv-nouveau | xorg-x11-drv-nouveau-1.0.11-4.el7.src.rpm | cannot be installed due to missing deps
+| xorg-x11-drv-nouveau | xorg-x11-drv-nouveau-1.0.13-3.el7.src.rpm | cannot be installed due to missing deps
