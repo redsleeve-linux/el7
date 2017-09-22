@@ -61,16 +61,18 @@ Some packages that are present upstream are not in Redsleeve for a variety of re
 
 | Package | SRPM | reason
 |---|---|---
-| anaconda | anaconda-21.48.22.93-1.el7.centos.1.src.rpm | branding issue / removed because it was not used
+| anaconda | anaconda-21.48.22.121-1.el7.centos.src.rpm | branding issue / removed because it was not used
+| anaconda-user-help | anaconda-user-help-7.3.2-1.el7.src.rpm | branding issue / removed because it was not used
 | centos-bookmarks | centos-bookmarks-7-1.el7.src.rpm | replaced with redsleeve-bookmarks
 | centos-indexhtml | centos-indexhtml-7-9.el7.centos.src.rpm | replaced with redsleeve-indexhtml
 | centos-logos | centos-logos-70.0.6-3.el7.centos.src.rpm | replaced with redsleeve-logos
-| centos-release | centos-release-7-0.1406.el7.centos.2.5.src.rpm | replaced with redsleeve-release
-| initial-setup | initial-setup-0.3.9.36-1.el7.src.rpm | branding issue / removed because it was not used
+| centos-release | centos-release-7-4.1708.el7.centos.src.rpm | replaced with redsleeve-release
+| initial-setup | initial-setup-0.3.9.40-1.el7.centos.src.rpm | branding issue / removed because it was not used
 | kabi-yum-plugins | kabi-yum-plugins-1.0-3.el7.centos.src.rpm | branding issue / removed because it was not used
+| oscap-anaconda-addon | oscap-anaconda-addon-0.7-15.el7.centos.src.rpm | branding issue / removed because it was not used
 | redhat-support-lib-python | redhat-support-lib-python-0.9.7-6.el7.src.rpm | branding issue / removed because it was not used
-| redhat-support-tool | redhat-support-tool-0.9.8-6.el7.src.rpm | branding issue / removed because it was not used
-| subscription-manager | subscription-manager-1.17.15-1.el7.src.rpm | branding issue / removed because it was not used
+| redhat-support-tool | redhat-support-tool-0.9.9-3.el7.src.rpm | branding issue / removed because it was not used
+| subscription-manager | subscription-manager-1.19.21-1.el7.centos.src.rpm | branding issue / removed because it was not used
 
 
 ### not included due to incompatibel architectures
