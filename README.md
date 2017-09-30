@@ -44,6 +44,7 @@ Some packages needed some manual love and care to build, but not really a patch:
 | mesa-private-llvm | mesa-private-llvm-3.8.x | version to new for armv5, downgraded to 3.7.1 
 | msv | msv-2013.5.1-7.el7.src.rpm | needs to be build without java-1.8.0-openjdk
 | prelink | prelink-0.5.0-9.el7.src.rpm | needs to be build with older versions of: binutils, cpp, gcc*, glibc*, libgcc, libgomp, libstdc* (the 7.2 versions). Not sure what is wrong with the 7.3 versions
+| pykickstart | pykickstart-1.99.66.12-1.el7.src.rpm | needs to be build with '-D "check exit 0"'
 | tog-pegasus | tog-pegasus-2.14.1-5.el7.src.rpm | needs to be build with redsleeve 7.3
 | uom-lib | uom-lib-1.0.1-5.el7.src.rpm | needs to be build without java-1.8.0-openjdk
 | velocity | velocity-1.7-10.el7.src.rpm | needs to be build with java-1.7.0-openjdk-devel-1.7.0.51
@@ -174,7 +175,6 @@ Some packages that are present upstream are not in Redsleeve for a variety of re
 | mvapich2 | mvapich2-2.2-1.el7.src.rpm | fatal error: asm/timex.h: No such file or directory   
 | openssl098e | openssl098e-0.9.8e-29.el7.centos.3.src.rpm | linux-arm not on the supported compiler list
 | perftest | perftest-3.4-1.el7.src.rpm | fatal error: asm/timex.h: No such file or directory   
-| pykickstart | pykickstart-1.99.66.12-1.el7.src.rpm | FAIL: runTest (packages.ExcludeGroups_TestCase)
 | tbb | tbb-4.1-9.20130314.el7.src.rpm | error: #error Threading Building Blocks ARM port requires an ARMv7-a architecture.
 | tuned | tuned-2.8.0-5.el7.src.rpm | cannot be installed due to missing deps
 | usbguard | usbguard-0.7.0-3.el7.src.rpm | tuple:1090:70: error: using invalid field 'std::pair<_T1, _T2>::second'
