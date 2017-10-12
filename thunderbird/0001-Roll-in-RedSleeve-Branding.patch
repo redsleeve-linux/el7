@@ -1,6 +1,6 @@
-From 6e1a49c0d1bfa9205354d846dbeed36212efeff7 Mon Sep 17 00:00:00 2001
+From a54d9e467e44533065475a0e01ca46577fe8e4e0 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Thu, 22 Jun 2017 08:59:54 +0200
+Date: Thu, 12 Oct 2017 21:20:38 +0200
 Subject: [PATCH] Roll in RedSleeve Branding
 
 ---
@@ -80,15 +80,15 @@ index 0000000..fa9821b
 +/* Workaround for mozbz#1063315 */
 +pref("security.use_mozillapkix_verification", false);
 diff --git a/SPECS/thunderbird.spec b/SPECS/thunderbird.spec
-index 35dd10d..dbf2d4b 100644
+index 4366f22..b1103b8 100644
 --- a/SPECS/thunderbird.spec
 +++ b/SPECS/thunderbird.spec
 @@ -75,7 +75,7 @@
  Summary:        Mozilla Thunderbird mail/newsgroup client
  Name:           thunderbird
- Version:        52.2.0
--Release:        1%{?dist}
-+Release:        1%{?dist}.redsleeve
+ Version:        52.4.0
+-Release:        2%{?dist}
++Release:        2%{?dist}.redsleeve
  URL:            http://www.mozilla.org/projects/thunderbird/
  License:        MPLv1.1 or GPLv2+ or LGPLv2+
  Group:          Applications/Internet
@@ -104,15 +104,15 @@ index 35dd10d..dbf2d4b 100644
  
  # Mozilla (XULRunner) patches
  Patch0:         firefox-install-dir.patch
-@@ -857,6 +857,9 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
+@@ -858,6 +858,9 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
  #===============================================================================
  
  %changelog
-+* Thu Jun 22 2017 Jacco Ligthart <jacco@redsleeve.org> - 52.2.0-1.redsleeve
++* Thu Oct 12 2017 Jacco Ligthart <jacco@redsleeve.org> - 52.4.0-2.redsleeve
 +- Roll in RedSleeve Branding
 +
- * Wed Jun 21 2017 Johnny Hughes <johnny@centos.org> - 52.2.0-1
- - Manual CentOS Debranding
+ * Wed Oct  4 2017 Jan Horak <jhorak@redhat.com> - 52.4.0-2
+ - Update to 52.4.0 (b2)
  
 -- 
 1.8.3.1
