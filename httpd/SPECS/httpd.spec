@@ -15,10 +15,10 @@
 Summary: Apache HTTP Server
 Name: httpd
 Version: 2.4.6
-Release: 67%{?dist}.5.redsleeve
+Release: 67%{?dist}.6
 URL: http://httpd.apache.org/
 Source0: http://www.apache.org/dist/httpd/httpd-%{version}.tar.bz2
-Source1: index.html
+Source1: centos-noindex.tar.gz
 Source2: httpd.logrotate
 Source3: httpd.sysconf
 Source4: httpd-ssl-pass-dialog
@@ -154,6 +154,8 @@ Patch120: httpd-2.4.6-r1738878.patch
 Patch121: httpd-2.4.6-http-protocol-options-define.patch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1332242
 Patch122: httpd-2.4.6-statements-comment.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1467402
+Patch123: httpd-2.4.6-rotatelogs-zombie.patch
 
 # Security fixes
 Patch200: httpd-2.4.6-CVE-2013-6438.patch
@@ -380,6 +382,7 @@ rm modules/ssl/ssl_engine_dh.c
 %patch120 -p1 -b .r1738878
 %patch121 -p1 -b .httpprotdefine
 %patch122 -p1 -b .statement-comment
+%patch123 -p1 -b .logrotate-zombie
 
 %patch200 -p1 -b .cve6438
 %patch201 -p1 -b .cve0098
@@ -555,8 +558,9 @@ EOF
 
 # Handle contentdir
 mkdir $RPM_BUILD_ROOT%{contentdir}/noindex
-install -m 644 -p $RPM_SOURCE_DIR/index.html \
-        $RPM_BUILD_ROOT%{contentdir}/noindex/index.html
+tar xzf $RPM_SOURCE_DIR/centos-noindex.tar.gz \
+        -C $RPM_BUILD_ROOT%{contentdir}/noindex/ \
+        --strip-components=1
 
 rm -rf %{contentdir}/htdocs
 
@@ -580,7 +584,7 @@ rm -v $RPM_BUILD_ROOT%{docroot}/html/*.html \
       $RPM_BUILD_ROOT%{docroot}/cgi-bin/*
 
 # Symlink for the powered-by-$DISTRO image:
-ln -s ../../pixmaps/poweredby.png \
+ln -s ../noindex/images/poweredby.png \
         $RPM_BUILD_ROOT%{contentdir}/icons/poweredby.png
 
 # symlinks for /etc/httpd
@@ -766,7 +770,7 @@ rm -rf $RPM_BUILD_ROOT
 %{contentdir}/error/README
 %{contentdir}/error/*.var
 %{contentdir}/error/include/*.html
-%{contentdir}/noindex/index.html
+%{contentdir}/noindex/*
 
 %dir %{docroot}
 %dir %{docroot}/cgi-bin
@@ -832,14 +836,14 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/rpm/macros.httpd
 
 %changelog
-* Thu Oct 12 2017 Jacco Ligthart <jacco@redsleeve.org> - 2.4.6-67.el7.5.redsleeve
-- roll in redsleeve branding, based on RHEL
-
-* Wed Oct 11 2017 CentOS Sources <bugs@centos.org> - 2.4.6-67.el7.centos.5
+* Thu Oct 19 2017 CentOS Sources <bugs@centos.org> - 2.4.6-67.el7.centos.6
 - Remove index.html, add centos-noindex.tar.gz
 - change vstring
 - change symlink for poweredby.png
 - update welcome.conf with proper aliases
+
+* Tue Oct 03 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-67.6
+- Resolves: #1498020 - rotatelogs: creation of zombie processes when -p is used
 
 * Tue Sep 19 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-67.5
 - Resolves: #1493064 - CVE-2017-9798 httpd: Use-after-free by limiting
