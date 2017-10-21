@@ -11,7 +11,8 @@
 %global use_Socket6 0
 %global use_nunc_stans 1
 
-%if %{_arch} != "s390x" && %{_arch} != "s390"
+#%if %{_arch} != "s390x" && %{_arch} != "s390"
+%ifnarch s390 s390x %{arm}
 %global use_tcmalloc 1
 %else
 %global use_tcmalloc 0
@@ -30,7 +31,7 @@
 Summary:          389 Directory Server (base)
 Name:             389-ds-base
 Version:          1.3.6.1
-Release:          %{?relprefix}21%{?prerel}%{?dist}
+Release:          %{?relprefix}21%{?prerel}%{?dist}.redsleeve
 License:          GPLv3+
 URL:              https://www.port389.org/
 Group:            System Environment/Daemons
@@ -579,6 +580,9 @@ fi
 %{_sysconfdir}/%{pkgname}/dirsrvtests
 
 %changelog
+* Sat Oct 21 2017 Jacco Ligthart <jacco@redsleeve.org> - 1.3.6.1-21.redsleeve
+- disabled tcmalloc for arm
+
 * Thu Oct 5 2017 Mark Reynolds <mreynolds@redhat.com> - 1.3.6.1-21
 - Bump verions to 1.3.6.1-21
 - Resolves: Bug 1498958 - unable to retrieve specific cosAttribute when subtree password policy is configured
