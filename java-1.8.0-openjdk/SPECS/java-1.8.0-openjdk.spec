@@ -178,10 +178,10 @@
 # note, following three variables are sedded from update_sources if used correctly. Hardcode them rather there.
 %global project         aarch64-port
 %global repo            jdk8u
-%global revision        aarch64-jdk8u144-b01
+%global revision        aarch64-jdk8u151-b12
 %global shenandoah_project	aarch64-port
 %global shenandoah_repo		jdk8u-shenandoah
-%global shenandoah_revision    	aarch64-shenandoah-jdk8u144-b01
+%global shenandoah_revision    	aarch64-shenandoah-jdk8u151-b12
 
 # eg # jdk8u60-b27 -> jdk8u60 or # aarch64-jdk8u60-b27 -> aarch64-jdk8u60  (dont forget spec escape % by %%)
 %global whole_update    %(VERSION=%{revision}; echo ${VERSION%%-*})
@@ -527,8 +527,10 @@ exit 0
 %{jvmjardir %%1}
 %dir %{_jvmdir}/%{jredir %%1}/lib/security
 %{_jvmdir}/%{jredir %%1}/lib/security/cacerts
-%config(noreplace) %{_jvmdir}/%{jredir %%1}/lib/security/US_export_policy.jar
-%config(noreplace) %{_jvmdir}/%{jredir %%1}/lib/security/local_policy.jar
+%config(noreplace) %{_jvmdir}/%{jredir %%1}/lib/security/policy/unlimited/US_export_policy.jar
+%config(noreplace) %{_jvmdir}/%{jredir %%1}/lib/security/policy/unlimited/local_policy.jar
+%config(noreplace) %{_jvmdir}/%{jredir %%1}/lib/security/policy/limited/US_export_policy.jar
+%config(noreplace) %{_jvmdir}/%{jredir %%1}/lib/security/policy/limited/local_policy.jar
 %config(noreplace) %{_jvmdir}/%{jredir %%1}/lib/security/java.policy
 %config(noreplace) %{_jvmdir}/%{jredir %%1}/lib/security/java.security
 %config(noreplace) %{_jvmdir}/%{jredir %%1}/lib/security/blacklisted.certs
@@ -792,7 +794,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
 
 Name:    java-%{javaver}-%{origin}
 Version: %{javaver}.%{updatever}
-Release: 0.%{buildver}%{?dist}.redsleeve
+Release: 1.%{buildver}%{?dist}
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons,
 # and this change was brought into RHEL-4.  java-1.5.0-ibm packages
 # also included the epoch in their virtual provides.  This created a
@@ -831,10 +833,10 @@ Source1: %{shenandoah_project}-%{shenandoah_repo}-%{shenandoah_revision}.tar.xz
 Source2:  README.src
 
 # Use 'generate_tarballs.sh' to generate the following tarballs
-# They are based on code contained in the IcedTea7 project.
+# They are based on code contained in the IcedTea project (3.x).
 
 # Systemtap tapsets. Zipped up to keep it small.
-Source8: systemtap-tapset-3.4.0pre01.tar.xz
+Source8: systemtap-tapset-3.6.0pre02.tar.xz
 
 # Desktop files. Adapated from IcedTea.
 Source9: jconsole.desktop.in
@@ -881,12 +883,14 @@ Patch512: no_strict_overflow.patch
 # PR2815: Race condition in SunEC provider with system NSS
 # PR2899: Don't use WithSeed versions of NSS functions as they don't fully process the seed
 # PR2934: SunEC provider throwing KeyException with current NSS
+# PR3479, RH1486025: ECC and NSS JVM crash
 Patch513: pr1983-jdk.patch
 Patch514: pr1983-root.patch
 Patch515: pr2127.patch
 Patch516: pr2815.patch
 Patch517: pr2899.patch
 Patch518: pr2934.patch
+Patch519: pr3479-rh1486025.patch
 # S8150954, RH1176206, PR2866: Taking screenshots on x11 composite desktop produces wrong result
 # In progress: http://mail.openjdk.java.net/pipermail/awt-dev/2016-March/010742.html
 Patch508: rh1176206-jdk.patch
@@ -900,6 +904,8 @@ Patch204: hotspot-remove-debuglink.patch
 Patch205: dont-add-unnecessary-debug-links.patch
 # Enable debug information for assembly code files
 Patch206: hotspot-assembler-debuginfo.patch
+# 8188030, PR3459, RH1484079: AWT java apps fail to start when some minimal fonts are present
+Patch560: 8188030-pr3459-rh1484079.patch
 
 # Arch-specific upstreamable patches
 # PR2415: JVM -Xmx requirement is too high on s390
@@ -932,10 +938,10 @@ Patch400: 8154313.patch
 Patch526: 6260348-pr3066.patch
 # 8061305, PR3335, RH1423421: Javadoc crashes when method name ends with "Property"
 Patch538: 8061305-pr3335-rh1423421.patch
-# 8181055, PR3394, RH1448880: PPC64: "mbind: Invalid argument" still seen after 8175813
-Patch551: 8181055-pr3394-rh1448880.patch
-# 8181419, PR3413, RH1463144: Race in jdwp invoker handling may lead to crashes or invalid results
-Patch553: 8181419-pr3413-rh1463144.patch
+
+# Patches upstream and appearing in 8u151
+# 8075484, PR3473, RH1490713: SocketInputStream.socketRead0 can hang even with soTimeout set
+Patch561: 8075484-pr3473-rh1490713.patch
 
 # Patches upstream and appearing in 8u152
 # 8153711, PR3313, RH1284948: [REDO] JDWP: Memory Leak: GlobalRefs never deleted when processing invokeMethod command
@@ -946,10 +952,22 @@ Patch532: 8162384-pr3122-rh1358661.patch
 Patch547: 8173941-pr3326.patch
 # 8175813, PR3394, RH1448880: PPC64: "mbind: Invalid argument" when -XX:+UseNUMA is used
 Patch550: 8175813-pr3394-rh1448880.patch
-# 8179084, PR3409, RH1455694: HotSpot VM fails to start when AggressiveHeap is set
-Patch552: 8179084-pr3409-rh1455694.patch
 # 8175887, PR3415: C1 value numbering handling of Unsafe.get*Volatile is incorrect
 Patch554: 8175887-pr3415.patch
+
+# Patches upstream and appearing in 8u162
+# 8181055, PR3394, RH1448880: PPC64: "mbind: Invalid argument" still seen after 8175813
+Patch551: 8181055-pr3394-rh1448880.patch
+# 8181419, PR3413, RH1463144: Race in jdwp invoker handling may lead to crashes or invalid results
+Patch553: 8181419-pr3413-rh1463144.patch
+# 8145913, PR3466, RH1498309: PPC64: add Montgomery multiply intrinsic
+Patch556: 8145913-pr3466-rh1498309.patch
+# 8168318, PR3466, RH1498320: PPC64: Use cmpldi instead of li/cmpld
+Patch557: 8168318-pr3466-rh1498320.patch
+# 8170328, PR3466, RH1498321: PPC64: Use andis instead of lis/and
+Patch558: 8170328-pr3466-rh1498321.patch
+# 8181810, PR3466, RH1498319: PPC64: Leverage extrdi for bitfield extract
+Patch559: 8181810-pr3466-rh1498319.patch
 
 # Patches ineligible for 8u
 # 8043805: Allow using a system-installed libjpeg
@@ -958,8 +976,6 @@ Patch201: system-libjpeg.patch
 # Local fixes
 # PR1834, RH1022017: Reduce curves reported by SSL to those in NSS
 Patch525: pr1834-rh1022017.patch
-# RH1367357: lcms2: Out-of-bounds read in Type_MLU_Read()
-Patch533: rh1367357.patch
 # Turn on AssumeMP by default on RHEL systems
 Patch534: always_assumemp.patch
 # PR2888: OpenJDK should check for system cacerts database (e.g. /etc/pki/java/cacerts)
@@ -1298,6 +1314,7 @@ sh %{SOURCE12}
 %patch516
 %patch517
 %patch518
+%patch519
 %patch400
 %patch523
 %patch526
@@ -1308,12 +1325,18 @@ sh %{SOURCE12}
 %patch547
 %patch550
 %patch551
-%patch552
 %patch553
+%patch560
+%patch561
+
+# PPC64 updates
+%patch556
+%patch557
+%patch558
+%patch559
 
 # RPM-only fixes
 %patch525
-%patch533
 %patch539
 
 # RHEL-only patches
@@ -1539,18 +1562,18 @@ do
 done
 
 # Make sure gdb can do a backtrace based on line numbers on libjvm.so
-#gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
-#handle SIGSEGV pass nostop noprint
-#handle SIGILL pass nostop noprint
-#set breakpoint pending on
-#break javaCalls.cpp:1
-#commands 1
-#backtrace
-#quit
-#end
-#run -version
-#EOF
-#grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
+gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
+handle SIGSEGV pass nostop noprint
+handle SIGILL pass nostop noprint
+set breakpoint pending on
+break javaCalls.cpp:1
+commands 1
+backtrace
+quit
+end
+run -version
+EOF
+grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
 
 # Check src.zip has all sources. See RHBZ#1130490
 jar -tf $JAVA_HOME/src.zip | grep 'sun.misc.Unsafe'
@@ -1962,8 +1985,67 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
-* Thu Sep 07 2017 Jacco Ligthart <jacco@ligthart.nu> 1:1.8.0.144-0.b01.redsleeve
-- removed the gdb section of the SPEC file
+* Wed Oct 18 2017 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.151-1.b12
+- Reverting to java-1.7.0-openjdk on AArch64 as rhel-7.4-z-java-unsafe-candidate using wrong suffix.
+- Resolves: rhbz#1499207
+
+* Wed Oct 18 2017 Jiri Vanek <jvanek@redhat.com> - 1:1.8.0.151-1.b12
+- repack policies adapted to new counts and paths
+- note that also c-j-c is needed to make this apply in next update
+- Resolves: rhbz#1499207
+
+* Wed Oct 18 2017 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.151-0.b12
+- Update location of policy JAR files following 8157561.
+
+* Wed Oct 18 2017 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.151-0.b12
+- 8188030 is not yet upstream, so it should be listed under upstreamable fixes.
+- 8181055, 8181419, 8145913, 8168318, 8170328 & 8181810 all now in 8u162.
+- Resolves: rhbz#1499207
+
+* Wed Oct 18 2017 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.151-0.b12
+- Correct fix to RH1191652 root patch so existing COMMON_CCXXFLAGS_JDK is not lost.
+- Resolves: rhbz#1499207
+
+* Tue Oct 17 2017 Jiri Vanek <jvanek@redhat.com> - 1:1.8.0.151-0.b01
+- Moving patch 560 out of ppc fixes
+- Resolves: rhbz#1499207
+
+* Tue Oct 17 2017 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.151-0.b12
+- Update SystemTap tapsets to version in IcedTea 3.6.0pre02 to fix RH1492139.
+- Resolves: rhbz#1499207
+
+* Tue Oct 17 2017 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.151-0.b12
+- Fix premature shutdown of NSS in SunEC provider.
+- Resolves: rhbz#1499207
+
+* Tue Oct 17 2017 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.151-0.b12
+- Add 8075484/PR3473/RH1490713 which is listed as being in 8u151 but not supplied by Oracle.
+- Resolves: rhbz#1499207
+
+* Tue Oct 17 2017 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.151-0.b12
+- Switch AArch64 to using java-1.8.0-openjdk to bootstrap until RH1482244 is fixed in bootstrap
+- Resolves: rhbz#1499207
+
+* Tue Oct 17 2017 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.151-0.b12
+- Update to aarch64-jdk8u151-b12 and aarch64-shenandoah-jdk8u151-b12.
+- Update location of OpenJDK zlib system library source code in remove-intree-libraries.sh
+- Drop upstreamed patches for 8179084 and RH1367357 (part of 8183028).
+- Update RH1191652 (root) and PR2842 to accomodate 8151841 (GCC 6 support).
+- Update PR2964/RH1337583 to accomodate 8171319 (keytool warning output)
+- Update RH1163501 to accomodate 8181048 (crypto refactoring)
+- Resolves: rhbz#1499207
+
+* Mon Oct 16 2017 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.144-1.b01
+- Add IBM-supplied Montgomery backport, backport other ppc64 fixes & add CFF fix
+- Resolves: rhbz#1499207
+
+* Mon Oct 16 2017 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.144-0.b01
+- Reverted completely unnecessary patch addition which broke the RPM build.
+- Resolves: rhbz#1499207
+
+* Wed Oct 11 2017 Jiri Vanek <jvanek@redhat.com> - 1:1.8.0.144-0.b01
+ - smuggled patch540, bug1484079.patch
+- Resolves: rhbz#1499216
 
 * Tue Aug 15 2017 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.144-0.b01
 - Update to aarch64-jdk8u144-b01 and aarch64-shenandoah-jdk8u144-b01.
