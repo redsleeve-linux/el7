@@ -88,6 +88,7 @@
 			<packagereq type="default">net-tools</packagereq>
 			<packagereq type="default">NetworkManager</packagereq>
 			<packagereq type="default">NetworkManager-tui</packagereq>
+			<packagereq type="default">NetworkManager-wifi</packagereq>
 			<packagereq type="default">openssl</packagereq>
 			<packagereq type="default">postfix</packagereq>
 			<packagereq type="default">rng-tools</packagereq>
