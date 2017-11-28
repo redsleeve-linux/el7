@@ -77,7 +77,6 @@
 			<packagereq type="mandatory">vim-minimal</packagereq>
 			<packagereq type="mandatory">yum</packagereq>
 			<packagereq type="default">alsa-firmware</packagereq>
-			<packagereq type="default">biosdevname</packagereq>
 			<packagereq type="default">chrony</packagereq>
 			<packagereq type="default">crda</packagereq>
 			<packagereq type="default">dosfstools</packagereq>
