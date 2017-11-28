@@ -1,0 +1,91 @@
+<comps>
+	<group>
+		<id>buildsys-build</id>
+		<name>Buildsystem building group</name>
+		<description></description>
+		<default>false</default>
+		<uservisible>false</uservisible>
+		<packagelist>
+			<packagereq type="mandatory">bash</packagereq>
+			<packagereq type="mandatory">bzip2</packagereq>
+			<packagereq type="mandatory">coreutils</packagereq>
+			<packagereq type="mandatory">cpio</packagereq>
+			<packagereq type="mandatory">diffutils</packagereq>
+			<packagereq type="mandatory">redsleeve-release</packagereq>
+			<packagereq type="mandatory">findutils</packagereq>
+			<packagereq type="mandatory">gawk</packagereq>
+			<packagereq type="mandatory">gcc</packagereq>
+			<packagereq type="mandatory">gcc-c++</packagereq>
+			<packagereq type="mandatory">grep</packagereq>
+			<packagereq type="mandatory">gzip</packagereq>
+			<packagereq type="mandatory">info</packagereq>
+			<packagereq type="mandatory">make</packagereq>
+			<packagereq type="mandatory">patch</packagereq>
+			<packagereq type="mandatory">redhat-rpm-config</packagereq>
+			<packagereq type="mandatory">rpm-build</packagereq>
+			<packagereq type="mandatory">sed</packagereq>
+			<packagereq type="mandatory">shadow-utils</packagereq>
+			<packagereq type="mandatory">tar</packagereq>
+			<packagereq type="mandatory">unzip</packagereq>
+			<packagereq type="mandatory">util-linux-ng</packagereq>
+			<packagereq type="mandatory">which</packagereq>
+		</packagelist>
+	</group>
+	<group>
+		<id>core</id>
+		<name>Core</name>
+		<description>Smallest possible installation.</description>
+		<default>false</default>
+		<uservisible>false</uservisible>
+		<packagelist>
+			<packagereq type="mandatory">audit</packagereq>
+			<packagereq type="mandatory">basesystem</packagereq>
+			<packagereq type="mandatory">bash</packagereq>
+			<packagereq type="mandatory">coreutils</packagereq>
+			<packagereq type="mandatory">cronie</packagereq>
+			<packagereq type="mandatory">curl</packagereq>
+			<packagereq type="mandatory">dhclient</packagereq>
+			<packagereq type="mandatory">e2fsprogs</packagereq>
+			<packagereq type="mandatory">filesystem</packagereq>
+			<packagereq type="mandatory">glibc</packagereq>
+			<packagereq type="mandatory">hostname</packagereq>
+			<packagereq type="mandatory">initscripts</packagereq>
+			<packagereq type="mandatory">iproute</packagereq>
+			<packagereq type="mandatory">iptables</packagereq>
+			<packagereq type="mandatory">iputils</packagereq>
+			<packagereq type="mandatory">kbd</packagereq>
+			<packagereq type="mandatory">less</packagereq>
+			<packagereq type="mandatory">man-db</packagereq>
+			<packagereq type="mandatory">ncurses</packagereq>
+			<packagereq type="mandatory">openssh-clients</packagereq>
+			<packagereq type="mandatory">openssh-server</packagereq>
+			<packagereq type="mandatory">parted</packagereq>
+			<packagereq type="mandatory">passwd</packagereq>
+			<packagereq type="mandatory">plymouth</packagereq>
+			<packagereq type="mandatory">procps-ng</packagereq>
+			<packagereq type="mandatory">rootfiles</packagereq>
+			<packagereq type="mandatory">rpm</packagereq>
+			<packagereq type="mandatory">rsyslog</packagereq>
+			<packagereq type="mandatory">setup</packagereq>
+			<packagereq type="mandatory">shadow-utils</packagereq>
+			<packagereq type="mandatory">sudo</packagereq>
+			<packagereq type="mandatory">systemd</packagereq>
+			<packagereq type="mandatory">tar</packagereq>
+			<packagereq type="mandatory">util-linux</packagereq>
+			<packagereq type="mandatory">vim-minimal</packagereq>
+			<packagereq type="mandatory">yum</packagereq>
+			<packagereq type="default">alsa-firmware</packagereq>
+			<packagereq type="default">crda</packagereq>
+			<packagereq type="default">ethtool</packagereq>
+			<packagereq type="default">file</packagereq>
+			<packagereq type="default">iw</packagereq>
+			<packagereq type="default">libsysfs</packagereq>
+			<packagereq type="default">net-tools</packagereq>
+			<packagereq type="default">NetworkManager</packagereq>
+			<packagereq type="default">NetworkManager-tui</packagereq>
+			<packagereq type="default">openssl</packagereq>
+			<packagereq type="default">postfix</packagereq>
+			<packagereq type="default">which</packagereq>
+		</packagelist>
+        </group>
+</comps>
