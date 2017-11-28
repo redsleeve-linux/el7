@@ -62,10 +62,12 @@
 			<packagereq type="mandatory">parted</packagereq>
 			<packagereq type="mandatory">passwd</packagereq>
 			<packagereq type="mandatory">plymouth</packagereq>
+			<packagereq type="mandatory">policycoreutils</packagereq>
 			<packagereq type="mandatory">procps-ng</packagereq>
 			<packagereq type="mandatory">rootfiles</packagereq>
 			<packagereq type="mandatory">rpm</packagereq>
 			<packagereq type="mandatory">rsyslog</packagereq>
+			<packagereq type="mandatory">selinux-policy-targeted</packagereq>
 			<packagereq type="mandatory">setup</packagereq>
 			<packagereq type="mandatory">shadow-utils</packagereq>
 			<packagereq type="mandatory">sudo</packagereq>
@@ -75,7 +77,10 @@
 			<packagereq type="mandatory">vim-minimal</packagereq>
 			<packagereq type="mandatory">yum</packagereq>
 			<packagereq type="default">alsa-firmware</packagereq>
+			<packagereq type="default">biosdevname</packagereq>
+			<packagereq type="default">chrony</packagereq>
 			<packagereq type="default">crda</packagereq>
+			<packagereq type="default">dosfstools</packagereq>
 			<packagereq type="default">ethtool</packagereq>
 			<packagereq type="default">file</packagereq>
 			<packagereq type="default">iw</packagereq>
@@ -85,6 +90,7 @@
 			<packagereq type="default">NetworkManager-tui</packagereq>
 			<packagereq type="default">openssl</packagereq>
 			<packagereq type="default">postfix</packagereq>
+			<packagereq type="default">rng-tools</packagereq>
 			<packagereq type="default">which</packagereq>
 		</packagelist>
         </group>
