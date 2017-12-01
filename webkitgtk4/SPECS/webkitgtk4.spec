@@ -18,7 +18,7 @@
 
 Name:           webkitgtk4
 Version:        2.14.7
-Release:        2%{?dist}.redsleeve
+Release:        3%{?dist}
 Summary:        GTK+ Web content engine library
 
 License:        LGPLv2
@@ -80,6 +80,14 @@ Patch23:        b171927.patch
 Patch24:        b170945.patch
 # https://bugs.webkit.org/show_bug.cgi?id=132333
 Patch25:        b132333.patch
+# https://bugs.webkit.org/show_bug.cgi?id=162608
+Patch26:        webkit-update-bundled-woff2.patch
+# https://bugs.webkit.org/show_bug.cgi?id=177768
+Patch27:        webkit-update-bundled-brotli-and-woff2.patch
+# https://bugs.webkit.org/show_bug.cgi?id=177994
+Patch28:        webkit-relicense-bundled-woff2-to-mit.patch
+# https://github.com/google/woff2/pull/96
+Patch29:        webkit-woff2-cassert-include.patch
 
 %if 0%{?bundle_icu}
 Patch50: icu-8198.revert.icu5431.patch
@@ -92,8 +100,6 @@ Patch56: icu-rhbz1360340-icu-changeset-39109.patch
 Patch57: icu-diff-icu_trunk_source_common_locid.cpp-from-39282-to-39384.patch
 Patch58: icu-dont_use_clang_even_if_installed.patch
 %endif
-
-Patch1000: webkitgtk4-arm-no-atomic.patch
 
 BuildRequires:  at-spi2-core-devel
 BuildRequires:  bison
@@ -258,11 +264,13 @@ Support for the GTK+ 2 based NPAPI plugins (such as Adobe Flash) for %{name}.
 %patch23 -p1 -b .b171927
 %patch24 -p1 -b .b170945
 %patch25 -p1 -b .b132333
+%patch26 -p1
+%patch27 -p1
+%patch28 -p1
+%patch29 -p1
 %else
 %autosetup -p1 -n webkitgtk-%{version}
 %endif
-
-%patch1000 -p1
 
 # Remove bundled libraries
 rm -rf Source/ThirdParty/gtest/
@@ -351,13 +359,13 @@ pushd %{_target_platform}
 %endif
   -DENABLE_GTKDOC=ON \
   -DENABLE_MINIBROWSER=ON \
-%ifarch s390 aarch64 %{arm}
+%ifarch s390 aarch64
   -DUSE_LD_GOLD=OFF \
 %endif
-%ifarch s390 s390x ppc %{power64} aarch64 %{mips} %{arm}
+%ifarch s390 s390x ppc %{power64} aarch64 %{mips}
   -DENABLE_JIT=OFF \
 %endif
-%ifarch s390 s390x ppc %{power64} aarch64 %{mips} %{arm}
+%ifarch s390 s390x ppc %{power64} aarch64 %{mips}
   -DUSE_SYSTEM_MALLOC=ON \
 %endif
   ..
@@ -444,10 +452,10 @@ popd
 %{_datadir}/gtk-doc/html/webkitdomgtk-4.0/
 
 %changelog
-* Fri Aug 04 2017 Jacco Ligthart <jacco@redsleeve.com> - 2.14.7-2.redsleeve
-- disabled LD_GOLD4, JIT for arm
-- use system malloc for arm
-- added a patch: https://bugs.webkit.org/show_bug.cgi?id=161900
+* Mon Oct 09 2017 Tomas Popela <tpopela@redhat.com> - 2.14.7-3
+- Update the bundled brotli and woff2 to the latest releases due to
+  woff2's license incompatibility with WebKitGTK+ project
+- Resolves: rhbz#1500368
 
 * Fri Jun 16 2017 Tomas Popela <tpopela@redhat.com> - 2.14.7-2
 - Fix a CLoop patch that was not correctly backported from upstream, causing
