@@ -14,7 +14,7 @@
     %global have_usbredir 0
 %endif
 
-%ifnarch s390 s390x %{arm}
+%ifnarch s390 s390x
     %global have_librdma 1
     %global have_tcmalloc 1
 %endif
@@ -41,10 +41,6 @@
 %ifarch aarch64
     %global kvm_target    aarch64
 %endif
-%ifarch %{arm}
-    %global kvm_target    arm
-%endif
-
 
 #Versions of various parts:
 
@@ -80,13 +76,13 @@ Obsoletes: %1 < %{obsoletes_version}                                      \
 Summary: QEMU is a machine emulator and virtualizer
 Name: %{pkgname}%{?pkgsuffix}
 Version: 1.5.3
-Release: 141%{?dist}.2.redsleeve
+Release: 141%{?dist}.4
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 Epoch: 10
 License: GPLv2+ and LGPLv2+ and BSD
 Group: Development/Tools
 URL: http://www.qemu.org/
-ExclusiveArch: x86_64 %{power64} aarch64 s390x %{arm}
+ExclusiveArch: x86_64 %{power64} aarch64 s390x
 Requires: seabios-bin >= 1.7.2.2-5
 Requires: sgabios-bin
 Requires: seavgabios-bin
@@ -3604,6 +3600,30 @@ Patch1771: kvm-qemu-nbd-Ignore-SIGPIPE.patch
 Patch1772: kvm-virtio-net-dynamic-network-offloads-configuration.patch
 # For bz#1482468 - KVM: windows guest migration from EL6 to EL7 fails. [rhel-7.4.z]
 Patch1773: kvm-Workaround-rhel6-ctrl_guest_offloads-machine-type-mi.patch
+# For bz#1501294 - CVE-2017-15289 qemu-kvm: Qemu: cirrus: OOB access issue in  mode4and5 write functions [rhel-7.4.z]
+Patch1774: kvm-bswap.h-Remove-cpu_to_32wu.patch
+# For bz#1501294 - CVE-2017-15289 qemu-kvm: Qemu: cirrus: OOB access issue in  mode4and5 write functions [rhel-7.4.z]
+Patch1775: kvm-hw-use-ld_p-st_p-instead-of-ld_raw-st_raw.patch
+# For bz#1501294 - CVE-2017-15289 qemu-kvm: Qemu: cirrus: OOB access issue in  mode4and5 write functions [rhel-7.4.z]
+Patch1776: kvm-vga-Start-cutting-out-non-32bpp-conversion-support.patch
+# For bz#1501294 - CVE-2017-15289 qemu-kvm: Qemu: cirrus: OOB access issue in  mode4and5 write functions [rhel-7.4.z]
+Patch1777: kvm-vga-Remove-remainder-of-old-conversion-cruft.patch
+# For bz#1501294 - CVE-2017-15289 qemu-kvm: Qemu: cirrus: OOB access issue in  mode4and5 write functions [rhel-7.4.z]
+Patch1778: kvm-vga-Separate-LE-and-BE-conversion-functions.patch
+# For bz#1501294 - CVE-2017-15289 qemu-kvm: Qemu: cirrus: OOB access issue in  mode4and5 write functions [rhel-7.4.z]
+Patch1779: kvm-vga-Rename-vga_template.h-to-vga-helpers.h.patch
+# For bz#1501294 - CVE-2017-15289 qemu-kvm: Qemu: cirrus: OOB access issue in  mode4and5 write functions [rhel-7.4.z]
+Patch1780: kvm-vga-stop-passing-pointers-to-vga_draw_line-functions.patch
+# For bz#1501294 - CVE-2017-15289 qemu-kvm: Qemu: cirrus: OOB access issue in  mode4and5 write functions [rhel-7.4.z]
+Patch1781: kvm-vga-drop-line_offset-variable.patch
+# For bz#1501294 - CVE-2017-15289 qemu-kvm: Qemu: cirrus: OOB access issue in  mode4and5 write functions [rhel-7.4.z]
+Patch1782: kvm-vga-Add-mechanism-to-force-the-use-of-a-shadow-surfa.patch
+# For bz#1501294 - CVE-2017-15289 qemu-kvm: Qemu: cirrus: OOB access issue in  mode4and5 write functions [rhel-7.4.z]
+Patch1783: kvm-vga-handle-cirrus-vbe-mode-wraparounds.patch
+# For bz#1501294 - CVE-2017-15289 qemu-kvm: Qemu: cirrus: OOB access issue in  mode4and5 write functions [rhel-7.4.z]
+Patch1784: kvm-cirrus-fix-oob-access-in-mode4and5-write-functions.patch
+# For bz#1501120 - CVE-2017-14167 qemu-kvm: Qemu: i386: multiboot OOB access while loading kernel image [rhel-7.4.z]
+Patch1785: kvm-multiboot-validate-multiboot-header-address-values.patch
 
 
 BuildRequires: zlib-devel
@@ -5555,6 +5575,18 @@ tar -xf %{SOURCE21}
 %patch1771 -p1
 %patch1772 -p1
 %patch1773 -p1
+%patch1774 -p1
+%patch1775 -p1
+%patch1776 -p1
+%patch1777 -p1
+%patch1778 -p1
+%patch1779 -p1
+%patch1780 -p1
+%patch1781 -p1
+%patch1782 -p1
+%patch1783 -p1
+%patch1784 -p1
+%patch1785 -p1
 
 %build
 buildarch="%{kvm_target}-softmmu"
@@ -6000,9 +6032,25 @@ sh %{_sysconfdir}/sysconfig/modules/kvm.modules &> /dev/null || :
 %{_mandir}/man8/qemu-nbd.8*
 
 %changelog
-* Thu Sep 21 2017 Jacco Ligthart <jacco@redsleeve.org> - 1.5.3-141.el7.2.redsleeve
-- added kvm_target arm
-- do not use rdma-core
+* Fri Nov 10 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-141.el7_4.4
+- kvm-multiboot-validate-multiboot-header-address-values.patch [bz#1501120]
+- Resolves: bz#1501120
+  (CVE-2017-14167 qemu-kvm: Qemu: i386: multiboot OOB access while loading kernel image [rhel-7.4.z])
+
+* Tue Nov 07 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-141.el7_4.3
+- kvm-bswap.h-Remove-cpu_to_32wu.patch [bz#1501294]
+- kvm-hw-use-ld_p-st_p-instead-of-ld_raw-st_raw.patch [bz#1501294]
+- kvm-vga-Start-cutting-out-non-32bpp-conversion-support.patch [bz#1501294]
+- kvm-vga-Remove-remainder-of-old-conversion-cruft.patch [bz#1501294]
+- kvm-vga-Separate-LE-and-BE-conversion-functions.patch [bz#1501294]
+- kvm-vga-Rename-vga_template.h-to-vga-helpers.h.patch [bz#1501294]
+- kvm-vga-stop-passing-pointers-to-vga_draw_line-functions.patch [bz#1501294]
+- kvm-vga-drop-line_offset-variable.patch [bz#1501294]
+- kvm-vga-Add-mechanism-to-force-the-use-of-a-shadow-surfa.patch [bz#1501294]
+- kvm-vga-handle-cirrus-vbe-mode-wraparounds.patch [bz#1501294]
+- kvm-cirrus-fix-oob-access-in-mode4and5-write-functions.patch [bz#1501294]
+- Resolves: bz#1501294
+  (CVE-2017-15289 qemu-kvm: Qemu: cirrus: OOB access issue in  mode4and5 write functions [rhel-7.4.z])
 
 * Mon Aug 21 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-141.el7_4.2
 - kvm-virtio-net-dynamic-network-offloads-configuration.patch [bz#1482468]
