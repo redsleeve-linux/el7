@@ -131,7 +131,7 @@
 Summary: The GNU libc libraries
 Name: glibc
 Version: %{glibcversion}
-Release: %{glibcrelease}
+Release: %{glibcrelease}.redsleeve
 # GPLv2+ is used in a bunch of programs, LGPLv2+ is used for libraries.
 # Things that are linked directly into dynamically linked programs
 # and shared libraries (e.g. crt files, lib*_nonshared.a) have an additional
@@ -1221,6 +1221,8 @@ Patch2091: glibc-rh1452721-4.patch
 # End of glibc patches.
 ##############################################################################
 
+Patch3000: glibc-rh1256317-redsleeve.patch
+
 ##############################################################################
 # Continued list of core "glibc" package information:
 ##############################################################################
@@ -2149,6 +2151,8 @@ cp %{_sourcedir}/syscall-names.list sysdeps/unix/sysv/linux/
 %patch1864 -p1
 %patch1865 -p1
 %patch1866 -p1
+
+%patch3000 -p1
 
 ##############################################################################
 # %%prep - Additional prep required...
@@ -3299,6 +3303,9 @@ rm -f *.filelist*
 %endif
 
 %changelog
+* Fri Dec 01 2017 Jacco Ligthart <jacco@redsleeve.org> 2.17-196.2.redsleeve
+- enhanced the patch for rh1256317 to build on arm
+
 * Wed Nov 22 2017 Carlos O'Donell <carlos@redhat.com> - 2.17-196.2
 - Update HWCAP bits for IBM POWER9 DD2.1 (#1515114)
 - Improve memcpy performance for POWER9 DD2.1 (#1516402)
