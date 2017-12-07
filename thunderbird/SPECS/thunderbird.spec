@@ -75,7 +75,7 @@
 Summary:        Mozilla Thunderbird mail/newsgroup client
 Name:           thunderbird
 Version:        52.5.0
-Release:        1%{?dist}
+Release:        1%{?dist}.redsleeve
 URL:            http://www.mozilla.org/projects/thunderbird/
 License:        MPLv1.1 or GPLv2+ or LGPLv2+
 Group:          Applications/Internet
@@ -102,9 +102,9 @@ Source300:      gcc48-%{gcc_version}.el5.src.rpm
 Source301:      yasm-1.2.0-3.el5.src.rpm
 Source302:      devtoolset-2-binutils-2.23.52.0.1-10.el5.src.rpm
 Source600:      thunderbird.sh.in.rhel6
-Source601:      thunderbird-redhat-default-prefs.js.el6
+Source601:      thunderbird-redsleeve-default-prefs.js.el6
 Source700:      thunderbird.sh.in.rhel7
-Source701:      thunderbird-redhat-default-prefs.js.el7
+Source701:      thunderbird-redsleeve-default-prefs.js.el7
 
 # Mozilla (XULRunner) patches
 Patch0:         firefox-install-dir.patch
@@ -858,6 +858,9 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 #===============================================================================
 
 %changelog
+* Wed Dec 06 2017 Jacco Ligthart <jacco@redsleeve.org> - 52.5.0-1.redsleeve
+- Roll in RedSleeve Branding
+
 * Mon Dec  4 2017 Johnny Hughes <johnny@centos.org> - 52.5.0-1
 - Manual CentOS Debranding
 
