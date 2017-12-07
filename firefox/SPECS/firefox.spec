@@ -76,8 +76,8 @@
 
 Summary:        Mozilla Firefox Web browser
 Name:           firefox
-Version:        52.4.0
-Release:        1%{?dist}.redsleeve
+Version:        52.5.1
+Release:        1%{?dist}
 URL:            http://www.mozilla.org/projects/firefox/
 License:        MPLv1.1 or GPLv2+ or LGPLv2+
 Group:          Applications/Internet
@@ -88,10 +88,10 @@ Group:          Applications/Internet
 # From ftp://archive.mozilla.org/pub/firefox/releases/%{version}%{?ext_version}/source
 Source0:        firefox-%{version}%{?ext_version}.source.tar.xz
 %if %{build_langpacks}
-Source1:        firefox-langpacks-%{version}%{?ext_version}-20170925.tar.xz
+Source1:        firefox-langpacks-%{version}%{?ext_version}-20171129.tar.xz
 %endif
 Source10:       firefox-mozconfig
-Source12:       firefox-redsleeve-default-prefs.js
+Source12:       firefox-centos-default-prefs.js
 Source20:       firefox.desktop
 Source600:      firefox.sh.in.rhel6
 Source700:      firefox.sh.in.rhel7
@@ -640,8 +640,8 @@ MOZ_SMP_FLAGS=-j1
 [ -z "$RPM_BUILD_NCPUS" ] && \
      RPM_BUILD_NCPUS="`/usr/bin/getconf _NPROCESSORS_ONLN`"
 [ "$RPM_BUILD_NCPUS" -ge 2 ] && MOZ_SMP_FLAGS=-j2
-#[ "$RPM_BUILD_NCPUS" -ge 4 ] && MOZ_SMP_FLAGS=-j4
-#[ "$RPM_BUILD_NCPUS" -ge 8 ] && MOZ_SMP_FLAGS=-j8
+[ "$RPM_BUILD_NCPUS" -ge 4 ] && MOZ_SMP_FLAGS=-j4
+[ "$RPM_BUILD_NCPUS" -ge 8 ] && MOZ_SMP_FLAGS=-j8
 
 MOZ_APP_DIR=%{_libdir}/%{name}
 
@@ -885,12 +885,14 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 #---------------------------------------------------------------------
 
 %changelog
-* Fri Sep 29 2017 Jacco Ligthart <jacco@redsleeve.org> - 52.4.0-1.el7.redsleeve
-- redsleeve default prefs
-- limited the number of CPU's for building to 2 (OOM otherwise)
-
-* Fri Sep 29 2017 Johnny Hughes <johnny@centos.org> - 52.4.0-1
+* Tue Dec  5 2017 Johnny Hughes <johnny@centos.org> - 52.5.1-1
 - Manual CentOS Debranding
+
+* Wed Nov 29 2017 Jan Horak <jhorak@redhat.com> - 52.5.1-1
+- Update to 52.5.1 ESR
+
+* Thu Nov  9 2017 Jan Horak <jhorak@redhat.com> - 52.5.0-1
+- Update to 52.5.0 ESR
 
 * Mon Sep 25 2017 Jan Horak <jhorak@redhat.com> - 52.4.0-1
 - Update to 52.4.0 ESR
