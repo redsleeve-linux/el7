@@ -794,7 +794,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
 
 Name:    java-%{javaver}-%{origin}
 Version: %{javaver}.%{updatever}
-Release: 1.%{buildver}%{?dist}.redsleeve
+Release: 5.%{buildver}%{?dist}
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons,
 # and this change was brought into RHEL-4.  java-1.5.0-ibm packages
 # also included the epoch in their virtual provides.  This created a
@@ -954,7 +954,13 @@ Patch547: 8173941-pr3326.patch
 Patch550: 8175813-pr3394-rh1448880.patch
 # 8175887, PR3415: C1 value numbering handling of Unsafe.get*Volatile is incorrect
 Patch554: 8175887-pr3415.patch
+# 8180048, PR3411, RH1449870: Interned string and symbol table leak memory during parallel unlinking
+Patch564: 8180048-pr3411-rh1449870.patch
 
+# Patches upstream and appearing in 8u161
+# 8164293, PR3412, RH1459641: HotSpot leaking memory in long-running requests
+Patch555: 8164293-pr3412-rh1459641.patch
+ 
 # Patches upstream and appearing in 8u162
 # 8181055, PR3394, RH1448880: PPC64: "mbind: Invalid argument" still seen after 8175813
 Patch551: 8181055-pr3394-rh1448880.patch
@@ -1013,7 +1019,12 @@ BuildRequires: zip
 # Use OpenJDK 7 where available (on RHEL) to avoid
 # having to use the rhel-7.x-java-unsafe-candidate hack
 %if 0%{?rhel}
+# Use OpenJDK 8 to bootstrap on AArch64 until RH1482244 is resolved in buildroot
+%ifarch %{aarch64}
+BuildRequires: java-1.8.0-openjdk-devel
+%else
 BuildRequires: java-1.7.0-openjdk-devel
+%endif
 %else
 BuildRequires: java-1.8.0-openjdk-devel
 %endif
@@ -1326,8 +1337,10 @@ sh %{SOURCE12}
 %patch550
 %patch551
 %patch553
+%patch555
 %patch560
 %patch561
+%patch564
 
 # PPC64 updates
 %patch556
@@ -1562,18 +1575,18 @@ do
 done
 
 # Make sure gdb can do a backtrace based on line numbers on libjvm.so
-#gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
-#handle SIGSEGV pass nostop noprint
-#handle SIGILL pass nostop noprint
-#set breakpoint pending on
-#break javaCalls.cpp:1
-#commands 1
-#backtrace
-#quit
-#end
-#run -version
-#EOF
-#grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
+gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
+handle SIGSEGV pass nostop noprint
+handle SIGILL pass nostop noprint
+set breakpoint pending on
+break javaCalls.cpp:1
+commands 1
+backtrace
+quit
+end
+run -version
+EOF
+grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
 
 # Check src.zip has all sources. See RHBZ#1130490
 jar -tf $JAVA_HOME/src.zip | grep 'sun.misc.Unsafe'
@@ -1985,8 +1998,17 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
-* Sun Oct 22 2017 Jacco Ligthart <jacco@ligthart.nu> 1:1.8.0.151-1.b12.redsleeve
-- removed the gdb section of the SPEC file
+* Mon Nov 20 2017 Jiri Vanek <jvanek@redhat.com> - 1:1.8.0.151-5.b12
+- Backport "8180048: Interned string and symbol table leak memory during parallel unlinking" (gnu_andrew)
+- Resolves: rhbz#1515212
+
+* Tue Oct 24 2017 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.151-3.b12
+- Added 8164293-pr3412-rh1459641.patch backport from 8u development tree
+- Resolves: rhbz#1505692
+
+* Mon Oct 23 2017 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.151-2.b12
+- Add back RH1482244 AArch64 workaround now RCM-23152 is fixed.
+- Resolves: rhbz#1499207
 
 * Wed Oct 18 2017 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.151-1.b12
 - Reverting to java-1.7.0-openjdk on AArch64 as rhel-7.4-z-java-unsafe-candidate using wrong suffix.
