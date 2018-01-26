@@ -14,7 +14,7 @@
     %global have_usbredir 0
 %endif
 
-%ifnarch s390 s390x %{arm}
+%ifnarch s390 s390x
     %global have_librdma 1
     %global have_tcmalloc 1
 %endif
@@ -41,10 +41,6 @@
 %ifarch aarch64
     %global kvm_target    aarch64
 %endif
-%ifarch %{arm}
-    %global kvm_target    arm
-%endif
-
 
 #Versions of various parts:
 
@@ -80,13 +76,13 @@ Obsoletes: %1 < %{obsoletes_version}                                      \
 Summary: QEMU is a machine emulator and virtualizer
 Name: %{pkgname}%{?pkgsuffix}
 Version: 1.5.3
-Release: 141%{?dist}.4.redsleeve
+Release: 141%{?dist}.5
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 Epoch: 10
 License: GPLv2+ and LGPLv2+ and BSD
 Group: Development/Tools
 URL: http://www.qemu.org/
-ExclusiveArch: x86_64 %{power64} aarch64 s390x %{arm}
+ExclusiveArch: x86_64 %{power64} aarch64 s390x
 Requires: seabios-bin >= 1.7.2.2-5
 Requires: sgabios-bin
 Requires: seavgabios-bin
@@ -3628,6 +3624,8 @@ Patch1783: kvm-vga-handle-cirrus-vbe-mode-wraparounds.patch
 Patch1784: kvm-cirrus-fix-oob-access-in-mode4and5-write-functions.patch
 # For bz#1501120 - CVE-2017-14167 qemu-kvm: Qemu: i386: multiboot OOB access while loading kernel image [rhel-7.4.z]
 Patch1785: kvm-multiboot-validate-multiboot-header-address-values.patch
+# For bz#1515110 - Regression in QEMU handling for sub-page MMIO BARs for vfio-pci devices [rhel-7.4.z]
+Patch1786: kvm-vfio-pci-Only-mmap-TARGET_PAGE_SIZE-regions.patch
 
 
 BuildRequires: zlib-devel
@@ -5591,6 +5589,7 @@ tar -xf %{SOURCE21}
 %patch1783 -p1
 %patch1784 -p1
 %patch1785 -p1
+%patch1786 -p1
 
 %build
 buildarch="%{kvm_target}-softmmu"
@@ -6036,9 +6035,10 @@ sh %{_sysconfdir}/sysconfig/modules/kvm.modules &> /dev/null || :
 %{_mandir}/man8/qemu-nbd.8*
 
 %changelog
-* Fri Dec 01 2017 Jacco Ligthart <jacco@redsleeve.org> - 1.5.3-141.el7.4.redsleeve
-- added kvm_target arm
-- do not use rdma-core
+* Wed Nov 29 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-141.el7_4.5
+- kvm-vfio-pci-Only-mmap-TARGET_PAGE_SIZE-regions.patch [bz#1515110]
+- Resolves: bz#1515110
+  (Regression in QEMU handling for sub-page MMIO BARs for vfio-pci devices [rhel-7.4.z])
 
 * Fri Nov 10 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-141.el7_4.4
 - kvm-multiboot-validate-multiboot-header-address-values.patch [bz#1501120]
