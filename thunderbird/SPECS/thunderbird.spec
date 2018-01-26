@@ -74,19 +74,19 @@
 
 Summary:        Mozilla Thunderbird mail/newsgroup client
 Name:           thunderbird
-Version:        52.5.0
-Release:        1%{?dist}.redsleeve
+Version:        52.5.2
+Release:        1%{?dist}
 URL:            http://www.mozilla.org/projects/thunderbird/
 License:        MPLv1.1 or GPLv2+ or LGPLv2+
 Group:          Applications/Internet
 
-%define         tarballdir              thunderbird-52.5.0
+%define         tarballdir              thunderbird-52.5.2
 %define         objdir                  objdir
 
 # From ftp://archive.mozilla.org/pub/thunderbird/releases/%{version}%{?ext_version}/source
 Source0:        https://archive.mozilla.org/pub/thunderbird/releases/%{version}%{?pre_version}/source/thunderbird-%{version}%{?pre_version}.source.tar.xz
 %if %{build_langpacks}
-Source1:        thunderbird-langpacks-%{version}%{?ext_version}-20171127.tar.xz
+Source1:        thunderbird-langpacks-%{version}%{?ext_version}-20180102.tar.xz
 %endif
 # Locales for lightning
 Source2:        l10n-lightning-%{version}.tar.xz
@@ -102,9 +102,9 @@ Source300:      gcc48-%{gcc_version}.el5.src.rpm
 Source301:      yasm-1.2.0-3.el5.src.rpm
 Source302:      devtoolset-2-binutils-2.23.52.0.1-10.el5.src.rpm
 Source600:      thunderbird.sh.in.rhel6
-Source601:      thunderbird-redsleeve-default-prefs.js.el6
+Source601:      thunderbird-redhat-default-prefs.js.el6
 Source700:      thunderbird.sh.in.rhel7
-Source701:      thunderbird-redsleeve-default-prefs.js.el7
+Source701:      thunderbird-redhat-default-prefs.js.el7
 
 # Mozilla (XULRunner) patches
 Patch0:         firefox-install-dir.patch
@@ -858,11 +858,11 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 #===============================================================================
 
 %changelog
-* Wed Dec 06 2017 Jacco Ligthart <jacco@redsleeve.org> - 52.5.0-1.redsleeve
-- Roll in RedSleeve Branding
-
-* Mon Dec  4 2017 Johnny Hughes <johnny@centos.org> - 52.5.0-1
+* Mon Jan  8 2018 Johnny Hughes <johnny@centos.org> - 52.5.2-1
 - Manual CentOS Debranding
+
+* Tue Jan  2 2018 Jan Horak <jhorak@redhat.com> - 52.5.2-1
+- Update to 52.5.2
 
 * Mon Nov 27 2017 Jan Horak <jhorak@redhat.com> - 52.5.0-1
 - Update to 52.5.0
