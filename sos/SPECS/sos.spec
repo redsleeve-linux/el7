@@ -2,7 +2,7 @@
 Summary: A set of tools to gather troubleshooting information from a system
 Name: sos
 Version: 3.4
-Release: 6%{?dist}.redsleeve
+Release: 13%{?dist}
 Group: Applications/System
 Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
 License: GPLv2+
@@ -28,7 +28,12 @@ Patch8: sos-bz1449904-ceph-tmp-mount-exclude.patch
 Patch9: sos-bz1393961-missing-filesystem-nonfatal.patch
 Patch10: sos-bz1400407-samba-dc-connect.patch
 Patch11: sos-bz1470573-tripleo-add-ui-logs.patch
-Patch12: sos-3.4-redsleeve-branding.patch
+Patch12: sos-bz1463635-openstack-containerized-tripleo.patch
+Patch13: sos-bz1482574-jars-redundant-os-walk.patch
+Patch14: sos-bz1491964-gluster-block-plugin.patch
+Patch15: sos-bz1511087-openstack-containerized-further-updates.patch
+Patch16: sos-bz1515113-postgresql-from-scl.patch
+Patch17: sos-3.4-centos-branding.patch
 
 %description
 Sos is a set of tools that gathers information about system
@@ -51,6 +56,11 @@ support technicians and developers.
 %patch10 -p1
 %patch11 -p1
 %patch12 -p1
+%patch13 -p1
+%patch14 -p1
+%patch15 -p1
+%patch16 -p1
+%patch17 -p1
 
 %build
 make
@@ -74,11 +84,42 @@ rm -rf ${RPM_BUILD_ROOT}
 %config(noreplace) %{_sysconfdir}/sos.conf
 
 %changelog
-* Sun Aug 13 2017 Jacco Ligthart <jacco@redsleeve.org> - 3.4-6.el7.redsleeve
-- Roll in RedSleeve Branding
-
-* Mon Jul 31 2017 CentOS Sources <bugs@centos.org> - 3.4-6.el7.centos
+* Thu Jan 25 2018 CentOS Sources <bugs@centos.org> - 3.4-13.el7.centos
 - Roll in CentOS Branding
+
+* Thu Jan 04 2018 Pavel Moravec <pmoravec@redhat.com> = 3.4-13
+- [plugins] allow add_cmd_output to collect binary output
+  Resolves: bz1515113
+
+* Thu Jan 04 2018 Pavel Moravec <pmoravec@redhat.com> = 3.4-12
+- [openstack_cinder] check for api service running
+  Resolves: bz1511087
+- [plugins] allow add_cmd_output to collect binary output
+  Resolves: bz1515113
+
+* Fri Dec 08 2017 Pavel Moravec <pmoravec@redhat.com> = 3.4-11
+- [postgresql] Call SCL pg_dump with proper path
+  Resolves: bz1515113
+
+* Mon Nov 20 2017 Pavel Moravec <pmoravec@redhat.com> = 3.4-10
+- [postgresql] Collect data for postgreSQL from RHSCL
+  Resolves: bz1515113
+
+* Wed Nov 15 2017 Pavel Moravec <pmoravec@redhat.com> = 3.4-9
+- [openstack_*] further updates to OSP plugins in containers
+  Resolves: bz1511087
+
+* Thu Oct 12 2017 Pavel Moravec <pmoravec@redhat.com> = 3.4-8
+- [gnocchi] Tripleo specific containerized services logs
+  Resolves: bz1463635
+
+* Tue Oct 10 2017 Pavel Moravec <pmoravec@redhat.com> = 3.4-7
+- [openstack plugins] Tripleo specific containerized services
+  Resolves: bz1463635
+- [jars] Scan only /usr/{share,lib}/java by default
+  Resolves: bz1482574
+- [gluster_block] Added new plugin gluster_block
+  Resolves: bz1491964
 
 * Wed Jul 12 2017 Pavel Moravec <pmoravec@redhat.com> = 3.4-6
 - [tripleo] Add ui logs

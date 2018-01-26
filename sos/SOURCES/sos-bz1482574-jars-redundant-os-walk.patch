@@ -1,0 +1,106 @@
+From 6fc42802b87f95dba1d6bfda49ae158143e7799c Mon Sep 17 00:00:00 2001
+From: Michal Srb <michal@redhat.com>
+Date: Mon, 21 Aug 2017 16:29:23 +0200
+Subject: [PATCH 1/2] [jars] Scan only /usr/{share,lib}/java by default
+
+Other known locations can be added via:
+-k jars.all_known_locations
+
+Additional user-specified locations can be added via:
+-k jars.append_locations=...
+
+Signed-off-by: Michal Srb <michal@redhat.com>
+---
+ sos/plugins/jars.py | 20 +++++++++++++++-----
+ 1 file changed, 15 insertions(+), 5 deletions(-)
+
+diff --git a/sos/plugins/jars.py b/sos/plugins/jars.py
+index c6cba96..486ac05 100644
+--- a/sos/plugins/jars.py
++++ b/sos/plugins/jars.py
+@@ -31,7 +31,8 @@ class Jars(Plugin, RedHatPlugin):
+     profiles = ("java",)
+     option_list = [
+         ("append_locations", "colon-separated list of additional JAR paths",
+-         "fast", "")
++         "fast", ""),
++        ("all_known_locations", "scan all known paths", "slow", False)
+     ]
+ 
+     # There is no standard location for JAR files and scanning
+@@ -39,7 +40,12 @@ class Jars(Plugin, RedHatPlugin):
+     # scan directories in which JARs can be typically found.
+     jar_locations = (
+         "/usr/share/java",  # common location for JARs
+-        "/usr/lib/java",    # common location for JARs containing native code
++        "/usr/lib/java"     # common location for JARs containing native code
++    )
++
++    # Following paths can be optionally scanned as well. Note the scan can take
++    # *very* long time.
++    extra_jar_locations = (
+         "/opt",             # location for RHSCL and 3rd party software
+         "/usr/local",       # used by sysadmins when installing SW locally
+         "/var/lib"          # Java services commonly explode WARs there
+@@ -50,9 +56,13 @@ class Jars(Plugin, RedHatPlugin):
+         jar_paths = []
+ 
+         locations = list(Jars.jar_locations)
+-        extra_locations = self.get_option("append_locations")
+-        if extra_locations:
+-            locations += extra_locations.split(":")
++        if self.get_option("all_known_locations"):
++            locations += list(Jars.extra_jar_locations)
++
++        # append also user-defined locations, if any
++        user_locations = self.get_option("append_locations")
++        if user_locations:
++            locations += user_locations.split(":")
+ 
+         # find all JARs in given locations
+         for location in locations:
+-- 
+2.7.5
+
+From d33c63a230092e94f966551968c51e8c5760742f Mon Sep 17 00:00:00 2001
+From: Michal Srb <michal@redhat.com>
+Date: Mon, 21 Aug 2017 18:11:04 +0200
+Subject: [PATCH 2/2] [jars] Catch zipfile.BadZipfile exception
+
+Bad ZIP files can raise zipfile.BadZipfile exception.
+
+Fixes:
+Traceback (most recent call last):
+  File "/home/msrb/projects/sos/sos/sosreport.py", line 1252, in setup
+    plug.setup()
+  File "/home/msrb/projects/sos/sos/plugins/jars.py", line 72, in setup
+    if Jars.is_jar(path):
+  File "/home/msrb/projects/sos/sos/plugins/jars.py", line 98, in is_jar
+    with zipfile.ZipFile(path) as f:
+  File "/usr/lib64/python2.7/zipfile.py", line 770, in __init__
+    self._RealGetContents()
+  File "/usr/lib64/python2.7/zipfile.py", line 842, in _RealGetContents
+    raise BadZipfile("Bad magic number for central directory")
+BadZipfile: Bad magic number for central directory
+
+Signed-off-by: Michal Srb <michal@redhat.com>
+---
+ sos/plugins/jars.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sos/plugins/jars.py b/sos/plugins/jars.py
+index 486ac05..8c6b54f 100644
+--- a/sos/plugins/jars.py
++++ b/sos/plugins/jars.py
+@@ -98,7 +98,7 @@ class Jars(Plugin, RedHatPlugin):
+                 with zipfile.ZipFile(path) as f:
+                     if "META-INF/MANIFEST.MF" in f.namelist():
+                         return True
+-            except IOError:
++            except (IOError, zipfile.BadZipfile):
+                 pass
+         return False
+ 
+-- 
+2.7.5
+

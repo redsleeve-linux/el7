@@ -1,0 +1,90 @@
+From 07e6ce3ee1f18a09fa8eaa77fc10729c970bf5f6 Mon Sep 17 00:00:00 2001
+From: vredara <redara@redhat.com>
+Date: Thu, 29 Jun 2017 00:36:37 +0530
+Subject: [PATCH] [gluster_block] Added new plugin gluster_block (#1041)
+
+gluster_block plugin collects config/log files related to blocks
+
+Signed-off-by: venkata edara <redara@redhat.com>
+Signed-off-by: Adam Stokes <battlemidget@users.noreply.github.com>
+---
+ sos/plugins/gluster_block.py | 39 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 39 insertions(+)
+ create mode 100644 sos/plugins/gluster_block.py
+
+diff --git a/sos/plugins/gluster_block.py b/sos/plugins/gluster_block.py
+new file mode 100644
+index 0000000..39efbd7
+--- /dev/null
++++ b/sos/plugins/gluster_block.py
+@@ -0,0 +1,39 @@
++# This program is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 2 of the License, or
++# (at your option) any later version.
++
++# This program is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++
++# You should have received a copy of the GNU General Public License along
++# with this program; if not, write to the Free Software Foundation, Inc.,
++# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
++import glob
++from sos.plugins import Plugin, RedHatPlugin
++
++
++class GlusterBlock(Plugin, RedHatPlugin):
++    """Gluster Block"""
++
++    plugin_name = 'gluster_block'
++    profiles = ('storage',)
++    packages = ("gluster-block",)
++    files = ("/usr/sbin/gluster-block",)
++
++    def setup(self):
++
++        # collect logs - apply log_size for any individual file
++        # all_logs takes precedence over logsize
++        if not self.get_option("all_logs"):
++            limit = self.get_option("log_size")
++        else:
++            limit = 0
++
++        if limit:
++            for f in glob.glob("/var/log/gluster-block/*.log"):
++                self.add_copy_spec(f, limit)
++        else:
++            self.add_copy_spec("/var/log/gluster-block")
+-- 
+2.7.5
+
+From 9c3302597630e601213561b7f6dba8def0fcc448 Mon Sep 17 00:00:00 2001
+From: vredara <redara@redhat.com>
+Date: Thu, 29 Jun 2017 00:38:01 +0530
+Subject: [PATCH] [targetcli] added one item (#1044)
+
+collecting the /sys/kernel/config/target
+
+Signed-off-by: venkata edara <redara@redhat.com>
+Signed-off-by: Adam Stokes <battlemidget@users.noreply.github.com>
+---
+ sos/plugins/targetcli.py | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/sos/plugins/targetcli.py b/sos/plugins/targetcli.py
+index 14be1bf..2a93379 100644
+--- a/sos/plugins/targetcli.py
++++ b/sos/plugins/targetcli.py
+@@ -31,6 +31,7 @@ class TargetCli(Plugin, RedHatPlugin, DebianPlugin, UbuntuPlugin):
+             "systemctl status target.service"
+         ])
+         self.add_journal(units="targetcli")
++        self.add_copy_spec("/sys/kernel/config/target")
+         self.add_copy_spec("/etc/target")
+ 
+ # vim: set et ts=4 sw=4 :
+-- 
+2.7.5
+

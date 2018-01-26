@@ -1,0 +1,868 @@
+From 138bc243aa592cd628f6e41a1b3c35f1f01f3c37 Mon Sep 17 00:00:00 2001
+From: "Bryn M. Reeves" <bmr@redhat.com>
+Date: Tue, 8 Aug 2017 16:48:40 +0100
+Subject: [PATCH] [Plugin] add executable command enablement checks
+
+Add a new list/tuple member to the Plugin class that contains a
+list of executable commands that will enable the plugin if any
+are present.
+
+For example, a plugin:
+
+  class MyPlugin(Plugin, RedHatPlugin):
+
+      commands = ('mycmd1', 'mycmd2')
+
+Will be automatically enabled if either 'mycmd1' or 'mycmd2'
+is present and executable in the policy defined PATH for the
+run.
+
+Related: #1051.
+
+Signed-off-by: Bryn M. Reeves <bmr@redhat.com>
+---
+ sos/plugins/__init__.py | 27 ++++++++++++++++++---------
+ 1 file changed, 18 insertions(+), 9 deletions(-)
+
+diff --git a/sos/plugins/__init__.py b/sos/plugins/__init__.py
+index a31297f6c..2d6f6ff58 100644
+--- a/sos/plugins/__init__.py
++++ b/sos/plugins/__init__.py
+@@ -19,7 +19,7 @@
+ from __future__ import with_statement
+ 
+ from sos.utilities import (sos_get_command_output, import_module, grep,
+-                           fileobj, tail)
++                           fileobj, tail, is_executable)
+ import os
+ import glob
+ import re
+@@ -111,6 +111,7 @@ class Plugin(object):
+     version = 'unversioned'
+     packages = ()
+     files = ()
++    commands = ()
+     archive = None
+     profiles = ()
+     sysroot = '/'
+@@ -865,23 +866,31 @@ def get_description(self):
+ 
+     def check_enabled(self):
+         """This method will be used to verify that a plugin should execute
+-        given the condition of the underlying environment. The default
+-        implementation will return True if neither class.files or
+-        class.packages is specified. If either are specified the plugin will
+-        check for the existence of any of the supplied files or packages and
+-        return True if any exist. It is encouraged to override this method if
+-        this behavior isn't applicable.
++        given the condition of the underlying environment.
++
++        The default implementation will return True if none of class.files,
++        class.packages, nor class.commands is specified. If any of these is
++        specified the plugin will check for the existence of any of the
++        corresponding paths, packages or commands and return True if any
++        are present.
++
++        For plugins with more complex enablement checks this method may be
++        overridden.
+         """
+         # some files or packages have been specified for this package
+-        if self.files or self.packages:
++        if any([self.files, self.packages, self.commands]):
+             if isinstance(self.files, six.string_types):
+                 self.files = [self.files]
+ 
+             if isinstance(self.packages, six.string_types):
+                 self.packages = [self.packages]
+ 
++            if isinstance(self.commands, six.string_types):
++                self.commands = [self.commands]
++
+             return (any(os.path.exists(fname) for fname in self.files) or
+-                    any(self.is_installed(pkg) for pkg in self.packages))
++                    any(self.is_installed(pkg) for pkg in self.packages) or
++                    any(is_executable(cmd) for cmd in self.commands))
+         return True
+ 
+     def default_enabled(self):
+From 947e7089c58ac239bc2fd535ac0c77f93f11b895 Mon Sep 17 00:00:00 2001
+From: Pavel Moravec <pmoravec@redhat.com>
+Date: Tue, 3 Oct 2017 15:39:43 +0200
+Subject: [PATCH] [plugins] Add class SCLPlugin for Software Collections
+ support
+
+Related to #900 and #1090
+
+Original author: Bohuslav Kabrda <bkabrda@redhat.com>
+Signed-off-by: Pavel Moravec <pmoravec@redhat.com>
+---
+ sos/plugins/__init__.py | 109 ++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 106 insertions(+), 3 deletions(-)
+
+diff --git a/sos/plugins/__init__.py b/sos/plugins/__init__.py
+index 61a3083e3..540d46596 100644
+--- a/sos/plugins/__init__.py
++++ b/sos/plugins/__init__.py
+@@ -884,6 +884,10 @@ def check_enabled(self):
+         corresponding paths, packages or commands and return True if any
+         are present.
+ 
++        For SCLPlugin subclasses, it will check whether the plugin can be run
++        for any of installed SCLs. If so, it will store names of these SCLs
++        on the plugin class in addition to returning True.
++
+         For plugins with more complex enablement checks this method may be
+         overridden.
+         """
+@@ -898,11 +902,34 @@ def check_enabled(self):
+             if isinstance(self.commands, six.string_types):
+                 self.commands = [self.commands]
+ 
+-            return (any(os.path.exists(fname) for fname in self.files) or
+-                    any(self.is_installed(pkg) for pkg in self.packages) or
+-                    any(is_executable(cmd) for cmd in self.commands))
++            if isinstance(self, SCLPlugin):
++                # save SCLs that match files or packages
++                type(self)._scls_matched = []
++                for scl in self._get_scls():
++                    files = [f % {"scl_name": scl} for f in self.files]
++                    packages = [p % {"scl_name": scl} for p in self.packages]
++                    commands = [c % {"scl_name": scl} for c in self.commands]
++                    if self._files_pkgs_or_cmds_present(files,
++                                                        packages,
++                                                        commands):
++                        type(self)._scls_matched.append(scl)
++                return len(type(self)._scls_matched) > 0
++
++            return self._files_pkgs_or_cmds_present(self.files,
++                                                    self.packages,
++                                                    self.commands)
++
++        if isinstance(self, SCLPlugin):
++            # if files and packages weren't specified, we take all SCLs
++            type(self)._scls_matched = self._get_scls()
++
+         return True
+ 
++    def _files_pkgs_or_cmds_present(self, files, packages, commands):
++            return (any(os.path.exists(fname) for fname in files) or
++                    any(self.is_installed(pkg) for pkg in packages) or
++                    any(is_executable(cmd) for cmd in commands))
++
+     def default_enabled(self):
+         """This decides whether a plugin should be automatically loaded or
+         only if manually specified in the command line."""
+@@ -979,6 +1006,82 @@ class RedHatPlugin(object):
+     pass
+ 
+ 
++class SCLPlugin(RedHatPlugin):
++    """Superclass for plugins operating on Software Collections (SCLs).
++
++    Subclasses of this plugin class can specify class.files and class.packages
++    using "%(scl_name)s" interpolation. The plugin invoking mechanism will try
++    to match these against all found SCLs on the system. SCLs that do match
++    class.files or class.packages are then accessible via self.scls_matched
++    when the plugin is invoked.
++
++    Additionally, this plugin class provides "add_cmd_output_scl" (run
++    a command in context of given SCL), and "add_copy_spec_scl" and
++    "add_copy_spec_limit_scl" (copy package from file system of given SCL).
++
++    For example, you can implement a plugin that will list all global npm
++    packages in every SCL that contains "npm" package:
++
++    class SCLNpmPlugin(Plugin, SCLPlugin):
++        packages = ("%(scl_name)s-npm",)
++
++        def setup(self):
++            for scl in self.scls_matched:
++                self.add_cmd_output_scl(scl, "npm ls -g --json")
++    """
++
++    @property
++    def scls_matched(self):
++        if not hasattr(type(self), '_scls_matched'):
++            type(self)._scls_matched = []
++        return type(self)._scls_matched
++
++    def _get_scls(self):
++        output = sos_get_command_output("scl -l")["output"]
++        return [scl.strip() for scl in output.splitlines()]
++
++    def add_cmd_output_scl(self, scl, cmds, **kwargs):
++        """Same as add_cmd_output, except that it wraps command in
++        "scl enable" call.
++        """
++        if isinstance(cmds, six.string_types):
++            cmds = [cmds]
++        scl_cmds = []
++        scl_cmd_tpl = "scl enable %s \"%s\""
++        for cmd in cmds:
++            scl_cmds.append(scl_cmd_tpl % (scl, cmd))
++        self.add_cmd_output(scl_cmds, **kwargs)
++
++    # config files for Software Collections are under /etc/opt/rh/${scl} and
++    # var files are under /var/opt/rh/${scl}. So we need to insert the paths
++    # after the appropriate root dir.
++    def convert_copyspec_scl(self, scl, copyspec):
++        for rootdir in ['etc', 'var']:
++            p = re.compile('^/%s/' % rootdir)
++            copyspec = p.sub('/%s/opt/rh/%s/' % (rootdir, scl), copyspec)
++        return copyspec
++
++    def add_copy_spec_scl(self, scl, copyspecs):
++        """Same as add_copy_spec, except that it prepends path to SCL root
++        to "copyspecs".
++        """
++        if isinstance(copyspecs, six.string_types):
++            copyspecs = [copyspecs]
++        scl_copyspecs = []
++        for copyspec in copyspecs:
++            scl_copyspecs.append(self.convert_copyspec_scl(scl, copyspec))
++        self.add_copy_spec(scl_copyspecs)
++
++    def add_copy_spec_limit_scl(self, scl, copyspec, **kwargs):
++        """Same as add_copy_spec_limit, except that it prepends path to SCL
++        root to "copyspec".
++        """
++        self.add_copy_spec_limit(
++            self.convert_copyspec_scl(scl, copyspec),
++            **kwargs
++        )
++
++
+ class PowerKVMPlugin(RedHatPlugin):
+     """Tagging class for IBM PowerKVM Linux"""
+     pass
+From 62d6435198403abb65b925e7bf63fc39f5394e6d Mon Sep 17 00:00:00 2001
+From: Pavel Moravec <pmoravec@redhat.com>
+Date: Mon, 16 Oct 2017 13:20:44 +0200
+Subject: [PATCH] [postgresql] Collect data for postgreSQL from RHSCL
+
+Collect postgreSQL data also when postgreSQL is installed from
+Red Hat Software Collections.
+
+Resolves: #1090
+
+Signed-off-by: Pavel Moravec <pmoravec@redhat.com>
+---
+ sos/plugins/postgresql.py | 117 +++++++++++++++++++++++++---------------------
+ 1 file changed, 65 insertions(+), 52 deletions(-)
+
+diff --git a/sos/plugins/postgresql.py b/sos/plugins/postgresql.py
+index 345532223..45c87e890 100644
+--- a/sos/plugins/postgresql.py
++++ b/sos/plugins/postgresql.py
+@@ -1,3 +1,4 @@
++# Copyright (C) 2017 Red Hat, Inc., Pavel Moravec <pmoravec@redhat.com>
+ # Copyright (C) 2014 Red Hat, Inc., Sandro Bonazzola <sbonazzo@redhat.com>
+ # Copyright (C) 2013 Chris J Arges <chris.j.arges@canonical.com>
+ # Copyright (C) 2012-2013 Red Hat, Inc., Bryn M. Reeves <bmr@redhat.com>
+@@ -20,7 +21,8 @@
+ import os
+ import tempfile
+ 
+-from sos.plugins import Plugin, RedHatPlugin, UbuntuPlugin, DebianPlugin
++from sos.plugins import (Plugin, RedHatPlugin, UbuntuPlugin, DebianPlugin,
++                         SCLPlugin)
+ from sos.utilities import find
+ 
+ 
+@@ -45,47 +47,43 @@ class PostgreSQL(Plugin):
+         ('dbport', 'database server port number', '', '5432')
+     ]
+ 
+-    def pg_dump(self):
+-        dest_file = os.path.join(self.tmp_dir, "sos_pgdump.tar")
+-        # We're only modifying this for ourself and our children so there
+-        # is no need to save and restore environment variables if the user
+-        # decided to pass the password on the command line.
+-        if self.get_option("password") is not False:
+-            os.environ["PGPASSWORD"] = str(self.get_option("password"))
+-
+-        if self.get_option("dbhost"):
+-            cmd = "pg_dump -U %s -h %s -p %s -w -f %s -F t %s" % (
+-                self.get_option("username"),
+-                self.get_option("dbhost"),
+-                self.get_option("dbport"),
+-                dest_file,
+-                self.get_option("dbname")
+-            )
+-        else:
+-            cmd = "pg_dump -C -U %s -w -f %s -F t %s " % (
+-                self.get_option("username"),
+-                dest_file,
+-                self.get_option("dbname")
+-            )
+-
+-        result = self.call_ext_prog(cmd)
+-        if (result['status'] == 0):
+-            self.add_copy_spec(dest_file)
+-        else:
+-            self._log_error(
+-                "Unable to execute pg_dump. Error(%s)" % (result['output'])
+-            )
+-            self.add_alert(
+-                "ERROR: Unable to execute pg_dump. Error(%s)" %
+-                (result['output'])
+-            )
+-
+-    def setup(self):
++    def pg_dump(self, pg_dump_command="pg_dump", filename="sos_pgdump.tar"):
+         if self.get_option("dbname"):
+             if self.get_option("password") or "PGPASSWORD" in os.environ:
+                 self.tmp_dir = tempfile.mkdtemp()
+-                self.pg_dump()
+-            else:
++                dest_file = os.path.join(self.tmp_dir, filename)
++                # We're only modifying this for ourself and our children so
++                # there is no need to save and restore environment variables if
++                # the user decided to pass the password on the command line.
++                if self.get_option("password") is not False:
++                    os.environ["PGPASSWORD"] = str(self.get_option("password"))
++
++                if self.get_option("dbhost"):
++                    cmd = "%s -U %s -h %s -p %s -w -f %s -F t %s" % (
++                        pg_dump_command,
++                        self.get_option("username"),
++                        self.get_option("dbhost"),
++                        self.get_option("dbport"),
++                        dest_file,
++                        self.get_option("dbname")
++                    )
++                else:
++                    cmd = "%s -C -U %s -w -f %s -F t %s " % (
++                        pg_dump_command,
++                        self.get_option("username"),
++                        dest_file,
++                        self.get_option("dbname")
++                    )
++
++                result = self.call_ext_prog(cmd)
++                if (result['status'] == 0):
++                    self.add_copy_spec(dest_file)
++                else:
++                    self._log_info(
++                        "Unable to execute pg_dump. Error(%s)" %
++                        (result['output'])
++                    )
++            else:  # no password in env or options
+                 self.soslog.warning(
+                     "password must be supplied to dump a database."
+                 )
+@@ -93,6 +91,9 @@ def setup(self):
+                     "WARN: password must be supplied to dump a database."
+                 )
+ 
++    def setup(self):
++        self.pg_dump()
++
+     def postproc(self):
+         import shutil
+         if self.tmp_dir:
+@@ -105,33 +106,45 @@ def postproc(self):
+                 self.add_alert("ERROR: Unable to remove %s." % (self.tmp_dir))
+ 
+ 
+-class RedHatPostgreSQL(PostgreSQL, RedHatPlugin):
++class RedHatPostgreSQL(PostgreSQL, SCLPlugin):
++
++    packages = ('postgresql', 'rh-postgresql95-postgresql-server', )
+ 
+     def setup(self):
+         super(RedHatPostgreSQL, self).setup()
+ 
++        scl = "rh-postgresql95"
++        pghome = self.get_option("pghome")
++
+         # Copy PostgreSQL log files.
+-        for filename in find("*.log", self.get_option("pghome")):
++        for filename in find("*.log", pghome):
++            self.add_copy_spec(filename)
++        for filename in find("*.log", self.convert_copyspec_scl(scl, pghome)):
+             self.add_copy_spec(filename)
++
+         # Copy PostgreSQL config files.
+-        for filename in find("*.conf", self.get_option("pghome")):
++        for filename in find("*.conf", pghome):
++            self.add_copy_spec(filename)
++        for filename in find("*.conf", self.convert_copyspec_scl(scl, pghome)):
+             self.add_copy_spec(filename)
+ 
+-        self.add_copy_spec(
+-            os.path.join(
+-                self.get_option("pghome"),
+-                "data",
+-                "PG_VERSION"
+-            )
+-        )
+-        self.add_copy_spec(
+-            os.path.join(
+-                self.get_option("pghome"),
++        self.add_copy_spec(os.path.join(pghome, "data", "PG_VERSION"))
++        self.add_copy_spec(os.path.join(pghome, "data", "postmaster.opts"))
++
++        self.add_copy_spec_scl(scl, os.path.join(pghome, "data", "PG_VERSION"))
++        self.add_copy_spec_scl(scl, os.path.join(
++                pghome,
+                 "data",
+                 "postmaster.opts"
+             )
+         )
+ 
++        if scl in self.scls_matched:
++            self.pg_dump(
++                pg_dump_command="scl enable rh-postgresql95 -- pg_dump",
++                filename="sos_scl_pgdump.tar"
++            )
++
+ 
+ class DebianPostgreSQL(PostgreSQL, DebianPlugin, UbuntuPlugin):
+ 
+From 0b93d1f69ccfcc76e1896ea0e5ff7854be69be13 Mon Sep 17 00:00:00 2001
+From: Pavel Moravec <pmoravec@redhat.com>
+Date: Sat, 25 Nov 2017 12:47:35 +0100
+Subject: [PATCH] [plugins] set proper PATH for SCL commands
+
+As SCL packages are deployed under /opt/${provider}/${scl}/,
+calling a SCL command needs that prefix in any path in PATH.
+
+Consequently, distro-specific SCL default path prefix of the provider must be
+defined in sos policies.
+
+Relevant to: #1154
+
+Signed-off-by: Pavel Moravec <pmoravec@redhat.com>
+---
+ sos/plugins/__init__.py  | 37 ++++++++++++++++++++++++++++++-------
+ sos/policies/__init__.py |  4 ++++
+ sos/policies/redhat.py   |  1 +
+ 3 files changed, 35 insertions(+), 7 deletions(-)
+
+diff --git a/sos/plugins/__init__.py b/sos/plugins/__init__.py
+index aa69b19d..2a8bc516 100644
+--- a/sos/plugins/__init__.py
++++ b/sos/plugins/__init__.py
+@@ -1066,25 +1066,48 @@ class SCLPlugin(RedHatPlugin):
+         output = sos_get_command_output("scl -l")["output"]
+         return [scl.strip() for scl in output.splitlines()]
+ 
++    def convert_cmd_scl(self, scl, cmd):
++        """wrapping command in "scl enable" call and adds proper PATH
++        """
++        # load default SCL prefix to PATH
++        prefix = self.policy().get_default_scl_prefix()
++        # read prefix from /etc/scl/prefixes/${scl} and strip trailing '\n'
++        try:
++            prefix = open('/etc/scl/prefixes/%s' % scl, 'r').read()\
++                     .rstrip('\n')
++        except Exception as e:
++            self._log_error("Failed to find prefix for SCL %s, using %s"
++                            % (scl, prefix))
++
++        # expand PATH by equivalent prefixes under the SCL tree
++        path = os.environ["PATH"]
++        for p in path.split(':'):
++            path = '%s/%s%s:%s' % (prefix, scl, p, path)
++
++        scl_cmd = "scl enable %s \"PATH=%s %s\"" % (scl, path, cmd)
++        return scl_cmd
++
+     def add_cmd_output_scl(self, scl, cmds, **kwargs):
+         """Same as add_cmd_output, except that it wraps command in
+-        "scl enable" call.
++        "scl enable" call and sets proper PATH.
+         """
+         if isinstance(cmds, six.string_types):
+             cmds = [cmds]
+         scl_cmds = []
+-        scl_cmd_tpl = "scl enable %s \"%s\""
+         for cmd in cmds:
+-            scl_cmds.append(scl_cmd_tpl % (scl, cmd))
++            scl_cmds.append(convert_cmd_scl(scl, cmd))
+         self.add_cmd_output(scl_cmds, **kwargs)
+ 
+-    # config files for Software Collections are under /etc/opt/rh/${scl} and
+-    # var files are under /var/opt/rh/${scl}. So we need to insert the paths
+-    # after the appropriate root dir.
++    # config files for Software Collections are under /etc/${prefix}/${scl} and
++    # var files are under /var/${prefix}/${scl} where the ${prefix} is distro
++    # specific path. So we need to insert the paths after the appropriate root
++    # dir.
+     def convert_copyspec_scl(self, scl, copyspec):
++        scl_prefix = self.policy().get_default_scl_prefix()
+         for rootdir in ['etc', 'var']:
+             p = re.compile('^/%s/' % rootdir)
+-            copyspec = p.sub('/%s/opt/rh/%s/' % (rootdir, scl), copyspec)
++            copyspec = p.sub('/%s/%s/%s/' % (rootdir, scl_prefix, scl),
++                             copyspec)
+         return copyspec
+ 
+     def add_copy_spec_scl(self, scl, copyspecs):
+diff --git a/sos/policies/__init__.py b/sos/policies/__init__.py
+index dffd801c..dc043105 100644
+--- a/sos/policies/__init__.py
++++ b/sos/policies/__init__.py
+@@ -194,6 +194,7 @@ No changes will be made to system configuration.
+     vendor_url = "http://www.example.com/"
+     vendor_text = ""
+     PATH = ""
++    default_scl_prefix = ""
+ 
+     _in_container = False
+     _host_sysroot = '/'
+@@ -271,6 +272,9 @@ No changes will be made to system configuration.
+             return tempfile.gettempdir()
+         return opt_tmp_dir
+ 
++    def get_default_scl_prefix(self):
++        return self.default_scl_prefix
++
+     def match_plugin(self, plugin_classes):
+         if len(plugin_classes) > 1:
+             for p in plugin_classes:
+diff --git a/sos/policies/redhat.py b/sos/policies/redhat.py
+index c7449439..2dfe0589 100644
+--- a/sos/policies/redhat.py
++++ b/sos/policies/redhat.py
+@@ -44,6 +44,7 @@ class RedHatPolicy(LinuxPolicy):
+     _rpmq_cmd = 'rpm -qa --queryformat "%{NAME}|%{VERSION}\\n"'
+     _in_container = False
+     _host_sysroot = '/'
++    default_scl_prefix = '/opt/rh'
+ 
+     def __init__(self, sysroot=None):
+         super(RedHatPolicy, self).__init__(sysroot=sysroot)
+-- 
+2.13.6
+
+From 419ebe48ea408b6596ff4d7d9837079dc3057fcf Mon Sep 17 00:00:00 2001
+From: Pavel Moravec <pmoravec@redhat.com>
+Date: Sat, 25 Nov 2017 12:58:16 +0100
+Subject: [PATCH] [postgresql] Call SCL pg_dump with proper path
+
+Also stop storing pg_dump in an auxiliary tempdir but under regular
+sos_commands/postgresql directory.
+
+Resolves: #1154
+
+Signed-off-by: Pavel Moravec <pmoravec@redhat.com>
+---
+ sos/plugins/postgresql.py | 43 ++++++++-----------------------------------
+ 1 file changed, 8 insertions(+), 35 deletions(-)
+
+diff --git a/sos/plugins/postgresql.py b/sos/plugins/postgresql.py
+index 45c87e89..9ba696be 100644
+--- a/sos/plugins/postgresql.py
++++ b/sos/plugins/postgresql.py
+@@ -34,8 +34,6 @@ class PostgreSQL(Plugin):
+ 
+     packages = ('postgresql',)
+ 
+-    tmp_dir = None
+-
+     password_warn_text = " (password visible in process listings)"
+ 
+     option_list = [
+@@ -47,11 +45,9 @@ class PostgreSQL(Plugin):
+         ('dbport', 'database server port number', '', '5432')
+     ]
+ 
+-    def pg_dump(self, pg_dump_command="pg_dump", filename="sos_pgdump.tar"):
++    def do_pg_dump(self, scl=None, filename="pgdump.tar"):
+         if self.get_option("dbname"):
+             if self.get_option("password") or "PGPASSWORD" in os.environ:
+-                self.tmp_dir = tempfile.mkdtemp()
+-                dest_file = os.path.join(self.tmp_dir, filename)
+                 # We're only modifying this for ourself and our children so
+                 # there is no need to save and restore environment variables if
+                 # the user decided to pass the password on the command line.
+@@ -59,30 +55,21 @@ class PostgreSQL(Plugin):
+                     os.environ["PGPASSWORD"] = str(self.get_option("password"))
+ 
+                 if self.get_option("dbhost"):
+-                    cmd = "%s -U %s -h %s -p %s -w -f %s -F t %s" % (
+-                        pg_dump_command,
++                    cmd = "pg_dump -U %s -h %s -p %s -w -F t %s" % (
+                         self.get_option("username"),
+                         self.get_option("dbhost"),
+                         self.get_option("dbport"),
+-                        dest_file,
+                         self.get_option("dbname")
+                     )
+                 else:
+-                    cmd = "%s -C -U %s -w -f %s -F t %s " % (
+-                        pg_dump_command,
++                    cmd = "pg_dump -C -U %s -w -F t %s " % (
+                         self.get_option("username"),
+-                        dest_file,
+                         self.get_option("dbname")
+                     )
+ 
+-                result = self.call_ext_prog(cmd)
+-                if (result['status'] == 0):
+-                    self.add_copy_spec(dest_file)
+-                else:
+-                    self._log_info(
+-                        "Unable to execute pg_dump. Error(%s)" %
+-                        (result['output'])
+-                    )
++                if scl is not None:
++                    cmd = self.convert_cmd_scl(scl, cmd)
++                self.add_cmd_output(cmd, suggest_filename=filename)
+             else:  # no password in env or options
+                 self.soslog.warning(
+                     "password must be supplied to dump a database."
+@@ -92,18 +79,7 @@ class PostgreSQL(Plugin):
+                 )
+ 
+     def setup(self):
+-        self.pg_dump()
+-
+-    def postproc(self):
+-        import shutil
+-        if self.tmp_dir:
+-            try:
+-                shutil.rmtree(self.tmp_dir)
+-            except shutil.Error:
+-                self.soslog.exception(
+-                    "Unable to remove %s." % (self.tmp_dir)
+-                )
+-                self.add_alert("ERROR: Unable to remove %s." % (self.tmp_dir))
++        self.do_pg_dump()
+ 
+ 
+ class RedHatPostgreSQL(PostgreSQL, SCLPlugin):
+@@ -140,10 +116,7 @@ class RedHatPostgreSQL(PostgreSQL, SCLPlugin):
+         )
+ 
+         if scl in self.scls_matched:
+-            self.pg_dump(
+-                pg_dump_command="scl enable rh-postgresql95 -- pg_dump",
+-                filename="sos_scl_pgdump.tar"
+-            )
++            self.do_pg_dump(scl=scl, filename="pgdump-scl-%s.tar" % scl)
+ 
+ 
+ class DebianPostgreSQL(PostgreSQL, DebianPlugin, UbuntuPlugin):
+-- 
+2.13.6
+
+From ede50e9cb4a5f2755eaeaf608fb2b3708f911422 Mon Sep 17 00:00:00 2001
+From: Pavel Moravec <pmoravec@redhat.com>
+Date: Wed, 20 Dec 2017 11:47:33 +0100
+Subject: [PATCH] [plugins] allow add_cmd_output to collect binary output
+
+If a command output is a true binary data, allow add_cmd_output to
+collect the raw content and dont try to decode it as UTF-8.
+
+Resolves: #1169
+
+Signed-off-by: Pavel Moravec <pmoravec@redhat.com>
+---
+ sos/archive.py            | 16 ++++++++++------
+ sos/plugins/__init__.py   | 33 ++++++++++++++++++---------------
+ sos/plugins/postgresql.py |  3 ++-
+ sos/utilities.py          |  5 +++--
+ 4 files changed, 33 insertions(+), 24 deletions(-)
+
+diff --git a/sos/archive.py b/sos/archive.py
+index 607312a71..4bc2bedea 100644
+--- a/sos/archive.py
++++ b/sos/archive.py
+@@ -82,7 +82,7 @@ def log_debug(self, msg):
+     def add_file(self, src, dest=None):
+         raise NotImplementedError
+ 
+-    def add_string(self, content, dest):
++    def add_string(self, content, dest, treat_binary):
+         raise NotImplementedError
+ 
+     def add_link(self, source, link_name):
+@@ -198,12 +198,14 @@ def add_file(self, src, dest=None):
+         self.log_debug("added %s to FileCacheArchive '%s'" %
+                        (file_name, self._archive_root))
+ 
+-    def add_string(self, content, dest):
++    def add_string(self, content, dest, treat_binary=False):
+         src = dest
+         dest = self.dest_path(dest)
+         self._check_path(dest)
+-        f = codecs.open(dest, 'w', encoding='utf-8')
+-        if isinstance(content, bytes):
++        f = codecs.open(dest,
++                        'wb' if treat_binary else 'w',
++                        encoding=None if treat_binary else 'utf-8')
++        if isinstance(content, bytes) and not treat_binary:
+             content = content.decode('utf8', 'ignore')
+         f.write(content)
+         if os.path.exists(src):
+@@ -212,8 +214,10 @@ def add_string(self, content, dest):
+             except OSError as e:
+                 self.log_error(
+                     "Unable to add '%s' to FileCacheArchive: %s" % (dest, e))
+-        self.log_debug("added string at '%s' to FileCacheArchive '%s'"
+-                       % (src, self._archive_root))
++        self.log_debug("added %sstring at '%s' to FileCacheArchive '%s'"
++                       % ('binary ' if treat_binary else '',
++                           src,
++                           self._archive_root))
+ 
+     def add_link(self, source, link_name):
+         dest = self.dest_path(link_name)
+diff --git a/sos/plugins/__init__.py b/sos/plugins/__init__.py
+index 2a8bc516e..156f5ed36 100644
+--- a/sos/plugins/__init__.py
++++ b/sos/plugins/__init__.py
+@@ -587,7 +587,8 @@ def getmtime(path):
+                 self.archive.add_link(link_path, _file)
+ 
+     def get_command_output(self, prog, timeout=300, stderr=True,
+-                           chroot=True, runat=None, env=None):
++                           chroot=True, runat=None, env=None,
++                           treat_binary=False):
+         if chroot or self.commons['cmdlineopts'].chroot == 'always':
+             root = self.sysroot
+         else:
+@@ -595,7 +596,7 @@ def get_command_output(self, prog, timeout=300, stderr=True,
+ 
+         result = sos_get_command_output(prog, timeout=timeout, stderr=stderr,
+                                         chroot=root, chdir=runat,
+-                                        env=env)
++                                        env=env, treat_binary=treat_binary)
+ 
+         if result['status'] == 124:
+             self._log_warn("command '%s' timed out after %ds"
+@@ -586,7 +586,8 @@ class Plugin(object):
+                                % (prog.split()[0], root))
+                 return self.get_command_output(prog, timeout=timeout,
+                                                chroot=False, runat=runat,
+-                                               env=env)
++                                               env=env,
++                                               treat_binary=treat_binary)
+             self._log_debug("could not run '%s': command not found" % prog)
+         return result
+ 
+@@ -632,14 +634,14 @@ def check_ext_prog(self, prog):
+ 
+     def _add_cmd_output(self, cmd, suggest_filename=None,
+                         root_symlink=None, timeout=300, stderr=True,
+-                        chroot=True, runat=None, env=None):
++                        chroot=True, runat=None, env=None, treat_binary=False):
+         """Internal helper to add a single command to the collection list."""
+         cmdt = (
+             cmd, suggest_filename,
+             root_symlink, timeout, stderr,
+-            chroot, runat, env
++            chroot, runat, env, treat_binary
+         )
+-        _tuplefmt = "('%s', '%s', '%s', %s, '%s', '%s', '%s', '%s')"
++        _tuplefmt = "('%s', '%s', '%s', %s, '%s', '%s', '%s', '%s', '%s')"
+         _logstr = "packed command tuple: " + _tuplefmt
+         self._log_debug(_logstr % cmdt)
+         self.collect_cmds.append(cmdt)
+@@ -647,7 +649,7 @@ def _add_cmd_output(self, cmd, suggest_filename=None,
+ 
+     def add_cmd_output(self, cmds, suggest_filename=None,
+                        root_symlink=None, timeout=300, stderr=True,
+-                       chroot=True, runat=None, env=None):
++                       chroot=True, runat=None, env=None, treat_binary=False):
+         """Run a program or a list of programs and collect the output"""
+         if isinstance(cmds, six.string_types):
+             cmds = [cmds]
+@@ -656,7 +658,7 @@ def add_cmd_output(self, cmds, suggest_filename=None,
+         for cmd in cmds:
+             self._add_cmd_output(cmd, suggest_filename,
+                                  root_symlink, timeout, stderr,
+-                                 chroot, runat, env)
++                                 chroot, runat, env, treat_binary)
+ 
+     def get_cmd_output_path(self, name=None, make=True):
+         """Return a path into which this module should store collected
+@@ -683,14 +684,15 @@ class Plugin(object):
+ 
+     def get_cmd_output_now(self, exe, suggest_filename=None,
+                            root_symlink=False, timeout=300, stderr=True,
+-                           chroot=True, runat=None, env=None):
++                           chroot=True, runat=None, env=None,
++                           treat_binary=False):
+         """Execute a command and save the output to a file for inclusion in the
+         report.
+         """
+         start = time()
+         result = self.get_command_output(exe, timeout=timeout, stderr=stderr,
+                                          chroot=chroot, runat=runat,
+-                                         env=env)
++                                         env=env, treat_binary=treat_binary)
+         # 126 means 'found but not executable'
+         if result['status'] == 126 or result['status'] == 127:
+             return None
+@@ -729,7 +732,7 @@ def get_cmd_output_now(self, exe, suggest_filename=None,
+             outfn = self._make_command_filename(exe)
+ 
+         outfn_strip = outfn[len(self.commons['cmddir'])+1:]
+-        self.archive.add_string(result['output'], outfn)
++        self.archive.add_string(result['output'], outfn, treat_binary)
+         if root_symlink:
+             self.archive.add_link(outfn, root_symlink)
+ 
+@@ -839,16 +842,16 @@ def _collect_cmd_output(self):
+                 timeout,
+                 stderr,
+                 chroot, runat,
+-                env
++                env, treat_binary
+             ) = progs[0]
+-            self._log_debug("unpacked command tuple: " +
+-                            "('%s', '%s', '%s', %s, '%s', '%s', '%s', '%s')" %
+-                            progs[0])
++            self._log_debug(("unpacked command tuple: " +
++                            "('%s', '%s', '%s', %s, '%s', '%s', '%s', '%s'," +
++                            "'%s')") % progs[0])
+             self._log_info("collecting output of '%s'" % prog)
+             self.get_cmd_output_now(prog, suggest_filename=suggest_filename,
+                                     root_symlink=root_symlink, timeout=timeout,
+                                     stderr=stderr, chroot=chroot, runat=runat,
+-                                    env=env)
++                                    env=env, treat_binary=treat_binary)
+ 
+     def _collect_strings(self):
+         for string, file_name in self.copy_strings:
+diff --git a/sos/plugins/postgresql.py b/sos/plugins/postgresql.py
+index 9ba696be2..07db22fdd 100644
+--- a/sos/plugins/postgresql.py
++++ b/sos/plugins/postgresql.py
+@@ -69,7 +69,8 @@ def do_pg_dump(self, scl=None, filename="pgdump.tar"):
+ 
+                 if scl is not None:
+                     cmd = self.convert_cmd_scl(scl, cmd)
+-                self.add_cmd_output(cmd, suggest_filename=filename)
++                self.add_cmd_output(cmd, suggest_filename=filename,
++                                    treat_binary=True)
+             else:  # no password in env or options
+                 self.soslog.warning(
+                     "password must be supplied to dump a database."
+diff --git a/sos/utilities.py b/sos/utilities.py
+index 55bb1dc96..a9040ba28 100644
+--- a/sos/utilities.py
++++ b/sos/utilities.py
+@@ -110,7 +110,8 @@ def is_executable(command):
+ 
+ 
+ def sos_get_command_output(command, timeout=300, stderr=False,
+-                           chroot=None, chdir=None, env=None):
++                           chroot=None, chdir=None, env=None,
++                           treat_binary=False):
+     """Execute a command and return a dictionary of status and output,
+     optionally changing root or current working directory before
+     executing command.
+@@ -164,7 +165,7 @@ def _child_prep_fn():
+ 
+     return {
+         'status': p.returncode,
+-        'output': stdout.decode('utf-8', 'ignore')
++        'output': stdout if treat_binary else stdout.decode('utf-8', 'ignore')
+     }
+ 
+ 
