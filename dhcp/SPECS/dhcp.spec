@@ -18,7 +18,7 @@
 Summary:  Dynamic host configuration protocol software
 Name:     dhcp
 Version:  4.2.5
-Release:  58%{?dist}.redsleeve
+Release:  58%{?dist}.1
 # NEVER CHANGE THE EPOCH on this package.  The previous maintainer (prior to
 # dcantrell maintaining the package) made incorrect use of the epoch and
 # that's why it is at 12 now.  It should have never been used, but it was.
@@ -97,7 +97,8 @@ Patch61:  dhcp-addignore.patch
 Patch62:  dhcp-max-fd-value.patch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1355827
 Patch63:  dhcp-4.2.5-rh1355827.patch
-Patch64:  dhcp-4.2.5-redsleeve-branding.patch
+Patch64:  dhcp-4.2.5-reap_orphan_sockets.patch
+Patch65:  dhcp-4.2.5-centos-branding.patch
 
 BuildRequires: autoconf
 BuildRequires: automake
@@ -407,7 +408,9 @@ rm -rf includes/isc-dhcp
 
 # https://bugzilla.redhat.com/show_bug.cgi?id=1355827
 %patch63 -p1
-%patch64 -p1
+
+%patch64 -p1 -b .omapi_sd_leak
+%patch65 -p1
 
 # Update paths in all man pages
 for page in client/dhclient.conf.5 client/dhclient.leases.5 \
@@ -689,11 +692,11 @@ done
 
 
 %changelog
-* Fri Aug 04 2017 Jacco Ligthart <jacco@redsleeve.org> - 4.2.5-58.el7.redsleeve
-- Roll in RedSleeve Branding
-
-* Mon Jul 31 2017 CentOS Sources <bugs@centos.org> - 4.2.5-58.el7.centos
+* Thu Jan 25 2018 CentOS Sources <bugs@centos.org> - 4.2.5-58.el7.centos.1
 - Roll in CentOS Branding
+
+* Wed Dec 13 2017 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-58.1
+- Resolves: #1523475 - Fix omapi socket descriptors leak
 
 * Tue May 16 2017 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-58
 - Resolves 1374119: Add dns server variable to azure-cloud.sh script
