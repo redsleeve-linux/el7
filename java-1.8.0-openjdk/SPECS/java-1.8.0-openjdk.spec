@@ -178,10 +178,10 @@
 # note, following three variables are sedded from update_sources if used correctly. Hardcode them rather there.
 %global project         aarch64-port
 %global repo            jdk8u
-%global revision        aarch64-jdk8u151-b12
+%global revision        aarch64-jdk8u161-b14
 %global shenandoah_project	aarch64-port
 %global shenandoah_repo		jdk8u-shenandoah
-%global shenandoah_revision    	aarch64-shenandoah-jdk8u151-b12
+%global shenandoah_revision    	aarch64-shenandoah-jdk8u161-b14
 
 # eg # jdk8u60-b27 -> jdk8u60 or # aarch64-jdk8u60-b27 -> aarch64-jdk8u60  (dont forget spec escape % by %%)
 %global whole_update    %(VERSION=%{revision}; echo ${VERSION%%-*})
@@ -794,7 +794,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
 
 Name:    java-%{javaver}-%{origin}
 Version: %{javaver}.%{updatever}
-Release: 5.%{buildver}%{?dist}.redsleeve
+Release: 0.%{buildver}%{?dist}
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons,
 # and this change was brought into RHEL-4.  java-1.5.0-ibm packages
 # also included the epoch in their virtual provides.  This created a
@@ -939,28 +939,6 @@ Patch526: 6260348-pr3066.patch
 # 8061305, PR3335, RH1423421: Javadoc crashes when method name ends with "Property"
 Patch538: 8061305-pr3335-rh1423421.patch
 
-# Patches upstream and appearing in 8u151
-# 8075484, PR3473, RH1490713: SocketInputStream.socketRead0 can hang even with soTimeout set
-Patch561: 8075484-pr3473-rh1490713.patch
-
-# Patches upstream and appearing in 8u152
-# 8153711, PR3313, RH1284948: [REDO] JDWP: Memory Leak: GlobalRefs never deleted when processing invokeMethod command
-Patch535: 8153711-pr3313-rh1284948.patch
-# 8162384, PR3122, RH1358661: Performance regression: bimorphic inlining may be bypassed by type speculation
-Patch532: 8162384-pr3122-rh1358661.patch
-# 8173941, PR3326: SA does not work if executable is DSO
-Patch547: 8173941-pr3326.patch
-# 8175813, PR3394, RH1448880: PPC64: "mbind: Invalid argument" when -XX:+UseNUMA is used
-Patch550: 8175813-pr3394-rh1448880.patch
-# 8175887, PR3415: C1 value numbering handling of Unsafe.get*Volatile is incorrect
-Patch554: 8175887-pr3415.patch
-# 8180048, PR3411, RH1449870: Interned string and symbol table leak memory during parallel unlinking
-Patch564: 8180048-pr3411-rh1449870.patch
-
-# Patches upstream and appearing in 8u161
-# 8164293, PR3412, RH1459641: HotSpot leaking memory in long-running requests
-Patch555: 8164293-pr3412-rh1459641.patch
- 
 # Patches upstream and appearing in 8u162
 # 8181055, PR3394, RH1448880: PPC64: "mbind: Invalid argument" still seen after 8175813
 Patch551: 8181055-pr3394-rh1448880.patch
@@ -1019,12 +997,8 @@ BuildRequires: zip
 # Use OpenJDK 7 where available (on RHEL) to avoid
 # having to use the rhel-7.x-java-unsafe-candidate hack
 %if 0%{?rhel}
-# Use OpenJDK 8 to bootstrap on AArch64 until RH1482244 is resolved in buildroot
-%ifarch %{aarch64}
-BuildRequires: java-1.8.0-openjdk-devel
-%else
-BuildRequires: java-1.7.0-openjdk-devel
-%endif
+# Require a boot JDK which doesn't fail due to RH1482244
+BuildRequires: java-1.7.0-openjdk-devel >= 1.7.0.161-2.6.12.0
 %else
 BuildRequires: java-1.8.0-openjdk-devel
 %endif
@@ -1330,17 +1304,10 @@ sh %{SOURCE12}
 %patch523
 %patch526
 %patch528
-%patch532
-%patch535
 %patch538
-%patch547
-%patch550
 %patch551
 %patch553
-%patch555
 %patch560
-%patch561
-%patch564
 
 # PPC64 updates
 %patch556
@@ -1355,12 +1322,6 @@ sh %{SOURCE12}
 # RHEL-only patches
 %if 0%{?rhel}
 %patch534
-%endif
-
-# 8175887 was added to the Shenandoah HotSpot ahead of time
-%if %{use_shenandoah_hotspot}
-%else
-%patch554
 %endif
 
 # Extract systemtap tapsets
@@ -1575,18 +1536,18 @@ do
 done
 
 # Make sure gdb can do a backtrace based on line numbers on libjvm.so
-#gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
-#handle SIGSEGV pass nostop noprint
-#handle SIGILL pass nostop noprint
-#set breakpoint pending on
-#break javaCalls.cpp:1
-#commands 1
-#backtrace
-#quit
-#end
-#run -version
-#EOF
-#grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
+gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
+handle SIGSEGV pass nostop noprint
+handle SIGILL pass nostop noprint
+set breakpoint pending on
+break javaCalls.cpp:1
+commands 1
+backtrace
+quit
+end
+run -version
+EOF
+grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
 
 # Check src.zip has all sources. See RHBZ#1130490
 jar -tf $JAVA_HOME/src.zip | grep 'sun.misc.Unsafe'
@@ -1998,8 +1959,32 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
-* Thu Dec 21 2017 Jacco Ligthart <jacco@ligthart.nu> 1:1.8.0.151-5.b12.redsleeve
-- removed the gdb section of the SPEC file
+* Wed Jan 10 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.161-0.b14
+- Update to b14 with updated Zero fix for 8174962 (S8194828)
+- Resolves: rhbz#1528233
+
+* Tue Jan 09 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.161-0.b13
+- Update to b13 including Zero fix for 8174962 (S8194739) and restoring tzdata2017c update
+- Resolves: rhbz#1528233
+
+* Mon Jan 08 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.161-0.b12
+- Add new file cmsalpha.c to %%{name}-remove-intree-libraries.sh
+- Resolves: rhbz#1528233
+
+* Mon Jan 08 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.161-0.b12
+- Replace tarballs with version including AArch64 fix for 8174962 (S8194686)
+- Resolves: rhbz#1528233
+
+* Mon Jan 08 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.161-0.b12
+- Switch bootstrap back to java-1.7.0-openjdk on all architectures, depending on RH1482244 fix
+- Resolves: rhbz#1528233
+
+* Tue Jan 02 2018 Jiri Vanek <jvanek@redhat.com> - 1:1.8.0.161-0.b12
+- Update to aarch64-jdk8u161-b12 and aarch64-shenandoah-jdk8u161-b12 (mbalao)
+- Drop upstreamed patches for 8075484 (RH1490713), 8153711 (RH1284948),
+  8162384 (RH1358661), 8164293 (RH1459641), 8173941, 8175813 (RH1448880),
+  8175887 and 8180048 (RH1449870).(mbalao)
+- Resolves: rhbz#1528233
 
 * Mon Nov 20 2017 Jiri Vanek <jvanek@redhat.com> - 1:1.8.0.151-5.b12
 - Backport "8180048: Interned string and symbol table leak memory during parallel unlinking" (gnu_andrew)
