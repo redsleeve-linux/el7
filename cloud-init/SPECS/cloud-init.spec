@@ -7,7 +7,7 @@
 
 Name:           cloud-init
 Version:        0.7.9
-Release:        9%{?dist}.redsleeve
+Release:        9%{?dist}.2
 Summary:        Cloud instance init scripts
 
 Group:          System Environment/Base
@@ -42,9 +42,14 @@ Patch0017: 0017-sysconfig-Raise-ValueError-when-multiple-default-gat.patch
 Patch0018: 0018-Fix-dual-stack-IPv4-IPv6-configuration-for-RHEL.patch
 Patch0019: 0019-Add-missing-sysconfig-unit-test-data.patch
 Patch0020: 0020-Fix-ipv6-subnet-detection.patch
-Patch0021: 0021-azure-ensure-that-networkmanager-hook-script-runs.patch
+#Patch0021: 0021-azure-ensure-that-networkmanager-hook-script-runs.patch
 Patch0022: 0022-RHEL-CentOS-Fix-default-routes-for-IPv4-IPv6-configu.patch
-Patch9999: cloud-init-add-redsleeve-os.patch
+Patch0023: 0023-DatasourceEc2-add-warning-message-when-not-on-AWS.patch
+Patch0024: 0024-Identify-Brightbox-as-an-Ec2-datasource-user.patch
+Patch0025: 0025-AliYun-Enable-platform-identification-and-enable-by-.patch
+Patch0026: 0026-Fix-alibaba-cloud-unit-tests-to-work-with-0.7.9.patch
+Patch0027: 0027-systemd-create-run-cloud-init-enabled.patch
+Patch9999: cloud-init-add-centos-os.patch
 
 # Deal with noarch -> arch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1067089
@@ -180,8 +185,15 @@ fi
 %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
 
 %changelog
-* Sat Aug 27 2017 Jacco Ligthart <jacco@redsleeve.org 0.7.9-9.redsleeve
-- rebrand for redsleeve
+* Thu Jan 25 2018 Johnny Hughes <johnny@centos.org>  0.7.9-9.2
+- Manual CentOS Debranding
+
+* Thu Dec 21 2017 Ryan McCabe <rmccabe@redhat.com> 0.7.9-9.2
+- Prevent Azure NM and dhclient hooks from running when cloud-init is
+  disabled (rhbz#1530127)
+
+* Tue Sep 26 2017 Ryan McCabe <rmccabe@redhat.com> 0.7.9-9.1
+- Support AliCloud datasource (rhbz#1496113)
 
 * Thu Jun 22 2017 Lars Kellogg-Stedman <lars@redhat.com> 0.7.9-9
 - RHEL/CentOS: Fix default routes for IPv4/IPv6 configuration. (rhbz#1438082)
