@@ -1,6 +1,6 @@
-From 9badd9fb4030534edb39e1ef7d35d7f9c0529f40 Mon Sep 17 00:00:00 2001
+From 336834ec0d152c47021552b690eaa55aec9295e8 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sun, 13 Aug 2017 09:09:04 +0200
+Date: Sun, 28 Jan 2018 06:50:16 +0100
 Subject: [PATCH] Roll in RedSleeve Branding
 
 ---
@@ -73,35 +73,35 @@ index 0000000..34caa32
 + This command will collect diagnostic and configuration \
 + information from this %(distro)s system.
 diff --git a/SPECS/sos.spec b/SPECS/sos.spec
-index 7a5a241..d1f9d37 100644
+index 47928d1..798f39d 100644
 --- a/SPECS/sos.spec
 +++ b/SPECS/sos.spec
 @@ -2,7 +2,7 @@
  Summary: A set of tools to gather troubleshooting information from a system
  Name: sos
  Version: 3.4
--Release: 6%{?dist}
-+Release: 6%{?dist}.redsleeve
+-Release: 13%{?dist}
++Release: 13%{?dist}.redsleeve
  Group: Applications/System
  Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
  License: GPLv2+
-@@ -28,7 +28,7 @@ Patch8: sos-bz1449904-ceph-tmp-mount-exclude.patch
- Patch9: sos-bz1393961-missing-filesystem-nonfatal.patch
- Patch10: sos-bz1400407-samba-dc-connect.patch
- Patch11: sos-bz1470573-tripleo-add-ui-logs.patch
--Patch12: sos-3.4-centos-branding.patch
-+Patch12: sos-3.4-redsleeve-branding.patch
+@@ -33,7 +33,7 @@ Patch13: sos-bz1482574-jars-redundant-os-walk.patch
+ Patch14: sos-bz1491964-gluster-block-plugin.patch
+ Patch15: sos-bz1511087-openstack-containerized-further-updates.patch
+ Patch16: sos-bz1515113-postgresql-from-scl.patch
+-Patch17: sos-3.4-centos-branding.patch
++Patch17: sos-3.4-redsleeve-branding.patch
  
  %description
  Sos is a set of tools that gathers information about system
-@@ -74,6 +74,9 @@ rm -rf ${RPM_BUILD_ROOT}
+@@ -84,6 +84,9 @@ rm -rf ${RPM_BUILD_ROOT}
  %config(noreplace) %{_sysconfdir}/sos.conf
  
  %changelog
-+* Sun Aug 13 2017 Jacco Ligthart <jacco@redsleeve.org> - 3.4-6.el7.redsleeve
++* Fri Jan 26 2018 Jacco Ligthart <jacco@redsleeve.org> - 3.4-13.el7.redsleeve
 +- Roll in RedSleeve Branding
 +
- * Mon Jul 31 2017 CentOS Sources <bugs@centos.org> - 3.4-6.el7.centos
+ * Thu Jan 25 2018 CentOS Sources <bugs@centos.org> - 3.4-13.el7.centos
  - Roll in CentOS Branding
  
 -- 

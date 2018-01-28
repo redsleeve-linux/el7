@@ -2,7 +2,7 @@
 Summary: A set of tools to gather troubleshooting information from a system
 Name: sos
 Version: 3.4
-Release: 13%{?dist}
+Release: 13%{?dist}.redsleeve
 Group: Applications/System
 Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
 License: GPLv2+
@@ -33,7 +33,7 @@ Patch13: sos-bz1482574-jars-redundant-os-walk.patch
 Patch14: sos-bz1491964-gluster-block-plugin.patch
 Patch15: sos-bz1511087-openstack-containerized-further-updates.patch
 Patch16: sos-bz1515113-postgresql-from-scl.patch
-Patch17: sos-3.4-centos-branding.patch
+Patch17: sos-3.4-redsleeve-branding.patch
 
 %description
 Sos is a set of tools that gathers information about system
@@ -84,6 +84,9 @@ rm -rf ${RPM_BUILD_ROOT}
 %config(noreplace) %{_sysconfdir}/sos.conf
 
 %changelog
+* Fri Jan 26 2018 Jacco Ligthart <jacco@redsleeve.org> - 3.4-13.el7.redsleeve
+- Roll in RedSleeve Branding
+
 * Thu Jan 25 2018 CentOS Sources <bugs@centos.org> - 3.4-13.el7.centos
 - Roll in CentOS Branding
 
