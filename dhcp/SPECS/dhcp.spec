@@ -18,7 +18,7 @@
 Summary:  Dynamic host configuration protocol software
 Name:     dhcp
 Version:  4.2.5
-Release:  58%{?dist}.1
+Release:  58%{?dist}.1.redsleeve
 # NEVER CHANGE THE EPOCH on this package.  The previous maintainer (prior to
 # dcantrell maintaining the package) made incorrect use of the epoch and
 # that's why it is at 12 now.  It should have never been used, but it was.
@@ -98,7 +98,7 @@ Patch62:  dhcp-max-fd-value.patch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1355827
 Patch63:  dhcp-4.2.5-rh1355827.patch
 Patch64:  dhcp-4.2.5-reap_orphan_sockets.patch
-Patch65:  dhcp-4.2.5-centos-branding.patch
+Patch65:  dhcp-4.2.5-redsleeve-branding.patch
 
 BuildRequires: autoconf
 BuildRequires: automake
@@ -692,6 +692,9 @@ done
 
 
 %changelog
+* Fri Jan 26 2018 Jacco Ligthart <jacco@redsleeve.org> - 4.2.5-58.el7.1.redsleeve
+- Roll in RedSleeve Branding
+
 * Thu Jan 25 2018 CentOS Sources <bugs@centos.org> - 4.2.5-58.el7.centos.1
 - Roll in CentOS Branding
 
