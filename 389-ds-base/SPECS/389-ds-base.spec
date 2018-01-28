@@ -11,7 +11,8 @@
 %global use_Socket6 0
 %global use_nunc_stans 1
 
-%if %{_arch} != "s390x" && %{_arch} != "s390"
+#%if %{_arch} != "s390x" && %{_arch} != "s390"
+%ifnarch s390 s390x %{arm}
 %global use_tcmalloc 1
 %else
 %global use_tcmalloc 0
@@ -30,7 +31,7 @@
 Summary:          389 Directory Server (base)
 Name:             389-ds-base
 Version:          1.3.6.1
-Release:          %{?relprefix}26%{?prerel}%{?dist}
+Release:          %{?relprefix}26%{?prerel}%{?dist}.redsleeve
 License:          GPLv3+
 URL:              https://www.port389.org/
 Group:            System Environment/Daemons
@@ -608,6 +609,9 @@ fi
 %{_sysconfdir}/%{pkgname}/dirsrvtests
 
 %changelog
+* Fri Jan 26 2018 Jacco Ligthart <jacco@redsleeve.org> - 1.3.6.1-26.redsleeve
+- disabled tcmalloc for arm
+
 * Tue Jan 16 2018 Mark Reynolds <mreynolds@redhat.com> - 1.3.6.1-26
 - Bump version to 1.3.6.1-25
 - Resolves: Bug 1534430 - crash in slapi_filter_sprintf 
