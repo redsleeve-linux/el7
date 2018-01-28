@@ -14,7 +14,7 @@
     %global have_usbredir 0
 %endif
 
-%ifnarch s390 s390x %{arm}
+%ifnarch s390 s390x
     %global have_librdma 1
     %global have_tcmalloc 1
 %endif
@@ -41,10 +41,6 @@
 %ifarch aarch64
     %global kvm_target    aarch64
 %endif
-%ifarch %{arm}
-    %global kvm_target    arm
-%endif
-
 
 #Versions of various parts:
 
@@ -80,13 +76,13 @@ Obsoletes: %1 < %{obsoletes_version}                                      \
 Summary: QEMU is a machine emulator and virtualizer
 Name: %{pkgname}%{?pkgsuffix}
 Version: 1.5.3
-Release: 141%{?dist}.5.redsleeve
+Release: 141%{?dist}.6
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 Epoch: 10
 License: GPLv2+ and LGPLv2+ and BSD
 Group: Development/Tools
 URL: http://www.qemu.org/
-ExclusiveArch: x86_64 %{power64} aarch64 s390x %{arm}
+ExclusiveArch: x86_64 %{power64} aarch64 s390x
 Requires: seabios-bin >= 1.7.2.2-5
 Requires: sgabios-bin
 Requires: seavgabios-bin
@@ -3630,6 +3626,12 @@ Patch1784: kvm-cirrus-fix-oob-access-in-mode4and5-write-functions.patch
 Patch1785: kvm-multiboot-validate-multiboot-header-address-values.patch
 # For bz#1515110 - Regression in QEMU handling for sub-page MMIO BARs for vfio-pci devices [rhel-7.4.z]
 Patch1786: kvm-vfio-pci-Only-mmap-TARGET_PAGE_SIZE-regions.patch
+# For CVE-2017-5715
+Patch1787: kvm-target-i386-cpu-add-new-CPUID-bits-for-indirect-bran.patch
+# For CVE-2017-5715 
+Patch1788: kvm-target-i386-add-support-for-SPEC_CTRL-MSR.patch
+# For CVE-2017-5715
+Patch1789: kvm-target-i386-cpu-add-new-CPU-models-for-indirect-bran.patch
 
 
 BuildRequires: zlib-devel
@@ -5594,6 +5596,9 @@ tar -xf %{SOURCE21}
 %patch1784 -p1
 %patch1785 -p1
 %patch1786 -p1
+%patch1787 -p1
+%patch1788 -p1
+%patch1789 -p1
 
 %build
 buildarch="%{kvm_target}-softmmu"
@@ -6039,9 +6044,8 @@ sh %{_sysconfdir}/sysconfig/modules/kvm.modules &> /dev/null || :
 %{_mandir}/man8/qemu-nbd.8*
 
 %changelog
-* Fri Jan 26 2018 Jacco Ligthart <jacco@redsleeve.org> - 1.5.3-141.el7.5.redsleeve
-- added kvm_target arm
-- do not use rdma-core
+* Thu Dec 14 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-141.el7_4.6
+- Fix CVE-2017-5715
 
 * Wed Nov 29 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-141.el7_4.5
 - kvm-vfio-pci-Only-mmap-TARGET_PAGE_SIZE-regions.patch [bz#1515110]
