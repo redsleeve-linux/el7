@@ -1,6 +1,6 @@
-From 313bf91456f0304223ae6a6ce6ca550bcb516150 Mon Sep 17 00:00:00 2001
+From 10536436ad825d24fee058b40ba746c6b2fc5132 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Thu, 21 Dec 2017 16:01:33 +0100
+Date: Sun, 28 Jan 2018 06:27:16 +0100
 Subject: [PATCH] removed the gdb section of the SPEC file
 
 ---
@@ -8,19 +8,19 @@ Subject: [PATCH] removed the gdb section of the SPEC file
  1 file changed, 16 insertions(+), 13 deletions(-)
 
 diff --git a/SPECS/java-1.8.0-openjdk.spec b/SPECS/java-1.8.0-openjdk.spec
-index affdfb1..71f5cf8 100644
+index 7ff63bf..573ee90 100644
 --- a/SPECS/java-1.8.0-openjdk.spec
 +++ b/SPECS/java-1.8.0-openjdk.spec
 @@ -794,7 +794,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
  
  Name:    java-%{javaver}-%{origin}
  Version: %{javaver}.%{updatever}
--Release: 5.%{buildver}%{?dist}
-+Release: 5.%{buildver}%{?dist}.redsleeve
+-Release: 0.%{buildver}%{?dist}
++Release: 0.%{buildver}%{?dist}.redsleeve
  # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons,
  # and this change was brought into RHEL-4.  java-1.5.0-ibm packages
  # also included the epoch in their virtual provides.  This created a
-@@ -1575,18 +1575,18 @@ do
+@@ -1536,18 +1536,18 @@ do
  done
  
  # Make sure gdb can do a backtrace based on line numbers on libjvm.so
@@ -51,16 +51,16 @@ index affdfb1..71f5cf8 100644
  
  # Check src.zip has all sources. See RHBZ#1130490
  jar -tf $JAVA_HOME/src.zip | grep 'sun.misc.Unsafe'
-@@ -1998,6 +1998,9 @@ require "copy_jdk_configs.lua"
+@@ -1959,6 +1959,9 @@ require "copy_jdk_configs.lua"
  %endif
  
  %changelog
-+* Thu Dec 21 2017 Jacco Ligthart <jacco@ligthart.nu> 1:1.8.0.151-5.b12.redsleeve
++* Fri Jan 26 2018 Jacco Ligthart <jacco@ligthart.nu> 1:1.8.0.161-0.b14.redsleeve
 +- removed the gdb section of the SPEC file
 +
- * Mon Nov 20 2017 Jiri Vanek <jvanek@redhat.com> - 1:1.8.0.151-5.b12
- - Backport "8180048: Interned string and symbol table leak memory during parallel unlinking" (gnu_andrew)
- - Resolves: rhbz#1515212
+ * Wed Jan 10 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.161-0.b14
+ - Update to b14 with updated Zero fix for 8174962 (S8194828)
+ - Resolves: rhbz#1528233
 -- 
 1.8.3.1
 
