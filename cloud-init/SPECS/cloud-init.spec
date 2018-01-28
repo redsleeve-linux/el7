@@ -7,7 +7,7 @@
 
 Name:           cloud-init
 Version:        0.7.9
-Release:        9%{?dist}.2
+Release:        9%{?dist}.2.redsleeve
 Summary:        Cloud instance init scripts
 
 Group:          System Environment/Base
@@ -49,7 +49,7 @@ Patch0024: 0024-Identify-Brightbox-as-an-Ec2-datasource-user.patch
 Patch0025: 0025-AliYun-Enable-platform-identification-and-enable-by-.patch
 Patch0026: 0026-Fix-alibaba-cloud-unit-tests-to-work-with-0.7.9.patch
 Patch0027: 0027-systemd-create-run-cloud-init-enabled.patch
-Patch9999: cloud-init-add-centos-os.patch
+Patch9999: cloud-init-add-redsleeve-os.patch
 
 # Deal with noarch -> arch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1067089
@@ -185,6 +185,9 @@ fi
 %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
 
 %changelog
+* Fri Jan 26 2018 Jacco Ligthart <jacco@redsleeve.org 0.7.9-9.el7.2.redsleeve
+- rebrand for redsleeve
+
 * Thu Jan 25 2018 Johnny Hughes <johnny@centos.org>  0.7.9-9.2
 - Manual CentOS Debranding
 

@@ -1,21 +1,21 @@
-From ec2afe7b0cd574c4fcde85477b09c580a9e84c35 Mon Sep 17 00:00:00 2001
+From c87bbf8eae6713842b82226c4f3a2273901d0ae8 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sun, 27 Aug 2017 23:29:00 +0200
+Date: Sun, 28 Jan 2018 06:21:52 +0100
 Subject: [PATCH] rebrand for redsleeve
 
 ---
- SOURCES/cloud-init-add-redsleeve-os.patch | 31 +++++++++++++++++++++++++++++++
+ SOURCES/cloud-init-add-redsleeve-os.patch | 43 +++++++++++++++++++++++++++++++
  SOURCES/cloud-init-rhel.cfg               |  2 +-
- SPECS/cloud-init.spec                     |  7 +++++--
- 3 files changed, 37 insertions(+), 3 deletions(-)
+ SPECS/cloud-init.spec                     |  7 +++--
+ 3 files changed, 49 insertions(+), 3 deletions(-)
  create mode 100644 SOURCES/cloud-init-add-redsleeve-os.patch
 
 diff --git a/SOURCES/cloud-init-add-redsleeve-os.patch b/SOURCES/cloud-init-add-redsleeve-os.patch
 new file mode 100644
-index 0000000..0f7f884
+index 0000000..5b5c57b
 --- /dev/null
 +++ b/SOURCES/cloud-init-add-redsleeve-os.patch
-@@ -0,0 +1,31 @@
+@@ -0,0 +1,43 @@
 +diff --git a/cloudinit/distros/__init__.py b/cloudinit/distros/__init__.py
 +index f56c0cf..1fd48a7 100755
 +--- a/cloudinit/distros/__init__.py
@@ -47,51 +47,63 @@ index 0000000..0f7f884
 ++    pass
 ++
 ++# vi: ts=4 expandtab
++diff -uNr cloud-init-0.7.9__orig/rhel/cloud.cfg cloud-init-0.7.9/rhel/cloud.cfg
++--- cloud-init-0.7.9__orig/rhel/cloud.cfg	2017-09-05 22:20:14.302075947 +0100
+++++ cloud-init-0.7.9/rhel/cloud.cfg	2017-09-05 22:20:37.912076373 +0100
++@@ -52,7 +52,7 @@
++ 
++ system_info:
++   default_user:
++-    name: cloud-user
+++    name: redsleeve
++     lock_passwd: true
++     gecos: Cloud User
++     groups: [wheel, adm, systemd-journal]
 diff --git a/SOURCES/cloud-init-rhel.cfg b/SOURCES/cloud-init-rhel.cfg
-index d097c1d..68b22af 100644
+index 675df1c..e0df9f4 100644
 --- a/SOURCES/cloud-init-rhel.cfg
 +++ b/SOURCES/cloud-init-rhel.cfg
 @@ -51,7 +51,7 @@ cloud_final_modules:
  
  system_info:
    default_user:
--    name: centos 
-+    name: resleeve 
+-    name: centos
++    name: redsleeve
      lock_passwd: true
      gecos: Cloud User
      groups: [wheel, adm, systemd-journal]
 diff --git a/SPECS/cloud-init.spec b/SPECS/cloud-init.spec
-index b79a940..d6cc9e2 100644
+index aca51a1..f31886b 100644
 --- a/SPECS/cloud-init.spec
 +++ b/SPECS/cloud-init.spec
 @@ -7,7 +7,7 @@
  
  Name:           cloud-init
  Version:        0.7.9
--Release:        9%{?dist}
-+Release:        9%{?dist}.redsleeve
+-Release:        9%{?dist}.2
++Release:        9%{?dist}.2.redsleeve
  Summary:        Cloud instance init scripts
  
  Group:          System Environment/Base
-@@ -44,7 +44,7 @@ Patch0019: 0019-Add-missing-sysconfig-unit-test-data.patch
- Patch0020: 0020-Fix-ipv6-subnet-detection.patch
- Patch0021: 0021-azure-ensure-that-networkmanager-hook-script-runs.patch
- Patch0022: 0022-RHEL-CentOS-Fix-default-routes-for-IPv4-IPv6-configu.patch
+@@ -49,7 +49,7 @@ Patch0024: 0024-Identify-Brightbox-as-an-Ec2-datasource-user.patch
+ Patch0025: 0025-AliYun-Enable-platform-identification-and-enable-by-.patch
+ Patch0026: 0026-Fix-alibaba-cloud-unit-tests-to-work-with-0.7.9.patch
+ Patch0027: 0027-systemd-create-run-cloud-init-enabled.patch
 -Patch9999: cloud-init-add-centos-os.patch
 +Patch9999: cloud-init-add-redsleeve-os.patch
  
  # Deal with noarch -> arch
  # https://bugzilla.redhat.com/show_bug.cgi?id=1067089
-@@ -180,6 +180,9 @@ fi
+@@ -185,6 +185,9 @@ fi
  %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
  
  %changelog
-+* Sat Aug 27 2017 Jacco Ligthart <jacco@redsleeve.org 0.7.9-9.redsleeve
++* Fri Jan 26 2018 Jacco Ligthart <jacco@redsleeve.org 0.7.9-9.el7.2.redsleeve
 +- rebrand for redsleeve
 +
- * Thu Jun 22 2017 Lars Kellogg-Stedman <lars@redhat.com> 0.7.9-9
- - RHEL/CentOS: Fix default routes for IPv4/IPv6 configuration. (rhbz#1438082)
- - azure: ensure that networkmanager hook script runs (rhbz#1440831 rhbz#1460206)
+ * Thu Jan 25 2018 Johnny Hughes <johnny@centos.org>  0.7.9-9.2
+ - Manual CentOS Debranding
+ 
 -- 
 1.8.3.1
 
