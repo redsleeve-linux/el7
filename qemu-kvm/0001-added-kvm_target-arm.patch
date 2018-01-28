@@ -1,6 +1,6 @@
-From d50bbbc392b9bd04f083a7fb6718e876707792f5 Mon Sep 17 00:00:00 2001
+From 085358401685c27dfe4923a65ab3ccdcd42e558a Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sun, 28 Jan 2018 06:47:49 +0100
+Date: Sun, 28 Jan 2018 07:27:32 +0100
 Subject: [PATCH] added kvm_target arm
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] added kvm_target arm
  1 file changed, 11 insertions(+), 3 deletions(-)
 
 diff --git a/SPECS/qemu-kvm.spec b/SPECS/qemu-kvm.spec
-index b81495f..4ace446 100644
+index d7ccc69..dbff710 100644
 --- a/SPECS/qemu-kvm.spec
 +++ b/SPECS/qemu-kvm.spec
 @@ -14,7 +14,7 @@
@@ -35,8 +35,8 @@ index b81495f..4ace446 100644
  Summary: QEMU is a machine emulator and virtualizer
  Name: %{pkgname}%{?pkgsuffix}
  Version: 1.5.3
--Release: 141%{?dist}.5
-+Release: 141%{?dist}.5.redsleeve
+-Release: 141%{?dist}.6
++Release: 141%{?dist}.6.redsleeve
  # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
  Epoch: 10
  License: GPLv2+ and LGPLv2+ and BSD
@@ -47,17 +47,17 @@ index b81495f..4ace446 100644
  Requires: seabios-bin >= 1.7.2.2-5
  Requires: sgabios-bin
  Requires: seavgabios-bin
-@@ -6035,6 +6039,10 @@ sh %{_sysconfdir}/sysconfig/modules/kvm.modules &> /dev/null || :
+@@ -6044,6 +6048,10 @@ sh %{_sysconfdir}/sysconfig/modules/kvm.modules &> /dev/null || :
  %{_mandir}/man8/qemu-nbd.8*
  
  %changelog
-+* Fri Jan 26 2018 Jacco Ligthart <jacco@redsleeve.org> - 1.5.3-141.el7.5.redsleeve
++* Sun Jan 28 2018 Jacco Ligthart <jacco@redsleeve.org> - 1.5.3-141.el7.6.redsleeve
 +- added kvm_target arm
 +- do not use rdma-core
 +
- * Wed Nov 29 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-141.el7_4.5
- - kvm-vfio-pci-Only-mmap-TARGET_PAGE_SIZE-regions.patch [bz#1515110]
- - Resolves: bz#1515110
+ * Thu Dec 14 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-141.el7_4.6
+ - Fix CVE-2017-5715
+ 
 -- 
 1.8.3.1
 
