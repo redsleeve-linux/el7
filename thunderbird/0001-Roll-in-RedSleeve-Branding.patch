@@ -1,13 +1,13 @@
-From ce4c9a62c7f37c9e6689d90c7309f2cec08e27c1 Mon Sep 17 00:00:00 2001
+From 98a53e7b3d10ad60ab9bf8b429048cf11ef461b4 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Thu, 7 Dec 2017 01:07:52 +0100
+Date: Sun, 28 Jan 2018 06:52:22 +0100
 Subject: [PATCH] Roll in RedSleeve Branding
 
 ---
  SOURCES/thunderbird-redsleeve-default-prefs.js.el6 | 28 ++++++++++++++++++++++
  SOURCES/thunderbird-redsleeve-default-prefs.js.el7 | 28 ++++++++++++++++++++++
- SPECS/thunderbird.spec                             |  9 ++++---
- 3 files changed, 62 insertions(+), 3 deletions(-)
+ SPECS/thunderbird.spec                             | 14 +++++++----
+ 3 files changed, 65 insertions(+), 5 deletions(-)
  create mode 100644 SOURCES/thunderbird-redsleeve-default-prefs.js.el6
  create mode 100644 SOURCES/thunderbird-redsleeve-default-prefs.js.el7
 
@@ -80,13 +80,13 @@ index 0000000..fa9821b
 +/* Workaround for mozbz#1063315 */
 +pref("security.use_mozillapkix_verification", false);
 diff --git a/SPECS/thunderbird.spec b/SPECS/thunderbird.spec
-index b30bfee..a917fb7 100644
+index 594c02b..60fc1fe 100644
 --- a/SPECS/thunderbird.spec
 +++ b/SPECS/thunderbird.spec
 @@ -75,7 +75,7 @@
  Summary:        Mozilla Thunderbird mail/newsgroup client
  Name:           thunderbird
- Version:        52.5.0
+ Version:        52.5.2
 -Release:        1%{?dist}
 +Release:        1%{?dist}.redsleeve
  URL:            http://www.mozilla.org/projects/thunderbird/
@@ -104,14 +104,26 @@ index b30bfee..a917fb7 100644
  
  # Mozilla (XULRunner) patches
  Patch0:         firefox-install-dir.patch
-@@ -858,6 +858,9 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
+@@ -637,8 +637,8 @@ MOZ_SMP_FLAGS=-j1
+ [ -z "$RPM_BUILD_NCPUS" ] && \
+      RPM_BUILD_NCPUS="`/usr/bin/getconf _NPROCESSORS_ONLN`"
+ [ "$RPM_BUILD_NCPUS" -ge 2 ] && MOZ_SMP_FLAGS=-j2
+-[ "$RPM_BUILD_NCPUS" -ge 4 ] && MOZ_SMP_FLAGS=-j4
+-[ "$RPM_BUILD_NCPUS" -ge 8 ] && MOZ_SMP_FLAGS=-j8
++#[ "$RPM_BUILD_NCPUS" -ge 4 ] && MOZ_SMP_FLAGS=-j4
++#[ "$RPM_BUILD_NCPUS" -ge 8 ] && MOZ_SMP_FLAGS=-j8
+ #FIXME echo "test config.guess"
+ #./mozilla/build/autoconf/config.guess
+ #echo "test LDAP config.guess"
+@@ -858,6 +858,10 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
  #===============================================================================
  
  %changelog
-+* Wed Dec 06 2017 Jacco Ligthart <jacco@redsleeve.org> - 52.5.0-1.redsleeve
++* Fri Jan 26 2018 Jacco Ligthart <jacco@redsleeve.org> - 52.5.2-1.redsleeve
++- Set max CPU's to 2
 +- Roll in RedSleeve Branding
 +
- * Mon Dec  4 2017 Johnny Hughes <johnny@centos.org> - 52.5.0-1
+ * Mon Jan  8 2018 Johnny Hughes <johnny@centos.org> - 52.5.2-1
  - Manual CentOS Debranding
  
 -- 
