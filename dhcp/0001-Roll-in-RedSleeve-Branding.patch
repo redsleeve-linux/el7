@@ -1,6 +1,6 @@
-From cb5ede93f8c9fcef9c0a5f8b63817bf2b52a1f6d Mon Sep 17 00:00:00 2001
+From abf6bb85300f54b2d8057afdfe32225ec05059ba Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sun, 28 Jan 2018 06:25:25 +0100
+Date: Tue, 13 Mar 2018 19:58:55 +0100
 Subject: [PATCH] Roll in RedSleeve Branding
 
 ---
@@ -30,35 +30,35 @@ index 0000000..cc034f5
 +   log_error ("exiting.");
 + #endif
 diff --git a/SPECS/dhcp.spec b/SPECS/dhcp.spec
-index 1eb0b9d..a07f046 100644
+index de80f84..9e80452 100644
 --- a/SPECS/dhcp.spec
 +++ b/SPECS/dhcp.spec
 @@ -18,7 +18,7 @@
  Summary:  Dynamic host configuration protocol software
  Name:     dhcp
  Version:  4.2.5
--Release:  58%{?dist}.1
-+Release:  58%{?dist}.1.redsleeve
+-Release:  58%{?dist}.3
++Release:  58%{?dist}.3.redsleeve
  # NEVER CHANGE THE EPOCH on this package.  The previous maintainer (prior to
  # dcantrell maintaining the package) made incorrect use of the epoch and
  # that's why it is at 12 now.  It should have never been used, but it was.
-@@ -98,7 +98,7 @@ Patch62:  dhcp-max-fd-value.patch
- # https://bugzilla.redhat.com/show_bug.cgi?id=1355827
- Patch63:  dhcp-4.2.5-rh1355827.patch
- Patch64:  dhcp-4.2.5-reap_orphan_sockets.patch
--Patch65:  dhcp-4.2.5-centos-branding.patch
-+Patch65:  dhcp-4.2.5-redsleeve-branding.patch
+@@ -102,7 +102,7 @@ Patch64:  dhcp-4.2.5-reap_orphan_sockets.patch
+ Patch65:  dhcp-4.2.5-options_overflow.patch
+ # CVE-2018-5733
+ Patch66:  dhcp-4.2.5-reference_count_overflow.patch
+-Patch67:  dhcp-4.2.5-centos-branding.patch
++Patch67:  dhcp-4.2.5-redsleeve-branding.patch
  
  BuildRequires: autoconf
  BuildRequires: automake
-@@ -692,6 +692,9 @@ done
+@@ -699,6 +699,9 @@ done
  
  
  %changelog
-+* Fri Jan 26 2018 Jacco Ligthart <jacco@redsleeve.org> - 4.2.5-58.el7.1.redsleeve
++* Tue Mar 13 2018 Jacco Ligthart <jacco@redsleeve.org> - 4.2.5-58.el7.3.redsleeve
 +- Roll in RedSleeve Branding
 +
- * Thu Jan 25 2018 CentOS Sources <bugs@centos.org> - 4.2.5-58.el7.centos.1
+ * Mon Mar 12 2018 CentOS Sources <bugs@centos.org> - 4.2.5-58.el7.centos.3
  - Roll in CentOS Branding
  
 -- 
