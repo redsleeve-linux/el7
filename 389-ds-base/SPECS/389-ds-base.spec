@@ -11,7 +11,8 @@
 %global use_Socket6 0
 %global use_nunc_stans 1
 
-%if %{_arch} != "s390x" && %{_arch} != "s390"
+#%if %{_arch} != "s390x" && %{_arch} != "s390"
+%ifnarch s390 s390x %{arm}
 %global use_tcmalloc 1
 %else
 %global use_tcmalloc 0
@@ -30,7 +31,7 @@
 Summary:          389 Directory Server (base)
 Name:             389-ds-base
 Version:          1.3.6.1
-Release:          %{?relprefix}28%{?prerel}%{?dist}
+Release:          %{?relprefix}28%{?prerel}%{?dist}.redsleeve
 License:          GPLv3+
 URL:              https://www.port389.org/
 Group:            System Environment/Daemons
@@ -616,6 +617,9 @@ fi
 %{_sysconfdir}/%{pkgname}/dirsrvtests
 
 %changelog
+* Thu Mar 08 2018 Jacco Ligthart <jacco@redsleeve.org> - 1.3.6.1-28.redsleeve
+- disabled tcmalloc for arm
+
 * Mon Feb 26 2018 Mark Reynolds <mreynolds@redhat.com> - 1.3.6.1-28
 - Bump version to 1.3.6.1-28
 - Resolves: Bug 1540105 - CVE-2018-1054 - remote Denial of Service (DoS) via search filters in SetUnicodeStringFromUTF_8
