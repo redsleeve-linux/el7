@@ -18,7 +18,7 @@
 Summary:  Dynamic host configuration protocol software
 Name:     dhcp
 Version:  4.2.5
-Release:  58%{?dist}.1.redsleeve
+Release:  58%{?dist}.3
 # NEVER CHANGE THE EPOCH on this package.  The previous maintainer (prior to
 # dcantrell maintaining the package) made incorrect use of the epoch and
 # that's why it is at 12 now.  It should have never been used, but it was.
@@ -98,7 +98,11 @@ Patch62:  dhcp-max-fd-value.patch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1355827
 Patch63:  dhcp-4.2.5-rh1355827.patch
 Patch64:  dhcp-4.2.5-reap_orphan_sockets.patch
-Patch65:  dhcp-4.2.5-redsleeve-branding.patch
+# CVE-2018-5732
+Patch65:  dhcp-4.2.5-options_overflow.patch
+# CVE-2018-5733
+Patch66:  dhcp-4.2.5-reference_count_overflow.patch
+Patch67:  dhcp-4.2.5-centos-branding.patch
 
 BuildRequires: autoconf
 BuildRequires: automake
@@ -410,7 +414,10 @@ rm -rf includes/isc-dhcp
 %patch63 -p1
 
 %patch64 -p1 -b .omapi_sd_leak
-%patch65 -p1
+
+%patch65 -p1 -b .options_overflow
+%patch66 -p1 -b .reference_overflow
+%patch67 -p1
 
 # Update paths in all man pages
 for page in client/dhclient.conf.5 client/dhclient.leases.5 \
@@ -692,11 +699,14 @@ done
 
 
 %changelog
-* Fri Jan 26 2018 Jacco Ligthart <jacco@redsleeve.org> - 4.2.5-58.el7.1.redsleeve
-- Roll in RedSleeve Branding
-
-* Thu Jan 25 2018 CentOS Sources <bugs@centos.org> - 4.2.5-58.el7.centos.1
+* Mon Mar 12 2018 CentOS Sources <bugs@centos.org> - 4.2.5-58.el7.centos.3
 - Roll in CentOS Branding
+
+* Wed Feb 28 2018 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-68
+- Resolves: #1550000 - CVE-2018-5733  Avoid buffer overflow reference counter
+
+* Wed Feb 28 2018 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-58.2
+- Resolves: #1549979 - CVE-2018-5732  Avoid buffer overflow in options parser
 
 * Wed Dec 13 2017 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-58.1
 - Resolves: #1523475 - Fix omapi socket descriptors leak
