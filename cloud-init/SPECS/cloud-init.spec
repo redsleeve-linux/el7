@@ -7,7 +7,7 @@
 
 Name:           cloud-init
 Version:        0.7.9
-Release:        9%{?dist}.2.redsleeve
+Release:        9%{?dist}.6
 Summary:        Cloud instance init scripts
 
 Group:          System Environment/Base
@@ -49,7 +49,13 @@ Patch0024: 0024-Identify-Brightbox-as-an-Ec2-datasource-user.patch
 Patch0025: 0025-AliYun-Enable-platform-identification-and-enable-by-.patch
 Patch0026: 0026-Fix-alibaba-cloud-unit-tests-to-work-with-0.7.9.patch
 Patch0027: 0027-systemd-create-run-cloud-init-enabled.patch
-Patch9999: cloud-init-add-redsleeve-os.patch
+Patch0028: 0028-net-Allow-for-NetworkManager-configuration.patch
+Patch0029: 0029-support-loopback-as-a-device-type.patch
+Patch0030: 0030-Render-the-GATEWAY-value-in-interface-files-which-ha.patch
+Patch0031: 0031-sysconfig-Don-t-write-BOOTPROTO-dhcp-for-ipv6-dhcp.patch
+Patch0032: 0032-sysconfig-Render-IPV6_DEFAULTGW-correctly.patch
+Patch0033: 0033-sysconfig-Render-DNS-and-DOMAIN.patch
+Patch9999: cloud-init-add-centos-os.patch
 
 # Deal with noarch -> arch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1067089
@@ -185,11 +191,27 @@ fi
 %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
 
 %changelog
-* Fri Jan 26 2018 Jacco Ligthart <jacco@redsleeve.org 0.7.9-9.el7.2.redsleeve
-- rebrand for redsleeve
-
-* Thu Jan 25 2018 Johnny Hughes <johnny@centos.org>  0.7.9-9.2
+* Wed Mar  7 2018 Johnny Hughes <johnny@centos.org> 0.7.9-9.6
 - Manual CentOS Debranding
+
+* Thu Feb 15 2018 Ryan McCabe <rmccabe@redhat.com> 0.7.9-9.6
+- Correctly render DNS and DOMAIN for sysconfig
+  Resolves: rhbz#1545525
+
+* Fri Feb 02 2018 Ryan McCabe <rmccabe@redhat.com> 0.7.9-9.5
+- sysconfig: Fix rendering of default gateway for ipv6
+  Resolves: rhbz#1540094
+
+* Tue Jan 30 2018 Ryan McCabe <rmccabe@redhat.com> 0.7.9-9.4
+- sysconfig: Fix rendering of default gateway for ipv4
+  Resolves: rhbz#1540094
+- sysconfig: Correct rendering for dhcp on ipv6
+  Resolves: rhbz#1540093
+
+* Mon Jan 22 2018 Ryan McCabe <rmccabe@redhat.com> 0.7.9-9.3
+- Disable NetworkManager management of resolv.conf if nameservers
+  are specified by configuration.
+  Resolves: rhbz#1537439
 
 * Thu Dec 21 2017 Ryan McCabe <rmccabe@redhat.com> 0.7.9-9.2
 - Prevent Azure NM and dhclient hooks from running when cloud-init is
