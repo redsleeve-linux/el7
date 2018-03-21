@@ -7,7 +7,7 @@
 
 Name:           cloud-init
 Version:        0.7.9
-Release:        9%{?dist}.6
+Release:        9%{?dist}.6.redsleeve
 Summary:        Cloud instance init scripts
 
 Group:          System Environment/Base
@@ -55,7 +55,7 @@ Patch0030: 0030-Render-the-GATEWAY-value-in-interface-files-which-ha.patch
 Patch0031: 0031-sysconfig-Don-t-write-BOOTPROTO-dhcp-for-ipv6-dhcp.patch
 Patch0032: 0032-sysconfig-Render-IPV6_DEFAULTGW-correctly.patch
 Patch0033: 0033-sysconfig-Render-DNS-and-DOMAIN.patch
-Patch9999: cloud-init-add-centos-os.patch
+Patch9999: cloud-init-add-redsleeve-os.patch
 
 # Deal with noarch -> arch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1067089
@@ -191,6 +191,9 @@ fi
 %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
 
 %changelog
+* Wed Mar 21 2018 Jacco Ligthart <jacco@redsleeve.org 0.7.9-9.el7.6.redsleeve
+- rebrand for redsleeve
+
 * Wed Mar  7 2018 Johnny Hughes <johnny@centos.org> 0.7.9-9.6
 - Manual CentOS Debranding
 
