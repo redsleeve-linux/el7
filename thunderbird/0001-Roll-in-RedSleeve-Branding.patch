@@ -1,6 +1,6 @@
-From 98a53e7b3d10ad60ab9bf8b429048cf11ef461b4 Mon Sep 17 00:00:00 2001
+From 2fa6fa999d857709c6e5a48d46f6e6c3717cb6e7 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sun, 28 Jan 2018 06:52:22 +0100
+Date: Wed, 21 Mar 2018 22:35:21 +0100
 Subject: [PATCH] Roll in RedSleeve Branding
 
 ---
@@ -80,13 +80,13 @@ index 0000000..fa9821b
 +/* Workaround for mozbz#1063315 */
 +pref("security.use_mozillapkix_verification", false);
 diff --git a/SPECS/thunderbird.spec b/SPECS/thunderbird.spec
-index 594c02b..60fc1fe 100644
+index c12cda6..825746e 100644
 --- a/SPECS/thunderbird.spec
 +++ b/SPECS/thunderbird.spec
 @@ -75,7 +75,7 @@
  Summary:        Mozilla Thunderbird mail/newsgroup client
  Name:           thunderbird
- Version:        52.5.2
+ Version:        52.6.0
 -Release:        1%{?dist}
 +Release:        1%{?dist}.redsleeve
  URL:            http://www.mozilla.org/projects/thunderbird/
@@ -119,12 +119,12 @@ index 594c02b..60fc1fe 100644
  #===============================================================================
  
  %changelog
-+* Fri Jan 26 2018 Jacco Ligthart <jacco@redsleeve.org> - 52.5.2-1.redsleeve
++* Wed Mar 21 2018 Jacco Ligthart <jacco@redsleeve.org> - 52.6.0-1.redsleeve
 +- Set max CPU's to 2
 +- Roll in RedSleeve Branding
 +
- * Mon Jan  8 2018 Johnny Hughes <johnny@centos.org> - 52.5.2-1
- - Manual CentOS Debranding
+ * Fri Jan 26 2018 Jan Horak <jhorak@redhat.com> - 52.6.0-1
+ - Update to 52.6.0
  
 -- 
 1.8.3.1
