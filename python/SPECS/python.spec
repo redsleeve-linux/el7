@@ -106,7 +106,7 @@ Summary: An interpreted, interactive, object-oriented programming language
 Name: %{python}
 # Remember to also rebase python-docs when changing this:
 Version: 2.7.5
-Release: 58%{?dist}.redsleeve
+Release: 68%{?dist}
 License: Python
 Group: Development/Languages
 Requires: %{python}-libs%{?_isa} = %{version}-%{release}
@@ -205,7 +205,7 @@ Source9: python.conf
 
 # Supply various useful macros for building Python components:
 # NOTE: The %%python_provide macro is copied directly from Fedora/EPEL, but the
-# %{python3_pkgversion} and %{python3_other_pkgversion} macros used within it
+# %%{python3_pkgversion} and %%{python3_other_pkgversion} macros used within it
 # are missing in RHEL. However, in their absence the lua code will run fine for
 # Python 2 packages and will print an error only if invoked for Python 3
 # packages (unless the python-srpm-macros package from EPEL is installed). That
@@ -357,7 +357,7 @@ Patch55: 00055-systemtap.patch
 # Upstream as of Python 2.7.4
 #  Patch101: 00101-lib64-regex.patch
 
-# Only used when "%{_lib}" == "lib64"
+# Only used when "%%{_lib}" == "lib64"
 # Fixup various paths throughout the build and in distutils from "lib" to "lib64",
 # and add the /usr/lib64/pythonMAJOR.MINOR/site-packages to sitedirs, in front of
 # /usr/lib/pythonMAJOR.MINOR/site-packages
@@ -371,7 +371,7 @@ Patch102: python-2.7.3-lib64.patch
 Patch103: python-2.7-lib64-sysconfig.patch
 
 # 00104 #
-# Only used when "%{_lib}" == "lib64"
+# Only used when "%%{_lib}" == "lib64"
 # Another lib64 fix, for distutils/tests/test_install.py; not upstream:
 Patch104: 00104-lib64-fix-for-test_install.patch
 
@@ -1103,6 +1103,13 @@ Patch237: 00237-CVE-2016-0772-smtplib.patch
 # Resolves: rhbz#1346357
 Patch238: 00238-CVE-2016-5699-httplib.patch
 
+# 00240 #
+# Increase the timeouts of test_smtplib
+# as there are failures on various powerpc architectures.
+# FIXED UPSTREAM: https://github.com/python/cpython/commit/1122236c89770466c629aa0f0b0de2b2731b82ee
+# Resolves: rhbz#1497795
+Patch240: 00240-increase-smtplib-tests-timeouts.patch
+
 # 00241 #
 # CVE-2016-5636: http://seclists.org/oss-sec/2016/q2/560
 # https://hg.python.org/cpython/rev/985fc64c60d6/
@@ -1170,6 +1177,57 @@ Patch266: 00266-fix-shutil.make_archive-ignoring-empty-dirs.patch
 # Resolves: rhbz#1432003
 Patch268: 00268-set-stream-name-to-None.patch
 
+# 00275 #
+# Fixe fcntl() with integer argument on 64-bit big-endian platforms.
+# FIXED UPSTREAM: https://bugs.python.org/issue22821
+# Resolves: rhbz#1489858
+Patch275: 00275-fix-fnctl-with-integer-on-big-endian.patch
+
+# 00276 #
+# Increase imaplib's MAXLINE to accommodate modern mailbox sizes.
+# FIXED UPSTREAM: https://bugs.python.org/issue23647
+# Resolves: rhbz#1485808
+Patch276: 00276-increase-imaplib-MAXLINE.patch
+
+# 00281 #
+# Add context parameter to xmlrpclib.ServerProxy
+# FIXED UPSTREAM: https://bugs.python.org/issue22960
+# Resolves: rhbz#1490392
+Patch281: 00281-add-context-parameter-to-xmlrpclib.ServerProxy.patch
+
+# 00282 #
+# Make it more likely for the system allocator to release free()d memory arenas
+# - Use mmap for arena allocation
+# - Increase SMALL_REQUEST_THRESHOLD so that small dictionaries use
+#   pre-allocated arena pools
+# FIXED UPSTREAM: https://bugs.python.org/issue20494
+# Resolves: rhbz#1468410
+Patch282: 00282-obmalloc-mmap-threshold.patch
+
+# 00287 #
+# On the creation of io.FileIO() and builtin file() objects the GIL is now released
+# when checking the file descriptor. io.FileIO.readall(), io.FileIO.read(), and
+# file.read() also now release the GIL when getting the file size, which fixes hanging
+# of all threads when trying to access an inaccessible NFS server.
+# FIXED UPSTREAM: https://bugs.python.org/issue32186
+# Resolves: rhbz#1520068
+Patch287: 00287-fix-thread-hanging-on-inaccessible-nfs-server.patch
+
+# 00295 #
+# Fix http.client.HTTPConnection tunneling and HTTPConnection.set_tunnel with default port,
+# which was breaking https connections behind a proxy.
+# FIXED UPSTREAM: https://bugs.python.org/issue7776
+# https://bugs.python.org/issue22095
+# https://bugs.python.org/issue23300
+# Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1483438
+Patch295: 00295-fix-https-behind-proxy.patch
+
+# 00296 #
+# Re-add the private `_set_hostport` api to httplib
+# DOWNSTREAM ONLY: backwards compatibility backport
+# Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1546351
+Patch296: 00296-Readd-the-private-_set_hostport-api-to-httplib.patch
+
 # (New patches go here ^^^)
 #
 # When adding new patches to "python" and "python3" in Fedora 17 onwards,
@@ -1191,12 +1249,9 @@ Patch268: 00268-set-stream-name-to-None.patch
 # applied to both versions.
 
 # This is the generated patch to "configure"; see the description of
-#   %{regenerate_autotooling_patch}
+#   %%{regenerate_autotooling_patch}
 # above:
 Patch5000: 05000-autotool-intermediates.patch
-
-Patch6001: python-2.7.5-Fix-re-engine-redsleeve.patch
-Patch6002: python-2.7.5-Fix-re-engine2-redsleeve.patch
 
 # ======================================================
 # Additional metadata, and subpackages
@@ -1254,6 +1309,12 @@ implementation is within the "python-libs" package.
 %package libs
 Summary: Runtime libraries for Python
 Group: Applications/System
+
+# New behaviour of httplib (patch 295) doesn't play well with really old pip
+# version (1.4.1) bundled in the old virtualenv package. This new version of
+# virtualenv updated bundled pip to 9.0.1 which works fine.
+# Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1483438
+Conflicts: python-virtualenv < 15.1.0-1
 
 # Needed for ctypes, to load libraries, worked around for Live CDs size
 # Requires: binutils
@@ -1574,6 +1635,7 @@ mv Modules/cryptmodule.c Modules/_cryptmodule.c
 %patch236 -p1
 %patch237 -p1
 %patch238 -p1
+%patch240 -p1
 %patch241 -p1
 %patch242 -p1
 %patch255 -p1
@@ -1583,6 +1645,13 @@ mv Modules/cryptmodule.c Modules/_cryptmodule.c
 %patch265 -p1
 %patch266 -p1
 %patch268 -p1
+%patch275 -p1
+%patch276 -p1
+%patch281 -p1
+%patch282 -p1
+%patch287 -p1
+%patch295 -p1
+%patch296 -p1
 
 
 # This shouldn't be necesarry, but is right now (2.2a3)
@@ -1594,8 +1663,6 @@ find -name "*~" |xargs rm -f
 %patch5000 -p0 -b .autotool-intermediates
 %endif
 
-%patch6001 -p1
-%patch6002 -p1
 
 # ======================================================
 # Configuring and building the code:
@@ -2026,7 +2093,9 @@ sed -i "s|^#\!.\?/usr/bin.*$|#\! %{__python}|" \
 # rhbz#1046276
 /usr/bin/chmod 755 %{buildroot}%{dynload_dir}/*.so
 /usr/bin/chmod 755 %{buildroot}%{_libdir}/libpython%{pybasever}.so.1.0
+%if 0%{?with_debug_build}
 /usr/bin/chmod 755 %{buildroot}%{_libdir}/libpython%{pybasever}_d.so.1.0
+%endif # with_debug_build
 
 mkdir %{buildroot}%{_tmpfilesdir}
 cp %{SOURCE9} %{buildroot}%{_tmpfilesdir}/python.conf
@@ -2456,12 +2525,46 @@ rm -fr %{buildroot}
 # ======================================================
 
 %changelog
-* Mon Jun 26 2017 Jacco Ligthart <jacco@ligthart.nu> - 2.7.5-58.redsleeve
-- Issue #17998: Fix an internal error in regular expression engine.
-- https://github.com/OpenSCAP/scap-security-guide/issues/1332
-- https://bugs.python.org/issue17998
-- and related issues #18684
-- https://bugs.python.org/issue18684
+* Mon Feb 19 2018 Tomas Orsava <torsava@redhat.com> - 2.7.5-68
+- Add Conflicts tag with old virtualenv versions due to new behaviour of
+  httplib (patch 295)
+Resolves: rhbz#1483438
+
+* Mon Feb 19 2018 Tomas Orsava <torsava@redhat.com> - 2.7.5-67
+- Re-add the private `_set_hostport` api to httplib (Patch 296)
+Resolves: rhbz#1546351
+
+* Fri Feb 09 2018 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-66
+- Fix https connections behind a proxy.
+Resolves: rhbz#1483438
+
+* Fri Dec 08 2017 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-65
+- Fix hanging of all threads when trying to access an inaccessible NFS server.
+Resolves: rhbz#1520068
+
+* Tue Oct 17 2017 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-64
+- Fix an issue with the context parameter addition to xmlrpclib.ServerProxy
+Resolves: rhbz#1490392
+
+* Fri Oct 13 2017 Petr Viktorin <pviktori@redhat.com> - 2.7.5-63
+- Make it more likely for the system allocator to release free()d memory arenas
+Resolves: rhbz#1468410
+
+* Wed Oct 11 2017 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-62
+- Add context parameter to xmlrpclib.ServerProxy
+Resolves: rhbz#1490392
+
+* Tue Oct 03 2017 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-61
+- Increase imaplib's MAXLINE to accommodate modern mailbox sizes.
+Resolves: rhbz#1489858
+
+* Tue Oct 03 2017 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-60
+- Fix fcntl() with integer argument on 64-bit big-endian platforms.
+Resolves: rhbz#1489858
+
+* Tue Oct 03 2017 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-59
+- Increase timeouts in test_smtplib.
+Resolves: rhbz#1497795
 
 * Wed May 03 2017 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-58
 - Set stream to None in case an _open() fails.
