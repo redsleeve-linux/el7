@@ -1,0 +1,31 @@
+--- redhat-rpm-config-9.1.0/find-requires.ksyms.old	2017-11-14 10:18:23.231861697 +0100
++++ redhat-rpm-config-9.1.0/find-requires.ksyms	2017-11-14 10:51:09.064436672 +0100
+@@ -9,10 +9,24 @@ IFS=$'\n'
+ 
+ # Extract all of the symbols provided by this module.
+ all_provides() {
+-    nm "$@" \
+-    | sed -r -ne 's:^0*([0-9a-f]+) A __crc_(.+):0x\1 \2:p' \
+-    | awk --non-decimal-data '{printf("0x%08x\t%s\n", $1, $2)}' \
+-    | LANG=C sort -k2,2 -u
++    if [[ -n $(nm "$@" | sed -r -ne 's:^0*([0-9a-f]+) A __crc_(.+):0x\1 \2:p') ]]; then
++        nm "$@" \
++        | sed -r -ne 's:^0*([0-9a-f]+) A __crc_(.+):0x\1 \2:p' \
++        | awk --non-decimal-data '{printf("0x%08x\t%s\n", $1, $2)}' \
++        | LC_ALL=C sort -k2,2 -u
++    else
++        ELFRODATA=$(readelf -R .rodata "$@" | awk '/0x/{printf $2$3$4$5}')
++        if [[ -n $(readelf -h "$@" | grep "little endian") ]]; then
++            RODATA=$(echo $ELFRODATA | sed 's/\(..\)\(..\)\(..\)\(..\)/\4\3\2\1/g')
++        else
++            RODATA=$ELFRODATA
++        fi
++        for sym in $(nm "$@" | sed -r -ne 's:^0*([0-9a-f]+) R __crc_(.+):0x\1 \2:p'); do
++            echo $sym $RODATA
++        done \
++        | awk --non-decimal-data '{printf("0x%08s\t%s\n", substr($3,($1*2)+1,8), $2)}' \
++        | LC_ALL=C sort -k2,2 -u
++    fi
+ }
+ 
+ # Extract all of the requirements of this module.

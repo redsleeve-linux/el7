@@ -1,7 +1,7 @@
 Summary: CentOS specific rpm configuration files
 Name: redhat-rpm-config
 Version: 9.1.0
-Release: 76%{?dist}.redsleeve
+Release: 80%{?dist}
 # No version specified.
 License: GPL+
 Group: Development/System
@@ -97,9 +97,19 @@ Patch37: redhat-rpm-config-9.0.3-latest-kernel.patch
 Patch38: redhat-rpm-config-9.1.0-Add-_pkgdocdir.patch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1324003
 Patch39: redhat-rpm-config-9.1.0-find-requires-fix-detection.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1494262
+Patch40: redhat-rpm-config-9.1.0-ksyms.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1386840
+Patch41: redhat-rpm-config-9.1.0.Remove-hardcoded-limit-of-16-CPUs.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1494262
+Patch42: redhat-rpm-config-9.1.0-ksyms-2.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1467319
+Patch43: redhat-rpm-config-9.1.0-ksym-requires-multifile.patch
+
 # ppc64 little endian support
 Patch99: redhat-rpm-config-9.1.0-ppc64le.patch
 Patch100: redhat-rpm-config-9.1.0-centos.dist.patch
+
 
 BuildArch: noarch
 Requires: coreutils
@@ -110,7 +120,7 @@ Requires: zip
 Provides: system-rpm-config = %{version}-%{release}
 
 %description
-RedSleeve specific rpm configuration files.
+CentOS specific rpm configuration files.
 
 %prep
 %setup -q
@@ -154,6 +164,10 @@ RedSleeve specific rpm configuration files.
 %patch37 -p1
 %patch38 -p1
 %patch39 -p1
+%patch40 -p1
+%patch41 -p1
+%patch42 -p1
+%patch43 -p1
 
 %patch99 -p2
 %patch100 -p1
@@ -185,11 +199,20 @@ rm -rf ${RPM_BUILD_ROOT}
 %{_sysconfdir}/rpm/*
 
 %changelog
-* Fri Aug 04 2017 Jacco Ligthart <jacco@redsleeve.org> - 9.1.0-76.el7.redsleeve
-- rebrand SPEC file
-
-* Mon Jul 31 2017 CentOS Sources <bugs@centos.org> - 9.1.0-76.el7.centos
+* Tue Apr 10 2018 CentOS Sources <bugs@centos.org> - 9.1.0-80.el7.centos
 - update check_rhl function in dist.sh
+
+* Thu Nov 30 2017 Florian Festi <ffesti@redhat.com> - 9.1.0-80
+- More support for CONFIG_MODULE_REL_CRCS style kernel symbols (#1494262)
+
+* Mon Oct 30 2017 Panu Matilainen <pmatilai@redhat.com> - 9.1.0-79
+- Fix ksym dependency generator for more than one .ko per package (#1467319)
+
+* Wed Oct 11 2017 Florian Festi <ffesti@redhat.com> - 9.1.0-78
+- Remove hardcoded limit of 16 CPUs for makefile parallelism (#1386840)
+
+* Wed Oct 04 2017 Florian Festi <ffesti@redhat.com> - 9.1.0-77
+- Add support for CONFIG_MODULE_REL_CRCS style kernel symbols (#1494262)
 
 * Tue Feb 14 2017 Yaakov Selkowitz <yselkowi@redhat.com> - 9.1.0-76
 - Add aarch64/ppc64le/s390x to nodejs_arches (#1417800)
