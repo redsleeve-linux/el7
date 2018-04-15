@@ -76,11 +76,7 @@ Obsoletes: %1 < %{obsoletes_version}                                      \
 Summary: QEMU is a machine emulator and virtualizer
 Name: %{pkgname}%{?pkgsuffix}
 Version: 1.5.3
-<<<<<<< HEAD
-Release: 141%{?dist}.6
-=======
 Release: 156%{?dist}
->>>>>>> 5d360b45dff7ba369c7beadcd9e28f64e2dd5963
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 Epoch: 10
 License: GPLv2+ and LGPLv2+ and BSD
@@ -3604,40 +3600,6 @@ Patch1771: kvm-vnc-allow-to-connect-with-add_client-when-vnc-none.patch
 Patch1772: kvm-virtio-net-dynamic-network-offloads-configuration.patch
 # For bz#1480428 - KVM: windows guest migration from EL6 to EL7 fails.
 Patch1773: kvm-Workaround-rhel6-ctrl_guest_offloads-machine-type-mi.patch
-<<<<<<< HEAD
-# For bz#1501294 - CVE-2017-15289 qemu-kvm: Qemu: cirrus: OOB access issue in  mode4and5 write functions [rhel-7.4.z]
-Patch1774: kvm-bswap.h-Remove-cpu_to_32wu.patch
-# For bz#1501294 - CVE-2017-15289 qemu-kvm: Qemu: cirrus: OOB access issue in  mode4and5 write functions [rhel-7.4.z]
-Patch1775: kvm-hw-use-ld_p-st_p-instead-of-ld_raw-st_raw.patch
-# For bz#1501294 - CVE-2017-15289 qemu-kvm: Qemu: cirrus: OOB access issue in  mode4and5 write functions [rhel-7.4.z]
-Patch1776: kvm-vga-Start-cutting-out-non-32bpp-conversion-support.patch
-# For bz#1501294 - CVE-2017-15289 qemu-kvm: Qemu: cirrus: OOB access issue in  mode4and5 write functions [rhel-7.4.z]
-Patch1777: kvm-vga-Remove-remainder-of-old-conversion-cruft.patch
-# For bz#1501294 - CVE-2017-15289 qemu-kvm: Qemu: cirrus: OOB access issue in  mode4and5 write functions [rhel-7.4.z]
-Patch1778: kvm-vga-Separate-LE-and-BE-conversion-functions.patch
-# For bz#1501294 - CVE-2017-15289 qemu-kvm: Qemu: cirrus: OOB access issue in  mode4and5 write functions [rhel-7.4.z]
-Patch1779: kvm-vga-Rename-vga_template.h-to-vga-helpers.h.patch
-# For bz#1501294 - CVE-2017-15289 qemu-kvm: Qemu: cirrus: OOB access issue in  mode4and5 write functions [rhel-7.4.z]
-Patch1780: kvm-vga-stop-passing-pointers-to-vga_draw_line-functions.patch
-# For bz#1501294 - CVE-2017-15289 qemu-kvm: Qemu: cirrus: OOB access issue in  mode4and5 write functions [rhel-7.4.z]
-Patch1781: kvm-vga-drop-line_offset-variable.patch
-# For bz#1501294 - CVE-2017-15289 qemu-kvm: Qemu: cirrus: OOB access issue in  mode4and5 write functions [rhel-7.4.z]
-Patch1782: kvm-vga-Add-mechanism-to-force-the-use-of-a-shadow-surfa.patch
-# For bz#1501294 - CVE-2017-15289 qemu-kvm: Qemu: cirrus: OOB access issue in  mode4and5 write functions [rhel-7.4.z]
-Patch1783: kvm-vga-handle-cirrus-vbe-mode-wraparounds.patch
-# For bz#1501294 - CVE-2017-15289 qemu-kvm: Qemu: cirrus: OOB access issue in  mode4and5 write functions [rhel-7.4.z]
-Patch1784: kvm-cirrus-fix-oob-access-in-mode4and5-write-functions.patch
-# For bz#1501120 - CVE-2017-14167 qemu-kvm: Qemu: i386: multiboot OOB access while loading kernel image [rhel-7.4.z]
-Patch1785: kvm-multiboot-validate-multiboot-header-address-values.patch
-# For bz#1515110 - Regression in QEMU handling for sub-page MMIO BARs for vfio-pci devices [rhel-7.4.z]
-Patch1786: kvm-vfio-pci-Only-mmap-TARGET_PAGE_SIZE-regions.patch
-# For CVE-2017-5715
-Patch1787: kvm-target-i386-cpu-add-new-CPUID-bits-for-indirect-bran.patch
-# For CVE-2017-5715 
-Patch1788: kvm-target-i386-add-support-for-SPEC_CTRL-MSR.patch
-# For CVE-2017-5715
-Patch1789: kvm-target-i386-cpu-add-new-CPU-models-for-indirect-bran.patch
-=======
 # For bz#1387648 - [Intel 7.5 FEAT] Memory Protection Keys for qemu-kvm
 Patch1774: kvm-target-i386-Add-PKU-and-and-OSPKE-support.patch
 # For bz#1492559 - virtio-blk mutiwrite merge causes too big IO
@@ -3903,7 +3865,6 @@ Patch1903: kvm-ui-avoid-sign-extension-using-client-width-height.patch
 Patch1904: kvm-ui-correctly-advance-output-buffer-when-writing-SASL.patch
 # For bz#1518711 - CVE-2017-15268 qemu-kvm: Qemu: I/O: potential memory exhaustion via websock connection to VNC [rhel-7.5]
 Patch1905: kvm-io-skip-updates-to-client-if-websocket-output-buffer.patch
->>>>>>> 5d360b45dff7ba369c7beadcd9e28f64e2dd5963
 
 
 BuildRequires: zlib-devel
@@ -5871,8 +5832,6 @@ tar -xf %{SOURCE21}
 %patch1787 -p1
 %patch1788 -p1
 %patch1789 -p1
-<<<<<<< HEAD
-=======
 %patch1790 -p1
 %patch1791 -p1
 %patch1792 -p1
@@ -5989,7 +5948,6 @@ tar -xf %{SOURCE21}
 %patch1903 -p1
 %patch1904 -p1
 %patch1905 -p1
->>>>>>> 5d360b45dff7ba369c7beadcd9e28f64e2dd5963
 
 %build
 buildarch="%{kvm_target}-softmmu"
@@ -6435,46 +6393,6 @@ sh %{_sysconfdir}/sysconfig/modules/kvm.modules &> /dev/null || :
 %{_mandir}/man8/qemu-nbd.8*
 
 %changelog
-<<<<<<< HEAD
-* Thu Dec 14 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-141.el7_4.6
-- Fix CVE-2017-5715
-
-* Wed Nov 29 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-141.el7_4.5
-- kvm-vfio-pci-Only-mmap-TARGET_PAGE_SIZE-regions.patch [bz#1515110]
-- Resolves: bz#1515110
-  (Regression in QEMU handling for sub-page MMIO BARs for vfio-pci devices [rhel-7.4.z])
-
-* Fri Nov 10 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-141.el7_4.4
-- kvm-multiboot-validate-multiboot-header-address-values.patch [bz#1501120]
-- Resolves: bz#1501120
-  (CVE-2017-14167 qemu-kvm: Qemu: i386: multiboot OOB access while loading kernel image [rhel-7.4.z])
-
-* Tue Nov 07 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-141.el7_4.3
-- kvm-bswap.h-Remove-cpu_to_32wu.patch [bz#1501294]
-- kvm-hw-use-ld_p-st_p-instead-of-ld_raw-st_raw.patch [bz#1501294]
-- kvm-vga-Start-cutting-out-non-32bpp-conversion-support.patch [bz#1501294]
-- kvm-vga-Remove-remainder-of-old-conversion-cruft.patch [bz#1501294]
-- kvm-vga-Separate-LE-and-BE-conversion-functions.patch [bz#1501294]
-- kvm-vga-Rename-vga_template.h-to-vga-helpers.h.patch [bz#1501294]
-- kvm-vga-stop-passing-pointers-to-vga_draw_line-functions.patch [bz#1501294]
-- kvm-vga-drop-line_offset-variable.patch [bz#1501294]
-- kvm-vga-Add-mechanism-to-force-the-use-of-a-shadow-surfa.patch [bz#1501294]
-- kvm-vga-handle-cirrus-vbe-mode-wraparounds.patch [bz#1501294]
-- kvm-cirrus-fix-oob-access-in-mode4and5-write-functions.patch [bz#1501294]
-- Resolves: bz#1501294
-  (CVE-2017-15289 qemu-kvm: Qemu: cirrus: OOB access issue in  mode4and5 write functions [rhel-7.4.z])
-
-* Mon Aug 21 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-141.el7_4.2
-- kvm-virtio-net-dynamic-network-offloads-configuration.patch [bz#1482468]
-- kvm-Workaround-rhel6-ctrl_guest_offloads-machine-type-mi.patch [bz#1482468]
-- Resolves: bz#1482468
-  (KVM: windows guest migration from EL6 to EL7 fails. [rhel-7.4.z])
-
-* Tue Jul 11 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-141.el7_4.1
-- kvm-qemu-nbd-Ignore-SIGPIPE.patch [bz#1468107]
-- Resolves: bz#1468107
-  (CVE-2017-10664 qemu-kvm: Qemu: qemu-nbd: server breaks with SIGPIPE upon client abort [rhel-7.4.z])
-=======
 * Tue Feb 20 2018 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-156.el7
 - kvm-vnc-Fix-qemu-crashed-when-vnc-client-disconnect-sudd.patch [bz#1527405]
 - kvm-fix-full-frame-updates-for-VNC-clients.patch [bz#1527405]
@@ -6704,7 +6622,6 @@ sh %{_sysconfdir}/sysconfig/modules/kvm.modules &> /dev/null || :
   (qemu started with "-vnc none,..." doesn't support any VNC authentication)
 - Resolves: bz#1480428
   (KVM: windows guest migration from EL6 to EL7 fails.)
->>>>>>> 5d360b45dff7ba369c7beadcd9e28f64e2dd5963
 
 * Tue Jun 13 2017 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-141.el7
 - kvm-Fix-memory-slot-page-alignment-logic-bug-1455745.patch [bz#1455745]

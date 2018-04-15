@@ -1,32 +1,17 @@
-<<<<<<< HEAD
-From d4caecffd38c2a9c16ea717e9c863d3214093b32 Mon Sep 17 00:00:00 2001
-From: Eduardo Habkost <ehabkost@redhat.com>
-Date: Wed, 13 Dec 2017 15:42:57 -0200
-=======
 From 4f2a39dd988cfae0210dfa7a84be00617ba17bef Mon Sep 17 00:00:00 2001
 From: Eduardo Habkost <ehabkost@redhat.com>
 Date: Wed, 13 Dec 2017 15:43:41 -0200
->>>>>>> 5d360b45dff7ba369c7beadcd9e28f64e2dd5963
 Subject: [PATCH 3/3] target-i386: cpu: add new CPU models for indirect branch
  predictor restrictions
 
 RH-Author: Eduardo Habkost <ehabkost@redhat.com>
-<<<<<<< HEAD
-Message-id: <20171213174257.20475-4-ehabkost@redhat.com>
-Patchwork-id: n/a
-O-Subject: [CONFIDENTIAL][RHEL-7.4.z qemu-kvm PATCH v2 3/3] target-i386: cpu: add
-=======
 Message-id: <20171213174341.20684-4-ehabkost@redhat.com>
 Patchwork-id: n/a
 O-Subject: [CONFIDENTIAL][RHEL-7.5 qemu-kvm PATCH v2 3/3] target-i386: cpu: add
->>>>>>> 5d360b45dff7ba369c7beadcd9e28f64e2dd5963
  new CPU models for indirect branch predictor restrictions
 Bugzilla: CVE-2017-5715
 RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
 RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
-<<<<<<< HEAD
-RH-Acked-by: Wainer dos Santos Moschetta <wainersm@redhat.com>
-=======
 
 Changes v1 -> v2:
 * Copied the original CPU models from the same source file, just adding
@@ -34,7 +19,6 @@ Changes v1 -> v2:
   code exactly the same.
 * Update compat_props so we can be sure the same compat rules will apply to the
   original CPU models and to the *-IBRS ones
->>>>>>> 5d360b45dff7ba369c7beadcd9e28f64e2dd5963
 
 To ensure the New CPU models won't introduce any unexpected
 changes except for the spec-ctrl feature (even if people are
@@ -52,19 +36,11 @@ The entries that had to be copied can be found using:
 Note that the upstream-only PC_COMPAT_* macros are not being
 touched as they are not used by the RHEL machine-types.
 ---
-<<<<<<< HEAD
- hw/i386/pc_piix.c |  17 ++++
- hw/i386/pc_q35.c  |   1 +
- target-i386/cpu.c | 236 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
- target-i386/cpu.h |   3 +
- 4 files changed, 257 insertions(+)
-=======
  hw/i386/pc_piix.c |  17 +++
  hw/i386/pc_q35.c  |   1 +
  target-i386/cpu.c | 328 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
  target-i386/cpu.h |   3 +
  4 files changed, 349 insertions(+)
->>>>>>> 5d360b45dff7ba369c7beadcd9e28f64e2dd5963
 
 diff --git a/hw/i386/pc_piix.c b/hw/i386/pc_piix.c
 index b043124..c53a6d4 100644
@@ -134,17 +110,10 @@ index 850a25a..e6043df 100644
  }
  
 diff --git a/target-i386/cpu.c b/target-i386/cpu.c
-<<<<<<< HEAD
-index 400a7ab..9e238ba 100644
---- a/target-i386/cpu.c
-+++ b/target-i386/cpu.c
-@@ -882,6 +882,31 @@ static x86_def_t builtin_x86_defs[] = {
-=======
 index 335689b..08b43f5 100644
 --- a/target-i386/cpu.c
 +++ b/target-i386/cpu.c
 @@ -884,6 +884,31 @@ static x86_def_t builtin_x86_defs[] = {
->>>>>>> 5d360b45dff7ba369c7beadcd9e28f64e2dd5963
          .model_id = "Intel Core i7 9xx (Nehalem Class Core i7)",
      },
      {
@@ -176,11 +145,7 @@ index 335689b..08b43f5 100644
          .name = "Westmere",
          .level = 11,
          .vendor = CPUID_VENDOR_INTEL,
-<<<<<<< HEAD
-@@ -906,6 +931,32 @@ static x86_def_t builtin_x86_defs[] = {
-=======
 @@ -908,6 +933,32 @@ static x86_def_t builtin_x86_defs[] = {
->>>>>>> 5d360b45dff7ba369c7beadcd9e28f64e2dd5963
          .model_id = "Westmere E56xx/L56xx/X56xx (Nehalem-C)",
      },
      {
@@ -213,11 +178,7 @@ index 335689b..08b43f5 100644
          .name = "SandyBridge",
          .level = 0xd,
          .vendor = CPUID_VENDOR_INTEL,
-<<<<<<< HEAD
-@@ -935,6 +986,37 @@ static x86_def_t builtin_x86_defs[] = {
-=======
 @@ -937,6 +988,37 @@ static x86_def_t builtin_x86_defs[] = {
->>>>>>> 5d360b45dff7ba369c7beadcd9e28f64e2dd5963
          .model_id = "Intel Xeon E312xx (Sandy Bridge)",
      },
      {
@@ -255,11 +216,7 @@ index 335689b..08b43f5 100644
          .name = "IvyBridge",
          .level = 0xd,
          .vendor = CPUID_VENDOR_INTEL,
-<<<<<<< HEAD
-@@ -967,6 +1049,40 @@ static x86_def_t builtin_x86_defs[] = {
-=======
 @@ -969,6 +1051,40 @@ static x86_def_t builtin_x86_defs[] = {
->>>>>>> 5d360b45dff7ba369c7beadcd9e28f64e2dd5963
          .model_id = "Intel Xeon E3-12xx v2 (Ivy Bridge)",
      },
      {
@@ -300,11 +257,7 @@ index 335689b..08b43f5 100644
          .name = "Haswell",
          .level = 0xd,
          .vendor = CPUID_VENDOR_INTEL,
-<<<<<<< HEAD
-@@ -1002,6 +1118,43 @@ static x86_def_t builtin_x86_defs[] = {
-=======
 @@ -1004,6 +1120,43 @@ static x86_def_t builtin_x86_defs[] = {
->>>>>>> 5d360b45dff7ba369c7beadcd9e28f64e2dd5963
          .model_id = "Intel Core Processor (Haswell)",
      },
      {
@@ -348,11 +301,7 @@ index 335689b..08b43f5 100644
          .name = "Broadwell",
          .level = 0xd,
          .vendor = CPUID_VENDOR_INTEL,
-<<<<<<< HEAD
-@@ -1038,6 +1191,44 @@ static x86_def_t builtin_x86_defs[] = {
-=======
 @@ -1040,6 +1193,44 @@ static x86_def_t builtin_x86_defs[] = {
->>>>>>> 5d360b45dff7ba369c7beadcd9e28f64e2dd5963
          .model_id = "Intel Core Processor (Broadwell)",
      },
      {
@@ -397,11 +346,7 @@ index 335689b..08b43f5 100644
          .name = "Skylake-Client",
          .level = 0xd,
          .vendor = CPUID_VENDOR_INTEL,
-<<<<<<< HEAD
-@@ -1081,6 +1272,51 @@ static x86_def_t builtin_x86_defs[] = {
-=======
 @@ -1083,6 +1274,51 @@ static x86_def_t builtin_x86_defs[] = {
->>>>>>> 5d360b45dff7ba369c7beadcd9e28f64e2dd5963
          .model_id = "Intel Core Processor (Skylake)",
      },
      {
@@ -450,16 +395,6 @@ index 335689b..08b43f5 100644
 +        .model_id = "Intel Core Processor (Skylake, IBRS)",
 +    },
 +    {
-<<<<<<< HEAD
-         .name = "Opteron_G1",
-         .level = 5,
-         .vendor = CPUID_VENDOR_AMD,
-diff --git a/target-i386/cpu.h b/target-i386/cpu.h
-index b23242d..9353b48 100644
---- a/target-i386/cpu.h
-+++ b/target-i386/cpu.h
-@@ -587,6 +587,9 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
-=======
          .name = "Skylake-Server",
          .level = 0xd,
          .vendor = CPUID_VENDOR_INTEL,
@@ -574,7 +509,6 @@ index 7d815cd..a8a640a 100644
 --- a/target-i386/cpu.h
 +++ b/target-i386/cpu.h
 @@ -589,6 +589,9 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
->>>>>>> 5d360b45dff7ba369c7beadcd9e28f64e2dd5963
  
  #define CPUID_7_0_EDX_AVX512_4VNNIW (1U << 2) /* AVX512 Neural Network Instructions */
  #define CPUID_7_0_EDX_AVX512_4FMAPS (1U << 3) /* AVX512 Multiply Accumulation Single Precision */
@@ -582,13 +516,8 @@ index 7d815cd..a8a640a 100644
 +
 +#define CPUID_8000_0008_EBX_IBPB    (1U << 12) /* Indirect Branch Prediction Barrier */
  
-<<<<<<< HEAD
- #define CPUID_XSAVE_XSAVEOPT   (1U << 0)
- #define CPUID_XSAVE_XSAVEC     (1U << 1)
-=======
  #define CPUID_7_0_ECX_PKU      (1U << 3)
  #define CPUID_7_0_ECX_OSPKE    (1U << 4)
->>>>>>> 5d360b45dff7ba369c7beadcd9e28f64e2dd5963
 -- 
 1.8.3.1
 
