@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 From 6d0877d3a5dff82b854a7eee38ef7558dfa1d4ef Mon Sep 17 00:00:00 2001
 From: Eduardo Habkost <ehabkost@redhat.com>
 Date: Wed, 13 Dec 2017 15:42:56 -0200
@@ -7,10 +8,22 @@ RH-Author: Eduardo Habkost <ehabkost@redhat.com>
 Message-id: <20171213174257.20475-3-ehabkost@redhat.com>
 Patchwork-id: n/a
 O-Subject: [CONFIDENTIAL][RHEL-7.4.z qemu-kvm PATCH v2 2/3] target-i386: add
+=======
+From 9875f9aaef996083064bf6a7afa1bfa30ff7d953 Mon Sep 17 00:00:00 2001
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Wed, 13 Dec 2017 15:43:40 -0200
+Subject: [PATCH 2/3] target-i386: add support for SPEC_CTRL MSR
+
+RH-Author: Eduardo Habkost <ehabkost@redhat.com>
+Message-id: <20171213174341.20684-3-ehabkost@redhat.com>
+Patchwork-id: n/a
+O-Subject: [CONFIDENTIAL][RHEL-7.5 qemu-kvm PATCH v2 2/3] target-i386: add
+>>>>>>> 5d360b45dff7ba369c7beadcd9e28f64e2dd5963
  support for SPEC_CTRL MSR
 Bugzilla: CVE-2017-5715
 RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
 RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+<<<<<<< HEAD
 RH-Acked-by: Wainer dos Santos Moschetta <wainersm@redhat.com>
 ---
  target-i386/cpu.h     |  4 ++++
@@ -20,6 +33,16 @@ RH-Acked-by: Wainer dos Santos Moschetta <wainersm@redhat.com>
 
 diff --git a/target-i386/cpu.h b/target-i386/cpu.h
 index 5697dc6..b23242d 100644
+=======
+---
+ target-i386/cpu.h     |  4 ++++
+ target-i386/kvm.c     | 14 ++++++++++++++
+ target-i386/machine.c | 21 +++++++++++++++++++++
+ 3 files changed, 39 insertions(+)
+
+diff --git a/target-i386/cpu.h b/target-i386/cpu.h
+index 1e5c980..7d815cd 100644
+>>>>>>> 5d360b45dff7ba369c7beadcd9e28f64e2dd5963
 --- a/target-i386/cpu.h
 +++ b/target-i386/cpu.h
 @@ -304,6 +304,7 @@
@@ -30,7 +53,11 @@ index 5697dc6..b23242d 100644
  #define MSR_IA32_TSCDEADLINE            0x6e0
  
  #define MSR_P6_PERFCTR0                 0xc1
+<<<<<<< HEAD
 @@ -958,6 +959,7 @@ typedef struct CPUX86State {
+=======
+@@ -963,6 +964,7 @@ typedef struct CPUX86State {
+>>>>>>> 5d360b45dff7ba369c7beadcd9e28f64e2dd5963
      uint64_t msr_fixed_counters[MAX_FIXED_COUNTERS];
      uint64_t msr_gp_counters[MAX_GP_COUNTERS];
      uint64_t msr_gp_evtsel[MAX_GP_COUNTERS];
@@ -38,9 +65,15 @@ index 5697dc6..b23242d 100644
      uint64_t msr_hv_hypercall;
      uint64_t msr_hv_guest_os_id;
      uint64_t msr_hv_vapic;
+<<<<<<< HEAD
 @@ -1030,6 +1032,8 @@ typedef struct CPUX86State {
      uint64_t xcr0;
      uint64_t xss;
+=======
+@@ -1037,6 +1039,8 @@ typedef struct CPUX86State {
+ 
+     uint32_t pkru;
+>>>>>>> 5d360b45dff7ba369c7beadcd9e28f64e2dd5963
  
 +    uint64_t spec_ctrl;
 +
@@ -48,7 +81,11 @@ index 5697dc6..b23242d 100644
  } CPUX86State;
  
 diff --git a/target-i386/kvm.c b/target-i386/kvm.c
+<<<<<<< HEAD
 index 6a479f4..ff58314 100644
+=======
+index 0dc0e79..24d17ad 100644
+>>>>>>> 5d360b45dff7ba369c7beadcd9e28f64e2dd5963
 --- a/target-i386/kvm.c
 +++ b/target-i386/kvm.c
 @@ -77,6 +77,7 @@ static bool has_msr_hv_vapic;
@@ -70,7 +107,11 @@ index 6a479f4..ff58314 100644
              }
          }
  
+<<<<<<< HEAD
 @@ -1185,6 +1190,9 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
+=======
+@@ -1187,6 +1192,9 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
+>>>>>>> 5d360b45dff7ba369c7beadcd9e28f64e2dd5963
      if (has_msr_xss) {
          kvm_msr_entry_set(&msrs[n++], MSR_IA32_XSS, env->xss);
      }
@@ -80,6 +121,7 @@ index 6a479f4..ff58314 100644
  #ifdef TARGET_X86_64
      if (lm_capable_kernel) {
          kvm_msr_entry_set(&msrs[n++], MSR_CSTAR, env->cstar);
+<<<<<<< HEAD
 @@ -1193,6 +1201,7 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
          kvm_msr_entry_set(&msrs[n++], MSR_LSTAR, env->lstar);
      }
@@ -89,6 +131,9 @@ index 6a479f4..ff58314 100644
          /*
           * KVM is yet unable to synchronize TSC values of multiple VCPUs on
 @@ -1541,6 +1550,9 @@ static int kvm_get_msrs(X86CPU *cpu)
+=======
+@@ -1544,6 +1552,9 @@ static int kvm_get_msrs(X86CPU *cpu)
+>>>>>>> 5d360b45dff7ba369c7beadcd9e28f64e2dd5963
      if (has_msr_xss) {
          msrs[n++].index = MSR_IA32_XSS;
      }
@@ -98,7 +143,11 @@ index 6a479f4..ff58314 100644
  
  
      if (!env->tsc_valid) {
+<<<<<<< HEAD
 @@ -1783,6 +1795,9 @@ static int kvm_get_msrs(X86CPU *cpu)
+=======
+@@ -1786,6 +1797,9 @@ static int kvm_get_msrs(X86CPU *cpu)
+>>>>>>> 5d360b45dff7ba369c7beadcd9e28f64e2dd5963
                  env->mtrr_var[MSR_MTRRphysIndex(index)].base = msrs[i].data;
              }
              break;
@@ -109,12 +158,21 @@ index 6a479f4..ff58314 100644
      }
  
 diff --git a/target-i386/machine.c b/target-i386/machine.c
+<<<<<<< HEAD
 index ce7fcd3..4092cae 100644
 --- a/target-i386/machine.c
 +++ b/target-i386/machine.c
 @@ -722,6 +722,24 @@ static const VMStateDescription vmstate_xss = {
      }
  };
+=======
+index ba34088..d883c86 100644
+--- a/target-i386/machine.c
++++ b/target-i386/machine.c
+@@ -742,6 +742,24 @@ static const VMStateDescription vmstate_pkru = {
+ };
+ #endif
+>>>>>>> 5d360b45dff7ba369c7beadcd9e28f64e2dd5963
  
 +static bool spec_ctrl_needed(void *opaque)
 +{
@@ -137,10 +195,17 @@ index ce7fcd3..4092cae 100644
  const VMStateDescription vmstate_x86_cpu = {
      .name = "cpu",
      .version_id = 12,
+<<<<<<< HEAD
 @@ -871,6 +889,9 @@ const VMStateDescription vmstate_x86_cpu = {
           }, {
              .vmsd = &vmstate_xss,
              .needed = xss_needed,
+=======
+@@ -896,6 +914,9 @@ const VMStateDescription vmstate_x86_cpu = {
+             .vmsd = &vmstate_pkru,
+             .needed = pkru_needed,
+ #endif
+>>>>>>> 5d360b45dff7ba369c7beadcd9e28f64e2dd5963
 +        }, {
 +            .vmsd = &vmstate_spec_ctrl,
 +            .needed = spec_ctrl_needed,
