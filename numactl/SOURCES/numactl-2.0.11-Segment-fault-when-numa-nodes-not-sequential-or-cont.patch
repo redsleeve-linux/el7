@@ -1,0 +1,131 @@
+From b608687037d873ad82d6318f231b3d6612e8601d Mon Sep 17 00:00:00 2001
+From: Seeteena Thoufeek <s1seetee@linux.vnet.ibm.com>
+Date: Wed, 21 Dec 2016 12:48:11 +0530
+Subject: [PATCH 1/1] Segment fault when numa nodes not sequential or
+ contiguous
+
+While trying to get stat of the guest process (configured with hugepages), numastat fails
+
+====================
+Environment details
+====================
+Linux lep8b 4.8.0-30-generic #32-Ubuntu SMP Fri Dec 2 03:43:46 UTC 2016 ppc64le ppc64le ppc64le GNU/Linu
+
+=====
+Issue
+=====
+2016-12-14 07:02:56,396 process          L0368 INFO | Running 'numastat 61257'
+2016-12-14 07:02:56,402 process          L0462 DEBUG| [stderr] *** Error in `numastat': double free or corruption (out): 0x00000100265005a0 ***
+2016-12-14 07:02:56,403 process          L0462 DEBUG| [stdout]
+2016-12-14 07:02:56,403 process          L0482 INFO | Command 'numastat 61257' finished with -6 after 0.00309896469116s
+2016-12-14 07:02:56,403 process          L0462 DEBUG| [stdout] Per-node process memory usage (in MBs) for PID 61257 (qemu-system-ppc)
+2016-12-14 07:02:56,404 process          L0462 DEBUG| [stderr] ======= Backtrace: =========
+2016-12-14 07:02:56,404 process          L0462 DEBUG| [stderr] /lib/powerpc64le-linux-gnu/libc.so.6(+0x86d54)[0x3fff9a736d54]
+2016-12-14 07:02:56,404 process          L0462 DEBUG| [stderr] /lib/powerpc64le-linux-gnu/libc.so.6(+0x93c30)[0x3fff9a743c30]
+2016-12-14 07:02:56,404 process          L0462 DEBUG| [stderr] /lib/powerpc64le-linux-gnu/libc.so.6(cfree+0x68)[0x3fff9a748218]
+2016-12-14 07:02:56,405 process          L0462 DEBUG| [stderr] /lib/powerpc64le-linux-gnu/libc.so.6(fclose+0x1c8)[0x3fff9a727d68]
+2016-12-14 07:02:56,405 process          L0462 DEBUG| [stderr] numastat(+0x7aa4)[0x401d7aa4]
+2016-12-14 07:02:56,405 process          L0462 DEBUG| [stderr] numastat(+0x2388)[0x401d2388]
+2016-12-14 07:02:56,405 process          L0462 DEBUG| [stderr] /lib/powerpc64le-linux-gnu/libc.so.6(+0x2291c)[0x3fff9a6d291c]
+2016-12-14 07:02:56,405 process          L0462 DEBUG| [stderr] /lib/powerpc64le-linux-gnu/libc.so.6(__libc_start_main+0xb8)[0x3fff9a6d2b18]
+2016-12-14 07:02:56,405 process          L0462 DEBUG| [stderr] ======= Memory map: ========
+2016-12-14 07:02:56,405 process          L0462 DEBUG| [stderr] 401d0000-401e0000 r-xp 00000000 08:92 40325510                           /usr/bin/numastat
+2016-12-14 07:02:56,405 process          L0462 DEBUG| [stderr] 401e0000-401f0000 r--p 00000000 08:92 40325510                           /usr/bin/numastat
+2016-12-14 07:02:56,406 process          L0462 DEBUG| [stderr] 401f0000-40200000 rw-p 00010000 08:92 40325510                           /usr/bin/numastat
+2016-12-14 07:02:56,406 process          L0462 DEBUG| [stderr] 10026500000-10026530000 rw-p 00000000 00:00 0                            [heap]
+2016-12-14 07:02:56,406 process          L0462 DEBUG| [stderr] 3fff9a6b0000-3fff9a860000 r-xp 00000000 08:92 25745199                   /lib/powerpc64le-linux-gnu/libc-2.24.so
+2016-12-14 07:02:56,406 process          L0462 DEBUG| [stderr] 3fff9a860000-3fff9a870000 ---p 001b0000 08:92 25745199                   /lib/powerpc64le-linux-gnu/libc-2.24.so
+2016-12-14 07:02:56,406 process          L0462 DEBUG| [stderr] 3fff9a870000-3fff9a880000 r--p 001b0000 08:92 25745199                   /lib/powerpc64le-linux-gnu/libc-2.24.so
+2016-12-14 07:02:56,406 process          L0462 DEBUG| [stderr] 3fff9a880000-3fff9a890000 rw-p 001c0000 08:92 25745199                   /lib/powerpc64le-linux-gnu/libc-2.24.so
+2016-12-14 07:02:56,406 process          L0462 DEBUG| [stderr] 3fff9a8b0000-3fff9a8c0000 rw-p 00000000 00:00 0
+2016-12-14 07:02:56,407 process          L0462 DEBUG| [stderr] 3fff9a8c0000-3fff9a8e0000 r-xp 00000000 00:00 0                          [vdso]
+2016-12-14 07:02:56,407 process          L0462 DEBUG| [stderr] 3fff9a8e0000-3fff9a920000 r-xp 00000000 08:92 25745195                   /lib/powerpc64le-linux-gnu/ld-2.24.so
+2016-12-14 07:02:56,407 process          L0462 DEBUG| [stderr] 3fff9a920000-3fff9a930000 r--p 00030000 08:92 25745195                   /lib/powerpc64le-linux-gnu/ld-2.24.so
+2016-12-14 07:02:56,407 process          L0462 DEBUG| [stderr] 3fff9a930000-3fff9a940000 rw-p 00040000 08:92 25745195                   /lib/powerpc64le-linux-gnu/ld-2.24.so
+2016-12-14 07:02:56,407 process          L0462 DEBUG| [stderr] 3fffdd320000-3fffdd350000 rw-p 00000000 00:00 0                          [stack]
+
+=============
+Recreation Steps
+=============
+1. Configure host with hugepages
+2. Start a guest and attach following memory device xml,
+<?xml version='1.0' encoding='UTF-8'?>
+<memory model="dimm"><target><size unit="KiB">8388608</size><node>0</node></target><source><pagesize unit="KiB">16384</pagesize><nodemask>0</nodemask></source></memory>
+3. Set the rules in guest
+4. execute numastat of guest pid
+
+Expected Result :
+Provide PID numastat
+
+Per-node process memory usage (in MBs) for PID 55119 (qemu-system-ppc)
+Node 0          Node 1         Node 16
+--------------- --------------- ---------------
+Huge                         0.00            0.00            0.00
+Heap                         2.00            0.38            0.00
+Stack                        0.00            0.00            0.00
+Private                  31800.12          183.06            0.00
+----------------  --------------- --------------- ---------------
+Total                    31802.12          183.44            0.00
+
+Node 17           Total
+--------------- ---------------
+Huge                         0.00            0.00
+Heap                         0.00           15.25
+Stack                        0.00            0.06
+Private                      0.00        33169.31
+----------------  --------------- ---------------
+Total                        0.00        34345.00
+*** Error in `numastat': free(): invalid next size (fast): 0x000001003f2c0580 ***
+======= Backtrace: =========
+/lib/powerpc64le-linux-gnu/libc.so.6(+0x86d54)[0x3fff82866d54]
+/lib/powerpc64le-linux-gnu/libc.so.6(+0x93c30)[0x3fff82873c30]
+/lib/powerpc64le-linux-gnu/libc.so.6(cfree+0x68)[0x3fff82878218]
+numastat(+0x4244)[0x5adc4244]
+numastat(+0x7d24)[0x5adc7d24]
+numastat(+0x2388)[0x5adc2388]
+/lib/powerpc64le-linux-gnu/libc.so.6(+0x2291c)[0x3fff8280291c]
+/lib/powerpc64le-linux-gnu/libc.so.6(__libc_start_main+0xb8)[0x3fff82802b18]
+======= Memory map: ========
+5adc0000-5add0000 r-xp 00000000 08:92 40325510                           /usr/bin/numastat
+5add0000-5ade0000 r--p 00000000 08:92 40325510                           /usr/bin/numastat
+5ade0000-5adf0000 rw-p 00010000 08:92 40325510                           /usr/bin/numastat
+1003f2c0000-1003f2f0000 rw-p 00000000 00:00 0                            [heap]
+3fff827e0000-3fff82990000 r-xp 00000000 08:92 25745199                   /lib/powerpc64le-linux-gnu/libc-2.24.so
+3fff82990000-3fff829a0000 ---p 001b0000 08:92 25745199                   /lib/powerpc64le-linux-gnu/libc-2.24.so
+3fff829a0000-3fff829b0000 r--p 001b0000 08:92 25745199                   /lib/powerpc64le-linux-gnu/libc-2.24.so
+3fff829b0000-3fff829c0000 rw-p 001c0000 08:92 25745199                   /lib/powerpc64le-linux-gnu/libc-2.24.so
+3fff829e0000-3fff829f0000 rw-p 00000000 00:00 0
+3fff829f0000-3fff82a10000 r-xp 00000000 00:00 0                          [vdso]
+3fff82a10000-3fff82a50000 r-xp 00000000 08:92 25745195                   /lib/powerpc64le-linux-gnu/ld-2.24.so
+3fff82a50000-3fff82a60000 r--p 00030000 08:92 25745195                   /lib/powerpc64le-linux-gnu/ld-2.24.so
+3fff82a60000-3fff82a70000 rw-p 00040000 08:92 25745195                   /lib/powerpc64le-linux-gnu/ld-2.24.so
+3fffc3b90000-3fffc3bc0000 rw-p 00000000 00:00 0                          [stack]
+Aborted
+
+Signed-off-by: Seeteena Thoufeek <s1seetee@linux.vnet.ibm.com>
+Signed-off-by: Andi Kleen <ak@linux.intel.com>
+---
+ numastat.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/numastat.c b/numastat.c
+index 1924dba..e0a5639 100644
+--- a/numastat.c
++++ b/numastat.c
+@@ -1054,7 +1054,12 @@ void show_process_info() {
+ 					} else {
+ 						tmp_row = header_rows + pid_ix;
+ 					}
+-					int tmp_col = header_cols + node_num;
++					// Don't assume nodes are sequential or contiguous.
++					// Need to find correct tmp_col from node_ix_map
++					int i = 0;
++					while(node_ix_map[i++] != node_num)
++						;
++					int tmp_col = header_cols + i - 1;
+ 					double_addto(&table, tmp_row, tmp_col, value);
+ 					double_addto(&table, tmp_row, total_col_ix, value);
+ 					double_addto(&table, total_row_ix, tmp_col, value);
+-- 
+2.14.0
+
