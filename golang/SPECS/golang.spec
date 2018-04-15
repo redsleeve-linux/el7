@@ -25,7 +25,7 @@
 # Define GOROOT macros
 %global goroot          /usr/lib/%{name}
 %global gopath          %{_datadir}/gocode
-%global golang_arches   x86_64 aarch64 ppc64le s390x %{arm}
+%global golang_arches   x86_64 aarch64 ppc64le s390x
 
 # Golang build options.
 
@@ -72,10 +72,6 @@
 %global gohostarch  arm64
 %endif
 
-%ifarch %{arm}
-%global gohostarch  arm
-%endif
-
 %ifarch ppc64le
 %global gohostarch ppc64le
 %endif
@@ -84,12 +80,12 @@
 %global gohostarch s390x
 %endif
 
-%global go_api 1.8
-%global go_version 1.8.3
+%global go_api 1.9
+%global go_version 1.9.4
 
 Name:           golang
-Version:        1.8.3
-Release:        1%{?dist}.redsleeve
+Version:        1.9.4
+Release:        1%{?dist}
 Summary:        The Go Programming Language
 # source tree includes several copies of Mark.Twain-Tom.Sawyer.txt under Public Domain
 License:        BSD and Public Domain
@@ -124,10 +120,10 @@ Patch212:       golang-1.5-bootstrap-binary-path.patch
 # later run `go test -a std`. This makes it only use the zoneinfo.zip where needed in tests.
 Patch215:       ./go1.5-zoneinfo_testing_only.patch
 
-# https://github.com/golang/go/commit/94aba76639cf4d5e30975d846bb0368db8202269
-Patch216:       ./31bit-OID-asn1.patch
-Patch217:       ./dlink-test-fail.patch
-Patch218:       ./dlink-aarch64-test-fail.patch
+# https://github.com/golang/go/commit/ca8c361d867d62bd46013c5abbaaad0b2ca6077f
+Patch216: use-buildmode-pie-for-pie-testing.patch
+# https://github.com/hyangah/go/commit/3502496d03bcd842fd7aac95ec0d7096d581cd26
+Patch217: use-no-pie-where-needed.patch
 
 # Having documentation separate was broken
 Obsoletes:      %{name}-docs < 1.1-4
@@ -248,15 +244,7 @@ Summary:        Golang shared object libraries
 %patch215 -p1
 
 %patch216 -p1
-%ifarch ppc64le
 %patch217 -p1
-%endif
-%ifarch aarch64
-%patch218 -p1
-%endif
-
-# don't include chacha test vectors in buildID
-mv ./src/vendor/golang_org/x/crypto/chacha20poly1305/chacha20poly1305_test_vectors.go ./src/vendor/golang_org/x/crypto/chacha20poly1305/chacha20poly1305_vectors_test.go
 
 %build
 
@@ -438,6 +426,7 @@ fi
 %exclude %{goroot}/src/
 %exclude %{goroot}/doc/
 %exclude %{goroot}/misc/
+%exclude %{goroot}/test/
 %{goroot}/*
 
 # ensure directory ownership, so they are cleaned up if empty
@@ -478,8 +467,32 @@ fi
 %endif
 
 %changelog
-* Fri Aug 04 2017 Jacco Ligthart <jacco@redsleeve.org> - 1.8.3-1.redsleeve
-- added arm to golang_arches
+* Thu Feb 08 2018 Jakub Čajka <jcajka@redhat.com> - 1.9.4-1
+- Rebase to 1.9.4
+- Fix CVE-2018-6574
+- Resolves: rhbz#1545300
+
+* Wed Nov 08 2017 Jakub Čajka <jcajka@redhat.com> - 1.9.2-4
+- Related: rhbz#1505967
+
+* Tue Nov 07 2017 Jakub Čajka <jcajka@redhat.com> - 1.9.2-3
+- Resolve: rhbz#1505967 
+
+* Tue Oct 31 2017 Jakub Čajka <jcajka@redhat.com> - 1.9.2-2
+- fix up file lists
+- Related: rhbz#1499827
+
+* Thu Oct 26 2017 Jakub Čajka <jcajka@redhat.com> - 1.9.2-1
+- Rebase to 1.9.2
+- Related: rhbz#1499827
+
+* Fri Oct 13 2017 Jakub Čajka <jcajka@redhat.com> - 1.9.1-1
+- Rebase to 1.9.1
+- fix CVE-2017-15041 and CVE-2017-15042
+- Resolves: rhbz#1500591, rhbz#1499827, rhbz#1500587, rhbz#1448494
+
+* Tue Jun 20 2017 Jakub Čajka <jcajka@redhat.com> - 1.8.3-2
+- Resolves: rhbz#1447109
 
 * Wed May 31 2017 Jakub Čajka <jcajka@redhat.com> - 1.8.3-1
 - bump to 1.8.3
