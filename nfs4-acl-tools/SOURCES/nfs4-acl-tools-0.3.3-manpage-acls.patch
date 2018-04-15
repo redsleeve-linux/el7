@@ -1,0 +1,26 @@
+commit 54fec3a557ee8f9f1c75080a2fe1c34a3330a359
+Author: Rinku Kothiya <rkothiya@redhat.com>
+Date:   Thu Sep 21 19:43:51 2017 +0530
+
+    Describe how the Linux server handles inheritable acls
+    
+    These are client-side tools.  But it's probably useful to say a little
+    about how the Linux server handles inherited ACLs.
+    
+    (From redhat bugzilla 1493905).
+    
+    Signed-off-by: J. Bruce Fields <bfields@redhat.com>
+
+diff --git a/man/man5/nfs4_acl.5 b/man/man5/nfs4_acl.5
+index 3d5731f..a472e6e 100644
+--- a/man/man5/nfs4_acl.5
++++ b/man/man5/nfs4_acl.5
+@@ -264,7 +264,7 @@ added.  The former is the "effective" inherited ACE (used in the subdirectory's
+ own permissions checks); the latter is the "heritable" inherited ACE (when the 
+ subdirectory has directories created within it, they inherit it).  This approach 
+ makes it easier to modify access rights to the subdirectory itself without 
+-modifying its heritable ACEs.
++modifying its heritable ACEs. The Linux kernel server uses this approach.
+ .PP
+ .ns
+ .SH A WARNING ABOUT DENY ACES 
