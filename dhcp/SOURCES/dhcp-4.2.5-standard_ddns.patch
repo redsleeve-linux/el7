@@ -1,0 +1,2774 @@
+diff --git a/client/dhclient.8 b/client/dhclient.8
+index a29757a..c66a912 100644
+--- a/client/dhclient.8
++++ b/client/dhclient.8
+@@ -56,6 +56,12 @@ dhclient - Dynamic Host Configuration Protocol Client
+ ]
+ ]
+ [
++.B -i
++]
++[
++.B -I
++]
++[
+ .B -D
+ .I LL|LLT
+ ]
+@@ -441,6 +447,17 @@ Set the giaddr field of all packets to the \fIrelay\fR IP address
+ simulating a relay agent.  This is for testing pruposes only and
+ should not be expected to work in any consistent or useful way.
+ .TP
++.BI \-i
++Use a DUID with DHCPv4 clients.  If no DUID is available in the
++lease file one will be constructed and saved.  The DUID will be
++used to contstuct a RFC4361 style client id that will be included
++in the client's messages.  This client id can be overridden by
++setting a client id in the configuration file.  Overridding the
++client id in this fashion is discouraged.
++.TP
++.BI \-I
++Use the standard DDNS scheme from RFCs 4701 & 4702.  
++.TP
+ .BI \--version
+ Print version number and exit.
+ .PP
+@@ -470,8 +487,10 @@ DHCPv6 \fBdhclient\fR creates an identifier based on the link-layer address
+ (DUID-LL) if it is running in stateless mode (with \fB\-S\fR, not
+ requesting an address), or it creates an identifier based on the
+ link-layer address plus a timestamp (DUID-LLT) if it is running in
+-stateful mode (without \fB\-S\fR, requesting an address).  \fB\-D\fR
+-overrides this default, with a value of either \fILL\fR or \fILLT\fR.
++stateful mode (without \fB\-S\fR, requesting an address).  When DHCPv4
++is configued to use a DUID using \fB\-i\fR option the default is to use
++a DUID-LLT.  \fB\-D\fR
++overrides these default, with a value of either \fILL\fR or \fILLT\fR.
+ .TP
+ .BI \-N
+ .\" TODO: is this for telling an already running dhclient?
+diff --git a/client/dhclient.c b/client/dhclient.c
+index 0db4703..6403754 100644
+--- a/client/dhclient.c
++++ b/client/dhclient.c
+@@ -79,6 +79,8 @@ struct sockaddr_in sockaddr_broadcast;
+ struct in_addr giaddr;
+ struct data_string default_duid;
+ int duid_type = 0;
++int duid_v4 = 0;
++int std_dhcid = 0;
+ 
+ /* ASSERT_STATE() does nothing now; it used to be
+    assert (state_is == state_shouldbe). */
+@@ -325,12 +327,9 @@ main(int argc, char **argv) {
+ 				wanted_ia_na = 0;
+ 			}
+ 			wanted_ia_pd++;
++#endif /* DHCPv6 */
+ 		} else if (!strcmp(argv[i], "-D")) {
+-			if (local_family_set && (local_family == AF_INET)) {
+-				usage();
+-			}
+-			local_family_set = 1;
+-			local_family = AF_INET6;
++			duid_v4 = 1;
+ 			if (++i == argc)
+ 				usage();
+ 			if (!strcasecmp(argv[i], "LL")) {
+@@ -340,7 +339,12 @@ main(int argc, char **argv) {
+ 			} else {
+ 				usage();
+ 			}
+-#endif /* DHCPv6 */
++		} else if (!strcmp(argv[i], "-i")) {
++			/* enable DUID support for DHCPv4 clients */
++			duid_v4 = 1;
++		} else if (!strcmp(argv[i], "-I")) {
++			/* enable standard DHCID support for DDNS updates */
++			std_dhcid = 1;
+ 		} else if (!strcmp(argv[i], "-v")) {
+ 			quiet = 0;
+ 		} else if (!strcmp(argv[i], "--version")) {
+@@ -970,12 +974,13 @@ main(int argc, char **argv) {
+ 		}
+ 	}
+ 
+-	/* Start a configuration state machine for each interface. */
+-#ifdef DHCPv6
+-	if (local_family == AF_INET6) {
+-		/* Establish a default DUID.  This may be moved to the
+-		 * DHCPv4 area later.
+-		 */
++
++	/*
++	 * Establish a default DUID.  We always do so for v6 and
++	 * do so if desired for v4 via the -D or -i options
++	 */
++	if ((local_family == AF_INET6) ||
++	    ((local_family == AF_INET) && (duid_v4 == 1))) {
+ 		if (default_duid.len == 0) {
+ 			if (default_duid.buffer != NULL)
+ 				data_string_forget(&default_duid, MDL);
+@@ -983,7 +988,11 @@ main(int argc, char **argv) {
+ 			if (form_duid(&default_duid, MDL) == ISC_R_SUCCESS)
+ 				write_duid(&default_duid);
+ 		}
++	}
+ 
++	/* Start a configuration state machine for each interface. */
++#ifdef DHCPv6
++	if (local_family == AF_INET6) {
+ 		for (ip = interfaces ; ip != NULL ; ip = ip->next) {
+ 			for (client = ip->client ; client != NULL ;
+ 			     client = client->next) {
+@@ -1115,9 +1124,9 @@ static void usage()
+ 
+ 	log_fatal("Usage: dhclient "
+ #ifdef DHCPv6
+-		  "[-4|-6] [-SNTP1dvrx] [-nw] [-p <port>] [-D LL|LLT]\n"
++		  "[-4|-6] [-SNTPI1dvrxi] [-nw] [-p <port>] [-D LL|LLT] \n"
+ #else /* DHCPv6 */
+-		  "[-1dvrx] [-nw] [-p <port>]\n"
++		  "[-I1dvrxi] [-nw] [-p <port>] [-D LL|LLT] \n"
+ #endif /* DHCPv6 */
+ 		  "                [-s server-addr] [-cf config-file] "
+ 		  "[-lf lease-file]\n"
+@@ -2823,24 +2832,24 @@ make_client_options(struct client_state *client, struct client_lease *lease,
+ 	unsigned i;
+ 	struct option_cache *oc;
+ 	struct option *option = NULL;
+-	struct buffer *bp = (struct buffer *)0;
++	struct buffer *bp = NULL;
+ 
+ 	/* If there are any leftover options, get rid of them. */
+ 	if (*op)
+-		option_state_dereference (op, MDL);
++		option_state_dereference(op, MDL);
+ 
+ 	/* Allocate space for options. */
+-	option_state_allocate (op, MDL);
++	option_state_allocate(op, MDL);
+ 
+ 	/* Send the server identifier if provided. */
+ 	if (sid)
+-		save_option (&dhcp_universe, *op, sid);
++		save_option(&dhcp_universe, *op, sid);
+ 
+-	oc = (struct option_cache *)0;
++	oc = NULL;
+ 
+ 	/* Send the requested address if provided. */
+ 	if (rip) {
+-		client -> requested_address = *rip;
++		client->requested_address = *rip;
+ 		i = DHO_DHCP_REQUESTED_ADDRESS;
+ 		if (!(option_code_hash_lookup(&option, dhcp_universe.code_hash,
+ 					      &i, 0, MDL) &&
+@@ -2848,22 +2857,22 @@ make_client_options(struct client_state *client, struct client_lease *lease,
+ 					      option, MDL)))
+ 			log_error ("can't make requested address cache.");
+ 		else {
+-			save_option (&dhcp_universe, *op, oc);
+-			option_cache_dereference (&oc, MDL);
++			save_option(&dhcp_universe, *op, oc);
++			option_cache_dereference(&oc, MDL);
+ 		}
+ 		option_dereference(&option, MDL);
+ 	} else {
+-		client -> requested_address.len = 0;
++		client->requested_address.len = 0;
+ 	}
+ 
+ 	i = DHO_DHCP_MESSAGE_TYPE;
+ 	if (!(option_code_hash_lookup(&option, dhcp_universe.code_hash, &i, 0,
+ 				      MDL) &&
+ 	      make_const_option_cache(&oc, NULL, type, 1, option, MDL)))
+-		log_error ("can't make message type.");
++		log_error("can't make message type.");
+ 	else {
+-		save_option (&dhcp_universe, *op, oc);
+-		option_cache_dereference (&oc, MDL);
++		save_option(&dhcp_universe, *op, oc);
++		option_cache_dereference(&oc, MDL);
+ 	}
+ 	option_dereference(&option, MDL);
+ 
+@@ -2876,8 +2885,8 @@ make_client_options(struct client_state *client, struct client_lease *lease,
+ 			if (prl[i]->universe == &dhcp_universe)
+ 				len++;
+ 
+-		if (!buffer_allocate (&bp, len, MDL))
+-			log_error ("can't make parameter list buffer.");
++		if (!buffer_allocate(&bp, len, MDL))
++			log_error("can't make parameter list buffer.");
+ 		else {
+ 			unsigned code = DHO_DHCP_PARAMETER_REQUEST_LIST;
+ 
+@@ -2891,15 +2900,69 @@ make_client_options(struct client_state *client, struct client_lease *lease,
+ 						      &code, 0, MDL) &&
+ 			      make_const_option_cache(&oc, &bp, NULL, len,
+ 						      option, MDL)))
+-				log_error ("can't make option cache");
++				log_error("can't make option cache");
+ 			else {
+-				save_option (&dhcp_universe, *op, oc);
+-				option_cache_dereference (&oc, MDL);
++				save_option(&dhcp_universe, *op, oc);
++				option_cache_dereference(&oc, MDL);
+ 			}
+ 			option_dereference(&option, MDL);
+ 		}
+ 	}
+ 
++	/*
++	 * If requested (duid_v4 == 1) add an RFC4361 compliant client-identifier
++	 * This can be overridden by including a client id in the configuration
++	 * file.
++	 */
++ 	if (duid_v4 == 1) {
++		struct data_string client_identifier;
++		int hw_idx, hw_len;
++
++		memset(&client_identifier, 0, sizeof(client_identifier));
++		client_identifier.len = 1 + 4 + default_duid.len;
++		if (!buffer_allocate(&client_identifier.buffer,
++				     client_identifier.len, MDL))
++			log_fatal("no memory for default DUID!");
++		client_identifier.data = client_identifier.buffer->data;
++
++		i = DHO_DHCP_CLIENT_IDENTIFIER;
++
++		/* Client-identifier type : 1 byte */
++		*client_identifier.buffer->data = 255;
++		
++		/* IAID : 4 bytes
++		 * we use the low 4 bytes from the interface address
++		 */
++		if (client->interface->hw_address.hlen > 4) {
++			hw_idx = client->interface->hw_address.hlen - 4;
++			hw_len = 4;
++		} else {
++			hw_idx = 0;
++			hw_len = client->interface->hw_address.hlen;
++		}
++		memcpy(&client_identifier.buffer->data + 5 - hw_len,
++		       client->interface->hw_address.hbuf + hw_idx,
++		       hw_len);
++	
++		/* Add the default duid */
++		memcpy(&client_identifier.buffer->data+(1+4),
++		       default_duid.data, default_duid.len);
++
++		/* And save the option */
++		if (!(option_code_hash_lookup(&option, dhcp_universe.code_hash,
++					      &i, 0, MDL) &&
++		      make_const_option_cache(&oc, NULL,
++					      (u_int8_t *)client_identifier.data,
++					      client_identifier.len,
++					      option, MDL)))
++			log_error ("can't make requested client id cache..");
++		else {
++			save_option (&dhcp_universe, *op, oc);
++			option_cache_dereference (&oc, MDL);
++		}
++		option_dereference(&option, MDL);
++	}
++
+ 	/* Run statements that need to be run on transmission. */
+ 	if (client -> config -> on_transmission)
+ 		execute_statements_in_scope
+@@ -4522,6 +4585,7 @@ client_dns_update(struct client_state *client, dhcp_ddns_cb_t *ddns_cb)
+ 	struct option_cache *oc;
+ 	int ignorep;
+ 	int result;
++	int ddns_v4_type;
+ 	isc_result_t rcode;
+ 
+ 	/* If we didn't send an FQDN option, we certainly aren't going to
+@@ -4564,47 +4628,82 @@ client_dns_update(struct client_state *client, dhcp_ddns_cb_t *ddns_cb)
+ 				    &global_scope, oc, MDL))
+ 		return ISC_R_SUCCESS;
+ 
+-	/* If this is a DHCPv6 client update, make a dhcid string out of
+-	 * the DUID.  If this is a DHCPv4 client update, choose either
+-	 * the client identifier, if there is one, or the interface's
+-	 * MAC address.
++        /*
++	 * Construct the DHCID value for use in the DDNS update process
++	 * We have the newer standard version and the older interim version
++	 * chosen by the '-I' option.  The interim version is left as is
++	 * for backwards compatibility.  The standard version is based on
++	 * RFC 4701 section 3.3
+ 	 */
++
+ 	result = 0;
+ 	memset(&client_identifier, 0, sizeof(client_identifier));
+-	if (client->active_lease != NULL) {
+-		if (((oc =
+-		      lookup_option(&dhcpv6_universe, client->sent_options,
+-				    D6O_CLIENTID)) != NULL) &&
+-		    evaluate_option_cache(&client_identifier, NULL, NULL,
+-					  client, client->sent_options, NULL,
++
++        if (std_dhcid == 1) {
++          /* standard style */
++          ddns_cb->dhcid_class = dns_rdatatype_dhcid;
++          ddns_v4_type = 1;
++	} else {
++          /* interim style */
++          ddns_cb->dhcid_class = dns_rdatatype_txt;
++          /* for backwards compatibility */
++          ddns_v4_type = DHO_DHCP_CLIENT_IDENTIFIER;
++	}
++
++        	if (client->active_lease != NULL) {
++		/* V6 request, get the client identifier, then
++		 * construct the dhcid for either standard 
++		 * or interim */
++		if (((oc = lookup_option(&dhcpv6_universe,
++					 client->sent_options,
++					 D6O_CLIENTID)) != NULL) &&
++		    evaluate_option_cache(&client_identifier, NULL,
++					  NULL, client,
++					  client->sent_options, NULL,
+ 					  &global_scope, oc, MDL)) {
+-			/* RFC4701 defines type '2' as being for the DUID
+-			 * field.  We aren't using RFC4701 DHCID RR's yet,
+-			 * but this is as good a value as any.
+-			 */
+-			result = get_dhcid(&ddns_cb->dhcid, 2,
++			result = get_dhcid(ddns_cb, 2,
+ 					   client_identifier.data,
+ 					   client_identifier.len);
+ 			data_string_forget(&client_identifier, MDL);
+ 		} else
+ 			log_fatal("Impossible condition at %s:%d.", MDL);
+ 	} else {
+-		if (((oc =
+-		      lookup_option(&dhcp_universe, client->sent_options,
+-				    DHO_DHCP_CLIENT_IDENTIFIER)) != NULL) &&
+-		    evaluate_option_cache(&client_identifier, NULL, NULL,
+-					  client, client->sent_options, NULL,
++		/*
++		 * V4 request, use the client id if there is one or the
++		 * mac address if there isn't.  If we have a client id
++		 * we check to see if it is an embedded DUID.
++		 */
++		if (((oc = lookup_option(&dhcp_universe,
++					 client->sent_options,
++					 DHO_DHCP_CLIENT_IDENTIFIER)) != NULL) &&
++		    evaluate_option_cache(&client_identifier, NULL,
++					  NULL, client,
++					  client->sent_options, NULL,
+ 					  &global_scope, oc, MDL)) {
+-			result = get_dhcid(&ddns_cb->dhcid,
+-					   DHO_DHCP_CLIENT_IDENTIFIER,
+-					   client_identifier.data,
+-					   client_identifier.len);
++			if ((std_dhcid == 1) && (duid_v4 == 1) &&
++			    (client_identifier.data[0] == 255)) {
++				/*
++				 * This appears to be an embedded DUID,
++				 * extract it and treat it as such
++				 */
++				if (client_identifier.len <= 5)
++					log_fatal("Impossible condition at %s:%d.",
++						  MDL);
++				result = get_dhcid(ddns_cb, 2,
++						   client_identifier.data + 5,
++						   client_identifier.len - 5);
++			} else {
++				result = get_dhcid(ddns_cb, ddns_v4_type,
++						   client_identifier.data,
++						   client_identifier.len);
++			}
+ 			data_string_forget(&client_identifier, MDL);
+ 		} else
+-			result = get_dhcid(&ddns_cb->dhcid, 0,
++			result = get_dhcid(ddns_cb, 0,
+ 					   client->interface->hw_address.hbuf,
+ 					   client->interface->hw_address.hlen);
+ 	}
++
+ 	if (!result) {
+ 		return ISC_R_SUCCESS;
+ 	}
+@@ -4886,3 +4985,4 @@ dhclient_ddns_cb_free(dhcp_ddns_cb_t *ddns_cb, char* file, int line) {
+         ddns_cb_free(ddns_cb, file, line);
+     }
+ }
++
+diff --git a/common/conflex.c b/common/conflex.c
+index 4611616..c99732e 100644
+--- a/common/conflex.c
++++ b/common/conflex.c
+@@ -879,10 +879,6 @@ intern(char *atom, enum dhcp_token dfv) {
+ 	      case 'd':
+ 		if (!strcasecmp(atom + 1, "b-time-format"))
+ 			return DB_TIME_FORMAT;
+-		if (!strcasecmp (atom + 1, "ns-update"))
+-			return DNS_UPDATE;
+-		if (!strcasecmp (atom + 1, "ns-delete"))
+-			return DNS_DELETE;
+ 		if (!strcasecmp (atom + 1, "omain"))
+ 			return DOMAIN;
+ 		if (!strncasecmp (atom + 1, "omain-", 6)) {
+@@ -1178,8 +1174,6 @@ intern(char *atom, enum dhcp_token dfv) {
+ 			return TOKEN_NOT;
+ 		if (!strcasecmp (atom + 1, "o"))
+ 			return TOKEN_NO;
+-		if (!strcasecmp (atom + 1, "s-update"))
+-			return NS_UPDATE;
+ 		if (!strcasecmp (atom + 1, "oerror"))
+ 			return NS_NOERROR;
+ 		if (!strcasecmp (atom + 1, "otauth"))
+@@ -1496,8 +1490,6 @@ intern(char *atom, enum dhcp_token dfv) {
+ 		}
+ 		if (!strcasecmp (atom + 1, "nauthenticated"))
+ 			return UNAUTHENTICATED;
+-		if (!strcasecmp (atom + 1, "pdated-dns-rr"))
+-			return UPDATED_DNS_RR;
+ 		if (!strcasecmp (atom + 1, "pdate"))
+ 			return UPDATE;
+ 		break;
+diff --git a/common/dns.c b/common/dns.c
+index d3ac966..a04c61d 100644
+--- a/common/dns.c
++++ b/common/dns.c
+@@ -30,10 +30,12 @@
+  * asynchronous DNS routines.
+  */
+ 
++/*! \file common/dns.c
++ */
+ #include "dhcpd.h"
+ #include "arpa/nameser.h"
+ #include <isc/md5.h>
+-
++#include <isc/sha2.h>
+ #include <dns/result.h>
+ 
+ /*
+@@ -823,45 +825,123 @@ void repudiate_zone (struct dns_zone **zone)
+ 	dns_zone_dereference (zone, MDL);
+ }
+ 
+-/* Have to use TXT records for now. */
+-#define T_DHCID T_TXT
++/*!
++ * \brief Create an id for a client
++ *
++ * This function is used to create an id for a client to use with DDNS
++ * This version of the function is for the standard style, RFC 4701
++ *
++ * This function takes information from the type and data fields and
++ * mangles it into a dhcid string which it places in ddns_cb.  It also
++ * sets a field in ddns_cb to specify the class that should be used
++ * when sending the dhcid, in this case it is a DHCID record so we use
++ * dns_rdatatype_dhcid
++ *
++ * The DHCID we construct is:
++ *  2 bytes - identifier type (see 4701 and IANA)
++ *  1 byte  - digest type, currently only SHA256 (1)
++ *  n bytes - digest, length depends on digest type, currently 32 for
++ *            SHA256
++ *
++ * What we base the digest on is up to the calling code for an id type of
++ * 0 - 1 octet htype followed by hlen octets of chaddr from v4 client request
++ * 1 - data octets from a dhcpv4 client's client identifier option
++ * 2 - the client DUID from a v4 or v6 client's client id option
++ * This identifier is concatenated with the fqdn and the result is digested.
++ */
++int get_std_dhcid(dhcp_ddns_cb_t *ddns_cb,
++		  int type,
++		  const u_int8_t *identifier,
++		  unsigned id_len)
++{
++	struct data_string *id = &ddns_cb->dhcid;
++	isc_sha256_t sha256;
++	unsigned char buf[ISC_SHA256_DIGESTLENGTH];
++	unsigned char fwd_buf[256];
++	unsigned fwd_buflen = 0;
++
++	/* Types can only be 0..(2^16)-1. */
++	if (type < 0 || type > 65535)
++		return (0);
++
++	/* We need to convert the fwd name to wire representation */
++	if (MRns_name_pton((char *)ddns_cb->fwd_name.data, fwd_buf, 256) == -1)
++		return (0);
++	while(fwd_buf[fwd_buflen] != 0) {
++		fwd_buflen += fwd_buf[fwd_buflen] + 1;
++	}
++	fwd_buflen++;
++
++	if (!buffer_allocate(&id->buffer,
++			     ISC_SHA256_DIGESTLENGTH + 2 + 1,
++			     MDL))
++		return (0);
++	id->data = id->buffer->data;
++
++	/* The two first bytes contain the type identifier. */
++	putUShort(id->buffer->data, (unsigned)type);
++
++	/* The next is the digest type, SHA-256 is 1 */
++	putUChar(id->buffer->data + 2, 1u);
++
++	/* Computing the digest */
++	isc_sha256_init(&sha256);
++	isc_sha256_update(&sha256, identifier, id_len);
++	isc_sha256_update(&sha256, fwd_buf, fwd_buflen);
++	isc_sha256_final(buf, &sha256);
+ 
+-int get_dhcid (struct data_string *id,
+-	       int type, const u_int8_t *data, unsigned len)
++	memcpy(id->buffer->data + 3, &buf, ISC_SHA256_DIGESTLENGTH);
++
++	id->len = ISC_SHA256_DIGESTLENGTH + 2 + 1;
++
++	return (1);
++}
++
++/*!
++ *
++ * \brief Create an id for a client
++ *
++ * This function is used to create an id for a client to use with DDNS
++ * This version of the function is for the interim style.  It is retained
++ * to allow users to continue using the interim style but they should
++ * switch to the standard style (which uses get_std_dhcid) for better
++ * interoperability.  
++ *
++ * This function takes information from the type and data fields and
++ * mangles it into a dhcid string which it places in ddns_cb.  It also
++ * sets a field in ddns_cb to specify the class that should be used
++ * when sending the dhcid, in this case it is a txt record so we use
++ * dns_rdata_type_txt
++ *
++ * NOTE WELL: this function has issues with how it calculates the
++ * dhcid, they can't be changed now as that would break the records
++ * already in use.
++ */
++
++int get_int_dhcid (dhcp_ddns_cb_t *ddns_cb,
++		   int type,
++		   const u_int8_t *data,
++		   unsigned len)
+ {
++	struct data_string *id = &ddns_cb->dhcid;
+ 	unsigned char buf[ISC_MD5_DIGESTLENGTH];
+ 	isc_md5_t md5;
+ 	int i;
+ 
+ 	/* Types can only be 0..(2^16)-1. */
+ 	if (type < 0 || type > 65535)
+-		return 0;
++		return (0);
+ 
+ 	/*
+ 	 * Hexadecimal MD5 digest plus two byte type, NUL,
+ 	 * and one byte for length for dns.
+ 	 */
+-	if (!buffer_allocate (&id -> buffer,
+-			      (ISC_MD5_DIGESTLENGTH * 2) + 4, MDL))
+-		return 0;
+-	id -> data = id -> buffer -> data;
++	if (!buffer_allocate(&id -> buffer,
++			     (ISC_MD5_DIGESTLENGTH * 2) + 4, MDL))
++		return (0);
++	id->data = id->buffer->data;
+ 
+ 	/*
+-	 * DHCP clients and servers should use the following forms of client
+-	 * identification, starting with the most preferable, and finishing
+-	 * with the least preferable.  If the client does not send any of these
+-	 * forms of identification, the DHCP/DDNS interaction is not defined by
+-	 * this specification.  The most preferable form of identification is
+-	 * the Globally Unique Identifier Option [TBD].  Next is the DHCP
+-	 * Client Identifier option.  Last is the client's link-layer address,
+-	 * as conveyed in its DHCPREQUEST message.  Implementors should note
+-	 * that the link-layer address cannot be used if there are no
+-	 * significant bytes in the chaddr field of the DHCP client's request,
+-	 * because this does not constitute a unique identifier.
+-	 *   -- "Interaction between DHCP and DNS"
+-	 *      <draft-ietf-dhc-dhcp-dns-12.txt>
+-	 *      M. Stapp, Y. Rekhter
+-	 *
+ 	 * We put the length into the first byte to turn 
+ 	 * this into a dns text string.  This avoid needing to
+ 	 * copy the string to add the byte later.
+@@ -893,7 +973,18 @@ int get_dhcid (struct data_string *id,
+ 	id->buffer->data[id->len] = 0;
+ 	id->terminated = 1;
+ 
+-	return 1;
++	return (1);
++}
++
++int get_dhcid(dhcp_ddns_cb_t *ddns_cb,
++	      int type,
++	      const u_int8_t *identifier,
++	      unsigned id_len)
++{
++	if (ddns_cb->dhcid_class == dns_rdatatype_dhcid)
++		return get_std_dhcid(ddns_cb, type, identifier, id_len);
++	else 
++		return get_int_dhcid(ddns_cb, type, identifier, id_len);
+ }
+ 
+ /*
+@@ -1015,12 +1106,12 @@ make_dns_dataset(dns_rdataclass_t  dataclass,
+  * For the server the first step will have a request of:
+  * The name is not in use
+  * Add an A RR
+- * Add a DHCID RR (currently txt)
++ * Add a DHCID RR
+  *
+  * For the client the first step will have a request of:
+  * The A RR does not exist
+  * Add an A RR
+- * Add a DHCID RR (currently txt)
++ * Add a DHCID RR
+  */
+ 
+ static isc_result_t
+@@ -1062,7 +1153,7 @@ ddns_modify_fwd_add1(dhcp_ddns_cb_t   *ddns_cb,
+ 	dataspace++;
+ 
+ 	/* Add the DHCID RR */
+-	result = make_dns_dataset(dns_rdataclass_in, dns_rdatatype_txt,
++	result = make_dns_dataset(dns_rdataclass_in, ddns_cb->dhcid_class,
+ 				  dataspace, 
+ 				  (unsigned char *)ddns_cb->dhcid.data,
+ 				  ddns_cb->dhcid.len, ddns_cb->ttl);
+@@ -1108,7 +1199,7 @@ ddns_modify_fwd_add2(dhcp_ddns_cb_t   *ddns_cb,
+ 		     dns_name_t       *pname,
+ 		     dns_name_t       *uname)
+ {
+-	isc_result_t result;
++	isc_result_t result = ISC_R_SUCCESS;
+ 
+ 	/*
+ 	 * If we are doing conflict resolution (unset) we use a prereq list.
+@@ -1117,7 +1208,7 @@ ddns_modify_fwd_add2(dhcp_ddns_cb_t   *ddns_cb,
+ 	if ((ddns_cb->flags & DDNS_CONFLICT_OVERRIDE) == 0) {
+ 		/* Construct the prereq list */
+ 		/* The DHCID RR exists and matches the client identity */
+-		result = make_dns_dataset(dns_rdataclass_in, dns_rdatatype_txt,
++		result = make_dns_dataset(dns_rdataclass_in, ddns_cb->dhcid_class,
+ 					  dataspace, 
+ 					  (unsigned char *)ddns_cb->dhcid.data,
+ 					  ddns_cb->dhcid.len, 0);
+@@ -1130,7 +1221,7 @@ ddns_modify_fwd_add2(dhcp_ddns_cb_t   *ddns_cb,
+ 		/* Start constructing the update list.
+ 		 * Conflict detection override: delete DHCID RRs */
+ 		result = make_dns_dataset(dns_rdataclass_any,
+-					  dns_rdatatype_txt,
++					  ddns_cb->dhcid_class,
+ 					  dataspace, NULL, 0, 0);
+ 		if (result != ISC_R_SUCCESS) {
+ 			return(result);
+@@ -1139,7 +1230,7 @@ ddns_modify_fwd_add2(dhcp_ddns_cb_t   *ddns_cb,
+ 		dataspace++;
+ 
+ 		/* Add current DHCID RR */
+-		result = make_dns_dataset(dns_rdataclass_in, dns_rdatatype_txt,
++		result = make_dns_dataset(dns_rdataclass_in, ddns_cb->dhcid_class,
+ 					  dataspace, 
+ 					  (unsigned char *)ddns_cb->dhcid.data,
+ 					  ddns_cb->dhcid.len, ddns_cb->ttl);
+@@ -1201,11 +1292,11 @@ ddns_modify_fwd_rem1(dhcp_ddns_cb_t   *ddns_cb,
+ 		     dns_name_t       *pname,
+ 		     dns_name_t       *uname)
+ {
+-	isc_result_t result;
++	isc_result_t result = ISC_R_SUCCESS;
+ 
+ 	/* Consruct the prereq list */
+ 	/* The DHCID RR exists and matches the client identity */
+-	result = make_dns_dataset(dns_rdataclass_in, dns_rdatatype_txt,
++	result = make_dns_dataset(dns_rdataclass_in, ddns_cb->dhcid_class,
+ 				  dataspace, 
+ 				  (unsigned char *)ddns_cb->dhcid.data,
+ 				  ddns_cb->dhcid.len, 0);
+@@ -1271,7 +1362,7 @@ ddns_modify_fwd_rem2(dhcp_ddns_cb_t   *ddns_cb,
+ 
+ 	/* Construct the update list */
+ 	/* Delete DHCID RR */
+-	result = make_dns_dataset(dns_rdataclass_none, dns_rdatatype_txt,
++	result = make_dns_dataset(dns_rdataclass_none, ddns_cb->dhcid_class,
+ 				  dataspace,
+ 				  (unsigned char *)ddns_cb->dhcid.data,
+ 				  ddns_cb->dhcid.len, 0);
+diff --git a/common/parse.c b/common/parse.c
+index fc51327..7477543 100644
+--- a/common/parse.c
++++ b/common/parse.c
+@@ -3558,42 +3558,7 @@ int parse_numeric_expression (expr, cfile, lose)
+ 	}
+ 	return 1;
+ }
+-#if defined (NSUPDATE_OLD)
+-/*
+- * dns-expression :==
+- *	UPDATE LPAREN ns-class COMMA ns-type COMMA data-expression COMMA
+- *				data-expression COMMA numeric-expression RPAREN
+- *	DELETE LPAREN ns-class COMMA ns-type COMMA data-expression COMMA
+- *				data-expression RPAREN
+- *	EXISTS LPAREN ns-class COMMA ns-type COMMA data-expression COMMA
+- *				data-expression RPAREN
+- *	NOT EXISTS LPAREN ns-class COMMA ns-type COMMA data-expression COMMA
+- *				data-expression RPAREN
+- * ns-class :== IN | CHAOS | HS | NUMBER
+- * ns-type :== A | PTR | MX | TXT | NUMBER
+- */
+-
+-int parse_dns_expression (expr, cfile, lose)
+-	struct expression **expr;
+-	struct parse *cfile;
+-	int *lose;
+-{
+-	/* Parse an expression... */
+-	if (!parse_expression (expr, cfile, lose, context_dns,
+-			       (struct expression **)0, expr_none))
+-		return 0;
+ 
+-	if (!is_dns_expression (*expr) &&
+-	    (*expr) -> op != expr_variable_reference &&
+-	    (*expr) -> op != expr_funcall) {
+-		expression_dereference (expr, MDL);
+-		parse_warn (cfile, "Expecting a dns update subexpression.");
+-		*lose = 1;
+-		return 0;
+-	}
+-	return 1;
+-}
+-#endif /* NSUPDATE_OLD */
+ /* Parse a subexpression that does not contain a binary operator. */
+ 
+ int parse_non_binary (expr, cfile, lose, context)
+@@ -3608,11 +3573,6 @@ int parse_non_binary (expr, cfile, lose, context)
+ 	struct expression *nexp, **ep;
+ 	int known;
+ 	char *cptr;
+-#if defined (NSUPDATE_OLD)
+-	enum expr_op opcode;
+-	const char *s;
+-	unsigned long u;
+-#endif 
+ 	isc_result_t status;
+ 	unsigned len;
+ 
+@@ -3645,12 +3605,7 @@ int parse_non_binary (expr, cfile, lose, context)
+ 
+ 	      case TOKEN_NOT:
+ 		token = next_token (&val, (unsigned *)0, cfile);
+-#if defined(NSUPDATE_OLD)
+-		if (context == context_dns) {
+-			token = peek_token (&val, (unsigned *)0, cfile);
+-			goto not_exists;
+-		}
+-#endif
++
+ 		if (!expression_allocate (expr, MDL))
+ 			log_fatal ("can't allocate expression");
+ 		(*expr) -> op = expr_not;
+@@ -3662,7 +3617,7 @@ int parse_non_binary (expr, cfile, lose, context)
+ 			}
+ 			*lose = 1;
+ 			expression_dereference (expr, MDL);
+-			return 0;
++			return (0);
+ 		}
+ 		if (!is_boolean_expression ((*expr) -> data.not)) {
+ 			*lose = 1;
+@@ -3694,10 +3649,6 @@ int parse_non_binary (expr, cfile, lose, context)
+ 		break;
+ 
+ 	      case EXISTS:
+-#if defined(NSUPDATE_OLD)
+-		if (context == context_dns)
+-			goto ns_exists;
+-#endif
+ 		token = next_token (&val, (unsigned *)0, cfile);
+ 		if (!expression_allocate (expr, MDL))
+ 			log_fatal ("can't allocate expression");
+@@ -3710,7 +3661,7 @@ int parse_non_binary (expr, cfile, lose, context)
+ 		    (*expr)->data.option == NULL) {
+ 			*lose = 1;
+ 			expression_dereference (expr, MDL);
+-			return 0;
++			return (0);
+ 		}
+ 		break;
+ 
+@@ -4011,285 +3962,7 @@ int parse_non_binary (expr, cfile, lose, context)
+ 			goto norparen;
+ 		break;
+ 
+-#if defined(NSUPDATE_OLD)
+-		/* dns-update and dns-delete are present for historical
+-		   purposes, but are deprecated in favor of ns-update
+-		   in combination with update, delete, exists and not
+-		   exists. */
+-	      case DNS_UPDATE:
+-	      case DNS_DELETE:
+-#if !defined (NSUPDATE)
+-		parse_warn (cfile,
+-			    "Please rebuild dhcpd with --with-nsupdate.");
+-#endif
+-		token = next_token (&val, (unsigned *)0, cfile);
+-		if (token == DNS_UPDATE)
+-			opcode = expr_ns_add;
+-		else
+-			opcode = expr_ns_delete;
+-
+-		token = next_token (&val, (unsigned *)0, cfile);
+-		if (token != LPAREN)
+-			goto nolparen;
+-
+-		token = next_token (&val, (unsigned *)0, cfile);
+-		if (token != STRING) {
+-			parse_warn (cfile,
+-				    "parse_expression: expecting string.");
+-		      badnsupdate:
+-			skip_to_semi (cfile);
+-			*lose = 1;
+-			return 0;
+-		}
+-			
+-		if (!strcasecmp (val, "a"))
+-			u = T_A;
+-		else if (!strcasecmp (val, "aaaa"))
+-			u = T_AAAA;
+-		else if (!strcasecmp (val, "ptr"))
+-			u = T_PTR;
+-		else if (!strcasecmp (val, "mx"))
+-			u = T_MX;
+-		else if (!strcasecmp (val, "cname"))
+-			u = T_CNAME;
+-		else if (!strcasecmp (val, "TXT"))
+-			u = T_TXT;
+-		else {
+-			parse_warn (cfile, "unexpected rrtype: %s", val);
+-			goto badnsupdate;
+-		}
+-
+-		s = (opcode == expr_ns_add
+-		     ? "old-dns-update"
+-		     : "old-dns-delete");
+-		cptr = dmalloc (strlen (s) + 1, MDL);
+-		if (!cptr)
+-			log_fatal ("can't allocate name for %s", s);
+-		strcpy (cptr, s);
+-		if (!expression_allocate (expr, MDL))
+-			log_fatal ("can't allocate expression");
+-		(*expr) -> op = expr_funcall;
+-		(*expr) -> data.funcall.name = cptr;
+-
+-		/* Fake up a function call. */
+-		ep = &(*expr) -> data.funcall.arglist;
+-		if (!expression_allocate (ep, MDL))
+-			log_fatal ("can't allocate expression");
+-		(*ep) -> op = expr_arg;
+-		if (!make_const_int (&(*ep) -> data.arg.val, u))
+-			log_fatal ("can't allocate rrtype value.");
+-
+-		token = next_token (&val, (unsigned *)0, cfile);
+-		if (token != COMMA)
+-			goto nocomma;
+-		ep = &((*ep) -> data.arg.next);
+-		if (!expression_allocate (ep, MDL))
+-			log_fatal ("can't allocate expression");
+-		(*ep) -> op = expr_arg;
+-		if (!(parse_data_expression (&(*ep) -> data.arg.val,
+-					     cfile, lose)))
+-			goto nodata;
+-
+-		token = next_token (&val, (unsigned *)0, cfile);
+-		if (token != COMMA)
+-			goto nocomma;
+-
+-		ep = &((*ep) -> data.arg.next);
+-		if (!expression_allocate (ep, MDL))
+-			log_fatal ("can't allocate expression");
+-		(*ep) -> op = expr_arg;
+-		if (!(parse_data_expression (&(*ep) -> data.arg.val,
+-					     cfile, lose)))
+-			goto nodata;
+-
+-		if (opcode == expr_ns_add) {
+-			token = next_token (&val, (unsigned *)0, cfile);
+-			if (token != COMMA)
+-				goto nocomma;
+-			
+-			ep = &((*ep) -> data.arg.next);
+-			if (!expression_allocate (ep, MDL))
+-				log_fatal ("can't allocate expression");
+-			(*ep) -> op = expr_arg;
+-			if (!(parse_numeric_expression (&(*ep) -> data.arg.val,
+-							cfile, lose))) {
+-				parse_warn (cfile,
+-					    "expecting numeric expression.");
+-				goto badnsupdate;
+-			}
+-		}
+-
+-		token = next_token (&val, (unsigned *)0, cfile);
+-		if (token != RPAREN)
+-			goto norparen;
+-		break;
+-
+-	      case NS_UPDATE:
+-#if !defined (NSUPDATE)
+-		parse_warn (cfile,
+-			    "Please rebuild dhcpd with --with-nsupdate.");
+-#endif
+-		token = next_token (&val, (unsigned *)0, cfile);
+-		if (!expression_allocate (expr, MDL))
+-			log_fatal ("can't allocate expression");
+-
+-		token = next_token (&val, (unsigned *)0, cfile);
+-		if (token != LPAREN)
+-			goto nolparen;
+-
+-		nexp = *expr;
+-		do {
+-			nexp -> op = expr_dns_transaction;
+-			if (!(parse_dns_expression
+-			      (&nexp -> data.dns_transaction.car,
+-			       cfile, lose)))
+-			{
+-				if (!*lose)
+-					parse_warn
+-						(cfile,
+-						 "expecting dns expression.");
+-				expression_dereference (expr, MDL);
+-				*lose = 1;
+-				return 0;
+-			}
+-
+-			token = next_token (&val, (unsigned *)0, cfile);
+-			
+-			if (token == COMMA) {
+-				if (!(expression_allocate
+-				      (&nexp -> data.dns_transaction.cdr,
+-				       MDL)))
+-					log_fatal
+-						("can't allocate expression");
+-				nexp = nexp -> data.dns_transaction.cdr;
+-			}
+-		} while (token == COMMA);
+-
+-		if (token != RPAREN)
+-			goto norparen;
+-		break;
+-
+-		/* NOT EXISTS is special cased above... */
+-	      not_exists:
+-		token = peek_token (&val, (unsigned *)0, cfile);
+-		if (token != EXISTS) {
+-			parse_warn (cfile, "expecting DNS prerequisite.");
+-			*lose = 1;
+-			return 0;
+-		}
+-		opcode = expr_ns_not_exists;
+-		goto nsupdatecode;
+-	      case TOKEN_ADD:
+-		opcode = expr_ns_add;
+-		goto nsupdatecode;
+-	      case TOKEN_DELETE:
+-		opcode = expr_ns_delete;
+-		goto nsupdatecode;
+-	      ns_exists:
+-		opcode = expr_ns_exists;
+-	      nsupdatecode:
+-		token = next_token (&val, (unsigned *)0, cfile);
+-
+-#if !defined (NSUPDATE)
+-		parse_warn (cfile,
+-			    "Please rebuild dhcpd with --with-nsupdate.");
+-#endif
+-		if (!expression_allocate (expr, MDL))
+-			log_fatal ("can't allocate expression");
+-		(*expr) -> op = opcode;
+-
+-		token = next_token (&val, (unsigned *)0, cfile);
+-		if (token != LPAREN)
+-			goto nolparen;
+-
+-		token = next_token (&val, (unsigned *)0, cfile);
+-		if (!is_identifier (token) && token != NUMBER) {
+-			parse_warn (cfile, "expecting identifier or number.");
+-		      badnsop:
+-			expression_dereference (expr, MDL);
+-			skip_to_semi (cfile);
+-			*lose = 1;
+-			return 0;
+-		}
+-			
+-		if (token == NUMBER)
+-			(*expr) -> data.ns_add.rrclass = atoi (val);
+-		else if (!strcasecmp (val, "in"))
+-			(*expr) -> data.ns_add.rrclass = C_IN;
+-		else if (!strcasecmp (val, "chaos"))
+-			(*expr) -> data.ns_add.rrclass = C_CHAOS;
+-		else if (!strcasecmp (val, "hs"))
+-			(*expr) -> data.ns_add.rrclass = C_HS;
+-		else {
+-			parse_warn (cfile, "unexpected rrclass: %s", val);
+-			goto badnsop;
+-		}
+-		
+-		token = next_token (&val, (unsigned *)0, cfile);
+-		if (token != COMMA)
+-			goto nocomma;
+ 
+-		token = next_token (&val, (unsigned *)0, cfile);
+-		if (!is_identifier (token) && token != NUMBER) {
+-			parse_warn (cfile, "expecting identifier or number.");
+-			goto badnsop;
+-		}
+-			
+-		if (token == NUMBER)
+-			(*expr) -> data.ns_add.rrtype = atoi (val);
+-		else if (!strcasecmp (val, "a"))
+-			(*expr) -> data.ns_add.rrtype = T_A;
+-		else if (!strcasecmp (val, "aaaa"))
+-			(*expr) -> data.ns_add.rrtype = T_AAAA;
+-		else if (!strcasecmp (val, "ptr"))
+-			(*expr) -> data.ns_add.rrtype = T_PTR;
+-		else if (!strcasecmp (val, "mx"))
+-			(*expr) -> data.ns_add.rrtype = T_MX;
+-		else if (!strcasecmp (val, "cname"))
+-			(*expr) -> data.ns_add.rrtype = T_CNAME;
+-		else if (!strcasecmp (val, "TXT"))
+-			(*expr) -> data.ns_add.rrtype = T_TXT;
+-		else {
+-			parse_warn (cfile, "unexpected rrtype: %s", val);
+-			goto badnsop;
+-		}
+-
+-		token = next_token (&val, (unsigned *)0, cfile);
+-		if (token != COMMA)
+-			goto nocomma;
+-
+-		if (!(parse_data_expression
+-		      (&(*expr) -> data.ns_add.rrname, cfile, lose)))
+-			goto nodata;
+-
+-		token = next_token (&val, (unsigned *)0, cfile);
+-		if (token != COMMA)
+-			goto nocomma;
+-
+-		if (!(parse_data_expression
+-		      (&(*expr) -> data.ns_add.rrdata, cfile, lose)))
+-			goto nodata;
+-
+-		if (opcode == expr_ns_add) {
+-			token = next_token (&val, (unsigned *)0, cfile);
+-			if (token != COMMA)
+-				goto nocomma;
+-			
+-			if (!(parse_numeric_expression
+-			      (&(*expr) -> data.ns_add.ttl, cfile,
+-			       lose))) {
+-			    if (!*lose)
+-				parse_warn (cfile,
+-					    "expecting numeric expression.");
+-			    goto badnsupdate;
+-			}
+-		}
+-
+-		token = next_token (&val, (unsigned *)0, cfile);
+-		if (token != RPAREN)
+-			goto norparen;
+-		break;
+-#endif /* NSUPDATE_OLD */
+ 	      case OPTION:
+ 	      case CONFIG_OPTION:
+ 		if (!expression_allocate (expr, MDL))
+@@ -4366,44 +4039,7 @@ int parse_non_binary (expr, cfile, lose, context)
+ 		(*expr) -> op = expr_host_decl_name;
+ 		break;
+ 
+-#if defined(NSUPDATE_OLD)
+-	      case UPDATED_DNS_RR:
+-		token = next_token (&val, (unsigned *)0, cfile);
+-
+-		token = next_token (&val, (unsigned *)0, cfile);
+-		if (token != LPAREN)
+-			goto nolparen;
+ 
+-		token = next_token (&val, (unsigned *)0, cfile);
+-		if (token != STRING) {
+-			parse_warn (cfile, "expecting string.");
+-		      bad_rrtype:
+-			*lose = 1;
+-			return 0;
+-		}
+-		if (!strcasecmp (val, "a"))
+-			s = "ddns-fwd-name";
+-		else if (!strcasecmp (val, "ptr"))
+-			s = "ddns-rev-name";
+-		else {
+-			parse_warn (cfile, "invalid DNS rrtype: %s", val);
+-			goto bad_rrtype;
+-		}
+-
+-		token = next_token (&val, (unsigned *)0, cfile);
+-		if (token != RPAREN)
+-			goto norparen;
+-
+-		if (!expression_allocate (expr, MDL))
+-			log_fatal ("can't allocate expression");
+-		(*expr) -> op = expr_variable_reference;
+-		(*expr) -> data.variable =
+-			dmalloc (strlen (s) + 1, MDL);
+-		if (!(*expr) -> data.variable)
+-			log_fatal ("can't allocate variable name.");
+-		strcpy ((*expr) -> data.variable, s);
+-		break;
+-#endif /* NSUPDATE_OLD */
+ 	      case PACKET:
+ 		token = next_token (&val, (unsigned *)0, cfile);
+ 		if (!expression_allocate (expr, MDL))
+diff --git a/common/tree.c b/common/tree.c
+index 8c2056c..26e0add 100644
+--- a/common/tree.c
++++ b/common/tree.c
+@@ -645,15 +645,6 @@ int evaluate_expression (result, packet, lease, client_state,
+ 		status = (evaluate_data_expression
+ 			  (&bv -> value.data, packet, lease, client_state,
+ 			   in_options, cfg_options, scope, expr, MDL));
+-#if defined (NSUPDATE_OLD)
+-	} else if (is_dns_expression (expr)) {
+-		if (!binding_value_allocate (&bv, MDL))
+-			return 0;
+-		bv -> type = binding_dns;
+-		status = (evaluate_dns_expression
+-			  (&bv -> value.dns, packet, lease, client_state,
+-			   in_options, cfg_options, scope, expr));
+-#endif
+ 	} else {
+ 		log_error ("%s: invalid expression type: %d",
+ 			   "evaluate_expression", expr -> op);
+@@ -699,19 +690,6 @@ int binding_value_dereference (struct binding_value **v,
+ 		if (bv -> value.data.buffer)
+ 			data_string_forget (&bv -> value.data, file, line);
+ 		break;
+-	      case binding_dns:
+-#if defined (NSUPDATE_OLD)
+-		if (bv -> value.dns) {
+-			if (bv -> value.dns -> r_data) {
+-				dfree (bv -> value.dns -> r_data_ephem, MDL);
+-				bv -> value.dns -> r_data = (unsigned char *)0;
+-				bv -> value.dns -> r_data_ephem =
+-					(unsigned char *)0;
+-			}
+-			minires_freeupdrec (bv -> value.dns);
+-		}
+-		break;
+-#endif
+ 	      default:
+ 		log_error ("%s(%d): invalid binding type: %d",
+ 			   file, line, bv -> type);
+@@ -721,270 +699,6 @@ int binding_value_dereference (struct binding_value **v,
+ 	return 1;
+ }
+ 
+-#if defined (NSUPDATE_OLD)
+-int evaluate_dns_expression (result, packet, lease, client_state, in_options,
+-			     cfg_options, scope, expr)
+-	ns_updrec **result;
+-	struct packet *packet;
+-	struct lease *lease;
+-	struct client_state *client_state;
+-	struct option_state *in_options;
+-	struct option_state *cfg_options;
+-	struct binding_scope **scope;
+-	struct expression *expr;
+-{
+-	unsigned long ttl = 0;
+-	char *tname;
+-	struct data_string name, data;
+-	int r0, r1, r2;
+-
+-	if (!result || *result) {
+-		log_error ("evaluate_dns_expression called with non-null %s",
+-			   "result pointer");
+-#if defined (POINTER_DEBUG)
+-		abort ();
+-#else
+-		return 0;
+-#endif
+-	}
+-		
+-	switch (expr -> op) {
+-#if defined (NSUPDATE)
+-	      case expr_ns_add:
+-		r0 = evaluate_numeric_expression (&ttl, packet, lease,
+-						  client_state,
+-						  in_options, cfg_options,
+-						  scope,
+-						  expr -> data.ns_add.ttl);
+-		goto nsfinish;
+-
+-	      case expr_ns_exists:
+-		ttl = 1;
+-
+-	      case expr_ns_delete:
+-	      case expr_ns_not_exists:
+-		r0 = 1;
+-	      nsfinish:
+-		memset (&name, 0, sizeof name);
+-		r1 = evaluate_data_expression (&name, packet, lease,
+-					       client_state,
+-					       in_options, cfg_options, scope,
+-					       expr -> data.ns_add.rrname,
+-					       MDL);
+-		if (r1) {
+-			/* The result of the evaluation may or may not
+-			   be NUL-terminated, but we need it
+-			   terminated for sure, so we have to allocate
+-			   a buffer and terminate it. */
+-			tname = dmalloc (name.len + 1, MDL);
+-			if (!tname) {
+-				r2 = 0;
+-				r1 = 0;
+-				data_string_forget (&name, MDL);
+-			} else {
+-				memcpy (tname, name.data, name.len);
+-				tname [name.len] = 0;
+-				memset (&data, 0, sizeof data);
+-				r2 = evaluate_data_expression
+-					(&data, packet, lease, client_state,
+-					 in_options, cfg_options, scope,
+-					 expr -> data.ns_add.rrdata, MDL);
+-			}
+-		} else {
+-			r2 = 0;
+-			tname = NULL;
+-		}
+-		if (r0 && r1 && (r2 || expr -> op != expr_ns_add)) {
+-		    *result = minires_mkupdrec (((expr -> op == expr_ns_add ||
+-						  expr -> op == expr_ns_delete)
+-						 ? S_UPDATE : S_PREREQ),
+-						tname,
+-						expr -> data.ns_add.rrclass,
+-						expr -> data.ns_add.rrtype,
+-						ttl);
+-		    if (!*result) {
+-			  ngood:
+-			    if (r2) {
+-				data_string_forget (&data, MDL);
+-				r2 = 0;
+-			    }
+-		    } else {
+-			if (data.len) {
+-				/* As a special case, if we get exactly
+-				   four bytes of data, it's an IP address
+-				   represented as a 32-bit quantity, which
+-				   is actually what we *should* be getting
+-				   here.   Because res_mkupdrec is currently
+-				   broken and expects a dotted quad, convert
+-				   it.   This should be fixed when the new
+-				   resolver is merged. */
+-				if (data.len == 4) {
+-				    (*result) -> r_data_ephem =
+-					    dmalloc (16, MDL);
+-				    if (!(*result) -> r_data_ephem)
+-					goto dpngood;
+-				    (*result) -> r_data =
+-					    (*result) -> r_data_ephem;
+-				    /*%Audit% 16 bytes max. %2004.06.17,Safe%*/
+-				    sprintf ((char *)(*result) -> r_data_ephem,
+-					     "%u.%u.%u.%u",
+-					     data.data [0] & 0xff,
+-					     data.data [1] & 0xff,
+-					     data.data [2] & 0xff,
+-					     data.data [3] & 0xff);
+-				    (*result) -> r_size = 
+-					    strlen ((const char *)
+-						    (*result) -> r_data);
+-				} else {
+-				    (*result) -> r_size = data.len;
+-				    (*result) -> r_data_ephem =
+-					    dmalloc (data.len, MDL);
+-				    if (!(*result) -> r_data_ephem) {
+-				      dpngood: /* double plus ungood. */
+-					minires_freeupdrec (*result);
+-					*result = 0;
+-					goto ngood;
+-				    }
+-				    (*result) -> r_data =
+-					    (*result) -> r_data_ephem;
+-				    memcpy ((*result) -> r_data_ephem,
+-					    data.data, data.len);
+-				}
+-			} else {
+-				(*result) -> r_data = 0;
+-				(*result) -> r_size = 0;
+-			}
+-			switch (expr -> op) {
+-			      case expr_ns_add:
+-				(*result) -> r_opcode = ADD;
+-				break;
+-			      case expr_ns_delete:
+-				(*result) -> r_opcode = DELETE;
+-				break;
+-			      case expr_ns_exists:
+-				(*result) -> r_opcode = YXRRSET;
+-				break;
+-			      case expr_ns_not_exists:
+-				(*result) -> r_opcode = NXRRSET;
+-				break;
+-
+-				/* Can't happen, but satisfy gcc. */
+-			      default:
+-				break;
+-			}
+-		    }
+-		}
+-		if (r1) {
+-			data_string_forget (&name, MDL);
+-			dfree (tname, MDL);
+-		}
+-		if (r2)
+-			data_string_forget (&data, MDL);
+-		/* One flaw in the thinking here: an IP address and an
+-		   ASCII string both look like data expressions, but
+-		   for A records, we want an ASCII string, not a
+-		   binary IP address.  Do I need to turn binary IP
+-		   addresses into a separate type?  */
+-		return (r0 && r1 &&
+-			(r2 || expr -> op != expr_ns_add) && *result);
+-
+-#else
+-	      case expr_ns_add:
+-	      case expr_ns_delete:
+-	      case expr_ns_exists:
+-	      case expr_ns_not_exists:
+-		return 0;
+-#endif
+-	      case expr_funcall:
+-		log_error ("%s: dns values for functions not supported.",
+-			   expr -> data.funcall.name);
+-		break;
+-
+-	      case expr_variable_reference:
+-		log_error ("%s: dns values for variables not supported.",
+-			   expr -> data.variable);
+-		break;
+-
+-	      case expr_check:
+-	      case expr_equal:
+-	      case expr_not_equal:
+-	      case expr_regex_match:
+-	      case expr_iregex_match:
+-	      case expr_and:
+-	      case expr_or:
+-	      case expr_not:
+-	      case expr_match:
+-	      case expr_static:
+-	      case expr_known:
+-	      case expr_exists:
+-	      case expr_variable_exists:
+-		log_error ("Boolean opcode in evaluate_dns_expression: %d",
+-		      expr -> op);
+-		return 0;
+-
+-	      case expr_none:
+-	      case expr_substring:
+-	      case expr_suffix:
+-	      case expr_lcase:
+-	      case expr_ucase:
+-	      case expr_option:
+-	      case expr_hardware:
+-	      case expr_const_data:
+-	      case expr_packet:
+-	      case expr_concat:
+-	      case expr_encapsulate:
+-	      case expr_host_lookup:
+-	      case expr_encode_int8:
+-	      case expr_encode_int16:
+-	      case expr_encode_int32:
+-	      case expr_binary_to_ascii:
+-	      case expr_reverse:
+-	      case expr_filename:
+-	      case expr_sname:
+-	      case expr_pick_first_value:
+-	      case expr_host_decl_name:
+-	      case expr_config_option:
+-	      case expr_leased_address:
+-	      case expr_null:
+-	      case expr_gethostname:
+-		log_error ("Data opcode in evaluate_dns_expression: %d",
+-		      expr -> op);
+-		return 0;
+-
+-	      case expr_extract_int8:
+-	      case expr_extract_int16:
+-	      case expr_extract_int32:
+-	      case expr_const_int:
+-	      case expr_lease_time:
+-	      case expr_dns_transaction:
+-	      case expr_add:
+-	      case expr_subtract:
+-	      case expr_multiply:
+-	      case expr_divide:
+-	      case expr_remainder:
+-	      case expr_binary_and:
+-	      case expr_binary_or:
+-	      case expr_binary_xor:
+-	      case expr_client_state:
+-		log_error ("Numeric opcode in evaluate_dns_expression: %d",
+-		      expr -> op);
+-		return 0;
+-
+-	      case expr_function:
+-		log_error ("Function opcode in evaluate_dns_expression: %d",
+-		      expr -> op);
+-		return 0;
+-
+-	      case expr_arg:
+-		break;
+-	}
+-
+-	log_error ("Bogus opcode in evaluate_dns_expression: %d",
+-		   expr -> op);
+-	return 0;
+-}
+-#endif /* defined (NSUPDATE_OLD) */
+-
+ int evaluate_boolean_expression (result, packet, lease, client_state,
+ 				 in_options, cfg_options, scope, expr)
+ 	int *result;
+@@ -1056,20 +770,7 @@ int evaluate_boolean_expression (result, packet, lease, client_state,
+ 			    else
+ 				*result = expr -> op == expr_not_equal;
+ 			    break;
+-#if defined (NSUPDATE_OLD)
+-			  case binding_dns:
+-#if defined (NSUPDATE)
+-			    /* XXX This should be a comparison for equal
+-			       XXX values, not for identity. */
+-			    if (bv -> value.dns == obv -> value.dns)
+-				*result = expr -> op == expr_equal;
+-			    else
+-				*result = expr -> op == expr_not_equal;
+-#else
+-				*result = expr -> op == expr_not_equal;
+-#endif
+-			    break;
+-#endif /* NSUPDATE_OLD */
++
+ 			  case binding_function:
+ 			    if (bv -> value.fundef == obv -> value.fundef)
+ 				*result = expr -> op == expr_equal;
+@@ -2369,7 +2070,7 @@ int evaluate_data_expression (result, packet, lease, client_state,
+ 	      case expr_ns_delete:
+ 	      case expr_ns_exists:
+ 	      case expr_ns_not_exists:
+-		log_error ("dns update opcode in evaluate_data_expression: %d",
++		log_error ("dns opcode in evaluate_boolean_expression: %d",
+ 		      expr -> op);
+ 		return 0;
+ 
+@@ -2398,11 +2099,6 @@ int evaluate_numeric_expression (result, packet, lease, client_state,
+ {
+ 	struct data_string data;
+ 	int status, sleft, sright;
+-#if defined (NSUPDATE_OLD)
+-	ns_updrec *nut;
+-	ns_updque uq;
+-	struct expression *cur, *next;
+-#endif
+ 
+ 	struct binding *binding;
+ 	struct binding_value *bv;
+@@ -2541,53 +2237,6 @@ int evaluate_numeric_expression (result, packet, lease, client_state,
+ #endif
+ 		return (1);
+  
+-	      case expr_dns_transaction:
+-#if !defined (NSUPDATE_OLD)
+-		return 0;
+-#else
+-		if (!resolver_inited) {
+-			minires_ninit (&resolver_state);
+-			resolver_inited = 1;
+-			resolver_state.retrans = 1;
+-			resolver_state.retry = 1;
+-		}
+-		ISC_LIST_INIT (uq);
+-		cur = expr;
+-		do {
+-		    next = cur -> data.dns_transaction.cdr;
+-		    nut = 0;
+-		    status = (evaluate_dns_expression
+-			      (&nut, packet,
+-			       lease, client_state, in_options, cfg_options,
+-			       scope, cur -> data.dns_transaction.car));
+-		    if (!status)
+-			    goto dns_bad;
+-		    ISC_LIST_APPEND (uq, nut, r_link);
+-		    cur = next;
+-		} while (next);
+-
+-		/* Do the update and record the error code, if there was
+-		   an error; otherwise set it to NOERROR. */
+-		*result = minires_nupdate (&resolver_state,
+-					   ISC_LIST_HEAD (uq));
+-		status = 1;
+-
+-		print_dns_status ((int)*result, &uq);
+-
+-	      dns_bad:
+-		while (!ISC_LIST_EMPTY (uq)) {
+-			ns_updrec *tmp = ISC_LIST_HEAD (uq);
+-			ISC_LIST_UNLINK (uq, tmp, r_link);
+-			if (tmp -> r_data_ephem) {
+-				dfree (tmp -> r_data_ephem, MDL);
+-				tmp -> r_data = (unsigned char *)0;
+-				tmp -> r_data_ephem = (unsigned char *)0;
+-			}
+-			minires_freeupdrec (tmp);
+-		}
+-		return status;
+-#endif /* NSUPDATE_OLD */
+-
+ 	      case expr_variable_reference:
+ 		if (scope && *scope) {
+ 		    binding = find_binding (*scope, expr -> data.variable);
+@@ -2877,14 +2526,6 @@ int evaluate_numeric_expression (result, packet, lease, client_state,
+ 			return 0;
+ 		}
+ 
+-	      case expr_ns_add:
+-	      case expr_ns_delete:
+-	      case expr_ns_exists:
+-	      case expr_ns_not_exists:
+-		log_error ("dns opcode in evaluate_numeric_expression: %d",
+-		      expr -> op);
+-		return 0;
+-
+ 	      case expr_function:
+ 		log_error ("function definition in evaluate_numeric_expr");
+ 		return 0;
+@@ -3182,38 +2823,6 @@ void expression_dereference (eptr, file, line)
+ 				(&expr -> data.reverse.buffer, file, line);
+ 		break;
+ 
+-	      case expr_dns_transaction:
+-		if (expr -> data.dns_transaction.car)
+-		    expression_dereference (&expr -> data.dns_transaction.car,
+-					    file, line);
+-		if (expr -> data.dns_transaction.cdr)
+-		    expression_dereference (&expr -> data.dns_transaction.cdr,
+-					    file, line);
+-		break;
+-
+-	      case expr_ns_add:
+-		if (expr -> data.ns_add.rrname)
+-		    expression_dereference (&expr -> data.ns_add.rrname,
+-					    file, line);
+-		if (expr -> data.ns_add.rrdata)
+-		    expression_dereference (&expr -> data.ns_add.rrdata,
+-					    file, line);
+-		if (expr -> data.ns_add.ttl)
+-		    expression_dereference (&expr -> data.ns_add.ttl,
+-					    file, line);
+-		break;
+-
+-	      case expr_ns_delete:
+-	      case expr_ns_exists:
+-	      case expr_ns_not_exists:
+-		if (expr -> data.ns_delete.rrname)
+-		    expression_dereference (&expr -> data.ns_delete.rrname,
+-					    file, line);
+-		if (expr -> data.ns_delete.rrdata)
+-		    expression_dereference (&expr -> data.ns_delete.rrdata,
+-					    file, line);
+-		break;
+-
+ 	      case expr_variable_reference:
+ 	      case expr_variable_exists:
+ 		if (expr -> data.variable)
+@@ -3262,15 +2871,6 @@ void expression_dereference (eptr, file, line)
+ 	free_expression (expr, MDL);
+ }
+ 
+-int is_dns_expression (expr)
+-	struct expression *expr;
+-{
+-      return (expr -> op == expr_ns_add ||
+-	      expr -> op == expr_ns_delete ||
+-	      expr -> op == expr_ns_exists ||
+-	      expr -> op == expr_ns_not_exists);
+-}
+-
+ int is_boolean_expression (expr)
+ 	struct expression *expr;
+ {
+@@ -3325,7 +2925,6 @@ int is_numeric_expression (expr)
+ 		expr -> op == expr_extract_int32 ||
+ 		expr -> op == expr_const_int ||
+ 		expr -> op == expr_lease_time ||
+-		expr -> op == expr_dns_transaction ||
+ 		expr -> op == expr_add ||
+ 		expr -> op == expr_subtract ||
+ 		expr -> op == expr_multiply ||
+@@ -3340,11 +2939,7 @@ int is_numeric_expression (expr)
+ int is_compound_expression (expr)
+ 	struct expression *expr;
+ {
+-	return (expr -> op == expr_ns_add ||
+-		expr -> op == expr_ns_delete ||
+-		expr -> op == expr_ns_exists ||
+-		expr -> op == expr_ns_not_exists ||
+-		expr -> op == expr_substring ||
++	return (expr -> op == expr_substring ||
+ 		expr -> op == expr_suffix ||
+ 		expr -> op == expr_option ||
+ 		expr -> op == expr_concat ||
+@@ -3357,8 +2952,7 @@ int is_compound_expression (expr)
+ 		expr -> op == expr_config_option ||
+ 		expr -> op == expr_extract_int8 ||
+ 		expr -> op == expr_extract_int16 ||
+-		expr -> op == expr_extract_int32 ||
+-		expr -> op == expr_dns_transaction);
++		expr -> op == expr_extract_int32);
+ }
+ 
+ static int op_val (enum expr_op);
+@@ -3456,8 +3050,6 @@ enum expression_context expression_context (struct expression *expr)
+ 		return context_numeric;
+ 	if (is_boolean_expression (expr))
+ 		return context_boolean;
+-	if (is_dns_expression (expr))
+-		return context_dns;
+ 	return context_any;
+ }
+ 
+@@ -3928,99 +3520,6 @@ int write_expression (file, expr, col, indent, firstp)
+ 					  "lease-time");
+ 		break;
+ 
+-	      case expr_dns_transaction:
+-		col = token_print_indent (file, col, indent, "", "",
+-					  "ns-update");
+-		col = token_print_indent (file, col, indent, " ", "",
+-					  "(");
+-		scol = 0;
+-		for (e = expr;
+-		     e && e -> op == expr_dns_transaction;
+-		     e = e -> data.dns_transaction.cdr) {
+-			if (!scol) {
+-				scol = col;
+-				firstp = 1;
+-			} else
+-				firstp = 0;
+-			col = write_expression (file,
+-						e -> data.dns_transaction.car,
+-						col, scol, firstp);
+-			if (e -> data.dns_transaction.cdr)
+-				col = token_print_indent (file, col, scol,
+-							  "", " ", ",");
+-		}
+-		if (e)
+-			col = write_expression (file, e, col, scol, 0);
+-		col = token_print_indent (file, col, indent, "", "", ")");
+-		break;
+-
+-	      case expr_ns_add:
+-		col = token_print_indent (file, col, indent, "", "",
+-					  "update");
+-		col = token_print_indent (file, col, indent, " ", "",
+-					  "(");
+-		scol = col;
+-		sprintf (obuf, "%d", expr -> data.ns_add.rrclass);
+-		col = token_print_indent (file, col, scol, "", "", obuf);
+-		col = token_print_indent (file, col, scol, "", " ",
+-					  ",");
+-		sprintf (obuf, "%d", expr -> data.ns_add.rrtype);
+-		col = token_print_indent (file, col, scol, "", "", obuf);
+-		col = token_print_indent (file, col, scol, "", " ",
+-					  ",");
+-		col = write_expression (file, expr -> data.ns_add.rrname,
+-					col, scol, 0);
+-		col = token_print_indent (file, col, scol, "", " ",
+-					  ",");
+-		col = write_expression (file, expr -> data.ns_add.rrdata,
+-					col, scol, 0);
+-		col = token_print_indent (file, col, scol, "", " ",
+-					  ",");
+-		col = write_expression (file, expr -> data.ns_add.ttl,
+-					col, scol, 0);
+-		col = token_print_indent (file, col, indent, "", "",
+-					  ")");
+-		break;
+-
+-	      case expr_ns_delete:
+-		col = token_print_indent (file, col, indent, "", "",
+-					  "delete");
+-		col = token_print_indent (file, col, indent, " ", "",
+-					  "(");
+-	      finish_ns_small:
+-		scol = col;
+-		sprintf (obuf, "%d", expr -> data.ns_add.rrclass);
+-		col = token_print_indent (file, col, scol, "", "", obuf);
+-		col = token_print_indent (file, col, scol, "", " ",
+-					  ",");
+-		sprintf (obuf, "%d", expr -> data.ns_add.rrtype);
+-		col = token_print_indent (file, col, scol, "", "", obuf);
+-		col = token_print_indent (file, col, scol, "", " ",
+-					  ",");
+-		col = write_expression (file, expr -> data.ns_add.rrname,
+-					col, scol, 0);
+-		col = token_print_indent (file, col, scol, "", " ",
+-					  ",");
+-		col = write_expression (file, expr -> data.ns_add.rrdata,
+-					col, scol, 0);
+-		col = token_print_indent (file, col, indent, "", "",
+-					  ")");
+-		break;
+-
+-	      case expr_ns_exists:
+-		col = token_print_indent (file, col, indent, "", "",
+-					  "exists");
+-		col = token_print_indent (file, col, indent, " ", "",
+-					  "(");
+-		goto finish_ns_small;
+-
+-	      case expr_ns_not_exists:
+-		col = token_print_indent (file, col, indent, "", "",
+-					  "not exists");
+-		col = token_print_indent (file, col, indent, " ", "",
+-					  "(");
+-		goto finish_ns_small;
+-
+ 	      case expr_static:
+ 		col = token_print_indent (file, col, indent, "", "",
+ 					  "static");
+@@ -4293,12 +3792,7 @@ int data_subexpression_length (int *rv,
+ 	      case expr_const_int:
+ 	      case expr_exists:
+ 	      case expr_known:
+-	      case expr_dns_transaction:
+ 	      case expr_static:
+-	      case expr_ns_add:
+-	      case expr_ns_delete:
+-	      case expr_ns_exists:
+-	      case expr_ns_not_exists:
+ 	      case expr_not_equal:
+ 	      case expr_null:
+ 	      case expr_variable_exists:
+@@ -4349,12 +3843,6 @@ int expr_valid_for_context (struct expression *expr,
+ 			return 1;
+ 		return 0;
+ 
+-	      case context_dns:
+-		if (is_dns_expression (expr)) {
+-			return 1;
+-		}
+-		return 0;
+-
+ 	      case context_data_or_numeric:
+ 		if (is_numeric_expression (expr) ||
+ 		    is_data_expression (expr)) {
+diff --git a/includes/dhcpd.h b/includes/dhcpd.h
+index 1d2bf2c..7e756e0 100644
+--- a/includes/dhcpd.h
++++ b/includes/dhcpd.h
+@@ -638,6 +638,7 @@ struct lease_state {
+ #define DDNS_UPDATE_STYLE_NONE		0
+ #define DDNS_UPDATE_STYLE_AD_HOC	1
+ #define DDNS_UPDATE_STYLE_INTERIM	2
++#define DDNS_UPDATE_STYLE_STANDARD	3
+ 
+ /* Server option names. */
+ 
+@@ -1627,6 +1628,9 @@ typedef struct dhcp_ddns_cb {
+ 
+ 	void *transaction;
+ 	void *dataspace;
++
++	dns_rdataclass_t dhcid_class;
++	char *lease_tag;
+ } dhcp_ddns_cb_t;
+ 
+ extern struct ipv6_pool **pools;
+@@ -2047,11 +2051,6 @@ struct expression *parse_domain_list(struct parse *cfile, int);
+ 
+ 
+ /* tree.c */
+-#if defined (NSUPDATE)
+-extern struct __res_state resolver_state;
+-extern int resolver_inited;
+-#endif
+-
+ extern struct binding_scope *global_scope;
+ pair cons (caddr_t, pair);
+ int make_const_option_cache (struct option_cache **, struct buffer **,
+@@ -2079,15 +2078,6 @@ int evaluate_expression (struct binding_value **, struct packet *,
+ 			 struct binding_scope **, struct expression *,
+ 			 const char *, int);
+ int binding_value_dereference (struct binding_value **, const char *, int);
+-#if defined (NSUPDATE_OLD)
+-int evaluate_dns_expression (ns_updrec **, struct packet *,
+-			     struct lease *,
+-			     struct client_state *,
+-			     struct option_state *,
+-			     struct option_state *,
+-			     struct binding_scope **,
+-			     struct expression *);
+-#endif
+ int evaluate_boolean_expression (int *,
+ 				 struct packet *,  struct lease *,
+ 				 struct client_state *,
+@@ -2913,21 +2903,18 @@ int icmp_echorequest (struct iaddr *);
+ isc_result_t icmp_echoreply (omapi_object_t *);
+ 
+ /* dns.c */
+-#if defined (NSUPDATE)
+-isc_result_t find_tsig_key (ns_tsig_key **, const char *, struct dns_zone *);
+-void tkey_free (ns_tsig_key **);
+-#endif
+ isc_result_t enter_dns_zone (struct dns_zone *);
+ isc_result_t dns_zone_lookup (struct dns_zone **, const char *);
+ int dns_zone_dereference (struct dns_zone **, const char *, int);
+ #if defined (NSUPDATE)
+ #define FIND_FORWARD 0
+ #define FIND_REVERSE 1
++isc_result_t find_tsig_key (ns_tsig_key **, const char *, struct dns_zone *);
++void tkey_free (ns_tsig_key **);
+ isc_result_t find_cached_zone (dhcp_ddns_cb_t *, int);
+ void forget_zone (struct dns_zone **);
+ void repudiate_zone (struct dns_zone **);
+-//void cache_found_zone (ns_class, char *, struct in_addr *, int);
+-int get_dhcid (struct data_string *, int, const u_int8_t *, unsigned);
++int get_dhcid (dhcp_ddns_cb_t *, int, const u_int8_t *, unsigned);
+ void dhcid_tolease (struct data_string *, struct data_string *);
+ isc_result_t dhcid_fromlease (struct data_string *, struct data_string *);
+ isc_result_t ddns_update_fwd(struct data_string *, struct iaddr,
+@@ -2937,6 +2924,16 @@ isc_result_t ddns_remove_fwd(struct data_string *,
+ 			     struct iaddr, struct data_string *);
+ #endif /* NSUPDATE */
+ 
++dhcp_ddns_cb_t *ddns_cb_alloc(const char *file, int line);
++void ddns_cb_free (dhcp_ddns_cb_t *ddns_cb, const char *file, int line);
++void ddns_cb_forget_zone (dhcp_ddns_cb_t *ddns_cb);
++isc_result_t
++ddns_modify_fwd(dhcp_ddns_cb_t *ddns_cb, const char *file, int line);
++isc_result_t
++ddns_modify_ptr(dhcp_ddns_cb_t *ddns_cb, const char *file, int line);
++void
++ddns_cancel(dhcp_ddns_cb_t *ddns_cb, const char *file, int line);
++
+ /* resolv.c */
+ extern char path_resolv_conf [];
+ extern struct name_server *name_servers;
+@@ -3302,21 +3299,6 @@ void dump_subnets (void);
+ void free_everything (void);
+ #endif
+ 
+-/* nsupdate.c */
+-char *ddns_rev_name (struct lease *, struct lease_state *, struct packet *);
+-char *ddns_fwd_name (struct lease *, struct lease_state *, struct packet *);
+-int nsupdateA (const char *, const unsigned char *, u_int32_t, int);
+-int nsupdatePTR (const char *, const unsigned char *, u_int32_t, int);
+-void nsupdate (struct lease *, struct lease_state *, struct packet *, int);
+-int updateA (const struct data_string *, const struct data_string *,
+-	     unsigned int, struct lease *);
+-int updatePTR (const struct data_string *, const struct data_string *,
+-	       unsigned int, struct lease *);
+-int deleteA (const struct data_string *, const struct data_string *,
+-	     struct lease *);
+-int deletePTR (const struct data_string *, const struct data_string *,
+-	       struct lease *);
+-
+ /* failover.c */
+ #if defined (FAILOVER_PROTOCOL)
+ extern dhcp_failover_state_t *failover_states;
+@@ -3576,20 +3558,5 @@ void mark_hosts_unavailable(void);
+ void mark_phosts_unavailable(void);
+ void mark_interfaces_unavailable(void);
+ 
+-dhcp_ddns_cb_t *ddns_cb_alloc(const char *file, int line);
+-void ddns_cb_free (dhcp_ddns_cb_t *ddns_cb, const char *file, int line);
+-void ddns_cb_forget_zone (dhcp_ddns_cb_t *ddns_cb);
+-
+-//void *key_from_zone(struct dns_zone *zone);
+-
+-isc_result_t
+-ddns_modify_fwd(dhcp_ddns_cb_t *ddns_cb, const char *file, int line);
+-
+-isc_result_t
+-ddns_modify_ptr(dhcp_ddns_cb_t *ddns_cb, const char *file, int line);
+-
+-void
+-ddns_cancel(dhcp_ddns_cb_t *ddns_cb, const char *file, int line);
+-
+ #define MAX_ADDRESS_STRING_LEN \
+    (sizeof("ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255"))
+diff --git a/includes/dhctoken.h b/includes/dhctoken.h
+index 3d9a21d..a75eb97 100644
+--- a/includes/dhctoken.h
++++ b/includes/dhctoken.h
+@@ -32,6 +32,11 @@
+  * ``http://www.nominum.com''.
+  */
+ 
++/*
++ * The following tokens have been deprecated and aren't in use anymore.
++ * They have been left in place to avoid disturbing the code.
++ * DNS_UPDATE, DNS_DELETE, NS_UPDATE, UPDATED_DNS_RR
++ */
+ enum dhcp_token {
+ 	SEMI = ';',
+ 	DOT = '.',
+diff --git a/includes/site.h b/includes/site.h
+index 8ff2834..1c7ec96 100644
+--- a/includes/site.h
++++ b/includes/site.h
+@@ -281,3 +281,17 @@
+    limit the number of TCP connections that the server will
+    allow at one time.  A value of 0 means there is no limit.*/
+ #define MAX_FD_VALUE 200
++
++
++/* Include code to do a slow transition of DDNS records
++   from the interim to the standard version, or backwards.
++   The normal code will handle removing an old style record
++   when the name on a lease is being changed.  This adds code
++   to handle the case where the name isn't being changed but
++   the old record should be removed to allow a new record to
++   be added.  This is the slow transition as leases are only
++   updated as a client touches them.  A fast transition would
++   entail updating all the records at once, probably at start
++   up. */
++#define DDNS_UPDATE_SLOW_TRANSITION
++   
+diff --git a/includes/tree.h b/includes/tree.h
+index 291c0f6..746d31c 100644
+--- a/includes/tree.h
++++ b/includes/tree.h
+@@ -116,9 +116,6 @@ struct binding_value {
+ 		struct data_string data;
+ 		unsigned long intval;
+ 		int boolean;
+-#if defined (NSUPDATE_OLD)
+-		ns_updrec *dns;
+-#endif
+ 		struct fundef *fundef;
+ 		struct binding_value *bv;
+ 	} value;
+diff --git a/server/ddns.c b/server/ddns.c
+index 2a64bc9..3cf15ce 100644
+--- a/server/ddns.c
++++ b/server/ddns.c
+@@ -36,6 +36,9 @@
+ #include "dhcpd.h"
+ #include <dns/result.h>
+ 
++char *ddns_standard_tag = "ddns-dhcid";
++char *ddns_interim_tag  = "ddns-txt";
++
+ #ifdef NSUPDATE
+ 
+ static void ddns_fwd_srv_connector(struct lease          *lease,
+@@ -71,16 +74,13 @@ ddns_updates(struct packet *packet, struct lease *lease, struct lease *old,
+ 	struct data_string ddns_domainname;
+ 	struct data_string old_ddns_fwd_name;
+ 	struct data_string ddns_fwd_name;
+-	//struct data_string ddns_rev_name;
+ 	struct data_string ddns_dhcid;
+ 	struct binding_scope **scope = NULL;
+-	//struct iaddr addr;
+ 	struct data_string d1;
+ 	struct option_cache *oc;
+ 	int s1, s2;
+ 	int result = 0;
+ 	int server_updates_a = 1;
+-	//int server_updates_ptr = 1;
+ 	struct buffer *bp = (struct buffer *)0;
+ 	int ignorep = 0, client_ignorep = 0;
+ 	int rev_name_len;
+@@ -89,8 +89,9 @@ ddns_updates(struct packet *packet, struct lease *lease, struct lease *old,
+ 	dhcp_ddns_cb_t *ddns_cb;
+ 	int do_remove = 0;
+ 
+-	if (ddns_update_style != 2)
+-		return 0;
++	if ((ddns_update_style != DDNS_UPDATE_STYLE_STANDARD) &&
++	    (ddns_update_style != DDNS_UPDATE_STYLE_INTERIM))
++		return (0);
+ 
+ 	/*
+ 	 * sigh, I want to cancel any previous udpates before we do anything
+@@ -149,7 +150,6 @@ ddns_updates(struct packet *packet, struct lease *lease, struct lease *old,
+ 	memset (&ddns_domainname, 0, sizeof (ddns_domainname));
+ 	memset (&old_ddns_fwd_name, 0, sizeof (ddns_fwd_name));
+ 	memset (&ddns_fwd_name, 0, sizeof (ddns_fwd_name));
+-	//memset (&ddns_rev_name, 0, sizeof (ddns_rev_name));
+ 	memset (&ddns_dhcid, 0, sizeof (ddns_dhcid));
+ 
+ 	/* If we are allowed to accept the client's update of its own A
+@@ -263,31 +263,22 @@ ddns_updates(struct packet *packet, struct lease *lease, struct lease *old,
+ 			goto in;
+ 		}
+ 
+-		/* See if there's a DHCID on the lease, and if not
+-		 * then potentially look for 'on events' for ad-hoc ddns.
++#if defined  (DDNS_UPDATE_SLOW_TRANSITION)
++		/*
++		 * If the slow transition code is enabled check to see
++		 * if the stored type (standard or interim doesn't
++		 * match the type currently in use.  If it doesn't
++		 * try to remove and replace the DNS record
+ 		 */
+-		if (!find_bound_string(&ddns_dhcid, *scope, "ddns-txt") &&
+-		    (old != NULL)) {
+-			/* If there's no DHCID, the update was probably
+-			   done with the old-style ad-hoc DDNS updates.
+-			   So if the expiry and release events look like
+-			   they're the same, run them.   This should delete
+-			   the old DDNS data. */
+-			if (old -> on_expiry == old -> on_release) {
+-				execute_statements(NULL, NULL, lease, NULL,
+-						   NULL, NULL, scope,
+-						   old->on_expiry);
+-				if (old -> on_expiry)
+-					executable_statement_dereference
+-						(&old -> on_expiry, MDL);
+-				if (old -> on_release)
+-					executable_statement_dereference
+-						(&old -> on_release, MDL);
+-				/* Now, install the DDNS data the new way. */
+-				goto in;
+-			}
+-		} else
++		if (((ddns_update_style == DDNS_UPDATE_STYLE_STANDARD) &&
++		     find_bound_string(&ddns_dhcid, *scope, ddns_interim_tag)) ||
++		    ((ddns_update_style == DDNS_UPDATE_STYLE_INTERIM) &&
++		     find_bound_string(&ddns_dhcid, *scope, ddns_standard_tag))) {
+ 			data_string_forget(&ddns_dhcid, MDL);
++			do_remove = 1;
++			goto in;
++		}
++#endif
+ 
+ 		/* See if the administrator wants to do updates even
+ 		   in cases where the update already appears to have been
+@@ -486,22 +477,68 @@ ddns_updates(struct packet *packet, struct lease *lease, struct lease *old,
+ 	}
+ 
+ 	/*
++	 * copy the string now so we can pass it to the dhcid routines
++	 * via the ddns_cb pointer
++	 */
++	data_string_copy(&ddns_cb->fwd_name, &ddns_fwd_name, MDL);
++
++	/*
+ 	 * If we are updating the A record, compute the DHCID value.
++	 * We have two options for computing the DHCID value, the older
++	 * interim version and the newer standard version.  The interim
++	 * has some issues but is left as is to avoid compatibility issues.
++	 *
++	 * We select the type of DHCID to construct and the information to
++	 * use for the digest based on 4701 section 3.3
+ 	 */
+ 	if ((ddns_cb->flags & DDNS_UPDATE_ADDR) != 0) {
+-		if (lease6 != NULL)
+-			result = get_dhcid(&ddns_cb->dhcid, 2,
+-					   lease6->ia->iaid_duid.data,
+-					   lease6->ia->iaid_duid.len);
+-		else if ((lease != NULL) && (lease->uid != NULL) &&
+-			 (lease->uid_len != 0))
+-			result = get_dhcid (&ddns_cb->dhcid,
+-					    DHO_DHCP_CLIENT_IDENTIFIER,
+-					    lease -> uid, lease -> uid_len);
+-		else if (lease != NULL)
+-			result = get_dhcid (&ddns_cb->dhcid, 0,
+-					    lease -> hardware_addr.hbuf,
+-					    lease -> hardware_addr.hlen);
++		int ddns_type;
++		int ddns_len;
++		if (ddns_update_style == DDNS_UPDATE_STYLE_STANDARD) {
++			/* The standard style */
++			ddns_cb->lease_tag = ddns_standard_tag;
++			ddns_cb->dhcid_class = dns_rdatatype_dhcid;
++			ddns_type = 1;
++			ddns_len = 4;
++		} else {
++			/* The older interim style */
++			ddns_cb->lease_tag = ddns_interim_tag;
++			ddns_cb->dhcid_class = dns_rdatatype_txt;
++			/* for backwards compatibility */
++			ddns_type = DHO_DHCP_CLIENT_IDENTIFIER;
++			/* IAID incorrectly included */
++			ddns_len = 0;
++		}
++
++
++		if (lease6 != NULL) {
++			if (lease6->ia->iaid_duid.len < ddns_len)
++				goto badfqdn;
++			result = get_dhcid(ddns_cb, 2,
++					   lease6->ia->iaid_duid.data + ddns_len,
++					   lease6->ia->iaid_duid.len - ddns_len);
++		} else if ((lease != NULL) &&
++			   (lease->uid != NULL) &&
++			   (lease->uid_len != 0)) {
++			/* If this is standard check for an RFC 4361
++			 * compliant client identifier
++			 */
++			if ((ddns_update_style == DDNS_UPDATE_STYLE_STANDARD) &&
++			    (lease->uid[0] == 255)) {
++				if (lease->uid_len < 5)
++					goto badfqdn;
++				result = get_dhcid(ddns_cb, 2,
++						   lease->uid + 5,
++						   lease->uid_len - 5);
++			} else {
++				result = get_dhcid(ddns_cb, ddns_type,
++						   lease->uid,
++						   lease->uid_len);
++			}
++		} else if (lease != NULL)
++			result = get_dhcid(ddns_cb, 0,
++					   lease->hardware_addr.hbuf,
++					   lease->hardware_addr.hlen);
+ 		else
+ 			log_fatal("Impossible condition at %s:%d.", MDL);
+ 
+@@ -513,8 +550,6 @@ ddns_updates(struct packet *packet, struct lease *lease, struct lease *old,
+ 	 * Perform updates.
+ 	 */
+ 
+-	data_string_copy(&ddns_cb->fwd_name, &ddns_fwd_name, MDL);
+-
+ 	if (ddns_cb->flags && DDNS_UPDATE_ADDR) {
+ 		oc = lookup_option(&server_universe, options,
+ 				   SV_DDNS_CONFLICT_DETECT);
+@@ -707,8 +742,6 @@ ddns_updates(struct packet *packet, struct lease *lease, struct lease *old,
+ 	data_string_forget(&ddns_domainname, MDL);
+ 	data_string_forget(&old_ddns_fwd_name, MDL);
+ 	data_string_forget(&ddns_fwd_name, MDL);
+-	//data_string_forget(&ddns_rev_name, MDL);
+-	//data_string_forget(&ddns_dhcid, MDL);
+ 	if (bp)
+ 		buffer_dereference(&bp, MDL);
+ 
+@@ -822,18 +855,21 @@ ddns_update_lease_text(dhcp_ddns_cb_t        *ddns_cb,
+ 	case DDNS_STATE_ADD_FW_NXDOMAIN:
+ 		bind_ds_value(scope, "ddns-fwd-name", &ddns_cb->fwd_name);
+ 
+-		/* convert from dns version to lease version of dhcid */
+-		memset(&lease_dhcid, 0, sizeof(lease_dhcid));
+-		dhcid_tolease(&ddns_cb->dhcid, &lease_dhcid);
+-		bind_ds_value(scope, "ddns-txt", &lease_dhcid);
+-		data_string_forget(&lease_dhcid, MDL);
+-
++		if (ddns_cb->lease_tag == ddns_standard_tag) {
++			bind_ds_value(scope, ddns_standard_tag, &ddns_cb->dhcid);
++		} else {
++			/* convert from dns version to lease version of dhcid */
++			memset(&lease_dhcid, 0, sizeof(lease_dhcid));
++			dhcid_tolease(&ddns_cb->dhcid, &lease_dhcid);
++			bind_ds_value(scope, ddns_interim_tag, &lease_dhcid);
++			data_string_forget(&lease_dhcid, MDL);
++		}
+ 		break;
+ 
+ 	case DDNS_STATE_REM_FW_NXRR:
+ 	case DDNS_STATE_REM_FW_YXDHCID:
+ 		unset(*scope, "ddns-fwd-name");
+-		unset(*scope, "ddns-txt");
++		unset(*scope, ddns_cb->lease_tag);
+ 		break;
+ 	}
+ 		
+@@ -1791,7 +1827,8 @@ ddns_removals(struct lease    *lease,
+ 	if (*scope == NULL)
+ 		goto cleanup;
+ 
+-	if (ddns_update_style != 2)
++	if ((ddns_update_style != DDNS_UPDATE_STYLE_STANDARD) &&
++	    (ddns_update_style != DDNS_UPDATE_STYLE_INTERIM))
+ 		goto cleanup;
+ 
+ 	/* Assume that we are removing both records */
+@@ -1823,15 +1860,22 @@ ddns_removals(struct lease    *lease,
+ 	}
+ 
+ 	/*
+-	 * Find the ptr name and copy it to the control block.  If we don't
+-	 * have it this isn't an interim or rfc3??? record so we can't delete
++	 * Find the txt or dhcid tag and copy it to the control block.  If we don't
++	 * have one this isn't an interim or standard record so we can't delete
+ 	 * the A record using this mechanism but we can delete the ptr record.
+ 	 * In this case we will attempt to do any requested next step.
+ 	 */
+ 	memset(&leaseid, 0, sizeof(leaseid));
+-	if (!find_bound_string (&leaseid, *scope, "ddns-txt")) {
+-		ddns_cb->flags &= ~DDNS_UPDATE_ADDR;
+-	} else {
++	if (find_bound_string (&leaseid, *scope, ddns_standard_tag)) {
++		/* We have a standard tag */
++		ddns_cb->lease_tag = ddns_standard_tag;
++		ddns_cb->dhcid_class = dns_rdatatype_dhcid;
++		data_string_copy(&ddns_cb->dhcid, &leaseid, MDL);
++		data_string_forget(&leaseid, MDL);
++	} else 	if (find_bound_string (&leaseid, *scope, ddns_interim_tag)) {
++		/* we have an interim tag */
++		ddns_cb->lease_tag = ddns_interim_tag;
++		ddns_cb->dhcid_class = dns_rdatatype_txt;
+ 		if (dhcid_fromlease(&ddns_cb->dhcid, &leaseid) != 
+ 		    ISC_R_SUCCESS) {
+ 			/* We couldn't convert the dhcid from the lease
+@@ -1841,7 +1885,9 @@ ddns_removals(struct lease    *lease,
+ 			ddns_cb->flags &= ~DDNS_UPDATE_ADDR;
+ 		}
+ 		data_string_forget(&leaseid, MDL);
+-	}
++	} else {
++		ddns_cb->flags &= ~DDNS_UPDATE_ADDR;
++	}		
+ 
+ 	/*
+ 	 * Find the rev name and copy it to the control block.  If we don't
+@@ -1888,7 +1934,7 @@ ddns_removals(struct lease    *lease,
+ 		else {
+ 			/*remove info from scope */
+ 			unset(*scope, "ddns-fwd-name");
+-			unset(*scope, "ddns-txt");
++			unset(*scope, ddns_cb->lease_tag);
+ 		}
+ 	}
+ 
+diff --git a/server/dhcpd.c b/server/dhcpd.c
+index 67fec83..9617d75 100644
+--- a/server/dhcpd.c
++++ b/server/dhcpd.c
+@@ -82,86 +82,6 @@ option server.ddns-hostname =						    \n\
+ option server.ddns-domainname =	config-option domain-name;		    \n\
+ option server.ddns-rev-domainname = \"in-addr.arpa.\";";
+ 
+-/* This is the old-style name service updater that is executed
+-   whenever a lease is committed.  It does not follow the DHCP-DNS
+-   draft at all. */
+-
+-char old_nsupdate [] = "						    \n\
+-on commit {								    \n\
+-  if (not static and							    \n\
+-      ((config-option server.ddns-updates = null) or			    \n\
+-       (config-option server.ddns-updates != 0))) {			    \n\
+-    set new-ddns-fwd-name =						    \n\
+-      concat (pick (config-option server.ddns-hostname,			    \n\
+-		    option host-name), \".\",				    \n\
+-	      pick (config-option server.ddns-domainname,		    \n\
+-		    config-option domain-name));			    \n\
+-    if (defined (ddns-fwd-name) and ddns-fwd-name != new-ddns-fwd-name) {   \n\
+-      switch (ns-update (delete (IN, A, ddns-fwd-name, leased-address))) {  \n\
+-      case NOERROR:							    \n\
+-	unset ddns-fwd-name;						    \n\
+-	on expiry or release {						    \n\
+-	}								    \n\
+-      }									    \n\
+-    }									    \n\
+-									    \n\
+-    if (not defined (ddns-fwd-name)) {					    \n\
+-      set ddns-fwd-name = new-ddns-fwd-name;				    \n\
+-      if defined (ddns-fwd-name) {					    \n\
+-	switch (ns-update (not exists (IN, A, ddns-fwd-name, null),	    \n\
+-			   add (IN, A, ddns-fwd-name, leased-address,	    \n\
+-				lease-time / 2))) {			    \n\
+-	default:							    \n\
+-	  unset ddns-fwd-name;						    \n\
+-	  break;							    \n\
+-									    \n\
+-	case NOERROR:							    \n\
+-	  set ddns-rev-name =						    \n\
+-	    concat (binary-to-ascii (10, 8, \".\",			    \n\
+-				     reverse (1,			    \n\
+-					      leased-address)), \".\",	    \n\
+-		    pick (config-option server.ddns-rev-domainname,	    \n\
+-			  \"in-addr.arpa.\"));				    \n\
+-	  switch (ns-update (delete (IN, PTR, ddns-rev-name, null),	    \n\
+-			     add (IN, PTR, ddns-rev-name, ddns-fwd-name,    \n\
+-				  lease-time / 2)))			    \n\
+-	    {								    \n\
+-	    default:							    \n\
+-	      unset ddns-rev-name;					    \n\
+-	      on release or expiry {					    \n\
+-		switch (ns-update (delete (IN, A, ddns-fwd-name,	    \n\
+-					   leased-address))) {		    \n\
+-		case NOERROR:						    \n\
+-		  unset ddns-fwd-name;					    \n\
+-		  break;						    \n\
+-		}							    \n\
+-		on release or expiry;					    \n\
+-	      }								    \n\
+-	      break;							    \n\
+-									    \n\
+-	    case NOERROR:						    \n\
+-	      on release or expiry {					    \n\
+-		switch (ns-update (delete (IN, PTR, ddns-rev-name, null))) {\n\
+-		case NOERROR:						    \n\
+-		  unset ddns-rev-name;					    \n\
+-		  break;						    \n\
+-		}							    \n\
+-		switch (ns-update (delete (IN, A, ddns-fwd-name,	    \n\
+-					   leased-address))) {		    \n\
+-		case NOERROR:						    \n\
+-		  unset ddns-fwd-name;					    \n\
+-		  break;						    \n\
+-		}							    \n\
+-		on release or expiry;					    \n\
+-	      }								    \n\
+-	    }								    \n\
+-	}								    \n\
+-      }									    \n\
+-    }									    \n\
+-    unset new-ddns-fwd-name;						    \n\
+-  }									    \n\
+-}";
+-
+ #endif /* NSUPDATE */
+ int ddns_update_style;
+ 
+@@ -897,9 +817,6 @@ void postconf_initialization (int quiet)
+ 	struct option_cache *oc;
+ 	char *s;
+ 	isc_result_t result;
+-#if defined (NSUPDATE)
+-	struct parse *parse;
+-#endif
+ 	int tmp;
+ 
+ 	/* Now try to get the lease file name. */
+@@ -1160,49 +1077,6 @@ void postconf_initialization (int quiet)
+ 
+ 	/* Don't need the options anymore. */
+ 	option_state_dereference (&options, MDL);
+-	
+-#if defined (NSUPDATE)
+-	/* If old-style ddns updates have been requested, parse the
+-	   old-style ddns updater. */
+-	if (ddns_update_style == 1) {
+-		struct executable_statement **e, *s;
+-
+-		if (root_group -> statements) {
+-			s = (struct executable_statement *)0;
+-			if (!executable_statement_allocate (&s, MDL))
+-				log_fatal ("no memory for ddns updater");
+-			executable_statement_reference
+-				(&s -> next, root_group -> statements, MDL);
+-			executable_statement_dereference
+-				(&root_group -> statements, MDL);
+-			executable_statement_reference
+-				(&root_group -> statements, s, MDL);
+-			s -> op = statements_statement;
+-			e = &s -> data.statements;
+-			executable_statement_dereference (&s, MDL);
+-		} else {
+-			e = &root_group -> statements;
+-		}
+-
+-		/* Set up the standard name service updater routine. */
+-		parse = NULL;
+-		result = new_parse(&parse, -1, old_nsupdate,
+-				   sizeof(old_nsupdate) - 1,
+-				   "old name service update routine", 0);
+-		if (result != ISC_R_SUCCESS)
+-			log_fatal ("can't begin parsing old ddns updater!");
+-
+-		if (parse != NULL) {
+-			tmp = 0;
+-			if (!(parse_executable_statements(e, parse, &tmp,
+-							  context_any))) {
+-				end_parse(&parse);
+-				log_fatal("can't parse standard ddns updater!");
+-			}
+-		}
+-		end_parse(&parse);
+-	}
+-#endif
+ }
+ 
+ void postdb_startup (void)
+diff --git a/server/dhcpd.conf.5 b/server/dhcpd.conf.5
+index 74393c2..2351e21 100644
+--- a/server/dhcpd.conf.5
++++ b/server/dhcpd.conf.5
+@@ -1076,115 +1076,24 @@ the Domain Name System to be updated.  These updates are RFC 2136
+ compliant so any DNS server supporting RFC 2136 should be able to
+ accept updates from the DHCP server.
+ .PP
+-Two DNS update schemes are currently implemented, and another is
+-planned.  The two that are currently implemented are the ad-hoc DNS
+-update mode and the interim DHCP-DNS interaction draft update mode.
+-In the future we plan to add a third mode which will be the standard
+-DNS update method based on the RFCS for DHCP-DNS interaction and DHCID
+-The DHCP server must be configured to use one of the two
+-currently-supported methods, or not to do dns updates.
+-This can be done with the
++There are two DNS schemes implemented.  The interim option is
++based on draft revisions of the DDNS documents while the standard
++option is based on the RFCs for DHCP-DNS interaction and DHCIDs.
++A third option, ad-hoc, was deprecated and has now been removed
++from the code base.  The DHCP server must be configured to use
++one of the two currently-supported methods, or not to do DNS updates.
++.PP
++New installations should use the standard option. Older
++installations may want to continue using the interim option for
++backwards compatibility with the DNS database until the database
++can be updated.  This can be done with the
+ .I ddns-update-style
+ configuration parameter.
+-.SH THE AD-HOC DNS UPDATE SCHEME
+-The ad-hoc Dynamic DNS update scheme is
+-.B now deprecated
+-and
+-.B
+-does not work.
+-In future releases of the ISC DHCP server, this scheme will not likely be
+-available.  The interim scheme works, allows for failover, and should now be
+-used.  The following description is left here for informational purposes
+-only.
+-.PP
+-The ad-hoc Dynamic DNS update scheme implemented in this version of
+-the ISC DHCP server is a prototype design, which does not
+-have much to do with the standard update method that is being
+-standardized in the IETF DHC working group, but rather implements some
+-very basic, yet useful, update capabilities.  This mode
+-.B does not work
+-with the
+-.I failover protocol
+-because it does not account for the possibility of two different DHCP
+-servers updating the same set of DNS records.
+-.PP
+-For the ad-hoc DNS update method, the client's FQDN is derived in two
+-parts.  First, the hostname is determined.  Then, the domain name is
+-determined, and appended to the hostname.
+-.PP
+-The DHCP server determines the client's hostname by first looking for
+-a \fIddns-hostname\fR configuration option, and using that if it is
+-present.  If no such option is present, the server looks for a
+-valid hostname in the FQDN option sent by the client.  If one is
+-found, it is used; otherwise, if the client sent a host-name option,
+-that is used.  Otherwise, if there is a host declaration that applies
+-to the client, the name from that declaration will be used.  If none
+-of these applies, the server will not have a hostname for the client,
+-and will not be able to do a DNS update.
+-.PP
+-The domain name is determined from the
+-.I ddns-domainname
+-configuration option.  The default configuration for this option is:
+-.nf
+-.sp 1
+-  option server.ddns-domainname = config-option domain-name;
+-
+-.fi
+-So if this configuration option is not configured to a different
+-value (over-riding the above default), or if a domain-name option
+-has not been configured for the client's scope, then the server will
+-not attempt to perform a DNS update.
+-.PP
+-The client's fully-qualified domain name, derived as we have
+-described, is used as the name on which an "A" record will be stored.
+-The A record will contain the IP address that the client was assigned
+-in its lease.  If there is already an A record with the same name in
+-the DNS server, no update of either the A or PTR records will occur -
+-this prevents a client from claiming that its hostname is the name of
+-some network server.  For example, if you have a fileserver called
+-"fs.sneedville.edu", and the client claims its hostname is "fs", no
+-DNS update will be done for that client, and an error message will be
+-logged.
+-.PP
+-If the A record update succeeds, a PTR record update for the assigned
+-IP address will be done, pointing to the A record.  This update is
+-unconditional - it will be done even if another PTR record of the same
+-name exists.  Since the IP address has been assigned to the DHCP
+-server, this should be safe.
+-.PP
+-Please note that the current implementation assumes clients only have
+-a single network interface.  A client with two network interfaces
+-will see unpredictable behavior.  This is considered a bug, and will
+-be fixed in a later release.  It may be helpful to enable the
+-.I one-lease-per-client
+-parameter so that roaming clients do not trigger this same behavior.
+-.PP
+-The DHCP protocol normally involves a four-packet exchange - first the
+-client sends a DHCPDISCOVER message, then the server sends a
+-DHCPOFFER, then the client sends a DHCPREQUEST, then the server sends
+-a DHCPACK.  In the current version of the server, the server will do
+-a DNS update after it has received the DHCPREQUEST, and before it has
+-sent the DHCPACK.  It only sends the DNS update if it has not sent
+-one for the client's address before, in order to minimize the impact
+-on the DHCP server.
+-.PP
+-When the client's lease expires, the DHCP server (if it is operating
+-at the time, or when next it operates) will remove the client's A and
+-PTR records from the DNS database.  If the client releases its lease
+-by sending a DHCPRELEASE message, the server will likewise remove the
+-A and PTR records.
+-.SH THE INTERIM DNS UPDATE SCHEME
+-The interim DNS update scheme operates mostly according to several
+-drafts considered by the IETF.  While the drafts have since become
+-RFCs the code was written before they were finalized and there are
+-some differences between our code and the final RFCs.  We plan to
+-update our code, probably adding a standard DNS update option, at
+-some time.  The basic framework is similar with the main material
+-difference being that a DHCID RR was assigned in the RFCs whereas
+-our code continues to use an experimental TXT record.  The format
+-of the TXT record bears a resemblance to the DHCID RR but it is not
+-equivalent (MD5 vs SHA1, field length differences etc).
+-The standard RFCs are:
++.SH THE DNS UPDATE SCHEME
++the interim and standard DNS update schemes operate mostly according
++to work from the IETF.  The interim version was based on the drafts
++in progress at the time while the standard is based on the completed
++RFCs.  The standard RFCs are:
+ .PP
+ .nf
+ .ce 3
+@@ -1202,15 +1111,17 @@ draft-ietf-dhc-fqdn-option-??.txt
+ draft-ietf-dhc-ddns-resolution-??.txt
+ .fi
+ .PP
+-Because our implementation is slightly different than the standard, we
+-will briefly document the operation of this update style here.
++The basic framework for the two schemes is similar with the main
++material difference being that a DHCID RR is used in the standard
++version while the interim versions uses a TXT RR.  The format
++of the TXT record bears a resemblance to the DHCID RR but it is not
++equivalent (MD5 vs SHA2, field length differences etc).
+ .PP
+-The first point to understand about this style of DNS update is that
+-unlike the ad-hoc style, the DHCP server does not necessarily
++In these two schemes the DHCP server does not necessarily
+ always update both the A and the PTR records.  The FQDN option
+ includes a flag which, when sent by the client, indicates that the
+ client wishes to update its own A record.  In that case, the server
+-can be configured either to honor the client's intentions or ignore
++can be configured either to honor the client\'s intentions or ignore
+ them.  This is done with the statement \fIallow client-updates;\fR or
+ the statement \fIignore client-updates;\fR.  By default, client
+ updates are allowed.
+@@ -1230,15 +1141,14 @@ IP address, it can update its own A record, assuming that the
+ "radish.org" DNS server will allow it to do so.
+ .PP
+ If the server is configured not to allow client updates, or if the
+-client doesn't want to do its own update, the server will simply
++client doesn\'t want to do its own update, the server will simply
+ choose a name for the client from either the fqdn option (if present)
+ or the hostname option (if present).  It will use its own
+-domain name for the client, just as in the ad-hoc update scheme.
+-It will then update both the A and PTR record, using the name that it
+-chose for the client.  If the client sends a fully-qualified domain
+-name in the fqdn option, the server uses only the leftmost part of the
+-domain name - in the example above, "jschmoe" instead of
+-"jschmoe.radish.org".
++domain name for the client.  It will then update both the A and PTR
++record, using the name that it chose for the client.  If the client
++sends a fully-qualified domain name in the \fBfqdn\fR option, the
++server uses only the leftmost part of the domain name - in the
++example above, "jschmoe" instead of "jschmoe.radish.org".
+ .PP
+ Further, if the \fIignore client-updates;\fR directive is used, then
+ the server will in addition send a response in the DHCP packet, using
+@@ -1248,49 +1158,41 @@ response is sent which indicates the client may not perform updates.
+ .PP
+ Also, if the
+ .I use-host-decl-names
+-configuration option is enabled, then the host declaration's
++configuration option is enabled, then the host declaration\'s
+ .I hostname
+ will be used in place of the
+ .I hostname
+ option, and the same rules will apply as described above.
+ .PP
+-The other difference between the ad-hoc scheme and the interim
+-scheme is that with the interim scheme, a method is used that
+-allows more than one DHCP server to update the DNS database without
+-accidentally deleting A records that shouldn't be deleted nor failing
+-to add A records that should be added.  The scheme works as follows:
++Both the standard and interim options also include a method to 
++allow more than one DHCP server to update the DNS database without
++accidentally deleting A records that shouldn\'t be deleted nor failing
++to add A records that should be added.  For the standard option the
++method works as follows:
+ .PP
+ When the DHCP server issues a client a new lease, it creates a text
+-string that is an MD5 hash over the DHCP client's identification (see
+-draft-ietf-dnsext-dhcid-rr-??.txt for details).  The update adds an A
+-record with the name the server chose and a TXT record containing the
++string that is an SHA hash over the DHCP client\'s identification (see
++RFCs 4701 & 4702 for details).  The update attempts to add an A
++record with the name the server chose and a DHCID record containing the
+ hashed identifier string (hashid).  If this update succeeds, the
+ server is done.
+ .PP
+ If the update fails because the A record already exists, then the DHCP
+ server attempts to add the A record with the prerequisite that there
+-must be a TXT record in the same name as the new A record, and that
+-TXT record's contents must be equal to hashid.  If this update
++must be a DHCID record in the same name as the new A record, and that
++DHCID record\'s contents must be equal to hashid.  If this update
+ succeeds, then the client has its A record and PTR record.  If it
+ fails, then the name the client has been assigned (or requested) is in
+-use, and can't be used by the client.  At this point the DHCP server
++use, and can\'t be used by the client.  At this point the DHCP server
+ gives up trying to do a DNS update for the client until the client
+ chooses a new name.
+ .PP
+-The interim DNS update scheme is called interim for two reasons.
+-First, it does not quite follow the RFCs.  The RFCs call for a
+-new DHCID RRtype while he interim DNS update scheme uses a TXT record.
+-The ddns-resolution draft called for the DHCP server to put a DHCID RR
+-on the PTR record, but the \fIinterim\fR update method does not do this.
+-In the final RFC this requirement was relaxed such that a server may
+-add a DHCID RR to the PTR record.
+-.PP
+-In addition to these differences, the server also does not update very
+-aggressively.  Because each DNS update involves a round trip to the
+-DNS server, there is a cost associated with doing updates even if they
+-do not actually modify the DNS database.  So the DHCP server tracks
+-whether or not it has updated the record in the past (this information
+-is stored on the lease) and does not attempt to update records that it
++The server also does not update very aggressively.  Because each
++DNS update involves a round trip to the DNS server, there is a cost
++associated with doing updates even if they do not actually modify
++the DNS database.  So the DHCP server tracks whether or not it has
++updated the record in the past (this information is stored on the
++lease) and does not attempt to update records that it
+ thinks it has already updated.
+ .PP
+ This can lead to cases where the DHCP server adds a record, and then
+@@ -1299,6 +1201,15 @@ never again updates the DNS because it thinks the data is already
+ there.  In this case the data can be removed from the lease through
+ operator intervention, and once this has been done, the DNS will be
+ updated the next time the client renews.
++.PP
++The interim DNS update scheme was written before the RFCs were finalized
++and does not quite follow them.  The RFCs call for a new DHCID RRtype
++while he interim DNS update scheme uses a TXT record.  In addition
++the ddns-resolution draft called for the DHCP server to put a DHCID RR
++on the PTR record, but the \fIinterim\fR update method does not do this.
++In the final RFC this requirement was relaxed such that a server may
++add a DHCID RR to the PTR record.
++.PP
+ .SH DYNAMIC DNS UPDATE SECURITY
+ .PP
+ When you set your DNS server up to allow updates from the DHCP server,
+@@ -1380,24 +1291,15 @@ Also keep in mind that zone names in your DHCP configuration should end in a
+ configuration, zone names are not encapsulated in quotes where there are in
+ the DNS configuration.
+ .PP
+-You should choose your own secret key, of course.  The ISC BIND 8 and
+-9 distributions come with a program for generating secret keys called
+-dnssec-keygen.  The version that comes with BIND 9 is likely to produce a
+-substantially more random key, so we recommend you use that one even
+-if you are not using BIND 9 as your DNS server.  If you are using BIND 9's
++You should choose your own secret key, of course.  The ISC BIND 9
++distribution comes with a program for generating secret keys called
++dnssec-keygen.  If you are using BIND 9\'s
+ dnssec-keygen, the above key would be created as follows:
+ .PP
+ .nf
+ 	dnssec-keygen -a HMAC-MD5 -b 128 -n USER DHCP_UPDATER
+ .fi
+ .PP
+-If you are using the BIND 8 dnskeygen program, the following command will
+-generate a key as seen above:
+-.PP
+-.nf
+-	dnskeygen -H 128 -u -c -n DHCP_UPDATER
+-.fi
+-.PP
+ The key name, algorithm, and secret must match that being used by the DNS
+ server. The DHCP server currently supports the following algorithms:
+ .nf
+@@ -1451,15 +1353,7 @@ and the expiry event, when the commitment expires.
+ To declare a set of statements to execute when an event happens, you
+ must use the \fBon\fR statement, followed by the name of the event,
+ followed by a series of statements to execute when the event happens,
+-enclosed in braces.  Events are used to implement DNS
+-updates, so you should not define your own event handlers if you are
+-using the built-in DNS update mechanism.
+-.PP
+-The built-in version of the DNS update mechanism is in a text
+-string towards the top of server/dhcpd.c.  If you want to use events
+-for things other than DNS updates, and you also want DNS updates, you
+-will have to start out by copying this code into your dhcpd.conf file
+-and modifying it.
++enclosed in braces.
+ .SH REFERENCE: DECLARATIONS
+ .PP
+ .B The
+@@ -2109,7 +2003,7 @@ The \fIddns-update-style\fR parameter
+ .PP
+ The
+ .I style
+-parameter must be one of \fBad-hoc\fR, \fBinterim\fR or \fBnone\fR.
++parameter must be one of \fBstandard\fR, \fBinterim\fR or \fBnone\fR.
+ The \fIddns-update-style\fR statement is only meaningful in the outer
+ scope - it is evaluated once after reading the dhcpd.conf file, rather
+ than each time a client is assigned an IP address, so there is no way
+@@ -2186,16 +2080,15 @@ statement
+ .B do-forward-updates \fIflag\fB;\fR
+ .PP
+ The \fIdo-forward-updates\fR statement instructs the DHCP server as
+-to whether it should attempt to update a DHCP client's A record
++to whether it should attempt to update a DHCP client\'s A record
+ when the client acquires or renews a lease.  This statement has no
+-effect unless DNS updates are enabled and \fBddns-update-style\fR is
+-set to \fBinterim\fR.  Forward updates are enabled by default.  If
+-this statement is used to disable forward updates, the DHCP server
+-will never attempt to update the client's A record, and will only ever
+-attempt to update the client's PTR record if the client supplies an
+-FQDN that should be placed in the PTR record using the fqdn option.
+-If forward updates are enabled, the DHCP server will still honor the
+-setting of the \fBclient-updates\fR flag.
++effect unless DNS updates are enabled.  Forward updates are enabled
++by default.  If this statement is used to disable forward updates,
++the DHCP server will never attempt to update the client\'s A record,
++and will only ever attempt to update the client\'s PTR record if the
++client supplies an FQDN that should be placed in the PTR record using
++the \fBfqdn\fR option.  If forward updates are enabled, the DHCP server
++will still honor the setting of the \fBclient-updates\fR flag.
+ .RE
+ .PP
+ The
+@@ -2747,7 +2640,7 @@ on which the request arrived.
+ The usual case where the
+ \fIserver-identifier\fR statement needs to be sent is when a physical
+ interface has more than one IP address, and the one being sent by default
+-isn't appropriate for some or all clients served by that interface.
++isn\'t appropriate for some or all clients served by that interface.
+ Another common case is when an alias is defined for the purpose of
+ having a consistent IP address for the DHCP server, and it is desired
+ that the clients use this IP address when contacting the server.
+diff --git a/server/stables.c b/server/stables.c
+index 6a900c8..8ef8bf2 100644
+--- a/server/stables.c
++++ b/server/stables.c
+@@ -3,7 +3,7 @@
+    Tables of information only used by server... */
+ 
+ /*
+- * Copyright (c) 2004-2011 by Internet Systems Consortium, Inc. ("ISC")
++ * Copyright (c) 2004-2011,2013 by Internet Systems Consortium, Inc. ("ISC")
+  * Copyright (c) 1995-2003 by Internet Software Consortium
+  *
+  * Permission to use, copy, modify, and distribute this software for any
+@@ -330,6 +330,7 @@ struct enumeration_value ddns_styles_values [] = {
+ 	{ "none", 0 },
+ 	{ "ad-hoc", 1 },
+ 	{ "interim", 2 },
++	{ "standard", 3 },
+ 	{ (char *)0, 0 }
+ };
+ 

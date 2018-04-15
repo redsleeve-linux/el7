@@ -56,6 +56,7 @@ eventually_add_hostnames_domain_to_search() {
     search="${1}"
     if need_hostname; then
         status=1
+        OLD_HOSTNAME=${HOSTNAME}
         if [ -n "${new_ip_address}" ]; then
             eval $(/bin/ipcalc --silent --hostname ${new_ip_address} ; echo "status=$?")
         elif [ -n "${new_ip6_address}" ]; then
@@ -65,6 +66,7 @@ eventually_add_hostnames_domain_to_search() {
         if [ ${status} -eq 0 ]; then
             domain=$(echo $HOSTNAME | cut -s -d "." -f 2-)
         fi
+        HOSTNAME=${OLD_HOSTNAME}
     else
           domain=$(hostname 2>/dev/null | cut -s -d "." -f 2-)
     fi
@@ -352,6 +354,8 @@ dhconfig() {
 
 
     if [ "${reason}" = "BOUND" ] || [ "${reason}" = "REBOOT" ] ||
+       [ ! "${old_classless_static_routes}" = "${new_classless_static_routes}" ] ||
+       [ ! "${old_static_routes}" = "${new_static_routes}" ] ||
        [ ! "${old_ip_address}" = "${new_ip_address}" ] ||
        [ ! "${old_subnet_mask}" = "${new_subnet_mask}" ] ||
        [ ! "${old_network_number}" = "${new_network_number}" ] ||
@@ -368,6 +372,32 @@ dhconfig() {
             ip link set dev ${interface} mtu ${new_interface_mtu}
         fi
 
+        # Remove old static routes if no new static routes are provided
+        if [ -n "${old_classless_static_routes}" ] ||
+           [ -n "${old_static_routes}" ]; then
+            remove_routes=0
+            if [ -n "${old_classless_static_routes}" ]; then
+                if [ -z "${new_classless_static_routes}" ]; then
+                        IFS=', |' old_static_routes=(${old_classless_static_routes})
+                        remove_routes=1
+                fi
+            else
+                if [ -z "${new_static_routes}" ]; then
+                        IFS=', |' old_static_routes=(${old_static_routes})
+                        remove_routes=1
+                fi
+            fi
+            if [ $remove_routes = "1" ] ; then
+                for((i=0; i<${#old_static_routes[@]}; i+=2)); do
+                    old_target=${old_static_routes[$i]}
+                    old_prefix=$(echo ${old_target} | cut -d "." -f 1)
+                    old_target=$(echo ${old_target} | cut -d "." -f 2-)
+                    old_gateway=${old_static_routes[$i+1]}
+                    ip -4 route del ${old_target}/${old_prefix} proto static via ${old_gateway} dev ${interface}
+                done
+            fi
+        fi
+        
         # static routes
         if [ -n "${new_classless_static_routes}" ] ||
            [ -n "${new_static_routes}" ]; then
@@ -381,6 +411,31 @@ dhconfig() {
             fi
             route_targets=()
 
+            # Remove old static routes if no matching target is provided in the new static routes
+            if [ -n "${old_classless_static_routes}" ] ||
+               [ -n "${old_static_routes}" ]; then
+                if [ -n "${old_classless_static_routes}" ]; then
+                    IFS=', |' old_static_routes=(${old_classless_static_routes})
+                else
+                    IFS=', |' old_static_routes=(${old_static_routes})
+                fi
+                for((i=0; i<${#old_static_routes[@]}; i+=2)); do
+                    old_target=${old_static_routes[$i]}
+                    remove_route=1
+                    for((j=0; j<${#static_routes[@]}; j+=2)); do
+                        if [ $old_target = ${static_routes[$j]} ]; then
+                            remove_route=0
+                        fi
+                    done
+                    old_prefix=$(echo ${old_target} | cut -d "." -f 1)
+                    old_target=$(echo ${old_target} | cut -d "." -f 2-)
+                    old_gateway=${old_static_routes[$i+1]}
+                    if [ $remove_route = "1" ]; then
+                        ip -4 route del ${old_target}/${old_prefix} proto static via ${old_gateway} dev ${interface}
+                    fi
+                done
+            fi
+            
             for((i=0; i<${#static_routes[@]}; i+=2)); do
                 target=${static_routes[$i]}
                 if [ -n "${new_classless_static_routes}" ]; then

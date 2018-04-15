@@ -1,0 +1,87 @@
+commit 71c56235c6fbdeed3ba5a75bb379a34394106619
+Author: Pavel Zhukov <pzhukov@redhat.com>
+Date:   Mon Apr 10 12:59:07 2017 +0200
+
+    Backported upstream commit e4a2cb79b2679738f56b3803a44c9899f6982c09
+
+diff --git a/includes/omapip/isclib.h b/includes/omapip/isclib.h
+index ddefeb5..4dffcb9 100644
+--- a/includes/omapip/isclib.h
++++ b/includes/omapip/isclib.h
+@@ -104,6 +104,11 @@ extern dhcp_context_t dhcp_gbl_ctx;
+ #define DHCP_MAXDNS_WIRE 256
+ #define DHCP_MAXNS         3
+ #define DHCP_HMAC_MD5_NAME "HMAC-MD5.SIG-ALG.REG.INT."
++#define DHCP_HMAC_SHA1_NAME "HMAC-SHA1.SIG-ALG.REG.INT."
++#define DHCP_HMAC_SHA224_NAME "HMAC-SHA224.SIG-ALG.REG.INT."
++#define DHCP_HMAC_SHA256_NAME "HMAC-SHA256.SIG-ALG.REG.INT."
++#define DHCP_HMAC_SHA384_NAME "HMAC-SHA384.SIG-ALG.REG.INT."
++#define DHCP_HMAC_SHA512_NAME "HMAC-SHA512.SIG-ALG.REG.INT."
+ 
+ isc_result_t dhcp_isc_name(unsigned char    *namestr,
+ 			   dns_fixedname_t  *namefix,
+diff --git a/omapip/isclib.c b/omapip/isclib.c
+index 1534dde..be1982e 100644
+--- a/omapip/isclib.c
++++ b/omapip/isclib.c
+@@ -198,21 +198,34 @@ isclib_make_dst_key(char          *inname,
+ 	dns_name_t *name;
+ 	dns_fixedname_t name0;
+ 	isc_buffer_t b;
++        unsigned int algorithm_code;
+ 
+ 	isc_buffer_init(&b, secret, length);
+ 	isc_buffer_add(&b, length);
+ 
+-	/* We only support HMAC_MD5 currently */
+-	if (strcasecmp(algorithm, DHCP_HMAC_MD5_NAME) != 0) {
++        if (strcasecmp(algorithm, DHCP_HMAC_MD5_NAME) == 0) {
++		algorithm_code =  DST_ALG_HMACMD5;
++	} else if (strcasecmp(algorithm, DHCP_HMAC_SHA1_NAME) == 0) {
++		algorithm_code =  DST_ALG_HMACSHA1;
++	} else if (strcasecmp(algorithm, DHCP_HMAC_SHA224_NAME) == 0) {
++		algorithm_code =  DST_ALG_HMACSHA224;
++	} else if (strcasecmp(algorithm, DHCP_HMAC_SHA256_NAME) == 0) {
++		algorithm_code =  DST_ALG_HMACSHA256;
++	} else if (strcasecmp(algorithm, DHCP_HMAC_SHA384_NAME) == 0) {
++		algorithm_code =  DST_ALG_HMACSHA384;
++	} else if (strcasecmp(algorithm, DHCP_HMAC_SHA512_NAME) == 0) {
++		algorithm_code =  DST_ALG_HMACSHA512;
++	} else {
+ 		return(DHCP_R_INVALIDARG);
+ 	}
+ 
++
+ 	result = dhcp_isc_name((unsigned char *)inname, &name0, &name);
+ 	if (result != ISC_R_SUCCESS) {
+ 		return(result);
+ 	}
+ 
+-	return(dst_key_frombuffer(name, DST_ALG_HMACMD5, DNS_KEYOWNER_ENTITY,
++        return(dst_key_frombuffer(name, algorithm_code, DNS_KEYOWNER_ENTITY,
+ 				  DNS_KEYPROTO_DNSSEC, dns_rdataclass_in,
+ 				  &b, dhcp_gbl_ctx.mctx, dstkey));
+ }
+diff --git a/server/dhcpd.conf.5 b/server/dhcpd.conf.5
+index 0cb50a6..74393c2 100644
+--- a/server/dhcpd.conf.5
++++ b/server/dhcpd.conf.5
+@@ -1398,6 +1398,18 @@ generate a key as seen above:
+ 	dnskeygen -H 128 -u -c -n DHCP_UPDATER
+ .fi
+ .PP
++The key name, algorithm, and secret must match that being used by the DNS
++server. The DHCP server currently supports the following algorithms:
++.nf
++
++        HMAC-MD5
++        HMAC-SHA1
++        HMAC-SHA224
++        HMAC-SHA256
++        HMAC-SHA384
++        HMAC-SHA512
++.fi
++.PP
+ You may wish to enable logging of DNS updates on your DNS server.
+ To do so, you might write a logging statement like the following:
+ .PP

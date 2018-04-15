@@ -18,7 +18,7 @@
 Summary:  Dynamic host configuration protocol software
 Name:     dhcp
 Version:  4.2.5
-Release:  58%{?dist}.3.redsleeve
+Release:  68%{?dist}
 # NEVER CHANGE THE EPOCH on this package.  The previous maintainer (prior to
 # dcantrell maintaining the package) made incorrect use of the epoch and
 # that's why it is at 12 now.  It should have never been used, but it was.
@@ -97,12 +97,19 @@ Patch61:  dhcp-addignore.patch
 Patch62:  dhcp-max-fd-value.patch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1355827
 Patch63:  dhcp-4.2.5-rh1355827.patch
-Patch64:  dhcp-4.2.5-reap_orphan_sockets.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1299562
+# Upstream: ca22af89996483efd820de0084c964fc336ee7c1
+Patch64:  dhcp-4.2.5-ddns_port_lazy_init.patch
+Patch65:  dhcp-4.2.5-additional_hmac_tsig.patch
+Patch66:  dhcp-4.2.5-standard_ddns.patch
+Patch67:  dhcp-4.2.5-failover-potential-conflict.patch
+Patch68:  dhcp-4.2.5-reap_orphan_sockets.patch
 # CVE-2018-5732
-Patch65:  dhcp-4.2.5-options_overflow.patch
+Patch69:  dhcp-4.2.5-options_overflow.patch
 # CVE-2018-5733
-Patch66:  dhcp-4.2.5-reference_count_overflow.patch
-Patch67:  dhcp-4.2.5-redsleeve-branding.patch
+Patch70:  dhcp-4.2.5-reference_count_overflow.patch
+Patch71:  dhcp-4.2.5-centos-branding.patch
+
 
 BuildRequires: autoconf
 BuildRequires: automake
@@ -413,11 +420,24 @@ rm -rf includes/isc-dhcp
 # https://bugzilla.redhat.com/show_bug.cgi?id=1355827
 %patch63 -p1
 
-%patch64 -p1 -b .omapi_sd_leak
+# https://bugzilla.redhat.com/show_bug.cgi?id=1299562
+%patch64 -p1 -b .ddns_lazy_init
 
-%patch65 -p1 -b .options_overflow
-%patch66 -p1 -b .reference_overflow
-%patch67 -p1
+# https://bugzilla.redhat.com/show_bug.cgi?id=1396985
+%patch65 -p1 -b .hmac_alg
+
+# https://bugzilla.redhat.com/1394727
+%patch66 -p1 -b .stddns
+
+# https://bugzilla.redhat.com/1497630
+%patch67 -p1 -b .failover_conflict
+
+# https://bugzilla.redhat.com/1519363
+%patch68 -p1 -b .orhan_socketts 
+
+%patch69 -p1 -b .options_overflow
+%patch70 -p1 -b .reference_overflow
+%patch71 -p1
 
 # Update paths in all man pages
 for page in client/dhclient.conf.5 client/dhclient.leases.5 \
@@ -699,20 +719,35 @@ done
 
 
 %changelog
-* Tue Mar 13 2018 Jacco Ligthart <jacco@redsleeve.org> - 4.2.5-58.el7.3.redsleeve
-- Roll in RedSleeve Branding
-
-* Mon Mar 12 2018 CentOS Sources <bugs@centos.org> - 4.2.5-58.el7.centos.3
+* Tue Apr 10 2018 CentOS Sources <bugs@centos.org> - 4.2.5-68.el7.centos
 - Roll in CentOS Branding
 
 * Wed Feb 28 2018 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-68
-- Resolves: #1550000 - CVE-2018-5733  Avoid buffer overflow reference counter
+- Resolves: #1549999 - CVE-2018-5733  Avoid buffer overflow reference counter
 
-* Wed Feb 28 2018 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-58.2
-- Resolves: #1549979 - CVE-2018-5732  Avoid buffer overflow in options parser
+* Wed Feb 28 2018 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-67
+- Resolves #1549998 :CVE-2018-5732  Avoid buffer overflow in options parser
 
-* Wed Dec 13 2017 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-58.1
-- Resolves: #1523475 - Fix omapi socket descriptors leak
+* Thu Dec  7 2017 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-65
+- Resolves: #1519363 - omapi: Close orphaned sockets.
+
+* Mon Oct  2 2017 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-64
+- Resolves: #1497630 - failover hangs with both potential-conflict
+
+* Wed Sep 20 2017 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-63
+- Resolves: #1490782 - Do not override HOSTNAME in client script
+
+* Wed Aug 30 2017 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-62
+- Resolves: #1394727 - Add code to support standard ddns updates
+
+* Wed Aug 16 2017 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-61
+- Resolves: #1396985 - Addes addtional HMAC TSIG algorithms to DDNS
+
+* Wed Aug 16 2017 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-60
+- Resolves: #1299562 - listen on DDNS port on demand only
+
+* Wed Aug 16 2017 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-59
+- Resolves: 1363791 - dhclient update routing table after the lease expiry
 
 * Tue May 16 2017 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-58
 - Resolves 1374119: Add dns server variable to azure-cloud.sh script
