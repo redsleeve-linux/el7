@@ -1,0 +1,14 @@
+diff -up ntp-4.2.6p5/ntpd/ntp_config.c.defreqkey ntp-4.2.6p5/ntpd/ntp_config.c
+--- ntp-4.2.6p5/ntpd/ntp_config.c.defreqkey	2017-04-13 15:29:13.287254279 +0200
++++ ntp-4.2.6p5/ntpd/ntp_config.c	2017-04-13 15:40:49.776307282 +0200
+@@ -1870,8 +1870,8 @@ config_auth(
+ 			exit(1);
+ 		}
+ 
+-		req_keytype = NID_md5;
+-		req_hashlen = 16;
++		req_keytype = NID_sha1;
++		req_hashlen = 20;
+ 		MD5auth_setkey(req_keyid, req_keytype, rankey, sizeof(rankey));
+ 		authtrust(req_keyid, 1);
+ 	}

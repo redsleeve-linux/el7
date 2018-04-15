@@ -1,7 +1,7 @@
 Summary: The NTP daemon and utilities
 Name: ntp
 Version: 4.2.6p5
-Release: 25%{?dist}.2.redsleeve
+Release: 28%{?dist}
 # primary license (COPYRIGHT) : MIT
 # ElectricFence/ (not used) : GPLv2
 # kernel/sys/ppsclock.h (not used) : BSD with advertising
@@ -181,6 +181,18 @@ Patch66: ntp-4.2.6p5-cve-2016-7433.patch
 Patch67: ntp-4.2.6p5-cve-2016-9310.patch
 # ntpbz #3119
 Patch68: ntp-4.2.6p5-cve-2016-9311.patch
+# ntpbz #3388
+Patch69: ntp-4.2.6p5-cve-2017-6462.patch
+# ntpbz #3387
+Patch70: ntp-4.2.6p5-cve-2017-6463.patch
+# ntpbz #3389
+Patch71: ntp-4.2.6p5-cve-2017-6464.patch
+# add Spectracom TSYNC driver
+Patch72: ntp-4.2.6p5-tsyncdriver.patch
+# ntpbz #3434
+Patch73: ntp-4.2.6p5-staunsync.patch
+# use SHA1 request key by default (#1442083)
+Patch74: ntp-4.2.6p5-defreqkey.patch
 
 # handle unknown clock types
 Patch100: ntpstat-0.2-clksrc.patch
@@ -264,7 +276,7 @@ This package contains NTP documentation in HTML format.
 # pool.ntp.org vendor zone which will be used in ntp.conf
 %if 0%{!?vendorzone:1}
 %{?fedora: %global vendorzone fedora.}
-%{?rhel: %global vendorzone redsleeve.}
+%{?rhel: %global vendorzone centos.}
 %endif
 
 %prep
@@ -339,6 +351,12 @@ This package contains NTP documentation in HTML format.
 %patch66 -p1 -b .cve-2016-7433
 %patch67 -p1 -b .cve-2016-9310
 %patch68 -p1 -b .cve-2016-9311
+%patch69 -p1 -b .cve-2017-6462
+%patch70 -p1 -b .cve-2017-6463
+%patch71 -p1 -b .cve-2017-6464
+%patch72 -p1 -b .tsyncdriver
+%patch73 -p1 -b .staunsync
+%patch74 -p1 -b .defreqkey
 
 # ntpstat patches
 %patch100 -p1 -b .clksrc
@@ -557,16 +575,23 @@ popd
 %{ntpdocdir}/html
 
 %changelog
-* Fri Apr 14 2017 Jacco Ligthart <jacco@redsleeve.org> - 4.2.6p5-25.el7.2.redsleeve.1
+* Tue Apr 10 2018 CentOS Sources <bugs@centos.org> - 4.2.6p5-28.el7.centos
 - rebrand vendorzone
 
-* Wed Apr 12 2017 CentOS Sources <bugs@centos.org> - 4.2.6p5-25.el7.centos.2
-- rebrand vendorzone
+* Mon Oct 09 2017 Miroslav Lichvar <mlichvar@redhat.com> 4.2.6p5-28
+- fix buffer overflow in datum refclock driver (CVE-2017-6462)
+- fix crash with invalid unpeer command (CVE-2017-6463)
+- fix potential crash with invalid server command (CVE-2017-6464)
+- add Spectracom TSYNC driver (#1491797)
+- fix initialization of system clock status (#1493452)
+- fix typos in ntpd man page (#1420453)
+- use SHA1 request key by default (#1442083)
+- use network-online target in ntpdate and sntp services (#1466947)
 
-* Tue Feb 28 2017 Miroslav Lichvar <mlichvar@redhat.com> 4.2.6p5-25.el7_3.2
-- fix CVE-2016-7429 patch to work correctly on multicast client (#1427573)
+* Tue Feb 28 2017 Miroslav Lichvar <mlichvar@redhat.com> 4.2.6p5-27
+- fix CVE-2016-7429 patch to work correctly on multicast client (#1422944)
 
-* Wed Jan 11 2017 Miroslav Lichvar <mlichvar@redhat.com> 4.2.6p5-25.el7_3.1
+* Wed Jan 11 2017 Miroslav Lichvar <mlichvar@redhat.com> 4.2.6p5-26
 - don't limit rate of packets from sources (CVE-2016-7426)
 - don't change interface from received packets (CVE-2016-7429)
 - fix calculation of root distance again (CVE-2016-7433)

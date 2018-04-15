@@ -1,0 +1,16 @@
+diff -up ntp-4.2.6p5/ntpd/ntp_loopfilter.c.staunsync ntp-4.2.6p5/ntpd/ntp_loopfilter.c
+--- ntp-4.2.6p5/ntpd/ntp_loopfilter.c.staunsync	2017-09-20 10:38:35.776437535 +0200
++++ ntp-4.2.6p5/ntpd/ntp_loopfilter.c	2017-09-20 10:40:47.240562306 +0200
+@@ -935,9 +935,9 @@ loop_config(
+ 		pll_control = 1;
+ 		memset(&ntv, 0, sizeof(ntv));
+ 		ntv.modes = MOD_BITS;
+-		ntv.status = STA_PLL;
+-		ntv.maxerror = MAXDISPERSE;
+-		ntv.esterror = MAXDISPERSE;
++		ntv.status = STA_PLL | STA_UNSYNC;
++		ntv.maxerror = MAXDISPERSE * 1e6;
++		ntv.esterror = MAXDISPERSE * 1e6;
+ 		ntv.constant = sys_poll;
+ #ifdef SIGSYS
+ 		/*
