@@ -1,0 +1,22 @@
+commit 9115c850c9fda46c26dcc0f2f627b7483aa39435
+Author: Michal Domonkos <mdomonko@redhat.com>
+Date:   Wed Jun 14 18:38:03 2017 +0200
+
+    Don't require enabled repos for URL installs. BZ 1175315
+    
+    This makes the check consistent with installPkgs() (cli.py:979).
+
+diff --git a/yumcommands.py b/yumcommands.py
+index 502bcb3..1be1051 100644
+--- a/yumcommands.py
++++ b/yumcommands.py
+@@ -253,7 +253,8 @@ def checkEnabledRepo(base, possible_local_files=[]):
+         return
+ 
+     for lfile in possible_local_files:
+-        if lfile.endswith(".rpm") and os.path.exists(lfile):
++        if lfile.endswith(".rpm") and (yum.misc.re_remote_url(lfile) or
++                                       os.path.exists(lfile)):
+             return
+ 
+     # runs prereposetup (which "most" plugins currently use to add repos.)

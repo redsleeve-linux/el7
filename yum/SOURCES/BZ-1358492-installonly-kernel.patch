@@ -1,0 +1,11 @@
+diff -up yum-3.4.3/yum/config.py.old yum-3.4.3/yum/config.py
+--- yum-3.4.3/yum/config.py.old	2017-10-06 13:24:25.014855429 +0200
++++ yum-3.4.3/yum/config.py	2017-10-06 13:36:38.602637131 +0200
+@@ -755,6 +755,7 @@ class YumConf(StartupConf):
+     username = Option()
+     password = Option()
+     installonlypkgs = ListOption(['kernel', 'kernel-bigmem',
++                                  'installonlypkg(kernel)',
+                                   'installonlypkg(kernel-module)',
+                                   'installonlypkg(vm)',
+             'kernel-enterprise','kernel-smp', 'kernel-debug',

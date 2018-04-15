@@ -1,0 +1,19 @@
+commit e9c88f76e0594d5c52ebb08f4c68003cad2c6e67
+Author: Jaroslav Mracek <jmracek@redhat.com>
+Date:   Wed Oct 19 11:28:01 2016 +0200
+
+    Minor fix in doc of check command
+
+diff --git a/docs/yum.8 b/docs/yum.8
+index efaa061..a4b953d 100644
+--- a/docs/yum.8
++++ b/docs/yum.8
+@@ -784,7 +784,7 @@ included so you can easily see the space used/saved and any other changes.
+ .IP
+ .IP "\fBcheck\fP"
+ Checks the local rpmdb and produces information on any problems it finds. You
+-can pass the check command the arguments "dependencies", "duplicates", "obsoletes" or "provides",
++can pass the check command the arguments "dependencies", "duplicates", "obsoleted" or "provides",
+ to limit the checking that is performed (the default is "all" which does all).
+ 
+ .IP

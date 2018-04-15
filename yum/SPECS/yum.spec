@@ -32,11 +32,11 @@
 Summary: RPM package installer/updater/manager
 Name: yum
 Version: 3.4.3
-Release: 154%{?dist}.redsleeve
+Release: 158%{?dist}
 License: GPLv2+
 Group: System Environment/Base
 Source0: http://yum.baseurl.org/download/3.4/%{name}-%{version}.tar.gz
-Source1: yum.conf.redsleeve
+Source1: yum.conf.centos
 Source2: yum-updatesd.conf.fedora
 Patch1: yum-distro-configs.patch
 Patch5: geode-arch.patch
@@ -146,8 +146,21 @@ Patch258: BZ-1370134-yum-check-ignore-self-conflicts.patch
 Patch259: BZ-1352585-detect-installed-provide.patch
 Patch260: BZ-1397829-fix-reget-simple-md-fnames.patch
 
+# rhel-7.5
+Patch280: BZ-1287610-fips-dont-pollute-stderr.patch
+Patch281: BZ-1358492-installonly-kernel.patch
+Patch282: BZ-1175315-dont-require-enabled-repos-for-url.patch
+Patch283: BZ-1386597-obsoletes-man-page.patch
+Patch284: BZ-1411575-manpage-typo.patch
+Patch285: BZ-1458841-preload-shared-libs.patch
+Patch286: BZ-1451817-docs-improve-payload-gpgcheck-opt.patch
+Patch287: BZ-1361609-improve-exactarchlist-opt.patch
+Patch288: BZ-1432319-add-usercache-opt.patch
+Patch289: BZ-1411692-docs-conf-var-naming-rules.patch
+Patch290: BZ-1278333-yum-shell-support-exit-status.patch
+
 #CentOS Branding
-Patch1000: redsleeve-branding-yum.patch
+Patch1000: centos-branding-yum.patch
 
 URL: http://yum.baseurl.org/
 BuildArchitectures: noarch
@@ -377,6 +390,19 @@ Install this package if you want auto yum updates nightly via cron.
 %patch258 -p1
 %patch259 -p1
 %patch260 -p1
+
+# rhel-7.5
+%patch280 -p1
+%patch281 -p1
+%patch282 -p1
+%patch283 -p1
+%patch284 -p1
+%patch285 -p1
+%patch286 -p1
+%patch287 -p1
+%patch288 -p1
+%patch289 -p1
+%patch290 -p1
 
 %patch1000 -p1
 
@@ -610,15 +636,41 @@ exit 0
 %endif
 
 %changelog
-* Fri Aug 04 2017 Jacco Ligthart <jacco@redsleeve.org> - 3.4.3-154.el7.redsleeve
-- RedSleeve rebranding
-
-* Tue Aug 01 2017 CentOS Sources <bugs@centos.org> - 3.4.3-154.el7.centos
+* Tue Apr 10 2018 CentOS Sources <bugs@centos.org> - 3.4.3-158.el7.centos
 - CentOS yum config
 -  use the CentOS bug tracker url
 -  retain installonly limit of 5
 -  ensure distrover is always from centos-release
 - Make yum require yum-plugin-fastestmirror
+
+* Sun Nov 26 2017 Valentina Mukhamedzhanova <vmukhame@redhat.com> - 3.4.3-158
+- Add support for yum-shell exit status.
+- Resolves: bug#1278333
+
+* Fri Nov 03 2017 Valentina Mukhamedzhanova <vmukhame@redhat.com> - 3.4.3-157
+- docs: clarify variable name matching.
+- Resolves: bug#1411692
+
+* Wed Nov 01 2017 Valentina Mukhamedzhanova <vmukhame@redhat.com> - 3.4.3-156
+- Preload shared libs that we may dlopen().
+- Resolves: bug#1458841
+- Update payload_gpgcheck documentation.
+- Resolves: bug#1451817
+- Make exactarchlist support wildcards and add docs.
+- Resolves: bug#1361609
+- Add usercache config option.
+- Resolves: bug#1432319
+
+* Thu Oct 06 2017 Valentina Mukhamedzhanova <vmukhame@redhat.com> - 3.4.3-155
+- Don't pollute stderr in FIPS mode.
+- Resolves: bug#1287610
+- Don't require enabled repos for URL installs.
+- Resolves: bug#1175315
+- installonlypkgs: add "installonlypkg(kernel)
+- Resolves: bug#1358492
+- Manpage fixes.
+- Resolves: bug#1386597
+- Resolves: bug#1411575
 
 * Mon Mar 27 2017 Valentina Mukhamedzhanova <vmukhame@redhat.com> - 3.4.3-154
 - Add payload_gpgcheck option.

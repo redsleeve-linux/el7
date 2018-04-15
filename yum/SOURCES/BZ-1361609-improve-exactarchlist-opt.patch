@@ -1,0 +1,63 @@
+diff -up yum-3.4.3/docs/yum.conf.5.orig yum-3.4.3/docs/yum.conf.5
+--- yum-3.4.3/docs/yum.conf.5.orig	2017-10-31 17:11:01.730922455 +0100
++++ yum-3.4.3/docs/yum.conf.5	2017-10-31 17:14:00.544379686 +0100
+@@ -221,6 +221,18 @@ List of package names that are kernels.
+ updating of kernel packages and should be removed out in the yum 2.1 series.
+ 
+ .IP
++\fBexactarchlist\fR
++List of packages that should never change archs in an update.
++That means, if a package has a newer version available which is for a different
++compatible arch, yum will not consider that version an update if the package
++name is in this list.
++For example, on x86_64, foo-1.x86_64 won't be updated to foo-2.i686 if foo is
++in this list.
++Kernels in particular fall into this category.
++Shell globs using wildcards (eg. * and ?) are allowed.
++Default is an empty list.
++
++.IP
+ \fBshowdupesfromrepos\fR
+ Either `0' or `1'. Set to `1' if you wish to show any duplicate packages from
+ any repository, from package listings like the info or list commands. Set
+diff -up yum-3.4.3/yum/config.py.orig yum-3.4.3/yum/config.py
+--- yum-3.4.3/yum/config.py.orig	2017-10-31 17:11:01.729922458 +0100
++++ yum-3.4.3/yum/config.py	2017-10-31 17:12:46.513604398 +0100
+@@ -42,6 +42,7 @@ import rpmUtils.miscutils
+ import Errors
+ import types
+ from misc import get_uuid, read_in_items_from_dot_dir
++import fnmatch
+ 
+ # Alter/patch these to change the default checking...
+ __pkgs_gpgcheck_default__ = False
+@@ -284,6 +285,20 @@ class UrlListOption(ListOption):
+         return out
+ 
+ 
++class WildListOption(ListOption):
++    """An option containing a list of strings that supports shell-style
++    wildcard matching in membership test operations."""
++
++    def parse(self, s):
++        class WildList(list):
++            def __contains__(self, item):
++                if not isinstance(item, basestring):
++                    return False
++                return any(fnmatch.fnmatch(item, p) for p in self)
++        patterns = super(WildListOption, self).parse(s)
++        return WildList(patterns)
++
++
+ class IntOption(Option):
+     """An option representing an integer value."""
+ 
+@@ -769,7 +784,7 @@ class YumConf(StartupConf):
+                                           names_of_0=["0", "<off>"])
+     kernelpkgnames = ListOption(['kernel','kernel-smp', 'kernel-enterprise',
+             'kernel-bigmem', 'kernel-BOOT', 'kernel-PAE', 'kernel-PAE-debug'])
+-    exactarchlist = ListOption(__exactarchlist_default__)
++    exactarchlist = WildListOption(__exactarchlist_default__)
+     tsflags = ListOption()
+     override_install_langs = Option()
+ 

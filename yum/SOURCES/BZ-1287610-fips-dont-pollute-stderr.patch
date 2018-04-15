@@ -1,0 +1,83 @@
+diff -up yum-3.4.3/yum/Errors.py.orig yum-3.4.3/yum/Errors.py
+--- yum-3.4.3/yum/Errors.py.orig	2017-09-14 18:42:26.740558383 +0200
++++ yum-3.4.3/yum/Errors.py	2017-09-14 18:42:30.371541754 +0200
+@@ -99,6 +99,11 @@ class ConfigError(YumBaseError):
+ class MiscError(YumBaseError):
+     pass
+ 
++class FIPSNonCompliantError(MiscError):
++    def __init__(self, sumtype):
++        MiscError.__init__(
++            self, '%s algorithm is not FIPS compliant' % sumtype)
++
+ class GroupsError(YumBaseError):
+     pass
+ 
+diff -up yum-3.4.3/yum/misc.py.orig yum-3.4.3/yum/misc.py
+--- yum-3.4.3/yum/misc.py.orig	2017-09-14 18:42:26.794558135 +0200
++++ yum-3.4.3/yum/misc.py	2017-09-14 18:42:30.372541749 +0200
+@@ -58,11 +58,20 @@ except ImportError:
+             raise ValueError, "Bad checksum type"
+ 
+ # some checksum types might be disabled
++_fips_noncompliant = set()
+ for ctype in list(_available_checksums):
+     try:
+         hashlib.new(ctype)
+-    except:
+-        print >> sys.stderr, 'Checksum type %s disabled' % repr(ctype)
++    except Exception as e:
++        # Print an error unless this is due to FIPS mode (in which case it's
++        # not really an error and we don't want to pollute the output
++        # needlessly; if someone actually tries to instantiate a Checksum with
++        # a FIPS non-compliant ctype, we'll raise an explanatory exception
++        # anyway).
++        if isinstance(e, ValueError) and str(e).endswith('disabled for fips'):
++            _fips_noncompliant.add(ctype)
++        else:
++            print >> sys.stderr, 'Checksum type %s disabled' % repr(ctype)
+         _available_checksums.remove(ctype)
+ for ctype in 'sha256', 'sha1':
+     if ctype in _available_checksums:
+@@ -71,7 +80,7 @@ for ctype in 'sha256', 'sha1':
+ else:
+     raise ImportError, 'broken hashlib'
+ 
+-from Errors import MiscError
++from Errors import MiscError, FIPSNonCompliantError
+ # These are API things, so we can't remove them even if they aren't used here.
+ # pylint: disable-msg=W0611
+ from i18n import to_utf8, to_unicode
+@@ -271,6 +280,8 @@ class Checksums:
+                 sumalgo = hashlib.new(sumtype)
+             elif ignore_missing:
+                 continue
++            elif sumtype in _fips_noncompliant:
++                raise FIPSNonCompliantError(sumtype)
+             else:
+                 raise MiscError, 'Error Checksumming, bad checksum type %s' % sumtype
+             done.add(sumtype)
+diff -up yum-3.4.3/yum/yumRepo.py.orig yum-3.4.3/yum/yumRepo.py
+--- yum-3.4.3/yum/yumRepo.py.orig	2017-09-14 18:42:26.879557746 +0200
++++ yum-3.4.3/yum/yumRepo.py	2017-09-14 18:43:23.422298802 +0200
+@@ -497,7 +497,10 @@ class YumRepository(Repository, config.R
+         except (Errors.MiscError, EnvironmentError), e:
+             if checksum_can_fail:
+                 return None
+-            raise Errors.RepoError, 'Error opening file for checksum: %s' % e
++            msg = 'Error opening file for checksum: %s' % e
++            if isinstance(e, Errors.FIPSNonCompliantError):
++                msg = str(e)
++            raise Errors.RepoError(msg)
+ 
+     def dump(self):
+         output = '[%s]\n' % self.id
+@@ -1799,7 +1802,7 @@ Insufficient space in download directory
+         except Errors.RepoError, e:
+             if check_can_fail:
+                 return None
+-            raise URLGrabError(-3, 'Error performing checksum')
++            raise URLGrabError(-3, 'Error performing checksum: %s' % e)
+ 
+         if l_csum == r_csum:
+             _xattr_set_chksum(file, r_ctype, l_csum)

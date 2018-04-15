@@ -1,0 +1,84 @@
+diff -up yum-3.4.3/cli.py.orig yum-3.4.3/cli.py
+--- yum-3.4.3/cli.py.orig	2017-10-20 18:27:45.114593690 +0200
++++ yum-3.4.3/cli.py	2017-10-20 18:27:48.367578901 +0200
+@@ -2275,8 +2275,10 @@ class YumOptionParser(OptionParser):
+             self.base.updateinfo_filters['cves'] = self._splitArg(opts.cves)
+             self.base.updateinfo_filters['sevs'] = self._splitArg(opts.sevs)
+ 
++            if not self.base.conf.usercache and os.geteuid() != 0:
++                self.base.conf.cache = 1
+             #  Treat users like root as much as possible:
+-            if not self.base.setCacheDir():
++            elif not self.base.setCacheDir():
+                 self.base.conf.cache = 1
+             if opts.cacheonly:
+                 self.base.conf.cache = 1
+diff -up yum-3.4.3/docs/yum.8.orig yum-3.4.3/docs/yum.8
+--- yum-3.4.3/docs/yum.8.orig	2017-10-20 18:27:45.135593595 +0200
++++ yum-3.4.3/docs/yum.8	2017-10-20 18:27:48.368578897 +0200
+@@ -835,8 +835,12 @@ Configuration Option: \fBrpmverbosity\fP
+ .IP "\fB\-R, \-\-randomwait=[time in minutes]\fP" 
+ Sets the maximum amount of time yum will wait before performing a command \- it randomizes over the time.
+ .IP "\fB\-C, \-\-cacheonly\fP" 
+-Tells yum to run entirely from system cache - does not download or
+-update any headers unless it has to to perform the requested action.
++Tells yum to run entirely from system cache; does not download or update
++metadata.
++When this is used by a non\-root user, yum will run entirely from user cache in
++$TMPDIR.
++This option doesn't stop yum from updating user cache from system cache locally
++if the latter is newer (this is always done when running as a user).
+ .IP "\fB\-\-version\fP" 
+ Reports the \fByum\fP version number and installed package versions for
+ everything in history_record_packages (can be added to by plugins).
+diff -up yum-3.4.3/docs/yum.conf.5.orig yum-3.4.3/docs/yum.conf.5
+--- yum-3.4.3/docs/yum.conf.5.orig	2017-10-20 18:27:45.137593585 +0200
++++ yum-3.4.3/docs/yum.conf.5	2017-10-20 18:27:48.368578897 +0200
+@@ -40,6 +40,19 @@ of headers and packages after successful
+ .br
+ 
+ .IP
++\fBusercache\fR
++Either `1' or `0'. Determines whether or not yum should store per-user cache in
++$TMPDIR.
++When set to `0', then whenever yum runs as a non\-root user,
++\fB\-\-cacheonly\fR is implied and system cache is used directly, and no new
++user cache is created in $TMPDIR.
++This can be used to prevent $TMPDIR from filling up if many users on the system
++often use yum and root tends to have up-to-date metadata that the users can
++rely on (they can still enable this feature with \fB\-\-setopt\fR if they
++wish).
++Default is `1' (user cache enabled).
++
++.IP
+ \fBreposdir\fR
+ A list of directories where yum should look for .repo files which define
+ repositories to use. Default is `/etc/yum.repos.d'. Each
+diff -up yum-3.4.3/yum/config.py.orig yum-3.4.3/yum/config.py
+--- yum-3.4.3/yum/config.py.orig	2017-10-20 18:27:45.136593590 +0200
++++ yum-3.4.3/yum/config.py	2017-10-20 18:27:48.369578892 +0200
+@@ -742,6 +742,7 @@ class YumConf(StartupConf):
+     cachedir = Option('/var/cache/yum')
+ 
+     keepcache = BoolOption(True)
++    usercache = BoolOption(True)
+     logfile = Option('/var/log/yum.log')
+     reposdir = ListOption(['/etc/yum/repos.d', '/etc/yum.repos.d'])
+ 
+diff -up yum-3.4.3/yummain.py.orig yum-3.4.3/yummain.py
+--- yum-3.4.3/yummain.py.orig	2017-10-20 18:27:45.062593926 +0200
++++ yum-3.4.3/yummain.py	2017-10-20 18:27:48.369578892 +0200
+@@ -71,7 +71,12 @@ def main(args):
+     def exRepoError(e):
+         # For RepoErrors ... help out by forcing new repodata next time.
+         # XXX: clean only the repo that has failed?
+-        base.cleanExpireCache()
++        try:
++            base.cleanExpireCache()
++        except Errors.YumBaseError:
++            # Let's not confuse the user further (they don't even know we tried
++            # the clean).
++            pass
+ 
+         msg = _("""\
+  One of the configured repositories failed (%(repo)s),
