@@ -1,0 +1,50 @@
+From 4fd31afb27446d33e659cb279691aa94270e6bfb Mon Sep 17 00:00:00 2001
+From: Cornelia Huck <cohuck@redhat.com>
+Date: Wed, 13 Sep 2017 16:20:35 +0200
+Subject: dump: do not dump non-existent guest memory
+
+It does not really make sense to dump memory that is not there.
+
+Moreover, that fixes a segmentation fault when calling dump-guest-memory
+with no filter for a machine with no memory defined.
+
+New behaviour is:
+
+(qemu) dump-guest-memory /dev/null
+dump: no guest memory to dump
+(qemu) dump-guest-memory /dev/null 0 4096
+dump: no guest memory to dump
+
+Signed-off-by: Cornelia Huck <cohuck@redhat.com>
+Tested-by: Laurent Vivier <lvivier@redhat.com>
+Reviewed-by: Laurent Vivier <lvivier@redhat.com>
+Reviewed-by: Greg Kurz <groug@kaod.org>
+Reviewed-by: Peter Xu <peterx@redhat.com>
+Message-Id: <20170913142036.2469-4-lvivier@redhat.com>
+Signed-off-by: Laurent Vivier <lvivier@redhat.com>
+Signed-off-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+(cherry picked from commit d1e6994abcd12c7f54aa73ff848fb6215c783898)
+---
+ dump.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/dump.c b/dump.c
+index d9090a2..99117ba 100644
+--- a/dump.c
++++ b/dump.c
+@@ -1536,6 +1536,12 @@ static void dump_init(DumpState *s, int fd, bool has_format,
+     fprintf(stderr, "DUMP: total memory to dump: %lu\n", s->total_size);
+ #endif
+ 
++    /* it does not make sense to dump non-existent memory */
++    if (!s->total_size) {
++        error_setg(errp, "dump: no guest memory to dump");
++        goto cleanup;
++    }
++
+     s->start = get_start_block(s);
+     if (s->start == -1) {
+         error_setg(errp, QERR_INVALID_PARAMETER, "begin");
+-- 
+1.8.3.1
+

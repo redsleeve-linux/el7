@@ -1,0 +1,98 @@
+From ca573248c7d3e8070722316b168f94b79fd75357 Mon Sep 17 00:00:00 2001
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+Date: Wed, 25 Oct 2017 18:28:36 +0200
+Subject: [PATCH 17/19] migrate: HMP migate_continue
+
+RH-Author: Dr. David Alan Gilbert <dgilbert@redhat.com>
+Message-id: <20171025182838.31829-6-dgilbert@redhat.com>
+Patchwork-id: 77440
+O-Subject: [RHV-7.5 qemu-kvm-rhev PATCH 5/7] migrate: HMP migate_continue
+Bugzilla: 1497120
+RH-Acked-by: Peter Xu <peterx@redhat.com>
+RH-Acked-by: Juan Quintela <quintela@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+
+HMP equivalent to the just added migrate-continue
+Unpause a migrate paused at a given state.
+
+Signed-off-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+Reviewed-by: Peter Xu <peterx@redhat.com>
+Reviewed-by: Juan Quintela <quintela@redhat.com>
+Signed-off-by: Juan Quintela <quintela@redhat.com>
+(cherry picked from commit 94ae12cba4f18253e3cf5f9a70335e22870053b4)
+  Conflict:
+     Change in qapi_enum_parse parameters
+
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hmp-commands.hx | 12 ++++++++++++
+ hmp.c           | 14 ++++++++++++++
+ hmp.h           |  1 +
+ 3 files changed, 27 insertions(+)
+
+diff --git a/hmp-commands.hx b/hmp-commands.hx
+index 5b4cf6b..c16d270 100644
+--- a/hmp-commands.hx
++++ b/hmp-commands.hx
+@@ -979,7 +979,19 @@ STEXI
+ @item migrate_cancel
+ @findex migrate_cancel
+ Cancel the current VM migration.
++ETEXI
+ 
++    {
++        .name       = "migrate_continue",
++        .args_type  = "state:s",
++        .params     = "state",
++        .help       = "Continue migration from the given paused state",
++        .cmd        = hmp_migrate_continue,
++    },
++STEXI
++@item migrate_continue @var{state}
++@findex migrate_continue
++Continue migration from the paused state @var{state}
+ ETEXI
+ 
+     {
+diff --git a/hmp.c b/hmp.c
+index 5b6eeba..261c17b 100644
+--- a/hmp.c
++++ b/hmp.c
+@@ -1493,6 +1493,20 @@ void hmp_migrate_cancel(Monitor *mon, const QDict *qdict)
+     qmp_migrate_cancel(NULL);
+ }
+ 
++void hmp_migrate_continue(Monitor *mon, const QDict *qdict)
++{
++    Error *err = NULL;
++    const char *state = qdict_get_str(qdict, "state");
++    int val = qapi_enum_parse(MigrationStatus_lookup, state,
++                              MIGRATION_STATUS__MAX, -1, &err);
++
++    if (val >= 0) {
++        qmp_migrate_continue(val, &err);
++    }
++
++    hmp_handle_error(mon, &err);
++}
++
+ void hmp_migrate_incoming(Monitor *mon, const QDict *qdict)
+ {
+     Error *err = NULL;
+diff --git a/hmp.h b/hmp.h
+index 8d9cb29..8dc865d 100644
+--- a/hmp.h
++++ b/hmp.h
+@@ -68,6 +68,7 @@ void hmp_savevm(Monitor *mon, const QDict *qdict);
+ void hmp_delvm(Monitor *mon, const QDict *qdict);
+ void hmp_info_snapshots(Monitor *mon, const QDict *qdict);
+ void hmp_migrate_cancel(Monitor *mon, const QDict *qdict);
++void hmp_migrate_continue(Monitor *mon, const QDict *qdict);
+ void hmp_migrate_incoming(Monitor *mon, const QDict *qdict);
+ void hmp_migrate_set_downtime(Monitor *mon, const QDict *qdict);
+ void hmp_migrate_set_speed(Monitor *mon, const QDict *qdict);
+-- 
+1.8.3.1
+

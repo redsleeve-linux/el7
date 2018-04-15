@@ -1,0 +1,98 @@
+From f11d0111c641b1ea0c961f1faee7f9682c4f272c Mon Sep 17 00:00:00 2001
+From: David Gibson <dgibson@redhat.com>
+Date: Thu, 16 Nov 2017 03:07:20 +0100
+Subject: [PATCH 16/30] memory: Cleanup after switching to FlatView
+
+RH-Author: David Gibson <dgibson@redhat.com>
+Message-id: <20171116030732.8560-11-dgibson@redhat.com>
+Patchwork-id: 77701
+O-Subject: [PATCH 10/22] memory: Cleanup after switching to FlatView
+Bugzilla: 1481593
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Eduardo Habkost <ehabkost@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+
+From: Alexey Kardashevskiy <aik@ozlabs.ru>
+
+We store AddressSpaceDispatch* in FlatView anyway so there is no need
+to carry it from mem_add() to register_subpage/register_multipage.
+
+This should cause no behavioural change.
+
+Signed-off-by: Alexey Kardashevskiy <aik@ozlabs.ru>
+Message-Id: <20170921085110.25598-8-aik@ozlabs.ru>
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit 9950322a593ff900a860fb52938159461798a831)
+
+Signed-off-by: David Gibson <dgibson@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ exec.c | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/exec.c b/exec.c
+index 0eedeb2..d1d8486 100644
+--- a/exec.c
++++ b/exec.c
+@@ -1314,9 +1314,9 @@ static void phys_sections_free(PhysPageMap *map)
+     g_free(map->nodes);
+ }
+ 
+-static void register_subpage(FlatView *fv, AddressSpaceDispatch *d,
+-                             MemoryRegionSection *section)
++static void register_subpage(FlatView *fv, MemoryRegionSection *section)
+ {
++    AddressSpaceDispatch *d = flatview_to_dispatch(fv);
+     subpage_t *subpage;
+     hwaddr base = section->offset_within_address_space
+         & TARGET_PAGE_MASK;
+@@ -1345,9 +1345,10 @@ static void register_subpage(FlatView *fv, AddressSpaceDispatch *d,
+ }
+ 
+ 
+-static void register_multipage(AddressSpaceDispatch *d,
++static void register_multipage(FlatView *fv,
+                                MemoryRegionSection *section)
+ {
++    AddressSpaceDispatch *d = flatview_to_dispatch(fv);
+     hwaddr start_addr = section->offset_within_address_space;
+     uint16_t section_index = phys_section_add(&d->map, section);
+     uint64_t num_pages = int128_get64(int128_rshift(section->size,
+@@ -1359,7 +1360,6 @@ static void register_multipage(AddressSpaceDispatch *d,
+ 
+ void mem_add(FlatView *fv, MemoryRegionSection *section)
+ {
+-    AddressSpaceDispatch *d = flatview_to_dispatch(fv);
+     MemoryRegionSection now = *section, remain = *section;
+     Int128 page_size = int128_make64(TARGET_PAGE_SIZE);
+ 
+@@ -1368,7 +1368,7 @@ void mem_add(FlatView *fv, MemoryRegionSection *section)
+                        - now.offset_within_address_space;
+ 
+         now.size = int128_min(int128_make64(left), now.size);
+-        register_subpage(fv, d, &now);
++        register_subpage(fv, &now);
+     } else {
+         now.size = int128_zero();
+     }
+@@ -1378,13 +1378,13 @@ void mem_add(FlatView *fv, MemoryRegionSection *section)
+         remain.offset_within_region += int128_get64(now.size);
+         now = remain;
+         if (int128_lt(remain.size, page_size)) {
+-            register_subpage(fv, d, &now);
++            register_subpage(fv, &now);
+         } else if (remain.offset_within_address_space & ~TARGET_PAGE_MASK) {
+             now.size = page_size;
+-            register_subpage(fv, d, &now);
++            register_subpage(fv, &now);
+         } else {
+             now.size = int128_and(now.size, int128_neg(page_size));
+-            register_multipage(d, &now);
++            register_multipage(fv, &now);
+         }
+     }
+ }
+-- 
+1.8.3.1
+

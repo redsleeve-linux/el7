@@ -1,0 +1,66 @@
+From 5ca7635b41a142a709364412fb367c23ac169a21 Mon Sep 17 00:00:00 2001
+From: Stefan Hajnoczi <stefanha@redhat.com>
+Date: Fri, 22 Dec 2017 11:08:48 +0100
+Subject: [PATCH 30/42] aio: fix assert when remove poll during destroy
+
+RH-Author: Stefan Hajnoczi <stefanha@redhat.com>
+Message-id: <20171222110900.24813-9-stefanha@redhat.com>
+Patchwork-id: 78491
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH 08/20] aio: fix assert when remove poll during destroy
+Bugzilla: 1519721
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Jeffrey Cody <jcody@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+After iothread is enabled internally inside QEMU with GMainContext, we
+may encounter this warning when destroying the iothread:
+
+(qemu-system-x86_64:19925): GLib-CRITICAL **: g_source_remove_poll:
+ assertion '!SOURCE_DESTROYED (source)' failed
+
+The problem is that g_source_remove_poll() does not allow to remove one
+source from array if the source is detached from its owner
+context. (peterx: which IMHO does not make much sense)
+
+Fix it on QEMU side by avoid calling g_source_remove_poll() if we know
+the object is during destruction, and we won't leak anything after all
+since the array will be gone soon cleanly even with that fd.
+
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+Reviewed-by: Fam Zheng <famz@redhat.com>
+Signed-off-by: Peter Xu <peterx@redhat.com>
+Message-id: 20170928025958.1420-6-peterx@redhat.com
+[peterx: write the commit message]
+Signed-off-by: Peter Xu <peterx@redhat.com>
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+(cherry picked from commit f708a5e71cba0d784e307334c07ade5f56f827ab)
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ util/aio-posix.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/util/aio-posix.c b/util/aio-posix.c
+index 2d51239..5946ac0 100644
+--- a/util/aio-posix.c
++++ b/util/aio-posix.c
+@@ -223,7 +223,14 @@ void aio_set_fd_handler(AioContext *ctx,
+             return;
+         }
+ 
+-        g_source_remove_poll(&ctx->source, &node->pfd);
++        /* If the GSource is in the process of being destroyed then
++         * g_source_remove_poll() causes an assertion failure.  Skip
++         * removal in that case, because glib cleans up its state during
++         * destruction anyway.
++         */
++        if (!g_source_is_destroyed(&ctx->source)) {
++            g_source_remove_poll(&ctx->source, &node->pfd);
++        }
+ 
+         /* If the lock is held, just mark the node as deleted */
+         if (qemu_lockcnt_count(&ctx->list_lock)) {
+-- 
+1.8.3.1
+

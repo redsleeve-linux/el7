@@ -1,0 +1,118 @@
+From 926144680056dd6773d9ef8ad64c4a593dd597a9 Mon Sep 17 00:00:00 2001
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+Date: Wed, 25 Oct 2017 18:28:34 +0200
+Subject: [PATCH 15/19] migration: Wait for semaphore before completing
+ migration
+
+RH-Author: Dr. David Alan Gilbert <dgilbert@redhat.com>
+Message-id: <20171025182838.31829-4-dgilbert@redhat.com>
+Patchwork-id: 77439
+O-Subject: [RHV-7.5 qemu-kvm-rhev PATCH 3/7] migration: Wait for semaphore before completing migration
+Bugzilla: 1497120
+RH-Acked-by: Peter Xu <peterx@redhat.com>
+RH-Acked-by: Juan Quintela <quintela@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+
+Wait for a semaphore before completing the migration,
+if the previously added capability was enabled.
+
+Signed-off-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+Reviewed-by: Peter Xu <peterx@redhat.com>
+Reviewed-by: Juan Quintela <quintela@redhat.com>
+Signed-off-by: Juan Quintela <quintela@redhat.com>
+(cherry picked from commit e91d8951d59d483f085f7650381b8e55a1a55e4c)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ migration/migration.c | 38 ++++++++++++++++++++++++++++++++++++++
+ migration/migration.h |  3 +++
+ 2 files changed, 41 insertions(+)
+
+diff --git a/migration/migration.c b/migration/migration.c
+index 54db29f..436e122 100644
+--- a/migration/migration.c
++++ b/migration/migration.c
+@@ -1847,6 +1847,39 @@ fail:
+ }
+ 
+ /**
++ * migration_maybe_pause: Pause if required to by
++ * migrate_pause_before_switchover called with the iothread locked
++ * Returns: 0 on success
++ */
++static int migration_maybe_pause(MigrationState *s, int *current_active_state)
++{
++    if (!migrate_pause_before_switchover()) {
++        return 0;
++    }
++
++    /* Since leaving this state is not atomic with posting the semaphore
++     * it's possible that someone could have issued multiple migrate_continue
++     * and the semaphore is incorrectly positive at this point;
++     * the docs say it's undefined to reinit a semaphore that's already
++     * init'd, so use timedwait to eat up any existing posts.
++     */
++    while (qemu_sem_timedwait(&s->pause_sem, 1) == 0) {
++        /* This block intentionally left blank */
++    }
++
++    qemu_mutex_unlock_iothread();
++    migrate_set_state(&s->state, *current_active_state,
++                      MIGRATION_STATUS_PRE_SWITCHOVER);
++    qemu_sem_wait(&s->pause_sem);
++    migrate_set_state(&s->state, MIGRATION_STATUS_PRE_SWITCHOVER,
++                      MIGRATION_STATUS_DEVICE);
++    *current_active_state = MIGRATION_STATUS_DEVICE;
++    qemu_mutex_lock_iothread();
++
++    return s->state == MIGRATION_STATUS_DEVICE ? 0 : -EINVAL;
++}
++
++/**
+  * migration_completion: Used by migration_thread when there's not much left.
+  *   The caller 'breaks' the loop when this returns.
+  *
+@@ -1872,6 +1905,9 @@ static void migration_completion(MigrationState *s, int current_active_state,
+             bool inactivate = !migrate_colo_enabled();
+             ret = vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
+             if (ret >= 0) {
++                ret = migration_maybe_pause(s, &current_active_state);
++            }
++            if (ret >= 0) {
+                 qemu_file_set_rate_limit(s->to_dst_file, INT64_MAX);
+                 ret = qemu_savevm_state_complete_precopy(s->to_dst_file, false,
+                                                          inactivate);
+@@ -2239,6 +2275,7 @@ static void migration_instance_finalize(Object *obj)
+ 
+     g_free(params->tls_hostname);
+     g_free(params->tls_creds);
++    qemu_sem_destroy(&ms->pause_sem);
+ }
+ 
+ static void migration_instance_init(Object *obj)
+@@ -2249,6 +2286,7 @@ static void migration_instance_init(Object *obj)
+     ms->state = MIGRATION_STATUS_NONE;
+     ms->xbzrle_cache_size = DEFAULT_MIGRATE_CACHE_SIZE;
+     ms->mbps = -1;
++    qemu_sem_init(&ms->pause_sem, 0);
+ 
+     params->tls_hostname = g_strdup("");
+     params->tls_creds = g_strdup("");
+diff --git a/migration/migration.h b/migration/migration.h
+index 2eebad8..895cc34 100644
+--- a/migration/migration.h
++++ b/migration/migration.h
+@@ -120,6 +120,9 @@ struct MigrationState
+     /* Flag set once the migration thread called bdrv_inactivate_all */
+     bool block_inactive;
+ 
++    /* Migration is paused due to pause-before-switchover */
++    QemuSemaphore pause_sem;
++
+     /* The semaphore is used to notify COLO thread that failover is finished */
+     QemuSemaphore colo_exit_sem;
+ 
+-- 
+1.8.3.1
+

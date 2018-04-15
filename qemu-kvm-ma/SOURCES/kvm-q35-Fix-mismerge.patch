@@ -1,0 +1,43 @@
+From b0c06140414df1c0637c3d06f67e0292c31f967d Mon Sep 17 00:00:00 2001
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+Date: Wed, 15 Nov 2017 12:29:20 +0100
+Subject: [PATCH 06/30] q35: Fix mismerge
+
+RH-Author: Dr. David Alan Gilbert <dgilbert@redhat.com>
+Message-id: <20171115122920.7207-3-dgilbert@redhat.com>
+Patchwork-id: 77677
+O-Subject: [RHEL-7.5 qemu-kvm-rhev PATCH 2/2] q35: Fix mismerge
+Bugzilla: 1511312
+RH-Acked-by: Marcel Apfelbaum <marcel@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+
+There's a mismerged line calling SET_MACHINE_COMPAT for the
+RHEL macro in the base pc_q35_machine_option that's ifdef'd
+out, it's correctly called later in pc_q35_machine_rhel7_options.
+
+Clean it up (should be no effect).
+
+Signed-off-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/i386/pc_q35.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/hw/i386/pc_q35.c b/hw/i386/pc_q35.c
+index 27c85c5..0818a96 100644
+--- a/hw/i386/pc_q35.c
++++ b/hw/i386/pc_q35.c
+@@ -301,7 +301,6 @@ static void pc_q35_machine_options(MachineClass *m)
+     m->no_floppy = 1;
+     m->has_dynamic_sysbus = true;
+     m->max_cpus = 288;
+-    SET_MACHINE_COMPAT(m, PC_RHEL_COMPAT);
+ }
+ 
+ static void pc_q35_2_10_machine_options(MachineClass *m)
+-- 
+1.8.3.1
+

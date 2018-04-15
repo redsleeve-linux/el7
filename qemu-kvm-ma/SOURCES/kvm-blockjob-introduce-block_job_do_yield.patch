@@ -1,0 +1,95 @@
+From dace2b99ec7489bdabb4beeb429ec44427805d90 Mon Sep 17 00:00:00 2001
+From: Jeffrey Cody <jcody@redhat.com>
+Date: Thu, 30 Nov 2017 22:49:14 +0100
+Subject: [PATCH 10/21] blockjob: introduce block_job_do_yield
+
+RH-Author: Jeffrey Cody <jcody@redhat.com>
+Message-id: <331a28f9c09b1ce40dd95f7b21ded200ab46713d.1511985875.git.jcody@redhat.com>
+Patchwork-id: 78046
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH 10/11] blockjob: introduce block_job_do_yield
+Bugzilla: 1506531
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: John Snow <jsnow@redhat.com>
+
+From: Paolo Bonzini <pbonzini@redhat.com>
+
+Hide the clearing of job->busy in a single function, and set it
+in block_job_enter.  This lets block_job_do_yield verify that
+qemu_coroutine_enter is not used while job->busy = false.
+
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+Tested-By: Jeff Cody <jcody@redhat.com>
+Reviewed-by: Fam Zheng <famz@redhat.com>
+Reviewed-by: Jeff Cody <jcody@redhat.com>
+Reviewed-by: Stefan Hajnoczi <stefanha@redhat.com>
+Signed-off-by: Kevin Wolf <kwolf@redhat.com>
+(cherry picked from commit 356f59b8757f47c0aca3e2e4e51d6010f64cade1)
+Signed-off-by: Jeff Cody <jcody@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ blockjob.c | 24 ++++++++++++++++--------
+ 1 file changed, 16 insertions(+), 8 deletions(-)
+
+diff --git a/blockjob.c b/blockjob.c
+index 4d78046..e960b3e 100644
+--- a/blockjob.c
++++ b/blockjob.c
+@@ -729,6 +729,15 @@ static bool block_job_should_pause(BlockJob *job)
+     return job->pause_count > 0;
+ }
+ 
++static void block_job_do_yield(BlockJob *job)
++{
++    job->busy = false;
++    qemu_coroutine_yield();
++
++    /* Set by block_job_enter before re-entering the coroutine.  */
++    assert(job->busy);
++}
++
+ void coroutine_fn block_job_pause_point(BlockJob *job)
+ {
+     assert(job && block_job_started(job));
+@@ -746,9 +755,7 @@ void coroutine_fn block_job_pause_point(BlockJob *job)
+ 
+     if (block_job_should_pause(job) && !block_job_is_cancelled(job)) {
+         job->paused = true;
+-        job->busy = false;
+-        qemu_coroutine_yield(); /* wait for block_job_resume() */
+-        job->busy = true;
++        block_job_do_yield(job);
+         job->paused = false;
+     }
+ 
+@@ -778,9 +785,12 @@ void block_job_enter(BlockJob *job)
+         return;
+     }
+ 
+-    if (!job->busy) {
+-        bdrv_coroutine_enter(blk_bs(job->blk), job->co);
++    if (job->busy) {
++        return;
+     }
++
++    job->busy = true;
++    aio_co_wake(job->co);
+ }
+ 
+ bool block_job_is_cancelled(BlockJob *job)
+@@ -819,11 +829,9 @@ void block_job_yield(BlockJob *job)
+         return;
+     }
+ 
+-    job->busy = false;
+     if (!block_job_should_pause(job)) {
+-        qemu_coroutine_yield();
++        block_job_do_yield(job);
+     }
+-    job->busy = true;
+ 
+     block_job_pause_point(job);
+ }
+-- 
+1.8.3.1
+

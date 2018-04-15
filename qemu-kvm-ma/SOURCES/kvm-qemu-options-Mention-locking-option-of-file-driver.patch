@@ -1,0 +1,41 @@
+From 47c794c7f8010caf97447badfb059fc8fd6aa89f Mon Sep 17 00:00:00 2001
+From: Fam Zheng <famz@redhat.com>
+Date: Thu, 30 Nov 2017 09:25:43 +0100
+Subject: [PATCH 06/36] qemu-options: Mention locking option of file driver
+
+RH-Author: Fam Zheng <famz@redhat.com>
+Message-id: <20171130092544.19231-5-famz@redhat.com>
+Patchwork-id: 78018
+O-Subject: [RHV7.5 qemu-kvm-ma PATCH 4/5] qemu-options: Mention locking option of file driver
+Bugzilla: 1494210
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Jeffrey Cody <jcody@redhat.com>
+RH-Acked-by: John Snow <jsnow@redhat.com>
+
+Signed-off-by: Fam Zheng <famz@redhat.com>
+Signed-off-by: Kevin Wolf <kwolf@redhat.com>
+(cherry picked from commit 1878eaff9bdeece4546d4f9587e6c75ab0b79b8b)
+Signed-off-by: Fam Zheng <famz@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ qemu-options.hx | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/qemu-options.hx b/qemu-options.hx
+index 50ba50e..5878359 100644
+--- a/qemu-options.hx
++++ b/qemu-options.hx
+@@ -693,6 +693,10 @@ This is the protocol-level block driver for accessing regular files.
+ The path to the image file in the local filesystem
+ @item aio
+ Specifies the AIO backend (threads/native, default: threads)
++@item locking
++Specifies whether the image file is protected with Linux OFD / POSIX locks. The
++default is to use the Linux Open File Descriptor API if available, otherwise no
++lock is applied.  (auto/on/off, default: auto)
+ @end table
+ Example:
+ @example
+-- 
+1.8.3.1
+

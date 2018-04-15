@@ -1,0 +1,62 @@
+From 8043361fbb2617010aeb3d4009cd05636e2ff715 Mon Sep 17 00:00:00 2001
+From: "Daniel P. Berrange" <berrange@redhat.com>
+Date: Wed, 20 Dec 2017 17:57:00 +0100
+Subject: [PATCH 20/42] io: add trace points for websocket HTTP protocol
+ headers
+
+RH-Author: Daniel P. Berrange <berrange@redhat.com>
+Message-id: <20171220175702.29663-19-berrange@redhat.com>
+Patchwork-id: 78471
+O-Subject: [RHV-7.5 qemu-kvm-rhev PATCH v2 18/20] io: add trace points for websocket HTTP protocol headers
+Bugzilla: 1518649
+RH-Acked-by: John Snow <jsnow@redhat.com>
+RH-Acked-by: Jeffrey Cody <jcody@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+Reviewed-by: Eric Blake <eblake@redhat.com>
+Signed-off-by: Daniel P. Berrange <berrange@redhat.com>
+(cherry picked from commit 0efd6c9ec19a1ea6c413424fbea54e1dfe471026)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ io/channel-websock.c | 4 ++++
+ io/trace-events      | 2 ++
+ 2 files changed, 6 insertions(+)
+
+diff --git a/io/channel-websock.c b/io/channel-websock.c
+index 0354845..aa35ef3 100644
+--- a/io/channel-websock.c
++++ b/io/channel-websock.c
+@@ -224,6 +224,7 @@ qio_channel_websock_extract_headers(QIOChannelWebsock *ioc,
+         goto bad_request;
+     }
+     *nl = '\0';
++    trace_qio_channel_websock_http_greeting(ioc, buffer);
+ 
+     tmp = strchr(buffer, ' ');
+     if (!tmp) {
+@@ -425,6 +426,9 @@ static void qio_channel_websock_handshake_process(QIOChannelWebsock *ioc,
+         goto bad_request;
+     }
+ 
++    trace_qio_channel_websock_http_request(ioc, protocols, version,
++                                           host, connection, upgrade, key);
++
+     if (!g_strrstr(protocols, QIO_CHANNEL_WEBSOCK_PROTOCOL_BINARY)) {
+         error_setg(errp, "No '%s' protocol is supported by client '%s'",
+                    QIO_CHANNEL_WEBSOCK_PROTOCOL_BINARY, protocols);
+diff --git a/io/trace-events b/io/trace-events
+index 801b5dc..f70bad7 100644
+--- a/io/trace-events
++++ b/io/trace-events
+@@ -48,6 +48,8 @@ qio_channel_websock_handshake_pending(void *ioc, int status) "Websock handshake
+ qio_channel_websock_handshake_reply(void *ioc) "Websock handshake reply ioc=%p"
+ qio_channel_websock_handshake_fail(void *ioc, const char *msg) "Websock handshake fail ioc=%p err=%s"
+ qio_channel_websock_handshake_complete(void *ioc) "Websock handshake complete ioc=%p"
++qio_channel_websock_http_greeting(void *ioc, const char *greeting) "Websocket HTTP request ioc=%p greeting='%s'"
++qio_channel_websock_http_request(void *ioc, const char *protocols, const char *version, const char *host, const char *connection, const char *upgrade, const char *key) "Websocket HTTP request ioc=%p protocols='%s' version='%s' host='%s' connection='%s' upgrade='%s' key='%s'"
+ qio_channel_websock_header_partial_decode(void *ioc, size_t payloadlen, unsigned char fin, unsigned char opcode, unsigned char has_mask) "Websocket header decoded ioc=%p payload-len=%zu fin=0x%x opcode=0x%x has_mask=0x%x"
+ qio_channel_websock_header_full_decode(void *ioc, size_t headerlen, size_t payloadlen, uint32_t mask) "Websocket header decoded ioc=%p header-len=%zu payload-len=%zu mask=0x%x"
+ qio_channel_websock_payload_decode(void *ioc, uint8_t opcode, size_t payload_remain) "Websocket header decoded ioc=%p opcode=0x%x payload-remain=%zu"
+-- 
+1.8.3.1
+

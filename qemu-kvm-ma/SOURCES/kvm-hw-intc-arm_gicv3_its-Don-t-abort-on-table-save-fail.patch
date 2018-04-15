@@ -1,0 +1,67 @@
+From 3e611f18f7a3d0a76c07f822e6190a79c09f82e7 Mon Sep 17 00:00:00 2001
+From: Auger Eric <eric.auger@redhat.com>
+Date: Tue, 28 Nov 2017 15:14:04 +0100
+Subject: [PATCH 3/9] hw/intc/arm_gicv3_its: Don't abort on table save failure
+
+RH-Author: Auger Eric <eric.auger@redhat.com>
+Message-id: <1511882048-11256-4-git-send-email-eric.auger@redhat.com>
+Patchwork-id: 77940
+O-Subject: [RHV7.5 qemu-kvm-ma PATCH 3/7] hw/intc/arm_gicv3_its: Don't abort on table save failure
+Bugzilla: 1513323
+RH-Acked-by: Andrew Jones <drjones@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Acked-by: Wei Huang <wei@redhat.com>
+
+The ITS is not fully properly reset at the moment. Caches are
+not emptied.
+
+After a reset, in case we attempt to save the state before
+the bound devices have registered their MSIs and after the
+1st level table has been allocated by the ITS driver
+(device BASER is valid), the first level entries are still
+invalid. If the device cache is not empty (devices registered
+before the reset), vgic_its_save_device_tables fails with -EINVAL.
+This causes a QEMU abort().
+
+Cc: qemu-stable@nongnu.org
+Signed-off-by: Eric Auger <eric.auger@redhat.com>
+Reported-by: wanghaibin <wanghaibin.wang@huawei.com>
+Reviewed-by: Peter Maydell <peter.maydell@linaro.org>
+Signed-off-by: Peter Maydell <peter.maydell@linaro.org>
+(cherry picked from commit 8a7348b5d62d7ea16807e6bea54b448a0184bb0f)
+Signed-off-by: Eric Auger <eric.auger@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/intc/arm_gicv3_its_kvm.c | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/hw/intc/arm_gicv3_its_kvm.c b/hw/intc/arm_gicv3_its_kvm.c
+index 9b00ce5..6fb45df 100644
+--- a/hw/intc/arm_gicv3_its_kvm.c
++++ b/hw/intc/arm_gicv3_its_kvm.c
+@@ -64,20 +64,16 @@ static void vm_change_state_handler(void *opaque, int running,
+ {
+     GICv3ITSState *s = (GICv3ITSState *)opaque;
+     Error *err = NULL;
+-    int ret;
+ 
+     if (running) {
+         return;
+     }
+ 
+-    ret = kvm_device_access(s->dev_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
+-                            KVM_DEV_ARM_ITS_SAVE_TABLES, NULL, true, &err);
++    kvm_device_access(s->dev_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
++                      KVM_DEV_ARM_ITS_SAVE_TABLES, NULL, true, &err);
+     if (err) {
+         error_report_err(err);
+     }
+-    if (ret < 0 && ret != -EFAULT) {
+-        abort();
+-    }
+ }
+ 
+ static void kvm_arm_its_realize(DeviceState *dev, Error **errp)
+-- 
+1.8.3.1
+

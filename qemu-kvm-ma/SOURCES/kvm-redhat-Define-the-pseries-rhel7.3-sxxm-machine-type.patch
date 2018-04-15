@@ -1,0 +1,62 @@
+From 7acdd1342ff5e62360250b4ff60768e91c070864 Mon Sep 17 00:00:00 2001
+From: Suraj Jitindar Singh <sursingh@redhat.com>
+Date: Tue, 13 Mar 2018 05:21:39 +0100
+Subject: [PATCH 17/17] redhat: Define the pseries-rhel7.3-sxxm machine type
+
+RH-Author: Suraj Jitindar Singh <sursingh@redhat.com>
+Message-id: <1520918499-27663-12-git-send-email-sursingh@redhat.com>
+Patchwork-id: 79247
+O-Subject: [RHEL7.5 qemu-kvm-rhev PATCH 11/11] redhat: Define the pseries-rhel7.3-sxxm machine type
+Bugzilla: 1554957
+RH-Acked-by: David Gibson <dgibson@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+The sxxm (speculative execution exploit mitigation) machine type is a
+variant of the 7.3 machine type with workarounds for speculative
+execution vulnerabilities enabled by default.
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1548919
+
+Signed-off-by: Suraj Jitindar Singh <sursingh@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/ppc/spapr.c | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)
+
+diff --git a/hw/ppc/spapr.c b/hw/ppc/spapr.c
+index 3d210b3..fa07a75 100644
+--- a/hw/ppc/spapr.c
++++ b/hw/ppc/spapr.c
+@@ -4263,6 +4263,28 @@ static void spapr_machine_rhel730_class_options(MachineClass *mc)
+ DEFINE_SPAPR_MACHINE(rhel730, "rhel7.3.0", false);
+ 
+ /*
++ * pseries-rhel7.3.0-sxxm
++ *
++ * pseries-rhel7.3.0 with speculative execution exploit mitigations enabled by default
++ */
++static void spapr_machine_rhel730sxxm_instance_options(MachineState *machine)
++{
++    spapr_machine_rhel730_instance_options(machine);
++}
++
++static void spapr_machine_rhel730sxxm_class_options(MachineClass *mc)
++{
++    sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
++
++    spapr_machine_rhel730_class_options(mc);
++    smc->default_caps.caps[SPAPR_CAP_CFPC] = SPAPR_CAP_WORKAROUND;
++    smc->default_caps.caps[SPAPR_CAP_SBBC] = SPAPR_CAP_WORKAROUND;
++    smc->default_caps.caps[SPAPR_CAP_IBS] = SPAPR_CAP_FIXED_CCD;
++}
++
++DEFINE_SPAPR_MACHINE(rhel730sxxm, "rhel7.3.0-sxxm", false);
++
++/*
+  * pseries-rhel7.2.0
+  */
+ /* Should be like SPAPR_COMPAT_2_5 + 2_4 + 2_3, but "dynamic-reconfiguration"
+-- 
+1.8.3.1
+

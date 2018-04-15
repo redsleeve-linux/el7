@@ -1,0 +1,81 @@
+From 01dd04dfd1421d041da935e7a22987d0883b4353 Mon Sep 17 00:00:00 2001
+From: Jeffrey Cody <jcody@redhat.com>
+Date: Thu, 30 Nov 2017 22:49:07 +0100
+Subject: [PATCH 03/21] blockjob: do not allow coroutine double entry or
+ entry-after-completion
+
+RH-Author: Jeffrey Cody <jcody@redhat.com>
+Message-id: <36a71db70d56ebdb223c760e682a146ad91d97ad.1511985875.git.jcody@redhat.com>
+Patchwork-id: 78041
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH 03/11] blockjob: do not allow coroutine double entry or entry-after-completion
+Bugzilla: 1506531
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: John Snow <jsnow@redhat.com>
+
+When block_job_sleep_ns() is called, the co-routine is scheduled for
+future execution.  If we allow the job to be re-entered prior to the
+scheduled time, we present a race condition in which a coroutine can be
+entered recursively, or even entered after the coroutine is deleted.
+
+The job->busy flag is used by blockjobs when a coroutine is busy
+executing. The function 'block_job_enter()' obeys the busy flag,
+and will not enter a coroutine if set.  If we sleep a job, we need to
+leave the busy flag set, so that subsequent calls to block_job_enter()
+are prevented.
+
+This changes the prior behavior of block_job_cancel() being able to
+immediately wake up and cancel a job; in practice, this should not be an
+issue, as the coroutine sleep times are generally very small, and the
+cancel will occur the next time the coroutine wakes up.
+
+This fixes: https://bugzilla.redhat.com/show_bug.cgi?id=1508708
+
+Signed-off-by: Jeff Cody <jcody@redhat.com>
+Reviewed-by: Stefan Hajnoczi <stefanha@redhat.com>
+(cherry picked from commit 4afeffc8572f40d8844b946a30c00b10da4442b1)
+Signed-off-by: Jeff Cody <jcody@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ blockjob.c                   | 7 +++++--
+ include/block/blockjob_int.h | 3 ++-
+ 2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/blockjob.c b/blockjob.c
+index 70a7818..c3cf9a2 100644
+--- a/blockjob.c
++++ b/blockjob.c
+@@ -797,11 +797,14 @@ void block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns)
+         return;
+     }
+ 
+-    job->busy = false;
++    /* We need to leave job->busy set here, because when we have
++     * put a coroutine to 'sleep', we have scheduled it to run in
++     * the future.  We cannot enter that same coroutine again before
++     * it wakes and runs, otherwise we risk double-entry or entry after
++     * completion. */
+     if (!block_job_should_pause(job)) {
+         co_aio_sleep_ns(blk_get_aio_context(job->blk), type, ns);
+     }
+-    job->busy = true;
+ 
+     block_job_pause_point(job);
+ }
+diff --git a/include/block/blockjob_int.h b/include/block/blockjob_int.h
+index f13ad05..43f3be2 100644
+--- a/include/block/blockjob_int.h
++++ b/include/block/blockjob_int.h
+@@ -143,7 +143,8 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
+  * @ns: How many nanoseconds to stop for.
+  *
+  * Put the job to sleep (assuming that it wasn't canceled) for @ns
+- * nanoseconds.  Canceling the job will interrupt the wait immediately.
++ * nanoseconds.  Canceling the job will not interrupt the wait, so the
++ * cancel will not process until the coroutine wakes up.
+  */
+ void block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns);
+ 
+-- 
+1.8.3.1
+

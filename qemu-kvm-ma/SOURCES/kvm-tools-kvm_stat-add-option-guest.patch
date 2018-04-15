@@ -1,0 +1,239 @@
+From 8b7b31fc24968fc62be018b9932ea94263e1b586 Mon Sep 17 00:00:00 2001
+From: David Hildenbrand <david@redhat.com>
+Date: Tue, 17 Oct 2017 19:15:40 +0200
+Subject: [PATCH 35/69] tools/kvm_stat: add option '--guest'
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: David Hildenbrand <david@redhat.com>
+Message-id: <20171017191605.2378-15-david@redhat.com>
+Patchwork-id: 77323
+O-Subject: [RHEL-7.5 qemu-kvm-rhev PATCH 14/39] tools/kvm_stat: add option '--guest'
+Bugzilla: 1497137
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+
+Upstream-status: linux.git f9ff1087354e5e063b96a291360a8de84bea0bed
+
+Convertion of documentation (for man page generation) to texi.
+
+commit f9ff1087354e5e063b96a291360a8de84bea0bed
+Author: Stefan Raspl <raspl@linux.vnet.ibm.com>
+Date:   Fri Mar 10 13:40:13 2017 +0100
+
+    tools/kvm_stat: add option '--guest'
+
+    Add a new option '-g'/'--guest' to select a particular process by providing
+    the QEMU guest name.
+    Notes:
+    - The logic to figure out the pid corresponding to the guest name might look
+      scary, but works pretty reliably in practice; in the unlikely event that it
+      returns add'l flukes, it will bail out and hint at using '-p' instead, no
+      harm done.
+    - Mixing '-g' and '-p' is possible, and the final instance specified on the
+      command line is the significant one. This is consistent with current
+      behavior for '-p' which, if specified multiple times, also regards the final
+      instance as the significant one.
+
+    Signed-off-by: Stefan Raspl <raspl@linux.vnet.ibm.com>
+    Reviewed-by: Janosch Frank <frankja@linux.vnet.ibm.com>
+    Signed-off-by: Radim Krčmář <rkrcmar@redhat.com>
+
+Signed-off-by: David Hildenbrand <david@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ scripts/kvm/kvm_stat      | 101 +++++++++++++++++++++++++++++++++++++++++++++-
+ scripts/kvm/kvm_stat.texi |   5 +++
+ 2 files changed, 104 insertions(+), 2 deletions(-)
+
+diff --git a/scripts/kvm/kvm_stat b/scripts/kvm/kvm_stat
+index f2a868b..f263312 100755
+--- a/scripts/kvm/kvm_stat
++++ b/scripts/kvm/kvm_stat
+@@ -30,6 +30,7 @@ import fcntl
+ import resource
+ import struct
+ import re
++import subprocess
+ from collections import defaultdict
+ 
+ VMX_EXIT_REASONS = {
+@@ -320,6 +321,30 @@ def parse_int_list(list_string):
+     return integers
+ 
+ 
++def get_pid_from_gname(gname):
++    """Fuzzy function to convert guest name to QEMU process pid.
++
++    Returns a list of potential pids, can be empty if no match found.
++    Throws an exception on processing errors.
++
++    """
++    pids = []
++    try:
++        child = subprocess.Popen(['ps', '-A', '--format', 'pid,args'],
++                                 stdout=subprocess.PIPE)
++    except:
++        raise Exception
++    for line in child.stdout:
++        line = line.lstrip().split(' ', 1)
++        # perform a sanity check before calling the more expensive
++        # function to possibly extract the guest name
++        if ' -name ' in line[1] and gname == get_gname_from_pid(line[0]):
++            pids.append(int(line[0]))
++    child.stdout.close()
++
++    return pids
++
++
+ def get_gname_from_pid(pid):
+     """Returns the guest name for a QEMU process pid.
+ 
+@@ -977,7 +1002,7 @@ class Tui(object):
+             except re.error:
+                 continue
+ 
+-    def show_vm_selection(self):
++    def show_vm_selection_by_pid(self):
+         """Draws PID selection mask.
+ 
+         Asks for a pid until a valid pid or 0 has been entered.
+@@ -1016,6 +1041,50 @@ class Tui(object):
+                 msg = '"' + str(pid) + '": Not a valid pid'
+                 continue
+ 
++    def show_vm_selection_by_guest_name(self):
++        """Draws guest selection mask.
++
++        Asks for a guest name until a valid guest name or '' is entered.
++
++        """
++        msg = ''
++        while True:
++            self.screen.erase()
++            self.screen.addstr(0, 0,
++                               'Show statistics for specific guest.',
++                               curses.A_BOLD)
++            self.screen.addstr(1, 0,
++                               'This might limit the shown data to the trace '
++                               'statistics.')
++            self.screen.addstr(5, 0, msg)
++            curses.echo()
++            self.screen.addstr(3, 0, "Guest [ENTER or guest]: ")
++            gname = self.screen.getstr()
++            curses.noecho()
++
++            if not gname:
++                self.refresh_header(0)
++                self.update_pid(0)
++                break
++            else:
++                pids = []
++                try:
++                    pids = get_pid_from_gname(gname)
++                except:
++                    msg = '"' + gname + '": Internal error while searching, ' \
++                          'use pid filter instead'
++                    continue
++                if len(pids) == 0:
++                    msg = '"' + gname + '": Not an active guest'
++                    continue
++                if len(pids) > 1:
++                    msg = '"' + gname + '": Multiple matches found, use pid ' \
++                          'filter instead'
++                    continue
++                self.refresh_header(pids[0])
++                self.update_pid(pids[0])
++                break
++
+     def show_stats(self):
+         """Refreshes the screen and processes user input."""
+         sleeptime = DELAY_INITIAL
+@@ -1035,8 +1104,11 @@ class Tui(object):
+                 if char == 'f':
+                     self.show_filter_selection()
+                     sleeptime = DELAY_INITIAL
++                if char == 'g':
++                    self.show_vm_selection_by_guest_name()
++                    sleeptime = DELAY_INITIAL
+                 if char == 'p':
+-                    self.show_vm_selection()
++                    self.show_vm_selection_by_pid()
+                     sleeptime = DELAY_INITIAL
+             except KeyboardInterrupt:
+                 break
+@@ -1106,6 +1178,7 @@ Requirements:
+ 
+ Interactive Commands:
+    f     filter by regular expression
++   g     filter by guest name
+    p     filter by PID
+    q     quit
+    x     toggle reporting of stats for individual child trace events
+@@ -1119,6 +1192,22 @@ Press any other key to refresh statistics immediately.
+             else:
+                 return ""
+ 
++    def cb_guest_to_pid(option, opt, val, parser):
++        try:
++            pids = get_pid_from_gname(val)
++        except:
++            raise optparse.OptionValueError('Error while searching for guest '
++                                            '"{}", use "-p" to specify a pid '
++                                            'instead'.format(val))
++        if len(pids) == 0:
++            raise optparse.OptionValueError('No guest by the name "{}" '
++                                            'found'.format(val))
++        if len(pids) > 1:
++            raise optparse.OptionValueError('Multiple processes found (pids: '
++                                            '{}) - use "-p" to specify a pid '
++                                            'instead'.format(" ".join(pids)))
++        parser.values.pid = pids[0]
++
+     optparser = optparse.OptionParser(description=description_text,
+                                       formatter=PlainHelpFormatter())
+     optparser.add_option('-1', '--once', '--batch',
+@@ -1158,6 +1247,14 @@ Press any other key to refresh statistics immediately.
+                          dest='pid',
+                          help='restrict statistics to pid',
+                          )
++    optparser.add_option('-g', '--guest',
++                         action='callback',
++                         type='string',
++                         dest='pid',
++                         metavar='GUEST',
++                         help='restrict statistics to guest by name',
++                         callback=cb_guest_to_pid,
++                         )
+     (options, _) = optparser.parse_args(sys.argv)
+     return options
+ 
+diff --git a/scripts/kvm/kvm_stat.texi b/scripts/kvm/kvm_stat.texi
+index 3519cf9..a8c1071 100644
+--- a/scripts/kvm/kvm_stat.texi
++++ b/scripts/kvm/kvm_stat.texi
+@@ -27,6 +27,9 @@ While running in regular (interactive) mode, use any of the following keys:
+ @item f
+ @kindex f
+ filter by regular expression
++@item g
++@kindex g
++filter by guest name
+ @item p
+ @kindex p
+ filter by PID
+@@ -55,6 +58,8 @@ Press any other key to refresh statistics immediately.
+   retrieve statistics from debugfs
+ @item -p, --pid=@var{pid}
+   limit statistics to one virtual machine (pid)
++@item -g, --guest=@var{guest_name}
++  limit statistics to one virtual machine (guest name)
+ @item -f, --fields=@var{fields}
+   fields to display (regex)
+ @item -h, --help
+-- 
+1.8.3.1
+

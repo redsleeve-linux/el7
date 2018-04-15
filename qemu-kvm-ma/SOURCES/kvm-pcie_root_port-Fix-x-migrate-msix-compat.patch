@@ -1,0 +1,63 @@
+From 917c9e7df753cd941ddb6f8a8212bd1a45bf3d09 Mon Sep 17 00:00:00 2001
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+Date: Wed, 15 Nov 2017 12:29:19 +0100
+Subject: [PATCH 05/30] pcie_root_port: Fix x-migrate-msix compat
+
+RH-Author: Dr. David Alan Gilbert <dgilbert@redhat.com>
+Message-id: <20171115122920.7207-2-dgilbert@redhat.com>
+Patchwork-id: 77679
+O-Subject: [RHEL-7.5 qemu-kvm-rhev PATCH 1/2] pcie_root_port: Fix x-migrate-msix compat
+Bugzilla: 1511312
+RH-Acked-by: Marcel Apfelbaum <marcel@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+
+2.9 gained a property, x-migrate-msix, on pcie-root-ports
+to enable migration of the msix data, it defaulted to on but
+was marked as off for backwards compatibility on old machine
+types.  We picked up this compatibility entry for
+HW_COMPAT_RHEL7_4.
+
+However, this had already been backported to 7.4
+(b131cb258ae, bz 1455150) and since this device was new downstream
+in 7.4 there was no need for a compatibility entry.
+
+Remove the compatibility entry so that x-migrate-msix is true
+for all our machine types just like it is in 7.4.
+
+Signed-off-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ include/hw/compat.h | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/include/hw/compat.h b/include/hw/compat.h
+index 7a2a4a6..3f9d356 100644
+--- a/include/hw/compat.h
++++ b/include/hw/compat.h
+@@ -414,18 +414,14 @@
+     },
+ 
+ /* Mostly like HW_COMPAT_2_9 except
+- * x-mtu-bypass-backend has already been
+- * backported to RHEL7.4
++ * x-mtu-bypass-backend, x-migrate-msix has already been
++ * backported to RHEL7.4. shpc was already on in 7.4.
+  */
+ #define HW_COMPAT_RHEL7_4 \
+     { /* HW_COMPAT_RHEL7_4 */ \
+         .driver   = "intel-iommu",\
+         .property = "pt",\
+         .value    = "off",\
+-    },{ /* HW_COMPAT_RHEL7_4 */ \
+-        .driver   = "pcie-root-port",\
+-        .property = "x-migrate-msix",\
+-        .value    = "false",\
+     },
+ 
+ #endif /* HW_COMPAT_H */
+-- 
+1.8.3.1
+

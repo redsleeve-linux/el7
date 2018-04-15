@@ -1,0 +1,40 @@
+From 35474b23b1f30a940333ea5c76ff85080ff4410c Mon Sep 17 00:00:00 2001
+From: Thomas Huth <thuth@redhat.com>
+Date: Thu, 19 Oct 2017 10:16:48 +0200
+Subject: [PATCH 66/69] hw/pci-host/q35: Remove redundant downstream
+ user_creatable = false
+
+RH-Author: Thomas Huth <thuth@redhat.com>
+Message-id: <1508408209-5712-3-git-send-email-thuth@redhat.com>
+Patchwork-id: 77374
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH 2/3] hw/pci-host/q35: Remove redundant downstream user_creatable = false
+Bugzilla: 1503998
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: Eduardo Habkost <ehabkost@redhat.com>
+
+The q35_host_class_init() function already sets user_creatable = false
+in the upstream code, so there is no need to do this with a downstream
+patch again.
+
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/pci-host/q35.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/hw/pci-host/q35.c b/hw/pci-host/q35.c
+index a91418c..0e472f2 100644
+--- a/hw/pci-host/q35.c
++++ b/hw/pci-host/q35.c
+@@ -158,7 +158,6 @@ static void q35_host_class_init(ObjectClass *klass, void *data)
+     dc->user_creatable = false;
+     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+     dc->fw_name = "pci";
+-    dc->user_creatable = false; /* RH state preserve */
+ }
+ 
+ static void q35_host_initfn(Object *obj)
+-- 
+1.8.3.1
+

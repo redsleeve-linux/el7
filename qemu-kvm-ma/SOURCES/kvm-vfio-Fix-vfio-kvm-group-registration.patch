@@ -1,0 +1,60 @@
+From 8c5380844c8f52663f497609cfb0a833e5f643e0 Mon Sep 17 00:00:00 2001
+From: Alex Williamson <alex.williamson@redhat.com>
+Date: Thu, 14 Dec 2017 16:30:06 +0100
+Subject: [PATCH 6/6] vfio: Fix vfio-kvm group registration
+
+RH-Author: Alex Williamson <alex.williamson@redhat.com>
+Message-id: <20171214162725.10938.41443.stgit@gimli.home>
+Patchwork-id: 78402
+O-Subject: [RHEL-7.5 qemu-kvm-rhev PATCH] vfio: Fix vfio-kvm group registration
+Bugzilla: 1520294
+RH-Acked-by: Auger Eric <eric.auger@redhat.com>
+RH-Acked-by: Peter Xu <peterx@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+Commit 8c37faa475f3 ("vfio-pci, ppc64/spapr: Reorder group-to-container
+attaching") moved registration of groups with the vfio-kvm device from
+vfio_get_group() to vfio_connect_container(), but it missed the case
+where a group is attached to an existing container and takes an early
+exit.  Perhaps this is a less common case on ppc64/spapr, but on x86
+(without viommu) all groups are connected to the same container and
+thus only the first group gets registered with the vfio-kvm device.
+This becomes a problem if we then hot-unplug the devices associated
+with that first group and we end up with KVM being misinformed about
+any vfio connections that might remain.  Fix by including the call to
+vfio_kvm_device_add_group() in this early exit path.
+
+Fixes: 8c37faa475f3 ("vfio-pci, ppc64/spapr: Reorder group-to-container attaching")
+Cc: qemu-stable@nongnu.org # qemu-2.10+
+Reviewed-by: Alexey Kardashevskiy <aik@ozlabs.ru>
+Reviewed-by: Peter Xu <peterx@redhat.com>
+Tested-by: Peter Xu <peterx@redhat.com>
+Reviewed-by: Eric Auger <eric.auger@redhat.com>
+Tested-by: Eric Auger <eric.auger@redhat.com>
+Signed-off-by: Alex Williamson <alex.williamson@redhat.com>
+(cherry picked from commit 2016986aedb6ea2839662eb5f60630f3e231bd1a)
+---
+
+Testing: hot unplug Intel 82576 PF which is not the first vfio-pci device
+for the VM.  Previous, libvirt log includes:
+
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/vfio/common.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/hw/vfio/common.c b/hw/vfio/common.c
+index 7b2924c..7007878 100644
+--- a/hw/vfio/common.c
++++ b/hw/vfio/common.c
+@@ -968,6 +968,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
+         if (!ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &container->fd)) {
+             group->container = container;
+             QLIST_INSERT_HEAD(&container->group_list, group, container_next);
++            vfio_kvm_device_add_group(group);
+             return 0;
+         }
+     }
+-- 
+1.8.3.1
+

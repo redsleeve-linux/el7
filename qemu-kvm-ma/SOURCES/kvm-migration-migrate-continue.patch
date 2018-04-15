@@ -1,0 +1,89 @@
+From d6a77c209ff177aef13b9a52277a80c855b72c27 Mon Sep 17 00:00:00 2001
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+Date: Wed, 25 Oct 2017 18:28:35 +0200
+Subject: [PATCH 16/19] migration: migrate-continue
+
+RH-Author: Dr. David Alan Gilbert <dgilbert@redhat.com>
+Message-id: <20171025182838.31829-5-dgilbert@redhat.com>
+Patchwork-id: 77437
+O-Subject: [RHV-7.5 qemu-kvm-rhev PATCH 4/7] migration: migrate-continue
+Bugzilla: 1497120
+RH-Acked-by: Peter Xu <peterx@redhat.com>
+RH-Acked-by: Juan Quintela <quintela@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+
+A new qmp command allows the caller to continue from a given
+paused state.
+
+Signed-off-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+Reviewed-by: Peter Xu <peterx@redhat.com>
+Reviewed-by: Juan Quintela <quintela@redhat.com>
+Signed-off-by: Juan Quintela <quintela@redhat.com>
+(cherry picked from commit 89cfc02cb6e3fdaf8ae246493ea51e75be2818c1)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+Conflicts:
+	qapi/migration.json
+          still in qapi-schema.json
+        migration/migration.c
+          use MigrationState_lookup[] rather than new _str() function
+---
+ migration/migration.c | 11 +++++++++++
+ qapi-schema.json      | 17 +++++++++++++++++
+ 2 files changed, 28 insertions(+)
+
+diff --git a/migration/migration.c b/migration/migration.c
+index 436e122..3a1dabb 100644
+--- a/migration/migration.c
++++ b/migration/migration.c
+@@ -1287,6 +1287,17 @@ void qmp_migrate_cancel(Error **errp)
+     migrate_fd_cancel(migrate_get_current());
+ }
+ 
++void qmp_migrate_continue(MigrationStatus state, Error **errp)
++{
++    MigrationState *s = migrate_get_current();
++    if (s->state != state) {
++        error_setg(errp,  "Migration not in expected state: %s",
++                   MigrationStatus_lookup[s->state]);
++        return;
++    }
++    qemu_sem_post(&s->pause_sem);
++}
++
+ void qmp_migrate_set_cache_size(int64_t value, Error **errp)
+ {
+     MigrationState *s = migrate_get_current();
+diff --git a/qapi-schema.json b/qapi-schema.json
+index de8c611..cd528c8 100644
+--- a/qapi-schema.json
++++ b/qapi-schema.json
+@@ -2837,6 +2837,23 @@
+ { 'command': 'migrate_cancel' }
+ 
+ ##
++# @migrate-continue:
++#
++# Continue migration when it's in a paused state.
++#
++# @state: The state the migration is currently expected to be in
++#
++# Returns: nothing on success
++# Since: 2.11
++# Example:
++#
++# -> { "execute": "migrate-continue" , "arguments":
++#      { "state": "pre-switchover" } }
++# <- { "return": {} }
++##
++{ 'command': 'migrate-continue', 'data': {'state': 'MigrationStatus'} }
++
++##
+ # @migrate_set_downtime:
+ #
+ # Set maximum tolerated downtime for migration.
+-- 
+1.8.3.1
+

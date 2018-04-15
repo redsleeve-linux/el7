@@ -1,0 +1,92 @@
+From 134252b0775bcb125487eacc4d9f5a6921b0aa96 Mon Sep 17 00:00:00 2001
+From: Maxime Coquelin <maxime.coquelin@redhat.com>
+Date: Fri, 20 Oct 2017 14:17:07 +0200
+Subject: [PATCH 05/19] exec: simplify address_space_get_iotlb_entry
+
+RH-Author: Maxime Coquelin <maxime.coquelin@redhat.com>
+Message-id: <20171020141707.17637-3-maxime.coquelin@redhat.com>
+Patchwork-id: 77418
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH 2/2] exec: simplify address_space_get_iotlb_entry
+Bugzilla: 1498817
+RH-Acked-by: Peter Xu <peterx@redhat.com>
+RH-Acked-by: Michael S. Tsirkin <mst@redhat.com>
+RH-Acked-by: Jens Freimann <jfreimann@redhat.com>
+
+From: Peter Xu <peterx@redhat.com>
+
+This patch let address_space_get_iotlb_entry() to use the newly
+introduced page_mask parameter in address_space_do_translate().
+Then we will be sure the IOTLB can be aligned to page mask, also
+we should nicely support huge pages now when introducing a764040.
+
+Fixes: a764040 ("exec: abstract address_space_do_translate()")
+Signed-off-by: Peter Xu <peterx@redhat.com>
+Signed-off-by: Maxime Coquelin <maxime.coquelin@redhat.com>
+Acked-by: Michael S. Tsirkin <mst@redhat.com>
+Message-Id: <20171010094247.10173-3-maxime.coquelin@redhat.com>
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit 076a93d7972c9c1e3839d2f65edc32568a2cce93)
+Signed-off-by: Maxime Coquelin <maxime.coquelin@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+Conflicts:
+	exec.c (Skipping 166206845f7f)
+---
+ exec.c | 31 ++++++++++---------------------
+ 1 file changed, 10 insertions(+), 21 deletions(-)
+
+diff --git a/exec.c b/exec.c
+index e5f97fd..ae37a60 100644
+--- a/exec.c
++++ b/exec.c
+@@ -540,14 +540,14 @@ IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
+                                             bool is_write)
+ {
+     MemoryRegionSection section;
+-    hwaddr xlat, plen;
++    hwaddr xlat, page_mask;
+ 
+-    /* Try to get maximum page mask during translation. */
+-    plen = (hwaddr)-1;
+-
+-    /* This can never be MMIO. */
+-    section = address_space_do_translate(as, addr, &xlat, &plen,
+-                                         NULL, is_write, false);
++     /*
++     * This can never be MMIO, and we don't really care about plen,
++     * but page mask.
++     */
++    section = address_space_do_translate(as, addr, &xlat, NULL,
++                                         &page_mask, is_write, false);
+ 
+     /* Illegal translation */
+     if (section.mr == &io_mem_unassigned) {
+@@ -558,22 +558,11 @@ IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
+     xlat += section.offset_within_address_space -
+         section.offset_within_region;
+ 
+-    if (plen == (hwaddr)-1) {
+-        /*
+-         * We use default page size here. Logically it only happens
+-         * for identity mappings.
+-         */
+-        plen = TARGET_PAGE_SIZE;
+-    }
+-
+-    /* Convert to address mask */
+-    plen -= 1;
+-
+     return (IOMMUTLBEntry) {
+         .target_as = section.address_space,
+-        .iova = addr & ~plen,
+-        .translated_addr = xlat & ~plen,
+-        .addr_mask = plen,
++        .iova = addr & ~page_mask,
++        .translated_addr = xlat & ~page_mask,
++        .addr_mask = page_mask,
+         /* IOTLBs are for DMAs, and DMA only allows on RAMs. */
+         .perm = IOMMU_RW,
+     };
+-- 
+1.8.3.1
+

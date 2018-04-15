@@ -1,0 +1,149 @@
+From 72f660ddfca081d8a3124e30b0d55f2be06965bc Mon Sep 17 00:00:00 2001
+From: David Hildenbrand <david@redhat.com>
+Date: Tue, 17 Oct 2017 19:16:02 +0200
+Subject: [PATCH 57/69] tools/kvm_stat: add new command line switch '-i'
+
+RH-Author: David Hildenbrand <david@redhat.com>
+Message-id: <20171017191605.2378-37-david@redhat.com>
+Patchwork-id: 77348
+O-Subject: [RHEL-7.5 qemu-kvm-rhev PATCH 36/39] tools/kvm_stat: add new command line switch '-i'
+Bugzilla: 1497137
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+
+Upstream-status: linux.git ab7ef193fab628fc5da6fd4f4672ffd0d1bb53df
+
+Convertion of documentation (for man page generation) to texi.
+
+commit ab7ef193fab628fc5da6fd4f4672ffd0d1bb53df
+Author: Stefan Raspl <raspl@linux.vnet.ibm.com>
+Date:   Sun Jun 25 21:34:15 2017 +0200
+
+    tools/kvm_stat: add new command line switch '-i'
+
+    It might be handy to display the full history of event stats to compare
+    the current event distribution against any available historic data.
+    Since we have that available for debugfs, we offer a respective command
+    line option to display what's available.
+
+    Signed-off-by: Stefan Raspl <raspl@linux.vnet.ibm.com>
+    Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+
+Signed-off-by: David Hildenbrand <david@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ scripts/kvm/kvm_stat      | 34 ++++++++++++++++++++++++++++++----
+ scripts/kvm/kvm_stat.texi |  2 ++
+ 2 files changed, 32 insertions(+), 4 deletions(-)
+
+diff --git a/scripts/kvm/kvm_stat b/scripts/kvm/kvm_stat
+index 39476e5..4065b29 100755
+--- a/scripts/kvm/kvm_stat
++++ b/scripts/kvm/kvm_stat
+@@ -681,12 +681,14 @@ class TracepointProvider(Provider):
+ class DebugfsProvider(Provider):
+     """Provides data from the files that KVM creates in the kvm debugfs
+     folder."""
+-    def __init__(self, pid, fields_filter):
++    def __init__(self, pid, fields_filter, include_past):
+         self.update_fields(fields_filter)
+         self._baseline = {}
+         self.do_read = True
+         self.paths = []
+         self.pid = pid
++        if include_past:
++            self.restore()
+ 
+     def get_available_fields(self):
+         """"Returns a list of available fields.
+@@ -730,7 +732,14 @@ class DebugfsProvider(Provider):
+         self.reset()
+ 
+     def read(self, reset=0):
+-        """Returns a dict with format:'file name / field -> current value'."""
++        """Returns a dict with format:'file name / field -> current value'.
++
++        Parameter 'reset':
++          0   plain read
++          1   reset field counts to 0
++          2   restore the original field counts
++
++        """
+         results = {}
+ 
+         # If no debugfs filtering support is available, then don't read.
+@@ -747,8 +756,10 @@ class DebugfsProvider(Provider):
+             for field in self._fields:
+                 value = self.read_field(field, path)
+                 key = path + field
+-                if reset:
++                if reset == 1:
+                     self._baseline[key] = value
++                if reset == 2:
++                    self._baseline[key] = 0
+                 if self._baseline.get(key, -1) == -1:
+                     self._baseline[key] = value
+                 results[field] = (results.get(field, 0) + value -
+@@ -771,6 +782,11 @@ class DebugfsProvider(Provider):
+         self._baseline = {}
+         self.read(1)
+ 
++    def restore(self):
++        """Reset field counters"""
++        self._baseline = {}
++        self.read(2)
++
+ 
+ class Stats(object):
+     """Manages the data providers and the data they provide.
+@@ -791,7 +807,8 @@ class Stats(object):
+         providers = []
+ 
+         if options.debugfs:
+-            providers.append(DebugfsProvider(options.pid, options.fields))
++            providers.append(DebugfsProvider(options.pid, options.fields,
++                                             options.dbgfs_include_past))
+         if options.tracepoints or not providers:
+             providers.append(TracepointProvider(options.pid, options.fields))
+ 
+@@ -1270,6 +1287,8 @@ class Tui(object):
+                     sleeptime = self._delay_initial
+                 if char == 'x':
+                     self.update_drilldown()
++                    # prevents display of current values on next refresh
++                    self.stats.get()
+             except KeyboardInterrupt:
+                 break
+             except curses.error:
+@@ -1381,6 +1400,13 @@ Press any other key to refresh statistics immediately.
+                          dest='once',
+                          help='run in batch mode for one second',
+                          )
++    optparser.add_option('-i', '--debugfs-include-past',
++                         action='store_true',
++                         default=False,
++                         dest='dbgfs_include_past',
++                         help='include all available data on past events for '
++                              'debugfs',
++                         )
+     optparser.add_option('-l', '--log',
+                          action='store_true',
+                          default=False,
+diff --git a/scripts/kvm/kvm_stat.texi b/scripts/kvm/kvm_stat.texi
+index 68d5024..b0e282a 100644
+--- a/scripts/kvm/kvm_stat.texi
++++ b/scripts/kvm/kvm_stat.texi
+@@ -73,6 +73,8 @@ Press any other key to refresh statistics immediately.
+   retrieve statistics from debugfs
+ @item -p, --pid=@var{pid}
+   limit statistics to one virtual machine (pid)
++@item -i, --debugfs-include-past
++  include all available data on past events for debugfs
+ @item -g, --guest=@var{guest_name}
+   limit statistics to one virtual machine (guest name)
+ @item -f, --fields=@var{fields}
+-- 
+1.8.3.1
+

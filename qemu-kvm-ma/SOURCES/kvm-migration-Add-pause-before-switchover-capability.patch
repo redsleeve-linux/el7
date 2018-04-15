@@ -1,0 +1,98 @@
+From 13a626395dc1a35e7a7ab0a501a83c5647e3267a Mon Sep 17 00:00:00 2001
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+Date: Wed, 25 Oct 2017 18:28:32 +0200
+Subject: [PATCH 13/19] migration: Add 'pause-before-switchover' capability
+
+RH-Author: Dr. David Alan Gilbert <dgilbert@redhat.com>
+Message-id: <20171025182838.31829-2-dgilbert@redhat.com>
+Patchwork-id: 77435
+O-Subject: [RHV-7.5 qemu-kvm-rhev PATCH 1/7] migration: Add 'pause-before-switchover' capability
+Bugzilla: 1497120
+RH-Acked-by: Peter Xu <peterx@redhat.com>
+RH-Acked-by: Juan Quintela <quintela@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+
+When 'pause-before-switchover' is enabled, the outgoing migration
+will pause before invalidating the block devices and serializing
+the device state.
+At this point the management layer gets the chance to clean up any
+device jobs or other device users before the migration completes.
+
+Signed-off-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+Reviewed-by: Peter Xu <peterx@redhat.com>
+Reviewed-by: Juan Quintela <quintela@redhat.com>
+Signed-off-by: Juan Quintela <quintela@redhat.com>
+(cherry picked from commit 93fbd0314ec060ffaf90169a06d5737fa97ffb25)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+Conflicts:
+        migration/migration.c
+	migration/migration.h
+           Differences with other flags added
+	qapi/migration.json
+           Still in qapi-schema.json for us
+---
+ migration/migration.c | 10 ++++++++++
+ migration/migration.h |  1 +
+ qapi-schema.json      |  5 ++++-
+ 3 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/migration/migration.c b/migration/migration.c
+index c7b4d3d..d4356a4 100644
+--- a/migration/migration.c
++++ b/migration/migration.c
+@@ -1426,6 +1426,16 @@ bool migrate_use_events(void)
+     return s->enabled_capabilities[MIGRATION_CAPABILITY_EVENTS];
+ }
+ 
++bool migrate_pause_before_switchover(void)
++{
++    MigrationState *s;
++
++    s = migrate_get_current();
++
++    return s->enabled_capabilities[
++        MIGRATION_CAPABILITY_PAUSE_BEFORE_SWITCHOVER];
++}
++
+ int migrate_use_xbzrle(void)
+ {
+     MigrationState *s;
+diff --git a/migration/migration.h b/migration/migration.h
+index 8771ab0..2eebad8 100644
+--- a/migration/migration.h
++++ b/migration/migration.h
+@@ -170,6 +170,7 @@ bool migrate_postcopy_ram(void);
+ bool migrate_zero_blocks(void);
+ 
+ bool migrate_auto_converge(void);
++bool migrate_pause_before_switchover(void);
+ 
+ int migrate_use_xbzrle(void);
+ int64_t migrate_xbzrle_cache_size(void);
+diff --git a/qapi-schema.json b/qapi-schema.json
+index 0591d9d..9b9ec9a 100644
+--- a/qapi-schema.json
++++ b/qapi-schema.json
+@@ -919,12 +919,15 @@
+ # @return-path: If enabled, migration will use the return path even
+ #               for precopy. (since 2.10)
+ #
++# @pause-before-switchover: Pause outgoing migration before serialising device
++#          state and before disabling block IO (since 2.11)
++#
+ # Since: 1.2
+ ##
+ { 'enum': 'MigrationCapability',
+   'data': ['xbzrle', 'rdma-pin-all', 'auto-converge', 'zero-blocks',
+            'compress', 'events', 'postcopy-ram', 'x-colo', 'release-ram',
+-           'block', 'return-path' ] }
++           'block', 'return-path', 'pause-before-switchover' ] }
+ 
+ ##
+ # @MigrationCapabilityStatus:
+-- 
+1.8.3.1
+

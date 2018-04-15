@@ -1,0 +1,80 @@
+From d4525d7460d6d129d3a6e4b94a125afb6a06e6ca Mon Sep 17 00:00:00 2001
+From: David Hildenbrand <david@redhat.com>
+Date: Tue, 17 Oct 2017 19:15:31 +0200
+Subject: [PATCH 26/69] tools/kvm_stat: fix trace setup glitch on field updates
+ in TracepointProvider
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: David Hildenbrand <david@redhat.com>
+Message-id: <20171017191605.2378-6-david@redhat.com>
+Patchwork-id: 77316
+O-Subject: [RHEL-7.5 qemu-kvm-rhev PATCH 05/39] tools/kvm_stat: fix trace setup glitch on field updates in TracepointProvider
+Bugzilla: 1497137
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+
+Upstream-status: linux.git a183606937489ab5ada2215aa8211374a6b26bd3
+
+commit a183606937489ab5ada2215aa8211374a6b26bd3
+Author: Stefan Raspl <raspl@linux.vnet.ibm.com>
+Date:   Fri Mar 10 13:40:04 2017 +0100
+
+    tools/kvm_stat: fix trace setup glitch on field updates in TracepointProvider
+
+    Updating the fields of the TracepointProvider does not propagate changes to the
+    tracepoints. This shows when a pid filter is enabled, whereby subsequent
+    extensions of the fields of the Tracepoint provider (e.g. by toggling
+    drilldown) will not modify the tracepoints as required.
+    To reproduce, select a specific process via interactive command 'p', and
+    enable drilldown via 'x' - none of the fields with the braces will appear
+    although they should.
+    The fix will always leave all available fields in the TracepointProvider
+    enabled.
+
+    Signed-off-by: Stefan Raspl <raspl@linux.vnet.ibm.com>
+    Based-on-text-by: Janosch Frank <frankja@linux.vnet.ibm.com>
+    Signed-off-by: Radim Krčmář <rkrcmar@redhat.com>
+
+Signed-off-by: David Hildenbrand <david@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ scripts/kvm/kvm_stat | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/scripts/kvm/kvm_stat b/scripts/kvm/kvm_stat
+index 231186a..6207843 100755
+--- a/scripts/kvm/kvm_stat
++++ b/scripts/kvm/kvm_stat
+@@ -550,6 +550,7 @@ class TracepointProvider(object):
+     def setup_traces(self):
+         """Creates all event and group objects needed to be able to retrieve
+         data."""
++        fields = self.get_available_fields()
+         if self._pid > 0:
+             # Fetch list of all threads of the monitored pid, as qemu
+             # starts a thread for each vcpu.
+@@ -560,7 +561,7 @@ class TracepointProvider(object):
+ 
+         # The constant is needed as a buffer for python libs, std
+         # streams and other files that the script opens.
+-        newlim = len(groupids) * len(self._fields) + 50
++        newlim = len(groupids) * len(fields) + 50
+         try:
+             softlim_, hardlim = resource.getrlimit(resource.RLIMIT_NOFILE)
+ 
+@@ -576,7 +577,7 @@ class TracepointProvider(object):
+ 
+         for groupid in groupids:
+             group = Group()
+-            for name in self._fields:
++            for name in fields:
+                 tracepoint = name
+                 tracefilter = None
+                 match = re.match(r'(.*)\((.*)\)', name)
+-- 
+1.8.3.1
+

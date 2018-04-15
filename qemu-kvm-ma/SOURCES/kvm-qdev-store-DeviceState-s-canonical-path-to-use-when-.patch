@@ -1,0 +1,125 @@
+From a6dae62ef051773c0198f8ebd47a79d8f1157000 Mon Sep 17 00:00:00 2001
+From: Serhii Popovych <spopovyc@redhat.com>
+Date: Thu, 9 Nov 2017 15:30:03 +0100
+Subject: [PATCH 3/7] qdev: store DeviceState's canonical path to use when
+ unparenting
+
+RH-Author: Serhii Popovych <spopovyc@redhat.com>
+Message-id: <1510241405-20597-2-git-send-email-spopovyc@redhat.com>
+Patchwork-id: 77632
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH 1/3] qdev: store DeviceState's canonical path to use when unparenting
+Bugzilla: 1445460
+RH-Acked-by: David Gibson <dgibson@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+
+From: Michael Roth <mdroth@linux.vnet.ibm.com>
+
+device_unparent(dev, ...) is called when a device is unparented,
+either directly, or as a result of a parent device being
+finalized, and handles some final cleanup for the device. Part
+of this includes emiting a DEVICE_DELETED QMP event to notify
+management, which includes the device's path in the composition
+tree as provided by object_get_canonical_path().
+
+object_get_canonical_path() assumes the device is still connected
+to the machine/root container, and will assert otherwise, but
+in some situations this isn't the case:
+
+If the parent is finalized as a result of object_unparent(), it
+will still be attached to the composition tree at the time any
+children are unparented as a result of that same call to
+object_unparent(). However, in some cases, object_unparent()
+will complete without finalizing the parent device, due to
+lingering references that won't be released till some time later.
+One such example is if the parent has MemoryRegion children (which
+take a ref on their parent), who in turn have AddressSpace's (which
+take a ref on their regions), since those AddressSpaces get cleaned
+up asynchronously by the RCU thread.
+
+In this case qdev:device_unparent() may be called for a child Device
+that no longer has a path to the root/machine container, causing
+object_get_canonical_path() to assert.
+
+Fix this by storing the canonical path during realize() so the
+information will still be available for device_unparent() in such
+cases.
+
+Cc: Michael S. Tsirkin <mst@redhat.com>
+Cc: Paolo Bonzini <pbonzini@redhat.com>
+Signed-off-by: Michael Roth <mdroth@linux.vnet.ibm.com>
+Signed-off-by: Greg Kurz <groug@kaod.org>
+Signed-off-by: Michael Roth <mdroth@linux.vnet.ibm.com>
+Tested-by: Eric Auger <eric.auger@redhat.com>
+Reviewed-by: David Gibson <david@gibson.dropbear.id.au>
+Message-Id: <20171016222315.407-2-mdroth@linux.vnet.ibm.com>
+[Clear dev->canonical_path at the post_realize_fail label, which is
+ cleaner.  Suggested by David Gibson. - Paolo]
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+
+(cherry picked from commit 04162f8f4bcf8c9ae2422def4357289b44208c8c)
+Signed-off-by: Serhii Popovych <spopovyc@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/core/qdev.c         | 17 ++++++++++++++---
+ include/hw/qdev-core.h |  1 +
+ 2 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/hw/core/qdev.c b/hw/core/qdev.c
+index 606ab53..0019a49 100644
+--- a/hw/core/qdev.c
++++ b/hw/core/qdev.c
+@@ -928,6 +928,13 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
+             goto post_realize_fail;
+         }
+ 
++        /*
++         * always free/re-initialize here since the value cannot be cleaned up
++         * in device_unrealize due to its usage later on in the unplug path
++         */
++        g_free(dev->canonical_path);
++        dev->canonical_path = object_get_canonical_path(OBJECT(dev));
++
+         if (qdev_get_vmsd(dev)) {
+             if (vmstate_register_with_alias_id(dev, -1, qdev_get_vmsd(dev), dev,
+                                                dev->instance_id_alias,
+@@ -984,6 +991,8 @@ child_realize_fail:
+     }
+ 
+ post_realize_fail:
++    g_free(dev->canonical_path);
++    dev->canonical_path = NULL;
+     if (dc->unrealize) {
+         dc->unrealize(dev, NULL);
+     }
+@@ -1102,10 +1111,12 @@ static void device_unparent(Object *obj)
+ 
+     /* Only send event if the device had been completely realized */
+     if (dev->pending_deleted_event) {
+-        gchar *path = object_get_canonical_path(OBJECT(dev));
++        g_assert(dev->canonical_path);
+ 
+-        qapi_event_send_device_deleted(!!dev->id, dev->id, path, &error_abort);
+-        g_free(path);
++        qapi_event_send_device_deleted(!!dev->id, dev->id, dev->canonical_path,
++                                       &error_abort);
++        g_free(dev->canonical_path);
++        dev->canonical_path = NULL;
+     }
+ 
+     qemu_opts_del(dev->opts);
+diff --git a/include/hw/qdev-core.h b/include/hw/qdev-core.h
+index ae31728..9237b68 100644
+--- a/include/hw/qdev-core.h
++++ b/include/hw/qdev-core.h
+@@ -153,6 +153,7 @@ struct DeviceState {
+     /*< public >*/
+ 
+     const char *id;
++    char *canonical_path;
+     bool realized;
+     bool pending_deleted_event;
+     QemuOpts *opts;
+-- 
+1.8.3.1
+

@@ -1,0 +1,62 @@
+From bf53d773722b8790858a6415540c5011bd25fe8c Mon Sep 17 00:00:00 2001
+From: David Hildenbrand <david@redhat.com>
+Date: Tue, 17 Oct 2017 19:15:53 +0200
+Subject: [PATCH 48/69] tools/kvm_stat: show cursor in selection screens
+
+RH-Author: David Hildenbrand <david@redhat.com>
+Message-id: <20171017191605.2378-28-david@redhat.com>
+Patchwork-id: 77335
+O-Subject: [RHEL-7.5 qemu-kvm-rhev PATCH 27/39] tools/kvm_stat: show cursor in selection screens
+Bugzilla: 1497137
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+
+Upstream-status: linux.git 62d1b6cc24d0dedde89e6a39aae1711270aee1c9
+
+commit 62d1b6cc24d0dedde89e6a39aae1711270aee1c9
+Author: Stefan Raspl <raspl@linux.vnet.ibm.com>
+Date:   Wed Jun 7 21:08:34 2017 +0200
+
+    tools/kvm_stat: show cursor in selection screens
+
+    Show the cursor in the interactive screens to specify pid, filter or guest
+    name as an orientation for the user.
+
+    Signed-off-by: Stefan Raspl <raspl@linux.vnet.ibm.com>
+    Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+
+Signed-off-by: David Hildenbrand <david@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ scripts/kvm/kvm_stat | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/scripts/kvm/kvm_stat b/scripts/kvm/kvm_stat
+index f81ed20..53dcd40 100755
+--- a/scripts/kvm/kvm_stat
++++ b/scripts/kvm/kvm_stat
+@@ -1148,13 +1148,19 @@ class Tui(object):
+                     self.refresh_header(0)
+                     self.update_pid(0)
+                 if char == 'f':
++                    curses.curs_set(1)
+                     self.show_filter_selection()
++                    curses.curs_set(0)
+                     sleeptime = DELAY_INITIAL
+                 if char == 'g':
++                    curses.curs_set(1)
+                     self.show_vm_selection_by_guest_name()
++                    curses.curs_set(0)
+                     sleeptime = DELAY_INITIAL
+                 if char == 'p':
++                    curses.curs_set(1)
+                     self.show_vm_selection_by_pid()
++                    curses.curs_set(0)
+                     sleeptime = DELAY_INITIAL
+                 if char == 'r':
+                     self.stats.reset()
+-- 
+1.8.3.1
+

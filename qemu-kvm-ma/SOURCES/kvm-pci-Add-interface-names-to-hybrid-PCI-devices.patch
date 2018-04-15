@@ -1,0 +1,132 @@
+From 0e3c4dff97fed5335c1af115e06d329e2f705022 Mon Sep 17 00:00:00 2001
+From: Eduardo Habkost <ehabkost@redhat.com>
+Date: Fri, 20 Oct 2017 18:29:13 +0200
+Subject: [PATCH 08/19] pci: Add interface names to hybrid PCI devices
+
+RH-Author: Eduardo Habkost <ehabkost@redhat.com>
+Message-id: <20171020182917.10771-4-ehabkost@redhat.com>
+Patchwork-id: 77425
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH v2 3/7] pci: Add interface names to hybrid PCI devices
+Bugzilla: 1390348
+RH-Acked-by: Marcel Apfelbaum <marcel@redhat.com>
+RH-Acked-by: Michael S. Tsirkin <mst@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+
+The following devices support both PCI Express and Conventional
+PCI, by including special code to handle the QEMU_PCI_CAP_EXPRESS
+flag and/or conditional pcie_endpoint_cap_init() calls:
+
+* vfio-pci (is_express=1, but legacy PCI handled by
+  vfio_populate_device())
+* vmxnet3 (is_express=0, but PCIe handled by vmxnet3_realize())
+* pvscsi (is_express=0, but PCIe handled by pvscsi_realize())
+* virtio-pci (is_express=0, but PCIe handled by
+  virtio_pci_dc_realize(), and additional legacy PCI code at
+  virtio_pci_realize())
+* base-xhci (is_express=1, but pcie_endpoint_cap_init() call
+  is conditional on pci_bus_is_express(dev->bus)
+  * Note that xhci does not clear QEMU_PCI_CAP_EXPRESS like the
+    other hybrid devices
+
+Cc: Dmitry Fleytman <dmitry@daynix.com>
+Cc: Jason Wang <jasowang@redhat.com>
+Cc: Paolo Bonzini <pbonzini@redhat.com>
+Cc: Gerd Hoffmann <kraxel@redhat.com>
+Cc: Alex Williamson <alex.williamson@redhat.com>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>
+Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
+Reviewed-by: David Gibson <david@gibson.dropbear.id.au>
+Reviewed-by: Marcel Apfelbaum <marcel@redhat.com>
+Reviewed-by: Michael S. Tsirkin <mst@redhat.com>
+Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
+(cherry picked from commit a5fa336f11a1eddad9f2be6506e59ba50ed81818)
+Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/net/vmxnet3.c       | 5 +++++
+ hw/scsi/vmw_pvscsi.c   | 2 ++
+ hw/usb/hcd-xhci.c      | 5 +++++
+ hw/vfio/pci.c          | 5 +++++
+ hw/virtio/virtio-pci.c | 5 +++++
+ 5 files changed, 22 insertions(+)
+
+diff --git a/hw/net/vmxnet3.c b/hw/net/vmxnet3.c
+index a19a7a3..f99d9a6 100644
+--- a/hw/net/vmxnet3.c
++++ b/hw/net/vmxnet3.c
+@@ -2651,6 +2651,11 @@ static const TypeInfo vmxnet3_info = {
+     .instance_size = sizeof(VMXNET3State),
+     .class_init    = vmxnet3_class_init,
+     .instance_init = vmxnet3_instance_init,
++    .interfaces = (InterfaceInfo[]) {
++        { INTERFACE_PCIE_DEVICE },
++        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
++        { }
++    },
+ };
+ 
+ static void vmxnet3_register_types(void)
+diff --git a/hw/scsi/vmw_pvscsi.c b/hw/scsi/vmw_pvscsi.c
+index 77d8b6f..d185393 100644
+--- a/hw/scsi/vmw_pvscsi.c
++++ b/hw/scsi/vmw_pvscsi.c
+@@ -1300,6 +1300,8 @@ static const TypeInfo pvscsi_info = {
+     .class_init    = pvscsi_class_init,
+     .interfaces = (InterfaceInfo[]) {
+         { TYPE_HOTPLUG_HANDLER },
++        { INTERFACE_PCIE_DEVICE },
++        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+         { }
+     }
+ };
+diff --git a/hw/usb/hcd-xhci.c b/hw/usb/hcd-xhci.c
+index 53de805..d92e633 100644
+--- a/hw/usb/hcd-xhci.c
++++ b/hw/usb/hcd-xhci.c
+@@ -3688,6 +3688,11 @@ static const TypeInfo xhci_info = {
+     .instance_size = sizeof(XHCIState),
+     .class_init    = xhci_class_init,
+     .abstract      = true,
++    .interfaces = (InterfaceInfo[]) {
++        { INTERFACE_PCIE_DEVICE },
++        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
++        { }
++    },
+ };
+ 
+ static void qemu_xhci_class_init(ObjectClass *klass, void *data)
+diff --git a/hw/vfio/pci.c b/hw/vfio/pci.c
+index f3f1ce6..b3a2889 100644
+--- a/hw/vfio/pci.c
++++ b/hw/vfio/pci.c
+@@ -3036,6 +3036,11 @@ static const TypeInfo vfio_pci_dev_info = {
+     .class_init = vfio_pci_dev_class_init,
+     .instance_init = vfio_instance_init,
+     .instance_finalize = vfio_instance_finalize,
++    .interfaces = (InterfaceInfo[]) {
++        { INTERFACE_PCIE_DEVICE },
++        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
++        { }
++    },
+ };
+ 
+ static void register_vfio_pci_dev_type(void)
+diff --git a/hw/virtio/virtio-pci.c b/hw/virtio/virtio-pci.c
+index 8208aa2..6e497c8 100644
+--- a/hw/virtio/virtio-pci.c
++++ b/hw/virtio/virtio-pci.c
+@@ -1958,6 +1958,11 @@ static const TypeInfo virtio_pci_info = {
+     .class_init    = virtio_pci_class_init,
+     .class_size    = sizeof(VirtioPCIClass),
+     .abstract      = true,
++    .interfaces = (InterfaceInfo[]) {
++        { INTERFACE_PCIE_DEVICE },
++        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
++        { }
++    },
+ };
+ 
+ /* virtio-blk-pci */
+-- 
+1.8.3.1
+

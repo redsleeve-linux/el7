@@ -1,0 +1,52 @@
+From 35c050e4fdf7eca9ede714377dc427203cc9fd1f Mon Sep 17 00:00:00 2001
+From: David Hildenbrand <david@redhat.com>
+Date: Tue, 17 Oct 2017 19:15:49 +0200
+Subject: [PATCH 44/69] tools/kvm_stat: removed unused function
+
+RH-Author: David Hildenbrand <david@redhat.com>
+Message-id: <20171017191605.2378-24-david@redhat.com>
+Patchwork-id: 77337
+O-Subject: [RHEL-7.5 qemu-kvm-rhev PATCH 23/39] tools/kvm_stat: simplify line print logic
+Bugzilla: 1497137
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+
+Upstream-status: linux.git 42a947b77b00da8fb1c9b1350eaa85fd3d53bacb
+
+commit 42a947b77b00da8fb1c9b1350eaa85fd3d53bacb
+Author: Stefan Raspl <raspl@linux.vnet.ibm.com>
+Date:   Wed Jun 7 21:08:30 2017 +0200
+
+    tools/kvm_stat: removed unused function
+
+    Function available_fields() is not used in any place.
+
+    Signed-off-by: Stefan Raspl <raspl@linux.vnet.ibm.com>
+    Reviewed-by: Janosch Frank <frankja@linux.vnet.ibm.com>
+    Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+
+Signed-off-by: David Hildenbrand <david@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ scripts/kvm/kvm_stat | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/scripts/kvm/kvm_stat b/scripts/kvm/kvm_stat
+index a527b2f..1b8626b 100755
+--- a/scripts/kvm/kvm_stat
++++ b/scripts/kvm/kvm_stat
+@@ -671,9 +671,6 @@ class TracepointProvider(object):
+ 
+             self.group_leaders.append(group)
+ 
+-    def available_fields(self):
+-        return self.get_available_fields()
+-
+     @property
+     def fields(self):
+         return self._fields
+-- 
+1.8.3.1
+

@@ -1,0 +1,48 @@
+From 40a03299cb7297e5b5c52b671f4c0b7af501673f Mon Sep 17 00:00:00 2001
+From: Fam Zheng <famz@redhat.com>
+Date: Mon, 22 Jan 2018 03:07:16 +0100
+Subject: [PATCH 19/21] qemu-img: info: Force -U [downstream]
+
+RH-Author: Fam Zheng <famz@redhat.com>
+Message-id: <20180122030716.611-1-famz@redhat.com>
+Patchwork-id: 78688
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH] qemu-img: info: Force -U [downstream]
+Bugzilla: 1535992
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Jeffrey Cody <jcody@redhat.com>
+RH-Acked-by: John Snow <jsnow@redhat.com>
+
+Current version of RHV has to work with the coming RHEL 7.5, which means
+that customers will encounter error without this patch: RHV invokes
+"qemu-img info" while VM is running, and only until the next release it
+knows to use "-U". For the existing RHV, we need to ship one version of
+qemu-img that doesn't enforce this option yet.
+
+Upstream already has releases (2.10 and 2.11) that has the new behavior,
+so this "moving a step back" patch has no place there.
+
+I created BZ 1536912 so that we remember to revert this in RHEL
+7.6.1536912 so that we remember to revert this in 7.6 time.
+
+Signed-off-by: Fam Zheng <famz@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ qemu-img.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/qemu-img.c b/qemu-img.c
+index 56ef49e..dccfc10 100644
+--- a/qemu-img.c
++++ b/qemu-img.c
+@@ -2532,7 +2532,7 @@ static int img_info(int argc, char **argv)
+     const char *filename, *fmt, *output;
+     ImageInfoList *list;
+     bool image_opts = false;
+-    bool force_share = false;
++    bool force_share = true;
+ 
+     fmt = NULL;
+     output = NULL;
+-- 
+1.8.3.1
+

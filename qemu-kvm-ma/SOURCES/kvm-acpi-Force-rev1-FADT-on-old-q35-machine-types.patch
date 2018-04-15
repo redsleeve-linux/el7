@@ -1,0 +1,114 @@
+From e63d707db946519d04590b86e241ac82e328339b Mon Sep 17 00:00:00 2001
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+Date: Wed, 11 Oct 2017 17:54:59 +0200
+Subject: [PATCH 14/69] acpi: Force rev1 FADT on old q35 machine types
+
+RH-Author: Dr. David Alan Gilbert <dgilbert@redhat.com>
+Message-id: <20171011175500.12390-2-dgilbert@redhat.com>
+Patchwork-id: 77177
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH v3 1/2] acpi: Force rev1 FADT on old q35 machine types
+Bugzilla: 1489800
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+RH-Acked-by: Gerd Hoffmann <kraxel@redhat.com>
+RH-Acked-by: Igor Mammedov <imammedo@redhat.com>
+
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+
+Upstream lp's 1714331 found that older OVMF
+didn't boot various versions of windows on 2.10+q35
+due to the change to the newer FADT version.  That's
+fixed with a newer OVMF, and it's too late upstream
+to keep compatibility.
+
+Downstream, keep the compatibility on the older rhel-q35
+machine types by forcing rev1 FADT.
+
+Signed-off-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/acpi/ich9.c         | 16 ++++++++++++++++
+ hw/i386/acpi-build.c   |  2 ++
+ include/hw/acpi/ich9.h |  3 +++
+ include/hw/i386/pc.h   |  5 +++++
+ 4 files changed, 26 insertions(+)
+
+diff --git a/hw/acpi/ich9.c b/hw/acpi/ich9.c
+index a4e87b8..23a7baa 100644
+--- a/hw/acpi/ich9.c
++++ b/hw/acpi/ich9.c
+@@ -441,6 +441,18 @@ static void ich9_pm_set_enable_tco(Object *obj, bool value, Error **errp)
+     s->pm.enable_tco = value;
+ }
+ 
++static bool ich9_pm_get_force_rev1_fadt(Object *obj, Error **errp)
++{
++    ICH9LPCState *s = ICH9_LPC_DEVICE(obj);
++    return s->pm.force_rev1_fadt;
++}
++
++static void ich9_pm_set_force_rev1_fadt(Object *obj, bool value, Error **errp)
++{
++    ICH9LPCState *s = ICH9_LPC_DEVICE(obj);
++    s->pm.force_rev1_fadt = value;
++}
++
+ void ich9_pm_add_properties(Object *obj, ICH9LPCPMRegs *pm, Error **errp)
+ {
+     static const uint32_t gpe0_len = ICH9_PMIO_GPE0_LEN;
+@@ -465,6 +477,10 @@ void ich9_pm_add_properties(Object *obj, ICH9LPCPMRegs *pm, Error **errp)
+                              ich9_pm_get_cpu_hotplug_legacy,
+                              ich9_pm_set_cpu_hotplug_legacy,
+                              NULL);
++    object_property_add_bool(obj, "__com.redhat_force-rev1-fadt",
++                             ich9_pm_get_force_rev1_fadt,
++                             ich9_pm_set_force_rev1_fadt,
++                             NULL);
+     object_property_add(obj, ACPI_PM_PROP_S3_DISABLED, "uint8",
+                         ich9_pm_get_disable_s3,
+                         ich9_pm_set_disable_s3,
+diff --git a/hw/i386/acpi-build.c b/hw/i386/acpi-build.c
+index 98dd424..e38fff2 100644
+--- a/hw/i386/acpi-build.c
++++ b/hw/i386/acpi-build.c
+@@ -146,6 +146,8 @@ static void acpi_get_pm_info(AcpiPmInfo *pm)
+     }
+     if (lpc) {
+         obj = lpc;
++        pm->force_rev1_fadt = object_property_get_bool(lpc,
++                                  "__com.redhat_force-rev1-fadt", NULL);
+         pm->cpu_hp_io_base = ICH9_CPU_HOTPLUG_IO_BASE;
+     }
+     assert(obj);
+diff --git a/include/hw/acpi/ich9.h b/include/hw/acpi/ich9.h
+index a352c94..e9a8fad 100644
+--- a/include/hw/acpi/ich9.h
++++ b/include/hw/acpi/ich9.h
+@@ -61,6 +61,9 @@ typedef struct ICH9LPCPMRegs {
+     uint8_t smm_enabled;
+     bool enable_tco;
+     TCOIORegs tco_regs;
++
++    /* RH addition, see bz 1489800 */
++    bool force_rev1_fadt;
+ } ICH9LPCPMRegs;
+ 
+ void ich9_pm_init(PCIDevice *lpc_pci, ICH9LPCPMRegs *pm,
+diff --git a/include/hw/i386/pc.h b/include/hw/i386/pc.h
+index 89bdaa4..a8d6857 100644
+--- a/include/hw/i386/pc.h
++++ b/include/hw/i386/pc.h
+@@ -1007,6 +1007,11 @@ extern void igd_passthrough_isa_bridge_create(PCIBus *bus, uint16_t gpu_dev_id);
+             .driver   = "mch",\
+             .property = "extended-tseg-mbytes",\
+             .value    = stringify(0),\
++        },\
++        { /* PC_RHEL7_4_COMPAT bz 1489800 */ \
++            .driver   = "ICH9-LPC",\
++            .property = "__com.redhat_force-rev1-fadt",\
++            .value    = "on",\
+         },
+ 
+ 
+-- 
+1.8.3.1
+

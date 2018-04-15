@@ -1,0 +1,135 @@
+From cc306393d79691b82c1f5f660a01bf00fe0775e9 Mon Sep 17 00:00:00 2001
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+Date: Thu, 9 Feb 2017 13:06:18 +0100
+Subject: migcompat/e1000e: Work around 7.3 msi/intr_state field
+
+RH-Author: Dr. David Alan Gilbert <dgilbert@redhat.com>
+Message-id: <20170209130618.20328-1-dgilbert@redhat.com>
+Patchwork-id: 73730
+O-Subject: [RHEL-7.4 qemu-kvm-rhev PATCH 1/1] migcompat/e1000e: Work around 7.3 msi/intr_state field
+Bugzilla: 1420216
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Xiao Wang <jasowang@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+
+bz: https://bugzilla.redhat.com/show_bug.cgi?id=1420216
+brew: https://brewweb.engineering.redhat.com/brew/taskinfo?taskID=12518741
+upstream: No, fixing downstream inconsistency
+
+Our 7.3 e1000e model has an 'intr_state' field that's used
+only in the cleanup of msi & msix.
+
+e1000e was introducing in 2.7 but was backported to the 2.6 based
+qemu-kvm-rhev 7.3 by backporting 6f3fbe4 and 103916.
+
+During the 2.7rc's the migration structure was changed by
+e0af5a0e8 and 66bf7d but we never pulled those into 7.3 which
+removed the 'intr_state' field.
+
+For compatibility add the field back (guarded by a property on 7.3)
+and populate the values based on the source MSI state.
+Since the flags were only used for cleanup I don't think
+we need to pay attention to the value we receive.
+
+Signed-off-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+(cherry picked from commit 7b3c2e676cd62e947e9b020bba9309a171e94c9e)
+---
+ hw/net/e1000e.c     | 21 +++++++++++++++++++++
+ include/hw/compat.h |  4 ++++
+ 2 files changed, 25 insertions(+)
+
+diff --git a/hw/net/e1000e.c b/hw/net/e1000e.c
+index 2c91d07..d6ca464 100644
+--- a/hw/net/e1000e.c
++++ b/hw/net/e1000e.c
+@@ -74,6 +74,11 @@ typedef struct E1000EState {
+ 
+     E1000ECore core;
+ 
++    /* 7.3 had the intr_state field that was in the original e1000e code
++     * but that was removed prior to 2.7's release
++     */
++    bool redhat_7_3_intr_state_enable;
++    uint32_t redhat_7_3_intr_state;
+ } E1000EState;
+ 
+ #define E1000E_MMIO_IDX     0
+@@ -89,6 +94,10 @@ typedef struct E1000EState {
+ #define E1000E_MSIX_TABLE   (0x0000)
+ #define E1000E_MSIX_PBA     (0x2000)
+ 
++/* Values as in RHEL 7.3 build and original upstream */
++#define RH_E1000E_USE_MSI     BIT(0)
++#define RH_E1000E_USE_MSIX    BIT(1)
++
+ static uint64_t
+ e1000e_mmio_read(void *opaque, hwaddr addr, unsigned size)
+ {
+@@ -300,6 +309,8 @@ e1000e_init_msix(E1000EState *s)
+     } else {
+         if (!e1000e_use_msix_vectors(s, E1000E_MSIX_VEC_NUM)) {
+             msix_uninit(d, &s->msix, &s->msix);
++        } else {
++            s->redhat_7_3_intr_state |= RH_E1000E_USE_MSIX;
+         }
+     }
+ }
+@@ -471,6 +482,8 @@ static void e1000e_pci_realize(PCIDevice *pci_dev, Error **errp)
+     ret = msi_init(PCI_DEVICE(s), 0xD0, 1, true, false, NULL);
+     if (ret) {
+         trace_e1000e_msi_init_fail(ret);
++    } else {
++        s->redhat_7_3_intr_state |= RH_E1000E_USE_MSI;
+     }
+ 
+     if (e1000e_add_pm_capability(pci_dev, e1000e_pmrb_offset,
+@@ -592,6 +605,11 @@ static const VMStateDescription e1000e_vmstate_intr_timer = {
+     VMSTATE_STRUCT_ARRAY(_f, _s, _num, 0,                           \
+                          e1000e_vmstate_intr_timer, E1000IntrDelayTimer)
+ 
++static bool rhel_7_3_check(void *opaque, int version_id)
++{
++    return ((E1000EState *)opaque)->redhat_7_3_intr_state_enable;
++}
++
+ static const VMStateDescription e1000e_vmstate = {
+     .name = "e1000e",
+     .version_id = 1,
+@@ -603,6 +621,7 @@ static const VMStateDescription e1000e_vmstate = {
+         VMSTATE_MSIX(parent_obj, E1000EState),
+ 
+         VMSTATE_UINT32(ioaddr, E1000EState),
++        VMSTATE_UINT32_TEST(redhat_7_3_intr_state, E1000EState, rhel_7_3_check),
+         VMSTATE_UINT32(core.rxbuf_min_shift, E1000EState),
+         VMSTATE_UINT8(core.rx_desc_len, E1000EState),
+         VMSTATE_UINT32_ARRAY(core.rxbuf_sizes, E1000EState,
+@@ -651,6 +670,8 @@ static PropertyInfo e1000e_prop_disable_vnet,
+ 
+ static Property e1000e_properties[] = {
+     DEFINE_NIC_PROPERTIES(E1000EState, conf),
++    DEFINE_PROP_BOOL("__redhat_e1000e_7_3_intr_state", E1000EState,
++                        redhat_7_3_intr_state_enable, false),
+     DEFINE_PROP_SIGNED("disable_vnet_hdr", E1000EState, disable_vnet, false,
+                         e1000e_prop_disable_vnet, bool),
+     DEFINE_PROP_SIGNED("subsys_ven", E1000EState, subsys_ven,
+diff --git a/include/hw/compat.h b/include/hw/compat.h
+index bb138cd..56cefc9 100644
+--- a/include/hw/compat.h
++++ b/include/hw/compat.h
+@@ -407,6 +407,10 @@
+         .driver   = "virtio-pci",\
+         .property = "x-pcie-pm-init",\
+         .value    = "off",\
++    },{ /* HW_COMPAT_RHEL7_3 */ \
++        .driver   = "e1000e",\
++        .property = "__redhat_e1000e_7_3_intr_state",\
++        .value    = "on",\
+     },
+ 
+ #endif /* HW_COMPAT_H */
+-- 
+1.8.3.1
+

@@ -1,0 +1,165 @@
+From 1d27a8067135c09ecbb2aa7e4af6184aba67e86c Mon Sep 17 00:00:00 2001
+From: Miroslav Rezanina <mrezanin@redhat.com>
+Date: Mon, 11 Dec 2017 09:06:23 +0100
+Subject: [PATCH 06/21] qemu-iotest: add test for blockjob coroutine race
+ condition
+
+RH-Author: Jeffrey Cody <jcody@redhat.com>
+Message-id: <bb398a83a095183453bbf2cab4656dd60dfd4637.1511985875.git.jcody@redhat.com>
+Patchwork-id: 78042
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH 06/11] qemu-iotest: add test for blockjob coroutine race condition
+Bugzilla: 1506531
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: John Snow <jsnow@redhat.com>
+
+Signed-off-by: Jeff Cody <jcody@redhat.com>
+Reviewed-by: Stefan Hajnoczi <stefanha@redhat.com>
+(cherry picked from commit d975301dc8ae56fb3154348878e47a6211843c0b)
+Signed-off-by: Jeff Cody <jcody@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ tests/qemu-iotests/200     | 99 ++++++++++++++++++++++++++++++++++++++++++++++
+ tests/qemu-iotests/200.out | 14 +++++++
+ tests/qemu-iotests/group   |  1 +
+ 3 files changed, 114 insertions(+)
+ create mode 100644 tests/qemu-iotests/200
+ create mode 100644 tests/qemu-iotests/200.out
+
+diff --git a/tests/qemu-iotests/200 b/tests/qemu-iotests/200
+new file mode 100644
+index 0000000..d8787dd
+--- /dev/null
++++ b/tests/qemu-iotests/200
+@@ -0,0 +1,99 @@
++#!/bin/bash
++#
++# Block job co-routine race condition test.
++#
++# See: https://bugzilla.redhat.com/show_bug.cgi?id=1508708
++#
++# Copyright (C) 2017 Red Hat, Inc.
++#
++# This program is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 2 of the License, or
++# (at your option) any later version.
++#
++# This program is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++#
++# You should have received a copy of the GNU General Public License
++# along with this program.  If not, see <http://www.gnu.org/licenses/>.
++#
++
++# creator
++owner=jcody@redhat.com
++
++seq=`basename $0`
++echo "QA output created by $seq"
++
++here=`pwd`
++status=1    # failure is the default!
++
++_cleanup()
++{
++    _cleanup_qemu
++    rm -f "${TEST_IMG}" "${BACKING_IMG}"
++}
++trap "_cleanup; exit \$status" 0 1 2 3 15
++
++# get standard environment, filters and checks
++. ./common.rc
++. ./common.filter
++. ./common.qemu
++
++_supported_fmt qcow2 qed
++_supported_proto file
++_supported_os Linux
++
++BACKING_IMG="${TEST_DIR}/backing.img"
++TEST_IMG="${TEST_DIR}/test.img"
++
++${QEMU_IMG} create -f $IMGFMT "${BACKING_IMG}" 512M | _filter_img_create
++${QEMU_IMG} create -f $IMGFMT -F $IMGFMT "${TEST_IMG}" -b "${BACKING_IMG}" 512M | _filter_img_create
++
++${QEMU_IO} -c "write -P 0xa5 512 300M" "${BACKING_IMG}" | _filter_qemu_io
++
++echo
++echo === Starting QEMU VM ===
++echo
++qemu_comm_method="qmp"
++_launch_qemu -device pci-bridge,id=bridge1,chassis_nr=1,bus=pci.0 \
++             -object iothread,id=iothread0 \
++             -device virtio-scsi-pci,bus=bridge1,addr=0x1f,id=scsi0,iothread=iothread0 \
++             -drive file="${TEST_IMG}",media=disk,if=none,cache=none,id=drive_sysdisk,aio=native,format=$IMGFMT \
++             -device scsi-hd,drive=drive_sysdisk,bus=scsi0.0,id=sysdisk,bootindex=0
++h1=$QEMU_HANDLE
++
++_send_qemu_cmd $h1 "{ 'execute': 'qmp_capabilities' }" 'return'
++
++echo
++echo === Sending stream/cancel, checking for SIGSEGV only  ===
++echo
++for (( i=1;i<500;i++ ))
++do
++    mismatch_only='y' qemu_error_no_exit='n' _send_qemu_cmd $h1 \
++                       "{
++                            'execute': 'block-stream',
++                            'arguments': {
++                                'device': 'drive_sysdisk',
++                                'speed': 10000000,
++                                'on-error': 'report',
++                                'job-id': 'job-$i'
++                             }
++                        }
++                        {
++                            'execute': 'block-job-cancel',
++                            'arguments': {
++                                'device': 'job-$i'
++                             }
++                        }" \
++                       "{.*{.*}.*}"  # should match all well-formed QMP responses
++done
++
++silent='y' _send_qemu_cmd $h1  "{ 'execute': 'quit' }" 'return'
++
++echo "$i iterations performed"
++
++echo "*** done"
++rm -f $seq.full
++status=0
+diff --git a/tests/qemu-iotests/200.out b/tests/qemu-iotests/200.out
+new file mode 100644
+index 0000000..af6a809
+--- /dev/null
++++ b/tests/qemu-iotests/200.out
+@@ -0,0 +1,14 @@
++QA output created by 200
++Formatting 'TEST_DIR/backing.img', fmt=IMGFMT size=536870912
++Formatting 'TEST_DIR/test.img', fmt=IMGFMT size=536870912 backing_file=TEST_DIR/backing.img backing_fmt=IMGFMT
++wrote 314572800/314572800 bytes at offset 512
++300 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
++
++=== Starting QEMU VM ===
++
++{"return": {}}
++
++=== Sending stream/cancel, checking for SIGSEGV only ===
++
++500 iterations performed
++*** done
+diff --git a/tests/qemu-iotests/group b/tests/qemu-iotests/group
+index 491a5f5..39b61ce 100644
+--- a/tests/qemu-iotests/group
++++ b/tests/qemu-iotests/group
+@@ -190,3 +190,4 @@
+ 194 rw auto migration quick
+ 195 rw auto quick
+ 198 rw auto
++200 rw auto
+-- 
+1.8.3.1
+

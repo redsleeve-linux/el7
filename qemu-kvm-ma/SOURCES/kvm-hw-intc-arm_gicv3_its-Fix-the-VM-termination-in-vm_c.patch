@@ -1,0 +1,63 @@
+From 1bc2106857269cd428567fed2f8afedd25c2c288 Mon Sep 17 00:00:00 2001
+From: Auger Eric <eric.auger@redhat.com>
+Date: Tue, 28 Nov 2017 15:14:03 +0100
+Subject: [PATCH 2/9] hw/intc/arm_gicv3_its: Fix the VM termination in
+ vm_change_state_handler()
+
+RH-Author: Auger Eric <eric.auger@redhat.com>
+Message-id: <1511882048-11256-3-git-send-email-eric.auger@redhat.com>
+Patchwork-id: 77937
+O-Subject: [RHV7.5 qemu-kvm-ma PATCH 2/7] hw/intc/arm_gicv3_its: Fix the VM termination in vm_change_state_handler()
+Bugzilla: 1513323
+RH-Acked-by: Andrew Jones <drjones@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Acked-by: Wei Huang <wei@redhat.com>
+
+From: Shanker Donthineni <shankerd@codeaurora.org>
+
+The commit cddafd8f353d ("hw/intc/arm_gicv3_its: Implement state save
+/restore") breaks the backward compatibility with the older kernels
+where vITS save/restore support is not available. The vmstate function
+vm_change_state_handler() should not be registered if the running kernel
+doesn't support ITS save/restore feature. Otherwise VM instance will be
+killed whenever vmstate callback function is invoked.
+
+Observed a virtual machine shutdown with QEMU-2.10+linux-4.11 when testing
+the reboot command "virsh reboot <domain> --mode acpi" instead of reboot.
+
+KVM Error: 'KVM_SET_DEVICE_ATTR failed: Group 4 attr 0x00000000000001'
+
+Signed-off-by: Shanker Donthineni <shankerd@codeaurora.org>
+Reviewed-by: Eric Auger <eric.auger@redhat.com>
+Message-id: 1509712671-16299-1-git-send-email-shankerd@codeaurora.org
+Signed-off-by: Peter Maydell <peter.maydell@linaro.org>
+(cherry picked from commit 3a575cd2c2411f139a95ace4b2523bc1dfd21755)
+Signed-off-by: Eric Auger <eric.auger@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/intc/arm_gicv3_its_kvm.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/hw/intc/arm_gicv3_its_kvm.c b/hw/intc/arm_gicv3_its_kvm.c
+index 39903d5..9b00ce5 100644
+--- a/hw/intc/arm_gicv3_its_kvm.c
++++ b/hw/intc/arm_gicv3_its_kvm.c
+@@ -111,13 +111,13 @@ static void kvm_arm_its_realize(DeviceState *dev, Error **errp)
+             error_free(s->migration_blocker);
+             return;
+         }
++    } else {
++        qemu_add_vm_change_state_handler(vm_change_state_handler, s);
+     }
+ 
+     kvm_msi_use_devid = true;
+     kvm_gsi_direct_mapping = false;
+     kvm_msi_via_irqfd_allowed = kvm_irqfds_enabled();
+-
+-    qemu_add_vm_change_state_handler(vm_change_state_handler, s);
+ }
+ 
+ /**
+-- 
+1.8.3.1
+

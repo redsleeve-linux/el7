@@ -1,0 +1,76 @@
+From 32f7f67152cf7ffe36917a2c436eb89871dcee92 Mon Sep 17 00:00:00 2001
+From: Kevin Wolf <kwolf@redhat.com>
+Date: Mon, 4 Dec 2017 12:10:04 +0100
+Subject: [PATCH 33/36] block: reopen: Queue children after their parents
+
+RH-Author: Kevin Wolf <kwolf@redhat.com>
+Message-id: <20171204121007.12964-6-kwolf@redhat.com>
+Patchwork-id: 78107
+O-Subject: [RHV-7.5 qemu-kvm-rhev PATCH v2 5/8] block: reopen: Queue children after their parents
+Bugzilla: 1492178
+RH-Acked-by: Fam Zheng <famz@redhat.com>
+RH-Acked-by: Max Reitz <mreitz@redhat.com>
+RH-Acked-by: Jeffrey Cody <jcody@redhat.com>
+
+We will calculate the required new permissions in the prepare stage of a
+reopen. Required permissions of children can be influenced by the
+changes made to their parents, but parents are independent from their
+children. This means that permissions need to be calculated top-down. In
+order to achieve this, queue parents before their children rather than
+queuing the children first.
+
+Signed-off-by: Kevin Wolf <kwolf@redhat.com>
+Reviewed-by: Eric Blake <eblake@redhat.com>
+(cherry picked from commit 1857c97b76af02537b954c86dab066503950a4fd)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ block.c | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/block.c b/block.c
+index 5cce274..0a7e2c6 100644
+--- a/block.c
++++ b/block.c
+@@ -2767,6 +2767,19 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
+         flags |= BDRV_O_ALLOW_RDWR;
+     }
+ 
++    if (!bs_entry) {
++        bs_entry = g_new0(BlockReopenQueueEntry, 1);
++        QSIMPLEQ_INSERT_TAIL(bs_queue, bs_entry, entry);
++    } else {
++        QDECREF(bs_entry->state.options);
++        QDECREF(bs_entry->state.explicit_options);
++    }
++
++    bs_entry->state.bs = bs;
++    bs_entry->state.options = options;
++    bs_entry->state.explicit_options = explicit_options;
++    bs_entry->state.flags = flags;
++
+     QLIST_FOREACH(child, &bs->children, next) {
+         QDict *new_child_options;
+         char *child_key_dot;
+@@ -2786,19 +2799,6 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
+                                 child->role, options, flags);
+     }
+ 
+-    if (!bs_entry) {
+-        bs_entry = g_new0(BlockReopenQueueEntry, 1);
+-        QSIMPLEQ_INSERT_TAIL(bs_queue, bs_entry, entry);
+-    } else {
+-        QDECREF(bs_entry->state.options);
+-        QDECREF(bs_entry->state.explicit_options);
+-    }
+-
+-    bs_entry->state.bs = bs;
+-    bs_entry->state.options = options;
+-    bs_entry->state.explicit_options = explicit_options;
+-    bs_entry->state.flags = flags;
+-
+     return bs_queue;
+ }
+ 
+-- 
+1.8.3.1
+

@@ -1,0 +1,98 @@
+From b546f002c27078f5aa7c29d85615e8b0b28a26b1 Mon Sep 17 00:00:00 2001
+From: David Gibson <dgibson@redhat.com>
+Date: Thu, 16 Nov 2017 03:07:30 +0100
+Subject: [PATCH 26/30] memory: trace FlatView creation and destruction
+
+RH-Author: David Gibson <dgibson@redhat.com>
+Message-id: <20171116030732.8560-21-dgibson@redhat.com>
+Patchwork-id: 77706
+O-Subject: [PATCH 20/22] memory: trace FlatView creation and destruction
+Bugzilla: 1481593
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Eduardo Habkost <ehabkost@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+
+From: Paolo Bonzini <pbonzini@redhat.com>
+
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit 02d9651d6a46479e9d70b72dca34e43605d06cda)
+
+Signed-off-by: David Gibson <dgibson@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ include/exec/memory.h   | 1 -
+ include/qemu/typedefs.h | 1 +
+ memory.c                | 3 +++
+ trace-events            | 3 +++
+ 4 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/include/exec/memory.h b/include/exec/memory.h
+index 8d772b9..b100df6 100644
+--- a/include/exec/memory.h
++++ b/include/exec/memory.h
+@@ -48,7 +48,6 @@
+ 
+ typedef struct MemoryRegionOps MemoryRegionOps;
+ typedef struct MemoryRegionMmio MemoryRegionMmio;
+-typedef struct FlatView FlatView;
+ 
+ struct MemoryRegionMmio {
+     CPUReadMemoryFunc *read[3];
+diff --git a/include/qemu/typedefs.h b/include/qemu/typedefs.h
+index 39bc835..d44dfc7 100644
+--- a/include/qemu/typedefs.h
++++ b/include/qemu/typedefs.h
+@@ -30,6 +30,7 @@ typedef struct DisplaySurface DisplaySurface;
+ typedef struct DriveInfo DriveInfo;
+ typedef struct Error Error;
+ typedef struct EventNotifier EventNotifier;
++typedef struct FlatView FlatView;
+ typedef struct FWCfgEntry FWCfgEntry;
+ typedef struct FWCfgIoState FWCfgIoState;
+ typedef struct FWCfgMemState FWCfgMemState;
+diff --git a/memory.c b/memory.c
+index 93b4221..8733efc 100644
+--- a/memory.c
++++ b/memory.c
+@@ -270,6 +270,7 @@ static FlatView *flatview_new(MemoryRegion *mr_root)
+     view->ref = 1;
+     view->root = mr_root;
+     memory_region_ref(mr_root);
++    trace_flatview_new(view, mr_root);
+ 
+     return view;
+ }
+@@ -295,6 +296,7 @@ static void flatview_destroy(FlatView *view)
+ {
+     int i;
+ 
++    trace_flatview_destroy(view, view->root);
+     if (view->dispatch) {
+         address_space_dispatch_free(view->dispatch);
+     }
+@@ -314,6 +316,7 @@ static bool flatview_ref(FlatView *view)
+ static void flatview_unref(FlatView *view)
+ {
+     if (atomic_fetch_dec(&view->ref) == 1) {
++        trace_flatview_destroy_rcu(view, view->root);
+         call_rcu(view, flatview_destroy, rcu);
+     }
+ }
+diff --git a/trace-events b/trace-events
+index 1f50f56..1d2eb5d 100644
+--- a/trace-events
++++ b/trace-events
+@@ -64,6 +64,9 @@ memory_region_tb_read(int cpu_index, uint64_t addr, uint64_t value, unsigned siz
+ memory_region_tb_write(int cpu_index, uint64_t addr, uint64_t value, unsigned size) "cpu %d addr 0x%"PRIx64" value 0x%"PRIx64" size %u"
+ memory_region_ram_device_read(int cpu_index, void *mr, uint64_t addr, uint64_t value, unsigned size) "cpu %d mr %p addr 0x%"PRIx64" value 0x%"PRIx64" size %u"
+ memory_region_ram_device_write(int cpu_index, void *mr, uint64_t addr, uint64_t value, unsigned size) "cpu %d mr %p addr 0x%"PRIx64" value 0x%"PRIx64" size %u"
++flatview_new(FlatView *view, MemoryRegion *root) "%p (root %p)"
++flatview_destroy(FlatView *view, MemoryRegion *root) "%p (root %p)"
++flatview_destroy_rcu(FlatView *view, MemoryRegion *root) "%p (root %p)"
+ 
+ ### Guest events, keep at bottom
+ 
+-- 
+1.8.3.1
+

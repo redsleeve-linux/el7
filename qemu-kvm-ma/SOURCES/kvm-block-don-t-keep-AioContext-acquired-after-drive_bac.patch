@@ -1,0 +1,127 @@
+From 73e2dea7d9da65e53aa05247324e069de75e0c71 Mon Sep 17 00:00:00 2001
+From: Stefan Hajnoczi <stefanha@redhat.com>
+Date: Fri, 22 Dec 2017 11:08:51 +0100
+Subject: [PATCH 33/42] block: don't keep AioContext acquired after
+ drive_backup_prepare()
+
+RH-Author: Stefan Hajnoczi <stefanha@redhat.com>
+Message-id: <20171222110900.24813-12-stefanha@redhat.com>
+Patchwork-id: 78493
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH 11/20] block: don't keep AioContext acquired after drive_backup_prepare()
+Bugzilla: 1519721
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Jeffrey Cody <jcody@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+Reviewed-by: Kevin Wolf <kwolf@redhat.com>
+Reviewed-by: Eric Blake <eblake@redhat.com>
+Message-id: 20171206144550.22295-4-stefanha@redhat.com
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+(cherry picked from commit 66d56054bca3c1c45861d18ea97f147f7d376d21)
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ blockdev.c | 42 ++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 34 insertions(+), 8 deletions(-)
+
+diff --git a/blockdev.c b/blockdev.c
+index 8bb23e9..c962b8a 100644
+--- a/blockdev.c
++++ b/blockdev.c
+@@ -1888,7 +1888,6 @@ static void external_snapshot_clean(BlkActionState *common)
+ typedef struct DriveBackupState {
+     BlkActionState common;
+     BlockDriverState *bs;
+-    AioContext *aio_context;
+     BlockJob *job;
+ } DriveBackupState;
+ 
+@@ -1900,6 +1899,7 @@ static void drive_backup_prepare(BlkActionState *common, Error **errp)
+     DriveBackupState *state = DO_UPCAST(DriveBackupState, common, common);
+     BlockDriverState *bs;
+     DriveBackup *backup;
++    AioContext *aio_context;
+     Error *local_err = NULL;
+ 
+     assert(common->action->type == TRANSACTION_ACTION_KIND_DRIVE_BACKUP);
+@@ -1910,24 +1910,36 @@ static void drive_backup_prepare(BlkActionState *common, Error **errp)
+         return;
+     }
+ 
+-    /* AioContext is released in .clean() */
+-    state->aio_context = bdrv_get_aio_context(bs);
+-    aio_context_acquire(state->aio_context);
++    aio_context = bdrv_get_aio_context(bs);
++    aio_context_acquire(aio_context);
++
++    /* Paired with .clean() */
+     bdrv_drained_begin(bs);
++
+     state->bs = bs;
+ 
+     state->job = do_drive_backup(backup, common->block_job_txn, &local_err);
+     if (local_err) {
+         error_propagate(errp, local_err);
+-        return;
++        goto out;
+     }
++
++out:
++    aio_context_release(aio_context);
+ }
+ 
+ static void drive_backup_commit(BlkActionState *common)
+ {
+     DriveBackupState *state = DO_UPCAST(DriveBackupState, common, common);
++    AioContext *aio_context;
++
++    aio_context = bdrv_get_aio_context(state->bs);
++    aio_context_acquire(aio_context);
++
+     assert(state->job);
+     block_job_start(state->job);
++
++    aio_context_release(aio_context);
+ }
+ 
+ static void drive_backup_abort(BlkActionState *common)
+@@ -1935,18 +1947,32 @@ static void drive_backup_abort(BlkActionState *common)
+     DriveBackupState *state = DO_UPCAST(DriveBackupState, common, common);
+ 
+     if (state->job) {
++        AioContext *aio_context;
++
++        aio_context = bdrv_get_aio_context(state->bs);
++        aio_context_acquire(aio_context);
++
+         block_job_cancel_sync(state->job);
++
++        aio_context_release(aio_context);
+     }
+ }
+ 
+ static void drive_backup_clean(BlkActionState *common)
+ {
+     DriveBackupState *state = DO_UPCAST(DriveBackupState, common, common);
++    AioContext *aio_context;
+ 
+-    if (state->aio_context) {
+-        bdrv_drained_end(state->bs);
+-        aio_context_release(state->aio_context);
++    if (!state->bs) {
++        return;
+     }
++
++    aio_context = bdrv_get_aio_context(state->bs);
++    aio_context_acquire(aio_context);
++
++    bdrv_drained_end(state->bs);
++
++    aio_context_release(aio_context);
+ }
+ 
+ typedef struct BlockdevBackupState {
+-- 
+1.8.3.1
+

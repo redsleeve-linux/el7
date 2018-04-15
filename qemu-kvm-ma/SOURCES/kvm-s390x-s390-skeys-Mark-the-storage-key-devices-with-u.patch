@@ -1,0 +1,79 @@
+From b830658def8c36d5449e0b704e2f0cb26a593c1e Mon Sep 17 00:00:00 2001
+From: Thomas Huth <thuth@redhat.com>
+Date: Mon, 9 Oct 2017 12:32:42 +0200
+Subject: [PATCH 23/34] s390x/s390-skeys: Mark the storage key devices with
+ user_creatable = false
+
+RH-Author: Thomas Huth <thuth@redhat.com>
+Message-id: <1507552368-9245-7-git-send-email-thuth@redhat.com>
+Patchwork-id: 77024
+O-Subject: [RHEL-7.5 qemu-kvm-ma PATCH 06/12] s390x/s390-skeys: Mark the storage key devices with user_creatable = false
+Bugzilla: 1492033
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: David Gibson <dgibson@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+QEMU currently aborts if the user tries to create a skey device:
+
+$ s390x-softmmu/qemu-system-s390x -nographic -device s390-skeys-qemu
+qemu-system-s390x: hw/s390x/s390-skeys.c:30: s390_get_skeys_device:
+ Assertion `ss' failed.
+Aborted (core dumped)
+
+The storage key devices are only meant to be instantiated one time,
+internally. They can not be used by the user, so mark them with
+user_creatable = false.
+
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+Message-Id: <1503569328-22197-1-git-send-email-thuth@redhat.com>
+Reviewed-by: Claudio Imbrenda <imbrenda@linux.vnet.ibm.com>
+Reviewed-by: Halil Pasic <pasic@linux.vnet.ibm.com>
+Signed-off-by: Cornelia Huck <cohuck@redhat.com>
+(cherry picked from commit 574ee06de9c4fe63c90be90dc9c747fc9382bb2b)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/s390x/s390-skeys-kvm.c | 4 ++++
+ hw/s390x/s390-skeys.c     | 4 ++++
+ 2 files changed, 8 insertions(+)
+
+diff --git a/hw/s390x/s390-skeys-kvm.c b/hw/s390x/s390-skeys-kvm.c
+index 131da56..dc54ed8 100644
+--- a/hw/s390x/s390-skeys-kvm.c
++++ b/hw/s390x/s390-skeys-kvm.c
+@@ -54,10 +54,14 @@ static int kvm_s390_skeys_set(S390SKeysState *ss, uint64_t start_gfn,
+ static void kvm_s390_skeys_class_init(ObjectClass *oc, void *data)
+ {
+     S390SKeysClass *skeyclass = S390_SKEYS_CLASS(oc);
++    DeviceClass *dc = DEVICE_CLASS(oc);
+ 
+     skeyclass->skeys_enabled = kvm_s390_skeys_enabled;
+     skeyclass->get_skeys = kvm_s390_skeys_get;
+     skeyclass->set_skeys = kvm_s390_skeys_set;
++
++    /* Reason: Internal device (only one skeys device for the whole memory) */
++    dc->user_creatable = false;
+ }
+ 
+ static const TypeInfo kvm_s390_skeys_info = {
+diff --git a/hw/s390x/s390-skeys.c b/hw/s390x/s390-skeys.c
+index c0de3b0..53ad5d3 100644
+--- a/hw/s390x/s390-skeys.c
++++ b/hw/s390x/s390-skeys.c
+@@ -229,10 +229,14 @@ static int qemu_s390_skeys_get(S390SKeysState *ss, uint64_t start_gfn,
+ static void qemu_s390_skeys_class_init(ObjectClass *oc, void *data)
+ {
+     S390SKeysClass *skeyclass = S390_SKEYS_CLASS(oc);
++    DeviceClass *dc = DEVICE_CLASS(oc);
+ 
+     skeyclass->skeys_enabled = qemu_s390_skeys_enabled;
+     skeyclass->get_skeys = qemu_s390_skeys_get;
+     skeyclass->set_skeys = qemu_s390_skeys_set;
++
++    /* Reason: Internal device (only one skeys device for the whole memory) */
++    dc->user_creatable = false;
+ }
+ 
+ static const TypeInfo qemu_s390_skeys_info = {
+-- 
+1.8.3.1
+

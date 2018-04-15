@@ -1,0 +1,63 @@
+From 96ba2c5dcbe1bed81311a8a150712a3bb25b9296 Mon Sep 17 00:00:00 2001
+From: Stefan Hajnoczi <stefanha@redhat.com>
+Date: Fri, 22 Dec 2017 11:08:49 +0100
+Subject: [PATCH 31/42] blockdev: hold AioContext for bdrv_unref() in
+ external_snapshot_clean()
+
+RH-Author: Stefan Hajnoczi <stefanha@redhat.com>
+Message-id: <20171222110900.24813-10-stefanha@redhat.com>
+Patchwork-id: 78490
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH 09/20] blockdev: hold AioContext for bdrv_unref() in external_snapshot_clean()
+Bugzilla: 1519721
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Jeffrey Cody <jcody@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+bdrv_unref() requires the AioContext lock because bdrv_flush() uses
+BDRV_POLL_WHILE(), which assumes the AioContext is currently held.  If
+BDRV_POLL_WHILE() runs without AioContext held the
+pthread_mutex_unlock() call in aio_context_release() fails.
+
+This patch moves bdrv_unref() into the AioContext locked region to solve
+the following pthread_mutex_unlock() failure:
+
+  #0  0x00007f566181969b in raise () at /lib64/libc.so.6
+  #1  0x00007f566181b3b1 in abort () at /lib64/libc.so.6
+  #2  0x00005592cd590458 in error_exit (err=<optimized out>, msg=msg@entry=0x5592cdaf6d60 <__func__.23977> "qemu_mutex_unlock") at util/qemu-thread-posix.c:36
+  #3  0x00005592cd96e738 in qemu_mutex_unlock (mutex=mutex@entry=0x5592ce9505e0) at util/qemu-thread-posix.c:96
+  #4  0x00005592cd969b69 in aio_context_release (ctx=ctx@entry=0x5592ce950580) at util/async.c:507
+  #5  0x00005592cd8ead78 in bdrv_flush (bs=bs@entry=0x5592cfa87210) at block/io.c:2478
+  #6  0x00005592cd89df30 in bdrv_close (bs=0x5592cfa87210) at block.c:3207
+  #7  0x00005592cd89df30 in bdrv_delete (bs=0x5592cfa87210) at block.c:3395
+  #8  0x00005592cd89df30 in bdrv_unref (bs=0x5592cfa87210) at block.c:4418
+  #9  0x00005592cd6b7f86 in qmp_transaction (dev_list=<optimized out>, has_props=<optimized out>, props=<optimized out>, errp=errp@entry=0x7ffe4a1fc9d8) at blockdev.c:2308
+
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+Reviewed-by: Kevin Wolf <kwolf@redhat.com>
+Reviewed-by: Eric Blake <eblake@redhat.com>
+Message-id: 20171206144550.22295-2-stefanha@redhat.com
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+(cherry picked from commit b9464ba19f821ea6b29969104dc48dcdb26243dd)
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ blockdev.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/blockdev.c b/blockdev.c
+index 6a37934..c6978a5 100644
+--- a/blockdev.c
++++ b/blockdev.c
+@@ -1855,8 +1855,8 @@ static void external_snapshot_clean(BlkActionState *common)
+                              DO_UPCAST(ExternalSnapshotState, common, common);
+     if (state->aio_context) {
+         bdrv_drained_end(state->old_bs);
+-        aio_context_release(state->aio_context);
+         bdrv_unref(state->new_bs);
++        aio_context_release(state->aio_context);
+     }
+ }
+ 
+-- 
+1.8.3.1
+

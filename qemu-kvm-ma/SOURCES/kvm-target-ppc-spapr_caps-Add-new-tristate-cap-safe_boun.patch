@@ -1,0 +1,130 @@
+From 410393e052e3e3e26e3d7fc5b9f806c182f10508 Mon Sep 17 00:00:00 2001
+From: Suraj Jitindar Singh <sursingh@redhat.com>
+Date: Tue, 13 Feb 2018 04:12:26 +0100
+Subject: [PATCH 09/15] target/ppc/spapr_caps: Add new tristate cap
+ safe_bounds_check
+
+RH-Author: Suraj Jitindar Singh <sursingh@redhat.com>
+Message-id: <1518495150-24134-6-git-send-email-sursingh@redhat.com>
+Patchwork-id: 78982
+O-Subject: [RHEL7.5 qemu-kvm-rhev PATCH 5/9] target/ppc/spapr_caps: Add new tristate cap safe_bounds_check
+Bugzilla: 1532050
+RH-Acked-by: David Gibson <dgibson@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+
+From: Suraj Jitindar Singh <sjitindarsingh@gmail.com>
+
+Add new tristate cap cap-sbbc to represent the speculation barrier
+bounds checking capability.
+
+Signed-off-by: Suraj Jitindar Singh <sjitindarsingh@gmail.com>
+Reviewed-by: David Gibson <david@gibson.dropbear.id.au>
+Signed-off-by: David Gibson <david@gibson.dropbear.id.au>
+(cherry picked from commit 09114fd8179977e4157b36aab2e3d68eaf08adca)
+
+Conflicts: none
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1532050
+
+Signed-off-by: Suraj Jitindar Singh <sursingh@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/ppc/spapr.c         |  2 ++
+ hw/ppc/spapr_caps.c    | 21 +++++++++++++++++++++
+ include/hw/ppc/spapr.h |  5 ++++-
+ 3 files changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/hw/ppc/spapr.c b/hw/ppc/spapr.c
+index 31a5460..2dae180 100644
+--- a/hw/ppc/spapr.c
++++ b/hw/ppc/spapr.c
+@@ -1743,6 +1743,7 @@ static const VMStateDescription vmstate_spapr = {
+         &vmstate_spapr_cap_vsx,
+         &vmstate_spapr_cap_dfp,
+         &vmstate_spapr_cap_cfpc,
++        &vmstate_spapr_cap_sbbc,
+         NULL
+     }
+ };
+@@ -3699,6 +3700,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
+     smc->default_caps.caps[SPAPR_CAP_VSX] = SPAPR_CAP_ON;
+     smc->default_caps.caps[SPAPR_CAP_DFP] = SPAPR_CAP_ON;
+     smc->default_caps.caps[SPAPR_CAP_CFPC] = SPAPR_CAP_BROKEN;
++    smc->default_caps.caps[SPAPR_CAP_SBBC] = SPAPR_CAP_BROKEN;
+     spapr_caps_add_properties(smc, &error_abort);
+ }
+ 
+diff --git a/hw/ppc/spapr_caps.c b/hw/ppc/spapr_caps.c
+index d53da63..ce1f74f 100644
+--- a/hw/ppc/spapr_caps.c
++++ b/hw/ppc/spapr_caps.c
+@@ -191,6 +191,17 @@ static void cap_safe_cache_apply(sPAPRMachineState *spapr, uint8_t val,
+     }
+ }
+ 
++static void cap_safe_bounds_check_apply(sPAPRMachineState *spapr, uint8_t val,
++                                        Error **errp)
++{
++    if (tcg_enabled() && val) {
++        /* TODO - for now only allow broken for TCG */
++        error_setg(errp, "Requested safe bounds check capability level not supported by tcg, try a different value for cap-sbbc");
++    } else if (kvm_enabled() && (val > kvmppc_get_cap_safe_bounds_check())) {
++        error_setg(errp, "Requested safe bounds check capability level not supported by kvm, try a different value for cap-sbbc");
++    }
++}
++
+ #define VALUE_DESC_TRISTATE     " (broken, workaround, fixed)"
+ 
+ sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
+@@ -230,6 +241,15 @@ sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
+         .type = "string",
+         .apply = cap_safe_cache_apply,
+     },
++    [SPAPR_CAP_SBBC] = {
++        .name = "sbbc",
++        .description = "Speculation Barrier Bounds Checking" VALUE_DESC_TRISTATE,
++        .index = SPAPR_CAP_SBBC,
++        .get = spapr_cap_get_tristate,
++        .set = spapr_cap_set_tristate,
++        .type = "string",
++        .apply = cap_safe_bounds_check_apply,
++    },
+ };
+ 
+ static sPAPRCapabilities default_caps_with_cpu(sPAPRMachineState *spapr,
+@@ -336,6 +356,7 @@ SPAPR_CAP_MIG_STATE(htm, HTM);
+ SPAPR_CAP_MIG_STATE(vsx, VSX);
+ SPAPR_CAP_MIG_STATE(dfp, DFP);
+ SPAPR_CAP_MIG_STATE(cfpc, CFPC);
++SPAPR_CAP_MIG_STATE(sbbc, SBBC);
+ 
+ void spapr_caps_reset(sPAPRMachineState *spapr)
+ {
+diff --git a/include/hw/ppc/spapr.h b/include/hw/ppc/spapr.h
+index 442b35b..38a8e72 100644
+--- a/include/hw/ppc/spapr.h
++++ b/include/hw/ppc/spapr.h
+@@ -62,8 +62,10 @@ typedef enum {
+ #define SPAPR_CAP_DFP                   0x02
+ /* Cache Flush on Privilege Change */
+ #define SPAPR_CAP_CFPC                  0x03
++/* Speculation Barrier Bounds Checking */
++#define SPAPR_CAP_SBBC                  0x04
+ /* Num Caps */
+-#define SPAPR_CAP_NUM                   (SPAPR_CAP_CFPC + 1)
++#define SPAPR_CAP_NUM                   (SPAPR_CAP_SBBC + 1)
+ 
+ /*
+  * Capability Values
+@@ -765,6 +767,7 @@ extern const VMStateDescription vmstate_spapr_cap_htm;
+ extern const VMStateDescription vmstate_spapr_cap_vsx;
+ extern const VMStateDescription vmstate_spapr_cap_dfp;
+ extern const VMStateDescription vmstate_spapr_cap_cfpc;
++extern const VMStateDescription vmstate_spapr_cap_sbbc;
+ 
+ static inline uint8_t spapr_get_cap(sPAPRMachineState *spapr, int cap)
+ {
+-- 
+1.8.3.1
+

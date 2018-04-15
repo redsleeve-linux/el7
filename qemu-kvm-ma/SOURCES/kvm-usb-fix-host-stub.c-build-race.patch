@@ -1,0 +1,41 @@
+From 08426497468ec35d4dadd65df19abc5cfa6cd436 Mon Sep 17 00:00:00 2001
+From: Thomas Huth <thuth@redhat.com>
+Date: Mon, 9 Oct 2017 12:32:40 +0200
+Subject: [PATCH 21/34] usb: fix host-stub.c build race
+
+RH-Author: Thomas Huth <thuth@redhat.com>
+Message-id: <1507552368-9245-5-git-send-email-thuth@redhat.com>
+Patchwork-id: 77021
+O-Subject: [RHEL-7.5 qemu-kvm-ma PATCH 04/12] usb: fix host-stub.c build race
+Bugzilla: 1492033
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: David Gibson <dgibson@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+From: Gerd Hoffmann <kraxel@redhat.com>
+
+Suggested-by: Thomas Huth <thuth@redhat.com>
+Signed-off-by: Gerd Hoffmann <kraxel@redhat.com>
+Reviewed-by: Thomas Huth <thuth@redhat.com>
+Message-id: 20171004125210.7817-1-kraxel@redhat.com
+(cherry picked from commit eea6ae20379dca837631d603c3bed03e5128189f)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/usb/Makefile.objs | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/hw/usb/Makefile.objs b/hw/usb/Makefile.objs
+index 01c18cf..53c4765 100644
+--- a/hw/usb/Makefile.objs
++++ b/hw/usb/Makefile.objs
+@@ -43,6 +43,7 @@ common-obj-y += host-libusb.o host-legacy.o
+ else
+ common-obj-y += host-stub.o
+ endif
++common-obj-$(CONFIG_ALL) += host-stub.o
+ 
+ ifeq ($(CONFIG_USB_LIBUSB),y)
+ common-obj-$(CONFIG_XEN) += xen-usb.o
+-- 
+1.8.3.1
+

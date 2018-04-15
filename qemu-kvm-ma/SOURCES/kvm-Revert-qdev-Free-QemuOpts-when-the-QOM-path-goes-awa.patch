@@ -1,0 +1,66 @@
+From 8edc99e92cf93764e190e69d3f970bdf6de606e0 Mon Sep 17 00:00:00 2001
+From: Serhii Popovych <spopovyc@redhat.com>
+Date: Thu, 9 Nov 2017 15:30:04 +0100
+Subject: [PATCH 4/7] Revert "qdev: Free QemuOpts when the QOM path goes away"
+
+RH-Author: Serhii Popovych <spopovyc@redhat.com>
+Message-id: <1510241405-20597-3-git-send-email-spopovyc@redhat.com>
+Patchwork-id: 77630
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH 2/3] Revert "qdev: Free QemuOpts when the QOM path goes away"
+Bugzilla: 1445460
+RH-Acked-by: David Gibson <dgibson@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+
+From: Michael Roth <mdroth@linux.vnet.ibm.com>
+
+This reverts commit abed886ec60cf239a03515cf0b30fb11fa964c44.
+
+This patch originally addressed an issue where a DEVICE_DELETED
+event could be emitted (in device_unparent()) before a Device's
+QemuOpts were cleaned up (in device_finalize()), leading to a
+"duplicate ID" error if management attempted to immediately add
+a device with the same ID in response to the DEVICE_DELETED event.
+
+An alternative will be implemented in a subsequent patch where we
+defer the DEVICE_DELETED event until device_finalize(), which would
+also prevent the race, so we revert the original fix in preparation.
+
+Signed-off-by: Michael Roth <mdroth@linux.vnet.ibm.com>
+Reviewed-by: Greg Kurz <groug@kaod.org>
+Tested-by: Eric Auger <eric.auger@redhat.com>
+Reviewed-by: David Gibson <david@gibson.dropbear.id.au>
+Message-Id: <20171016222315.407-3-mdroth@linux.vnet.ibm.com>
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit 2fc06c4ac65594ad248e9a9150ebdde9ff5a1253)
+Signed-off-by: Serhii Popovych <spopovyc@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/core/qdev.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/hw/core/qdev.c b/hw/core/qdev.c
+index 0019a49..418cdac 100644
+--- a/hw/core/qdev.c
++++ b/hw/core/qdev.c
+@@ -1069,6 +1069,7 @@ static void device_finalize(Object *obj)
+     NamedGPIOList *ngl, *next;
+ 
+     DeviceState *dev = DEVICE(obj);
++    qemu_opts_del(dev->opts);
+ 
+     QLIST_FOREACH_SAFE(ngl, &dev->gpios, node, next) {
+         QLIST_REMOVE(ngl, node);
+@@ -1118,9 +1119,6 @@ static void device_unparent(Object *obj)
+         g_free(dev->canonical_path);
+         dev->canonical_path = NULL;
+     }
+-
+-    qemu_opts_del(dev->opts);
+-    dev->opts = NULL;
+ }
+ 
+ static void device_class_init(ObjectClass *class, void *data)
+-- 
+1.8.3.1
+

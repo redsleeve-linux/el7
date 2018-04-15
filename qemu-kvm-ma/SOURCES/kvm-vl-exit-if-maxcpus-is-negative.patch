@@ -1,0 +1,95 @@
+From 72c9f52facf418294ce72056d771591debb2a2f0 Mon Sep 17 00:00:00 2001
+From: Sam Bobroff <sbobroff@redhat.com>
+Date: Fri, 13 Oct 2017 00:56:26 +0200
+Subject: [PATCH 33/34] vl: exit if maxcpus is negative
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: Sam Bobroff <sbobroff@redhat.com>
+Message-id: <1507856186-31186-1-git-send-email-sbobroff@redhat.com>
+Patchwork-id: 77221
+O-Subject: [RHEL7.5 qemu-kvm-rhev PATCH] vl: exit if maxcpus is negative
+Bugzilla: 1491743
+RH-Acked-by: David Gibson <dgibson@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+
+From: Seeteena Thoufeek <s1seetee@linux.vnet.ibm.com>
+
+Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
+
+---Steps to Reproduce---
+
+When passed a negative number to 'maxcpus' parameter, Qemu aborts
+with a core dump.
+
+Run the following command with maxcpus argument as negative number
+
+ppc64-softmmu/qemu-system-ppc64 --nographic -vga none -machine
+pseries,accel=kvm,kvm-type=HV -m size=200g -device virtio-blk-pci,
+drive=rootdisk -drive file=/home/images/pegas-1.0-ppc64le.qcow2,
+if=none,cache=none,id=rootdisk,format=qcow2 -monitor telnet
+:127.0.0.1:1234,server,nowait -net nic,model=virtio -net
+user -redir tcp:2000::22 -device nec-usb-xhci -smp 8,cores=1,
+threads=1,maxcpus=-12
+
+(process:12149): GLib-ERROR **: gmem.c:130: failed to allocate
+ 18446744073709550568 bytes
+
+Trace/breakpoint trap
+
+Reported-by: R.Nageswara Sastry <rnsastry@linux.vnet.ibm.com>
+Signed-off-by: Seeteena Thoufeek <s1seetee@linux.vnet.ibm.com>
+Message-Id: <1504511031-26834-1-git-send-email-s1seetee@linux.vnet.ibm.com>
+Reviewed-by: Philippe Mathieu-Daudé <f4bug@amsat.org>
+(cherry picked from commit c0dd10991903c552811d8cbe9231055b1b3a7ebd)
+
+Testing: Run qemu-kvm with "-smp maxcpus=-1".
+Signed-off-by: Sam Bobroff <sbobroff@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ include/sysemu/sysemu.h | 2 +-
+ vl.c                    | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/include/sysemu/sysemu.h b/include/sysemu/sysemu.h
+index 54fdc4f..d6a9cd7 100644
+--- a/include/sysemu/sysemu.h
++++ b/include/sysemu/sysemu.h
+@@ -115,7 +115,7 @@ extern int win2k_install_hack;
+ extern int alt_grab;
+ extern int ctrl_grab;
+ extern int smp_cpus;
+-extern int max_cpus;
++extern unsigned int max_cpus;
+ extern int cursor_hide;
+ extern int graphic_rotate;
+ extern int no_quit;
+diff --git a/vl.c b/vl.c
+index 183b7f7..18b837c 100644
+--- a/vl.c
++++ b/vl.c
+@@ -164,7 +164,7 @@ Chardev *sclp_hds[MAX_SCLP_CONSOLES];
+ int win2k_install_hack = 0;
+ int singlestep = 0;
+ int smp_cpus = 1;
+-int max_cpus = 1;
++unsigned int max_cpus = 1;
+ int smp_cores = 1;
+ int smp_threads = 1;
+ int acpi_enabled = 1;
+@@ -4244,8 +4244,8 @@ int main(int argc, char **argv, char **envp)
+ 
+     machine_class->max_cpus = machine_class->max_cpus ?: 1; /* Default to UP */
+     if (max_cpus > machine_class->max_cpus) {
+-        error_report("Number of SMP CPUs requested (%d) exceeds max CPUs "
+-                     "supported by machine '%s' (%d)", max_cpus,
++        error_report("Invalid SMP CPUs %d. The max CPUs "
++                     "supported by machine '%s' is %d", max_cpus,
+                      machine_class->name, machine_class->max_cpus);
+         exit(1);
+     }
+-- 
+1.8.3.1
+

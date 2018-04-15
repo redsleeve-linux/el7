@@ -1,0 +1,95 @@
+From 6b05946c92a9fee7398d948be3505a294d27f76b Mon Sep 17 00:00:00 2001
+From: "Daniel P. Berrange" <berrange@redhat.com>
+Date: Wed, 20 Dec 2017 17:56:48 +0100
+Subject: [PATCH 08/42] io: Add support for fragmented websocket binary frames
+
+RH-Author: Daniel P. Berrange <berrange@redhat.com>
+Message-id: <20171220175702.29663-7-berrange@redhat.com>
+Patchwork-id: 78461
+O-Subject: [RHV-7.5 qemu-kvm-rhev PATCH v2 06/20] io: Add support for fragmented websocket binary frames
+Bugzilla: 1518649
+RH-Acked-by: John Snow <jsnow@redhat.com>
+RH-Acked-by: Jeffrey Cody <jcody@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+From: Brandon Carpenter <brandon.carpenter@cypherpath.com>
+
+Allows fragmented binary frames by saving the previous opcode. Handles
+the case where an intermediary (i.e., web proxy) fragments frames
+originally sent unfragmented by the client.
+
+Signed-off-by: Brandon Carpenter <brandon.carpenter@cypherpath.com>
+Signed-off-by: Daniel P. Berrange <berrange@redhat.com>
+(cherry picked from commit ff1300e626949fa9850b0f91dc5e8c2cb45b6a88)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ include/io/channel-websock.h |  1 +
+ io/channel-websock.c         | 26 ++++++++++++++++++--------
+ 2 files changed, 19 insertions(+), 8 deletions(-)
+
+diff --git a/include/io/channel-websock.h b/include/io/channel-websock.h
+index 3c9ff84..7c89655 100644
+--- a/include/io/channel-websock.h
++++ b/include/io/channel-websock.h
+@@ -65,6 +65,7 @@ struct QIOChannelWebsock {
+     guint io_tag;
+     Error *io_err;
+     gboolean io_eof;
++    uint8_t opcode;
+ };
+ 
+ /**
+diff --git a/io/channel-websock.c b/io/channel-websock.c
+index 4e5afb2..909d636 100644
+--- a/io/channel-websock.c
++++ b/io/channel-websock.c
+@@ -636,28 +636,38 @@ static int qio_channel_websock_decode_header(QIOChannelWebsock *ioc,
+     has_mask = header->b1 & QIO_CHANNEL_WEBSOCK_HEADER_FIELD_HAS_MASK;
+     payload_len = header->b1 & QIO_CHANNEL_WEBSOCK_HEADER_FIELD_PAYLOAD_LEN;
+ 
++    /* Save or restore opcode. */
++    if (opcode) {
++        ioc->opcode = opcode;
++    } else {
++        opcode = ioc->opcode;
++    }
++
+     if (opcode == QIO_CHANNEL_WEBSOCK_OPCODE_CLOSE) {
+         /* disconnect */
+         return 0;
+     }
+ 
+     /* Websocket frame sanity check:
+-     * * Websocket fragmentation is not supported.
+-     * * All  websockets frames sent by a client have to be masked.
++     * * Fragmentation is only supported for binary frames.
++     * * All frames sent by a client MUST be masked.
+      * * Only binary encoding is supported.
+      */
+     if (!fin) {
+-        error_setg(errp, "websocket fragmentation is not supported");
+-        return -1;
++        if (opcode != QIO_CHANNEL_WEBSOCK_OPCODE_BINARY_FRAME) {
++            error_setg(errp, "only binary websocket frames may be fragmented");
++            return -1;
++        }
++    } else {
++        if (opcode != QIO_CHANNEL_WEBSOCK_OPCODE_BINARY_FRAME) {
++            error_setg(errp, "only binary websocket frames are supported");
++            return -1;
++        }
+     }
+     if (!has_mask) {
+         error_setg(errp, "client websocket frames must be masked");
+         return -1;
+     }
+-    if (opcode != QIO_CHANNEL_WEBSOCK_OPCODE_BINARY_FRAME) {
+-        error_setg(errp, "only binary websocket frames are supported");
+-        return -1;
+-    }
+ 
+     if (payload_len < QIO_CHANNEL_WEBSOCK_PAYLOAD_LEN_MAGIC_16_BIT) {
+         ioc->payload_remain = payload_len;
+-- 
+1.8.3.1
+

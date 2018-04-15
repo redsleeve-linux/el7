@@ -1,0 +1,121 @@
+From 38362f9d75028cdcd58b6facb605f71f2a22a9be Mon Sep 17 00:00:00 2001
+From: David Hildenbrand <david@redhat.com>
+Date: Tue, 17 Oct 2017 19:15:41 +0200
+Subject: [PATCH 36/69] tools/kvm_stat: add interactive command 'c'
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: David Hildenbrand <david@redhat.com>
+Message-id: <20171017191605.2378-16-david@redhat.com>
+Patchwork-id: 77325
+O-Subject: [RHEL-7.5 qemu-kvm-rhev PATCH 15/39] tools/kvm_stat: add interactive command 'c'
+Bugzilla: 1497137
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+
+Upstream-status: linux.git 4443084fa0cf85f91d357c8917b90504b784d925
+
+Convertion of documentation (for man page generation) to texi.
+
+commit 4443084fa0cf85f91d357c8917b90504b784d925
+Author: Stefan Raspl <raspl@linux.vnet.ibm.com>
+Date:   Fri Mar 10 13:40:14 2017 +0100
+
+    tools/kvm_stat: add interactive command 'c'
+
+    Provide a real simple way to erase any active filter.
+
+    Signed-off-by: Stefan Raspl <raspl@linux.vnet.ibm.com>
+    Reviewed-by: Marc Hartmayer <mhartmay@linux.vnet.ibm.com>
+    Signed-off-by: Radim Krčmář <rkrcmar@redhat.com>
+
+Signed-off-by: David Hildenbrand <david@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ scripts/kvm/kvm_stat      | 16 ++++++++++++----
+ scripts/kvm/kvm_stat.texi |  3 +++
+ 2 files changed, 15 insertions(+), 4 deletions(-)
+
+diff --git a/scripts/kvm/kvm_stat b/scripts/kvm/kvm_stat
+index f263312..676a92a 100755
+--- a/scripts/kvm/kvm_stat
++++ b/scripts/kvm/kvm_stat
+@@ -861,6 +861,7 @@ DELAY_INITIAL = 0.25
+ DELAY_REGULAR = 3.0
+ MAX_GUEST_NAME_LEN = 48
+ MAX_REGEX_LEN = 44
++DEFAULT_REGEX = r'^[^\(]*$'
+ 
+ 
+ class Tui(object):
+@@ -907,9 +908,9 @@ class Tui(object):
+     def update_drilldown(self):
+         """Sets or removes a filter that only allows fields without braces."""
+         if not self.stats.fields_filter:
+-            self.stats.fields_filter = r'^[^\(]*$'
++            self.stats.fields_filter = DEFAULT_REGEX
+ 
+-        elif self.stats.fields_filter == r'^[^\(]*$':
++        elif self.stats.fields_filter == DEFAULT_REGEX:
+             self.stats.fields_filter = None
+ 
+     def update_pid(self, pid):
+@@ -931,7 +932,8 @@ class Tui(object):
+                                .format(pid, gname), curses.A_BOLD)
+         else:
+             self.screen.addstr(0, 0, 'kvm statistics - summary', curses.A_BOLD)
+-        if self.stats.fields_filter and self.stats.fields_filter != '^[^\(]*$':
++        if self.stats.fields_filter and self.stats.fields_filter \
++           != DEFAULT_REGEX:
+             regex = self.stats.fields_filter
+             if len(regex) > MAX_REGEX_LEN:
+                 regex = regex[:MAX_REGEX_LEN] + '...'
+@@ -991,7 +993,7 @@ class Tui(object):
+             regex = self.screen.getstr()
+             curses.noecho()
+             if len(regex) == 0:
+-                self.stats.fields_filter = r'^[^\(]*$'
++                self.stats.fields_filter = DEFAULT_REGEX
+                 self.refresh_header()
+                 return
+             try:
+@@ -1101,6 +1103,11 @@ class Tui(object):
+                     sleeptime = DELAY_INITIAL
+                 if char == 'q':
+                     break
++                if char == 'c':
++                    self.stats.fields_filter = DEFAULT_REGEX
++                    self.refresh_header(0)
++                    self.update_pid(0)
++                    sleeptime = DELAY_INITIAL
+                 if char == 'f':
+                     self.show_filter_selection()
+                     sleeptime = DELAY_INITIAL
+@@ -1177,6 +1184,7 @@ Requirements:
+   the large number of files that are possibly opened.
+ 
+ Interactive Commands:
++   c     clear filter
+    f     filter by regular expression
+    g     filter by guest name
+    p     filter by PID
+diff --git a/scripts/kvm/kvm_stat.texi b/scripts/kvm/kvm_stat.texi
+index a8c1071..203d61d 100644
+--- a/scripts/kvm/kvm_stat.texi
++++ b/scripts/kvm/kvm_stat.texi
+@@ -24,6 +24,9 @@ Use batch and logging modes for scripting purposes.
+ While running in regular (interactive) mode, use any of the following keys:
+ 
+ @table @key
++@item c
++@kindex c
++clear filter
+ @item f
+ @kindex f
+ filter by regular expression
+-- 
+1.8.3.1
+

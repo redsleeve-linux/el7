@@ -1,0 +1,132 @@
+From c51968caca390f8feade4d61c32778cf8c51c68a Mon Sep 17 00:00:00 2001
+From: Suraj Jitindar Singh <sursingh@redhat.com>
+Date: Tue, 13 Mar 2018 05:21:36 +0100
+Subject: [PATCH 14/17] ppc/spapr-caps: Define the pseries-2.12-sxxm machine
+ type
+
+RH-Author: Suraj Jitindar Singh <sursingh@redhat.com>
+Message-id: <1520918499-27663-9-git-send-email-sursingh@redhat.com>
+Patchwork-id: 79255
+O-Subject: [RHEL7.5 qemu-kvm-rhev PATCH 08/11] ppc/spapr-caps: Define the pseries-2.12-sxxm machine type
+Bugzilla: 1554957
+RH-Acked-by: David Gibson <dgibson@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+From: Suraj Jitindar Singh <sjitindarsingh@gmail.com>
+
+The sxxm (speculative execution exploit mitigation) machine type is a
+variant of the 2.12 machine type with workarounds for speculative
+execution vulnerabilities enabled by default.
+
+Signed-off-by: Suraj Jitindar Singh <sjitindarsingh@gmail.com>
+Signed-off-by: David Gibson <david@gibson.dropbear.id.au>
+(cherry picked from commit 813f3cf655c6f3afe6e2ef04281ba7cd5ea24357)
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1548919
+
+Signed-off-by: Suraj Jitindar Singh <sursingh@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/ppc/spapr.c      | 53 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ hw/ppc/spapr_caps.c | 11 +++++++++++
+ 2 files changed, 64 insertions(+)
+
+diff --git a/hw/ppc/spapr.c b/hw/ppc/spapr.c
+index c71ffac..a43e64c 100644
+--- a/hw/ppc/spapr.c
++++ b/hw/ppc/spapr.c
+@@ -3756,6 +3756,59 @@ static const TypeInfo spapr_machine_info = {
+ 
+ #if 0 /* Disabled for Red Hat Enterprise Linux */
+ /*
++ * pseries-2.12
++ */
++static void spapr_machine_2_12_instance_options(MachineState *machine)
++{
++}
++
++static void spapr_machine_2_12_class_options(MachineClass *mc)
++{
++    /* Defaults for the latest behaviour inherited from the base class */
++}
++
++DEFINE_SPAPR_MACHINE(2_12, "2.12", true);
++
++static void spapr_machine_2_12_sxxm_instance_options(MachineState *machine)
++{
++    spapr_machine_2_12_instance_options(machine);
++}
++
++static void spapr_machine_2_12_sxxm_class_options(MachineClass *mc)
++{
++    sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
++
++    spapr_machine_2_12_class_options(mc);
++    smc->default_caps.caps[SPAPR_CAP_CFPC] = SPAPR_CAP_WORKAROUND;
++    smc->default_caps.caps[SPAPR_CAP_SBBC] = SPAPR_CAP_WORKAROUND;
++    smc->default_caps.caps[SPAPR_CAP_IBS] = SPAPR_CAP_FIXED_CCD;
++}
++
++DEFINE_SPAPR_MACHINE(2_12_sxxm, "2.12-sxxm", false);
++
++/*
++ * pseries-2.11
++ */
++#define SPAPR_COMPAT_2_11                                              \
++    HW_COMPAT_2_11
++
++static void spapr_machine_2_11_instance_options(MachineState *machine)
++{
++    spapr_machine_2_12_instance_options(machine);
++}
++
++static void spapr_machine_2_11_class_options(MachineClass *mc)
++{
++    sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
++
++    spapr_machine_2_12_class_options(mc);
++    smc->default_caps.caps[SPAPR_CAP_HTM] = SPAPR_CAP_ON;
++    SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_11);
++}
++
++DEFINE_SPAPR_MACHINE(2_11, "2.11", false);
++
++/*
+  * pseries-2.10
+  */
+ static void spapr_machine_2_10_instance_options(MachineState *machine)
+diff --git a/hw/ppc/spapr_caps.c b/hw/ppc/spapr_caps.c
+index da1f519..531e145 100644
+--- a/hw/ppc/spapr_caps.c
++++ b/hw/ppc/spapr_caps.c
+@@ -335,15 +335,26 @@ static sPAPRCapabilities default_caps_with_cpu(sPAPRMachineState *spapr,
+ 
+     caps = smc->default_caps;
+ 
++    if (!ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_3_00,
++                          0, spapr->max_compat_pvr)) {
++        caps.caps[SPAPR_CAP_CFPC] = SPAPR_CAP_BROKEN;
++    }
++
+     if (!ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_2_07,
+                           0, spapr->max_compat_pvr)) {
+         caps.caps[SPAPR_CAP_HTM] = SPAPR_CAP_OFF;
+     }
+ 
++    if (!ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_2_06_PLUS,
++                          0, spapr->max_compat_pvr)) {
++        caps.caps[SPAPR_CAP_SBBC] = SPAPR_CAP_BROKEN;
++    }
++
+     if (!ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_2_06,
+                           0, spapr->max_compat_pvr)) {
+         caps.caps[SPAPR_CAP_VSX] = SPAPR_CAP_OFF;
+         caps.caps[SPAPR_CAP_DFP] = SPAPR_CAP_OFF;
++        caps.caps[SPAPR_CAP_IBS] = SPAPR_CAP_BROKEN;
+     }
+ 
+     return caps;
+-- 
+1.8.3.1
+

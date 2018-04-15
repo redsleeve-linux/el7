@@ -1,0 +1,130 @@
+From 29fa2de37ac3bbd6087d7350d1923fb8143bd365 Mon Sep 17 00:00:00 2001
+From: Suraj Jitindar Singh <sursingh@redhat.com>
+Date: Tue, 13 Feb 2018 04:12:27 +0100
+Subject: [PATCH 10/15] target/ppc/spapr_caps: Add new tristate cap
+ safe_indirect_branch
+
+RH-Author: Suraj Jitindar Singh <sursingh@redhat.com>
+Message-id: <1518495150-24134-7-git-send-email-sursingh@redhat.com>
+Patchwork-id: 78990
+O-Subject: [RHEL7.5 qemu-kvm-rhev PATCH 6/9] target/ppc/spapr_caps: Add new tristate cap safe_indirect_branch
+Bugzilla: 1532050
+RH-Acked-by: David Gibson <dgibson@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+
+From: Suraj Jitindar Singh <sjitindarsingh@gmail.com>
+
+Add new tristate cap cap-ibs to represent the indirect branch
+serialisation capability.
+
+Signed-off-by: Suraj Jitindar Singh <sjitindarsingh@gmail.com>
+Reviewed-by: David Gibson <david@gibson.dropbear.id.au>
+Signed-off-by: David Gibson <david@gibson.dropbear.id.au>
+(cherry picked from commit 4be8d4e7d935fc8919d61f53a0f0fb7230052bb3)
+
+Conflicts: none
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1532050
+
+Signed-off-by: Suraj Jitindar Singh <sursingh@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/ppc/spapr.c         |  2 ++
+ hw/ppc/spapr_caps.c    | 21 +++++++++++++++++++++
+ include/hw/ppc/spapr.h |  5 ++++-
+ 3 files changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/hw/ppc/spapr.c b/hw/ppc/spapr.c
+index 2dae180..c71ffac 100644
+--- a/hw/ppc/spapr.c
++++ b/hw/ppc/spapr.c
+@@ -1744,6 +1744,7 @@ static const VMStateDescription vmstate_spapr = {
+         &vmstate_spapr_cap_dfp,
+         &vmstate_spapr_cap_cfpc,
+         &vmstate_spapr_cap_sbbc,
++        &vmstate_spapr_cap_ibs,
+         NULL
+     }
+ };
+@@ -3701,6 +3702,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
+     smc->default_caps.caps[SPAPR_CAP_DFP] = SPAPR_CAP_ON;
+     smc->default_caps.caps[SPAPR_CAP_CFPC] = SPAPR_CAP_BROKEN;
+     smc->default_caps.caps[SPAPR_CAP_SBBC] = SPAPR_CAP_BROKEN;
++    smc->default_caps.caps[SPAPR_CAP_IBS] = SPAPR_CAP_BROKEN;
+     spapr_caps_add_properties(smc, &error_abort);
+ }
+ 
+diff --git a/hw/ppc/spapr_caps.c b/hw/ppc/spapr_caps.c
+index ce1f74f..62efdae 100644
+--- a/hw/ppc/spapr_caps.c
++++ b/hw/ppc/spapr_caps.c
+@@ -202,6 +202,17 @@ static void cap_safe_bounds_check_apply(sPAPRMachineState *spapr, uint8_t val,
+     }
+ }
+ 
++static void cap_safe_indirect_branch_apply(sPAPRMachineState *spapr,
++                                           uint8_t val, Error **errp)
++{
++    if (tcg_enabled() && val) {
++        /* TODO - for now only allow broken for TCG */
++        error_setg(errp, "Requested safe indirect branch capability level not supported by tcg, try a different value for cap-ibs");
++    } else if (kvm_enabled() && (val > kvmppc_get_cap_safe_indirect_branch())) {
++        error_setg(errp, "Requested safe indirect branch capability level not supported by kvm, try a different value for cap-ibs");
++    }
++}
++
+ #define VALUE_DESC_TRISTATE     " (broken, workaround, fixed)"
+ 
+ sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
+@@ -250,6 +261,15 @@ sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
+         .type = "string",
+         .apply = cap_safe_bounds_check_apply,
+     },
++    [SPAPR_CAP_IBS] = {
++        .name = "ibs",
++        .description = "Indirect Branch Serialisation" VALUE_DESC_TRISTATE,
++        .index = SPAPR_CAP_IBS,
++        .get = spapr_cap_get_tristate,
++        .set = spapr_cap_set_tristate,
++        .type = "string",
++        .apply = cap_safe_indirect_branch_apply,
++    },
+ };
+ 
+ static sPAPRCapabilities default_caps_with_cpu(sPAPRMachineState *spapr,
+@@ -357,6 +377,7 @@ SPAPR_CAP_MIG_STATE(vsx, VSX);
+ SPAPR_CAP_MIG_STATE(dfp, DFP);
+ SPAPR_CAP_MIG_STATE(cfpc, CFPC);
+ SPAPR_CAP_MIG_STATE(sbbc, SBBC);
++SPAPR_CAP_MIG_STATE(ibs, IBS);
+ 
+ void spapr_caps_reset(sPAPRMachineState *spapr)
+ {
+diff --git a/include/hw/ppc/spapr.h b/include/hw/ppc/spapr.h
+index 38a8e72..f7f01f3 100644
+--- a/include/hw/ppc/spapr.h
++++ b/include/hw/ppc/spapr.h
+@@ -64,8 +64,10 @@ typedef enum {
+ #define SPAPR_CAP_CFPC                  0x03
+ /* Speculation Barrier Bounds Checking */
+ #define SPAPR_CAP_SBBC                  0x04
++/* Indirect Branch Serialisation */
++#define SPAPR_CAP_IBS                   0x05
+ /* Num Caps */
+-#define SPAPR_CAP_NUM                   (SPAPR_CAP_SBBC + 1)
++#define SPAPR_CAP_NUM                   (SPAPR_CAP_IBS + 1)
+ 
+ /*
+  * Capability Values
+@@ -768,6 +770,7 @@ extern const VMStateDescription vmstate_spapr_cap_vsx;
+ extern const VMStateDescription vmstate_spapr_cap_dfp;
+ extern const VMStateDescription vmstate_spapr_cap_cfpc;
+ extern const VMStateDescription vmstate_spapr_cap_sbbc;
++extern const VMStateDescription vmstate_spapr_cap_ibs;
+ 
+ static inline uint8_t spapr_get_cap(sPAPRMachineState *spapr, int cap)
+ {
+-- 
+1.8.3.1
+

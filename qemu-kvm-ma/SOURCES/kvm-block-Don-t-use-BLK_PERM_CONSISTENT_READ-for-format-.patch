@@ -1,0 +1,53 @@
+From ab2ef6c7b0c99840a5b530899076998a7bbdf5df Mon Sep 17 00:00:00 2001
+From: Kevin Wolf <kwolf@redhat.com>
+Date: Mon, 15 Jan 2018 11:23:35 +0100
+Subject: [PATCH 10/12] block: Don't use BLK_PERM_CONSISTENT_READ for format
+ probing
+
+RH-Author: Kevin Wolf <kwolf@redhat.com>
+Message-id: <20180115112337.20885-2-kwolf@redhat.com>
+Patchwork-id: 78573
+O-Subject: [RHV-7.5 qemu-kvm-rhev PATCH 1/3] block: Don't use BLK_PERM_CONSISTENT_READ for format probing
+Bugzilla: 1515604
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Jeffrey Cody <jcody@redhat.com>
+RH-Acked-by: John Snow <jsnow@redhat.com>
+
+For format probing, we don't really care whether all of the image
+content is consistent. The only thing we're looking at is the image
+header, and specifically the magic numbers that are expected to never
+change, no matter how inconsistent the guest visible disk content is.
+
+Therefore, don't request BLK_PERM_CONSISTENT_READ. This allows to use
+format probing, e.g. in the context of 'qemu-img info', even while the
+guest visible data in the image is inconsistent during a running block
+job.
+
+Signed-off-by: Kevin Wolf <kwolf@redhat.com>
+Reviewed-by: Fam Zheng <famz@redhat.com>
+(cherry picked from commit dacaa16238cc5915a609ddaab4b7f81c4bceb9ae)
+Signed-off-by: Kevin Wolf <kwolf@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ block.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/block.c b/block.c
+index 17629ab..90a60bc 100644
+--- a/block.c
++++ b/block.c
+@@ -2540,7 +2540,10 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
+             goto fail;
+         }
+         if (file_bs != NULL) {
+-            file = blk_new(BLK_PERM_CONSISTENT_READ, BLK_PERM_ALL);
++            /* Not requesting BLK_PERM_CONSISTENT_READ because we're only
++             * looking at the header to guess the image format. This works even
++             * in cases where a guest would not see a consistent state. */
++            file = blk_new(0, BLK_PERM_ALL);
+             blk_insert_bs(file, file_bs, &local_err);
+             bdrv_unref(file_bs);
+             if (local_err) {
+-- 
+1.8.3.1
+

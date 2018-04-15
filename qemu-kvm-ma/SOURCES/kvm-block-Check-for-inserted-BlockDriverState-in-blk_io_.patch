@@ -1,0 +1,68 @@
+From 20f05f7cc0ae81aecad40e5c3c69d9c91d6d3687 Mon Sep 17 00:00:00 2001
+From: Stefan Hajnoczi <stefanha@redhat.com>
+Date: Fri, 17 Nov 2017 11:19:05 +0100
+Subject: [PATCH 06/15] block: Check for inserted BlockDriverState in
+ blk_io_limits_disable()
+
+RH-Author: Stefan Hajnoczi <stefanha@redhat.com>
+Message-id: <20171117111908.8815-7-stefanha@redhat.com>
+Patchwork-id: 77741
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH 6/9] block: Check for inserted BlockDriverState in blk_io_limits_disable()
+Bugzilla: 1492295
+RH-Acked-by: John Snow <jsnow@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+
+From: Alberto Garcia <berto@igalia.com>
+
+When you set I/O limits using block_set_io_throttle or the command
+line throttling.* options they are kept in the BlockBackend regardless
+of whether a BlockDriverState is attached to the backend or not.
+
+Therefore when removing the limits using blk_io_limits_disable() we
+need to check if there's a BDS before attempting to drain it, else it
+will crash QEMU. This can be reproduced very easily using HMP:
+
+     (qemu) drive_add 0 if=none,throttling.iops-total=5000
+     (qemu) drive_del none0
+
+Reported-by: sochin jiang <sochin.jiang@huawei.com>
+Signed-off-by: Alberto Garcia <berto@igalia.com>
+Reviewed-by: Max Reitz <mreitz@redhat.com>
+Message-id: 0d3a67ce8d948bb33e08672564714dcfb76a3d8c.1510339534.git.berto@igalia.com
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+(cherry picked from commit 48bf7ea81aa848027bad24f7e7791b503dff727d)
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ block/block-backend.c | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/block/block-backend.c b/block/block-backend.c
+index 520f2b2..0bd439e 100644
+--- a/block/block-backend.c
++++ b/block/block-backend.c
+@@ -1999,10 +1999,16 @@ void blk_set_io_limits(BlockBackend *blk, ThrottleConfig *cfg)
+ 
+ void blk_io_limits_disable(BlockBackend *blk)
+ {
+-    assert(blk->public.throttle_group_member.throttle_state);
+-    bdrv_drained_begin(blk_bs(blk));
+-    throttle_group_unregister_tgm(&blk->public.throttle_group_member);
+-    bdrv_drained_end(blk_bs(blk));
++    BlockDriverState *bs = blk_bs(blk);
++    ThrottleGroupMember *tgm = &blk->public.throttle_group_member;
++    assert(tgm->throttle_state);
++    if (bs) {
++        bdrv_drained_begin(bs);
++    }
++    throttle_group_unregister_tgm(tgm);
++    if (bs) {
++        bdrv_drained_end(bs);
++    }
+ }
+ 
+ /* should be called before blk_set_io_limits if a limit is set */
+-- 
+1.8.3.1
+

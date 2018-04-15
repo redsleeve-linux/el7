@@ -1,0 +1,93 @@
+From e6c4563d68a353e9b3938c9f49a239b5dca61868 Mon Sep 17 00:00:00 2001
+From: Thomas Huth <thuth@redhat.com>
+Date: Thu, 19 Oct 2017 10:16:49 +0200
+Subject: [PATCH 67/69] hw: Remove the redundant user_creatable = false from
+ SYS_BUS_DEVICEs
+
+RH-Author: Thomas Huth <thuth@redhat.com>
+Message-id: <1508408209-5712-4-git-send-email-thuth@redhat.com>
+Patchwork-id: 77375
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH 3/3] hw: Remove the redundant user_creatable = false from SYS_BUS_DEVICEs
+Bugzilla: 1503998
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: Eduardo Habkost <ehabkost@redhat.com>
+
+The devices that are addressed by this patch are SYS_BUS_DEVICE, and
+in QEMU 2.10, sysbus devices are marked with user_creatable = false by
+default already. So there is now no need anymore to explicitely set
+this flag to false in the downstream qemu-kvm build.
+
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/block/pflash_cfi01.c | 1 -
+ hw/i386/kvm/clock.c     | 1 -
+ hw/ide/ahci.c           | 1 -
+ hw/isa/isa-bus.c        | 1 -
+ hw/virtio/virtio-mmio.c | 1 -
+ 5 files changed, 5 deletions(-)
+
+diff --git a/hw/block/pflash_cfi01.c b/hw/block/pflash_cfi01.c
+index afe6230..1113ab1 100644
+--- a/hw/block/pflash_cfi01.c
++++ b/hw/block/pflash_cfi01.c
+@@ -925,7 +925,6 @@ static void pflash_cfi01_class_init(ObjectClass *klass, void *data)
+     dc->realize = pflash_cfi01_realize;
+     dc->props = pflash_cfi01_properties;
+     dc->vmsd = &vmstate_pflash;
+-    dc->user_creatable = false; /* RH state preserve */
+     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
+ }
+ 
+diff --git a/hw/i386/kvm/clock.c b/hw/i386/kvm/clock.c
+index fc7212f..363d1b5 100644
+--- a/hw/i386/kvm/clock.c
++++ b/hw/i386/kvm/clock.c
+@@ -289,7 +289,6 @@ static void kvmclock_class_init(ObjectClass *klass, void *data)
+     dc->realize = kvmclock_realize;
+     dc->vmsd = &kvmclock_vmsd;
+     dc->props = kvmclock_properties;
+-    dc->user_creatable = false; /* RH state preserve */
+ }
+ 
+ static const TypeInfo kvmclock_info = {
+diff --git a/hw/ide/ahci.c b/hw/ide/ahci.c
+index 2cb41fc..da6c23d 100644
+--- a/hw/ide/ahci.c
++++ b/hw/ide/ahci.c
+@@ -1720,7 +1720,6 @@ static void sysbus_ahci_class_init(ObjectClass *klass, void *data)
+     dc->vmsd = &vmstate_sysbus_ahci;
+     dc->props = sysbus_ahci_properties;
+     dc->reset = sysbus_ahci_reset;
+-    dc->user_creatable = false; /* RH state preserve */
+     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
+ }
+ 
+diff --git a/hw/isa/isa-bus.c b/hw/isa/isa-bus.c
+index 467042f..348e0ea 100644
+--- a/hw/isa/isa-bus.c
++++ b/hw/isa/isa-bus.c
+@@ -221,7 +221,6 @@ static void isabus_bridge_class_init(ObjectClass *klass, void *data)
+ 
+     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+     dc->fw_name = "isa";
+-    dc->user_creatable = false; /* RH state preserve */
+ }
+ 
+ static const TypeInfo isabus_bridge_info = {
+diff --git a/hw/virtio/virtio-mmio.c b/hw/virtio/virtio-mmio.c
+index 62df6c2..5807aa8 100644
+--- a/hw/virtio/virtio-mmio.c
++++ b/hw/virtio/virtio-mmio.c
+@@ -448,7 +448,6 @@ static void virtio_mmio_class_init(ObjectClass *klass, void *data)
+ 
+     dc->realize = virtio_mmio_realizefn;
+     dc->reset = virtio_mmio_reset;
+-    dc->user_creatable = false; /* RH state preserve */
+     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+     dc->props = virtio_mmio_properties;
+ }
+-- 
+1.8.3.1
+

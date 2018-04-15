@@ -1,0 +1,45 @@
+From 17abc4f5bd7df54a1e09e2f8a1086354ef69aa87 Mon Sep 17 00:00:00 2001
+From: Thomas Huth <thuth@redhat.com>
+Date: Mon, 9 Oct 2017 12:32:48 +0200
+Subject: [PATCH 29/34] RHEL: Disable vfio-ccw and x-terminal3270 devices
+
+RH-Author: Thomas Huth <thuth@redhat.com>
+Message-id: <1507552368-9245-13-git-send-email-thuth@redhat.com>
+Patchwork-id: 77030
+O-Subject: [RHEL-7.5 qemu-kvm-ma PATCH 12/12] RHEL: Disable vfio-ccw and x-terminal3270 devices
+Bugzilla: 1492033
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: David Gibson <dgibson@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+Upstream-status: downstream only
+
+We don't support them in downstream RHEL, so disable them in
+the config files.
+
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ default-configs/s390x-softmmu.mak | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/default-configs/s390x-softmmu.mak b/default-configs/s390x-softmmu.mak
+index 43dbf34..2846634 100644
+--- a/default-configs/s390x-softmmu.mak
++++ b/default-configs/s390x-softmmu.mak
+@@ -3,8 +3,10 @@ CONFIG_PCI=y
+ CONFIG_VHOST_USER_SCSI=$(and $(CONFIG_VHOST_USER),$(CONFIG_LINUX))
+ CONFIG_VIRTIO=y
+ CONFIG_SCLPCONSOLE=y
+-CONFIG_TERMINAL3270=y
++# Disabled for Red Hat Enterprise Linux:
++# CONFIG_TERMINAL3270=y
+ CONFIG_S390_FLIC=y
+ CONFIG_S390_FLIC_KVM=$(CONFIG_KVM)
+-CONFIG_VFIO_CCW=$(CONFIG_LINUX)
++# Disabled for Red Hat Enterprise Linux:
++# CONFIG_VFIO_CCW=$(CONFIG_LINUX)
+ CONFIG_WDT_DIAG288=y
+-- 
+1.8.3.1
+

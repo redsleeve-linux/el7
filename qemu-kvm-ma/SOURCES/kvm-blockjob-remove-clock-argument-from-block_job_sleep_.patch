@@ -1,0 +1,172 @@
+From e514856415406ee30a9199843895057faa7e7152 Mon Sep 17 00:00:00 2001
+From: Jeffrey Cody <jcody@redhat.com>
+Date: Thu, 30 Nov 2017 22:49:13 +0100
+Subject: [PATCH 09/21] blockjob: remove clock argument from block_job_sleep_ns
+
+RH-Author: Jeffrey Cody <jcody@redhat.com>
+Message-id: <2f57c3ce7143bdde2d8c485e3b1eda19898547dd.1511985875.git.jcody@redhat.com>
+Patchwork-id: 78048
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH 09/11] blockjob: remove clock argument from block_job_sleep_ns
+Bugzilla: 1506531
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: John Snow <jsnow@redhat.com>
+
+From: Paolo Bonzini <pbonzini@redhat.com>
+
+All callers are using QEMU_CLOCK_REALTIME, and it will not be possible to
+support more than one clock when block_job_sleep_ns switches to a single
+timer stored in the BlockJob struct.
+
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+Reviewed-by: Alberto Garcia <berto@igalia.com>
+Tested-By: Jeff Cody <jcody@redhat.com>
+Reviewed-by: Fam Zheng <famz@redhat.com>
+Reviewed-by: Jeff Cody <jcody@redhat.com>
+Reviewed-by: Stefan Hajnoczi <stefanha@redhat.com>
+Signed-off-by: Kevin Wolf <kwolf@redhat.com>
+(cherry picked from commit 5bf1d5a73a4a6d0e2d692bd02b6d7f3eedeed3b7)
+Signed-off-by: Jeff Cody <jcody@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ block/backup.c               | 4 ++--
+ block/commit.c               | 2 +-
+ block/mirror.c               | 6 +++---
+ block/stream.c               | 2 +-
+ blockjob.c                   | 5 +++--
+ include/block/blockjob_int.h | 7 +++----
+ tests/test-blockjob-txn.c    | 2 +-
+ 7 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/block/backup.c b/block/backup.c
+index 504a089..ac6dc89 100644
+--- a/block/backup.c
++++ b/block/backup.c
+@@ -346,9 +346,9 @@ static bool coroutine_fn yield_and_check(BackupBlockJob *job)
+         uint64_t delay_ns = ratelimit_calculate_delay(&job->limit,
+                                                       job->bytes_read);
+         job->bytes_read = 0;
+-        block_job_sleep_ns(&job->common, QEMU_CLOCK_REALTIME, delay_ns);
++        block_job_sleep_ns(&job->common, delay_ns);
+     } else {
+-        block_job_sleep_ns(&job->common, QEMU_CLOCK_REALTIME, 0);
++        block_job_sleep_ns(&job->common, 0);
+     }
+ 
+     if (block_job_is_cancelled(&job->common)) {
+diff --git a/block/commit.c b/block/commit.c
+index 834084b..9dbad9c 100644
+--- a/block/commit.c
++++ b/block/commit.c
+@@ -179,7 +179,7 @@ static void coroutine_fn commit_run(void *opaque)
+         /* Note that even when no rate limit is applied we need to yield
+          * with no pending I/O here so that bdrv_drain_all() returns.
+          */
+-        block_job_sleep_ns(&s->common, QEMU_CLOCK_REALTIME, delay_ns);
++        block_job_sleep_ns(&s->common, delay_ns);
+         if (block_job_is_cancelled(&s->common)) {
+             break;
+         }
+diff --git a/block/mirror.c b/block/mirror.c
+index 17278db..b88014e 100644
+--- a/block/mirror.c
++++ b/block/mirror.c
+@@ -608,7 +608,7 @@ static void mirror_throttle(MirrorBlockJob *s)
+ 
+     if (now - s->last_pause_ns > SLICE_TIME) {
+         s->last_pause_ns = now;
+-        block_job_sleep_ns(&s->common, QEMU_CLOCK_REALTIME, 0);
++        block_job_sleep_ns(&s->common, 0);
+     } else {
+         block_job_pause_point(&s->common);
+     }
+@@ -891,13 +891,13 @@ static void coroutine_fn mirror_run(void *opaque)
+         trace_mirror_before_sleep(s, cnt * BDRV_SECTOR_SIZE,
+                                   s->synced, delay_ns);
+         if (!s->synced) {
+-            block_job_sleep_ns(&s->common, QEMU_CLOCK_REALTIME, delay_ns);
++            block_job_sleep_ns(&s->common, delay_ns);
+             if (block_job_is_cancelled(&s->common)) {
+                 break;
+             }
+         } else if (!should_complete) {
+             delay_ns = (s->in_flight == 0 && cnt == 0 ? SLICE_TIME : 0);
+-            block_job_sleep_ns(&s->common, QEMU_CLOCK_REALTIME, delay_ns);
++            block_job_sleep_ns(&s->common, delay_ns);
+         }
+         s->last_pause_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+     }
+diff --git a/block/stream.c b/block/stream.c
+index e6f7234..499cdac 100644
+--- a/block/stream.c
++++ b/block/stream.c
+@@ -141,7 +141,7 @@ static void coroutine_fn stream_run(void *opaque)
+         /* Note that even when no rate limit is applied we need to yield
+          * with no pending I/O here so that bdrv_drain_all() returns.
+          */
+-        block_job_sleep_ns(&s->common, QEMU_CLOCK_REALTIME, delay_ns);
++        block_job_sleep_ns(&s->common, delay_ns);
+         if (block_job_is_cancelled(&s->common)) {
+             break;
+         }
+diff --git a/blockjob.c b/blockjob.c
+index 2509bba..4d78046 100644
+--- a/blockjob.c
++++ b/blockjob.c
+@@ -788,7 +788,7 @@ bool block_job_is_cancelled(BlockJob *job)
+     return job->cancelled;
+ }
+ 
+-void block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns)
++void block_job_sleep_ns(BlockJob *job, int64_t ns)
+ {
+     assert(job->busy);
+ 
+@@ -803,7 +803,8 @@ void block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns)
+      * it wakes and runs, otherwise we risk double-entry or entry after
+      * completion. */
+     if (!block_job_should_pause(job)) {
+-        co_aio_sleep_ns(blk_get_aio_context(job->blk), type, ns);
++        co_aio_sleep_ns(blk_get_aio_context(job->blk),
++                        QEMU_CLOCK_REALTIME, ns);
+     }
+ 
+     block_job_pause_point(job);
+diff --git a/include/block/blockjob_int.h b/include/block/blockjob_int.h
+index 43f3be2..f7ab183 100644
+--- a/include/block/blockjob_int.h
++++ b/include/block/blockjob_int.h
+@@ -139,14 +139,13 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
+ /**
+  * block_job_sleep_ns:
+  * @job: The job that calls the function.
+- * @clock: The clock to sleep on.
+  * @ns: How many nanoseconds to stop for.
+  *
+  * Put the job to sleep (assuming that it wasn't canceled) for @ns
+- * nanoseconds.  Canceling the job will not interrupt the wait, so the
+- * cancel will not process until the coroutine wakes up.
++ * %QEMU_CLOCK_REALTIME nanoseconds.  Canceling the job will not interrupt
++ * the wait, so the cancel will not process until the coroutine wakes up.
+  */
+-void block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns);
++void block_job_sleep_ns(BlockJob *job, int64_t ns);
+ 
+ /**
+  * block_job_yield:
+diff --git a/tests/test-blockjob-txn.c b/tests/test-blockjob-txn.c
+index c77343f..3591c96 100644
+--- a/tests/test-blockjob-txn.c
++++ b/tests/test-blockjob-txn.c
+@@ -44,7 +44,7 @@ static void coroutine_fn test_block_job_run(void *opaque)
+ 
+     while (s->iterations--) {
+         if (s->use_timer) {
+-            block_job_sleep_ns(job, QEMU_CLOCK_REALTIME, 0);
++            block_job_sleep_ns(job, 0);
+         } else {
+             block_job_yield(job);
+         }
+-- 
+1.8.3.1
+

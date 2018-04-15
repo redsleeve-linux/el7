@@ -1,0 +1,61 @@
+From d9e6ce9628a29f7992dd381a54aae14d45078bf8 Mon Sep 17 00:00:00 2001
+From: Ladi Prosek <lprosek@redhat.com>
+Date: Tue, 10 Oct 2017 14:02:50 +0200
+Subject: [PATCH 12/69] i386/kvm: introduce tsc_is_stable_and_known()
+
+RH-Author: Ladi Prosek <lprosek@redhat.com>
+Message-id: <20171010140251.23801-4-lprosek@redhat.com>
+Patchwork-id: 77062
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH 3/4] i386/kvm: introduce tsc_is_stable_and_known()
+Bugzilla: 1500347
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: David Hildenbrand <david@redhat.com>
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+
+Move the "is TSC stable and known" condition to a reusable helper.
+
+Signed-off-by: Ladi Prosek <lprosek@redhat.com>
+Reviewed-by: David Hildenbrand <david@redhat.com>
+Message-Id: <20170807085703.32267-4-lprosek@redhat.com>
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit 4bb95b82df7ea4a1c7de15649dd16a70a19e6bab)
+Signed-off-by: Ladi Prosek <lprosek@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ target/i386/kvm.c | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/target/i386/kvm.c b/target/i386/kvm.c
+index 15d56ae..2dc01c9 100644
+--- a/target/i386/kvm.c
++++ b/target/i386/kvm.c
+@@ -611,6 +611,15 @@ static int kvm_arch_set_tsc_khz(CPUState *cs)
+     return 0;
+ }
+ 
++static bool tsc_is_stable_and_known(CPUX86State *env)
++{
++    if (!env->tsc_khz) {
++        return false;
++    }
++    return (env->features[FEAT_8000_0007_EDX] & CPUID_APM_INVTSC)
++        || env->user_tsc_khz;
++}
++
+ static int hyperv_handle_properties(CPUState *cs)
+ {
+     X86CPU *cpu = X86_CPU(cs);
+@@ -986,9 +995,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
+         && cpu->expose_kvm
+         && kvm_base == KVM_CPUID_SIGNATURE
+         /* TSC clock must be stable and known for this feature. */
+-        && ((env->features[FEAT_8000_0007_EDX] & CPUID_APM_INVTSC)
+-            || env->user_tsc_khz != 0)
+-        && env->tsc_khz != 0) {
++        && tsc_is_stable_and_known(env)) {
+ 
+         c = &cpuid_data.entries[cpuid_i++];
+         c->function = KVM_CPUID_SIGNATURE | 0x10;
+-- 
+1.8.3.1
+

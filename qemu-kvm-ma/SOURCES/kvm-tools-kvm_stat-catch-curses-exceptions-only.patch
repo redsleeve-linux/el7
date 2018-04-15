@@ -1,0 +1,57 @@
+From 98cf56caaacda1b1f3ef8b571fe601fe0acdd8bf Mon Sep 17 00:00:00 2001
+From: David Hildenbrand <david@redhat.com>
+Date: Tue, 17 Oct 2017 19:15:28 +0200
+Subject: [PATCH 23/69] tools/kvm_stat: catch curses exceptions only
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: David Hildenbrand <david@redhat.com>
+Message-id: <20171017191605.2378-3-david@redhat.com>
+Patchwork-id: 77311
+O-Subject: [RHEL-7.5 qemu-kvm-rhev PATCH 02/39] tools/kvm_stat: catch curses exceptions only
+Bugzilla: 1497137
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+
+Upstream-status: linux.git 9fc0adfc427a5e3f95f8db8dafabe1eaa3720f4a
+
+commit 9fc0adfc427a5e3f95f8db8dafabe1eaa3720f4a
+Author: Stefan Raspl <raspl@linux.vnet.ibm.com>
+Date:   Fri Mar 10 13:40:01 2017 +0100
+
+    tools/kvm_stat: catch curses exceptions only
+
+    The previous version was catching all exceptions, including SIGINT.
+    We only want to catch the curses exceptions here.
+
+    Signed-off-by: Stefan Raspl <raspl@linux.vnet.ibm.com>
+    Reviewed-by: Janosch Frank <frankja@linux.vnet.ibm.com>
+    Reviewed-by: Sascha Silbe <silbe@linux.vnet.ibm.com>
+    Reviewed-by: Marc Hartmayer <mhartmay@linux.vnet.ibm.com>
+    Signed-off-by: Radim Krčmář <rkrcmar@redhat.com>
+
+Signed-off-by: David Hildenbrand <david@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ scripts/kvm/kvm_stat | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/scripts/kvm/kvm_stat b/scripts/kvm/kvm_stat
+index 8cc83a3..ef47ad7 100755
+--- a/scripts/kvm/kvm_stat
++++ b/scripts/kvm/kvm_stat
+@@ -809,7 +809,7 @@ class Tui(object):
+         # return from C start_color() is ignorable.
+         try:
+             curses.start_color()
+-        except:
++        except curses.error:
+             pass
+ 
+         # Hide cursor in extra statement as some monochrome terminals
+-- 
+1.8.3.1
+

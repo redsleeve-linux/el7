@@ -1,0 +1,58 @@
+From f8394b69cee118293a1983ebc99492f113d57704 Mon Sep 17 00:00:00 2001
+From: Igor Mammedov <imammedo@redhat.com>
+Date: Wed, 6 Dec 2017 13:47:58 +0100
+Subject: [PATCH 20/21] pc: fix crash on attempted cpu unplug
+
+RH-Author: Igor Mammedov <imammedo@redhat.com>
+Message-id: <1512568078-280557-1-git-send-email-imammedo@redhat.com>
+Patchwork-id: 78212
+O-Subject: [RHEL7.5 qemu-kvm-rhev PATCH] pc: fix crash on attempted cpu unplug
+Bugzilla: 1506856
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Marcel Apfelbaum <marcel@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+when qemu is started with '-no-acpi' CLI option, an attempt
+to unplug a CPU using device_del results in null pointer
+dereference at:
+
+  #0 object_get_class
+  #1 pc_machine_device_unplug_request_cb
+  #2 qmp_marshal_device_del
+
+which is caused by pcms->acpi_dev == NULL due to ACPI support
+being disabled.
+
+Considering that ACPI support is necessary for unplug to work,
+check that it's enabled and fail unplug request gracefully
+if no acpi device were found.
+
+Signed-off-by: Igor Mammedov <imammedo@redhat.com>
+Reviewed-by: Eduardo Habkost <ehabkost@redhat.com>
+Reviewed-by: Michael S. Tsirkin <mst@redhat.com>
+Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
+(cherry picked from commit 75ba2ddb188fa07c3442446766782036e3085cba)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/i386/pc.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/hw/i386/pc.c b/hw/i386/pc.c
+index f37d60a..db57b51 100644
+--- a/hw/i386/pc.c
++++ b/hw/i386/pc.c
+@@ -1879,6 +1879,11 @@ static void pc_cpu_unplug_request_cb(HotplugHandler *hotplug_dev,
+     X86CPU *cpu = X86_CPU(dev);
+     PCMachineState *pcms = PC_MACHINE(hotplug_dev);
+ 
++    if (!pcms->acpi_dev) {
++        error_setg(&local_err, "CPU hot unplug not supported without ACPI");
++        goto out;
++    }
++
+     pc_find_cpu_slot(MACHINE(pcms), cpu->apic_id, &idx);
+     assert(idx != -1);
+     if (idx == 0) {
+-- 
+1.8.3.1
+

@@ -1,0 +1,56 @@
+From 58702e8dbb2b2abc09b737d55d633228329d7256 Mon Sep 17 00:00:00 2001
+From: Laurent Vivier <lvivier@redhat.com>
+Date: Thu, 5 Oct 2017 08:16:15 +0200
+Subject: [PATCH 09/34] redhat: fix HW_COMPAT_RHEL7_3
+
+RH-Author: Laurent Vivier <lvivier@redhat.com>
+Message-id: <20171005081615.20677-1-lvivier@redhat.com>
+Patchwork-id: 76810
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH] redhat: fix HW_COMPAT_RHEL7_3
+Bugzilla: 1498754
+RH-Acked-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+
+BZ:   https://bugzilla.redhat.com/show_bug.cgi?id=1498754
+BREW: https://brewweb.engineering.redhat.com/brew/taskinfo?taskID=14179622
+Upstream-status: downstream only
+
+x-mtu-bypass-backend has been added to HW_COMPAT_2_1 instead of
+HW_COMPAT_RHEL7_3. Fix that.
+
+Signed-off-by: Laurent Vivier <lvivier@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ include/hw/compat.h | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/include/hw/compat.h b/include/hw/compat.h
+index 56cefc9..aa616e3 100644
+--- a/include/hw/compat.h
++++ b/include/hw/compat.h
+@@ -227,10 +227,6 @@
+         .driver   = "virtio-pci",\
+         .property = "virtio-pci-bus-master-bug-migration",\
+         .value    = "on",\
+-    },{ /* HW_COMPAT_RHEL7_3 */ \
+-        .driver   = "virtio-net-device",\
+-        .property = "x-mtu-bypass-backend",\
+-        .value    = "off",\
+     },
+ 
+ /* Mostly like HW_COMPAT_2_1 but:
+@@ -411,6 +407,10 @@
+         .driver   = "e1000e",\
+         .property = "__redhat_e1000e_7_3_intr_state",\
+         .value    = "on",\
++    },{ /* HW_COMPAT_RHEL7_3 */ \
++        .driver   = "virtio-net-device",\
++        .property = "x-mtu-bypass-backend",\
++        .value    = "off",\
+     },
+ 
+ #endif /* HW_COMPAT_H */
+-- 
+1.8.3.1
+

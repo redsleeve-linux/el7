@@ -1,0 +1,70 @@
+From 7d6eed4b197081fa324e42f7624d6ab0a27bab6d Mon Sep 17 00:00:00 2001
+From: Fam Zheng <famz@redhat.com>
+Date: Wed, 17 Jan 2018 06:08:34 +0100
+Subject: [PATCH 04/21] scsi-generic: Add share-rw option
+
+RH-Author: Fam Zheng <famz@redhat.com>
+Message-id: <20180117060834.17481-3-famz@redhat.com>
+Patchwork-id: 78652
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH 2/2] scsi-generic: Add share-rw option
+Bugzilla: 1518482
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: John Snow <jsnow@redhat.com>
+RH-Acked-by: Jeffrey Cody <jcody@redhat.com>
+
+Add the property to the device model, then parse it by calling
+blkconf_apply_backend_options().
+
+In addition to blk_set_perm(), the called function also handles error
+options and wce. For error options we've already checked that the
+default values are used, for wce we don't have the option either so it
+is always the default (true). In other words there is no change of
+behavior in these regards.
+
+Signed-off-by: Fam Zheng <famz@redhat.com>
+Message-Id: <20171205151553.7834-1-famz@redhat.com>
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit d9bcd6f7f23a13ea627d8edb85c0706525da0b75)
+Signed-off-by: Fam Zheng <famz@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/scsi/scsi-generic.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/hw/scsi/scsi-generic.c b/hw/scsi/scsi-generic.c
+index bd0d9ff..ba70c0d 100644
+--- a/hw/scsi/scsi-generic.c
++++ b/hw/scsi/scsi-generic.c
+@@ -482,6 +482,7 @@ static void scsi_generic_realize(SCSIDevice *s, Error **errp)
+     int rc;
+     int sg_version;
+     struct sg_scsi_id scsiid;
++    Error *local_err = NULL;
+ 
+     if (!s->conf.blk) {
+         error_setg(errp, "drive property not set");
+@@ -515,6 +516,13 @@ static void scsi_generic_realize(SCSIDevice *s, Error **errp)
+         error_setg(errp, "SG_GET_SCSI_ID ioctl failed");
+         return;
+     }
++    blkconf_apply_backend_options(&s->conf,
++                                  blk_is_read_only(s->conf.blk),
++                                  true, &local_err);
++    if (local_err) {
++        error_propagate(errp, local_err);
++        return;
++    }
+ 
+     /* define device state */
+     s->type = scsiid.scsi_type;
+@@ -565,6 +573,7 @@ static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun,
+ 
+ static Property scsi_generic_properties[] = {
+     DEFINE_PROP_DRIVE("drive", SCSIDevice, conf.blk),
++    DEFINE_PROP_BOOL("share-rw", SCSIDevice, conf.share_rw, false),
+     DEFINE_PROP_END_OF_LIST(),
+ };
+ 
+-- 
+1.8.3.1
+

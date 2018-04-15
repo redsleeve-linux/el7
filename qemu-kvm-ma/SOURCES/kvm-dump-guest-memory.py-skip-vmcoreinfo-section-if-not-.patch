@@ -1,0 +1,60 @@
+From cfa9ef75d5a2e814368940c0b6e70981bd082169 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
+Date: Mon, 5 Feb 2018 16:38:47 +0100
+Subject: [PATCH 19/20] dump-guest-memory.py: skip vmcoreinfo section if not
+ available
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: Marc-André Lureau <marcandre.lureau@redhat.com>
+Message-id: <20180205163847.12004-1-marcandre.lureau@redhat.com>
+Patchwork-id: 78897
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH] dump-guest-memory.py: skip vmcoreinfo section if not available
+Bugzilla: 1398633
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+
+On some architectures, qemu doesn't support vmcoreinfo device,
+and dump-guest-memory fails:
+
+(gdb) dump-guest-memory /tmp/vmcore  ppc64-le
+guest RAM blocks:
+target_start     target_end       host_addr        message count
+---------------- ---------------- ---------------- ------- -----
+0000000000000000 0000000200000000 00003ffd86980000 added       1
+0000200080000000 0000200080800000 00003ffd86170000 added       2
+Python Exception <class 'gdb.error'> No symbol "vmcoreinfo_realize" in current context.:
+Error occurred in Python command: No symbol "vmcoreinfo_realize" in current context.
+
+Check that vmcoreinfo_realize symbol exists before evaluating an
+expression with it.
+
+Signed-off-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+Reviewed-by: Laszlo Ersek <lersek@redhat.com>
+
+(cherry picked from commit ce6b9e421a9ab45d7e6c97af092a07c049954444)
+
+Signed-off-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ scripts/dump-guest-memory.py | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/scripts/dump-guest-memory.py b/scripts/dump-guest-memory.py
+index 03fbf69..51acfcd 100644
+--- a/scripts/dump-guest-memory.py
++++ b/scripts/dump-guest-memory.py
+@@ -546,6 +546,8 @@ shape and this command should mostly work."""
+         return None
+ 
+     def add_vmcoreinfo(self):
++        if gdb.lookup_symbol("vmcoreinfo_realize")[0] is None:
++            return
+         vmci = 'vmcoreinfo_realize::vmcoreinfo_state'
+         if not gdb.parse_and_eval("%s" % vmci) \
+            or not gdb.parse_and_eval("(%s)->has_vmcoreinfo" % vmci):
+-- 
+1.8.3.1
+

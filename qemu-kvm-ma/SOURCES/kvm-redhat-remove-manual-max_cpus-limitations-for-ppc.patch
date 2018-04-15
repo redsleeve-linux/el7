@@ -1,0 +1,73 @@
+From 92fef14623387db071a79f64fa7996ce8ea9040e Mon Sep 17 00:00:00 2001
+From: David Hildenbrand <david@redhat.com>
+Date: Tue, 9 Jan 2018 10:32:53 +0100
+Subject: [PATCH 03/12] redhat: remove manual max_cpus limitations for ppc
+
+RH-Author: David Hildenbrand <david@redhat.com>
+Message-id: <20180109103253.24517-3-david@redhat.com>
+Patchwork-id: 78532
+O-Subject: [RHEL-7.5 qemu-kvm-ma PATCH v2 2/2] redhat: remove manual max_cpus limitations for ppc
+Bugzilla: 1527449
+RH-Acked-by: David Gibson <dgibson@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+
+Upstream-status: n/a
+
+We now globally limit the number of VCPUs, depending on release type
+(RHEL vs. RHV). Especially, there is no way one can specify more than
+max_cpus VCPUs for a VM.
+
+This allows us the restore the ppc max_cpus limitation to the upstream
+default and minimize the ppc hack in kvm-all.c.
+
+Signed-off-by: David Hildenbrand <david@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ accel/kvm/kvm-all.c | 10 ----------
+ hw/ppc/spapr.c      |  3 +--
+ 2 files changed, 1 insertion(+), 12 deletions(-)
+
+diff --git a/accel/kvm/kvm-all.c b/accel/kvm/kvm-all.c
+index 94c4968..158fe66 100644
+--- a/accel/kvm/kvm-all.c
++++ b/accel/kvm/kvm-all.c
+@@ -1629,21 +1629,11 @@ static int kvm_init(MachineState *ms)
+ 
+ #ifdef HOST_PPC64
+     /*
+-     * RHEL hack:
+-     *
+      * On POWER, the kernel advertises a soft limit based on the
+      * number of CPU threads on the host.  We want to allow exceeding
+      * this for testing purposes, so we don't want to set hard limit
+      * to soft limit as on x86.
+-     *
+-     * However the POWER hard limit advertised by the kernel is 2048
+-     * (== NR_CPUS) but we only want to allow up to the number of
+-     * vCPUs we actually test, so we force the hard limit to 384
+      */
+-    hard_vcpus_limit = 384;
+-    if (soft_vcpus_limit > hard_vcpus_limit) {
+-        soft_vcpus_limit = hard_vcpus_limit;
+-    }
+ #else
+     /* RHEL doesn't support nr_vcpus > soft_vcpus_limit */
+     hard_vcpus_limit = soft_vcpus_limit;
+diff --git a/hw/ppc/spapr.c b/hw/ppc/spapr.c
+index d320b6c..d7fac62 100644
+--- a/hw/ppc/spapr.c
++++ b/hw/ppc/spapr.c
+@@ -3586,8 +3586,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
+     mc->init = ppc_spapr_init;
+     mc->reset = ppc_spapr_reset;
+     mc->block_default_type = IF_SCSI;
+-    /* RHEL: set to max # of supported vcpus */
+-    mc->max_cpus = 384;
++    mc->max_cpus = 1024;
+     mc->no_parallel = 1;
+     mc->default_boot_order = "";
+     mc->default_ram_size = 512 * M_BYTE;
+-- 
+1.8.3.1
+

@@ -1,0 +1,77 @@
+From 026e3aa58780db72c38618e576f4c6029e3b029a Mon Sep 17 00:00:00 2001
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Thu, 8 Mar 2018 15:58:17 +0100
+Subject: [PATCH 04/17] address_space_access_valid: address_space_to_flatview
+ needs RCU lock
+
+RH-Author: Paolo Bonzini <pbonzini@redhat.com>
+Message-id: <20180308155819.20598-5-pbonzini@redhat.com>
+Patchwork-id: 79195
+O-Subject: [RHEL7.5 qemu-kvm-rhev PATCH 4/6] address_space_access_valid: address_space_to_flatview needs RCU lock
+Bugzilla: 1554930
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+
+address_space_access_valid is calling address_space_to_flatview but it can
+be called outside the RCU lock.  To fix it, push the rcu_read_lock/unlock
+pair up from flatview_access_valid to address_space_access_valid.
+
+Reviewed-by: Alexey Kardashevskiy <aik@ozlabs.ru>
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry pick from commit 11e732a5ed46903f997985bed4c3767ca28a7eb6)
+
+[squashed fix for rcu_read_unlock() that should have been removed,
+ for which I'll send a pull request upstream tomorrow]
+
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ exec.c | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/exec.c b/exec.c
+index 43c66da..431b85b 100644
+--- a/exec.c
++++ b/exec.c
+@@ -3259,14 +3259,12 @@ static bool flatview_access_valid(FlatView *fv, hwaddr addr, int len,
+     MemoryRegion *mr;
+     hwaddr l, xlat;
+ 
+-    rcu_read_lock();
+     while (len > 0) {
+         l = len;
+         mr = flatview_translate(fv, addr, &xlat, &l, is_write);
+         if (!memory_access_is_direct(mr, is_write)) {
+             l = memory_access_size(mr, l, addr);
+             if (!memory_region_access_valid(mr, xlat, l, is_write)) {
+-                rcu_read_unlock();
+                 return false;
+             }
+         }
+@@ -3274,15 +3272,20 @@ static bool flatview_access_valid(FlatView *fv, hwaddr addr, int len,
+         len -= l;
+         addr += l;
+     }
+-    rcu_read_unlock();
+     return true;
+ }
+ 
+ bool address_space_access_valid(AddressSpace *as, hwaddr addr,
+                                 int len, bool is_write)
+ {
+-    return flatview_access_valid(address_space_to_flatview(as),
+-                                 addr, len, is_write);
++    FlatView *fv;
++    bool result;
++
++    rcu_read_lock();
++    fv = address_space_to_flatview(as);
++    result = flatview_access_valid(fv, addr, len, is_write);
++    rcu_read_unlock();
++    return result;
+ }
+ 
+ static hwaddr
+-- 
+1.8.3.1
+

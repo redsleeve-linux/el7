@@ -1,0 +1,78 @@
+From c1ed391fd7e14e16387f8d5e320b13157851db9a Mon Sep 17 00:00:00 2001
+From: Suraj Jitindar Singh <sursingh@redhat.com>
+Date: Fri, 24 Nov 2017 00:58:16 +0100
+Subject: [PATCH 11/15] target/ppc: correct htab shift for hash on radix
+
+RH-Author: Suraj Jitindar Singh <sursingh@redhat.com>
+Message-id: <1511485097-25676-2-git-send-email-sursingh@redhat.com>
+Patchwork-id: 77845
+O-Subject: [RHEL7.5 qemu-kvm-rhev PATCH 1/2] target/ppc: correct htab shift for hash on radix
+Bugzilla: 1396120
+RH-Acked-by: David Gibson <dgibson@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+
+From: Sam Bobroff <sam.bobroff@au1.ibm.com>
+
+KVM HV will soon support running a guest in hash mode on a POWER9 host
+running in radix mode (see [1]), however the guest currently fails to
+boot.
+
+This is because the "htab_shift" value (the size of the MMU's hash
+table) is added to the device tree before KVM has had a chance to
+change it. If the host is in hash mode, KVM does not need to change it
+and so the problem is not seen, but when the host is in radix mode a
+change is required and we see a problem.
+
+To fix this, move the call spapr_setup_hpt_and_vrma() (where
+htab_shift could be changed) up a little so that it's called before
+spapr_h_cas_compose_response() (where htab_shift is added to the
+device tree).
+
+Signed-off-by: Sam Bobroff <sam.bobroff@au1.ibm.com>
+
+[1] See http://www.spinics.net/lists/kvm-ppc/msg13057.html
+Signed-off-by: David Gibson <david@gibson.dropbear.id.au>
+
+(cherry picked from commit e05fba5004676cd0fa7c47b623cb0a14ad1feed8)
+
+Signed-off-by: Suraj Jitindar Singh <sursingh@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/ppc/spapr_hcall.c | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/hw/ppc/spapr_hcall.c b/hw/ppc/spapr_hcall.c
+index 92f1e21..b503299 100644
+--- a/hw/ppc/spapr_hcall.c
++++ b/hw/ppc/spapr_hcall.c
+@@ -1609,6 +1609,12 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
+     spapr->cas_legacy_guest_workaround = !spapr_ovec_test(ov1_guest,
+                                                           OV1_PPC_3_00);
+     if (!spapr->cas_reboot) {
++        /* If ppc_spapr_reset() did not set up a HPT but one is necessary
++         * (because the guest isn't going to use radix) then set it up here. */
++        if ((spapr->patb_entry & PATBE1_GR) && !guest_radix) {
++            /* legacy hash or new hash: */
++            spapr_setup_hpt_and_vrma(spapr);
++        }
+         spapr->cas_reboot =
+             (spapr_h_cas_compose_response(spapr, args[1], args[2],
+                                           ov5_updates) != 0);
+@@ -1617,13 +1623,6 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
+ 
+     if (spapr->cas_reboot) {
+         qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
+-    } else {
+-        /* If ppc_spapr_reset() did not set up a HPT but one is necessary
+-         * (because the guest isn't going to use radix) then set it up here. */
+-        if ((spapr->patb_entry & PATBE1_GR) && !guest_radix) {
+-            /* legacy hash or new hash: */
+-            spapr_setup_hpt_and_vrma(spapr);
+-        }
+     }
+ 
+     return H_SUCCESS;
+-- 
+1.8.3.1
+

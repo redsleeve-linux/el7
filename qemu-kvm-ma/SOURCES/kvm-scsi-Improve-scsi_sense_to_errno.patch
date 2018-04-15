@@ -1,0 +1,74 @@
+From bc3855000036c3abe2a440d3cb65a9fbd90745fb Mon Sep 17 00:00:00 2001
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Sat, 2 Dec 2017 12:19:41 +0100
+Subject: [PATCH 15/36] scsi: Improve scsi_sense_to_errno
+
+RH-Author: Paolo Bonzini <pbonzini@redhat.com>
+Message-id: <20171202121953.13317-6-pbonzini@redhat.com>
+Patchwork-id: 78077
+O-Subject: [RHEL7.4 qemu-kvm-rhev PATCH 05/17] scsi: Improve scsi_sense_to_errno
+Bugzilla: 1464908
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+RH-Acked-by: John Snow <jsnow@redhat.com>
+
+From: Fam Zheng <famz@redhat.com>
+
+Tweak the errno mapping to return more accurate/appropriate values.
+
+Signed-off-by: Fam Zheng <famz@redhat.com>
+Message-Id: <20170821141008.19383-3-famz@redhat.com>
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit 5efa3c04483d408a03ff5f018842501a2048a51b)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ util/scsi.c | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/util/scsi.c b/util/scsi.c
+index a671079..472eb5b 100644
+--- a/util/scsi.c
++++ b/util/scsi.c
+@@ -18,13 +18,16 @@
+ int scsi_sense_to_errno(int key, int asc, int ascq)
+ {
+     switch (key) {
+-    case 0x02: /* NOT READY */
+-        return EBUSY;
+-    case 0x07: /* DATA PROTECTION */
+-        return EACCES;
++    case 0x00: /* NO SENSE */
++    case 0x01: /* RECOVERED ERROR */
++    case 0x06: /* UNIT ATTENTION */
++        /* These sense keys are not errors */
++        return 0;
+     case 0x0b: /* COMMAND ABORTED */
+         return ECANCELED;
++    case 0x02: /* NOT READY */
+     case 0x05: /* ILLEGAL REQUEST */
++    case 0x07: /* DATA PROTECTION */
+         /* Parse ASCQ */
+         break;
+     default:
+@@ -37,6 +40,7 @@ int scsi_sense_to_errno(int key, int asc, int ascq)
+     case 0x2600: /* INVALID FIELD IN PARAMETER LIST */
+         return EINVAL;
+     case 0x2100: /* LBA OUT OF RANGE */
++    case 0x2707: /* SPACE ALLOC FAILED */
+         return ENOSPC;
+     case 0x2500: /* LOGICAL UNIT NOT SUPPORTED */
+         return ENOTSUP;
+@@ -46,6 +50,10 @@ int scsi_sense_to_errno(int key, int asc, int ascq)
+         return ENOMEDIUM;
+     case 0x2700: /* WRITE PROTECTED */
+         return EACCES;
++    case 0x0401: /* NOT READY, IN PROGRESS OF BECOMING READY */
++        return EAGAIN;
++    case 0x0402: /* NOT READY, INITIALIZING COMMAND REQUIRED */
++        return ENOTCONN;
+     default:
+         return EIO;
+     }
+-- 
+1.8.3.1
+

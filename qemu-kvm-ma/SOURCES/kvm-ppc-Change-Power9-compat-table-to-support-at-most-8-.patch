@@ -1,0 +1,59 @@
+From ff6a3c436c561a73b00e8dbe4b5c8dc52ecfda40 Mon Sep 17 00:00:00 2001
+From: David Gibson <dgibson@redhat.com>
+Date: Fri, 19 Jan 2018 04:04:55 +0100
+Subject: [PATCH 15/21] ppc: Change Power9 compat table to support at most 8
+ threads/core
+
+RH-Author: David Gibson <dgibson@redhat.com>
+Message-id: <20180119040458.5629-2-dgibson@redhat.com>
+Patchwork-id: 78675
+O-Subject: [RHEL-7.5 qemu-kvm-rhev PATCH 1/4] ppc: Change Power9 compat table to support at most 8 threads/core
+Bugzilla: 1529243
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+From: Jose Ricardo Ziviani <joserz@linux.vnet.ibm.com>
+
+Increases the max smt mode to 8 for Power9. That's because KVM supports
+smt emulation in this platform so QEMU should allow users to use it as
+well.
+
+Today if we try to pass -smp ...,threads=8, QEMU will silently truncate
+it to smt4 mode and may cause a crash if we try to perform a cpu
+hotplug.
+
+Signed-off-by: Jose Ricardo Ziviani <joserz@linux.vnet.ibm.com>
+[dwg: Added an explanatory comment]
+Signed-off-by: David Gibson <david@gibson.dropbear.id.au>
+(cherry picked from commit 03ee51d3548f5f553a3089f466483c1c6d5c666b)
+
+Signed-off-by: David Gibson <dgibson@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ target/ppc/compat.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/target/ppc/compat.c b/target/ppc/compat.c
+index 2d95434..94ff14a 100644
+--- a/target/ppc/compat.c
++++ b/target/ppc/compat.c
+@@ -73,7 +73,14 @@ static const CompatInfo compat_table[] = {
+         .pvr = CPU_POWERPC_LOGICAL_3_00,
+         .pcr = PCR_COMPAT_3_00,
+         .pcr_level = PCR_COMPAT_3_00,
+-        .max_threads = 4,
++        /*
++         * POWER9 hardware only supports 4 threads / core, but this
++         * limit is for guests.  We need to support 8 vthreads/vcore
++         * on POWER9 for POWER8 compatibility guests, and it's very
++         * confusing if half of the threads disappear from the guest
++         * if it announces it's POWER9 aware at CAS time.
++         */
++        .max_threads = 8,
+     },
+ };
+ 
+-- 
+1.8.3.1
+

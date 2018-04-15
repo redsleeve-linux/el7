@@ -1,0 +1,142 @@
+From 35806318c04a6d8450ed745d1921a07915c3cc16 Mon Sep 17 00:00:00 2001
+From: Kevin Wolf <kwolf@redhat.com>
+Date: Mon, 4 Dec 2017 12:10:03 +0100
+Subject: [PATCH 32/36] block: Base permissions on rw state after reopen
+
+RH-Author: Kevin Wolf <kwolf@redhat.com>
+Message-id: <20171204121007.12964-5-kwolf@redhat.com>
+Patchwork-id: 78109
+O-Subject: [RHV-7.5 qemu-kvm-rhev PATCH v2 4/8] block: Base permissions on rw state after reopen
+Bugzilla: 1492178
+RH-Acked-by: Fam Zheng <famz@redhat.com>
+RH-Acked-by: Max Reitz <mreitz@redhat.com>
+RH-Acked-by: Jeffrey Cody <jcody@redhat.com>
+
+When new permissions are calculated during bdrv_reopen(), they need to
+be based on the state of the graph as it will be after the reopen has
+completed, not on the current state of the involved nodes.
+
+This patch makes bdrv_is_writable() optionally accept a BlockReopenQueue
+from which the new flags are taken. This is then used for determining
+the new bs->file permissions of format drivers as soon as we add the
+code to actually pass a non-NULL reopen queue to the .bdrv_child_perm
+callbacks.
+
+While moving bdrv_is_writable(), make it static. It isn't used outside
+block.c.
+
+Signed-off-by: Kevin Wolf <kwolf@redhat.com>
+Reviewed-by: Eric Blake <eblake@redhat.com>
+(cherry picked from commit 148eb13c84cccd0eedd6e59f90e0151bd7bac9fa)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ block.c               | 52 ++++++++++++++++++++++++++++++++++++---------------
+ include/block/block.h |  1 -
+ 2 files changed, 37 insertions(+), 16 deletions(-)
+
+diff --git a/block.c b/block.c
+index 5ce773a..5cce274 100644
+--- a/block.c
++++ b/block.c
+@@ -240,12 +240,6 @@ bool bdrv_is_read_only(BlockDriverState *bs)
+     return bs->read_only;
+ }
+ 
+-/* Returns whether the image file can be written to right now */
+-bool bdrv_is_writable(BlockDriverState *bs)
+-{
+-    return !bdrv_is_read_only(bs) && !(bs->open_flags & BDRV_O_INACTIVE);
+-}
+-
+ int bdrv_can_set_read_only(BlockDriverState *bs, bool read_only,
+                            bool ignore_allow_rdw, Error **errp)
+ {
+@@ -1535,6 +1529,41 @@ static int bdrv_child_check_perm(BdrvChild *c, BlockReopenQueue *q,
+ static void bdrv_child_abort_perm_update(BdrvChild *c);
+ static void bdrv_child_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared);
+ 
++typedef struct BlockReopenQueueEntry {
++     bool prepared;
++     BDRVReopenState state;
++     QSIMPLEQ_ENTRY(BlockReopenQueueEntry) entry;
++} BlockReopenQueueEntry;
++
++/*
++ * Return the flags that @bs will have after the reopens in @q have
++ * successfully completed. If @q is NULL (or @bs is not contained in @q),
++ * return the current flags.
++ */
++static int bdrv_reopen_get_flags(BlockReopenQueue *q, BlockDriverState *bs)
++{
++    BlockReopenQueueEntry *entry;
++
++    if (q != NULL) {
++        QSIMPLEQ_FOREACH(entry, q, entry) {
++            if (entry->state.bs == bs) {
++                return entry->state.flags;
++            }
++        }
++    }
++
++    return bs->open_flags;
++}
++
++/* Returns whether the image file can be written to after the reopen queue @q
++ * has been successfully applied, or right now if @q is NULL. */
++static bool bdrv_is_writable(BlockDriverState *bs, BlockReopenQueue *q)
++{
++    int flags = bdrv_reopen_get_flags(q, bs);
++
++    return (flags & (BDRV_O_RDWR | BDRV_O_INACTIVE)) == BDRV_O_RDWR;
++}
++
+ static void bdrv_child_perm(BlockDriverState *bs, BlockDriverState *child_bs,
+                             BdrvChild *c, const BdrvChildRole *role,
+                             BlockReopenQueue *reopen_queue,
+@@ -1572,7 +1601,7 @@ static int bdrv_check_perm(BlockDriverState *bs, BlockReopenQueue *q,
+ 
+     /* Write permissions never work with read-only images */
+     if ((cumulative_perms & (BLK_PERM_WRITE | BLK_PERM_WRITE_UNCHANGED)) &&
+-        !bdrv_is_writable(bs))
++        !bdrv_is_writable(bs, q))
+     {
+         error_setg(errp, "Block node is read-only");
+         return -EPERM;
+@@ -1862,8 +1891,7 @@ void bdrv_format_default_perms(BlockDriverState *bs, BdrvChild *c,
+                                   &perm, &shared);
+ 
+         /* Format drivers may touch metadata even if the guest doesn't write */
+-        /* TODO Take flags from reopen_queue */
+-        if (bdrv_is_writable(bs)) {
++        if (bdrv_is_writable(bs, reopen_queue)) {
+             perm |= BLK_PERM_WRITE | BLK_PERM_RESIZE;
+         }
+ 
+@@ -2641,12 +2669,6 @@ BlockDriverState *bdrv_open(const char *filename, const char *reference,
+                              NULL, errp);
+ }
+ 
+-typedef struct BlockReopenQueueEntry {
+-     bool prepared;
+-     BDRVReopenState state;
+-     QSIMPLEQ_ENTRY(BlockReopenQueueEntry) entry;
+-} BlockReopenQueueEntry;
+-
+ /*
+  * Adds a BlockDriverState to a simple queue for an atomic, transactional
+  * reopen of multiple devices.
+diff --git a/include/block/block.h b/include/block/block.h
+index ab80195..4d0d2da 100644
+--- a/include/block/block.h
++++ b/include/block/block.h
+@@ -435,7 +435,6 @@ int bdrv_is_allocated_above(BlockDriverState *top, BlockDriverState *base,
+                             int64_t offset, int64_t bytes, int64_t *pnum);
+ 
+ bool bdrv_is_read_only(BlockDriverState *bs);
+-bool bdrv_is_writable(BlockDriverState *bs);
+ int bdrv_can_set_read_only(BlockDriverState *bs, bool read_only,
+                            bool ignore_allow_rdw, Error **errp);
+ int bdrv_set_read_only(BlockDriverState *bs, bool read_only, Error **errp);
+-- 
+1.8.3.1
+

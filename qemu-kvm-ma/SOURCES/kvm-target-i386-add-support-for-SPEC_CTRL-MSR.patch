@@ -1,0 +1,143 @@
+From f0fac2e6c70510f7a5c5c572831b1a851a29fc07 Mon Sep 17 00:00:00 2001
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Wed, 13 Dec 2017 15:47:36 -0200
+Subject: [PATCH 1/3] target-i386: add support for SPEC_CTRL MSR
+
+RH-Author: Eduardo Habkost <ehabkost@redhat.com>
+Message-id: <20171213174738.20852-2-ehabkost@redhat.com>
+Patchwork-id: n/a
+O-Subject: [CONFIDENTIAL][RHEL-7.5 qemu-kvm-rhev PATCH v2 1/3] target-i386: cpu:
+add new CPUID bits for indirect branch predictor restrictions
+Bugzilla: CVE-2017-5715
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ target/i386/cpu.h     |  3 +++
+ target/i386/kvm.c     | 14 ++++++++++++++
+ target/i386/machine.c | 20 ++++++++++++++++++++
+ 3 files changed, 37 insertions(+)
+
+diff --git a/target/i386/cpu.h b/target/i386/cpu.h
+index fd73888..4dfb859 100644
+--- a/target/i386/cpu.h
++++ b/target/i386/cpu.h
+@@ -335,6 +335,7 @@
+ #define MSR_IA32_APICBASE_BASE          (0xfffffU<<12)
+ #define MSR_IA32_FEATURE_CONTROL        0x0000003a
+ #define MSR_TSC_ADJUST                  0x0000003b
++#define MSR_IA32_SPEC_CTRL              0x48
+ #define MSR_IA32_TSCDEADLINE            0x6e0
+ 
+ #define FEATURE_CONTROL_LOCKED                    (1<<0)
+@@ -1082,6 +1083,8 @@ typedef struct CPUX86State {
+ 
+     uint32_t pkru;
+ 
++    uint64_t spec_ctrl;
++
+     /* End of state preserved by INIT (dummy marker).  */
+     struct {} end_init_save;
+ 
+diff --git a/target/i386/kvm.c b/target/i386/kvm.c
+index ee4e91f..3f59629 100644
+--- a/target/i386/kvm.c
++++ b/target/i386/kvm.c
+@@ -91,6 +91,7 @@ static bool has_msr_hv_synic;
+ static bool has_msr_hv_stimer;
+ static bool has_msr_hv_frequencies;
+ static bool has_msr_xss;
++static bool has_msr_spec_ctrl;
+ 
+ static bool has_msr_architectural_pmu;
+ static uint32_t num_architectural_pmu_counters;
+@@ -1145,6 +1146,9 @@ static int kvm_get_supported_msrs(KVMState *s)
+                 case HV_X64_MSR_TSC_FREQUENCY:
+                     has_msr_hv_frequencies = true;
+                     break;
++                case MSR_IA32_SPEC_CTRL:
++                    has_msr_spec_ctrl = true;
++                    break;
+                 }
+             }
+         }
+@@ -1627,6 +1631,9 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
+     if (has_msr_xss) {
+         kvm_msr_entry_add(cpu, MSR_IA32_XSS, env->xss);
+     }
++    if (has_msr_spec_ctrl) {
++        kvm_msr_entry_add(cpu, MSR_IA32_SPEC_CTRL, env->spec_ctrl);
++    }
+ #ifdef TARGET_X86_64
+     if (lm_capable_kernel) {
+         kvm_msr_entry_add(cpu, MSR_CSTAR, env->cstar);
+@@ -1635,6 +1642,7 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
+         kvm_msr_entry_add(cpu, MSR_LSTAR, env->lstar);
+     }
+ #endif
++
+     /*
+      * The following MSRs have side effects on the guest or are too heavy
+      * for normal writeback. Limit them to reset or full state updates.
+@@ -2000,6 +2008,9 @@ static int kvm_get_msrs(X86CPU *cpu)
+     if (has_msr_xss) {
+         kvm_msr_entry_add(cpu, MSR_IA32_XSS, 0);
+     }
++    if (has_msr_spec_ctrl) {
++        kvm_msr_entry_add(cpu, MSR_IA32_SPEC_CTRL, 0);
++    }
+ 
+ 
+     if (!env->tsc_valid) {
+@@ -2349,6 +2360,9 @@ static int kvm_get_msrs(X86CPU *cpu)
+                 env->mtrr_var[MSR_MTRRphysIndex(index)].base = msrs[i].data;
+             }
+             break;
++        case MSR_IA32_SPEC_CTRL:
++            env->spec_ctrl = msrs[i].data;
++            break;
+         }
+     }
+ 
+diff --git a/target/i386/machine.c b/target/i386/machine.c
+index 6156626..0212270 100644
+--- a/target/i386/machine.c
++++ b/target/i386/machine.c
+@@ -838,6 +838,25 @@ static const VMStateDescription vmstate_xsave ={
+     }
+ };
+ 
++static bool spec_ctrl_needed(void *opaque)
++{
++    X86CPU *cpu = opaque;
++    CPUX86State *env = &cpu->env;
++
++    return env->spec_ctrl != 0;
++}
++
++static const VMStateDescription vmstate_spec_ctrl = {
++    .name = "cpu/spec_ctrl",
++    .version_id = 1,
++    .minimum_version_id = 1,
++    .needed = spec_ctrl_needed,
++    .fields = (VMStateField[]){
++        VMSTATE_UINT64(env.spec_ctrl, X86CPU),
++        VMSTATE_END_OF_LIST()
++    }
++};
++
+ VMStateDescription vmstate_x86_cpu = {
+     .name = "cpu",
+     .version_id = 12,
+@@ -956,6 +975,7 @@ VMStateDescription vmstate_x86_cpu = {
+ #ifdef TARGET_X86_64
+         &vmstate_pkru,
+ #endif
++        &vmstate_spec_ctrl,
+         &vmstate_mcg_ext_ctl,
+         &vmstate_xsave,
+         NULL
+-- 
+1.8.3.1
+

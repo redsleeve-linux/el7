@@ -1,0 +1,51 @@
+From f2c23150bc8b51e7b6c78f98cc38880ff1e5e811 Mon Sep 17 00:00:00 2001
+From: Max Reitz <mreitz@redhat.com>
+Date: Mon, 27 Nov 2017 16:19:57 +0100
+Subject: [PATCH 02/21] qcow2: Fix unaligned preallocated truncation
+
+RH-Author: Max Reitz <mreitz@redhat.com>
+Message-id: <20171127161959.13234-3-mreitz@redhat.com>
+Patchwork-id: 77911
+O-Subject: [RHV-7.5 qemu-kvm-rhev PATCH 2/4] qcow2: Fix unaligned preallocated truncation
+Bugzilla: 1414049
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Jeffrey Cody <jcody@redhat.com>
+RH-Acked-by: Fam Zheng <famz@redhat.com>
+RH-Acked-by: John Snow <jsnow@redhat.com>
+
+A qcow2 image file's length is not required to have a length that is a
+multiple of the cluster size.  However, qcow2_refcount_area() expects an
+aligned value for its @start_offset parameter, so we need to round
+@old_file_size up to the next cluster boundary.
+
+Reported-by: Ping Li <pingl@redhat.com>
+Bug: https://bugzilla.redhat.com/show_bug.cgi?id=1414049
+Signed-off-by: Max Reitz <mreitz@redhat.com>
+Message-id: 20171009215533.12530-2-mreitz@redhat.com
+Cc: qemu-stable@nongnu.org
+Reviewed-by: Eric Blake <eblake@redhat.com>
+Reviewed-by: Jeff Cody <jcody@redhat.com>
+Reviewed-by: Stefan Hajnoczi <stefanha@redhat.com>
+Signed-off-by: Max Reitz <mreitz@redhat.com>
+(cherry picked from commit e400ad1e1f0127b4fdabcb1c8de1e99be91788df)
+Signed-off-by: Max Reitz <mreitz@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ block/qcow2.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/block/qcow2.c b/block/qcow2.c
+index af7b1e7..2cfe706 100644
+--- a/block/qcow2.c
++++ b/block/qcow2.c
+@@ -3161,6 +3161,7 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset,
+                              "Failed to inquire current file length");
+             return old_file_size;
+         }
++        old_file_size = ROUND_UP(old_file_size, s->cluster_size);
+ 
+         nb_new_data_clusters = DIV_ROUND_UP(offset - old_length,
+                                             s->cluster_size);
+-- 
+1.8.3.1
+

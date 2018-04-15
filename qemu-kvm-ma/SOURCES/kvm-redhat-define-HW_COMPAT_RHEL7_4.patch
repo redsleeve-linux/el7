@@ -1,0 +1,51 @@
+From ea157600dac6db592419ad9a8562ad86a8103627 Mon Sep 17 00:00:00 2001
+From: Laurent Vivier <lvivier@redhat.com>
+Date: Mon, 9 Oct 2017 14:23:15 +0200
+Subject: [PATCH 06/69] redhat: define HW_COMPAT_RHEL7_4
+
+RH-Author: Laurent Vivier <lvivier@redhat.com>
+Message-id: <20171009142318.6262-2-lvivier@redhat.com>
+Patchwork-id: 77033
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH 1/4] redhat: define HW_COMPAT_RHEL7_4
+Bugzilla: 1478478
+RH-Acked-by: David Gibson <dgibson@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+
+Signed-off-by: Laurent Vivier <lvivier@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ include/hw/compat.h | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)
+
+diff --git a/include/hw/compat.h b/include/hw/compat.h
+index aa616e3..85c6cbe 100644
+--- a/include/hw/compat.h
++++ b/include/hw/compat.h
+@@ -413,4 +413,23 @@
+         .value    = "off",\
+     },
+ 
++/* Mostly like HW_COMPAT_2_9 except
++ * x-mtu-bypass-backend has already been
++ * backported to RHEL7.4
++ */
++#define HW_COMPAT_RHEL7_4 \
++    { /* HW_COMPAT_RHEL7_4 */ \
++        .driver   = "pci-bridge",\
++        .property = "shpc",\
++        .value    = "off",\
++    },{ /* HW_COMPAT_RHEL7_4 */ \
++        .driver   = "intel-iommu",\
++        .property = "pt",\
++        .value    = "off",\
++    },{ /* HW_COMPAT_RHEL7_4 */ \
++        .driver   = "pcie-root-port",\
++        .property = "x-migrate-msix",\
++        .value    = "false",\
++    },
++
+ #endif /* HW_COMPAT_H */
+-- 
+1.8.3.1
+

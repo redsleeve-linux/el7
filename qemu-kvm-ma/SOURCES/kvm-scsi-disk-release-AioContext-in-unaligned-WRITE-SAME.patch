@@ -1,0 +1,54 @@
+From 81bdf75b893c852a9daae615b4ab41106eb364db Mon Sep 17 00:00:00 2001
+From: Stefan Hajnoczi <stefanha@redhat.com>
+Date: Thu, 18 Jan 2018 12:12:04 +0100
+Subject: [PATCH 06/21] scsi-disk: release AioContext in unaligned WRITE SAME
+ case
+
+RH-Author: Stefan Hajnoczi <stefanha@redhat.com>
+Message-id: <20180118121204.17287-2-stefanha@redhat.com>
+Patchwork-id: 78663
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH 1/1] scsi-disk: release AioContext in unaligned WRITE SAME case
+Bugzilla: 1526423
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Jeffrey Cody <jcody@redhat.com>
+RH-Acked-by: John Snow <jsnow@redhat.com>
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+
+scsi_write_same_complete() can retry the write if the request was
+unaligned.  Make sure to release the AioContext when that code path is
+taken!
+
+This patch fixes a hang when QEMU terminates after an unaligned WRITE
+SAME request has been processed with dataplane.  The hang occurs because
+iothread_stop_all() cannot acquire the AioContext lock that was leaked
+by the IOThread in scsi_write_same_complete().
+
+Fixes: b9e413dd37 ("block: explicitly acquire aiocontext in aio callbacks that need it").
+Cc: Paolo Bonzini <pbonzini@redhat.com>
+Cc: qemu-stable@nongnu.org
+Reported-by: Cong Li <coli@redhat.com>
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+Message-Id: <20180104142502.15175-1-stefanha@redhat.com>
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit 24355b79bdaf6ab12f7c610b032fc35ec045cd55)
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/scsi/scsi-disk.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/hw/scsi/scsi-disk.c b/hw/scsi/scsi-disk.c
+index c676355..25cbd7b 100644
+--- a/hw/scsi/scsi-disk.c
++++ b/hw/scsi/scsi-disk.c
+@@ -1747,6 +1747,7 @@ static void scsi_write_same_complete(void *opaque, int ret)
+                                        data->sector << BDRV_SECTOR_BITS,
+                                        &data->qiov, 0,
+                                        scsi_write_same_complete, data);
++        aio_context_release(blk_get_aio_context(s->qdev.conf.blk));
+         return;
+     }
+ 
+-- 
+1.8.3.1
+

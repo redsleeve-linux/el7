@@ -1,0 +1,60 @@
+From 3d76fc1a1b8041c952d398140832460f16b7eade Mon Sep 17 00:00:00 2001
+From: Igor Mammedov <imammedo@redhat.com>
+Date: Thu, 19 Oct 2017 15:28:13 +0200
+Subject: [PATCH 68/69] spapr: disable cpu hot-remove
+
+RH-Author: Igor Mammedov <imammedo@redhat.com>
+Message-id: <1508426893-172020-1-git-send-email-imammedo@redhat.com>
+Patchwork-id: 77378
+O-Subject: [RHV7.5 qemu-kvm-ma PATCH v2] spapr: disable cpu hot-remove
+Bugzilla: 1499320
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: David Gibson <dgibson@redhat.com>
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1499320
+Brew: https://brewweb.engineering.redhat.com/brew/taskinfo?taskID=14301295
+Upstream: RHEL-only
+
+Rebase to 2.10 brought in cpu hot-remove with it, disable it
+for qemu-kvm-ma variant of QEMU where it hasn't been supported.
+Use CONFIG_RHV to switch unplug off only for qemu-kvm-ma and
+not to affect RHEV variant built from the same source code.
+
+Signed-off-by: Igor Mammedov <imammedo@redhat.com>
+---
+v2:
+  - use CONFIG_RHV to not break RHEV build
+
+Thanks to Laszlo for hints to use CONFIG_RHV!
+
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/ppc/spapr.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/hw/ppc/spapr.c b/hw/ppc/spapr.c
+index 3c598fd..5fe7769 100644
+--- a/hw/ppc/spapr.c
++++ b/hw/ppc/spapr.c
+@@ -3148,6 +3148,7 @@ static
+ void spapr_core_unplug_request(HotplugHandler *hotplug_dev, DeviceState *dev,
+                                Error **errp)
+ {
++#if defined(CONFIG_RHV)
+     int index;
+     sPAPRDRConnector *drc;
+     CPUCore *cc = CPU_CORE(dev);
+@@ -3169,6 +3170,9 @@ void spapr_core_unplug_request(HotplugHandler *hotplug_dev, DeviceState *dev,
+     spapr_drc_detach(drc);
+ 
+     spapr_hotplug_req_remove_by_index(drc);
++#else
++    error_setg(errp, "this feature or command is not currently supported");
++#endif /* CONFIG_RHV */
+ }
+ 
+ static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
+-- 
+1.8.3.1
+

@@ -1,0 +1,43 @@
+From 6c6a4d0d8f5d83ee57b83a85889426389141498c Mon Sep 17 00:00:00 2001
+From: Thomas Huth <thuth@redhat.com>
+Date: Mon, 9 Oct 2017 12:32:39 +0200
+Subject: [PATCH 20/34] usb: fix libusb config variable name.
+
+RH-Author: Thomas Huth <thuth@redhat.com>
+Message-id: <1507552368-9245-4-git-send-email-thuth@redhat.com>
+Patchwork-id: 77023
+O-Subject: [RHEL-7.5 qemu-kvm-ma PATCH 03/12] usb: fix libusb config variable name.
+Bugzilla: 1492033
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: David Gibson <dgibson@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+From: Gerd Hoffmann <kraxel@redhat.com>
+
+Cc: Jan Kiszka <jan.kiszka@siemens.com>
+Fixes: 4e5ee5b21c84fe3023a64b5cc2e12a52ab0597c1
+Signed-off-by: Gerd Hoffmann <kraxel@redhat.com>
+Tested-by: Jan Kiszka <jan.kiszka@siemens.com>
+Message-id: 20170926063820.30773-1-kraxel@redhat.com
+(cherry picked from commit 275d477a1adb084a47859507b20b05e7d65f8e8d)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/usb/Makefile.objs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/hw/usb/Makefile.objs b/hw/usb/Makefile.objs
+index 757e365..01c18cf 100644
+--- a/hw/usb/Makefile.objs
++++ b/hw/usb/Makefile.objs
+@@ -38,7 +38,7 @@ endif
+ common-obj-$(CONFIG_USB_REDIR) += redirect.o quirks.o
+ 
+ # usb pass-through
+-ifeq ($(CONFIG_LIBUSB)$(CONFIG_USB),yy)
++ifeq ($(CONFIG_USB_LIBUSB)$(CONFIG_USB),yy)
+ common-obj-y += host-libusb.o host-legacy.o
+ else
+ common-obj-y += host-stub.o
+-- 
+1.8.3.1
+

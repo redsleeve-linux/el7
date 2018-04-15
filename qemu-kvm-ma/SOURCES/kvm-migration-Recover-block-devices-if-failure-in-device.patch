@@ -1,0 +1,57 @@
+From 2b263ba2282ac34afa1f9fd1892db868d8b91dba Mon Sep 17 00:00:00 2001
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+Date: Wed, 7 Feb 2018 12:24:49 +0100
+Subject: [PATCH 01/15] migration: Recover block devices if failure in device
+ state
+
+RH-Author: Dr. David Alan Gilbert <dgilbert@redhat.com>
+Message-id: <20180207122449.11675-2-dgilbert@redhat.com>
+Patchwork-id: 78915
+O-Subject: [RHEL-7.5 qemu-kvm-rhev PATCH 1/1] migration: Recover block devices if failure in device state
+Bugzilla: 1538494
+RH-Acked-by: Peter Xu <peterx@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Kevin Wolf <kwolf@redhat.com>
+
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+
+In e91d895 I added the new pause-before-switchover mechanism
+to allow migration completion to be delayed; this changes the
+last state prior to completion to MIGRATE_STATUS_DEVICE rather
+than MIGRATE_STATUS_ACTIVE.
+
+Fix the failure path in migration_completion to recover the block
+devices if it fails in MIGRATE_STATUS_DEVICE, not just the
+MIGRATE_STATUS_ACTIVE that it previously had.
+
+This corresponds to rh bz:
+  https://bugzilla.redhat.com/show_bug.cgi?id=1538494
+whose symptom is an occasional source crash on a failed migration.
+
+Fixes: e91d8951d59d483f085f
+Signed-off-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+Reviewed-by: Peter Xu <peterx@redhat.com>
+Signed-off-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+(cherry picked from commit 6039dd5b1c45d76403b9dcadd2afd7efd8f42330)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ migration/migration.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/migration/migration.c b/migration/migration.c
+index cd33718..38d4d9f 100644
+--- a/migration/migration.c
++++ b/migration/migration.c
+@@ -1990,7 +1990,8 @@ fail_invalidate:
+     /* If not doing postcopy, vm_start() will be called: let's regain
+      * control on images.
+      */
+-    if (s->state == MIGRATION_STATUS_ACTIVE) {
++    if (s->state == MIGRATION_STATUS_ACTIVE ||
++        s->state == MIGRATION_STATUS_DEVICE) {
+         Error *local_err = NULL;
+ 
+         qemu_mutex_lock_iothread();
+-- 
+1.8.3.1
+

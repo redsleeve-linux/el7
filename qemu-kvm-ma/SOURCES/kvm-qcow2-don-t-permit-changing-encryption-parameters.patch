@@ -1,0 +1,46 @@
+From e28736d3d0b2e1a8bf4e9d0bb9c6bca8d972b043 Mon Sep 17 00:00:00 2001
+From: "Daniel P. Berrange" <berrange@redhat.com>
+Date: Wed, 29 Nov 2017 15:09:19 +0100
+Subject: [PATCH 01/36] qcow2: don't permit changing encryption parameters
+
+RH-Author: Daniel P. Berrange <berrange@redhat.com>
+Message-id: <20171129150920.8539-2-berrange@redhat.com>
+Patchwork-id: 77973
+O-Subject: [RHV-7.5 qemu-kvm-rhev PATCH 1/2] qcow2: don't permit changing encryption parameters
+Bugzilla: 1406803
+RH-Acked-by: Max Reitz <mreitz@redhat.com>
+RH-Acked-by: Jeffrey Cody <jcody@redhat.com>
+RH-Acked-by: Kevin Wolf <kwolf@redhat.com>
+
+Currently if trying to change encryption parameters on a qcow2 image, qemu-img
+will abort. We already explicitly check for attempt to change encrypt.format
+but missed other parameters like encrypt.key-secret. Rather than list each
+parameter, just blacklist changing of all parameters with a 'encrypt.' prefix.
+
+Signed-off-by: Daniel P. Berrange <berrange@redhat.com>
+Reviewed-by: Alberto Garcia <berto@igalia.com>
+Reviewed-by: Eric Blake <eblake@redhat.com>
+Signed-off-by: Kevin Wolf <kwolf@redhat.com>
+(cherry picked from commit f66afbe26f0c093d639610d70d16d7cc3183b652)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ block/qcow2.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/block/qcow2.c b/block/qcow2.c
+index b26cbbf..6e8f753 100644
+--- a/block/qcow2.c
++++ b/block/qcow2.c
+@@ -4044,6 +4044,9 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
+                 error_report("Changing the encryption format is not supported");
+                 return -ENOTSUP;
+             }
++        } else if (g_str_has_prefix(desc->name, "encrypt.")) {
++            error_report("Changing the encryption parameters is not supported");
++            return -ENOTSUP;
+         } else if (!strcmp(desc->name, BLOCK_OPT_CLUSTER_SIZE)) {
+             cluster_size = qemu_opt_get_size(opts, BLOCK_OPT_CLUSTER_SIZE,
+                                              cluster_size);
+-- 
+1.8.3.1
+

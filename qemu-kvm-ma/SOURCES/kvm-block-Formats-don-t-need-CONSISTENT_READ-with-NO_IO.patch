@@ -1,0 +1,58 @@
+From a80280654277c361714ec5f3925d2d6b077eca7b Mon Sep 17 00:00:00 2001
+From: Kevin Wolf <kwolf@redhat.com>
+Date: Mon, 15 Jan 2018 11:23:37 +0100
+Subject: [PATCH 12/12] block: Formats don't need CONSISTENT_READ with NO_IO
+
+RH-Author: Kevin Wolf <kwolf@redhat.com>
+Message-id: <20180115112337.20885-4-kwolf@redhat.com>
+Patchwork-id: 78574
+O-Subject: [RHV-7.5 qemu-kvm-rhev PATCH 3/3] block: Formats don't need CONSISTENT_READ with NO_IO
+Bugzilla: 1515604
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Jeffrey Cody <jcody@redhat.com>
+RH-Acked-by: John Snow <jsnow@redhat.com>
+
+Commit 1f4ad7d fixed 'qemu-img info' for raw images that are currently
+in use as a mirror target. It is not enough for image formats, though,
+as these still unconditionally request BLK_PERM_CONSISTENT_READ.
+
+As this permission is geared towards whether the guest-visible data is
+consistent, and has no impact on whether the metadata is sane, and
+'qemu-img info' does not read guest-visible data (except for the raw
+format), it makes sense to not require BLK_PERM_CONSISTENT_READ if there
+is not going to be any guest I/O performed, regardless of image format.
+
+Signed-off-by: Kevin Wolf <kwolf@redhat.com>
+(cherry picked from commit 5fbfabd313b77e1cc7038ae8c4481c4b9f8b650a)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ block.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/block.c b/block.c
+index 90a60bc..ca8a46b 100644
+--- a/block.c
++++ b/block.c
+@@ -1885,6 +1885,8 @@ void bdrv_format_default_perms(BlockDriverState *bs, BdrvChild *c,
+     assert(role == &child_backing || role == &child_file);
+ 
+     if (!backing) {
++        int flags = bdrv_reopen_get_flags(reopen_queue, bs);
++
+         /* Apart from the modifications below, the same permissions are
+          * forwarded and left alone as for filters */
+         bdrv_filter_default_perms(bs, c, role, reopen_queue, perm, shared,
+@@ -1897,7 +1899,9 @@ void bdrv_format_default_perms(BlockDriverState *bs, BdrvChild *c,
+ 
+         /* bs->file always needs to be consistent because of the metadata. We
+          * can never allow other users to resize or write to it. */
+-        perm |= BLK_PERM_CONSISTENT_READ;
++        if (!(flags & BDRV_O_NO_IO)) {
++            perm |= BLK_PERM_CONSISTENT_READ;
++        }
+         shared &= ~(BLK_PERM_WRITE | BLK_PERM_RESIZE);
+     } else {
+         /* We want consistent read from backing files if the parent needs it.
+-- 
+1.8.3.1
+

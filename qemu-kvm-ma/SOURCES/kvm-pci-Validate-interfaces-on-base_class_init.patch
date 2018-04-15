@@ -1,0 +1,62 @@
+From 091efe6a8488e0eac52d78fd5db2db76efb891d3 Mon Sep 17 00:00:00 2001
+From: Eduardo Habkost <ehabkost@redhat.com>
+Date: Fri, 20 Oct 2017 18:29:17 +0200
+Subject: [PATCH 12/19] pci: Validate interfaces on base_class_init
+
+RH-Author: Eduardo Habkost <ehabkost@redhat.com>
+Message-id: <20171020182917.10771-8-ehabkost@redhat.com>
+Patchwork-id: 77427
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH v2 7/7] pci: Validate interfaces on base_class_init
+Bugzilla: 1390348
+RH-Acked-by: Marcel Apfelbaum <marcel@redhat.com>
+RH-Acked-by: Michael S. Tsirkin <mst@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+
+Make sure we don't forget to add the Conventional PCI or PCI
+Express interface names on PCI device classes in the future.
+
+Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
+Revieed-by: David Gibson <david@gibson.dropbear.id.au>
+Reviewed-by: Marcel Apfelbaum <marcel@redhat.com>
+Reviewed-by: Michael S. Tsirkin <mst@redhat.com>
+Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
+(cherry picked from commit 2fefa16cec5a719f5cbc26c0672dd2099cd2ed9b)
+Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/pci/pci.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/hw/pci/pci.c b/hw/pci/pci.c
+index 1226696..f0c98cd 100644
+--- a/hw/pci/pci.c
++++ b/hw/pci/pci.c
+@@ -2525,6 +2525,17 @@ static void pci_device_class_init(ObjectClass *klass, void *data)
+     pc->realize = pci_default_realize;
+ }
+ 
++static void pci_device_class_base_init(ObjectClass *klass, void *data)
++{
++    if (!object_class_is_abstract(klass)) {
++        ObjectClass *conventional =
++            object_class_dynamic_cast(klass, INTERFACE_CONVENTIONAL_PCI_DEVICE);
++        ObjectClass *pcie =
++            object_class_dynamic_cast(klass, INTERFACE_PCIE_DEVICE);
++        assert(conventional || pcie);
++    }
++}
++
+ AddressSpace *pci_device_iommu_address_space(PCIDevice *dev)
+ {
+     PCIBus *bus = PCI_BUS(dev->bus);
+@@ -2649,6 +2660,7 @@ static const TypeInfo pci_device_type_info = {
+     .abstract = true,
+     .class_size = sizeof(PCIDeviceClass),
+     .class_init = pci_device_class_init,
++    .class_base_init = pci_device_class_base_init,
+ };
+ 
+ static void pci_register_types(void)
+-- 
+1.8.3.1
+

@@ -1,0 +1,80 @@
+From 87e23865f2383a8befcba2908dcd56c708a2fbb8 Mon Sep 17 00:00:00 2001
+From: "Daniel P. Berrange" <berrange@redhat.com>
+Date: Wed, 20 Dec 2017 17:56:56 +0100
+Subject: [PATCH 16/42] io: get rid of qio_channel_websock_encode helper method
+
+RH-Author: Daniel P. Berrange <berrange@redhat.com>
+Message-id: <20171220175702.29663-15-berrange@redhat.com>
+Patchwork-id: 78467
+O-Subject: [RHV-7.5 qemu-kvm-rhev PATCH v2 14/20] io: get rid of qio_channel_websock_encode helper method
+Bugzilla: 1518649
+RH-Acked-by: John Snow <jsnow@redhat.com>
+RH-Acked-by: Jeffrey Cody <jcody@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+The qio_channel_websock_encode method is only used in one place,
+everything else calls qio_channel_websock_encode_buffer directly.
+It can also be pushed up a level into the qio_channel_websock_writev
+method, since every other caller of qio_channel_websock_write_wire
+has already filled encoutput.
+
+Reviewed-by: Eric Blake <eblake@redhat.com>
+Signed-off-by: Daniel P. Berrange <berrange@redhat.com>
+(cherry picked from commit bac6c95415788c03590542eb244c723a18d0771c)
+
+NB, in qio_channel_websock_writev  s/ioc/wioc/ to fix a typo
+upstream that would break builds during git bisect.
+
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ io/channel-websock.c | 20 ++++++--------------
+ 1 file changed, 6 insertions(+), 14 deletions(-)
+
+diff --git a/io/channel-websock.c b/io/channel-websock.c
+index 6083f74..403b72b 100644
+--- a/io/channel-websock.c
++++ b/io/channel-websock.c
+@@ -616,18 +616,6 @@ static void qio_channel_websock_encode_buffer(QIOChannelWebsock *ioc,
+ }
+ 
+ 
+-static void qio_channel_websock_encode(QIOChannelWebsock *ioc)
+-{
+-    if (!ioc->rawoutput.offset) {
+-        return;
+-    }
+-    qio_channel_websock_encode_buffer(
+-        ioc, &ioc->encoutput, QIO_CHANNEL_WEBSOCK_OPCODE_BINARY_FRAME,
+-        &ioc->rawoutput);
+-    buffer_reset(&ioc->rawoutput);
+-}
+-
+-
+ static ssize_t qio_channel_websock_write_wire(QIOChannelWebsock *, Error **);
+ 
+ 
+@@ -948,8 +936,6 @@ static ssize_t qio_channel_websock_write_wire(QIOChannelWebsock *ioc,
+     ssize_t ret;
+     ssize_t done = 0;
+ 
+-    qio_channel_websock_encode(ioc);
+-
+     while (ioc->encoutput.offset > 0) {
+         ret = qio_channel_write(ioc->master,
+                                 (char *)ioc->encoutput.buffer,
+@@ -1134,6 +1120,12 @@ static ssize_t qio_channel_websock_writev(QIOChannel *ioc,
+     }
+ 
+  done:
++    if (wioc->rawoutput.offset) {
++        qio_channel_websock_encode_buffer(
++            wioc, &wioc->encoutput, QIO_CHANNEL_WEBSOCK_OPCODE_BINARY_FRAME,
++            &wioc->rawoutput);
++        buffer_reset(&wioc->rawoutput);
++    }
+     ret = qio_channel_websock_write_wire(wioc, errp);
+     if (ret < 0 &&
+         ret != QIO_CHANNEL_ERR_BLOCK) {
+-- 
+1.8.3.1
+

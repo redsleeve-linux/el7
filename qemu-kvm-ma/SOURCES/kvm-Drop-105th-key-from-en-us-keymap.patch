@@ -1,0 +1,58 @@
+From bfd55b42182f0c0c43ad0e251083a941f6af0a45 Mon Sep 17 00:00:00 2001
+From: Gerd Hoffmann <kraxel@redhat.com>
+Date: Fri, 12 Jan 2018 10:45:52 +0100
+Subject: [PATCH 1/8] Drop 105th key from en-us keymap.
+
+RH-Author: Gerd Hoffmann <kraxel@redhat.com>
+Message-id: <20180112104552.13782-2-kraxel@redhat.com>
+Patchwork-id: 78561
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH 1/1] Drop 105th key from en-us keymap.
+Bugzilla: 1513870
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Markus Armbruster <armbru@redhat.com>
+
+Qemu keymap code has problems to deal with the case that multiple
+keyscodes can generate the same keysym.  In this specific case both
+shift+comma and the 105th key map to "<".  qemu picks the 105th key
+instead of comma, the guest sees shift+105th key and interprets that
+as ">".  Oops.
+
+The correct fix for that is to use not only the keysym for the reverse
+keycode lookup, but also the modifier state.  So "<" with shift gets
+mapped to shift+command and "<" without shift to the 105th key.  That
+requires some non-trivial changes in qemu though as right now the
+reverse keymap can hold one entry per keysym only.
+
+Given that we are pretty late in the 7.5 cycle we take the shortcut to
+simply remove the mappings for the 105th key (which isn't present anyway
+on physical 104 key us keyboards, only 105 key intl keyboards running
+with en-us keymap have that), to workaround this issue for the most
+annonying case.
+
+Signed-off-by: Gerd Hoffmann <kraxel@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ pc-bios/keymaps/en-us | 6 ------
+ 1 file changed, 6 deletions(-)
+
+diff --git a/pc-bios/keymaps/en-us b/pc-bios/keymaps/en-us
+index a70e03a..e518a9d 100644
+--- a/pc-bios/keymaps/en-us
++++ b/pc-bios/keymaps/en-us
+@@ -343,12 +343,6 @@ KP_Decimal 0x53 numlock
+ 
+ # evdev 85 (0x55): no evdev -> QKeyCode mapping (xkb keysym NoSymbol)
+ 
+-# evdev 86 (0x56), QKeyCode "less", number 0x56
+-less 0x56
+-greater 0x56 shift
+-bar 0x56 altgr
+-brokenbar 0x56 shift altgr
+-
+ # evdev 87 (0x57), QKeyCode "f11", number 0x57
+ F11 0x57
+ 
+-- 
+1.8.3.1
+

@@ -1,0 +1,174 @@
+From 4dc6726309313a4c2e508d2ac9ec3bd7ea29cde2 Mon Sep 17 00:00:00 2001
+From: Eduardo Habkost <ehabkost@redhat.com>
+Date: Fri, 20 Oct 2017 18:29:14 +0200
+Subject: [PATCH 09/19] pci: Add INTERFACE_PCIE_DEVICE to all PCIe devices
+
+RH-Author: Eduardo Habkost <ehabkost@redhat.com>
+Message-id: <20171020182917.10771-5-ehabkost@redhat.com>
+Patchwork-id: 77423
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH v2 4/7] pci: Add INTERFACE_PCIE_DEVICE to all PCIe devices
+Bugzilla: 1390348
+RH-Acked-by: Marcel Apfelbaum <marcel@redhat.com>
+RH-Acked-by: Michael S. Tsirkin <mst@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+
+Change all devices that set is_express=1 to implement
+INTERFACE_PCIE_DEVICE.
+
+Backport notes:
+* Not included: hw/pci-bridge/pcie_pci_bridge.c
+
+Cc: Keith Busch <keith.busch@intel.com>
+Cc: Kevin Wolf <kwolf@redhat.com>
+Cc: Max Reitz <mreitz@redhat.com>
+Cc: Dmitry Fleytman <dmitry@daynix.com>
+Cc: Jason Wang <jasowang@redhat.com>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Marcel Apfelbaum <marcel@redhat.com>
+Cc: Paul Burton <paul.burton@imgtec.com>
+Cc: Paolo Bonzini <pbonzini@redhat.com>
+Cc: Hannes Reinecke <hare@suse.com>
+Cc: qemu-block@nongnu.org
+Reviewed-by: Alistair Francis <alistair.francis@xilinx.com>
+Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
+Reviewed-by: David Gibson <david@gibson.dropbear.id.au>
+Reviewed-by: Marcel Apfelbaum <marcel@redhat.com>
+Reviewed-by: Michael S. Tsirkin <mst@redhat.com>
+Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
+(cherry picked from commit 71d787677d0cacea846dc851c3e56ad076d59c04)
+Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/block/nvme.c                    | 4 ++++
+ hw/net/e1000e.c                    | 4 ++++
+ hw/pci-bridge/pcie_root_port.c     | 4 ++++
+ hw/pci-bridge/xio3130_downstream.c | 4 ++++
+ hw/pci-bridge/xio3130_upstream.c   | 4 ++++
+ hw/pci-host/xilinx-pcie.c          | 4 ++++
+ hw/scsi/megasas.c                  | 6 ++++++
+ 7 files changed, 30 insertions(+)
+
+diff --git a/hw/block/nvme.c b/hw/block/nvme.c
+index 6071dc1..26d58b6 100644
+--- a/hw/block/nvme.c
++++ b/hw/block/nvme.c
+@@ -1110,6 +1110,10 @@ static const TypeInfo nvme_info = {
+     .instance_size = sizeof(NvmeCtrl),
+     .class_init    = nvme_class_init,
+     .instance_init = nvme_instance_init,
++    .interfaces = (InterfaceInfo[]) {
++        { INTERFACE_PCIE_DEVICE },
++        { }
++    },
+ };
+ 
+ static void nvme_register_types(void)
+diff --git a/hw/net/e1000e.c b/hw/net/e1000e.c
+index d6ca464..ac9b1e3 100644
+--- a/hw/net/e1000e.c
++++ b/hw/net/e1000e.c
+@@ -729,6 +729,10 @@ static const TypeInfo e1000e_info = {
+     .instance_size = sizeof(E1000EState),
+     .class_init = e1000e_class_init,
+     .instance_init = e1000e_instance_init,
++    .interfaces = (InterfaceInfo[]) {
++        { INTERFACE_PCIE_DEVICE },
++        { }
++    },
+ };
+ 
+ static void e1000e_register_types(void)
+diff --git a/hw/pci-bridge/pcie_root_port.c b/hw/pci-bridge/pcie_root_port.c
+index 4d588cb..9b6e4ce 100644
+--- a/hw/pci-bridge/pcie_root_port.c
++++ b/hw/pci-bridge/pcie_root_port.c
+@@ -161,6 +161,10 @@ static const TypeInfo rp_info = {
+     .class_init    = rp_class_init,
+     .abstract      = true,
+     .class_size = sizeof(PCIERootPortClass),
++    .interfaces = (InterfaceInfo[]) {
++        { INTERFACE_PCIE_DEVICE },
++        { }
++    },
+ };
+ 
+ static void rp_register_types(void)
+diff --git a/hw/pci-bridge/xio3130_downstream.c b/hw/pci-bridge/xio3130_downstream.c
+index 5a882b0..1e09d2a 100644
+--- a/hw/pci-bridge/xio3130_downstream.c
++++ b/hw/pci-bridge/xio3130_downstream.c
+@@ -196,6 +196,10 @@ static const TypeInfo xio3130_downstream_info = {
+     .name          = "xio3130-downstream",
+     .parent        = TYPE_PCIE_SLOT,
+     .class_init    = xio3130_downstream_class_init,
++    .interfaces = (InterfaceInfo[]) {
++        { INTERFACE_PCIE_DEVICE },
++        { }
++    },
+ };
+ 
+ static void xio3130_downstream_register_types(void)
+diff --git a/hw/pci-bridge/xio3130_upstream.c b/hw/pci-bridge/xio3130_upstream.c
+index a052224..227997c 100644
+--- a/hw/pci-bridge/xio3130_upstream.c
++++ b/hw/pci-bridge/xio3130_upstream.c
+@@ -166,6 +166,10 @@ static const TypeInfo xio3130_upstream_info = {
+     .name          = "x3130-upstream",
+     .parent        = TYPE_PCIE_PORT,
+     .class_init    = xio3130_upstream_class_init,
++    .interfaces = (InterfaceInfo[]) {
++        { INTERFACE_PCIE_DEVICE },
++        { }
++    },
+ };
+ 
+ static void xio3130_upstream_register_types(void)
+diff --git a/hw/pci-host/xilinx-pcie.c b/hw/pci-host/xilinx-pcie.c
+index 4613dda..7659253 100644
+--- a/hw/pci-host/xilinx-pcie.c
++++ b/hw/pci-host/xilinx-pcie.c
+@@ -317,6 +317,10 @@ static const TypeInfo xilinx_pcie_root_info = {
+     .parent = TYPE_PCI_BRIDGE,
+     .instance_size = sizeof(XilinxPCIERoot),
+     .class_init = xilinx_pcie_root_class_init,
++    .interfaces = (InterfaceInfo[]) {
++        { INTERFACE_PCIE_DEVICE },
++        { }
++    },
+ };
+ 
+ static void xilinx_pcie_register(void)
+diff --git a/hw/scsi/megasas.c b/hw/scsi/megasas.c
+index 734fdae..3641c30 100644
+--- a/hw/scsi/megasas.c
++++ b/hw/scsi/megasas.c
+@@ -2451,6 +2451,7 @@ typedef struct MegasasInfo {
+     int osts;
+     const VMStateDescription *vmsd;
+     Property *props;
++    InterfaceInfo *interfaces;
+ } MegasasInfo;
+ 
+ static struct MegasasInfo megasas_devices[] = {
+@@ -2480,6 +2481,10 @@ static struct MegasasInfo megasas_devices[] = {
+         .is_express = true,
+         .vmsd = &vmstate_megasas_gen2,
+         .props = megasas_properties_gen2,
++        .interfaces = (InterfaceInfo[]) {
++            { INTERFACE_PCIE_DEVICE },
++            { }
++        },
+     }
+ };
+ 
+@@ -2531,6 +2536,7 @@ static void megasas_register_types(void)
+         type_info.parent = TYPE_MEGASAS_BASE;
+         type_info.class_data = (void *)info;
+         type_info.class_init = megasas_class_init;
++        type_info.interfaces = info->interfaces;
+ 
+         type_register(&type_info);
+     }
+-- 
+1.8.3.1
+

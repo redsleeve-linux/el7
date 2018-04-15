@@ -1,0 +1,57 @@
+From 20103e6ef28af483bb8aa54b1272fbd480b61aa4 Mon Sep 17 00:00:00 2001
+From: Fam Zheng <famz@redhat.com>
+Date: Mon, 15 Jan 2018 06:15:18 +0100
+Subject: [PATCH 08/12] block: Open backing image in force share mode for size
+ probe
+
+RH-Author: Fam Zheng <famz@redhat.com>
+Message-id: <20180115061518.16303-1-famz@redhat.com>
+Patchwork-id: 78570
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH] block: Open backing image in force share mode for size probe
+Bugzilla: 1526212
+RH-Acked-by: Kevin Wolf <kwolf@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: John Snow <jsnow@redhat.com>
+
+Management tools create overlays of running guests with qemu-img:
+
+  $ qemu-img create -b /image/in/use.qcow2 -f qcow2 /overlay/image.qcow2
+
+but this doesn't work anymore due to image locking:
+
+    qemu-img: /overlay/image.qcow2: Failed to get shared "write" lock
+    Is another process using the image?
+    Could not open backing image to determine size.
+Use the force share option to allow this use case again.
+
+Cc: qemu-stable@nongnu.org
+Signed-off-by: Fam Zheng <famz@redhat.com>
+Reviewed-by: Eric Blake <eblake@redhat.com>
+Signed-off-by: Kevin Wolf <kwolf@redhat.com>
+(cherry picked from commit cc954f01e3c004aad081aa36736a17e842b80211)
+Signed-off-by: Fam Zheng <famz@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ block.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/block.c b/block.c
+index b5736dd..17629ab 100644
+--- a/block.c
++++ b/block.c
+@@ -4515,10 +4515,11 @@ void bdrv_img_create(const char *filename, const char *fmt,
+         back_flags = flags;
+         back_flags &= ~(BDRV_O_RDWR | BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
+ 
++        backing_options = qdict_new();
+         if (backing_fmt) {
+-            backing_options = qdict_new();
+             qdict_put_str(backing_options, "driver", backing_fmt);
+         }
++        qdict_put_bool(backing_options, BDRV_OPT_FORCE_SHARE, true);
+ 
+         bs = bdrv_open(full_backing, NULL, backing_options, back_flags,
+                        &local_err);
+-- 
+1.8.3.1
+

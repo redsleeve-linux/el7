@@ -1,0 +1,55 @@
+From 6471fec6246b152ac4ddfb8c13d80c5054e5792f Mon Sep 17 00:00:00 2001
+From: Thomas Huth <thuth@redhat.com>
+Date: Mon, 9 Oct 2017 12:32:43 +0200
+Subject: [PATCH 24/34] watchdog/wdt_diag288: Mark diag288 watchdog as
+ non-hotpluggable
+
+RH-Author: Thomas Huth <thuth@redhat.com>
+Message-id: <1507552368-9245-8-git-send-email-thuth@redhat.com>
+Patchwork-id: 77027
+O-Subject: [RHEL-7.5 qemu-kvm-ma PATCH 07/12] watchdog/wdt_diag288: Mark diag288 watchdog as non-hotpluggable
+Bugzilla: 1492033
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: David Gibson <dgibson@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+QEMU currently aborts when the user tries to hot-unplug a diag288
+device:
+
+$ qemu-system-s390x -nographic -nodefaults -S -monitor stdio
+QEMU 2.9.92 monitor - type 'help' for more information
+(qemu) device_add diag288,id=x
+(qemu) device_del x
+**
+ERROR:qemu/qdev-monitor.c:872:qdev_unplug: assertion failed: (hotplug_ctrl)
+Aborted (core dumped)
+
+The device is not designed as hot-pluggable (it should only be used
+via the "-watchdog" parameter), so let's simply remove the possibility
+to hotplug it to prevent that users can run into this ugly situation.
+
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+Message-Id: <1502892528-22618-1-git-send-email-thuth@redhat.com>
+Reviewed-by: David Hildenbrand <david@redhat.com>
+Signed-off-by: Cornelia Huck <cohuck@redhat.com>
+(cherry picked from commit 84ebd3e8c7d4fe955b359b9aac84395907b0412e)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/watchdog/wdt_diag288.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/hw/watchdog/wdt_diag288.c b/hw/watchdog/wdt_diag288.c
+index a7b64e2..47f2892 100644
+--- a/hw/watchdog/wdt_diag288.c
++++ b/hw/watchdog/wdt_diag288.c
+@@ -121,6 +121,7 @@ static void wdt_diag288_class_init(ObjectClass *klass, void *data)
+     dc->realize = wdt_diag288_realize;
+     dc->unrealize = wdt_diag288_unrealize;
+     dc->reset = wdt_diag288_reset;
++    dc->hotpluggable = false;
+     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+     dc->vmsd = &vmstate_diag288;
+     diag288->handle_timer = wdt_diag288_handle_timer;
+-- 
+1.8.3.1
+

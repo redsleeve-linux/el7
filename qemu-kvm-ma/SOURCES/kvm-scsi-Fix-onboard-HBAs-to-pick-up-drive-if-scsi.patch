@@ -1,0 +1,73 @@
+From 8198d8d36fed85743c4d2b26aa1670f5bc3a9793 Mon Sep 17 00:00:00 2001
+From: Markus Armbruster <armbru@redhat.com>
+Date: Tue, 28 Nov 2017 13:24:17 +0100
+Subject: [PATCH 16/21] scsi: Fix onboard HBAs to pick up -drive if=scsi
+
+RH-Author: Markus Armbruster <armbru@redhat.com>
+Message-id: <20171128132417.18247-2-armbru@redhat.com>
+Patchwork-id: 77934
+O-Subject: [RHV-7.5 qemu-kvm-rhev PATCH v2 1/1] scsi: Fix onboard HBAs to pick up -drive if=scsi
+Bugzilla: 1497740
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Jeffrey Cody <jcody@redhat.com>
+
+Downstream commit 7977e6031 "scsi: Disable deprecated implicit SCSI
+HBA creation more cleanly" regressed -drive if=scsi and its sugared
+forms like -cdrom with onboard HBAs.  Instead of creating SCSI devices
+connected to the onboard HBA, we reject these options like this:
+
+    $ qemu-kvm -cdrom r7.iso
+    qemu-kvm: -cdrom r7.iso: machine type does not support if=scsi,bus=0,unit=2
+
+The culprit is scsi_bus_legacy_handle_cmdline(): commit 7977e6031
+accidentally neutered it for the non-deprecated case (onboard SCSI
+HBA) in addition to the deprecated case (non-onboard SCSI HBA with
+legacy magic).  Fix by narrowing the neutering to the deprecated case.
+
+Signed-off-by: Markus Armbruster <armbru@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/scsi/scsi-bus.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/hw/scsi/scsi-bus.c b/hw/scsi/scsi-bus.c
+index 309daaa..404686a 100644
+--- a/hw/scsi/scsi-bus.c
++++ b/hw/scsi/scsi-bus.c
+@@ -265,8 +265,6 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
+ 
+ void scsi_bus_legacy_handle_cmdline(SCSIBus *bus, bool deprecated)
+ {
+-#if 0 /* Disabled for Red Hat Enterprise Linux */
+-
+     Location loc;
+     DriveInfo *dinfo;
+     int unit;
+@@ -279,6 +277,7 @@ void scsi_bus_legacy_handle_cmdline(SCSIBus *bus, bool deprecated)
+         }
+         qemu_opts_loc_restore(dinfo->opts);
+         if (deprecated) {
++#if 0 /* Disabled for Red Hat Enterprise Linux */
+             /* Handling -drive not claimed by machine initialization */
+             if (blk_get_attached_dev(blk_by_legacy_dinfo(dinfo))) {
+                 continue;       /* claimed */
+@@ -288,12 +287,14 @@ void scsi_bus_legacy_handle_cmdline(SCSIBus *bus, bool deprecated)
+                             " machine type",
+                             bus->busnr, unit);
+             }
++#else
++            continue;
++#endif
+         }
+         scsi_bus_legacy_add_drive(bus, blk_by_legacy_dinfo(dinfo),
+                                   unit, false, -1, NULL, &error_fatal);
+     }
+     loc_pop(&loc);
+-#endif
+ }
+ 
+ #if 0 /* Disabled for Red Hat Enterprise Linux */
+-- 
+1.8.3.1
+

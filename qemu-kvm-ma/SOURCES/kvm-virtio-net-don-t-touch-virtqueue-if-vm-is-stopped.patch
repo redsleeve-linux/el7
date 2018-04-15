@@ -1,0 +1,59 @@
+From d7c69df61c216de014aca9d1eafc94ddb81ce5bb Mon Sep 17 00:00:00 2001
+From: Xiao Wang <jasowang@redhat.com>
+Date: Wed, 29 Nov 2017 07:39:51 +0100
+Subject: [PATCH 17/21] virtio-net: don't touch virtqueue if vm is stopped
+
+RH-Author: Xiao Wang <jasowang@redhat.com>
+Message-id: <1511941191-30204-1-git-send-email-jasowang@redhat.com>
+Patchwork-id: 77949
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH] virtio-net: don't touch virtqueue if vm is stopped
+Bugzilla: 1506151
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Pankaj Gupta <pagupta@redhat.com>
+RH-Acked-by: wexu@redhat.com
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1506151
+Brew Build: https://brewweb.engineering.redhat.com/brew/taskinfo?taskID=14645237
+Test status: Tested by myself
+
+Guest state should not be touched if VM is stopped, unfortunately we
+didn't check running state and tried to drain tx queue unconditionally
+in virtio_net_set_status(). A crash was then noticed as a migration
+destination when user type quit after virtqueue state is loaded but
+before region cache is initialized. In this case,
+virtio_net_drop_tx_queue_data() tries to access the uninitialized
+region cache.
+
+Fix this by only dropping tx queue data when vm is running.
+
+Fixes: 283e2c2adcb80 ("net: virtio-net discards TX data after link down")
+Cc: Yuri Benditovich <yuri.benditovich@daynix.com>
+Cc: Paolo Bonzini <pbonzini@redhat.com>
+Cc: Stefan Hajnoczi <stefanha@redhat.com>
+Cc: Michael S. Tsirkin <mst@redhat.com>
+Cc: qemu-stable@nongnu.org
+Reviewed-by: Stefan Hajnoczi <stefanha@redhat.com>
+Signed-off-by: Jason Wang <jasowang@redhat.com>
+(cherry picked from commit 70e53e6e4da3db4b2c31981191753a7e974936d0)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/net/virtio-net.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/hw/net/virtio-net.c b/hw/net/virtio-net.c
+index 148071a..fbc5e1b 100644
+--- a/hw/net/virtio-net.c
++++ b/hw/net/virtio-net.c
+@@ -288,7 +288,8 @@ static void virtio_net_set_status(struct VirtIODevice *vdev, uint8_t status)
+                 qemu_bh_cancel(q->tx_bh);
+             }
+             if ((n->status & VIRTIO_NET_S_LINK_UP) == 0 &&
+-                (queue_status & VIRTIO_CONFIG_S_DRIVER_OK)) {
++                (queue_status & VIRTIO_CONFIG_S_DRIVER_OK) &&
++                vdev->vm_running) {
+                 /* if tx is waiting we are likely have some packets in tx queue
+                  * and disabled notification */
+                 q->tx_waiting = 0;
+-- 
+1.8.3.1
+

@@ -1,0 +1,62 @@
+From beffa30342dc667526c274e71f135c9863a56e61 Mon Sep 17 00:00:00 2001
+From: David Hildenbrand <david@redhat.com>
+Date: Tue, 17 Oct 2017 19:15:27 +0200
+Subject: [PATCH 22/69] tools/kvm_stat: hide cursor
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: David Hildenbrand <david@redhat.com>
+Message-id: <20171017191605.2378-2-david@redhat.com>
+Patchwork-id: 77309
+O-Subject: [RHEL-7.5 qemu-kvm-rhev PATCH 01/39] tools/kvm_stat: hide cursor
+Bugzilla: 1497137
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+
+Upstream-status: linux.git a0b4e6a0325e325d91901342dd436d917da0ddd6
+
+commit a0b4e6a0325e325d91901342dd436d917da0ddd6
+Author: Stefan Raspl <raspl@linux.vnet.ibm.com>
+Date:   Fri Mar 10 13:40:00 2017 +0100
+
+    tools/kvm_stat: hide cursor
+
+    When running kvm_stat in interactive mode, the cursor appears at the lower
+    left corner, which looks a bit distracting.
+    This patch hides the cursor by turning it invisible.
+
+    Signed-off-by: Stefan Raspl <raspl@linux.vnet.ibm.com>
+    Reviewed-By: Sascha Silbe <silbe@linux.vnet.ibm.com>
+    Reviewed-by: Marc Hartmayer <mhartmay@linux.vnet.ibm.com>
+    Signed-off-by: Radim Krčmář <rkrcmar@redhat.com>
+
+Signed-off-by: David Hildenbrand <david@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ scripts/kvm/kvm_stat | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/scripts/kvm/kvm_stat b/scripts/kvm/kvm_stat
+index 581278c..8cc83a3 100755
+--- a/scripts/kvm/kvm_stat
++++ b/scripts/kvm/kvm_stat
+@@ -812,6 +812,13 @@ class Tui(object):
+         except:
+             pass
+ 
++        # Hide cursor in extra statement as some monochrome terminals
++        # might support hiding but not colors.
++        try:
++            curses.curs_set(0)
++        except curses.error:
++            pass
++
+         curses.use_default_colors()
+         return self
+ 
+-- 
+1.8.3.1
+

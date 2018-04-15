@@ -1,0 +1,48 @@
+From e21fb4a96edba8dfc5edada51d15e604444d9cf9 Mon Sep 17 00:00:00 2001
+From: David Hildenbrand <david@redhat.com>
+Date: Tue, 17 Oct 2017 19:15:44 +0200
+Subject: [PATCH 39/69] tools/kvm_stat: fix typo
+
+RH-Author: David Hildenbrand <david@redhat.com>
+Message-id: <20171017191605.2378-19-david@redhat.com>
+Patchwork-id: 77324
+O-Subject: [RHEL-7.5 qemu-kvm-rhev PATCH 18/39] tools/kvm_stat: fix typo
+Bugzilla: 1497137
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+
+Upstream-status: linux.git 773bffeeb2f1fca7739516d0a5a814dd14a5cc83
+
+commit 773bffeeb2f1fca7739516d0a5a814dd14a5cc83
+Author: Stefan Raspl <raspl@linux.vnet.ibm.com>
+Date:   Wed Jun 7 21:08:25 2017 +0200
+
+    tools/kvm_stat: fix typo
+
+    Signed-off-by: Stefan Raspl <raspl@linux.vnet.ibm.com>
+    Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+
+Signed-off-by: David Hildenbrand <david@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ scripts/kvm/kvm_stat | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/scripts/kvm/kvm_stat b/scripts/kvm/kvm_stat
+index 8f74ed8..904eb62 100755
+--- a/scripts/kvm/kvm_stat
++++ b/scripts/kvm/kvm_stat
+@@ -929,7 +929,7 @@ class Tui(object):
+         return self
+ 
+     def __exit__(self, *exception):
+-        """Resets the terminal to its normal state.  Based on curses.wrappre
++        """Resets the terminal to its normal state.  Based on curses.wrapper
+            implementation from the Python standard library."""
+         if self.screen:
+             self.screen.keypad(0)
+-- 
+1.8.3.1
+

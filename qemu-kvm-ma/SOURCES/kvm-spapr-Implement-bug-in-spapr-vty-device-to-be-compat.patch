@@ -1,0 +1,78 @@
+From ea460580ae8d4910bddac476b25eb31c04b4e54c Mon Sep 17 00:00:00 2001
+From: David Gibson <dgibson@redhat.com>
+Date: Mon, 27 Nov 2017 04:56:27 +0100
+Subject: [PATCH 5/7] spapr: Implement bug in spapr-vty device to be compatible
+ with PowerVM
+
+RH-Author: David Gibson <dgibson@redhat.com>
+Message-id: <20171127045627.20341-1-dgibson@redhat.com>
+Patchwork-id: 77896
+O-Subject: [RHEL-7.5 qemu-kvm-rhev PATCH] spapr: Implement bug in spapr-vty device to be compatible with PowerVM
+Bugzilla: 1495090
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+From: David Gibson <david@gibson.dropbear.id.au>
+
+The spapr-vty device implements the PAPR defined virtual console,
+which is also implemented by IBM's proprietary PowerVM hypervisor.
+
+PowerVM's implementation has a bug where it inserts an extra \0 after
+every \r going to the guest.  Because of that Linux's guest side
+driver has a workaround which strips \0 characters that appear
+immediately after a \r.
+
+That means that when running under qemu, sending a binary stream from
+host to guest via spapr-vty which happens to include a \r\0 sequence
+will get corrupted by that workaround.
+
+To deal with that, this patch duplicates PowerVM's bug, inserting an
+extra \0 after each \r.  Ugly, but the best option available.
+
+Signed-off-by: David Gibson <david@gibson.dropbear.id.au>
+Reviewed-by: Thomas Huth <thuth@redhat.com>
+Reviewed-by: Greg Kurz <groug@kaod.org>
+(cherry picked from commit 6c3bc244d3cbdc5545504fda4fae0238ec36a3c0)
+
+Testing: Verified that when transferring a file (raw) through
+         spapr-vty device, '\r\0' sequences are no longer mangled.
+
+Signed-off-by: David Gibson <dgibson@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/char/spapr_vty.c | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
+
+diff --git a/hw/char/spapr_vty.c b/hw/char/spapr_vty.c
+index 0fa416c..6748334 100644
+--- a/hw/char/spapr_vty.c
++++ b/hw/char/spapr_vty.c
+@@ -58,6 +58,24 @@ static int vty_getchars(VIOsPAPRDevice *sdev, uint8_t *buf, int max)
+ 
+     while ((n < max) && (dev->out != dev->in)) {
+         buf[n++] = dev->buf[dev->out++ % VTERM_BUFSIZE];
++
++        /* PowerVM's vty implementation has a bug where it inserts a
++         * \0 after every \r going to the guest.  Existing guests have
++         * a workaround for this which removes every \0 immediately
++         * following a \r, so here we make ourselves bug-for-bug
++         * compatible, so that the guest won't drop a real \0-after-\r
++         * that happens to occur in a binary stream. */
++        if (buf[n - 1] == '\r') {
++            if (n < max) {
++                buf[n++] = '\0';
++            } else {
++                /* No room for the extra \0, roll back and try again
++                 * next time */
++                dev->out--;
++                n--;
++                break;
++            }
++        }
+     }
+ 
+     qemu_chr_fe_accept_input(&dev->chardev);
+-- 
+1.8.3.1
+

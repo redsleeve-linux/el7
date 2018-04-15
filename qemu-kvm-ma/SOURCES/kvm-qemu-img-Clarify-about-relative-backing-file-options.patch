@@ -1,0 +1,70 @@
+From 8da92a8a73295fe3239124d26507c5cf0276ddab Mon Sep 17 00:00:00 2001
+From: Fam Zheng <famz@redhat.com>
+Date: Tue, 12 Dec 2017 02:19:20 +0100
+Subject: [PATCH 3/6] qemu-img: Clarify about relative backing file options
+
+RH-Author: Fam Zheng <famz@redhat.com>
+Message-id: <20171212021920.25231-1-famz@redhat.com>
+Patchwork-id: 78306
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH] qemu-img: Clarify about relative backing file options
+Bugzilla: 1451269
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Peter Xu <peterx@redhat.com>
+RH-Acked-by: Jeffrey Cody <jcody@redhat.com>
+
+It's not too surprising when a user specifies the backing file relative
+to the current working directory instead of the top layer image. This
+causes error when they differ. Though the error message has enough
+information to infer the fact about the misunderstanding, it is better
+if we document this explicitly, so that users don't have to learn from
+mistakes.
+
+Signed-off-by: Fam Zheng <famz@redhat.com>
+Reviewed-by: Eric Blake <eblake@redhat.com>
+Reviewed-by: Jeff Cody <jcody@redhat.com>
+Reviewed-by: Stefan Hajnoczi <stefanha@redhat.com>
+Signed-off-by: Kevin Wolf <kwolf@redhat.com>
+(cherry picked from commit a16efd53406bc8d89f87253ab10290f8d1b145a7)
+Signed-off-by: Fam Zheng <famz@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ qemu-img.texi | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/qemu-img.texi b/qemu-img.texi
+index 72dabd6..90c7eab 100644
+--- a/qemu-img.texi
++++ b/qemu-img.texi
+@@ -244,6 +244,9 @@ only the differences from @var{backing_file}. No size needs to be specified in
+ this case. @var{backing_file} will never be modified unless you use the
+ @code{commit} monitor command (or qemu-img commit).
+ 
++If a relative path name is given, the backing file is looked up relative to
++the directory containing @var{filename}.
++
+ Note that a given backing file will be opened to check that it is valid. Use
+ the @code{-u} option to enable unsafe backing file mode, which means that the
+ image will be created even if the associated backing file cannot be opened. A
+@@ -343,6 +346,9 @@ created as a copy on write image of the specified base image; the
+ @var{backing_file} should have the same content as the input's base image,
+ however the path, image format, etc may differ.
+ 
++If a relative path name is given, the backing file is looked up relative to
++the directory containing @var{output_filename}.
++
+ If the @code{-n} option is specified, the target volume creation will be
+ skipped. This is useful for formats such as @code{rbd} if the target
+ volume has already been created with site specific options that cannot
+@@ -490,6 +496,9 @@ The backing file is changed to @var{backing_file} and (if the image format of
+ string), then the image is rebased onto no backing file (i.e. it will exist
+ independently of any backing file).
+ 
++If a relative path name is given, the backing file is looked up relative to
++the directory containing @var{filename}.
++
+ @var{cache} specifies the cache mode to be used for @var{filename}, whereas
+ @var{src_cache} specifies the cache mode for reading backing files.
+ 
+-- 
+1.8.3.1
+

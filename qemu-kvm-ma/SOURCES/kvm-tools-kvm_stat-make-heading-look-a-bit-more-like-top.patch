@@ -1,0 +1,51 @@
+From 7f50a8be62efbab70573a4dc1ca3afb14f66960a Mon Sep 17 00:00:00 2001
+From: David Hildenbrand <david@redhat.com>
+Date: Tue, 17 Oct 2017 19:15:55 +0200
+Subject: [PATCH 50/69] tools/kvm_stat: make heading look a bit more like 'top'
+
+RH-Author: David Hildenbrand <david@redhat.com>
+Message-id: <20171017191605.2378-30-david@redhat.com>
+Patchwork-id: 77343
+O-Subject: [RHEL-7.5 qemu-kvm-rhev PATCH 29/39] tools/kvm_stat: make heading look a bit more like 'top'
+Bugzilla: 1497137
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+
+Upstream-status: linux.git f6d753102a2469ae4ce08ef3e34d170ec583fb50
+
+commit f6d753102a2469ae4ce08ef3e34d170ec583fb50
+Author: Stefan Raspl <raspl@linux.vnet.ibm.com>
+Date:   Wed Jun 7 21:08:36 2017 +0200
+
+    tools/kvm_stat: make heading look a bit more like 'top'
+
+    Print header in standout font just like the 'top' command does.
+
+    Signed-off-by: Stefan Raspl <raspl@linux.vnet.ibm.com>
+    Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+
+Signed-off-by: David Hildenbrand <david@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ scripts/kvm/kvm_stat | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/scripts/kvm/kvm_stat b/scripts/kvm/kvm_stat
+index 790fbce..35147e4 100755
+--- a/scripts/kvm/kvm_stat
++++ b/scripts/kvm/kvm_stat
+@@ -982,7 +982,8 @@ class Tui(object):
+                 regex = regex[:MAX_REGEX_LEN] + '...'
+             self.screen.addstr(1, 17, 'regex filter: {0}'.format(regex))
+         self.screen.addstr(2, 1, '%-40s %10s%7s %7s' %
+-                           ('Event', 'Total', '%Total', 'Current'))
++                           ('Event', 'Total', '%Total', 'Current'),
++                           curses.A_STANDOUT)
+         self.screen.addstr(4, 1, 'Collecting data...')
+         self.screen.refresh()
+ 
+-- 
+1.8.3.1
+

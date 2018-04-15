@@ -1,0 +1,49 @@
+From 4a5658befb21d06adda6e6faf5c507990f08d270 Mon Sep 17 00:00:00 2001
+From: Auger Eric <eric.auger@redhat.com>
+Date: Tue, 28 Nov 2017 15:14:08 +0100
+Subject: [PATCH 7/9] hw/intc/arm_gicv3_its: Implement full reset
+
+RH-Author: Auger Eric <eric.auger@redhat.com>
+Message-id: <1511882048-11256-8-git-send-email-eric.auger@redhat.com>
+Patchwork-id: 77942
+O-Subject: [RHV7.5 qemu-kvm-ma PATCH 7/7] hw/intc/arm_gicv3_its: Implement full reset
+Bugzilla: 1513323
+RH-Acked-by: Andrew Jones <drjones@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Acked-by: Wei Huang <wei@redhat.com>
+
+Voiding the ITS caches is not supposed to happen via
+individual register writes. So we introduced a dedicated
+ITS KVM device ioctl to perform a cold reset of the ITS:
+KVM_DEV_ARM_VGIC_GRP_CTRL/KVM_DEV_ARM_ITS_CTRL_RESET. Let's
+use this latter if the kernel supports it.
+
+Signed-off-by: Eric Auger <eric.auger@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/intc/arm_gicv3_its_kvm.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/hw/intc/arm_gicv3_its_kvm.c b/hw/intc/arm_gicv3_its_kvm.c
+index 1c663ac..bf290b8 100644
+--- a/hw/intc/arm_gicv3_its_kvm.c
++++ b/hw/intc/arm_gicv3_its_kvm.c
+@@ -204,7 +204,14 @@ static void kvm_arm_its_reset(DeviceState *dev)
+ 
+     c->parent_reset(dev);
+ 
+-    error_report("ITS KVM: full reset is not supported by QEMU");
++    if (kvm_device_check_attr(s->dev_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
++                               KVM_DEV_ARM_ITS_CTRL_RESET)) {
++        kvm_device_access(s->dev_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
++                          KVM_DEV_ARM_ITS_CTRL_RESET, NULL, true, &error_abort);
++        return;
++    }
++
++    error_report("ITS KVM: full reset is not supported by the host kernel");
+ 
+     if (!kvm_device_check_attr(s->dev_fd, KVM_DEV_ARM_VGIC_GRP_ITS_REGS,
+                                GITS_CTLR)) {
+-- 
+1.8.3.1
+

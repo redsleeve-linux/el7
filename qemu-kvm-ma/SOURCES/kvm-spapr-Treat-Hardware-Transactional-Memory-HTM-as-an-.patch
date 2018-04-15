@@ -1,0 +1,193 @@
+From 423e8d79df3ef4548d74854a8feeee84cd5e159c Mon Sep 17 00:00:00 2001
+From: David Gibson <dgibson@redhat.com>
+Date: Fri, 19 Jan 2018 02:34:37 +0100
+Subject: [PATCH 09/21] spapr: Treat Hardware Transactional Memory (HTM) as an
+ optional capability
+
+RH-Author: David Gibson <dgibson@redhat.com>
+Message-id: <20180119023442.28577-3-dgibson@redhat.com>
+Patchwork-id: 78670
+O-Subject: [RHEL-7.5 qemu-kvm-rhev PATCH 2/7] spapr: Treat Hardware Transactional Memory (HTM) as an optional capability
+Bugzilla: 1523414
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+From: David Gibson <david@gibson.dropbear.id.au>
+
+This adds an spapr capability bit for Hardware Transactional Memory.  It is
+enabled by default for pseries-2.11 and earlier machine types. with POWER8
+or later CPUs (as it must be, since earlier qemu versions would implicitly
+allow it).  However it is disabled by default for the latest pseries-2.12
+machine type.
+
+This means that with the latest machine type, HTM will not be available,
+regardless of CPU, unless it is explicitly enabled on the command line.
+That change is made on the basis that:
+
+ * This way running with -M pseries,accel=tcg will start with whatever cpu
+   and will provide the same guest visible model as with accel=kvm.
+     - More specifically, this means existing make check tests don't have
+       to be modified to use cap-htm=off in order to run with TCG
+
+ * We hope to add a new "HTM without suspend" feature in the not too
+   distant future which could work on both POWER8 and POWER9 cpus, and
+   could be enabled by default.
+
+ * Best guesses suggest that future POWER cpus may well only support the
+   HTM-without-suspend model, not the (frankly, horribly overcomplicated)
+   POWER8 style HTM with suspend.
+
+ * Anecdotal evidence suggests problems with HTM being enabled when it
+   wasn't wanted are more common than being missing when it was.
+
+Signed-off-by: David Gibson <david@gibson.dropbear.id.au>
+Reviewed-by: Greg Kurz <groug@kaod.org>
+(cherry picked from commit ee76a09fc72cfbfab2bb5529320ef7e460adffd8)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+Conflicts:
+	hw/ppc/spapr.c
+
+Conflicts due to replacement of upstream machine types with downstream
+ones.  Omitted original logic since it affects the 2.11 machine type
+which isn't in downstream (even in comments).  Replaced with logic to
+enable HTM capability only for pseries-rhel7.4.0 and earlier machine
+types.
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1523414
+
+Signed-off-by: David Gibson <dgibson@redhat.com>
+---
+ hw/ppc/spapr.c         | 13 ++++++++-----
+ hw/ppc/spapr_caps.c    | 29 ++++++++++++++++++++++++++++-
+ include/hw/ppc/spapr.h |  3 +++
+ 3 files changed, 39 insertions(+), 6 deletions(-)
+
+diff --git a/hw/ppc/spapr.c b/hw/ppc/spapr.c
+index 7a4191d..2068a1f 100644
+--- a/hw/ppc/spapr.c
++++ b/hw/ppc/spapr.c
+@@ -253,7 +253,9 @@ static int spapr_fixup_cpu_numa_dt(void *fdt, int offset, PowerPCCPU *cpu)
+ }
+ 
+ /* Populate the "ibm,pa-features" property */
+-static void spapr_populate_pa_features(PowerPCCPU *cpu, void *fdt, int offset,
++static void spapr_populate_pa_features(sPAPRMachineState *spapr,
++                                       PowerPCCPU *cpu,
++                                       void *fdt, int offset,
+                                        bool legacy_guest)
+ {
+     CPUPPCState *env = &cpu->env;
+@@ -318,7 +320,7 @@ static void spapr_populate_pa_features(PowerPCCPU *cpu, void *fdt, int offset,
+          */
+         pa_features[3] |= 0x20;
+     }
+-    if (kvmppc_has_cap_htm() && pa_size > 24) {
++    if (spapr_has_cap(spapr, SPAPR_CAP_HTM) && pa_size > 24) {
+         pa_features[24] |= 0x80;    /* Transactional memory support */
+     }
+     if (legacy_guest && pa_size > 40) {
+@@ -385,8 +387,8 @@ static int spapr_fixup_cpu_dt(void *fdt, sPAPRMachineState *spapr)
+             return ret;
+         }
+ 
+-        spapr_populate_pa_features(cpu, fdt, offset,
+-                                         spapr->cas_legacy_guest_workaround);
++        spapr_populate_pa_features(spapr, cpu, fdt, offset,
++                                   spapr->cas_legacy_guest_workaround);
+     }
+     return ret;
+ }
+@@ -582,7 +584,7 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
+                           page_sizes_prop, page_sizes_prop_size)));
+     }
+ 
+-    spapr_populate_pa_features(cpu, fdt, offset, false);
++    spapr_populate_pa_features(spapr, cpu, fdt, offset, false);
+ 
+     _FDT((fdt_setprop_cell(fdt, offset, "ibm,chip-id",
+                            cs->cpu_index / vcpus_per_socket)));
+@@ -4046,6 +4048,7 @@ static void spapr_machine_rhel740_class_options(MachineClass *mc)
+     smc->has_power9_support = false;
+     smc->pre_2_10_has_unused_icps = true;
+     smc->resize_hpt_default = SPAPR_RESIZE_HPT_DISABLED;
++    smc->default_caps = spapr_caps(SPAPR_CAP_HTM);
+ }
+ 
+ DEFINE_SPAPR_MACHINE(rhel740, "rhel7.4.0", false);
+diff --git a/hw/ppc/spapr_caps.c b/hw/ppc/spapr_caps.c
+index 968ba7b..3b35b91 100644
+--- a/hw/ppc/spapr_caps.c
++++ b/hw/ppc/spapr_caps.c
+@@ -24,6 +24,10 @@
+ #include "qemu/osdep.h"
+ #include "qapi/error.h"
+ #include "qapi/visitor.h"
++#include "sysemu/hw_accel.h"
++#include "target/ppc/cpu.h"
++#include "cpu-models.h"
++#include "kvm_ppc.h"
+ 
+ #include "hw/ppc/spapr.h"
+ 
+@@ -40,18 +44,41 @@ typedef struct sPAPRCapabilityInfo {
+     void (*disallow)(sPAPRMachineState *spapr, Error **errp);
+ } sPAPRCapabilityInfo;
+ 
++static void cap_htm_allow(sPAPRMachineState *spapr, Error **errp)
++{
++    if (tcg_enabled()) {
++        error_setg(errp,
++                   "No Transactional Memory support in TCG, try cap-htm=off");
++    } else if (kvm_enabled() && !kvmppc_has_cap_htm()) {
++        error_setg(errp,
++"KVM implementation does not support Transactional Memory, try cap-htm=off"
++            );
++    }
++}
++
+ static sPAPRCapabilityInfo capability_table[] = {
++    {
++        .name = "htm",
++        .description = "Allow Hardware Transactional Memory (HTM)",
++        .flag = SPAPR_CAP_HTM,
++        .allow = cap_htm_allow,
++        /* TODO: add cap_htm_disallow */
++    },
+ };
+ 
+ static sPAPRCapabilities default_caps_with_cpu(sPAPRMachineState *spapr,
+                                                CPUState *cs)
+ {
+     sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
++    PowerPCCPU *cpu = POWERPC_CPU(cs);
+     sPAPRCapabilities caps;
+ 
+     caps = smc->default_caps;
+ 
+-    /* TODO: clamp according to cpu model */
++    if (!ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_2_07,
++                          0, spapr->max_compat_pvr)) {
++        caps.mask &= ~SPAPR_CAP_HTM;
++    }
+ 
+     return caps;
+ }
+diff --git a/include/hw/ppc/spapr.h b/include/hw/ppc/spapr.h
+index 7267151..77dc3fb 100644
+--- a/include/hw/ppc/spapr.h
++++ b/include/hw/ppc/spapr.h
+@@ -54,6 +54,9 @@ typedef enum {
+  * Capabilities
+  */
+ 
++/* Hardware Transactional Memory */
++#define SPAPR_CAP_HTM               0x0000000000000001ULL
++
+ typedef struct sPAPRCapabilities sPAPRCapabilities;
+ struct sPAPRCapabilities {
+     uint64_t mask;
+-- 
+1.8.3.1
+

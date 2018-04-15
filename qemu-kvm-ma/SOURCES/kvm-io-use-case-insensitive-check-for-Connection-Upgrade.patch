@@ -1,0 +1,49 @@
+From dad42ba543ed6ed3db06e33a08466c7a912b777e Mon Sep 17 00:00:00 2001
+From: "Daniel P. Berrange" <berrange@redhat.com>
+Date: Wed, 20 Dec 2017 17:56:45 +0100
+Subject: [PATCH 05/42] io: use case insensitive check for Connection & Upgrade
+ websock headers
+
+RH-Author: Daniel P. Berrange <berrange@redhat.com>
+Message-id: <20171220175702.29663-4-berrange@redhat.com>
+Patchwork-id: 78456
+O-Subject: [RHV-7.5 qemu-kvm-rhev PATCH v2 03/20] io: use case insensitive check for Connection & Upgrade websock headers
+Bugzilla: 1518649
+RH-Acked-by: John Snow <jsnow@redhat.com>
+RH-Acked-by: Jeffrey Cody <jcody@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+When checking the value of the Connection and Upgrade HTTP headers
+the websock RFC (6455) requires the comparison to be case insensitive.
+The Connection value should be an exact match not a substring.
+
+Reviewed-by: Eric Blake <eblake@redhat.com>
+Signed-off-by: Daniel P. Berrange <berrange@redhat.com>
+(cherry picked from commit 33badfd1e3735b877e41939100511c65572be6b9)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ io/channel-websock.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/io/channel-websock.c b/io/channel-websock.c
+index 6ddcec1..2258557 100644
+--- a/io/channel-websock.c
++++ b/io/channel-websock.c
+@@ -431,12 +431,12 @@ static void qio_channel_websock_handshake_process(QIOChannelWebsock *ioc,
+         goto bad_request;
+     }
+ 
+-    if (!g_strrstr(connection, QIO_CHANNEL_WEBSOCK_CONNECTION_UPGRADE)) {
++    if (strcasecmp(connection, QIO_CHANNEL_WEBSOCK_CONNECTION_UPGRADE) != 0) {
+         error_setg(errp, "No connection upgrade requested '%s'", connection);
+         goto bad_request;
+     }
+ 
+-    if (!g_str_equal(upgrade, QIO_CHANNEL_WEBSOCK_UPGRADE_WEBSOCKET)) {
++    if (strcasecmp(upgrade, QIO_CHANNEL_WEBSOCK_UPGRADE_WEBSOCKET) != 0) {
+         error_setg(errp, "Incorrect upgrade method '%s'", upgrade);
+         goto bad_request;
+     }
+-- 
+1.8.3.1
+

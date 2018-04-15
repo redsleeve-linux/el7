@@ -1,0 +1,104 @@
+From c091cd7a1b3799d3d2d657bc3dc66dec90eb86f1 Mon Sep 17 00:00:00 2001
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+Date: Wed, 11 Oct 2017 17:55:00 +0200
+Subject: [PATCH 15/69] pc: make pc_rom RO only on new machine types
+
+RH-Author: Dr. David Alan Gilbert <dgilbert@redhat.com>
+Message-id: <20171011175500.12390-3-dgilbert@redhat.com>
+Patchwork-id: 77178
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH v3 2/2] pc: make pc_rom RO only on new machine types
+Bugzilla: 1489800
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+RH-Acked-by: Gerd Hoffmann <kraxel@redhat.com>
+RH-Acked-by: Igor Mammedov <imammedo@redhat.com>
+
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+
+Upstream lp 1715700 reported that the RO pc_rom settings caused
+problems with Windows 7 under OVMF.
+This is fixed in a new OVMF, but lets keep things stable on
+older machine types.
+
+Signed-off-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/i386/pc.c         | 4 +++-
+ hw/i386/pc_piix.c    | 2 ++
+ hw/i386/pc_q35.c     | 2 ++
+ include/hw/i386/pc.h | 3 +++
+ 4 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/hw/i386/pc.c b/hw/i386/pc.c
+index ccaa832..83df57f 100644
+--- a/hw/i386/pc.c
++++ b/hw/i386/pc.c
+@@ -1444,7 +1444,8 @@ void pc_memory_init(PCMachineState *pcms,
+     option_rom_mr = g_malloc(sizeof(*option_rom_mr));
+     memory_region_init_ram(option_rom_mr, NULL, "pc.rom", PC_ROM_SIZE,
+                            &error_fatal);
+-    if (pcmc->pci_enabled) {
++    /* RH difference: See bz 1489800, explicitly make ROM ro */
++    if (pcmc->pc_rom_ro) {
+         memory_region_set_readonly(option_rom_mr, true);
+     }
+     memory_region_add_subregion_overlap(rom_memory,
+@@ -2350,6 +2351,7 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
+     pcmc->acpi_data_size = 0x20000 + 0x8000;
+     pcmc->save_tsc_khz = true;
+     pcmc->linuxboot_dma_enabled = true;
++    pcmc->pc_rom_ro = true;
+     mc->get_hotplug_handler = pc_get_hotpug_handler;
+     mc->cpu_index_to_instance_props = pc_cpu_index_to_props;
+     mc->possible_cpu_arch_ids = pc_possible_cpu_arch_ids;
+diff --git a/hw/i386/pc_piix.c b/hw/i386/pc_piix.c
+index 935391f..09bfc5a 100644
+--- a/hw/i386/pc_piix.c
++++ b/hw/i386/pc_piix.c
+@@ -1164,11 +1164,13 @@ static void pc_init_rhel740(MachineState *machine)
+ 
+ static void pc_machine_rhel740_options(MachineClass *m)
+ {
++    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+     pc_machine_rhel750_options(m);
+     m->alias = NULL;
+     m->is_default = 0;
+     m->desc = "RHEL 7.4.0 PC (i440FX + PIIX, 1996)";
+     m->numa_auto_assign_ram = numa_legacy_auto_assign_ram;
++    pcmc->pc_rom_ro = false;
+     SET_MACHINE_COMPAT(m, PC_RHEL7_4_COMPAT);
+ }
+ 
+diff --git a/hw/i386/pc_q35.c b/hw/i386/pc_q35.c
+index e73097b..27c85c5 100644
+--- a/hw/i386/pc_q35.c
++++ b/hw/i386/pc_q35.c
+@@ -416,10 +416,12 @@ static void pc_q35_init_rhel740(MachineState *machine)
+ 
+ static void pc_q35_machine_rhel740_options(MachineClass *m)
+ {
++    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+     pc_q35_machine_rhel750_options(m);
+     m->alias = NULL;
+     m->desc = "RHEL-7.4.0 PC (Q35 + ICH9, 2009)";
+     m->numa_auto_assign_ram = numa_legacy_auto_assign_ram;
++    pcmc->pc_rom_ro = false;
+     SET_MACHINE_COMPAT(m, PC_RHEL7_4_COMPAT);
+ }
+ 
+diff --git a/include/hw/i386/pc.h b/include/hw/i386/pc.h
+index a8d6857..6f65d79 100644
+--- a/include/hw/i386/pc.h
++++ b/include/hw/i386/pc.h
+@@ -141,6 +141,9 @@ struct PCMachineClass {
+ 
+     /* use DMA capable linuxboot option rom */
+     bool linuxboot_dma_enabled;
++
++    /* RH only, see bz 1489800 */
++    bool pc_rom_ro;
+ };
+ 
+ #define TYPE_PC_MACHINE "generic-pc-machine"
+-- 
+1.8.3.1
+

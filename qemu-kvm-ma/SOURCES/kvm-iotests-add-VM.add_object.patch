@@ -1,0 +1,47 @@
+From cc83ddb2ea7c12b48d78160bd60b703097d849ea Mon Sep 17 00:00:00 2001
+From: Stefan Hajnoczi <stefanha@redhat.com>
+Date: Fri, 22 Dec 2017 11:08:58 +0100
+Subject: [PATCH 40/42] iotests: add VM.add_object()
+
+RH-Author: Stefan Hajnoczi <stefanha@redhat.com>
+Message-id: <20171222110900.24813-19-stefanha@redhat.com>
+Patchwork-id: 78500
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH 18/20] iotests: add VM.add_object()
+Bugzilla: 1519721
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Jeffrey Cody <jcody@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+The VM.add_object() method can be used to add IOThreads or memory
+backend objects.
+
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+Reviewed-by: Eric Blake <eblake@redhat.com>
+Message-id: 20171207201320.19284-5-stefanha@redhat.com
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+(cherry picked from commit ccc15f7dafff63cbcc3f6a7c51e380025d67f7f4)
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ tests/qemu-iotests/iotests.py | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/tests/qemu-iotests/iotests.py b/tests/qemu-iotests/iotests.py
+index 07fa162..4a3d3fb 100644
+--- a/tests/qemu-iotests/iotests.py
++++ b/tests/qemu-iotests/iotests.py
+@@ -198,6 +198,11 @@ class VM(qtest.QEMUQtestMachine):
+             self._debug = True
+         self._num_drives = 0
+ 
++    def add_object(self, opts):
++        self._args.append('-object')
++        self._args.append(opts)
++        return self
++
+     def add_device(self, opts):
+         self._args.append('-device')
+         self._args.append(opts)
+-- 
+1.8.3.1
+

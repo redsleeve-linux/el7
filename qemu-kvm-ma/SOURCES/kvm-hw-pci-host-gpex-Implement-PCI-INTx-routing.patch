@@ -1,0 +1,67 @@
+From aeb5a8995d3eb533fb870f0493c7844679062610 Mon Sep 17 00:00:00 2001
+From: Auger Eric <eric.auger@redhat.com>
+Date: Mon, 6 Nov 2017 17:08:44 +0100
+Subject: [PATCH 8/9] hw/pci-host/gpex: Implement PCI INTx routing
+
+RH-Author: Auger Eric <eric.auger@redhat.com>
+Message-id: <1509988125-30275-4-git-send-email-eric.auger@redhat.com>
+Patchwork-id: 77510
+O-Subject: [RHV7.5 qemu-kvm-ma PATCH 3/4] hw/pci-host/gpex: Implement PCI INTx routing
+Bugzilla: 1460957
+RH-Acked-by: Alex Williamson <alex.williamson@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+From: Pranavkumar Sawargaonkar <pranavkumar@linaro.org>
+
+Now we are able to retrieve the gsi from the INTx pin, let's
+enable intx_to_irq routing. From that point on, irqfd becomes
+usable along with INTx when assigning a PCIe device.
+
+Signed-off-by: Pranavkumar Sawargaonkar <pranavkumar@linaro.org>
+Signed-off-by: Tushar Jagad <tushar.jagad@linaro.org>
+Signed-off-by: Eric Auger <eric.auger@redhat.com>
+Reviewed-by: Andrew Jones <drjones@redhat.com>
+Tested-by: Feng Kan <fkan@apm.com>
+Message-id: 1505296004-6798-4-git-send-email-eric.auger@redhat.com
+Signed-off-by: Peter Maydell <peter.maydell@linaro.org>
+(cherry picked from commit d464814ae729f3200234ff74d5f050ddad4f1f20)
+Signed-off-by: Eric Auger <eric.auger@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/pci-host/gpex.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/hw/pci-host/gpex.c b/hw/pci-host/gpex.c
+index d6cf621..4090793 100644
+--- a/hw/pci-host/gpex.c
++++ b/hw/pci-host/gpex.c
+@@ -53,6 +53,17 @@ int gpex_set_irq_num(GPEXHost *s, int index, int gsi)
+     return 0;
+ }
+ 
++static PCIINTxRoute gpex_route_intx_pin_to_irq(void *opaque, int pin)
++{
++    PCIINTxRoute route;
++    GPEXHost *s = opaque;
++
++    route.mode = PCI_INTX_ENABLED;
++    route.irq = s->irq_num[pin];
++
++    return route;
++}
++
+ static void gpex_host_realize(DeviceState *dev, Error **errp)
+ {
+     PCIHostState *pci = PCI_HOST_BRIDGE(dev);
+@@ -77,6 +88,7 @@ static void gpex_host_realize(DeviceState *dev, Error **errp)
+                                 &s->io_ioport, 0, 4, TYPE_PCIE_BUS);
+ 
+     qdev_set_parent_bus(DEVICE(&s->gpex_root), BUS(pci->bus));
++    pci_bus_set_route_irq_fn(pci->bus, gpex_route_intx_pin_to_irq);
+     qdev_init_nofail(DEVICE(&s->gpex_root));
+ }
+ 
+-- 
+1.8.3.1
+

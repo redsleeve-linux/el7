@@ -1,0 +1,73 @@
+From c08eeabcb588c0cd8f9952e273fa6cdaea71d25c Mon Sep 17 00:00:00 2001
+From: Thomas Huth <thuth@redhat.com>
+Date: Mon, 9 Oct 2017 15:50:33 +0200
+Subject: [PATCH 30/34] s390x/css: fix css migration compat handling
+
+RH-Author: Thomas Huth <thuth@redhat.com>
+Message-id: <1507564234-19627-2-git-send-email-thuth@redhat.com>
+Patchwork-id: 77038
+O-Subject: [RHEL-7.5 qemu-kvm-ma PATCH 1/2] s390x/css: fix css migration compat handling
+Bugzilla: 1473292
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: Jens Freimann <jfreimann@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+
+From: Halil Pasic <pasic@linux.vnet.ibm.com>
+
+Commit e996583eb3 ("s390x/css: activate ChannelSubSys migration",
+2017-07-11) was supposed to enable css migration for virtio-ccw
+machines starting 2.10, but it ended up effectively enabling it
+only for 2.10 as the registration of the appropriate VMStateDescription
+happens in ccw_machine_2_10_instance_options which does not get
+called for machines more recent than 2_10.
+
+Let us move the corresponding chunk of code (which conditionally enables
+the migration based on the value of the corresponding class property) to
+ccw_init, which is called for each virtio-ccw machine instance.
+
+Signed-off-by: Halil Pasic <pasic@linux.vnet.ibm.com>
+Reported-by: Thomas Huth <thuth@redhat.com>
+Message-Id: <20171004110109.16525-1-pasic@linux.vnet.ibm.com>
+Tested-by: Christian Borntraeger <borntraeger@de.ibm.com>
+Acked-by: Christian Borntraeger <borntraeger@de.ibm.com>
+Signed-off-by: Cornelia Huck <cohuck@redhat.com>
+(cherry picked from commit 489c909f097a387eb6913c89cf1851750397110c)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+Conflicts:
+	hw/s390x/s390-virtio-ccw.c
+	(contextual conflict since we do not have commit with id
+	70d8d9a0c9bc599d8ae99dd65ff8535adb2acdfc in downstream yet)
+
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+---
+ hw/s390x/s390-virtio-ccw.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/hw/s390x/s390-virtio-ccw.c b/hw/s390x/s390-virtio-ccw.c
+index 1c7af39..1aec58c 100644
+--- a/hw/s390x/s390-virtio-ccw.c
++++ b/hw/s390x/s390-virtio-ccw.c
+@@ -156,6 +156,9 @@ static void ccw_init(MachineState *machine)
+         ret = css_create_css_image(VIRTUAL_CSSID, true);
+     }
+     assert(ret == 0);
++    if (css_migration_enabled()) {
++        css_register_vmstate();
++    }
+ 
+     /* Create VirtIO network adapters */
+     s390_create_virtio_net(BUS(css_bus), "virtio-net-ccw");
+@@ -508,9 +511,6 @@ bool css_migration_enabled(void)
+ 
+ static void ccw_machine_2_10_instance_options(MachineState *machine)
+ {
+-    if (css_migration_enabled()) {
+-        css_register_vmstate();
+-    }
+ }
+ 
+ static void ccw_machine_2_10_class_options(MachineClass *mc)
+-- 
+1.8.3.1
+

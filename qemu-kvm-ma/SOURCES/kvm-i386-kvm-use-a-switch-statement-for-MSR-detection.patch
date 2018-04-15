@@ -1,0 +1,131 @@
+From 5657d9d31587d9e5e2e89ec5036af88dccb3a6a7 Mon Sep 17 00:00:00 2001
+From: Ladi Prosek <lprosek@redhat.com>
+Date: Tue, 10 Oct 2017 14:02:48 +0200
+Subject: [PATCH 10/69] i386/kvm: use a switch statement for MSR detection
+
+RH-Author: Ladi Prosek <lprosek@redhat.com>
+Message-id: <20171010140251.23801-2-lprosek@redhat.com>
+Patchwork-id: 77059
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH 1/4] i386/kvm: use a switch statement for MSR detection
+Bugzilla: 1500347
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: David Hildenbrand <david@redhat.com>
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+
+Switch is easier on the eye and might lead to better codegen.
+
+Signed-off-by: Ladi Prosek <lprosek@redhat.com>
+Reviewed-by: David Hildenbrand <david@redhat.com>
+Message-Id: <20170807085703.32267-2-lprosek@redhat.com>
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit 1d268dece4991915c0dd0f882248cbcb22ae8ffc)
+Signed-off-by: Ladi Prosek <lprosek@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ target/i386/kvm.c | 75 +++++++++++++++++++++++--------------------------------
+ 1 file changed, 31 insertions(+), 44 deletions(-)
+
+diff --git a/target/i386/kvm.c b/target/i386/kvm.c
+index 6db7783..b14a0db 100644
+--- a/target/i386/kvm.c
++++ b/target/i386/kvm.c
+@@ -1081,65 +1081,52 @@ static int kvm_get_supported_msrs(KVMState *s)
+             int i;
+ 
+             for (i = 0; i < kvm_msr_list->nmsrs; i++) {
+-                if (kvm_msr_list->indices[i] == MSR_STAR) {
++                switch (kvm_msr_list->indices[i]) {
++                case MSR_STAR:
+                     has_msr_star = true;
+-                    continue;
+-                }
+-                if (kvm_msr_list->indices[i] == MSR_VM_HSAVE_PA) {
++                    break;
++                case MSR_VM_HSAVE_PA:
+                     has_msr_hsave_pa = true;
+-                    continue;
+-                }
+-                if (kvm_msr_list->indices[i] == MSR_TSC_AUX) {
++                    break;
++                case MSR_TSC_AUX:
+                     has_msr_tsc_aux = true;
+-                    continue;
+-                }
+-                if (kvm_msr_list->indices[i] == MSR_TSC_ADJUST) {
++                    break;
++                case MSR_TSC_ADJUST:
+                     has_msr_tsc_adjust = true;
+-                    continue;
+-                }
+-                if (kvm_msr_list->indices[i] == MSR_IA32_TSCDEADLINE) {
++                    break;
++                case MSR_IA32_TSCDEADLINE:
+                     has_msr_tsc_deadline = true;
+-                    continue;
+-                }
+-                if (kvm_msr_list->indices[i] == MSR_IA32_SMBASE) {
++                    break;
++                case MSR_IA32_SMBASE:
+                     has_msr_smbase = true;
+-                    continue;
+-                }
+-                if (kvm_msr_list->indices[i] == MSR_IA32_MISC_ENABLE) {
++                    break;
++                case MSR_IA32_MISC_ENABLE:
+                     has_msr_misc_enable = true;
+-                    continue;
+-                }
+-                if (kvm_msr_list->indices[i] == MSR_IA32_BNDCFGS) {
++                    break;
++                case MSR_IA32_BNDCFGS:
+                     has_msr_bndcfgs = true;
+-                    continue;
+-                }
+-                if (kvm_msr_list->indices[i] == MSR_IA32_XSS) {
++                    break;
++                case MSR_IA32_XSS:
+                     has_msr_xss = true;
+-                    continue;
+-                }
+-                if (kvm_msr_list->indices[i] == HV_X64_MSR_CRASH_CTL) {
++                    break;;
++                case HV_X64_MSR_CRASH_CTL:
+                     has_msr_hv_crash = true;
+-                    continue;
+-                }
+-                if (kvm_msr_list->indices[i] == HV_X64_MSR_RESET) {
++                    break;
++                case HV_X64_MSR_RESET:
+                     has_msr_hv_reset = true;
+-                    continue;
+-                }
+-                if (kvm_msr_list->indices[i] == HV_X64_MSR_VP_INDEX) {
++                    break;
++                case HV_X64_MSR_VP_INDEX:
+                     has_msr_hv_vpindex = true;
+-                    continue;
+-                }
+-                if (kvm_msr_list->indices[i] == HV_X64_MSR_VP_RUNTIME) {
++                    break;
++                case HV_X64_MSR_VP_RUNTIME:
+                     has_msr_hv_runtime = true;
+-                    continue;
+-                }
+-                if (kvm_msr_list->indices[i] == HV_X64_MSR_SCONTROL) {
++                    break;
++                case HV_X64_MSR_SCONTROL:
+                     has_msr_hv_synic = true;
+-                    continue;
+-                }
+-                if (kvm_msr_list->indices[i] == HV_X64_MSR_STIMER0_CONFIG) {
++                    break;
++                case HV_X64_MSR_STIMER0_CONFIG:
+                     has_msr_hv_stimer = true;
+-                    continue;
++                    break;
+                 }
+             }
+         }
+-- 
+1.8.3.1
+

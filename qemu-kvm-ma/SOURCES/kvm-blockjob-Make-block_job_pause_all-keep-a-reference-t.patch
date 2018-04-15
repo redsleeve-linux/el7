@@ -1,0 +1,90 @@
+From 03560a7d6e57ca2ba3198d5051acfdd1e345f9a4 Mon Sep 17 00:00:00 2001
+From: Jeffrey Cody <jcody@redhat.com>
+Date: Tue, 5 Dec 2017 16:03:17 +0100
+Subject: [PATCH 12/21] blockjob: Make block_job_pause_all() keep a reference
+ to the jobs
+
+RH-Author: Jeffrey Cody <jcody@redhat.com>
+Message-id: <e6cd1cf608e4720141f9e3b0d62a5a9721203325.1511985875.git.jcody@redhat.com>
+Patchwork-id: 78161
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH 12/11] blockjob: Make block_job_pause_all() keep a reference to the jobs
+Bugzilla: 1506531
+RH-Acked-by: John Snow <jsnow@redhat.com>
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+
+From: Alberto Garcia <berto@igalia.com>
+
+Starting from commit 40840e419be31e6a32e6ea24511c74b389d5e0e4 we are
+pausing all block jobs during bdrv_reopen_multiple() to prevent any of
+them from finishing and removing nodes from the graph while they are
+being reopened.
+
+It turns out that pausing a block job doesn't necessarily prevent it
+from finishing: a paused block job can still run its exit function
+from the main loop and call block_job_completed(). The mirror block
+job in particular always goes to the main loop while it is paused (by
+virtue of the bdrv_drained_begin() call in mirror_run()).
+
+Destroying a paused block job during bdrv_reopen_multiple() has two
+consequences:
+
+   1) The references to the nodes involved in the job are released,
+      possibly destroying some of them. If those nodes were in the
+      reopen queue this would trigger the problem originally described
+      in commit 40840e419be, crashing QEMU.
+
+   2) At the end of bdrv_reopen_multiple(), bdrv_drain_all_end() would
+      not be doing all necessary bdrv_parent_drained_end() calls.
+
+I can reproduce problem 1) easily with iotest 030 by increasing
+STREAM_BUFFER_SIZE from 512KB to 8MB in block/stream.c, or by tweaking
+the iotest like in this example:
+
+   https://lists.gnu.org/archive/html/qemu-block/2017-11/msg00934.html
+
+This patch keeps an additional reference to all block jobs between
+block_job_pause_all() and block_job_resume_all(), guaranteeing that
+they are kept alive.
+
+Signed-off-by: Alberto Garcia <berto@igalia.com>
+Signed-off-by: Kevin Wolf <kwolf@redhat.com>
+(cherry picked from commit 3d5d319e1221082974711af1d09d82f0755c1698)
+Signed-off-by: Jeff Cody <jcody@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ blockjob.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/blockjob.c b/blockjob.c
+index 84f526a..63aecce 100644
+--- a/blockjob.c
++++ b/blockjob.c
+@@ -730,6 +730,7 @@ void block_job_pause_all(void)
+         AioContext *aio_context = blk_get_aio_context(job->blk);
+ 
+         aio_context_acquire(aio_context);
++        block_job_ref(job);
+         block_job_pause(job);
+         aio_context_release(aio_context);
+     }
+@@ -808,12 +809,14 @@ void coroutine_fn block_job_pause_point(BlockJob *job)
+ 
+ void block_job_resume_all(void)
+ {
+-    BlockJob *job = NULL;
+-    while ((job = block_job_next(job))) {
++    BlockJob *job, *next;
++
++    QLIST_FOREACH_SAFE(job, &block_jobs, job_list, next) {
+         AioContext *aio_context = blk_get_aio_context(job->blk);
+ 
+         aio_context_acquire(aio_context);
+         block_job_resume(job);
++        block_job_unref(job);
+         aio_context_release(aio_context);
+     }
+ }
+-- 
+1.8.3.1
+

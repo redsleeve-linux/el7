@@ -1,0 +1,53 @@
+From c424945b8ae8bbb6ce6aa6a9178b55b3b7498975 Mon Sep 17 00:00:00 2001
+From: Marcel Apfelbaum <marcel@redhat.com>
+Date: Thu, 18 Jan 2018 15:49:40 +0100
+Subject: [PATCH 07/21] hw/pci-bridge: fix QEMU crash because of pcie-root-port
+
+RH-Author: Marcel Apfelbaum <marcel@redhat.com>
+Message-id: <20180118154940.32815-1-marcel@redhat.com>
+Patchwork-id: 78666
+O-Subject: [RHEL-7.5 qemu-kvm-rhev PATCH] hw/pci-bridge: fix QEMU crash because of pcie-root-port
+Bugzilla: 1520858
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+If we try to use more pcie_root_ports then available slots
+and an IO hint is passed to the port, QEMU crashes because
+we try to init the "IO hint" capability even if the device
+is not created.
+Fix it by checking for error before adding the capability,
+so QEMU can fail gracefully.
+
+Signed-off-by: Marcel Apfelbaum <marcel@redhat.com>
+Reviewed-by: Michael S. Tsirkin <mst@redhat.com>
+Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
+(cherry picked from commit fced4d00e68e7559c73746d963265f7fd0b6abf9)
+Signed-off-by: Marcel Apfelbaum <marcel@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/pci-bridge/gen_pcie_root_port.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/hw/pci-bridge/gen_pcie_root_port.c b/hw/pci-bridge/gen_pcie_root_port.c
+index ad4e6aa..0e2f2e8 100644
+--- a/hw/pci-bridge/gen_pcie_root_port.c
++++ b/hw/pci-bridge/gen_pcie_root_port.c
+@@ -74,8 +74,13 @@ static void gen_rp_realize(DeviceState *dev, Error **errp)
+     PCIDevice *d = PCI_DEVICE(dev);
+     GenPCIERootPort *grp = GEN_PCIE_ROOT_PORT(d);
+     PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(d);
++    Error *local_err = NULL;
+ 
+-    rpc->parent_realize(dev, errp);
++    rpc->parent_realize(dev, &local_err);
++    if (local_err) {
++        error_propagate(errp, local_err);
++        return;
++    }
+ 
+     int rc = pci_bridge_qemu_reserve_cap_init(d, 0, grp->bus_reserve,
+             grp->io_reserve, grp->mem_reserve, grp->pref32_reserve,
+-- 
+1.8.3.1
+

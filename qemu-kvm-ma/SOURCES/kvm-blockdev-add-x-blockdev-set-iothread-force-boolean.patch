@@ -1,0 +1,87 @@
+From 322e74b00634817abd82f66d8c98effc07d532a8 Mon Sep 17 00:00:00 2001
+From: Stefan Hajnoczi <stefanha@redhat.com>
+Date: Fri, 22 Dec 2017 11:08:57 +0100
+Subject: [PATCH 39/42] blockdev: add x-blockdev-set-iothread force boolean
+
+RH-Author: Stefan Hajnoczi <stefanha@redhat.com>
+Message-id: <20171222110900.24813-18-stefanha@redhat.com>
+Patchwork-id: 78495
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH 17/20] blockdev: add x-blockdev-set-iothread force boolean
+Bugzilla: 1519721
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Jeffrey Cody <jcody@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+When a node is already associated with a BlockBackend the
+x-blockdev-set-iothread command refuses to set the IOThread.  This is to
+prevent accidentally changing the IOThread when the nodes are in use.
+
+When the nodes are created with -drive they automatically get a
+BlockBackend.  In that case we know nothing is using them yet and it's
+safe to set the IOThread.  Add a force boolean to override the check.
+
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+Reviewed-by: Eric Blake <eblake@redhat.com>
+Message-id: 20171207201320.19284-4-stefanha@redhat.com
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+(cherry picked from commit 882e9b89af7c1086d97cee11b2437337e756fa00)
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ blockdev.c           | 11 ++++++-----
+ qapi/block-core.json |  6 +++++-
+ 2 files changed, 11 insertions(+), 6 deletions(-)
+
+diff --git a/blockdev.c b/blockdev.c
+index 6cbe627..17e2cf1 100644
+--- a/blockdev.c
++++ b/blockdev.c
+@@ -4192,7 +4192,7 @@ BlockJobInfoList *qmp_query_block_jobs(Error **errp)
+ }
+ 
+ void qmp_x_blockdev_set_iothread(const char *node_name, StrOrNull *iothread,
+-                                 Error **errp)
++                                 bool has_force, bool force, Error **errp)
+ {
+     AioContext *old_context;
+     AioContext *new_context;
+@@ -4204,10 +4204,11 @@ void qmp_x_blockdev_set_iothread(const char *node_name, StrOrNull *iothread,
+         return;
+     }
+ 
+-    /* If we want to allow more extreme test scenarios this guard could be
+-     * removed.  For now it protects against accidents. */
+-    if (bdrv_has_blk(bs)) {
+-        error_setg(errp, "Node %s is in use", node_name);
++    /* Protects against accidents. */
++    if (!(has_force && force) && bdrv_has_blk(bs)) {
++        error_setg(errp, "Node %s is associated with a BlockBackend and could "
++                         "be in use (use force=true to override this check)",
++                         node_name);
+         return;
+     }
+ 
+diff --git a/qapi/block-core.json b/qapi/block-core.json
+index d579c99..305f7ff 100644
+--- a/qapi/block-core.json
++++ b/qapi/block-core.json
+@@ -3895,6 +3895,9 @@
+ #
+ # @iothread: the name of the IOThread object or null for the main loop
+ #
++# @force: true if the node and its children should be moved when a BlockBackend
++#         is already attached
++#
+ # Note: this command is experimental and intended for test cases that need
+ # control over IOThreads only.
+ #
+@@ -3917,4 +3920,5 @@
+ ##
+ { 'command': 'x-blockdev-set-iothread',
+   'data' : { 'node-name': 'str',
+-             'iothread': 'StrOrNull' } }
++             'iothread': 'StrOrNull',
++             '*force': 'bool' } }
+-- 
+1.8.3.1
+

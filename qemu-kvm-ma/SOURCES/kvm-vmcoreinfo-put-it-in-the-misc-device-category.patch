@@ -1,0 +1,43 @@
+From a65cfbc7d09d1c55d80e6d70a45f163e89437ccf Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
+Date: Mon, 27 Nov 2017 22:51:10 +0100
+Subject: [PATCH 12/21] vmcoreinfo: put it in the 'misc' device category
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: Marc-André Lureau <marcandre.lureau@redhat.com>
+Message-id: <20171127225111.24518-9-marcandre.lureau@redhat.com>
+Patchwork-id: 77927
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH 8/9] vmcoreinfo: put it in the 'misc' device category
+Bugzilla: 1398633
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+RH-Acked-by: Andrew Jones <drjones@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+Signed-off-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+Reviewed-by: Michael S. Tsirkin <mst@redhat.com>
+Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
+
+(cherry picked from commit b948bb55dac527ae6b0c5e6dc69d00866a3a6fee)
+Signed-off-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/misc/vmcoreinfo.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/hw/misc/vmcoreinfo.c b/hw/misc/vmcoreinfo.c
+index a618e12..31db57a 100644
+--- a/hw/misc/vmcoreinfo.c
++++ b/hw/misc/vmcoreinfo.c
+@@ -79,6 +79,7 @@ static void vmcoreinfo_device_class_init(ObjectClass *klass, void *data)
+     dc->vmsd = &vmstate_vmcoreinfo;
+     dc->realize = vmcoreinfo_realize;
+     dc->hotpluggable = false;
++    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+ }
+ 
+ static const TypeInfo vmcoreinfo_device_info = {
+-- 
+1.8.3.1
+

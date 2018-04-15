@@ -1,0 +1,53 @@
+From 554fa10df52cbb50ef39ee5eb4ac324610b240ea Mon Sep 17 00:00:00 2001
+From: David Hildenbrand <david@redhat.com>
+Date: Tue, 17 Oct 2017 19:16:01 +0200
+Subject: [PATCH 56/69] tools/kvm_stat: display guest list in pid/guest
+ selection screens
+
+RH-Author: David Hildenbrand <david@redhat.com>
+Message-id: <20171017191605.2378-36-david@redhat.com>
+Patchwork-id: 77342
+O-Subject: [RHEL-7.5 qemu-kvm-rhev PATCH 35/39] tools/kvm_stat: display guest list in pid/guest selection screens
+Bugzilla: 1497137
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+
+Upstream-status: linux.git 61f381bb7e1a8e9250aa32b3963a7a5c4b92cbf5
+
+commit 61f381bb7e1a8e9250aa32b3963a7a5c4b92cbf5
+Author: Stefan Raspl <raspl@linux.vnet.ibm.com>
+Date:   Sun Jun 25 21:34:14 2017 +0200
+
+    tools/kvm_stat: fix error on interactive command 'g'
+
+    Fix an instance where print_all_gnames() is called without the mandatory
+    argument, resulting in a stack trace.
+    To reproduce, simply press 'g' in interactive mode.
+
+    Signed-off-by: Stefan Raspl <raspl@linux.vnet.ibm.com>
+    Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+
+Signed-off-by: David Hildenbrand <david@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ scripts/kvm/kvm_stat | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/scripts/kvm/kvm_stat b/scripts/kvm/kvm_stat
+index 2cf5176..39476e5 100755
+--- a/scripts/kvm/kvm_stat
++++ b/scripts/kvm/kvm_stat
+@@ -1195,7 +1195,7 @@ class Tui(object):
+                                'This might limit the shown data to the trace '
+                                'statistics.')
+             self.screen.addstr(5, 0, msg)
+-            self.print_all_gnames()
++            self.print_all_gnames(7)
+             curses.echo()
+             self.screen.addstr(3, 0, "Guest [ENTER or guest]: ")
+             gname = self.screen.getstr()
+-- 
+1.8.3.1
+

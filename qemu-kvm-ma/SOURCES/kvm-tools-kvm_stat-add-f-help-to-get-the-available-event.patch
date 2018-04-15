@@ -1,0 +1,77 @@
+From 592b801e5cc13422eedf2bc81bb27c12e2da3d9e Mon Sep 17 00:00:00 2001
+From: David Hildenbrand <david@redhat.com>
+Date: Tue, 17 Oct 2017 19:16:05 +0200
+Subject: [PATCH 60/69] tools/kvm_stat: add '-f help' to get the available
+ event list
+
+RH-Author: David Hildenbrand <david@redhat.com>
+Message-id: <20171017191605.2378-40-david@redhat.com>
+Patchwork-id: 77345
+O-Subject: [RHEL-7.5 qemu-kvm-rhev PATCH 39/39] tools/kvm_stat: add '-f help' to get the available event list
+Bugzilla: 1497137
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+
+Upstream-status: linux.git 67fbcd62f54d4503e3dc63b68af1c6757b74e050
+
+commit 67fbcd62f54d4503e3dc63b68af1c6757b74e050
+Author: Lin Ma <lma@suse.com>
+Date:   Tue Jul 25 19:05:54 2017 +0800
+
+    tools/kvm_stat: add '-f help' to get the available event list
+
+    Signed-off-by: Lin Ma <lma@suse.com>
+    Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+
+Signed-off-by: David Hildenbrand <david@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ scripts/kvm/kvm_stat | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/scripts/kvm/kvm_stat b/scripts/kvm/kvm_stat
+index 5704044..32283d8 100755
+--- a/scripts/kvm/kvm_stat
++++ b/scripts/kvm/kvm_stat
+@@ -474,7 +474,7 @@ class Provider(object):
+     @staticmethod
+     def is_field_wanted(fields_filter, field):
+         """Indicate whether field is valid according to fields_filter."""
+-        if not fields_filter:
++        if not fields_filter or fields_filter == "help":
+             return True
+         return re.match(fields_filter, field) is not None
+ 
+@@ -1496,7 +1496,8 @@ Press any other key to refresh statistics immediately.
+                          action='store',
+                          default=DEFAULT_REGEX,
+                          dest='fields',
+-                         help='fields to display (regex)',
++                         help='''fields to display (regex)
++                                 "-f help" for a list of available events''',
+                          )
+     optparser.add_option('-p', '--pid',
+                          action='store',
+@@ -1559,6 +1560,17 @@ def main():
+ 
+     stats = Stats(options)
+ 
++    if options.fields == "help":
++        event_list = "\n"
++        s = stats.get()
++        for key in s.keys():
++            if key.find('(') != -1:
++                key = key[0:key.find('(')]
++            if event_list.find('\n' + key + '\n') == -1:
++                event_list += key + '\n'
++        sys.stdout.write(event_list)
++        return ""
++
+     if options.log:
+         log(stats)
+     elif not options.once:
+-- 
+1.8.3.1
+

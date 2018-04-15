@@ -1,0 +1,52 @@
+From d6db718295b53f11017aaba1dd8a0507c77d7a1e Mon Sep 17 00:00:00 2001
+From: Fam Zheng <famz@redhat.com>
+Date: Thu, 19 May 2016 06:39:44 +0200
+Subject: qmp: Report __com.redhat_drive_add error to monitor
+
+RH-Author: Fam Zheng <famz@redhat.com>
+Message-id: <1463639984-1165-1-git-send-email-famz@redhat.com>
+Patchwork-id: 70412
+O-Subject: [RHEL-7.3 qemu-kvm-rhev PATCH] qmp: Report drive_add error to monitor
+Bugzilla: 1337100
+RH-Acked-by: Markus Armbruster <armbru@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Kevin Wolf <kwolf@redhat.com>
+
+In other error cases of this function we use error_setg, the same should
+be done with drive_new() failures. This is useful for libvirt to
+correctly detect the failure and report proper error message when a
+specified image is not available.
+
+This bug cames from the forward porting from qemu-kvm, at which point we
+overlooked the difference in QMP reporting between qerror_report and
+error_report.
+
+Signed-off-by: Fam Zheng <famz@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+(cherry picked from commit c5736179da1a310ddb384836fc025b2582f9e90d)
+
+Rebase notes (2.8.0):
+- Changed patch name
+
+(cherry picked from commit 8a1f601ec13449e736c05789c4f5ae52ab34f3a7)
+---
+ device-hotplug.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/device-hotplug.c b/device-hotplug.c
+index 218f7b3..29f9a64 100644
+--- a/device-hotplug.c
++++ b/device-hotplug.c
+@@ -145,8 +145,7 @@ void qmp_simple_drive_add(QDict *qdict, QObject **ret_data, Error **errp)
+     mc = MACHINE_GET_CLASS(current_machine);
+     dinfo = drive_new(opts, mc->block_default_type);
+     if (!dinfo) {
+-        error_report(QERR_DEVICE_INIT_FAILED,
+-                      qemu_opts_id(opts));
++        error_setg(errp, QERR_DEVICE_INIT_FAILED, qemu_opts_id(opts));
+         qemu_opts_del(opts);
+         return;
+     }
+-- 
+1.8.3.1
+

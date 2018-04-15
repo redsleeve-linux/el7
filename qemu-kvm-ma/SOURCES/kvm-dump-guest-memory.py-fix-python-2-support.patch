@@ -1,0 +1,58 @@
+From f342adbebaff74bae55e4ebb681683d951ba61a2 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
+Date: Mon, 22 Jan 2018 13:51:41 +0100
+Subject: [PATCH 20/21] dump-guest-memory.py: fix python 2 support
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: Marc-André Lureau <marcandre.lureau@redhat.com>
+Message-id: <20180122135141.11068-1-marcandre.lureau@redhat.com>
+Patchwork-id: 78691
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH] dump-guest-memory.py: fix python 2 support
+Bugzilla: 1398633
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+RH-Acked-by: Michael S. Tsirkin <mst@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+Python GDB support may use Python 2 or 3.
+
+Inferior.read_memory() may return a 'buffer' with Python 2 or a
+'memoryview' with Python 3 (see also
+https://sourceware.org/gdb/onlinedocs/gdb/Inferiors-In-Python.html)
+
+The elf.add_vmcoreinfo_note() method expects a "bytes" object. Wrap
+the returned memory with bytes(), which works with both 'memoryview'
+and 'buffer'.
+
+Fixes a regression introduced with commit
+d23bfa91b7789534d16ede6cb7d925bfac3f3c4c ("add vmcoreinfo").
+
+Suggested-by: Peter Maydell <peter.maydell@linaro.org>
+Signed-off-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+Acked-by: Laszlo Ersek <lersek@redhat.com>
+Reviewed-by: Eric Blake <eblake@redhat.com>
+
+(cherry picked from commit 6f49ec4034e55dfb675a56a62c9579384f7fb8cc)
+Signed-off-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ scripts/dump-guest-memory.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/scripts/dump-guest-memory.py b/scripts/dump-guest-memory.py
+index 09bec92..03fbf69 100644
+--- a/scripts/dump-guest-memory.py
++++ b/scripts/dump-guest-memory.py
+@@ -564,7 +564,7 @@ shape and this command should mostly work."""
+ 
+         vmcoreinfo = self.phys_memory_read(addr, size)
+         if vmcoreinfo:
+-            self.elf.add_vmcoreinfo_note(vmcoreinfo.tobytes())
++            self.elf.add_vmcoreinfo_note(bytes(vmcoreinfo))
+ 
+     def invoke(self, args, from_tty):
+         """Handles command invocation from gdb."""
+-- 
+1.8.3.1
+

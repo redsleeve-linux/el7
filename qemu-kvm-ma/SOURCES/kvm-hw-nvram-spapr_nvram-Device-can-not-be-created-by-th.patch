@@ -1,0 +1,58 @@
+From 04b5f1821a275b874f372ad3c0f758305b856545 Mon Sep 17 00:00:00 2001
+From: Sam Bobroff <sbobroff@redhat.com>
+Date: Tue, 10 Oct 2017 03:07:14 +0200
+Subject: [PATCH 32/34] hw/nvram/spapr_nvram: Device can not be created by the
+ users
+
+RH-Author: Sam Bobroff <sbobroff@redhat.com>
+Message-id: <1507604834-28278-1-git-send-email-sbobroff@redhat.com>
+Patchwork-id: 77048
+O-Subject: [PATCH] hw/nvram/spapr_nvram: Device can not be created by the users
+Bugzilla: 1490869
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: David Gibson <dgibson@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+
+From: Thomas Huth <thuth@redhat.com>
+
+Trying to add a spapr-nvram device currently aborts QEMU like this:
+
+$ ppc64-softmmu/qemu-system-ppc64  -device spapr-nvram
+qemu-system-ppc64: hw/ppc/spapr_rtas.c:407: spapr_rtas_register:
+ Assertion `!rtas_table[token].name' failed.
+Aborted (core dumped)
+
+This NVRAM device registers RTAS calls during its realize function
+and thus can only be used once - and that's internally from spapr.c.
+So let's mark the device with user_creatable = false to avoid that
+the users can crash their QEMU this way.
+
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+Signed-off-by: David Gibson <david@gibson.dropbear.id.au>
+(cherry picked from commit 280503ee9d7833a793770d732dda5358659825e9)
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1490869
+Brew: https://brewweb.engineering.redhat.com/brew/taskinfo?taskID=14217542
+Testing: Run "ppc64-softmmu/qemu-system-ppc64  -device spapr-nvram".
+Signed-off-by: Sam Bobroff <sbobroff@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/nvram/spapr_nvram.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/hw/nvram/spapr_nvram.c b/hw/nvram/spapr_nvram.c
+index bc355a4..4a0aec8 100644
+--- a/hw/nvram/spapr_nvram.c
++++ b/hw/nvram/spapr_nvram.c
+@@ -264,6 +264,8 @@ static void spapr_nvram_class_init(ObjectClass *klass, void *data)
+     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+     dc->props = spapr_nvram_properties;
+     dc->vmsd = &vmstate_spapr_nvram;
++    /* Reason: Internal device only, uses spapr_rtas_register() in realize() */
++    dc->user_creatable = false;
+ }
+ 
+ static const TypeInfo spapr_nvram_type_info = {
+-- 
+1.8.3.1
+

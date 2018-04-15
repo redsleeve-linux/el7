@@ -1,0 +1,77 @@
+From ca87b042011f83f8851f0f76b3599d627d61463d Mon Sep 17 00:00:00 2001
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Thu, 8 Mar 2018 15:58:19 +0100
+Subject: [PATCH 06/17] address_space_rw: address_space_to_flatview needs RCU
+ lock
+
+RH-Author: Paolo Bonzini <pbonzini@redhat.com>
+Message-id: <20180308155819.20598-7-pbonzini@redhat.com>
+Patchwork-id: 79192
+O-Subject: [RHEL7.5 qemu-kvm-rhev PATCH 6/6] address_space_rw: address_space_to_flatview needs RCU lock
+Bugzilla: 1554930
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+
+address_space_rw is calling address_space_to_flatview but it can
+be called outside the RCU lock.  To fix it, transform flatview_rw
+into address_space_rw, since flatview_rw is otherwise unused.
+
+Reviewed-by: Alexey Kardashevskiy <aik@ozlabs.ru>
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry pick from commit db84fd973eba3f1e121416dcab73a4e8a60f2526)
+
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ exec.c | 28 ++++++++++------------------
+ 1 file changed, 10 insertions(+), 18 deletions(-)
+
+diff --git a/exec.c b/exec.c
+index 58ad24b..12ec761 100644
+--- a/exec.c
++++ b/exec.c
+@@ -3045,24 +3045,6 @@ static MemTxResult flatview_read(FlatView *fv, hwaddr addr,
+                                   addr1, l, mr);
+ }
+ 
+-static MemTxResult flatview_rw(FlatView *fv, hwaddr addr, MemTxAttrs attrs,
+-                               uint8_t *buf, int len, bool is_write)
+-{
+-    if (is_write) {
+-        return flatview_write(fv, addr, attrs, (uint8_t *)buf, len);
+-    } else {
+-        return flatview_read(fv, addr, attrs, (uint8_t *)buf, len);
+-    }
+-}
+-
+-MemTxResult address_space_rw(AddressSpace *as, hwaddr addr,
+-                             MemTxAttrs attrs, uint8_t *buf,
+-                             int len, bool is_write)
+-{
+-    return flatview_rw(address_space_to_flatview(as),
+-                       addr, attrs, buf, len, is_write);
+-}
+-
+ MemTxResult address_space_read_full(AddressSpace *as, hwaddr addr,
+                                     MemTxAttrs attrs, uint8_t *buf, int len)
+ {
+@@ -3096,6 +3078,16 @@ MemTxResult address_space_write(AddressSpace *as, hwaddr addr,
+     return result;
+ }
+ 
++MemTxResult address_space_rw(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
++                             uint8_t *buf, int len, bool is_write)
++{
++    if (is_write) {
++        return address_space_write(as, addr, attrs, buf, len);
++    } else {
++        return address_space_read_full(as, addr, attrs, buf, len);
++    }
++}
++
+ void cpu_physical_memory_rw(hwaddr addr, uint8_t *buf,
+                             int len, int is_write)
+ {
+-- 
+1.8.3.1
+

@@ -1,0 +1,67 @@
+From 57adfa908abbf97d98a19724447565731f3f825f Mon Sep 17 00:00:00 2001
+From: Suraj Jitindar Singh <sursingh@redhat.com>
+Date: Tue, 5 Dec 2017 05:55:18 +0100
+Subject: [PATCH 13/21] target/ppc: Move setting of patb_entry on hash table
+ init
+
+RH-Author: Suraj Jitindar Singh <sursingh@redhat.com>
+Message-id: <1512453319-16676-2-git-send-email-sursingh@redhat.com>
+Patchwork-id: 78134
+O-Subject: [RHEL7.5 qemu-kvm-rhev PATCH 1/2] target/ppc: Move setting of patb_entry on hash table init
+Bugzilla: 1517051
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: David Gibson <dgibson@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+
+From: Suraj Jitindar Singh <sjitindarsingh@gmail.com>
+
+The patb_entry is used to store the location of the process table in
+guest memory. The msb is also used to indicate the mmu mode of the
+guest, that is patb_entry & 1 << 63 ? radix_mode : hash_mode.
+
+Currently we set this to zero in spapr_setup_hpt_and_vrma() since if
+this function gets called then we know we're hash. However some code
+paths, such as setting up the hpt on incoming migration of a hash guest,
+call spapr_reallocate_hpt() directly bypassing this higher level
+function. Since we assume radix if the host is capable this results in
+the msb in patb_entry being left set so in spapr_post_load() we call
+kvmppc_configure_v3_mmu() and tell the host we're radix which as
+expected means addresses cannot be translated once we actually run the cpu.
+
+To fix this move the zeroing of patb_entry into spapr_reallocate_hpt().
+
+Signed-off-by: Suraj Jitindar Singh <sjitindarsingh@gmail.com>
+Signed-off-by: David Gibson <david@gibson.dropbear.id.au>
+(cherry picked from commit ee4d9ecc3675af1e68a9c00a8b338641898d613e)
+
+Signed-off-by: Suraj Jitindar Singh <sursingh@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/ppc/spapr.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/hw/ppc/spapr.c b/hw/ppc/spapr.c
+index 8623996..e3dce84 100644
+--- a/hw/ppc/spapr.c
++++ b/hw/ppc/spapr.c
+@@ -1356,6 +1356,8 @@ void spapr_reallocate_hpt(sPAPRMachineState *spapr, int shift,
+             DIRTY_HPTE(HPTE(spapr->htab, i));
+         }
+     }
++    /* We're setting up a hash table, so that means we're not radix */
++    spapr->patb_entry = 0;
+ }
+ 
+ void spapr_setup_hpt_and_vrma(sPAPRMachineState *spapr)
+@@ -1375,8 +1377,6 @@ void spapr_setup_hpt_and_vrma(sPAPRMachineState *spapr)
+         spapr->rma_size = kvmppc_rma_size(spapr_node0_size(),
+                                           spapr->htab_shift);
+     }
+-    /* We're setting up a hash table, so that means we're not radix */
+-    spapr->patb_entry = 0;
+ }
+ 
+ static void find_unknown_sysbus_device(SysBusDevice *sbdev, void *opaque)
+-- 
+1.8.3.1
+

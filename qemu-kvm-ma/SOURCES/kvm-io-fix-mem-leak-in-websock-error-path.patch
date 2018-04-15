@@ -1,0 +1,49 @@
+From 65fbe38c421960d5ad73e25b58593f58411422b8 Mon Sep 17 00:00:00 2001
+From: "Daniel P. Berrange" <berrange@redhat.com>
+Date: Wed, 20 Dec 2017 17:57:01 +0100
+Subject: [PATCH 21/42] io: fix mem leak in websock error path
+
+RH-Author: Daniel P. Berrange <berrange@redhat.com>
+Message-id: <20171220175702.29663-20-berrange@redhat.com>
+Patchwork-id: 78472
+O-Subject: [RHV-7.5 qemu-kvm-rhev PATCH v2 19/20] io: fix mem leak in websock error path
+Bugzilla: 1518649
+RH-Acked-by: John Snow <jsnow@redhat.com>
+RH-Acked-by: Jeffrey Cody <jcody@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+Coverity pointed out the 'date' is not free()d in the error
+path
+
+Reviewed-by: Eric Blake <eblake@redhat.com>
+Signed-off-by: Daniel P. Berrange <berrange@redhat.com>
+(cherry picked from commit 7fc3fcefe2fc5966c6aa1ef4f10e9740d8d73bf2)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ io/channel-websock.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/io/channel-websock.c b/io/channel-websock.c
+index aa35ef3..df2c3a9 100644
+--- a/io/channel-websock.c
++++ b/io/channel-websock.c
+@@ -341,7 +341,7 @@ static void qio_channel_websock_handshake_send_res_ok(QIOChannelWebsock *ioc,
+     char combined_key[QIO_CHANNEL_WEBSOCK_CLIENT_KEY_LEN +
+                       QIO_CHANNEL_WEBSOCK_GUID_LEN + 1];
+     char *accept = NULL;
+-    char *date = qio_channel_websock_date_str();
++    char *date = NULL;
+ 
+     g_strlcpy(combined_key, key, QIO_CHANNEL_WEBSOCK_CLIENT_KEY_LEN + 1);
+     g_strlcat(combined_key, QIO_CHANNEL_WEBSOCK_GUID,
+@@ -360,6 +360,7 @@ static void qio_channel_websock_handshake_send_res_ok(QIOChannelWebsock *ioc,
+         return;
+     }
+ 
++    date = qio_channel_websock_date_str();
+     qio_channel_websock_handshake_send_res(
+         ioc, QIO_CHANNEL_WEBSOCK_HANDSHAKE_RES_OK, date, accept);
+ 
+-- 
+1.8.3.1
+

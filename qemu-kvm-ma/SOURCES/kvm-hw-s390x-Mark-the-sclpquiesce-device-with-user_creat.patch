@@ -1,0 +1,54 @@
+From b4f105203964676facfa604594dcae3e43ee7aa0 Mon Sep 17 00:00:00 2001
+From: Thomas Huth <thuth@redhat.com>
+Date: Mon, 9 Oct 2017 12:32:45 +0200
+Subject: [PATCH 26/34] hw/s390x: Mark the "sclpquiesce" device with
+ user_creatable = false
+
+RH-Author: Thomas Huth <thuth@redhat.com>
+Message-id: <1507552368-9245-10-git-send-email-thuth@redhat.com>
+Patchwork-id: 77026
+O-Subject: [RHEL-7.5 qemu-kvm-ma PATCH 09/12] hw/s390x: Mark the "sclpquiesce" device with user_creatable = false
+Bugzilla: 1492033
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: David Gibson <dgibson@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+The "sclpquiesce" device is just an internal device that should not be
+created by the user directly. Though it currently does not seem to cause
+any obvious trouble when the user instantiates an additional device, let's
+better mark it with user_creatable = false to avoid unexpected behavior,
+e.g. because the quiesce notifier gets registered multiple times.
+
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+Message-Id: <1507193105-15627-1-git-send-email-thuth@redhat.com>
+Reviewed-by: Halil Pasic <pasic@linux.vnet.ibm.com>
+Reviewed-by: Claudio Imbrenda <imbrenda@linux.vnet.ibm.com>
+Signed-off-by: Cornelia Huck <cohuck@redhat.com>
+(cherry picked from commit b923ab3112ed5ab47c2ff35776f17ab54c60d651)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/s390x/sclpquiesce.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/hw/s390x/sclpquiesce.c b/hw/s390x/sclpquiesce.c
+index 762cb18..0241643 100644
+--- a/hw/s390x/sclpquiesce.c
++++ b/hw/s390x/sclpquiesce.c
+@@ -118,8 +118,13 @@ static void quiesce_class_init(ObjectClass *klass, void *data)
+     dc->reset = quiesce_reset;
+     dc->vmsd = &vmstate_sclpquiesce;
+     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+-    k->init = quiesce_init;
++    /*
++     * Reason: This is just an internal device - the notifier should
++     * not be registered multiple times in quiesce_init()
++     */
++    dc->user_creatable = false;
+ 
++    k->init = quiesce_init;
+     k->get_send_mask = send_mask;
+     k->get_receive_mask = receive_mask;
+     k->can_handle_event = can_handle_event;
+-- 
+1.8.3.1
+

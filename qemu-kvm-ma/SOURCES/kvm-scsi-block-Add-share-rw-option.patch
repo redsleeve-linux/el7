@@ -1,0 +1,44 @@
+From cd8403ec12e9ee21ebe61894e3a57e806c190956 Mon Sep 17 00:00:00 2001
+From: Fam Zheng <famz@redhat.com>
+Date: Wed, 17 Jan 2018 06:08:33 +0100
+Subject: [PATCH 03/21] scsi-block: Add share-rw option
+
+RH-Author: Fam Zheng <famz@redhat.com>
+Message-id: <20180117060834.17481-2-famz@redhat.com>
+Patchwork-id: 78653
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH 1/2] scsi-block: Add share-rw option
+Bugzilla: 1518482
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: John Snow <jsnow@redhat.com>
+RH-Acked-by: Jeffrey Cody <jcody@redhat.com>
+
+Scsi-block doesn't use the DEFINE_BLOCK_PROPERTIES() macro so it didn't
+gain the share-rw back when it was added to all other storage devices.
+This option is meaningful here, and need to be used when attaching a
+shared storage to guest.
+
+Signed-off-by: Fam Zheng <famz@redhat.com>
+Message-Id: <20171205071928.30242-1-famz@redhat.com>
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit 07488549f884a658689370b9ef878dc50eced83e)
+Signed-off-by: Fam Zheng <famz@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/scsi/scsi-disk.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/hw/scsi/scsi-disk.c b/hw/scsi/scsi-disk.c
+index 8a63377..c676355 100644
+--- a/hw/scsi/scsi-disk.c
++++ b/hw/scsi/scsi-disk.c
+@@ -2992,6 +2992,7 @@ static const TypeInfo scsi_cd_info = {
+ #ifdef __linux__
+ static Property scsi_block_properties[] = {
+     DEFINE_PROP_DRIVE("drive", SCSIDiskState, qdev.conf.blk),
++    DEFINE_PROP_BOOL("share-rw", SCSIDiskState, qdev.conf.share_rw, false),
+     DEFINE_PROP_UINT16("rotation_rate", SCSIDiskState, rotation_rate, 0),
+     DEFINE_PROP_END_OF_LIST(),
+ };
+-- 
+1.8.3.1
+

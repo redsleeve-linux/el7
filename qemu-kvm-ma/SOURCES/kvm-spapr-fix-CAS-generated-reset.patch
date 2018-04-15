@@ -1,0 +1,63 @@
+From bc0dcb3a78edf2eb8df0509d4862bb9ff36c4332 Mon Sep 17 00:00:00 2001
+From: David Gibson <dgibson@redhat.com>
+Date: Wed, 4 Oct 2017 05:40:14 +0200
+Subject: [PATCH 07/34] spapr: fix CAS-generated reset
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: David Gibson <dgibson@redhat.com>
+Message-id: <20171004054014.14159-5-dgibson@redhat.com>
+Patchwork-id: 76802
+O-Subject: [RHEL-7.5 qemu-kvm-rhev PATCH 4/4] spapr: fix CAS-generated reset
+Bugzilla: 1448344
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+From: Cédric Le Goater <clg@kaod.org>
+
+The OV5_MMU_RADIX_300 requires special handling in the CAS negotiation
+process. It is cleared from the option vector of the guest before
+evaluating the changes and re-added later. But, when testing for a
+possible CAS reset :
+
+    spapr->cas_reboot = spapr_ovec_diff(ov5_updates,
+                                        ov5_cas_old, spapr->ov5_cas);
+
+the bit OV5_MMU_RADIX_300 will each time be seen as removed from the
+previous OV5 set, hence generating a reset loop.
+
+Fix this problem by also clearing the same bit in the ov5_cas_old set.
+
+Signed-off-by: Cédric Le Goater <clg@kaod.org>
+Signed-off-by: David Gibson <david@gibson.dropbear.id.au>
+(cherry picked from commit 30bf9ed1684da582e47ae004f8f3cf14fd6f39dd)
+
+Signed-off-by: David Gibson <dgibson@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/ppc/spapr_hcall.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/hw/ppc/spapr_hcall.c b/hw/ppc/spapr_hcall.c
+index 07b3da8..92f1e21 100644
+--- a/hw/ppc/spapr_hcall.c
++++ b/hw/ppc/spapr_hcall.c
+@@ -1575,6 +1575,13 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
+      * to worry about this for now.
+      */
+     ov5_cas_old = spapr_ovec_clone(spapr->ov5_cas);
++
++    /* also clear the radix/hash bit from the current ov5_cas bits to
++     * be in sync with the newly ov5 bits. Else the radix bit will be
++     * seen as being removed and this will generate a reset loop
++     */
++    spapr_ovec_clear(ov5_cas_old, OV5_MMU_RADIX_300);
++
+     /* full range of negotiated ov5 capabilities */
+     spapr_ovec_intersect(spapr->ov5_cas, spapr->ov5, ov5_guest);
+     spapr_ovec_cleanup(ov5_guest);
+-- 
+1.8.3.1
+

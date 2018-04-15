@@ -1,0 +1,72 @@
+From 11a0ca31dff62ede8b272420cc527f8e4dd102a7 Mon Sep 17 00:00:00 2001
+From: "Daniel P. Berrange" <berrange@redhat.com>
+Date: Mon, 5 Feb 2018 11:09:59 +0100
+Subject: [PATCH 05/20] ui: remove unreachable code in vnc_update_client
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: Daniel P. Berrange <berrange@redhat.com>
+Message-id: <20180205111012.6210-5-berrange@redhat.com>
+Patchwork-id: 78875
+O-Subject: [RHV-7.5 qemu-kvm-rhev PATCH v2 04/17] ui: remove unreachable code in vnc_update_client
+Bugzilla: 1527404
+RH-Acked-by: Gerd Hoffmann <kraxel@redhat.com>
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+
+From: "Daniel P. Berrange" <berrange@redhat.com>
+
+A previous commit:
+
+  commit 5a8be0f73d6f60ff08746377eb09ca459f39deab
+  Author: Gerd Hoffmann <kraxel@redhat.com>
+  Date:   Wed Jul 13 12:21:20 2016 +0200
+
+    vnc: make sure we finish disconnect
+
+Added a check for vs->disconnecting at the very start of the
+vnc_update_client method. This means that the very next "if"
+statement check for !vs->disconnecting always evaluates true,
+and is thus redundant. This in turn means the vs->disconnecting
+check at the very end of the method never evaluates true, and
+is thus unreachable code.
+
+Signed-off-by: Daniel P. Berrange <berrange@redhat.com>
+Reviewed-by: Darren Kenny <darren.kenny@oracle.com>
+Reviewed-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+Message-id: 20171218191228.31018-3-berrange@redhat.com
+Signed-off-by: Gerd Hoffmann <kraxel@redhat.com>
+(cherry picked from commit c53df961617736f94731d94b62c2954c261d2bae)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ ui/vnc.c | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/ui/vnc.c b/ui/vnc.c
+index 6ed738b..1d2b3a8 100644
+--- a/ui/vnc.c
++++ b/ui/vnc.c
+@@ -969,7 +969,7 @@ static int vnc_update_client(VncState *vs, int has_dirty)
+     }
+ 
+     vs->has_dirty += has_dirty;
+-    if (vs->need_update && !vs->disconnecting) {
++    if (vs->need_update) {
+         VncDisplay *vd = vs->vd;
+         VncJob *job;
+         int y;
+@@ -1030,10 +1030,6 @@ static int vnc_update_client(VncState *vs, int has_dirty)
+         return n;
+     }
+ 
+-    if (vs->disconnecting) {
+-        vnc_disconnect_finish(vs);
+-    }
+-
+     return 0;
+ }
+ 
+-- 
+1.8.3.1
+

@@ -1,0 +1,64 @@
+From 082bd3ba3df66c556def600e0a9b4b451e106290 Mon Sep 17 00:00:00 2001
+From: Wei Huang <wei@redhat.com>
+Date: Tue, 17 Oct 2017 16:39:11 +0200
+Subject: [PATCH 21/69] arm/virt: Add RHEL 7.5 machine type
+
+RH-Author: Wei Huang <wei@redhat.com>
+Message-id: <1508258351-22962-1-git-send-email-wei@redhat.com>
+Patchwork-id: 77308
+O-Subject: [RHEL-7.5 qemu-kvm-rhev PATCH 1/1] arm/virt: Add RHEL 7.5 machine type
+Bugzilla: 1498662
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Andrew Jones <drjones@redhat.com>
+
+BZ: https://bugzilla.redhat.com/show_bug.cgi?id=1498662
+Brew: https://brewweb.engineering.redhat.com/brew/taskinfo?taskID=14281054
+Brew-ma: https://brewweb.engineering.redhat.com/brew/taskinfo?taskID=14280994
+Upstream: No, downstream only
+
+This patch adds a new machine type, virt-rhel7.5.0, for AArch64. Note
+the existing 7.4 machine type, virt-rhel7.4.0, is removed in this patch
+because RHEL 7.4 for ARM was as a development preview. So we decided
+that it is unnecessary to support the 7.4 machine type.
+
+After applying this patch, the machine type list ("-M ?") is shown as
+the following:
+
+virt                 RHEL 7.5.0 ARM Virtual Machine (alias of virt-rhel7.5.0)
+virt-rhel7.5.0       RHEL 7.5.0 ARM Virtual Machine (default)
+none                 empty machine
+
+Signed-off-by: Wei Huang <wei@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/arm/virt.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/hw/arm/virt.c b/hw/arm/virt.c
+index b14e16d..f243536 100644
+--- a/hw/arm/virt.c
++++ b/hw/arm/virt.c
+@@ -1851,7 +1851,7 @@ static void rhel_machine_init(void)
+ }
+ type_init(rhel_machine_init);
+ 
+-static void rhel740_virt_instance_init(Object *obj)
++static void rhel750_virt_instance_init(Object *obj)
+ {
+     VirtMachineState *vms = VIRT_MACHINE(obj);
+     VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
+@@ -1893,8 +1893,8 @@ static void rhel740_virt_instance_init(Object *obj)
+     vms->irqmap=a15irqmap;
+ }
+ 
+-static void rhel740_virt_options(MachineClass *mc)
++static void rhel750_virt_options(MachineClass *mc)
+ {
+     SET_MACHINE_COMPAT(mc, ARM_RHEL_COMPAT);
+ }
+-DEFINE_RHEL_MACHINE_AS_LATEST(7, 4, 0)
++DEFINE_RHEL_MACHINE_AS_LATEST(7, 5, 0)
+-- 
+1.8.3.1
+

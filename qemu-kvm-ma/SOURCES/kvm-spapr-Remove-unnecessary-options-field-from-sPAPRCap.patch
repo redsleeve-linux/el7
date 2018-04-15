@@ -1,0 +1,83 @@
+From 146d96d35b69fea9311b15de60eb85a076ec2e14 Mon Sep 17 00:00:00 2001
+From: David Gibson <dgibson@redhat.com>
+Date: Fri, 19 Jan 2018 02:34:42 +0100
+Subject: [PATCH 14/21] spapr: Remove unnecessary 'options' field from
+ sPAPRCapabilityInfo
+
+RH-Author: David Gibson <dgibson@redhat.com>
+Message-id: <20180119023442.28577-8-dgibson@redhat.com>
+Patchwork-id: 78673
+O-Subject: [RHEL-7.5 qemu-kvm-rhev PATCH 7/7] spapr: Remove unnecessary 'options' field from sPAPRCapabilityInfo
+Bugzilla: 1523414
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+From: David Gibson <david@gibson.dropbear.id.au>
+
+The options field here is intended to list the available values for the
+capability.  It's not used yet, because the existing capabilities are
+boolean.
+
+We're going to add capabilities that aren't, but in that case the info on
+the possible values can be folded into the .description field.
+
+Signed-off-by: David Gibson <david@gibson.dropbear.id.au>
+(cherry picked from commit 895d5cd620d358c2623c639a150d9320d581b4f8)
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1523414
+
+Signed-off-by: David Gibson <dgibson@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/ppc/spapr_caps.c | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/hw/ppc/spapr_caps.c b/hw/ppc/spapr_caps.c
+index f95a785..d5c9ce7 100644
+--- a/hw/ppc/spapr_caps.c
++++ b/hw/ppc/spapr_caps.c
+@@ -35,7 +35,6 @@
+ typedef struct sPAPRCapabilityInfo {
+     const char *name;
+     const char *description;
+-    const char *options;                        /* valid capability values */
+     int index;
+ 
+     /* Getter and Setter Function Pointers */
+@@ -126,7 +125,6 @@ sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
+     [SPAPR_CAP_HTM] = {
+         .name = "htm",
+         .description = "Allow Hardware Transactional Memory (HTM)",
+-        .options = "",
+         .index = SPAPR_CAP_HTM,
+         .get = spapr_cap_get_bool,
+         .set = spapr_cap_set_bool,
+@@ -136,7 +134,6 @@ sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
+     [SPAPR_CAP_VSX] = {
+         .name = "vsx",
+         .description = "Allow Vector Scalar Extensions (VSX)",
+-        .options = "",
+         .index = SPAPR_CAP_VSX,
+         .get = spapr_cap_get_bool,
+         .set = spapr_cap_set_bool,
+@@ -146,7 +143,6 @@ sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
+     [SPAPR_CAP_DFP] = {
+         .name = "dfp",
+         .description = "Allow Decimal Floating Point (DFP)",
+-        .options = "",
+         .index = SPAPR_CAP_DFP,
+         .get = spapr_cap_get_bool,
+         .set = spapr_cap_set_bool,
+@@ -338,7 +334,7 @@ void spapr_caps_add_properties(sPAPRMachineClass *smc, Error **errp)
+             return;
+         }
+ 
+-        desc = g_strdup_printf("%s%s", cap->description, cap->options);
++        desc = g_strdup_printf("%s", cap->description);
+         object_class_property_set_description(klass, name, desc, &local_err);
+         g_free(desc);
+         if (local_err) {
+-- 
+1.8.3.1
+

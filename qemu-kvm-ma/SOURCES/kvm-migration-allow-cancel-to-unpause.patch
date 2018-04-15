@@ -1,0 +1,47 @@
+From a25e94a891b4633f6039e39f5c63041f4a0b6722 Mon Sep 17 00:00:00 2001
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+Date: Wed, 25 Oct 2017 18:28:37 +0200
+Subject: [PATCH 18/19] migration: allow cancel to unpause
+
+RH-Author: Dr. David Alan Gilbert <dgilbert@redhat.com>
+Message-id: <20171025182838.31829-7-dgilbert@redhat.com>
+Patchwork-id: 77438
+O-Subject: [RHV-7.5 qemu-kvm-rhev PATCH 6/7] migration: allow cancel to unpause
+Bugzilla: 1497120
+RH-Acked-by: Peter Xu <peterx@redhat.com>
+RH-Acked-by: Juan Quintela <quintela@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+
+If a migration_cancel is issued during the new paused state,
+kick the pause_sem to get to unpause so it can cancel.
+
+Signed-off-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+Reviewed-by: Peter Xu <peterx@redhat.com>
+Reviewed-by: Juan Quintela <quintela@redhat.com>
+Signed-off-by: Juan Quintela <quintela@redhat.com>
+(cherry picked from commit a7b36b486dd58d8f44f788a2a2efa6a4fa3b1223)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ migration/migration.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/migration/migration.c b/migration/migration.c
+index 3a1dabb..3f23ed0 100644
+--- a/migration/migration.c
++++ b/migration/migration.c
+@@ -1027,6 +1027,10 @@ static void migrate_fd_cancel(MigrationState *s)
+         if (!migration_is_setup_or_active(old_state)) {
+             break;
+         }
++        /* If the migration is paused, kick it out of the pause */
++        if (old_state == MIGRATION_STATUS_PRE_SWITCHOVER) {
++            qemu_sem_post(&s->pause_sem);
++        }
+         migrate_set_state(&s->state, old_state, MIGRATION_STATUS_CANCELLING);
+     } while (s->state != MIGRATION_STATUS_CANCELLING);
+ 
+-- 
+1.8.3.1
+

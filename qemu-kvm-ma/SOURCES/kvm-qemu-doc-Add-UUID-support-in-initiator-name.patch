@@ -1,0 +1,54 @@
+From 09899daebbc5b41e11de57442939e5b71ac28085 Mon Sep 17 00:00:00 2001
+From: Fam Zheng <famz@redhat.com>
+Date: Thu, 30 Nov 2017 09:25:40 +0100
+Subject: [PATCH 03/36] qemu-doc: Add UUID support in initiator name
+
+RH-Author: Fam Zheng <famz@redhat.com>
+Message-id: <20171130092544.19231-2-famz@redhat.com>
+Patchwork-id: 78017
+O-Subject: [RHV7.5 qemu-kvm-ma PATCH 1/5] qemu-doc: Add UUID support in initiator name
+Bugzilla: 1494210
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Jeffrey Cody <jcody@redhat.com>
+RH-Acked-by: John Snow <jsnow@redhat.com>
+
+From: Fred Rolland <rollandf@gmail.com>
+
+Update doc with the usage of UUID for initiator name.
+
+Related-To: https://bugzilla.redhat.com/1006468
+Signed-off-by: Fred Rolland <frolland@redhat.com>
+Message-id: 20170823084830.30500-1-frolland@redhat.com
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+(cherry picked from commit fb9429ddc124c46731185b2781804d4fd39b658c)
+Signed-off-by: Fam Zheng <famz@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+Conflicts:
+	qemu-doc.texi
+We use "qemu-kvm" in the text instead of "qemu" in downstream.
+---
+ qemu-doc.texi | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/qemu-doc.texi b/qemu-doc.texi
+index da0e513..db09b7e 100644
+--- a/qemu-doc.texi
++++ b/qemu-doc.texi
+@@ -1066,10 +1066,11 @@ in a configuration file provided via '-readconfig' or directly on the
+ command line.
+ 
+ If the initiator-name is not specified qemu-kvm will use a default name
+-of 'iqn.2008-11.org.linux-kvm[:<name>'] where <name> is the name of the
++of 'iqn.2008-11.org.linux-kvm[:<uuid>'] where <uuid> is the UUID of the
++virtual machine. If the UUID is not specified qemu will use
++'iqn.2008-11.org.linux-kvm[:<name>'] where <name> is the name of the
+ virtual machine.
+ 
+-
+ @example
+ Setting a specific initiator name to use when logging in to the target
+ -iscsi initiator-name=iqn.qemu.test:my-initiator
+-- 
+1.8.3.1
+

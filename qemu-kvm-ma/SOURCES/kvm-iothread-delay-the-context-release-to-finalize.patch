@@ -1,0 +1,71 @@
+From 38a2a92899b4f351cb7f4c002428a064819a565a Mon Sep 17 00:00:00 2001
+From: Stefan Hajnoczi <stefanha@redhat.com>
+Date: Fri, 22 Dec 2017 11:08:47 +0100
+Subject: [PATCH 29/42] iothread: delay the context release to finalize
+
+RH-Author: Stefan Hajnoczi <stefanha@redhat.com>
+Message-id: <20171222110900.24813-8-stefanha@redhat.com>
+Patchwork-id: 78489
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH 07/20] iothread: delay the context release to finalize
+Bugzilla: 1519721
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Jeffrey Cody <jcody@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+From: Peter Xu <peterx@redhat.com>
+
+When gcontext is used with iothread, the context will be destroyed
+during iothread_stop().  That's not good since sometimes we would like
+to keep the resources until iothread is destroyed, but we may want to
+stop the thread before that point.
+
+Delay the destruction of gcontext to iothread finalize.  Then we can do:
+
+  iothread_stop(thread);
+  some_cleanup_on_resources();
+  iothread_destroy(thread);
+
+We may need this patch if we want to run chardev IOs in iothreads and
+hopefully clean them up correctly.  For more specific information,
+please see 2b316774f6 ("qemu-char: do not operate on sources from
+finalize callbacks").
+
+Reviewed-by: Fam Zheng <famz@redhat.com>
+Reviewed-by: Stefan Hajnoczi <stefanha@redhat.com>
+Signed-off-by: Peter Xu <peterx@redhat.com>
+Message-id: 20170928025958.1420-5-peterx@redhat.com
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+(cherry picked from commit 5b3ac23fee97fc1a79ad2bb1cf3a1ce518d27905)
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ iothread.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/iothread.c b/iothread.c
+index b3c092b..27a4288 100644
+--- a/iothread.c
++++ b/iothread.c
+@@ -71,8 +71,6 @@ static void *iothread_run(void *opaque)
+             g_main_loop_unref(loop);
+ 
+             g_main_context_pop_thread_default(iothread->worker_context);
+-            g_main_context_unref(iothread->worker_context);
+-            iothread->worker_context = NULL;
+         }
+     }
+ 
+@@ -117,6 +115,10 @@ static void iothread_instance_finalize(Object *obj)
+     IOThread *iothread = IOTHREAD(obj);
+ 
+     iothread_stop(iothread);
++    if (iothread->worker_context) {
++        g_main_context_unref(iothread->worker_context);
++        iothread->worker_context = NULL;
++    }
+     qemu_cond_destroy(&iothread->init_done_cond);
+     qemu_mutex_destroy(&iothread->init_done_lock);
+     if (!iothread->ctx) {
+-- 
+1.8.3.1
+

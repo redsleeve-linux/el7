@@ -1,0 +1,128 @@
+From e624b4d9b2fcc27ce36cb2a37009d8083ee3ca9e Mon Sep 17 00:00:00 2001
+From: Marcel Apfelbaum <marcel@redhat.com>
+Date: Mon, 13 Nov 2017 15:59:40 +0100
+Subject: [PATCH 02/30] hw/pci: add QEMU-specific PCI capability to the Generic
+ PCI Express Root Port
+
+RH-Author: Marcel Apfelbaum <marcel@redhat.com>
+Message-id: <20171113155940.50793-3-marcel@redhat.com>
+Patchwork-id: 77663
+O-Subject: [RHEL-7.5 qemu-kvm-rhev PATCH 2/2] hw/pci: add QEMU-specific PCI capability to the Generic PCI Express Root Port
+Bugzilla: 1437113
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+RH-Acked-by: Michael S. Tsirkin <mst@redhat.com>
+RH-Acked-by: Gerd Hoffmann <kraxel@redhat.com>
+
+From: Aleksandr Bezzubikov <zuban32s@gmail.com>
+
+To enable hotplugging of a newly created pcie-pci-bridge,
+we need to tell firmware (e.g. SeaBIOS) to reserve
+additional buses or IO/MEM/PREF space for pcie-root-port.
+Additional bus reservation allows us to hotplug pcie-pci-bridge into this root port.
+The number of buses and IO/MEM/PREF space to reserve are provided to the device via
+a corresponding property, and to the firmware via new PCI capability.
+The properties' default values are -1 to keep default behavior unchanged.
+
+Signed-off-by: Aleksandr Bezzubikov <zuban32s@gmail.com>
+Reviewed-by: Marcel Apfelbaum <marcel@redhat.com>
+Tested-by: Marcel Apfelbaum <marcel@redhat.com>
+Reviewed-by: Michael S. Tsirkin <mst@redhat.com>
+Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
+(cherry picked from commit 226263fb5cdaa4a4a95f1680fabbc9dd2123fd67)
+Signed-off-by: Marcel Apfelbaum <marcel@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/pci-bridge/gen_pcie_root_port.c | 36 ++++++++++++++++++++++++++++++++++++
+ include/hw/pci/pcie_port.h         |  1 +
+ 2 files changed, 37 insertions(+)
+
+diff --git a/hw/pci-bridge/gen_pcie_root_port.c b/hw/pci-bridge/gen_pcie_root_port.c
+index cb694d6..ed03ffc 100644
+--- a/hw/pci-bridge/gen_pcie_root_port.c
++++ b/hw/pci-bridge/gen_pcie_root_port.c
+@@ -16,6 +16,8 @@
+ #include "hw/pci/pcie_port.h"
+ 
+ #define TYPE_GEN_PCIE_ROOT_PORT                "pcie-root-port"
++#define GEN_PCIE_ROOT_PORT(obj) \
++        OBJECT_CHECK(GenPCIERootPort, (obj), TYPE_GEN_PCIE_ROOT_PORT)
+ 
+ #define GEN_PCIE_ROOT_PORT_AER_OFFSET           0x100
+ #define GEN_PCIE_ROOT_PORT_MSIX_NR_VECTOR       1
+@@ -26,6 +28,13 @@ typedef struct GenPCIERootPort {
+     /*< public >*/
+ 
+     bool migrate_msix;
++
++    /* additional resources to reserve on firmware init */
++    uint32_t bus_reserve;
++    uint64_t io_reserve;
++    uint64_t mem_reserve;
++    uint64_t pref32_reserve;
++    uint64_t pref64_reserve;
+ } GenPCIERootPort;
+ 
+ static uint8_t gen_rp_aer_vector(const PCIDevice *d)
+@@ -60,6 +69,24 @@ static bool gen_rp_test_migrate_msix(void *opaque, int version_id)
+     return rp->migrate_msix;
+ }
+ 
++static void gen_rp_realize(DeviceState *dev, Error **errp)
++{
++    PCIDevice *d = PCI_DEVICE(dev);
++    GenPCIERootPort *grp = GEN_PCIE_ROOT_PORT(d);
++    PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(d);
++
++    rpc->parent_realize(dev, errp);
++
++    int rc = pci_bridge_qemu_reserve_cap_init(d, 0, grp->bus_reserve,
++            grp->io_reserve, grp->mem_reserve, grp->pref32_reserve,
++            grp->pref64_reserve, errp);
++
++    if (rc < 0) {
++        rpc->parent_class.exit(d);
++        return;
++    }
++}
++
+ static const VMStateDescription vmstate_rp_dev = {
+     .name = "pcie-root-port",
+     .version_id = 1,
+@@ -78,6 +105,11 @@ static const VMStateDescription vmstate_rp_dev = {
+ 
+ static Property gen_rp_props[] = {
+     DEFINE_PROP_BOOL("x-migrate-msix", GenPCIERootPort, migrate_msix, true),
++    DEFINE_PROP_UINT32("bus-reserve", GenPCIERootPort, bus_reserve, -1),
++    DEFINE_PROP_SIZE("io-reserve", GenPCIERootPort, io_reserve, -1),
++    DEFINE_PROP_SIZE("mem-reserve", GenPCIERootPort, mem_reserve, -1),
++    DEFINE_PROP_SIZE("pref32-reserve", GenPCIERootPort, pref32_reserve, -1),
++    DEFINE_PROP_SIZE("pref64-reserve", GenPCIERootPort, pref64_reserve, -1),
+     DEFINE_PROP_END_OF_LIST()
+ };
+ 
+@@ -92,6 +124,10 @@ static void gen_rp_dev_class_init(ObjectClass *klass, void *data)
+     dc->desc = "PCI Express Root Port";
+     dc->vmsd = &vmstate_rp_dev;
+     dc->props = gen_rp_props;
++
++    rpc->parent_realize = dc->realize;
++    dc->realize = gen_rp_realize;
++
+     rpc->aer_vector = gen_rp_aer_vector;
+     rpc->interrupts_init = gen_rp_interrupts_init;
+     rpc->interrupts_uninit = gen_rp_interrupts_uninit;
+diff --git a/include/hw/pci/pcie_port.h b/include/hw/pci/pcie_port.h
+index 1333266..0736014 100644
+--- a/include/hw/pci/pcie_port.h
++++ b/include/hw/pci/pcie_port.h
+@@ -65,6 +65,7 @@ void pcie_chassis_del_slot(PCIESlot *s);
+ 
+ typedef struct PCIERootPortClass {
+     PCIDeviceClass parent_class;
++    DeviceRealize parent_realize;
+ 
+     uint8_t (*aer_vector)(const PCIDevice *dev);
+     int (*interrupts_init)(PCIDevice *dev, Error **errp);
+-- 
+1.8.3.1
+

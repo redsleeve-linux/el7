@@ -1,0 +1,899 @@
+From a97cc2e8341bf5d50e9282946bcdf26b43ebc34c Mon Sep 17 00:00:00 2001
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Sat, 2 Dec 2017 12:19:47 +0100
+Subject: [PATCH 21/36] scsi: move block/scsi.h to include/scsi/constants.h
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: Paolo Bonzini <pbonzini@redhat.com>
+Message-id: <20171202121953.13317-12-pbonzini@redhat.com>
+Patchwork-id: 78086
+O-Subject: [RHEL7.4 qemu-kvm-rhev PATCH 11/17] scsi: move block/scsi.h to include/scsi/constants.h
+Bugzilla: 1464908
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+RH-Acked-by: John Snow <jsnow@redhat.com>
+
+Complete the transition by renaming this header, which was
+shared by block/iscsi.c and the SCSI emulation code.
+
+Reviewed-by: Philippe Mathieu-Daudé <f4bug@amsat.org>
+Reviewed-by: Stefan Hajnoczi <stefanha@redhat.com>
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit 08e2c9f19ce791b3a0fb6adbf962ab4902ec5a7b)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ block/iscsi.c                   |   2 +-
+ hw/block/virtio-blk.c           |   2 +-
+ hw/scsi/megasas.c               |   2 +-
+ hw/scsi/mptendian.c             |   2 +-
+ hw/scsi/mptsas.c                |   2 +-
+ hw/scsi/scsi-bus.c              |   2 +-
+ hw/scsi/scsi-disk.c             |   2 +-
+ hw/scsi/scsi-generic.c          |   2 +-
+ hw/scsi/spapr_vscsi.c           |   2 +-
+ hw/scsi/virtio-scsi-dataplane.c |   2 +-
+ hw/scsi/virtio-scsi.c           |   2 +-
+ hw/scsi/vmw_pvscsi.c            |   2 +-
+ hw/usb/dev-uas.c                |   2 +-
+ include/block/scsi.h            | 314 ----------------------------------------
+ include/hw/ide/internal.h       |   2 +-
+ include/scsi/constants.h        | 314 ++++++++++++++++++++++++++++++++++++++++
+ scsi/utils.c                    |   2 +-
+ tests/virtio-scsi-test.c        |   2 +-
+ 18 files changed, 330 insertions(+), 330 deletions(-)
+ delete mode 100644 include/block/scsi.h
+ create mode 100644 include/scsi/constants.h
+
+diff --git a/block/iscsi.c b/block/iscsi.c
+index 40adc3c..c4586be 100644
+--- a/block/iscsi.c
++++ b/block/iscsi.c
+@@ -34,7 +34,7 @@
+ #include "qemu/bitops.h"
+ #include "qemu/bitmap.h"
+ #include "block/block_int.h"
+-#include "block/scsi.h"
++#include "scsi/constants.h"
+ #include "qemu/iov.h"
+ #include "qemu/uuid.h"
+ #include "qmp-commands.h"
+diff --git a/hw/block/virtio-blk.c b/hw/block/virtio-blk.c
+index a16ac75..05d1440 100644
+--- a/hw/block/virtio-blk.c
++++ b/hw/block/virtio-blk.c
+@@ -22,7 +22,7 @@
+ #include "sysemu/blockdev.h"
+ #include "hw/virtio/virtio-blk.h"
+ #include "dataplane/virtio-blk.h"
+-#include "block/scsi.h"
++#include "scsi/constants.h"
+ #ifdef __linux__
+ # include <scsi/sg.h>
+ #endif
+diff --git a/hw/scsi/megasas.c b/hw/scsi/megasas.c
+index 4ae10e3..d5eae62 100644
+--- a/hw/scsi/megasas.c
++++ b/hw/scsi/megasas.c
+@@ -27,7 +27,7 @@
+ #include "hw/pci/msix.h"
+ #include "qemu/iov.h"
+ #include "hw/scsi/scsi.h"
+-#include "block/scsi.h"
++#include "scsi/constants.h"
+ #include "trace.h"
+ #include "qapi/error.h"
+ #include "mfi.h"
+diff --git a/hw/scsi/mptendian.c b/hw/scsi/mptendian.c
+index b7fe2a2..3415229 100644
+--- a/hw/scsi/mptendian.c
++++ b/hw/scsi/mptendian.c
+@@ -28,7 +28,7 @@
+ #include "hw/pci/msi.h"
+ #include "qemu/iov.h"
+ #include "hw/scsi/scsi.h"
+-#include "block/scsi.h"
++#include "scsi/constants.h"
+ #include "trace.h"
+ 
+ #include "mptsas.h"
+diff --git a/hw/scsi/mptsas.c b/hw/scsi/mptsas.c
+index f807dc6..2f2c1b1 100644
+--- a/hw/scsi/mptsas.c
++++ b/hw/scsi/mptsas.c
+@@ -30,7 +30,7 @@
+ #include "hw/pci/msi.h"
+ #include "qemu/iov.h"
+ #include "hw/scsi/scsi.h"
+-#include "block/scsi.h"
++#include "scsi/constants.h"
+ #include "trace.h"
+ #include "qapi/error.h"
+ #include "mptsas.h"
+diff --git a/hw/scsi/scsi-bus.c b/hw/scsi/scsi-bus.c
+index f77e576..97c9525 100644
+--- a/hw/scsi/scsi-bus.c
++++ b/hw/scsi/scsi-bus.c
+@@ -3,7 +3,7 @@
+ #include "qapi/error.h"
+ #include "qemu/error-report.h"
+ #include "hw/scsi/scsi.h"
+-#include "block/scsi.h"
++#include "scsi/constants.h"
+ #include "hw/qdev.h"
+ #include "sysemu/block-backend.h"
+ #include "sysemu/blockdev.h"
+diff --git a/hw/scsi/scsi-disk.c b/hw/scsi/scsi-disk.c
+index b7714e3..8a63377 100644
+--- a/hw/scsi/scsi-disk.c
++++ b/hw/scsi/scsi-disk.c
+@@ -32,7 +32,7 @@ do { printf("scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
+ #include "qapi/error.h"
+ #include "qemu/error-report.h"
+ #include "hw/scsi/scsi.h"
+-#include "block/scsi.h"
++#include "scsi/constants.h"
+ #include "sysemu/sysemu.h"
+ #include "sysemu/block-backend.h"
+ #include "sysemu/blockdev.h"
+diff --git a/hw/scsi/scsi-generic.c b/hw/scsi/scsi-generic.c
+index 04c687e..bd0d9ff 100644
+--- a/hw/scsi/scsi-generic.c
++++ b/hw/scsi/scsi-generic.c
+@@ -34,7 +34,7 @@ do { printf("scsi-generic: " fmt , ## __VA_ARGS__); } while (0)
+ do { fprintf(stderr, "scsi-generic: " fmt , ## __VA_ARGS__); } while (0)
+ 
+ #include <scsi/sg.h>
+-#include "block/scsi.h"
++#include "scsi/constants.h"
+ 
+ #ifndef MAX_UINT
+ #define MAX_UINT ((unsigned int)-1)
+diff --git a/hw/scsi/spapr_vscsi.c b/hw/scsi/spapr_vscsi.c
+index 92a3de3..5a7ca06 100644
+--- a/hw/scsi/spapr_vscsi.c
++++ b/hw/scsi/spapr_vscsi.c
+@@ -36,7 +36,7 @@
+ #include "cpu.h"
+ #include "hw/hw.h"
+ #include "hw/scsi/scsi.h"
+-#include "block/scsi.h"
++#include "scsi/constants.h"
+ #include "srp.h"
+ #include "hw/qdev.h"
+ #include "hw/ppc/spapr.h"
+diff --git a/hw/scsi/virtio-scsi-dataplane.c b/hw/scsi/virtio-scsi-dataplane.c
+index 944ea4e..add4b3f 100644
+--- a/hw/scsi/virtio-scsi-dataplane.c
++++ b/hw/scsi/virtio-scsi-dataplane.c
+@@ -17,7 +17,7 @@
+ #include "qemu/error-report.h"
+ #include "sysemu/block-backend.h"
+ #include "hw/scsi/scsi.h"
+-#include "block/scsi.h"
++#include "scsi/constants.h"
+ #include "hw/virtio/virtio-bus.h"
+ #include "hw/virtio/virtio-access.h"
+ 
+diff --git a/hw/scsi/virtio-scsi.c b/hw/scsi/virtio-scsi.c
+index 2635c38..1591283 100644
+--- a/hw/scsi/virtio-scsi.c
++++ b/hw/scsi/virtio-scsi.c
+@@ -21,7 +21,7 @@
+ #include "qemu/iov.h"
+ #include "sysemu/block-backend.h"
+ #include "hw/scsi/scsi.h"
+-#include "block/scsi.h"
++#include "scsi/constants.h"
+ #include "hw/virtio/virtio-bus.h"
+ #include "hw/virtio/virtio-access.h"
+ 
+diff --git a/hw/scsi/vmw_pvscsi.c b/hw/scsi/vmw_pvscsi.c
+index d185393..d6b315f 100644
+--- a/hw/scsi/vmw_pvscsi.c
++++ b/hw/scsi/vmw_pvscsi.c
+@@ -28,7 +28,7 @@
+ #include "qemu/osdep.h"
+ #include "qapi/error.h"
+ #include "hw/scsi/scsi.h"
+-#include "block/scsi.h"
++#include "scsi/constants.h"
+ #include "hw/pci/msi.h"
+ #include "vmw_pvscsi.h"
+ #include "trace.h"
+diff --git a/hw/usb/dev-uas.c b/hw/usb/dev-uas.c
+index fffc424..c218b53 100644
+--- a/hw/usb/dev-uas.c
++++ b/hw/usb/dev-uas.c
+@@ -19,7 +19,7 @@
+ #include "hw/usb.h"
+ #include "hw/usb/desc.h"
+ #include "hw/scsi/scsi.h"
+-#include "block/scsi.h"
++#include "scsi/constants.h"
+ 
+ /* --------------------------------------------------------------------- */
+ 
+diff --git a/include/block/scsi.h b/include/block/scsi.h
+deleted file mode 100644
+index a141dd7..0000000
+--- a/include/block/scsi.h
++++ /dev/null
+@@ -1,314 +0,0 @@
+-/* Copyright (C) 1998, 1999 Free Software Foundation, Inc.
+-   This file is part of the GNU C Library.
+-
+-   The GNU C Library is free software; you can redistribute it and/or
+-   modify it under the terms of the GNU Lesser General Public
+-   License as published by the Free Software Foundation; either
+-   version 2.1 of the License, or (at your option) any later version.
+-
+-   The GNU C Library is distributed in the hope that it will be useful,
+-   but WITHOUT ANY WARRANTY; without even the implied warranty of
+-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+-   Lesser General Public License for more details.
+-
+-   You should have received a copy of the GNU Lesser General Public
+-   License along with this library; if not, see <http://www.gnu.org/licenses/>.
+-*/
+-
+-/*
+- * This header file contains public constants and structures used by
+- * the scsi code for linux.
+- */
+-
+-#ifndef BLOCK_SCSI_H
+-#define BLOCK_SCSI_H
+-
+-/*
+- *      SCSI opcodes
+- */
+-
+-#define TEST_UNIT_READY       0x00
+-#define REWIND                0x01
+-#define REQUEST_SENSE         0x03
+-#define FORMAT_UNIT           0x04
+-#define READ_BLOCK_LIMITS     0x05
+-#define INITIALIZE_ELEMENT_STATUS 0x07
+-#define REASSIGN_BLOCKS       0x07
+-#define READ_6                0x08
+-#define WRITE_6               0x0a
+-#define SET_CAPACITY          0x0b
+-#define READ_REVERSE          0x0f
+-#define WRITE_FILEMARKS       0x10
+-#define SPACE                 0x11
+-#define INQUIRY               0x12
+-#define RECOVER_BUFFERED_DATA 0x14
+-#define MODE_SELECT           0x15
+-#define RESERVE               0x16
+-#define RELEASE               0x17
+-#define COPY                  0x18
+-#define ERASE                 0x19
+-#define MODE_SENSE            0x1a
+-#define LOAD_UNLOAD           0x1b
+-#define SCAN                  0x1b
+-#define START_STOP            0x1b
+-#define RECEIVE_DIAGNOSTIC    0x1c
+-#define SEND_DIAGNOSTIC       0x1d
+-#define ALLOW_MEDIUM_REMOVAL  0x1e
+-#define SET_WINDOW            0x24
+-#define READ_CAPACITY_10      0x25
+-#define GET_WINDOW            0x25
+-#define READ_10               0x28
+-#define WRITE_10              0x2a
+-#define SEND                  0x2a
+-#define SEEK_10               0x2b
+-#define LOCATE_10             0x2b
+-#define POSITION_TO_ELEMENT   0x2b
+-#define WRITE_VERIFY_10       0x2e
+-#define VERIFY_10             0x2f
+-#define SEARCH_HIGH           0x30
+-#define SEARCH_EQUAL          0x31
+-#define OBJECT_POSITION       0x31
+-#define SEARCH_LOW            0x32
+-#define SET_LIMITS            0x33
+-#define PRE_FETCH             0x34
+-#define READ_POSITION         0x34
+-#define GET_DATA_BUFFER_STATUS 0x34
+-#define SYNCHRONIZE_CACHE     0x35
+-#define LOCK_UNLOCK_CACHE     0x36
+-#define INITIALIZE_ELEMENT_STATUS_WITH_RANGE 0x37
+-#define READ_DEFECT_DATA      0x37
+-#define MEDIUM_SCAN           0x38
+-#define COMPARE               0x39
+-#define COPY_VERIFY           0x3a
+-#define WRITE_BUFFER          0x3b
+-#define READ_BUFFER           0x3c
+-#define UPDATE_BLOCK          0x3d
+-#define READ_LONG_10          0x3e
+-#define WRITE_LONG_10         0x3f
+-#define CHANGE_DEFINITION     0x40
+-#define WRITE_SAME_10         0x41
+-#define UNMAP                 0x42
+-#define READ_TOC              0x43
+-#define REPORT_DENSITY_SUPPORT 0x44
+-#define GET_CONFIGURATION     0x46
+-#define SANITIZE              0x48
+-#define GET_EVENT_STATUS_NOTIFICATION 0x4a
+-#define LOG_SELECT            0x4c
+-#define LOG_SENSE             0x4d
+-#define READ_DISC_INFORMATION 0x51
+-#define RESERVE_TRACK         0x53
+-#define MODE_SELECT_10        0x55
+-#define RESERVE_10            0x56
+-#define RELEASE_10            0x57
+-#define MODE_SENSE_10         0x5a
+-#define SEND_CUE_SHEET        0x5d
+-#define PERSISTENT_RESERVE_IN 0x5e
+-#define PERSISTENT_RESERVE_OUT 0x5f
+-#define VARLENGTH_CDB         0x7f
+-#define WRITE_FILEMARKS_16    0x80
+-#define READ_REVERSE_16       0x81
+-#define ALLOW_OVERWRITE       0x82
+-#define EXTENDED_COPY         0x83
+-#define ATA_PASSTHROUGH_16    0x85
+-#define ACCESS_CONTROL_IN     0x86
+-#define ACCESS_CONTROL_OUT    0x87
+-#define READ_16               0x88
+-#define COMPARE_AND_WRITE     0x89
+-#define WRITE_16              0x8a
+-#define WRITE_VERIFY_16       0x8e
+-#define VERIFY_16             0x8f
+-#define PRE_FETCH_16          0x90
+-#define SPACE_16              0x91
+-#define SYNCHRONIZE_CACHE_16  0x91
+-#define LOCATE_16             0x92
+-#define WRITE_SAME_16         0x93
+-#define ERASE_16              0x93
+-#define SERVICE_ACTION_IN_16  0x9e
+-#define WRITE_LONG_16         0x9f
+-#define REPORT_LUNS           0xa0
+-#define ATA_PASSTHROUGH_12    0xa1
+-#define MAINTENANCE_IN        0xa3
+-#define MAINTENANCE_OUT       0xa4
+-#define MOVE_MEDIUM           0xa5
+-#define EXCHANGE_MEDIUM       0xa6
+-#define SET_READ_AHEAD        0xa7
+-#define READ_12               0xa8
+-#define WRITE_12              0xaa
+-#define SERVICE_ACTION_IN_12  0xab
+-#define ERASE_12              0xac
+-#define READ_DVD_STRUCTURE    0xad
+-#define WRITE_VERIFY_12       0xae
+-#define VERIFY_12             0xaf
+-#define SEARCH_HIGH_12        0xb0
+-#define SEARCH_EQUAL_12       0xb1
+-#define SEARCH_LOW_12         0xb2
+-#define READ_ELEMENT_STATUS   0xb8
+-#define SEND_VOLUME_TAG       0xb6
+-#define READ_DEFECT_DATA_12   0xb7
+-#define SET_CD_SPEED          0xbb
+-#define MECHANISM_STATUS      0xbd
+-#define READ_CD               0xbe
+-#define SEND_DVD_STRUCTURE    0xbf
+-
+-/*
+- * SERVICE ACTION IN subcodes
+- */
+-#define SAI_READ_CAPACITY_16  0x10
+-
+-/*
+- * READ POSITION service action codes
+- */
+-#define SHORT_FORM_BLOCK_ID  0x00
+-#define SHORT_FORM_VENDOR_SPECIFIC 0x01
+-#define LONG_FORM            0x06
+-#define EXTENDED_FORM        0x08
+-
+-/*
+- *  SAM Status codes
+- */
+-
+-#define GOOD                 0x00
+-#define CHECK_CONDITION      0x02
+-#define CONDITION_GOOD       0x04
+-#define BUSY                 0x08
+-#define INTERMEDIATE_GOOD    0x10
+-#define INTERMEDIATE_C_GOOD  0x14
+-#define RESERVATION_CONFLICT 0x18
+-#define COMMAND_TERMINATED   0x22
+-#define TASK_SET_FULL        0x28
+-#define ACA_ACTIVE           0x30
+-#define TASK_ABORTED         0x40
+-
+-#define STATUS_MASK          0x3e
+-
+-/*
+- *  SENSE KEYS
+- */
+-
+-#define NO_SENSE            0x00
+-#define RECOVERED_ERROR     0x01
+-#define NOT_READY           0x02
+-#define MEDIUM_ERROR        0x03
+-#define HARDWARE_ERROR      0x04
+-#define ILLEGAL_REQUEST     0x05
+-#define UNIT_ATTENTION      0x06
+-#define DATA_PROTECT        0x07
+-#define BLANK_CHECK         0x08
+-#define COPY_ABORTED        0x0a
+-#define ABORTED_COMMAND     0x0b
+-#define VOLUME_OVERFLOW     0x0d
+-#define MISCOMPARE          0x0e
+-
+-
+-/*
+- *  DEVICE TYPES
+- */
+-
+-#define TYPE_DISK           0x00
+-#define TYPE_TAPE           0x01
+-#define TYPE_PRINTER        0x02
+-#define TYPE_PROCESSOR      0x03    /* HP scanners use this */
+-#define TYPE_WORM           0x04    /* Treated as ROM by our system */
+-#define TYPE_ROM            0x05
+-#define TYPE_SCANNER        0x06
+-#define TYPE_MOD            0x07    /* Magneto-optical disk -
+-				     * - treated as TYPE_DISK */
+-#define TYPE_MEDIUM_CHANGER 0x08
+-#define TYPE_STORAGE_ARRAY  0x0c    /* Storage array device */
+-#define TYPE_ENCLOSURE      0x0d    /* Enclosure Services Device */
+-#define TYPE_RBC            0x0e    /* Simplified Direct-Access Device */
+-#define TYPE_OSD            0x11    /* Object-storage Device */
+-#define TYPE_WLUN           0x1e    /* Well known LUN */
+-#define TYPE_NOT_PRESENT    0x1f
+-#define TYPE_INACTIVE       0x20
+-#define TYPE_NO_LUN         0x7f
+-
+-/* Mode page codes for mode sense/set */
+-#define MODE_PAGE_R_W_ERROR                   0x01
+-#define MODE_PAGE_HD_GEOMETRY                 0x04
+-#define MODE_PAGE_FLEXIBLE_DISK_GEOMETRY      0x05
+-#define MODE_PAGE_CACHING                     0x08
+-#define MODE_PAGE_AUDIO_CTL                   0x0e
+-#define MODE_PAGE_POWER                       0x1a
+-#define MODE_PAGE_FAULT_FAIL                  0x1c
+-#define MODE_PAGE_TO_PROTECT                  0x1d
+-#define MODE_PAGE_CAPABILITIES                0x2a
+-#define MODE_PAGE_ALLS                        0x3f
+-/* Not in Mt. Fuji, but in ATAPI 2.6 -- deprecated now in favor
+- * of MODE_PAGE_SENSE_POWER */
+-#define MODE_PAGE_CDROM                       0x0d
+-
+-/* Event notification classes for GET EVENT STATUS NOTIFICATION */
+-#define GESN_NO_EVENTS                0
+-#define GESN_OPERATIONAL_CHANGE       1
+-#define GESN_POWER_MANAGEMENT         2
+-#define GESN_EXTERNAL_REQUEST         3
+-#define GESN_MEDIA                    4
+-#define GESN_MULTIPLE_HOSTS           5
+-#define GESN_DEVICE_BUSY              6
+-
+-/* Event codes for MEDIA event status notification */
+-#define MEC_NO_CHANGE                 0
+-#define MEC_EJECT_REQUESTED           1
+-#define MEC_NEW_MEDIA                 2
+-#define MEC_MEDIA_REMOVAL             3 /* only for media changers */
+-#define MEC_MEDIA_CHANGED             4 /* only for media changers */
+-#define MEC_BG_FORMAT_COMPLETED       5 /* MRW or DVD+RW b/g format completed */
+-#define MEC_BG_FORMAT_RESTARTED       6 /* MRW or DVD+RW b/g format restarted */
+-
+-#define MS_TRAY_OPEN                  1
+-#define MS_MEDIA_PRESENT              2
+-
+-/*
+- * Based on values from <linux/cdrom.h> but extending CD_MINS
+- * to the maximum common size allowed by the Orange's Book ATIP
+- *
+- * 90 and 99 min CDs are also available but using them as the
+- * upper limit reduces the effectiveness of the heuristic to
+- * detect DVDs burned to less than 25% of their maximum capacity
+- */
+-
+-/* Some generally useful CD-ROM information */
+-#define CD_MINS                       80 /* max. minutes per CD */
+-#define CD_SECS                       60 /* seconds per minute */
+-#define CD_FRAMES                     75 /* frames per second */
+-#define CD_FRAMESIZE                2048 /* bytes per frame, "cooked" mode */
+-#define CD_MAX_BYTES       (CD_MINS * CD_SECS * CD_FRAMES * CD_FRAMESIZE)
+-#define CD_MAX_SECTORS     (CD_MAX_BYTES / 512)
+-
+-/*
+- * The MMC values are not IDE specific and might need to be moved
+- * to a common header if they are also needed for the SCSI emulation
+- */
+-
+-/* Profile list from MMC-6 revision 1 table 91 */
+-#define MMC_PROFILE_NONE                0x0000
+-#define MMC_PROFILE_CD_ROM              0x0008
+-#define MMC_PROFILE_CD_R                0x0009
+-#define MMC_PROFILE_CD_RW               0x000A
+-#define MMC_PROFILE_DVD_ROM             0x0010
+-#define MMC_PROFILE_DVD_R_SR            0x0011
+-#define MMC_PROFILE_DVD_RAM             0x0012
+-#define MMC_PROFILE_DVD_RW_RO           0x0013
+-#define MMC_PROFILE_DVD_RW_SR           0x0014
+-#define MMC_PROFILE_DVD_R_DL_SR         0x0015
+-#define MMC_PROFILE_DVD_R_DL_JR         0x0016
+-#define MMC_PROFILE_DVD_RW_DL           0x0017
+-#define MMC_PROFILE_DVD_DDR             0x0018
+-#define MMC_PROFILE_DVD_PLUS_RW         0x001A
+-#define MMC_PROFILE_DVD_PLUS_R          0x001B
+-#define MMC_PROFILE_DVD_PLUS_RW_DL      0x002A
+-#define MMC_PROFILE_DVD_PLUS_R_DL       0x002B
+-#define MMC_PROFILE_BD_ROM              0x0040
+-#define MMC_PROFILE_BD_R_SRM            0x0041
+-#define MMC_PROFILE_BD_R_RRM            0x0042
+-#define MMC_PROFILE_BD_RE               0x0043
+-#define MMC_PROFILE_HDDVD_ROM           0x0050
+-#define MMC_PROFILE_HDDVD_R             0x0051
+-#define MMC_PROFILE_HDDVD_RAM           0x0052
+-#define MMC_PROFILE_HDDVD_RW            0x0053
+-#define MMC_PROFILE_HDDVD_R_DL          0x0058
+-#define MMC_PROFILE_HDDVD_RW_DL         0x005A
+-#define MMC_PROFILE_INVALID             0xFFFF
+-
+-#endif
+diff --git a/include/hw/ide/internal.h b/include/hw/ide/internal.h
+index f1aca72..41cd42d 100644
+--- a/include/hw/ide/internal.h
++++ b/include/hw/ide/internal.h
+@@ -11,7 +11,7 @@
+ #include "sysemu/dma.h"
+ #include "sysemu/sysemu.h"
+ #include "hw/block/block.h"
+-#include "block/scsi.h"
++#include "scsi/constants.h"
+ 
+ /* debug IDE devices */
+ //#define DEBUG_IDE
+diff --git a/include/scsi/constants.h b/include/scsi/constants.h
+new file mode 100644
+index 0000000..a141dd7
+--- /dev/null
++++ b/include/scsi/constants.h
+@@ -0,0 +1,314 @@
++/* Copyright (C) 1998, 1999 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with this library; if not, see <http://www.gnu.org/licenses/>.
++*/
++
++/*
++ * This header file contains public constants and structures used by
++ * the scsi code for linux.
++ */
++
++#ifndef BLOCK_SCSI_H
++#define BLOCK_SCSI_H
++
++/*
++ *      SCSI opcodes
++ */
++
++#define TEST_UNIT_READY       0x00
++#define REWIND                0x01
++#define REQUEST_SENSE         0x03
++#define FORMAT_UNIT           0x04
++#define READ_BLOCK_LIMITS     0x05
++#define INITIALIZE_ELEMENT_STATUS 0x07
++#define REASSIGN_BLOCKS       0x07
++#define READ_6                0x08
++#define WRITE_6               0x0a
++#define SET_CAPACITY          0x0b
++#define READ_REVERSE          0x0f
++#define WRITE_FILEMARKS       0x10
++#define SPACE                 0x11
++#define INQUIRY               0x12
++#define RECOVER_BUFFERED_DATA 0x14
++#define MODE_SELECT           0x15
++#define RESERVE               0x16
++#define RELEASE               0x17
++#define COPY                  0x18
++#define ERASE                 0x19
++#define MODE_SENSE            0x1a
++#define LOAD_UNLOAD           0x1b
++#define SCAN                  0x1b
++#define START_STOP            0x1b
++#define RECEIVE_DIAGNOSTIC    0x1c
++#define SEND_DIAGNOSTIC       0x1d
++#define ALLOW_MEDIUM_REMOVAL  0x1e
++#define SET_WINDOW            0x24
++#define READ_CAPACITY_10      0x25
++#define GET_WINDOW            0x25
++#define READ_10               0x28
++#define WRITE_10              0x2a
++#define SEND                  0x2a
++#define SEEK_10               0x2b
++#define LOCATE_10             0x2b
++#define POSITION_TO_ELEMENT   0x2b
++#define WRITE_VERIFY_10       0x2e
++#define VERIFY_10             0x2f
++#define SEARCH_HIGH           0x30
++#define SEARCH_EQUAL          0x31
++#define OBJECT_POSITION       0x31
++#define SEARCH_LOW            0x32
++#define SET_LIMITS            0x33
++#define PRE_FETCH             0x34
++#define READ_POSITION         0x34
++#define GET_DATA_BUFFER_STATUS 0x34
++#define SYNCHRONIZE_CACHE     0x35
++#define LOCK_UNLOCK_CACHE     0x36
++#define INITIALIZE_ELEMENT_STATUS_WITH_RANGE 0x37
++#define READ_DEFECT_DATA      0x37
++#define MEDIUM_SCAN           0x38
++#define COMPARE               0x39
++#define COPY_VERIFY           0x3a
++#define WRITE_BUFFER          0x3b
++#define READ_BUFFER           0x3c
++#define UPDATE_BLOCK          0x3d
++#define READ_LONG_10          0x3e
++#define WRITE_LONG_10         0x3f
++#define CHANGE_DEFINITION     0x40
++#define WRITE_SAME_10         0x41
++#define UNMAP                 0x42
++#define READ_TOC              0x43
++#define REPORT_DENSITY_SUPPORT 0x44
++#define GET_CONFIGURATION     0x46
++#define SANITIZE              0x48
++#define GET_EVENT_STATUS_NOTIFICATION 0x4a
++#define LOG_SELECT            0x4c
++#define LOG_SENSE             0x4d
++#define READ_DISC_INFORMATION 0x51
++#define RESERVE_TRACK         0x53
++#define MODE_SELECT_10        0x55
++#define RESERVE_10            0x56
++#define RELEASE_10            0x57
++#define MODE_SENSE_10         0x5a
++#define SEND_CUE_SHEET        0x5d
++#define PERSISTENT_RESERVE_IN 0x5e
++#define PERSISTENT_RESERVE_OUT 0x5f
++#define VARLENGTH_CDB         0x7f
++#define WRITE_FILEMARKS_16    0x80
++#define READ_REVERSE_16       0x81
++#define ALLOW_OVERWRITE       0x82
++#define EXTENDED_COPY         0x83
++#define ATA_PASSTHROUGH_16    0x85
++#define ACCESS_CONTROL_IN     0x86
++#define ACCESS_CONTROL_OUT    0x87
++#define READ_16               0x88
++#define COMPARE_AND_WRITE     0x89
++#define WRITE_16              0x8a
++#define WRITE_VERIFY_16       0x8e
++#define VERIFY_16             0x8f
++#define PRE_FETCH_16          0x90
++#define SPACE_16              0x91
++#define SYNCHRONIZE_CACHE_16  0x91
++#define LOCATE_16             0x92
++#define WRITE_SAME_16         0x93
++#define ERASE_16              0x93
++#define SERVICE_ACTION_IN_16  0x9e
++#define WRITE_LONG_16         0x9f
++#define REPORT_LUNS           0xa0
++#define ATA_PASSTHROUGH_12    0xa1
++#define MAINTENANCE_IN        0xa3
++#define MAINTENANCE_OUT       0xa4
++#define MOVE_MEDIUM           0xa5
++#define EXCHANGE_MEDIUM       0xa6
++#define SET_READ_AHEAD        0xa7
++#define READ_12               0xa8
++#define WRITE_12              0xaa
++#define SERVICE_ACTION_IN_12  0xab
++#define ERASE_12              0xac
++#define READ_DVD_STRUCTURE    0xad
++#define WRITE_VERIFY_12       0xae
++#define VERIFY_12             0xaf
++#define SEARCH_HIGH_12        0xb0
++#define SEARCH_EQUAL_12       0xb1
++#define SEARCH_LOW_12         0xb2
++#define READ_ELEMENT_STATUS   0xb8
++#define SEND_VOLUME_TAG       0xb6
++#define READ_DEFECT_DATA_12   0xb7
++#define SET_CD_SPEED          0xbb
++#define MECHANISM_STATUS      0xbd
++#define READ_CD               0xbe
++#define SEND_DVD_STRUCTURE    0xbf
++
++/*
++ * SERVICE ACTION IN subcodes
++ */
++#define SAI_READ_CAPACITY_16  0x10
++
++/*
++ * READ POSITION service action codes
++ */
++#define SHORT_FORM_BLOCK_ID  0x00
++#define SHORT_FORM_VENDOR_SPECIFIC 0x01
++#define LONG_FORM            0x06
++#define EXTENDED_FORM        0x08
++
++/*
++ *  SAM Status codes
++ */
++
++#define GOOD                 0x00
++#define CHECK_CONDITION      0x02
++#define CONDITION_GOOD       0x04
++#define BUSY                 0x08
++#define INTERMEDIATE_GOOD    0x10
++#define INTERMEDIATE_C_GOOD  0x14
++#define RESERVATION_CONFLICT 0x18
++#define COMMAND_TERMINATED   0x22
++#define TASK_SET_FULL        0x28
++#define ACA_ACTIVE           0x30
++#define TASK_ABORTED         0x40
++
++#define STATUS_MASK          0x3e
++
++/*
++ *  SENSE KEYS
++ */
++
++#define NO_SENSE            0x00
++#define RECOVERED_ERROR     0x01
++#define NOT_READY           0x02
++#define MEDIUM_ERROR        0x03
++#define HARDWARE_ERROR      0x04
++#define ILLEGAL_REQUEST     0x05
++#define UNIT_ATTENTION      0x06
++#define DATA_PROTECT        0x07
++#define BLANK_CHECK         0x08
++#define COPY_ABORTED        0x0a
++#define ABORTED_COMMAND     0x0b
++#define VOLUME_OVERFLOW     0x0d
++#define MISCOMPARE          0x0e
++
++
++/*
++ *  DEVICE TYPES
++ */
++
++#define TYPE_DISK           0x00
++#define TYPE_TAPE           0x01
++#define TYPE_PRINTER        0x02
++#define TYPE_PROCESSOR      0x03    /* HP scanners use this */
++#define TYPE_WORM           0x04    /* Treated as ROM by our system */
++#define TYPE_ROM            0x05
++#define TYPE_SCANNER        0x06
++#define TYPE_MOD            0x07    /* Magneto-optical disk -
++				     * - treated as TYPE_DISK */
++#define TYPE_MEDIUM_CHANGER 0x08
++#define TYPE_STORAGE_ARRAY  0x0c    /* Storage array device */
++#define TYPE_ENCLOSURE      0x0d    /* Enclosure Services Device */
++#define TYPE_RBC            0x0e    /* Simplified Direct-Access Device */
++#define TYPE_OSD            0x11    /* Object-storage Device */
++#define TYPE_WLUN           0x1e    /* Well known LUN */
++#define TYPE_NOT_PRESENT    0x1f
++#define TYPE_INACTIVE       0x20
++#define TYPE_NO_LUN         0x7f
++
++/* Mode page codes for mode sense/set */
++#define MODE_PAGE_R_W_ERROR                   0x01
++#define MODE_PAGE_HD_GEOMETRY                 0x04
++#define MODE_PAGE_FLEXIBLE_DISK_GEOMETRY      0x05
++#define MODE_PAGE_CACHING                     0x08
++#define MODE_PAGE_AUDIO_CTL                   0x0e
++#define MODE_PAGE_POWER                       0x1a
++#define MODE_PAGE_FAULT_FAIL                  0x1c
++#define MODE_PAGE_TO_PROTECT                  0x1d
++#define MODE_PAGE_CAPABILITIES                0x2a
++#define MODE_PAGE_ALLS                        0x3f
++/* Not in Mt. Fuji, but in ATAPI 2.6 -- deprecated now in favor
++ * of MODE_PAGE_SENSE_POWER */
++#define MODE_PAGE_CDROM                       0x0d
++
++/* Event notification classes for GET EVENT STATUS NOTIFICATION */
++#define GESN_NO_EVENTS                0
++#define GESN_OPERATIONAL_CHANGE       1
++#define GESN_POWER_MANAGEMENT         2
++#define GESN_EXTERNAL_REQUEST         3
++#define GESN_MEDIA                    4
++#define GESN_MULTIPLE_HOSTS           5
++#define GESN_DEVICE_BUSY              6
++
++/* Event codes for MEDIA event status notification */
++#define MEC_NO_CHANGE                 0
++#define MEC_EJECT_REQUESTED           1
++#define MEC_NEW_MEDIA                 2
++#define MEC_MEDIA_REMOVAL             3 /* only for media changers */
++#define MEC_MEDIA_CHANGED             4 /* only for media changers */
++#define MEC_BG_FORMAT_COMPLETED       5 /* MRW or DVD+RW b/g format completed */
++#define MEC_BG_FORMAT_RESTARTED       6 /* MRW or DVD+RW b/g format restarted */
++
++#define MS_TRAY_OPEN                  1
++#define MS_MEDIA_PRESENT              2
++
++/*
++ * Based on values from <linux/cdrom.h> but extending CD_MINS
++ * to the maximum common size allowed by the Orange's Book ATIP
++ *
++ * 90 and 99 min CDs are also available but using them as the
++ * upper limit reduces the effectiveness of the heuristic to
++ * detect DVDs burned to less than 25% of their maximum capacity
++ */
++
++/* Some generally useful CD-ROM information */
++#define CD_MINS                       80 /* max. minutes per CD */
++#define CD_SECS                       60 /* seconds per minute */
++#define CD_FRAMES                     75 /* frames per second */
++#define CD_FRAMESIZE                2048 /* bytes per frame, "cooked" mode */
++#define CD_MAX_BYTES       (CD_MINS * CD_SECS * CD_FRAMES * CD_FRAMESIZE)
++#define CD_MAX_SECTORS     (CD_MAX_BYTES / 512)
++
++/*
++ * The MMC values are not IDE specific and might need to be moved
++ * to a common header if they are also needed for the SCSI emulation
++ */
++
++/* Profile list from MMC-6 revision 1 table 91 */
++#define MMC_PROFILE_NONE                0x0000
++#define MMC_PROFILE_CD_ROM              0x0008
++#define MMC_PROFILE_CD_R                0x0009
++#define MMC_PROFILE_CD_RW               0x000A
++#define MMC_PROFILE_DVD_ROM             0x0010
++#define MMC_PROFILE_DVD_R_SR            0x0011
++#define MMC_PROFILE_DVD_RAM             0x0012
++#define MMC_PROFILE_DVD_RW_RO           0x0013
++#define MMC_PROFILE_DVD_RW_SR           0x0014
++#define MMC_PROFILE_DVD_R_DL_SR         0x0015
++#define MMC_PROFILE_DVD_R_DL_JR         0x0016
++#define MMC_PROFILE_DVD_RW_DL           0x0017
++#define MMC_PROFILE_DVD_DDR             0x0018
++#define MMC_PROFILE_DVD_PLUS_RW         0x001A
++#define MMC_PROFILE_DVD_PLUS_R          0x001B
++#define MMC_PROFILE_DVD_PLUS_RW_DL      0x002A
++#define MMC_PROFILE_DVD_PLUS_R_DL       0x002B
++#define MMC_PROFILE_BD_ROM              0x0040
++#define MMC_PROFILE_BD_R_SRM            0x0041
++#define MMC_PROFILE_BD_R_RRM            0x0042
++#define MMC_PROFILE_BD_RE               0x0043
++#define MMC_PROFILE_HDDVD_ROM           0x0050
++#define MMC_PROFILE_HDDVD_R             0x0051
++#define MMC_PROFILE_HDDVD_RAM           0x0052
++#define MMC_PROFILE_HDDVD_RW            0x0053
++#define MMC_PROFILE_HDDVD_R_DL          0x0058
++#define MMC_PROFILE_HDDVD_RW_DL         0x005A
++#define MMC_PROFILE_INVALID             0xFFFF
++
++#endif
+diff --git a/scsi/utils.c b/scsi/utils.c
+index 6ee9f40..fab60bd 100644
+--- a/scsi/utils.c
++++ b/scsi/utils.c
+@@ -14,7 +14,7 @@
+  */
+ 
+ #include "qemu/osdep.h"
+-#include "block/scsi.h"
++#include "scsi/constants.h"
+ #include "scsi/utils.h"
+ #include "qemu/bswap.h"
+ 
+diff --git a/tests/virtio-scsi-test.c b/tests/virtio-scsi-test.c
+index 87a3b6e..082d323 100644
+--- a/tests/virtio-scsi-test.c
++++ b/tests/virtio-scsi-test.c
+@@ -10,7 +10,7 @@
+ 
+ #include "qemu/osdep.h"
+ #include "libqtest.h"
+-#include "block/scsi.h"
++#include "scsi/constants.h"
+ #include "libqos/libqos-pc.h"
+ #include "libqos/libqos-spapr.h"
+ #include "libqos/virtio.h"
+-- 
+1.8.3.1
+

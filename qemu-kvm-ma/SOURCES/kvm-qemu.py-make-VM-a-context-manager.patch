@@ -1,0 +1,74 @@
+From da96c55a017fbc750b49550c6e7a523dcdab0dbe Mon Sep 17 00:00:00 2001
+From: Stefan Hajnoczi <stefanha@redhat.com>
+Date: Fri, 22 Dec 2017 11:08:41 +0100
+Subject: [PATCH 23/42] qemu.py: make VM() a context manager
+
+RH-Author: Stefan Hajnoczi <stefanha@redhat.com>
+Message-id: <20171222110900.24813-2-stefanha@redhat.com>
+Patchwork-id: 78483
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH 01/20] qemu.py: make VM() a context manager
+Bugzilla: 1519721
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Jeffrey Cody <jcody@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+There are a number of ways to ensure that the QEMU process is shut down
+when the test ends, including atexit.register(), try: finally:, or
+unittest.teardown() methods.  All of these require extra code and the
+programmer must remember to add vm.shutdown().
+
+A nice solution is context managers:
+
+  with VM(binary) as vm:
+      ...
+  # vm is guaranteed to be shut down here
+
+Cc: Eduardo Habkost <ehabkost@redhat.com>
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+Reviewed-by: Eduardo Habkost <ehabkost@redhat.com>
+Message-id: 20170824072202.26818-2-stefanha@redhat.com
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+(cherry picked from commit d792bc3811f22a22a46c7d9a725fd29029f54095)
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ scripts/qemu.py | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/scripts/qemu.py b/scripts/qemu.py
+index 880e3e8..4d8ee10 100644
+--- a/scripts/qemu.py
++++ b/scripts/qemu.py
+@@ -21,7 +21,14 @@ import qmp.qmp
+ 
+ 
+ class QEMUMachine(object):
+-    '''A QEMU VM'''
++    '''A QEMU VM
++
++    Use this object as a context manager to ensure the QEMU process terminates::
++
++        with VM(binary) as vm:
++            ...
++        # vm is guaranteed to be shut down here
++    '''
+ 
+     def __init__(self, binary, args=[], wrapper=[], name=None, test_dir="/var/tmp",
+                  monitor_address=None, socket_scm_helper=None, debug=False):
+@@ -40,6 +47,13 @@ class QEMUMachine(object):
+         self._socket_scm_helper = socket_scm_helper
+         self._debug = debug
+ 
++    def __enter__(self):
++        return self
++
++    def __exit__(self, exc_type, exc_val, exc_tb):
++        self.shutdown()
++        return False
++
+     # This can be used to add an unused monitor instance.
+     def add_monitor_telnet(self, ip, port):
+         args = 'tcp:%s:%d,server,nowait,telnet' % (ip, port)
+-- 
+1.8.3.1
+

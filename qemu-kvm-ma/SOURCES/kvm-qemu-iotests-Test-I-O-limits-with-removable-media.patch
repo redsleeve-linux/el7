@@ -1,0 +1,129 @@
+From 3725eae71ddcc6f053793a530c1f4e3a43e9c4df Mon Sep 17 00:00:00 2001
+From: Stefan Hajnoczi <stefanha@redhat.com>
+Date: Fri, 17 Nov 2017 11:19:07 +0100
+Subject: [PATCH 08/15] qemu-iotests: Test I/O limits with removable media
+
+RH-Author: Stefan Hajnoczi <stefanha@redhat.com>
+Message-id: <20171117111908.8815-9-stefanha@redhat.com>
+Patchwork-id: 77743
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH 8/9] qemu-iotests: Test I/O limits with removable media
+Bugzilla: 1492295
+RH-Acked-by: John Snow <jsnow@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+
+From: Alberto Garcia <berto@igalia.com>
+
+This test hotplugs a CD drive to a VM and checks that I/O limits can
+be set only when the drive has media inserted and that they are kept
+when the media is replaced.
+
+This also tests the removal of a device with valid I/O limits set but
+no media inserted. This involves deleting and disabling the limits
+of a BlockBackend without BlockDriverState, a scenario that has been
+crashing until the fixes from the last couple of patches.
+
+[Python PEP8 fixup: "Don't use spaces are the = sign when used to
+indicate a keyword argument or a default parameter value"
+--Stefan]
+
+Signed-off-by: Alberto Garcia <berto@igalia.com>
+Reviewed-by: Max Reitz <mreitz@redhat.com>
+Message-id: 071eb397118ed207c5a7f01d58766e415ee18d6a.1510339534.git.berto@igalia.com
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+(cherry picked from commit 0761562687e0d8135310a94b1d3e08376387c027)
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ tests/qemu-iotests/093     | 62 ++++++++++++++++++++++++++++++++++++++++++++++
+ tests/qemu-iotests/093.out |  4 +--
+ 2 files changed, 64 insertions(+), 2 deletions(-)
+
+diff --git a/tests/qemu-iotests/093 b/tests/qemu-iotests/093
+index ef39972..5c36a5f 100755
+--- a/tests/qemu-iotests/093
++++ b/tests/qemu-iotests/093
+@@ -308,6 +308,68 @@ class ThrottleTestGroupNames(iotests.QMPTestCase):
+             groupname = "group%d" % i
+             self.verify_name(devname, groupname)
+ 
++class ThrottleTestRemovableMedia(iotests.QMPTestCase):
++    def setUp(self):
++        self.vm = iotests.VM()
++        if iotests.qemu_default_machine == 's390-ccw-virtio':
++            self.vm.add_device("virtio-scsi-ccw,id=virtio-scsi")
++        else:
++            self.vm.add_device("virtio-scsi-pci,id=virtio-scsi")
++        self.vm.launch()
++
++    def tearDown(self):
++        self.vm.shutdown()
++
++    def test_removable_media(self):
++        # Add a couple of dummy nodes named cd0 and cd1
++        result = self.vm.qmp("blockdev-add", driver="null-aio",
++                             node_name="cd0")
++        self.assert_qmp(result, 'return', {})
++        result = self.vm.qmp("blockdev-add", driver="null-aio",
++                             node_name="cd1")
++        self.assert_qmp(result, 'return', {})
++
++        # Attach a CD drive with cd0 inserted
++        result = self.vm.qmp("device_add", driver="scsi-cd",
++                             id="dev0", drive="cd0")
++        self.assert_qmp(result, 'return', {})
++
++        # Set I/O limits
++        args = { "id": "dev0", "iops": 100, "iops_rd": 0, "iops_wr": 0,
++                                "bps":  50,  "bps_rd": 0,  "bps_wr": 0 }
++        result = self.vm.qmp("block_set_io_throttle", conv_keys=False, **args)
++        self.assert_qmp(result, 'return', {})
++
++        # Check that the I/O limits have been set
++        result = self.vm.qmp("query-block")
++        self.assert_qmp(result, 'return[0]/inserted/iops', 100)
++        self.assert_qmp(result, 'return[0]/inserted/bps',   50)
++
++        # Now eject cd0 and insert cd1
++        result = self.vm.qmp("blockdev-open-tray", id='dev0')
++        self.assert_qmp(result, 'return', {})
++        result = self.vm.qmp("x-blockdev-remove-medium", id='dev0')
++        self.assert_qmp(result, 'return', {})
++        result = self.vm.qmp("x-blockdev-insert-medium", id='dev0', node_name='cd1')
++        self.assert_qmp(result, 'return', {})
++
++        # Check that the I/O limits are still the same
++        result = self.vm.qmp("query-block")
++        self.assert_qmp(result, 'return[0]/inserted/iops', 100)
++        self.assert_qmp(result, 'return[0]/inserted/bps',   50)
++
++        # Eject cd1
++        result = self.vm.qmp("x-blockdev-remove-medium", id='dev0')
++        self.assert_qmp(result, 'return', {})
++
++        # Check that we can't set limits if the device has no medium
++        result = self.vm.qmp("block_set_io_throttle", conv_keys=False, **args)
++        self.assert_qmp(result, 'error/class', 'GenericError')
++
++        # Remove the CD drive
++        result = self.vm.qmp("device_del", id='dev0')
++        self.assert_qmp(result, 'return', {})
++
+ 
+ if __name__ == '__main__':
+     iotests.main(supported_fmts=["raw"])
+diff --git a/tests/qemu-iotests/093.out b/tests/qemu-iotests/093.out
+index 2f7d390..594c16f 100644
+--- a/tests/qemu-iotests/093.out
++++ b/tests/qemu-iotests/093.out
+@@ -1,5 +1,5 @@
+-.......
++........
+ ----------------------------------------------------------------------
+-Ran 7 tests
++Ran 8 tests
+ 
+ OK
+-- 
+1.8.3.1
+

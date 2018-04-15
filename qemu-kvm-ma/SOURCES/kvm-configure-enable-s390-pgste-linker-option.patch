@@ -1,0 +1,98 @@
+From 487aafe7bfede37118f4664b473b9a3960a5b89d Mon Sep 17 00:00:00 2001
+From: Cornelia Huck <cohuck@redhat.com>
+Date: Fri, 13 Oct 2017 14:13:00 +0200
+Subject: [PATCH 19/69] configure: enable --s390-pgste linker option
+
+RH-Author: Cornelia Huck <cohuck@redhat.com>
+Message-id: <20171013141301.23131-2-cohuck@redhat.com>
+Patchwork-id: 77285
+O-Subject: [RHV7.5 qemu-kvm-ma PATCH v3 1/2] configure: enable --s390-pgste linker option
+Bugzilla: 1485399
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: David Hildenbrand <david@redhat.com>
+RH-Acked-by: Jens Freimann <jfreimann@redhat.com>
+
+From: Christian Borntraeger <borntraeger@de.ibm.com>
+
+KVM guests on s390 need a different page table layout than normal
+processes (2kb page table + 2kb page status extensions vs 2kb page table
+only). As of today this has to be enabled via the vm.allocate_pgste
+sysctl.
+
+Newer kernels (>= 4.12) on s390 check for an S390_PGSTE program header
+and enable the pgste page table extensions in that case. This makes the
+vm.allocate_pgste sysctl unnecessary. We enable this program header for
+the s390 system emulation (qemu-system-s390x) if we build on s390
+- for s390 system emulation
+- the linker supports --s390-pgste (binutils >= 2.29)
+- KVM is enabled
+
+This will allow distributions to disable the global vm.allocate_pgste
+sysctl, which will improve the page table allocation for non KVM
+processes as only 2kb chunks are necessary.
+
+Cc: Christian Ehrhardt <christian.ehrhardt@canonical.com>
+Cc: Alexander Graf <agraf@suse.de>
+Cc: Dan Horak <dhorak@redhat.com>
+Cc: David Hildenbrand <david@redhat.com>
+Signed-off-by: Christian Borntraeger <borntraeger@de.ibm.com>
+Acked-by: Janosch Frank <frankja@linux.vnet.ibm.com>
+Reviewed-by: Thomas Huth <thuth@redhat.com>
+Message-Id: <1503483383-199649-1-git-send-email-borntraeger@de.ibm.com>
+Reviewed-by: David Hildenbrand <david@redhat.com>
+Signed-off-by: Cornelia Huck <cohuck@redhat.com>
+(cherry picked from commit e9a3591fa09f273592451f8b9f83692bcbedb60c)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ configure | 21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/configure b/configure
+index 0da6821..644e52d 100755
+--- a/configure
++++ b/configure
+@@ -240,6 +240,11 @@ supported_target() {
+     return 1
+ }
+ 
++
++ld_has() {
++    $ld --help 2>/dev/null | grep ".$1" >/dev/null 2>&1
++}
++
+ # default parameters
+ source_path=$(dirname "$0")
+ cpu=""
+@@ -5033,7 +5038,7 @@ fi
+ # Use ASLR, no-SEH and DEP if available
+ if test "$mingw32" = "yes" ; then
+     for flag in --dynamicbase --no-seh --nxcompat; do
+-        if $ld --help 2>/dev/null | grep ".$flag" >/dev/null 2>/dev/null ; then
++        if ld_has $flag ; then
+             LDFLAGS="-Wl,$flag $LDFLAGS"
+         fi
+     done
+@@ -6520,6 +6525,20 @@ if test "$target_linux_user" = "yes" -o "$target_bsd_user" = "yes" ; then
+   ldflags="$ldflags $textseg_ldflags"
+ fi
+ 
++# Newer kernels on s390 check for an S390_PGSTE program header and
++# enable the pgste page table extensions in that case. This makes
++# the vm.allocate_pgste sysctl unnecessary. We enable this program
++# header if
++#  - we build on s390x
++#  - we build the system emulation for s390x (qemu-system-s390x)
++#  - KVM is enabled
++#  - the linker supports --s390-pgste
++if test "$TARGET_ARCH" = "s390x" -a "$target_softmmu" = "yes"  -a "$ARCH" = "s390x" -a "$kvm" = "yes"; then
++    if ld_has --s390-pgste ; then
++        ldflags="-Wl,--s390-pgste $ldflags"
++    fi
++fi
++
+ echo "LDFLAGS+=$ldflags" >> $config_target_mak
+ echo "QEMU_CFLAGS+=$cflags" >> $config_target_mak
+ 
+-- 
+1.8.3.1
+

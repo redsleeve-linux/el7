@@ -1,0 +1,76 @@
+From 7f958a52f5e8e4dd02182b308c96d5bde25a1327 Mon Sep 17 00:00:00 2001
+From: Suraj Jitindar Singh <sursingh@redhat.com>
+Date: Wed, 6 Dec 2017 02:57:59 +0100
+Subject: [PATCH 19/21] ppc: fix setting of compat mode
+
+RH-Author: Suraj Jitindar Singh <sursingh@redhat.com>
+Message-id: <1512529079-12590-1-git-send-email-sursingh@redhat.com>
+Patchwork-id: 78173
+O-Subject: [RHEL7.5 qemu-kvm-rhev PATCH] ppc: fix setting of compat mode
+Bugzilla: 1396119
+RH-Acked-by: David Gibson <dgibson@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+
+From: Greg Kurz <groug@kaod.org>
+
+While trying to make KVM PR usable again, commit 5dfaa532ae introduced a
+regression: the current compat_pvr value is passed to KVM instead of the
+new one. This means that we always pass 0 instead of the max-cpu-compat
+PVR during the initial machine reset. And at CAS time, we either pass
+the PVR from the command line or even don't call kvmppc_set_compat() at
+all, ie, the PCR will not be set as expected.
+
+For example if we start a big endian fedora26 guest in power7 compat
+mode on a POWER8 host, we get this in the guest:
+
+$ cat /proc/cpuinfo
+processor       : 0
+cpu             : POWER7 (architected), altivec supported
+clock           : 4024.000000MHz
+revision        : 2.0 (pvr 004d 0200)
+
+timebase        : 512000000
+platform        : pSeries
+model           : IBM pSeries (emulated by qemu)
+machine         : CHRP IBM pSeries (emulated by qemu)
+MMU             : Hash
+
+but the guest can still execute POWER8 instructions, and the following
+program succeeds:
+
+int main()
+{
+        asm("vncipher 0,0,0"); // ISA 2.07 instruction
+}
+
+Let's pass the new compat_pvr to kvmppc_set_compat() and the program fails
+with SIGILL as expected.
+
+Reported-by: Nageswara R Sastry <rnsastry@linux.vnet.ibm.com>
+Signed-off-by: Greg Kurz <groug@kaod.org>
+Signed-off-by: David Gibson <david@gibson.dropbear.id.au>
+(cherry picked from commit e4f0c6bb1a9f72ad9e32c3171d36bae17ea1cd67)
+
+Signed-off-by: Suraj Jitindar Singh <sursingh@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ target/ppc/compat.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/target/ppc/compat.c b/target/ppc/compat.c
+index 540b4eb..2d95434 100644
+--- a/target/ppc/compat.c
++++ b/target/ppc/compat.c
+@@ -152,7 +152,7 @@ void ppc_set_compat(PowerPCCPU *cpu, uint32_t compat_pvr, Error **errp)
+     cpu_synchronize_state(CPU(cpu));
+ 
+     if (kvm_enabled() && cpu->compat_pvr != compat_pvr) {
+-        int ret = kvmppc_set_compat(cpu, cpu->compat_pvr);
++        int ret = kvmppc_set_compat(cpu, compat_pvr);
+         if (ret < 0) {
+             error_setg_errno(errp, -ret,
+                              "Unable to set CPU compatibility mode in KVM");
+-- 
+1.8.3.1
+

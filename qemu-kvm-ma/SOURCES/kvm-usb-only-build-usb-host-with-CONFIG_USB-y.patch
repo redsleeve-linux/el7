@@ -1,0 +1,43 @@
+From fb5cc24e24e0b53f0679e911c959a060c945bdff Mon Sep 17 00:00:00 2001
+From: Thomas Huth <thuth@redhat.com>
+Date: Mon, 9 Oct 2017 12:32:38 +0200
+Subject: [PATCH 19/34] usb: only build usb-host with CONFIG_USB=y
+
+RH-Author: Thomas Huth <thuth@redhat.com>
+Message-id: <1507552368-9245-3-git-send-email-thuth@redhat.com>
+Patchwork-id: 77019
+O-Subject: [RHEL-7.5 qemu-kvm-ma PATCH 02/12] usb: only build usb-host with CONFIG_USB=y
+Bugzilla: 1492033
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: David Gibson <dgibson@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+From: Gerd Hoffmann <kraxel@redhat.com>
+
+Signed-off-by: Gerd Hoffmann <kraxel@redhat.com>
+Reviewed-by: Fam Zheng <famz@redhat.com>
+Reviewed-by: Thomas Huth <thuth@redhat.com>
+Tested-by: Thomas Huth <thuth@redhat.com>
+Message-id: 20170908111217.21985-3-kraxel@redhat.com
+(cherry picked from commit 2041649f0b04f61869589571ddf5ecd4f0695ea2)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/usb/Makefile.objs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/hw/usb/Makefile.objs b/hw/usb/Makefile.objs
+index a43ebbc..757e365 100644
+--- a/hw/usb/Makefile.objs
++++ b/hw/usb/Makefile.objs
+@@ -38,7 +38,7 @@ endif
+ common-obj-$(CONFIG_USB_REDIR) += redirect.o quirks.o
+ 
+ # usb pass-through
+-ifeq ($(CONFIG_LIBUSB),y)
++ifeq ($(CONFIG_LIBUSB)$(CONFIG_USB),yy)
+ common-obj-y += host-libusb.o host-legacy.o
+ else
+ common-obj-y += host-stub.o
+-- 
+1.8.3.1
+

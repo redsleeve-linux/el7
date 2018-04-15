@@ -1,0 +1,122 @@
+From 4c43abf1394c3711f93a4e0175ff5c10769f6480 Mon Sep 17 00:00:00 2001
+From: Markus Armbruster <armbru@redhat.com>
+Date: Fri, 28 Apr 2017 12:22:27 +0200
+Subject: scsi: Disable deprecated implicit SCSI HBA creation more cleanly
+
+RH-Author: Markus Armbruster <armbru@redhat.com>
+Message-id: <1493382147-23057-2-git-send-email-armbru@redhat.com>
+Patchwork-id: 74946
+O-Subject: [RHV-7.4 qemu-kvm-rhev PATCH] scsi: Disable deprecated implicit SCSI HBA creation more cleanly
+Bugzilla: 971799
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: John Snow <jsnow@redhat.com>
+RH-Acked-by: Jeffrey Cody <jcody@redhat.com>
+
+The PC machines (pc-q35-* pc-i440fx-* pc-* isapc xenfv) automatically
+create lsi53c895a SCSI HBAs and SCSI devices to honor -drive if=scsi.
+Deprecated upstream since commit f778a82, v2.9.0, not supported at all
+in RHEL.  The way it fails is rather ugly, though:
+
+    $ qemu-kvm -nodefaults -S -drive if=scsi,media=cdrom
+    qemu-kvm: Unknown device 'lsi53c895a' for bus 'PCI'
+    Aborted (core dumped)
+
+Recent upstream work permit us to make this fail cleanly by commenting
+out the code that tries to create lsi53c895a SCSI HBAs in
+pc_pci_device_init():
+
+    qemu-kvm: -drive if=scsi,media=cdrom: machine type does not support if=scsi,bus=0,unit=0
+
+However, by itself this would make another deprecated feature
+available in RHEL: drives defined with if=scsi get picked up by SCSI
+HBAs added with -device, unlike other interface types.  Deprecated
+upstream since commit a64aa57, v2.9.0.  Comment out that code, too.
+Bonus: that code can be rather slow with a large number of drives, so
+good riddance.
+
+Signed-off-by: Markus Armbruster <armbru@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+(cherry picked from commit 7977e603169c92da4b0ecd656c3346500a93897b)
+---
+ hw/i386/pc.c       | 2 ++
+ hw/scsi/scsi-bus.c | 7 +++++++
+ vl.c               | 2 ++
+ 3 files changed, 11 insertions(+)
+
+diff --git a/hw/i386/pc.c b/hw/i386/pc.c
+index ae23fc4..ccaa832 100644
+--- a/hw/i386/pc.c
++++ b/hw/i386/pc.c
+@@ -1645,6 +1645,7 @@ void pc_nic_init(ISABus *isa_bus, PCIBus *pci_bus)
+ 
+ void pc_pci_device_init(PCIBus *pci_bus)
+ {
++#if 0 /* Disabled for Red Hat Enterprise Linux */
+     int max_bus;
+     int bus;
+ 
+@@ -1658,6 +1659,7 @@ void pc_pci_device_init(PCIBus *pci_bus)
+          * this usage is deprecated.
+          */
+     }
++#endif
+ }
+ 
+ void ioapic_init_gsi(GSIState *gsi_state, const char *parent_name)
+diff --git a/hw/scsi/scsi-bus.c b/hw/scsi/scsi-bus.c
+index e364410..309daaa 100644
+--- a/hw/scsi/scsi-bus.c
++++ b/hw/scsi/scsi-bus.c
+@@ -265,6 +265,8 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
+ 
+ void scsi_bus_legacy_handle_cmdline(SCSIBus *bus, bool deprecated)
+ {
++#if 0 /* Disabled for Red Hat Enterprise Linux */
++
+     Location loc;
+     DriveInfo *dinfo;
+     int unit;
+@@ -291,8 +293,11 @@ void scsi_bus_legacy_handle_cmdline(SCSIBus *bus, bool deprecated)
+                                   unit, false, -1, NULL, &error_fatal);
+     }
+     loc_pop(&loc);
++#endif
+ }
+ 
++#if 0 /* Disabled for Red Hat Enterprise Linux */
++
+ static bool is_scsi_hba_with_legacy_magic(Object *obj)
+ {
+     static const char *magic[] = {
+@@ -329,6 +334,8 @@ void scsi_legacy_handle_cmdline(void)
+                                    scsi_legacy_handle_cmdline_cb, NULL);
+ }
+ 
++#endif
++
+ static int32_t scsi_invalid_field(SCSIRequest *req, uint8_t *buf)
+ {
+     scsi_req_build_sense(req, SENSE_CODE(INVALID_FIELD));
+diff --git a/vl.c b/vl.c
+index 59f515c..183b7f7 100644
+--- a/vl.c
++++ b/vl.c
+@@ -4676,6 +4676,7 @@ int main(int argc, char **argv, char **envp)
+ 
+     rom_reset_order_override();
+ 
++#if 0 /* Disabled for Red Hat Enterprise Linux */
+     /*
+      * Create frontends for -drive if=scsi leftovers.
+      * Normally, frontends for -drive get created by machine
+@@ -4684,6 +4685,7 @@ int main(int argc, char **argv, char **envp)
+      * implementation accident, and deprecated.
+      */
+     scsi_legacy_handle_cmdline();
++#endif
+ 
+     /* Did we create any drives that we failed to create a device for? */
+     drive_check_orphaned();
+-- 
+1.8.3.1
+

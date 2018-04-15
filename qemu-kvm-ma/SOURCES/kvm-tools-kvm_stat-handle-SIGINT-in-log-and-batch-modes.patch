@@ -1,0 +1,88 @@
+From dada85e20a716597bb06c8684eca7a17a2eb8c5e Mon Sep 17 00:00:00 2001
+From: David Hildenbrand <david@redhat.com>
+Date: Tue, 17 Oct 2017 19:15:29 +0200
+Subject: [PATCH 24/69] tools/kvm_stat: handle SIGINT in log and batch modes
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: David Hildenbrand <david@redhat.com>
+Message-id: <20171017191605.2378-4-david@redhat.com>
+Patchwork-id: 77318
+O-Subject: [RHEL-7.5 qemu-kvm-rhev PATCH 03/39] tools/kvm_stat: handle SIGINT in log and batch modes
+Bugzilla: 1497137
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+
+Upstream-status: linux.git dadf1e7839243474b691ca4258bfd2a59e628a5e
+
+commit dadf1e7839243474b691ca4258bfd2a59e628a5e
+Author: Stefan Raspl <raspl@linux.vnet.ibm.com>
+Date:   Fri Mar 10 13:40:02 2017 +0100
+
+    tools/kvm_stat: handle SIGINT in log and batch modes
+
+    SIGINT causes ugly unhandled exceptions in log and batch mode, which we
+    prevent by catching the exceptions accordingly.
+
+    Signed-off-by: Stefan Raspl <raspl@linux.vnet.ibm.com>
+    Reviewed-by: Marc Hartmayer <mhartmay@linux.vnet.ibm.com>
+    Signed-off-by: Radim Krčmář <rkrcmar@redhat.com>
+
+Signed-off-by: David Hildenbrand <david@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ scripts/kvm/kvm_stat | 28 +++++++++++++++++-----------
+ 1 file changed, 17 insertions(+), 11 deletions(-)
+
+diff --git a/scripts/kvm/kvm_stat b/scripts/kvm/kvm_stat
+index ef47ad7..14536c0 100755
+--- a/scripts/kvm/kvm_stat
++++ b/scripts/kvm/kvm_stat
+@@ -969,12 +969,15 @@ class Tui(object):
+ 
+ def batch(stats):
+     """Prints statistics in a key, value format."""
+-    s = stats.get()
+-    time.sleep(1)
+-    s = stats.get()
+-    for key in sorted(s.keys()):
+-        values = s[key]
+-        print '%-42s%10d%10d' % (key, values[0], values[1])
++    try:
++        s = stats.get()
++        time.sleep(1)
++        s = stats.get()
++        for key in sorted(s.keys()):
++            values = s[key]
++            print '%-42s%10d%10d' % (key, values[0], values[1])
++    except KeyboardInterrupt:
++        pass
+ 
+ def log(stats):
+     """Prints statistics as reiterating key block, multiple value blocks."""
+@@ -991,11 +994,14 @@ def log(stats):
+     line = 0
+     banner_repeat = 20
+     while True:
+-        time.sleep(1)
+-        if line % banner_repeat == 0:
+-            banner()
+-        statline()
+-        line += 1
++        try:
++            time.sleep(1)
++            if line % banner_repeat == 0:
++                banner()
++            statline()
++            line += 1
++        except KeyboardInterrupt:
++            break
+ 
+ def get_options():
+     """Returns processed program arguments."""
+-- 
+1.8.3.1
+

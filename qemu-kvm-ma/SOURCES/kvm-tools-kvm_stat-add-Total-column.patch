@@ -1,0 +1,76 @@
+From 4f80c9081b411684efbd2e3caff57e7a261d71e7 Mon Sep 17 00:00:00 2001
+From: David Hildenbrand <david@redhat.com>
+Date: Tue, 17 Oct 2017 19:15:43 +0200
+Subject: [PATCH 38/69] tools/kvm_stat: add '%Total' column
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: David Hildenbrand <david@redhat.com>
+Message-id: <20171017191605.2378-18-david@redhat.com>
+Patchwork-id: 77328
+O-Subject: [RHEL-7.5 qemu-kvm-rhev PATCH 17/39] tools/kvm_stat: add '%Total' column
+Bugzilla: 1497137
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+
+Upstream-status: linux.git e55fe3ccccc1efb8f20c99728c8863424ae9ee4a
+
+commit e55fe3ccccc1efb8f20c99728c8863424ae9ee4a
+Author: Stefan Raspl <raspl@linux.vnet.ibm.com>
+Date:   Fri Mar 10 13:40:16 2017 +0100
+
+    tools/kvm_stat: add '%Total' column
+
+    Add column '%Total' next to 'Total' for easier comparison of numbers between
+    hosts.
+
+    Signed-off-by: Stefan Raspl <raspl@linux.vnet.ibm.com>
+    Marc Hartmayer <mhartmay@linux.vnet.ibm.com>
+    Signed-off-by: Radim Krčmář <rkrcmar@redhat.com>
+
+Signed-off-by: David Hildenbrand <david@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ scripts/kvm/kvm_stat | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/scripts/kvm/kvm_stat b/scripts/kvm/kvm_stat
+index f8c48f8..8f74ed8 100755
+--- a/scripts/kvm/kvm_stat
++++ b/scripts/kvm/kvm_stat
+@@ -973,7 +973,9 @@ class Tui(object):
+         self.screen.addstr(2, 1, 'Event')
+         self.screen.addstr(2, 1 + LABEL_WIDTH + NUMBER_WIDTH -
+                            len('Total'), 'Total')
+-        self.screen.addstr(2, 1 + LABEL_WIDTH + NUMBER_WIDTH + 8 -
++        self.screen.addstr(2, 1 + LABEL_WIDTH + NUMBER_WIDTH + 7 -
++                           len('%Total'), '%Total')
++        self.screen.addstr(2, 1 + LABEL_WIDTH + NUMBER_WIDTH + 7 + 8 -
+                            len('Current'), 'Current')
+         self.screen.addstr(4, 1, 'Collecting data...')
+         self.screen.refresh()
+@@ -989,6 +991,9 @@ class Tui(object):
+                 return (-stats[x][1], -stats[x][0])
+             else:
+                 return (0, -stats[x][0])
++        total = 0.
++        for val in stats.values():
++            total += val[0]
+         for key in sorted(stats.keys(), key=sortkey):
+ 
+             if row >= self.screen.getmaxyx()[0]:
+@@ -1001,6 +1006,8 @@ class Tui(object):
+             col += LABEL_WIDTH
+             self.screen.addstr(row, col, '%10d' % (values[0],))
+             col += NUMBER_WIDTH
++            self.screen.addstr(row, col, '%7.1f' % (values[0] * 100 / total,))
++            col += 7
+             if values[1] is not None:
+                 self.screen.addstr(row, col, '%8d' % (values[1] / sleeptime,))
+             row += 1
+-- 
+1.8.3.1
+

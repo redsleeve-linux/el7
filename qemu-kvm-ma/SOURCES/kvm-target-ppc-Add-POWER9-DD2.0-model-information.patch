@@ -1,0 +1,117 @@
+From f862178a20240a06504e35d11953982fcf769789 Mon Sep 17 00:00:00 2001
+From: Laurent Vivier <lvivier@redhat.com>
+Date: Fri, 8 Dec 2017 14:48:39 +0100
+Subject: [PATCH 1/6] target/ppc: Add POWER9 DD2.0 model information
+
+RH-Author: Laurent Vivier <lvivier@redhat.com>
+Message-id: <20171208144839.6655-1-lvivier@redhat.com>
+Patchwork-id: 78276
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH] target/ppc: Add POWER9 DD2.0 model information
+Bugzilla: 1523235
+RH-Acked-by: David Gibson <dgibson@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+From: David Gibson <david@gibson.dropbear.id.au>
+
+Tested: /usr/libexec/qemu-kvm -device help 2>&1|grep -i "power9"
+        name "POWER9_v1.0-spapr-cpu-core"
+        name "POWER9_v2.0-spapr-cpu-core"
+        /usr/libexec/qemu-kvm -cpu help 2>&1|grep -i "power9"
+        PowerPC POWER9_v1.0      PVR 004e0100
+        PowerPC POWER9_v2.0      PVR 004e1200
+        PowerPC POWER9           (alias for preferred POWER9 CPU)
+
+At the moment the only POWER9 model which is listed in qemu is v1.0 (aka
+"DD1").  This is a very early (read, buggy) version which will never be
+released to the public - it was included in qemu only for the convenience
+of those doing bringup on the early silicon.  For bonus points, we actually
+had its PVR incorrect in the table (0x004e0000 instead of 0x004e0100).  We
+also never actually implemented the differences in behaviour (read, bugs)
+that marked DD1 in qemu.
+
+Now that we know the PVR for the substantially better v2.0 (DD2) chip,
+include it and make it the default POWER9 in qemu.  For the time being we
+leave the DD1 definition in place for the poor souls (read, me) who still
+need to work with DD1 hardware.
+
+Signed-off-by: David Gibson <david@gibson.dropbear.id.au>
+(cherry picked from commit 1ed9c8af501f8d1bdf5a8725a038527be059f54d)
+Signed-off-by: Laurent Vivier <lvivier@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+Conflicts:
+	hw/ppc/spapr_cpu_core.c
+	target/ppc/cpu-models.c
+
+with downstream only commit:
+
+  0e72e616b2 Enable/disable devices for RHEL 7
+
+introducing "#if .. #endif" in the CPU list
+
+And missing upstream commit:
+
+  c5354f5 ppc: make cpu_model translation to type consistent
+
+changing all the CPU names to lower-case and then doing
+case-insensitive matching. I've chosen to not backport this one
+because it changes the behaviour of the interface (vs upstream 2.10).
+---
+ hw/ppc/spapr_cpu_core.c | 1 +
+ target/ppc/cpu-models.c | 6 ++++--
+ target/ppc/cpu-models.h | 1 +
+ 3 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/hw/ppc/spapr_cpu_core.c b/hw/ppc/spapr_cpu_core.c
+index 400ab56..30c15d5 100644
+--- a/hw/ppc/spapr_cpu_core.c
++++ b/hw/ppc/spapr_cpu_core.c
+@@ -308,6 +308,7 @@ static const char *spapr_core_models[] = {
+     "POWER8NVL_v1.0",
+     /* POWER9 */
+     "POWER9_v1.0",
++    "POWER9_v2.0",
+ };
+ 
+ static Property spapr_cpu_core_properties[] = {
+diff --git a/target/ppc/cpu-models.c b/target/ppc/cpu-models.c
+index 08a1f59..975aa07 100644
+--- a/target/ppc/cpu-models.c
++++ b/target/ppc/cpu-models.c
+@@ -1150,8 +1150,10 @@
+                 "PowerPC 970 v2.2")
+ #endif
+ 
+-    POWERPC_DEF("POWER9_v1.0",   CPU_POWERPC_POWER9_BASE,            POWER9,
++    POWERPC_DEF("POWER9_v1.0",   CPU_POWERPC_POWER9_DD1,             POWER9,
+                 "POWER9 v1.0")
++    POWERPC_DEF("POWER9_v2.0",   CPU_POWERPC_POWER9_DD20,            POWER9,
++                "POWER9 v2.0")
+ 
+ #if 0  /* Disabled for Red Hat Enterprise Linux */
+     POWERPC_DEF("970fx_v1.0",    CPU_POWERPC_970FX_v10,              970,
+@@ -1403,7 +1405,7 @@ PowerPCCPUAlias ppc_cpu_aliases[] = {
+     { "POWER8E", "POWER8E_v2.1" },
+     { "POWER8", "POWER8_v2.0" },
+     { "POWER8NVL", "POWER8NVL_v1.0" },
+-    { "POWER9", "POWER9_v1.0" },
++    { "POWER9", "POWER9_v2.0" },
+ #if 0  /* Disabled for Red Hat Enterprise Linux */
+     { "970", "970_v2.2" },
+     { "970fx", "970fx_v3.1" },
+diff --git a/target/ppc/cpu-models.h b/target/ppc/cpu-models.h
+index b563c45..fc1b1d2 100644
+--- a/target/ppc/cpu-models.h
++++ b/target/ppc/cpu-models.h
+@@ -562,6 +562,7 @@ enum {
+     CPU_POWERPC_POWER8NVL_v10      = 0x004C0100,
+     CPU_POWERPC_POWER9_BASE        = 0x004E0000,
+     CPU_POWERPC_POWER9_DD1         = 0x004E0100,
++    CPU_POWERPC_POWER9_DD20        = 0x004E1200,
+     CPU_POWERPC_970_v22            = 0x00390202,
+     CPU_POWERPC_970FX_v10          = 0x00391100,
+     CPU_POWERPC_970FX_v20          = 0x003C0200,
+-- 
+1.8.3.1
+

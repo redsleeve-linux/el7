@@ -1,0 +1,124 @@
+From 50f063769cf74d2d37adbc5b568b545d2562af65 Mon Sep 17 00:00:00 2001
+From: Laurent Vivier <lvivier@redhat.com>
+Date: Tue, 28 Nov 2017 10:30:08 +0100
+Subject: [PATCH 15/21] migration/ram.c: do not set 'postcopy_running' in
+ POSTCOPY_INCOMING_END
+
+RH-Author: Laurent Vivier <lvivier@redhat.com>
+Message-id: <20171128103008.1150-1-lvivier@redhat.com>
+Patchwork-id: 77931
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH] migration/ram.c: do not set 'postcopy_running' in POSTCOPY_INCOMING_END
+Bugzilla: 1516956
+RH-Acked-by: Peter Xu <peterx@redhat.com>
+RH-Acked-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+RH-Acked-by: Juan Quintela <quintela@redhat.com>
+RH-Acked-by: David Gibson <dgibson@redhat.com>
+
+From: Daniel Henrique Barboza <danielhb@linux.vnet.ibm.com>
+
+When migrating a VM with 'migrate_set_capability postcopy-ram on'
+a postcopy_state is set during the process, ending up with the
+state POSTCOPY_INCOMING_END when the migration is over. This
+postcopy_state is taken into account inside ram_load to check
+how it will load the memory pages. This same ram_load is called when
+in a loadvm command.
+
+Inside ram_load, the logic to see if we're at postcopy_running state
+is:
+
+postcopy_running = postcopy_state_get() >= POSTCOPY_INCOMING_LISTENING
+
+postcopy_state_get() returns this enum type:
+
+typedef enum {
+    POSTCOPY_INCOMING_NONE = 0,
+    POSTCOPY_INCOMING_ADVISE,
+    POSTCOPY_INCOMING_DISCARD,
+    POSTCOPY_INCOMING_LISTENING,
+    POSTCOPY_INCOMING_RUNNING,
+    POSTCOPY_INCOMING_END
+} PostcopyState;
+
+In the case where ram_load is executed and postcopy_state is
+POSTCOPY_INCOMING_END, postcopy_running will be set to 'true' and
+ram_load will behave like a postcopy is in progress. This scenario isn't
+achievable in a migration but it is reproducible when executing
+savevm/loadvm after migrating with 'postcopy-ram on', causing loadvm
+to fail with Error -22:
+
+Source:
+
+(qemu) migrate_set_capability postcopy-ram on
+(qemu) migrate tcp:127.0.0.1:4444
+
+Dest:
+
+(qemu) migrate_set_capability postcopy-ram on
+(qemu)
+ubuntu1704-intel login:
+Ubuntu 17.04 ubuntu1704-intel ttyS0
+
+ubuntu1704-intel login: (qemu)
+(qemu) savevm test1
+(qemu) loadvm test1
+Unknown combination of migration flags: 0x4 (postcopy mode)
+error while loading state for instance 0x0 of device 'ram'
+Error -22 while loading VM state
+(qemu)
+
+This patch fixes this problem by changing the existing logic for
+postcopy_advised and postcopy_running in ram_load, making them
+'false' if we're at POSTCOPY_INCOMING_END state.
+
+Signed-off-by: Daniel Henrique Barboza <danielhb@linux.vnet.ibm.com>
+CC: Juan Quintela <quintela@redhat.com>
+CC: Dr. David Alan Gilbert <dgilbert@redhat.com>
+Reviewed-by: Peter Xu <peterx@redhat.com>
+Reviewed-by: Juan Quintela <quintela@redhat.com>
+Reported-by: Balamuruhan S <bala24@linux.vnet.ibm.com>
+Signed-off-by: Juan Quintela <quintela@redhat.com>
+(cherry picked from commit acab30b85db0885ab161aff4c83c550628f6d8ca)
+Signed-off-by: Laurent Vivier <lvivier@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ migration/ram.c | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/migration/ram.c b/migration/ram.c
+index e18b3e2..fef80fd 100644
+--- a/migration/ram.c
++++ b/migration/ram.c
+@@ -2484,6 +2484,18 @@ static int ram_load_postcopy(QEMUFile *f)
+     return ret;
+ }
+ 
++static bool postcopy_is_advised(void)
++{
++    PostcopyState ps = postcopy_state_get();
++    return ps >= POSTCOPY_INCOMING_ADVISE && ps < POSTCOPY_INCOMING_END;
++}
++
++static bool postcopy_is_running(void)
++{
++    PostcopyState ps = postcopy_state_get();
++    return ps >= POSTCOPY_INCOMING_LISTENING && ps < POSTCOPY_INCOMING_END;
++}
++
+ static int ram_load(QEMUFile *f, void *opaque, int version_id)
+ {
+     int flags = 0, ret = 0, invalid_flags = 0;
+@@ -2493,9 +2505,9 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
+      * If system is running in postcopy mode, page inserts to host memory must
+      * be atomic
+      */
+-    bool postcopy_running = postcopy_state_get() >= POSTCOPY_INCOMING_LISTENING;
++    bool postcopy_running = postcopy_is_running();
+     /* ADVISE is earlier, it shows the source has the postcopy capability on */
+-    bool postcopy_advised = postcopy_state_get() >= POSTCOPY_INCOMING_ADVISE;
++    bool postcopy_advised = postcopy_is_advised();
+ 
+     seq_iter++;
+ 
+-- 
+1.8.3.1
+

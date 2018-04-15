@@ -1,0 +1,64 @@
+From 8ba2fd89d16cb721110ecff6e95b6eca0a2325f9 Mon Sep 17 00:00:00 2001
+From: David Hildenbrand <david@redhat.com>
+Date: Tue, 17 Oct 2017 19:15:56 +0200
+Subject: [PATCH 51/69] tools/kvm_stat: rename 'Current' column to 'CurAvg/s'
+
+RH-Author: David Hildenbrand <david@redhat.com>
+Message-id: <20171017191605.2378-31-david@redhat.com>
+Patchwork-id: 77341
+O-Subject: [RHEL-7.5 qemu-kvm-rhev PATCH 30/39] tools/kvm_stat: rename 'Current' column to 'CurAvg/s'
+Bugzilla: 1497137
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+
+Upstream-status: linux.git 38e89c37a1e05e6e16af582b980534abda29a4d9
+
+commit 38e89c37a1e05e6e16af582b980534abda29a4d9
+Author: Stefan Raspl <raspl@linux.vnet.ibm.com>
+Date:   Wed Jun 7 21:08:37 2017 +0200
+
+    tools/kvm_stat: rename 'Current' column to 'CurAvg/s'
+
+    'Current' can be misleading as it doesn't tell whether this is the amount
+    of events in the last interval or the current average per second.
+    Note that this necessitates widening the respective column by one more
+    character.
+
+    Signed-off-by: Stefan Raspl <raspl@linux.vnet.ibm.com>
+    Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+
+Signed-off-by: David Hildenbrand <david@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ scripts/kvm/kvm_stat | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/scripts/kvm/kvm_stat b/scripts/kvm/kvm_stat
+index 35147e4..a9e7ea6 100755
+--- a/scripts/kvm/kvm_stat
++++ b/scripts/kvm/kvm_stat
+@@ -981,8 +981,8 @@ class Tui(object):
+             if len(regex) > MAX_REGEX_LEN:
+                 regex = regex[:MAX_REGEX_LEN] + '...'
+             self.screen.addstr(1, 17, 'regex filter: {0}'.format(regex))
+-        self.screen.addstr(2, 1, '%-40s %10s%7s %7s' %
+-                           ('Event', 'Total', '%Total', 'Current'),
++        self.screen.addstr(2, 1, '%-40s %10s%7s %8s' %
++                           ('Event', 'Total', '%Total', 'CurAvg/s'),
+                            curses.A_STANDOUT)
+         self.screen.addstr(4, 1, 'Collecting data...')
+         self.screen.refresh()
+@@ -1010,7 +1010,7 @@ class Tui(object):
+                 break
+             if values[0] is not None:
+                 cur = int(round(values[1] / sleeptime)) if values[1] else ''
+-                self.screen.addstr(row, 1, '%-40s %10d%7.1f %7s' %
++                self.screen.addstr(row, 1, '%-40s %10d%7.1f %8s' %
+                                    (key, values[0], values[0] * 100 / total,
+                                     cur))
+             row += 1
+-- 
+1.8.3.1
+

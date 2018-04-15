@@ -1,0 +1,92 @@
+From 34644299c4e930a16b7e0a7725f69b7b83ca600e Mon Sep 17 00:00:00 2001
+From: David Gibson <dgibson@redhat.com>
+Date: Thu, 16 Nov 2017 03:07:31 +0100
+Subject: [PATCH 27/30] memory: seek FlatView sharing candidates among children
+ subregions
+
+RH-Author: David Gibson <dgibson@redhat.com>
+Message-id: <20171116030732.8560-22-dgibson@redhat.com>
+Patchwork-id: 77708
+O-Subject: [PATCH 21/22] memory: seek FlatView sharing candidates among children subregions
+Bugzilla: 1481593
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Eduardo Habkost <ehabkost@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+
+From: Paolo Bonzini <pbonzini@redhat.com>
+
+A container can be used instead of an alias to allow switching between
+multiple subregions.  In this case we cannot directly share the
+subregions (since they only belong to a single parent), but if the
+subregions are aliases we can in turn walk those.
+
+This is not enough to remove all source of quadratic FlatView creation,
+but it enables sharing of the PCI bus master FlatViews (and their
+AddressSpaceDispatch structures) across all PCI devices.  For 112
+virtio-net-pci devices, boot time is reduced from 25 to 10 seconds and
+memory consumption from 1.4 to 1 G.
+
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit e673ba9af9bf8fd8e0f44025ac738b8285b3ed27)
+
+Signed-off-by: David Gibson <dgibson@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ memory.c | 40 ++++++++++++++++++++++++++++++++++------
+ 1 file changed, 34 insertions(+), 6 deletions(-)
+
+diff --git a/memory.c b/memory.c
+index 8733efc..38eabe7 100644
+--- a/memory.c
++++ b/memory.c
+@@ -733,12 +733,40 @@ static void render_memory_region(FlatView *view,
+ 
+ static MemoryRegion *memory_region_get_flatview_root(MemoryRegion *mr)
+ {
+-    while (mr->alias && !mr->alias_offset &&
+-           int128_ge(mr->size, mr->alias->size)) {
+-        /* The alias is included in its entirety.  Use it as
+-         * the "real" root, so that we can share more FlatViews.
+-         */
+-        mr = mr->alias;
++    while (mr->enabled) {
++        if (mr->alias) {
++            if (!mr->alias_offset && int128_ge(mr->size, mr->alias->size)) {
++                /* The alias is included in its entirety.  Use it as
++                 * the "real" root, so that we can share more FlatViews.
++                 */
++                mr = mr->alias;
++                continue;
++            }
++        } else if (!mr->terminates) {
++            unsigned int found = 0;
++            MemoryRegion *child, *next = NULL;
++            QTAILQ_FOREACH(child, &mr->subregions, subregions_link) {
++                if (child->enabled) {
++                    if (++found > 1) {
++                        next = NULL;
++                        break;
++                    }
++                    if (!child->addr && int128_ge(mr->size, child->size)) {
++                        /* A child is included in its entirety.  If it's the only
++                         * enabled one, use it in the hope of finding an alias down the
++                         * way. This will also let us share FlatViews.
++                         */
++                        next = child;
++                    }
++                }
++            }
++            if (next) {
++                mr = next;
++                continue;
++            }
++        }
++
++        break;
+     }
+ 
+     return mr;
+-- 
+1.8.3.1
+

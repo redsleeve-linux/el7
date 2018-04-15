@@ -1,0 +1,225 @@
+From 243d90a041dca861bb85bc71df863578a8f839bd Mon Sep 17 00:00:00 2001
+From: David Hildenbrand <david@redhat.com>
+Date: Tue, 17 Oct 2017 19:15:42 +0200
+Subject: [PATCH 37/69] tools/kvm_stat: add interactive command 'r'
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: David Hildenbrand <david@redhat.com>
+Message-id: <20171017191605.2378-17-david@redhat.com>
+Patchwork-id: 77326
+O-Subject: [RHEL-7.5 qemu-kvm-rhev PATCH 16/39] tools/kvm_stat: add interactive command 'r'
+Bugzilla: 1497137
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+
+Upstream-status: linux.git 9f114a03c6854f49065dd036c17e1b4bb947f842
+
+Convertion of documentation (for man page generation) to texi.
+
+commit 9f114a03c6854f49065dd036c17e1b4bb947f842
+Author: Stefan Raspl <raspl@linux.vnet.ibm.com>
+Date:   Fri Mar 10 13:40:15 2017 +0100
+
+    tools/kvm_stat: add interactive command 'r'
+
+    Provide an interactive command to reset the tracepoint statistics.
+    Requires some extra work for debugfs, as the counters cannot be reset.
+
+    On the up side, this offers us the opportunity to have debugfs values
+    reset on startup and whenever a filter is modified, becoming consistent
+    with the tracepoint provider. As a bonus, 'kvmstat -dt' will now provide
+    useful output, instead of mixing values in totally different orders of
+    magnitude.
+    Furthermore, we avoid unnecessary resets when any of the filters is
+    "changed" interactively to the previous value.
+
+    Signed-off-by: Stefan Raspl <raspl@linux.vnet.ibm.com>
+    Acked-by: Janosch Frank <frankja@linux.vnet.ibm.com>
+    Signed-off-by: Radim Krčmář <rkrcmar@redhat.com>
+
+Signed-off-by: David Hildenbrand <david@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ scripts/kvm/kvm_stat      | 65 +++++++++++++++++++++++++++++++++++++----------
+ scripts/kvm/kvm_stat.texi |  3 +++
+ 2 files changed, 54 insertions(+), 14 deletions(-)
+
+diff --git a/scripts/kvm/kvm_stat b/scripts/kvm/kvm_stat
+index 676a92a..f8c48f8 100755
+--- a/scripts/kvm/kvm_stat
++++ b/scripts/kvm/kvm_stat
+@@ -716,15 +716,23 @@ class TracepointProvider(object):
+                     ret[name] += val
+         return ret
+ 
++    def reset(self):
++        """Reset all field counters"""
++        for group in self.group_leaders:
++            for event in group.events:
++                event.reset()
++
+ 
+ class DebugfsProvider(object):
+     """Provides data from the files that KVM creates in the kvm debugfs
+     folder."""
+     def __init__(self):
+         self._fields = self.get_available_fields()
++        self._baseline = {}
+         self._pid = 0
+         self.do_read = True
+         self.paths = []
++        self.reset()
+ 
+     def get_available_fields(self):
+         """"Returns a list of available fields.
+@@ -741,6 +749,7 @@ class DebugfsProvider(object):
+     @fields.setter
+     def fields(self, fields):
+         self._fields = fields
++        self.reset()
+ 
+     @property
+     def pid(self):
+@@ -758,10 +767,11 @@ class DebugfsProvider(object):
+             self.paths = filter(lambda x: "{}-".format(pid) in x, vms)
+ 
+         else:
+-            self.paths = ['']
++            self.paths = []
+             self.do_read = True
++        self.reset()
+ 
+-    def read(self):
++    def read(self, reset=0):
+         """Returns a dict with format:'file name / field -> current value'."""
+         results = {}
+ 
+@@ -769,10 +779,22 @@ class DebugfsProvider(object):
+         if not self.do_read:
+             return results
+ 
+-        for path in self.paths:
++        paths = self.paths
++        if self._pid == 0:
++            paths = []
++            for entry in os.walk(PATH_DEBUGFS_KVM):
++                for dir in entry[1]:
++                    paths.append(dir)
++        for path in paths:
+             for field in self._fields:
+-                results[field] = results.get(field, 0) \
+-                                 + self.read_field(field, path)
++                value = self.read_field(field, path)
++                key = path + field
++                if reset:
++                    self._baseline[key] = value
++                if self._baseline.get(key, -1) == -1:
++                    self._baseline[key] = value
++                results[field] = (results.get(field, 0) + value -
++                                  self._baseline.get(key, 0))
+ 
+         return results
+ 
+@@ -786,6 +808,11 @@ class DebugfsProvider(object):
+         except IOError:
+             return 0
+ 
++    def reset(self):
++        """Reset field counters"""
++        self._baseline = {}
++        self.read(1)
++
+ 
+ class Stats(object):
+     """Manages the data providers and the data they provide.
+@@ -822,14 +849,20 @@ class Stats(object):
+         for provider in self.providers:
+             provider.pid = self._pid_filter
+ 
++    def reset(self):
++        self.values = {}
++        for provider in self.providers:
++            provider.reset()
++
+     @property
+     def fields_filter(self):
+         return self._fields_filter
+ 
+     @fields_filter.setter
+     def fields_filter(self, fields_filter):
+-        self._fields_filter = fields_filter
+-        self.update_provider_filters()
++        if fields_filter != self._fields_filter:
++            self._fields_filter = fields_filter
++            self.update_provider_filters()
+ 
+     @property
+     def pid_filter(self):
+@@ -837,9 +870,10 @@ class Stats(object):
+ 
+     @pid_filter.setter
+     def pid_filter(self, pid):
+-        self._pid_filter = pid
+-        self.values = {}
+-        self.update_provider_pid()
++        if pid != self._pid_filter:
++            self._pid_filter = pid
++            self.values = {}
++            self.update_provider_pid()
+ 
+     def get(self):
+         """Returns a dict with field -> (value, delta to last value) of all
+@@ -847,11 +881,9 @@ class Stats(object):
+         for provider in self.providers:
+             new = provider.read()
+             for key in provider.fields:
+-                oldval = self.values.get(key, (0, 0))
++                oldval = self.values.get(key, (0, 0))[0]
+                 newval = new.get(key, 0)
+-                newdelta = None
+-                if oldval is not None:
+-                    newdelta = newval - oldval[0]
++                newdelta = newval - oldval
+                 self.values[key] = (newval, newdelta)
+         return self.values
+ 
+@@ -1117,6 +1149,10 @@ class Tui(object):
+                 if char == 'p':
+                     self.show_vm_selection_by_pid()
+                     sleeptime = DELAY_INITIAL
++                if char == 'r':
++                    self.refresh_header()
++                    self.stats.reset()
++                    sleeptime = DELAY_INITIAL
+             except KeyboardInterrupt:
+                 break
+             except curses.error:
+@@ -1190,6 +1226,7 @@ Interactive Commands:
+    p     filter by PID
+    q     quit
+    x     toggle reporting of stats for individual child trace events
++   r     reset stats
+ Press any other key to refresh statistics immediately.
+ """
+ 
+diff --git a/scripts/kvm/kvm_stat.texi b/scripts/kvm/kvm_stat.texi
+index 203d61d..c0cb7bc 100644
+--- a/scripts/kvm/kvm_stat.texi
++++ b/scripts/kvm/kvm_stat.texi
+@@ -39,6 +39,9 @@ filter by PID
+ @item q
+ @kindex q
+ quit
++@item r
++@kindex r
++reset stats
+ @item x
+ @kindex x
+ toggle reporting of stats for child trace events
+-- 
+1.8.3.1
+

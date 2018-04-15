@@ -1,0 +1,60 @@
+From 84bd8f0e4da949579b20ea0879c8b44404ef2604 Mon Sep 17 00:00:00 2001
+From: Stefan Hajnoczi <stefanha@redhat.com>
+Date: Fri, 22 Dec 2017 11:08:54 +0100
+Subject: [PATCH 36/42] iothread: add iothread_by_id() API
+
+RH-Author: Stefan Hajnoczi <stefanha@redhat.com>
+Message-id: <20171222110900.24813-15-stefanha@redhat.com>
+Patchwork-id: 78498
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH 14/20] iothread: add iothread_by_id() API
+Bugzilla: 1519721
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Jeffrey Cody <jcody@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+Encapsulate IOThread QOM object lookup so that callers don't need to
+know how and where IOThread objects live.
+
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+Reviewed-by: Kevin Wolf <kwolf@redhat.com>
+Reviewed-by: Eric Blake <eblake@redhat.com>
+Message-id: 20171206144550.22295-8-stefanha@redhat.com
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+(cherry picked from commit fbcc6923b00c2b468a7470fec7863f0403a65736)
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ include/sysemu/iothread.h | 1 +
+ iothread.c                | 7 +++++++
+ 2 files changed, 8 insertions(+)
+
+diff --git a/include/sysemu/iothread.h b/include/sysemu/iothread.h
+index 110329b..55de171 100644
+--- a/include/sysemu/iothread.h
++++ b/include/sysemu/iothread.h
+@@ -42,6 +42,7 @@ typedef struct {
+    OBJECT_CHECK(IOThread, obj, TYPE_IOTHREAD)
+ 
+ char *iothread_get_id(IOThread *iothread);
++IOThread *iothread_by_id(const char *id);
+ AioContext *iothread_get_aio_context(IOThread *iothread);
+ void iothread_stop_all(void);
+ GMainContext *iothread_get_g_main_context(IOThread *iothread);
+diff --git a/iothread.c b/iothread.c
+index 27a4288..e7b93e0 100644
+--- a/iothread.c
++++ b/iothread.c
+@@ -380,3 +380,10 @@ void iothread_destroy(IOThread *iothread)
+ {
+     object_unparent(OBJECT(iothread));
+ }
++
++/* Lookup IOThread by its id.  Only finds user-created objects, not internal
++ * iothread_create() objects. */
++IOThread *iothread_by_id(const char *id)
++{
++    return IOTHREAD(object_resolve_path_type(id, TYPE_IOTHREAD, NULL));
++}
+-- 
+1.8.3.1
+

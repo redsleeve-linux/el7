@@ -1,0 +1,134 @@
+From 79000a2843af86fcd026ba8eb899dfeb1da0e04d Mon Sep 17 00:00:00 2001
+From: Stefan Hajnoczi <stefanha@redhat.com>
+Date: Fri, 22 Dec 2017 11:08:43 +0100
+Subject: [PATCH 25/42] qemu-iothread: IOThread supports the GMainContext event
+ loop
+
+RH-Author: Stefan Hajnoczi <stefanha@redhat.com>
+Message-id: <20171222110900.24813-4-stefanha@redhat.com>
+Patchwork-id: 78485
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH 03/20] qemu-iothread: IOThread supports the GMainContext event loop
+Bugzilla: 1519721
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Jeffrey Cody <jcody@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+From: Wang Yong <wang.yong155@zte.com.cn>
+
+IOThread uses AioContext event loop and does not run a GMainContext.
+Therefore,chardev cannot work in IOThread,such as the chardev is
+used for colo-compare packets reception.
+
+This patch makes the IOThread run the GMainContext event loop,
+chardev and IOThread can work together.
+
+Reviewed-by: Fam Zheng <famz@redhat.com>
+Signed-off-by: Wang Yong <wang.yong155@zte.com.cn>
+Signed-off-by: Wang Guang <wang.guang55@zte.com.cn>
+Signed-off-by: Jason Wang <jasowang@redhat.com>
+(cherry picked from commit 329163cbe64a615b4edf6c40f2fff8c79dbc8fb4)
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ include/sysemu/iothread.h |  4 ++++
+ iothread.c                | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+)
+
+diff --git a/include/sysemu/iothread.h b/include/sysemu/iothread.h
+index e6da1a4..d2985b3 100644
+--- a/include/sysemu/iothread.h
++++ b/include/sysemu/iothread.h
+@@ -24,6 +24,9 @@ typedef struct {
+ 
+     QemuThread thread;
+     AioContext *ctx;
++    GMainContext *worker_context;
++    GMainLoop *main_loop;
++    GOnce once;
+     QemuMutex init_done_lock;
+     QemuCond init_done_cond;    /* is thread initialization done? */
+     bool stopping;
+@@ -41,5 +44,6 @@ typedef struct {
+ char *iothread_get_id(IOThread *iothread);
+ AioContext *iothread_get_aio_context(IOThread *iothread);
+ void iothread_stop_all(void);
++GMainContext *iothread_get_g_main_context(IOThread *iothread);
+ 
+ #endif /* IOTHREAD_H */
+diff --git a/iothread.c b/iothread.c
+index d67bdd4..59d0850 100644
+--- a/iothread.c
++++ b/iothread.c
+@@ -57,6 +57,23 @@ static void *iothread_run(void *opaque)
+ 
+     while (!atomic_read(&iothread->stopping)) {
+         aio_poll(iothread->ctx, true);
++
++        if (atomic_read(&iothread->worker_context)) {
++            GMainLoop *loop;
++
++            g_main_context_push_thread_default(iothread->worker_context);
++            iothread->main_loop =
++                g_main_loop_new(iothread->worker_context, TRUE);
++            loop = iothread->main_loop;
++
++            g_main_loop_run(iothread->main_loop);
++            iothread->main_loop = NULL;
++            g_main_loop_unref(loop);
++
++            g_main_context_pop_thread_default(iothread->worker_context);
++            g_main_context_unref(iothread->worker_context);
++            iothread->worker_context = NULL;
++        }
+     }
+ 
+     rcu_unregister_thread();
+@@ -73,6 +90,9 @@ static int iothread_stop(Object *object, void *opaque)
+     }
+     iothread->stopping = true;
+     aio_notify(iothread->ctx);
++    if (atomic_read(&iothread->main_loop)) {
++        g_main_loop_quit(iothread->main_loop);
++    }
+     qemu_thread_join(&iothread->thread);
+     return 0;
+ }
+@@ -125,6 +145,7 @@ static void iothread_complete(UserCreatable *obj, Error **errp)
+ 
+     qemu_mutex_init(&iothread->init_done_lock);
+     qemu_cond_init(&iothread->init_done_cond);
++    iothread->once = (GOnce) G_ONCE_INIT;
+ 
+     /* This assumes we are called from a thread with useful CPU affinity for us
+      * to inherit.
+@@ -309,3 +330,27 @@ void iothread_stop_all(void)
+ 
+     object_child_foreach(container, iothread_stop, NULL);
+ }
++
++static gpointer iothread_g_main_context_init(gpointer opaque)
++{
++    AioContext *ctx;
++    IOThread *iothread = opaque;
++    GSource *source;
++
++    iothread->worker_context = g_main_context_new();
++
++    ctx = iothread_get_aio_context(iothread);
++    source = aio_get_g_source(ctx);
++    g_source_attach(source, iothread->worker_context);
++    g_source_unref(source);
++
++    aio_notify(iothread->ctx);
++    return NULL;
++}
++
++GMainContext *iothread_get_g_main_context(IOThread *iothread)
++{
++    g_once(&iothread->once, iothread_g_main_context_init, iothread);
++
++    return iothread->worker_context;
++}
+-- 
+1.8.3.1
+

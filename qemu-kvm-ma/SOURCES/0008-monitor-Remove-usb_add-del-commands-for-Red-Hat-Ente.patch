@@ -1,0 +1,55 @@
+From d0bc2e633e1ec0b84e437605e974bd511241a130 Mon Sep 17 00:00:00 2001
+From: Miroslav Rezanina <mrezanin@redhat.com>
+Date: Wed, 6 Nov 2013 12:36:03 +0100
+Subject: monitor: Remove usb_add/del commands for Red Hat Enterprise Linux
+
+RH-Author: Miroslav Rezanina <mrezanin@redhat.com>
+Message-id: <daf2ca0042519cd01a6a68d30eb76bdd8b88c9f2.1383741033.git.mrezanin@redhat.com>
+Patchwork-id: 55520
+O-Subject: [RHEL7 qemu-kvm PATCH v2 3/4] monitor: Remove usb_add/del commands for Red Hat Enterprise Linux
+Bugzilla: 1010858
+RH-Acked-by: Michal Novotny <minovotn@redhat.com>
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Orit Wasserman <owasserm@redhat.com>
+RH-Acked-by: Eric Blake <eblake@redhat.com>
+
+From: Miroslav Rezanina <mrezanin@redhat.com>
+
+This is forwardport of RHEL-6 commit 754e6292b4ab41c8848171555af830ab7284f4d3:
+
+    monitor: Remove usb_add/del commands for Red Hat Enterprise Linux
+
+    The usb_add/del commands have been obsoleted by the device_add/del
+    commands.
+
+    Signed-off-by: Amit Shah <amit.shah@redhat.com>
+
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+(cherry picked from commit 23698561a70052b5d3cd376d66ec5889605e0559)
+---
+ hmp-commands.hx | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/hmp-commands.hx b/hmp-commands.hx
+index cb00a3e..91477c5 100644
+--- a/hmp-commands.hx
++++ b/hmp-commands.hx
+@@ -683,6 +683,7 @@ STEXI
+ Compute the checksum of a memory region.
+ ETEXI
+ 
++#if 0 /* Disabled for Red Hat Enterprise Linux */
+     {
+         .name       = "usb_add",
+         .args_type  = "devname:s",
+@@ -715,6 +716,7 @@ hub. @var{devname} has the syntax @code{bus.addr}. Use the monitor
+ command @code{info usb} to see the devices you can remove. This
+ command is deprecated, please use @code{device_del} instead.
+ ETEXI
++#endif
+ 
+     {
+         .name       = "device_add",
+-- 
+1.8.3.1
+

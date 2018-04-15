@@ -1,0 +1,39 @@
+From 28f294c02314ceaee4b5c8b4bd568c84b017546d Mon Sep 17 00:00:00 2001
+From: Miroslav Rezanina <mrezanin@redhat.com>
+Date: Fri, 13 Oct 2017 11:56:49 +0200
+Subject: [PATCH 18/69] Disable sm501 and sysbus-sm501 devices
+
+RH-Author: Miroslav Rezanina <mrezanin@redhat.com>
+Message-id: <20171013115649.20817-3-mrezanin@redhat.com>
+Patchwork-id: 77261
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCHv2 2/2] Disable sm501 and sysbus-sm501 devices
+Bugzilla: 1498496
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+
+From: Miroslav Rezanina <mrezanin@redhat.com>
+
+We are not goint to support these devices so disable them.
+
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ default-configs/ppc64-softmmu.mak | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/default-configs/ppc64-softmmu.mak b/default-configs/ppc64-softmmu.mak
+index 46e356b..8de2149 100644
+--- a/default-configs/ppc64-softmmu.mak
++++ b/default-configs/ppc64-softmmu.mak
+@@ -62,7 +62,7 @@ CONFIG_PSERIES=y
+ #CONFIG_PLATFORM_BUS=y
+ #CONFIG_ETSEC=y
+ CONFIG_LIBDECNUMBER=y
+-CONFIG_SM501=y
++#CONFIG_SM501=y
+ CONFIG_USB_OHCI=y
+ # For pSeries
+ CONFIG_XICS=$(CONFIG_PSERIES)
+-- 
+1.8.3.1
+

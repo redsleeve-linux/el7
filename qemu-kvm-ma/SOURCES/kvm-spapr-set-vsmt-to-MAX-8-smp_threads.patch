@@ -1,0 +1,47 @@
+From 779370f8d1cf47e46b39b210a43d24804e551071 Mon Sep 17 00:00:00 2001
+From: Laurent Vivier <lvivier@redhat.com>
+Date: Mon, 12 Feb 2018 12:04:49 +0100
+Subject: [PATCH 04/15] spapr: set vsmt to MAX(8, smp_threads)
+
+RH-Author: Laurent Vivier <lvivier@redhat.com>
+Message-id: <20180212120449.20810-1-lvivier@redhat.com>
+Patchwork-id: 78978
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH] spapr: set vsmt to MAX(8, smp_threads)
+Bugzilla: 1542421
+RH-Acked-by: David Gibson <dgibson@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Serhii Popovych <spopovyc@redhat.com>
+
+We ignore silently the value of smp_threads when we set
+the default VSMT value, and if smp_threads is greater than VSMT
+kernel is going into trouble later.
+
+Fixes: 8904e5a750
+("spapr: Adjust default VSMT value for better migration compatibility")
+
+Signed-off-by: Laurent Vivier <lvivier@redhat.com>
+Reviewed-by: Greg Kurz <groug@kaod.org>
+Signed-off-by: David Gibson <david@gibson.dropbear.id.au>
+(cherry picked from commit 4ad64cbd0c3f9df15be5f7d1c920285551e802ca)
+Signed-off-by: Laurent Vivier <lvivier@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/ppc/spapr.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/hw/ppc/spapr.c b/hw/ppc/spapr.c
+index 6c4c088..2b991d8 100644
+--- a/hw/ppc/spapr.c
++++ b/hw/ppc/spapr.c
+@@ -2261,7 +2261,7 @@ static void spapr_set_vsmt_mode(sPAPRMachineState *spapr, Error **errp)
+          * the value that we'd get with KVM on POWER8, the
+          * overwhelmingly common case in production systems.
+          */
+-        spapr->vsmt = 8;
++        spapr->vsmt = MAX(8, smp_threads);
+     }
+ 
+     /* KVM: If necessary, set the SMT mode: */
+-- 
+1.8.3.1
+

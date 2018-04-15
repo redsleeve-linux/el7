@@ -1,0 +1,55 @@
+From b512b7ed1761bb5a288314e3f1ed674bcc40a22c Mon Sep 17 00:00:00 2001
+From: David Gibson <dgibson@redhat.com>
+Date: Thu, 16 Nov 2017 03:07:24 +0100
+Subject: [PATCH 20/30] memory: Move address_space_update_ioeventfds
+
+RH-Author: David Gibson <dgibson@redhat.com>
+Message-id: <20171116030732.8560-15-dgibson@redhat.com>
+Patchwork-id: 77702
+O-Subject: [PATCH 14/22] memory: Move address_space_update_ioeventfds
+Bugzilla: 1481593
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Eduardo Habkost <ehabkost@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+
+From: Alexey Kardashevskiy <aik@ozlabs.ru>
+
+So it is called (twice) from the same function. This is to make the next
+patches a bit simpler.
+
+Signed-off-by: Alexey Kardashevskiy <aik@ozlabs.ru>
+Message-Id: <20170921085110.25598-12-aik@ozlabs.ru>
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit 02218487649558ed66c3689d4cc55250a42601d8)
+
+Signed-off-by: David Gibson <dgibson@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ memory.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/memory.c b/memory.c
+index 8034520..1f58d29 100644
+--- a/memory.c
++++ b/memory.c
+@@ -951,8 +951,6 @@ static void address_space_update_topology(AddressSpace *as)
+      * counting is necessary.
+      */
+     flatview_unref(old_view);
+-
+-    address_space_update_ioeventfds(as);
+ }
+ 
+ void memory_region_transaction_begin(void)
+@@ -975,6 +973,7 @@ void memory_region_transaction_commit(void)
+ 
+             QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
+                 address_space_update_topology(as);
++                address_space_update_ioeventfds(as);
+             }
+             memory_region_update_pending = false;
+             MEMORY_LISTENER_CALL_GLOBAL(commit, Forward);
+-- 
+1.8.3.1
+

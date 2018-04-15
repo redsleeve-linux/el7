@@ -1,0 +1,65 @@
+From 66f2e8203e1d29f8ec656f5e333dbc1f13229f9f Mon Sep 17 00:00:00 2001
+From: David Hildenbrand <david@redhat.com>
+Date: Tue, 17 Oct 2017 19:15:36 +0200
+Subject: [PATCH 31/69] tools/kvm_stat: remove pid filter on empty input
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: David Hildenbrand <david@redhat.com>
+Message-id: <20171017191605.2378-11-david@redhat.com>
+Patchwork-id: 77320
+O-Subject: [RHEL-7.5 qemu-kvm-rhev PATCH 10/39] tools/kvm_stat: remove pid filter on empty input
+Bugzilla: 1497137
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+
+Upstream-status: linux.git be03ea3b77387db36617d71d60ee182a866fb9cd
+
+commit be03ea3b77387db36617d71d60ee182a866fb9cd
+Author: Stefan Raspl <raspl@linux.vnet.ibm.com>
+Date:   Fri Mar 10 13:40:09 2017 +0100
+
+    tools/kvm_stat: remove pid filter on empty input
+
+    Improve consistency in the interactive dialogue for pid filtering by
+    removing any filters on empty input (in addition to entering 0).
+
+    Signed-off-by: Stefan Raspl <raspl@linux.vnet.ibm.com>
+    Reviewed-by: Janosch Frank <frankja@linux.vnet.ibm.com>
+    Reviewed-by: Marc Hartmayer <mhartmay@linux.vnet.ibm.com>
+    Signed-off-by: Radim Krčmář <rkrcmar@redhat.com>
+
+Signed-off-by: David Hildenbrand <david@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ scripts/kvm/kvm_stat | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/scripts/kvm/kvm_stat b/scripts/kvm/kvm_stat
+index 95ffa9a..9e9eb98 100755
+--- a/scripts/kvm/kvm_stat
++++ b/scripts/kvm/kvm_stat
+@@ -991,10 +991,13 @@ class Tui(object):
+             curses.noecho()
+ 
+             try:
+-                pid = int(pid)
+-                if pid != 0 and not os.path.isdir(os.path.join('/proc/',
+-                                                               str(pid))):
+-                    continue
++                if len(pid) > 0:
++                    pid = int(pid)
++                    if pid != 0 and not os.path.isdir(os.path.join('/proc/',
++                                                                   str(pid))):
++                        continue
++                else:
++                    pid = 0
+                 self.refresh_header(pid)
+                 self.update_pid(pid)
+                 break
+-- 
+1.8.3.1
+

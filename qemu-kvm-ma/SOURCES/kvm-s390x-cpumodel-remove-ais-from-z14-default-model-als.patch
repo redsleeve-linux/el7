@@ -1,0 +1,46 @@
+From 7aaf777448ba232fc0dc136e1ed775f86e0e8036 Mon Sep 17 00:00:00 2001
+From: Cornelia Huck <cohuck@redhat.com>
+Date: Thu, 5 Oct 2017 12:04:06 +0200
+Subject: [PATCH 12/34] s390x/cpumodel: remove ais from z14 default model->
+ also for 2.10.1
+
+RH-Author: Cornelia Huck <cohuck@redhat.com>
+Message-id: <20171005120406.16642-3-cohuck@redhat.com>
+Patchwork-id: 76819
+O-Subject: [RHV7.5 qemu-kvm-ma PATCH 2/2] s390x/cpumodel: remove ais from z14 default model-> also for 2.10.1
+Bugzilla: 1494548
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Jens Freimann <jfreimann@redhat.com>
+RH-Acked-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+
+From: Christian Borntraeger <borntraeger@de.ibm.com>
+
+We disabled ais for 2.10, so let's also remove it from the z14
+default model.
+
+Fixes: 3f2d07b3b01e ("s390x/ais: for 2.10 stable: disable ais facility")
+CC: qemu-stable@nongnu.org
+Signed-off-by: Christian Borntraeger <borntraeger@de.ibm.com>
+Message-Id: <20170927072030.35737-2-borntraeger@de.ibm.com>
+Signed-off-by: Cornelia Huck <cohuck@redhat.com>
+(cherry picked from commit 9dacc908462693719d84ec594e839434959cf6f1)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ target/s390x/gen-features.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/target/s390x/gen-features.c b/target/s390x/gen-features.c
+index c8dc104..68e6c31 100644
+--- a/target/s390x/gen-features.c
++++ b/target/s390x/gen-features.c
+@@ -527,7 +527,6 @@ static uint16_t default_GEN13_GA1[] = {
+ #define default_GEN13_GA2 EmptyFeat
+ 
+ static uint16_t default_GEN14_GA1[] = {
+-    S390_FEAT_ADAPTER_INT_SUPPRESSION,
+     S390_FEAT_INSTRUCTION_EXEC_PROT,
+     S390_FEAT_GUARDED_STORAGE,
+     S390_FEAT_VECTOR_PACKED_DECIMAL,
+-- 
+1.8.3.1
+

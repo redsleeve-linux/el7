@@ -1,0 +1,134 @@
+From 95b5c46145b2ac79dd4b0f5621baec07e488ff3e Mon Sep 17 00:00:00 2001
+From: David Hildenbrand <david@redhat.com>
+Date: Tue, 17 Oct 2017 19:15:57 +0200
+Subject: [PATCH 52/69] tools/kvm_stat: add new interactive command 'h'
+
+RH-Author: David Hildenbrand <david@redhat.com>
+Message-id: <20171017191605.2378-32-david@redhat.com>
+Patchwork-id: 77339
+O-Subject: [RHEL-7.5 qemu-kvm-rhev PATCH 31/39] tools/kvm_stat: add new interactive command 'h'
+Bugzilla: 1497137
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+
+Upstream-status: linux.git 1fdea7b2893045e5258a13937c3d78c425fd7aa0
+
+Convertion of documentation (for man page generation) to texi.
+
+commit 1fdea7b2893045e5258a13937c3d78c425fd7aa0
+Author: Stefan Raspl <raspl@linux.vnet.ibm.com>
+Date:   Wed Jun 7 21:08:38 2017 +0200
+
+    tools/kvm_stat: add new interactive command 'h'
+
+    Display interactive commands reference on 'h'.
+    While at it, sort interactive commands alphabetically in various places.
+
+    Signed-off-by: Stefan Raspl <raspl@linux.vnet.ibm.com>
+    Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+
+Signed-off-by: David Hildenbrand <david@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ scripts/kvm/kvm_stat      | 37 ++++++++++++++++++++++++++++++++-----
+ scripts/kvm/kvm_stat.texi |  3 +++
+ 2 files changed, 35 insertions(+), 5 deletions(-)
+
+diff --git a/scripts/kvm/kvm_stat b/scripts/kvm/kvm_stat
+index a9e7ea6..6838de3 100755
+--- a/scripts/kvm/kvm_stat
++++ b/scripts/kvm/kvm_stat
+@@ -1018,6 +1018,30 @@ class Tui(object):
+             self.screen.addstr(4, 1, 'No matching events reported yet')
+         self.screen.refresh()
+ 
++    def show_help_interactive(self):
++        """Display help with list of interactive commands"""
++        msg = ('   c     clear filter',
++               '   f     filter by regular expression',
++               '   g     filter by guest name',
++               '   h     display interactive commands reference',
++               '   p     filter by PID',
++               '   q     quit',
++               '   r     reset stats',
++               '   x     toggle reporting of stats for individual child trace'
++               ' events',
++               'Any other key refreshes statistics immediately')
++        curses.cbreak()
++        self.screen.erase()
++        self.screen.addstr(0, 0, "Interactive commands reference",
++                           curses.A_BOLD)
++        self.screen.addstr(2, 0, "Press any key to exit", curses.A_STANDOUT)
++        row = 4
++        for line in msg:
++            self.screen.addstr(row, 0, line)
++            row += 1
++        self.screen.getkey()
++        self.refresh_header()
++
+     def show_filter_selection(self):
+         """Draws filter selection mask.
+ 
+@@ -1142,10 +1166,6 @@ class Tui(object):
+             sleeptime = DELAY_REGULAR
+             try:
+                 char = self.screen.getkey()
+-                if char == 'x':
+-                    self.update_drilldown()
+-                if char == 'q':
+-                    break
+                 if char == 'c':
+                     self.stats.fields_filter = DEFAULT_REGEX
+                     self.refresh_header(0)
+@@ -1160,13 +1180,19 @@ class Tui(object):
+                     self.show_vm_selection_by_guest_name()
+                     curses.curs_set(0)
+                     sleeptime = DELAY_INITIAL
++                if char == 'h':
++                    self.show_help_interactive()
+                 if char == 'p':
+                     curses.curs_set(1)
+                     self.show_vm_selection_by_pid()
+                     curses.curs_set(0)
+                     sleeptime = DELAY_INITIAL
++                if char == 'q':
++                    break
+                 if char == 'r':
+                     self.stats.reset()
++                if char == 'x':
++                    self.update_drilldown()
+             except KeyboardInterrupt:
+                 break
+             except curses.error:
+@@ -1237,10 +1263,11 @@ Interactive Commands:
+    c     clear filter
+    f     filter by regular expression
+    g     filter by guest name
++   h     display interactive commands reference
+    p     filter by PID
+    q     quit
+-   x     toggle reporting of stats for individual child trace events
+    r     reset stats
++   x     toggle reporting of stats for individual child trace events
+ Press any other key to refresh statistics immediately.
+ """
+ 
+diff --git a/scripts/kvm/kvm_stat.texi b/scripts/kvm/kvm_stat.texi
+index c0cb7bc..4dfcd8f 100644
+--- a/scripts/kvm/kvm_stat.texi
++++ b/scripts/kvm/kvm_stat.texi
+@@ -33,6 +33,9 @@ filter by regular expression
+ @item g
+ @kindex g
+ filter by guest name
++@item h
++@kindex h
++display interactive commands reference
+ @item p
+ @kindex p
+ filter by PID
+-- 
+1.8.3.1
+

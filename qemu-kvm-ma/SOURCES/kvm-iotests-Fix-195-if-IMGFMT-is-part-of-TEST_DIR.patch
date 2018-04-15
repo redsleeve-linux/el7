@@ -1,0 +1,67 @@
+From d13b20d0650519722da79a9cb9e4e0a1f2bee26c Mon Sep 17 00:00:00 2001
+From: Kevin Wolf <kwolf@redhat.com>
+Date: Mon, 4 Dec 2017 12:10:07 +0100
+Subject: [PATCH 36/36] iotests: Fix 195 if IMGFMT is part of TEST_DIR
+
+RH-Author: Kevin Wolf <kwolf@redhat.com>
+Message-id: <20171204121007.12964-9-kwolf@redhat.com>
+Patchwork-id: 78108
+O-Subject: [RHV-7.5 qemu-kvm-rhev PATCH v2 8/8] iotests: Fix 195 if IMGFMT is part of TEST_DIR
+Bugzilla: 1492178
+RH-Acked-by: Fam Zheng <famz@redhat.com>
+RH-Acked-by: Max Reitz <mreitz@redhat.com>
+RH-Acked-by: Jeffrey Cody <jcody@redhat.com>
+
+From: Max Reitz <mreitz@redhat.com>
+
+do_run_qemu() in iotest 195 first applies _filter_imgfmt when printing
+qemu's command line and _filter_testdir only afterwards.  Therefore, if
+the image format is part of the test directory path, _filter_testdir
+will no longer apply and the actual output will differ from the
+reference output even in case of success.
+
+For example, TEST_DIR might be "/tmp/test-qcow2", in which case
+_filter_imgfmt first transforms this to "/tmp/test-IMGFMT" which is no
+longer recognized as the TEST_DIR by _filter_testdir.
+
+Fix this by not applying _filter_imgfmt in do_run_qemu() but in
+run_qemu() instead, and only after _filter_testdir.
+
+Signed-off-by: Max Reitz <mreitz@redhat.com>
+Message-id: 20170927211334.3988-1-mreitz@redhat.com
+Reviewed-by: Eric Blake <eblake@redhat.com>
+Signed-off-by: Max Reitz <mreitz@redhat.com>
+(cherry picked from commit 47500c6775813c8f2b5a5de04d84222f3cecc62d)
+Signed-off-by: Kevin Wolf <kwolf@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ tests/qemu-iotests/195 | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/tests/qemu-iotests/195 b/tests/qemu-iotests/195
+index 05a239c..e7a403d 100644
+--- a/tests/qemu-iotests/195
++++ b/tests/qemu-iotests/195
+@@ -44,15 +44,16 @@ _supported_os Linux
+ 
+ function do_run_qemu()
+ {
+-    echo Testing: "$@" | _filter_imgfmt
++    echo Testing: "$@"
+     $QEMU -nographic -qmp-pretty stdio -serial none "$@"
+     echo
+ }
+ 
+ function run_qemu()
+ {
+-    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qemu | _filter_qmp \
+-                          | _filter_qemu_io | _filter_generated_node_ids
++    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_imgfmt | _filter_qemu \
++                          | _filter_qmp | _filter_qemu_io \
++                          | _filter_generated_node_ids
+ }
+ 
+ size=64M
+-- 
+1.8.3.1
+

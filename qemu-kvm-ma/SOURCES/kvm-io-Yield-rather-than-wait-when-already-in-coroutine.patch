@@ -1,0 +1,70 @@
+From 280e240cfa8e633dd062791b1d0d62fe0e642d46 Mon Sep 17 00:00:00 2001
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Sat, 2 Dec 2017 12:19:38 +0100
+Subject: [PATCH 12/36] io: Yield rather than wait when already in coroutine
+
+RH-Author: Paolo Bonzini <pbonzini@redhat.com>
+Message-id: <20171202121953.13317-3-pbonzini@redhat.com>
+Patchwork-id: 78076
+O-Subject: [RHEL7.4 qemu-kvm-rhev PATCH 02/17] io: Yield rather than wait when already in coroutine
+Bugzilla: 1464908
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+RH-Acked-by: John Snow <jsnow@redhat.com>
+
+From: Eric Blake <eblake@redhat.com>
+
+The new qio_channel_{read,write}{,v}_all functions are documented
+as yielding until data is available.  When used on a blocking
+channel, this yield is done via qio_channel_wait() which spawns
+a nested event loop under the hood (so it is that secondary loop
+which yields as needed); but if we are already in a coroutine (at
+which point QIO_CHANNEL_ERR_BLOCK is only possible if we are a
+non-blocking channel), we want to yield the current coroutine
+instead of spawning a nested event loop.
+
+Signed-off-by: Eric Blake <eblake@redhat.com>
+Message-Id: <20170905191114.5959-2-eblake@redhat.com>
+Acked-by: Daniel P. Berrange <berrange@redhat.com>
+[commit message updated]
+Signed-off-by: Eric Blake <eblake@redhat.com>
+(cherry picked from commit 9ffb8270205a274a18ee4f8a735e2fccaf957246)
+
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ io/channel.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/io/channel.c b/io/channel.c
+index 5e8c2f0..9e62794 100644
+--- a/io/channel.c
++++ b/io/channel.c
+@@ -105,7 +105,11 @@ int qio_channel_readv_all(QIOChannel *ioc,
+         ssize_t len;
+         len = qio_channel_readv(ioc, local_iov, nlocal_iov, errp);
+         if (len == QIO_CHANNEL_ERR_BLOCK) {
+-            qio_channel_wait(ioc, G_IO_IN);
++            if (qemu_in_coroutine()) {
++                qio_channel_yield(ioc, G_IO_IN);
++            } else {
++                qio_channel_wait(ioc, G_IO_IN);
++            }
+             continue;
+         } else if (len < 0) {
+             goto cleanup;
+@@ -143,7 +147,11 @@ int qio_channel_writev_all(QIOChannel *ioc,
+         ssize_t len;
+         len = qio_channel_writev(ioc, local_iov, nlocal_iov, errp);
+         if (len == QIO_CHANNEL_ERR_BLOCK) {
+-            qio_channel_wait(ioc, G_IO_OUT);
++            if (qemu_in_coroutine()) {
++                qio_channel_yield(ioc, G_IO_OUT);
++            } else {
++                qio_channel_wait(ioc, G_IO_OUT);
++            }
+             continue;
+         }
+         if (len < 0) {
+-- 
+1.8.3.1
+

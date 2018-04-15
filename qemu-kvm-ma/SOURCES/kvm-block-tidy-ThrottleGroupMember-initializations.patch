@@ -1,0 +1,63 @@
+From 339d01accebcd27e23600e709ef426cdb794cf2e Mon Sep 17 00:00:00 2001
+From: Stefan Hajnoczi <stefanha@redhat.com>
+Date: Fri, 17 Nov 2017 11:19:02 +0100
+Subject: [PATCH 03/15] block: tidy ThrottleGroupMember initializations
+
+RH-Author: Stefan Hajnoczi <stefanha@redhat.com>
+Message-id: <20171117111908.8815-4-stefanha@redhat.com>
+Patchwork-id: 77739
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH 3/9] block: tidy ThrottleGroupMember initializations
+Bugzilla: 1492295
+RH-Acked-by: John Snow <jsnow@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+
+From: Manos Pitsidianakis <el13635@mail.ntua.gr>
+
+Move the CoMutex and CoQueue inits inside throttle_group_register_tgm()
+which is called whenever a ThrottleGroupMember is initialized. There's
+no need for them to be separate.
+
+Reviewed-by: Alberto Garcia <berto@igalia.com>
+Reviewed-by: Stefan Hajnoczi <stefanha@redhat.com>
+Signed-off-by: Manos Pitsidianakis <el13635@mail.ntua.gr>
+Signed-off-by: Kevin Wolf <kwolf@redhat.com>
+(cherry picked from commit f738cfc843055238ad969782db69156929873832)
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ block/block-backend.c   | 3 ---
+ block/throttle-groups.c | 3 +++
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/block/block-backend.c b/block/block-backend.c
+index 515be10..6826476 100644
+--- a/block/block-backend.c
++++ b/block/block-backend.c
+@@ -273,9 +273,6 @@ BlockBackend *blk_new(uint64_t perm, uint64_t shared_perm)
+     blk->shared_perm = shared_perm;
+     blk_set_enable_write_cache(blk, true);
+ 
+-    qemu_co_mutex_init(&blk->public.throttle_group_member.throttled_reqs_lock);
+-    qemu_co_queue_init(&blk->public.throttle_group_member.throttled_reqs[0]);
+-    qemu_co_queue_init(&blk->public.throttle_group_member.throttled_reqs[1]);
+     block_acct_init(&blk->stats);
+ 
+     notifier_list_init(&blk->remove_bs_notifiers);
+diff --git a/block/throttle-groups.c b/block/throttle-groups.c
+index 3b07b25..7749cf0 100644
+--- a/block/throttle-groups.c
++++ b/block/throttle-groups.c
+@@ -508,6 +508,9 @@ void throttle_group_register_tgm(ThrottleGroupMember *tgm,
+                          read_timer_cb,
+                          write_timer_cb,
+                          tgm);
++    qemu_co_mutex_init(&tgm->throttled_reqs_lock);
++    qemu_co_queue_init(&tgm->throttled_reqs[0]);
++    qemu_co_queue_init(&tgm->throttled_reqs[1]);
+ 
+     qemu_mutex_unlock(&tg->lock);
+ }
+-- 
+1.8.3.1
+

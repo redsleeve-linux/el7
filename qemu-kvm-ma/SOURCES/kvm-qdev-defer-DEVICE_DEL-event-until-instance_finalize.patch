@@ -1,0 +1,111 @@
+From 13bceabad00d232b71f34bc62b6bbda3f7279601 Mon Sep 17 00:00:00 2001
+From: Serhii Popovych <spopovyc@redhat.com>
+Date: Thu, 9 Nov 2017 15:30:05 +0100
+Subject: [PATCH 5/7] qdev: defer DEVICE_DEL event until instance_finalize()
+
+RH-Author: Serhii Popovych <spopovyc@redhat.com>
+Message-id: <1510241405-20597-4-git-send-email-spopovyc@redhat.com>
+Patchwork-id: 77631
+O-Subject: [RHV7.5 qemu-kvm-rhev PATCH 3/3] qdev: defer DEVICE_DEL event until instance_finalize()
+Bugzilla: 1445460
+RH-Acked-by: David Gibson <dgibson@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+
+From: Michael Roth <mdroth@linux.vnet.ibm.com>
+
+DEVICE_DEL is currently emitted when a Device is unparented, as
+opposed to when it is finalized. The main design motivation for this
+seems to be that after unparent()/unrealize(), the Device is no
+longer visible to the guest, and thus the operation is complete
+from the perspective of management.
+
+However, there are cases where remaining host-side cleanup is also
+pertinent to management. The is generally handled by treating these
+resources as aspects of the "backend", which can be managed via
+separate interfaces/events, such as blockdev_add/del, netdev_add/del,
+object_add/del, etc, but some devices do not have this level of
+compartmentalization, namely vfio-pci, and possibly to lend themselves
+well to it.
+
+In the case of vfio-pci, the "backend" cleanup happens as part of
+the finalization of the vfio-pci device itself, in particular the
+cleanup of the VFIO group FD. Failing to wait for this cleanup can
+result in tools like libvirt attempting to rebind the device to
+the host while it's still being used by VFIO, which can result in
+host crashes or other misbehavior depending on the host driver.
+
+Deferring DEVICE_DEL still affords us the ability to manage backends
+explicitly, while also addressing cases like vfio-pci's, so we
+implement that approach here.
+
+An alternative proposal involving having VFIO emit a separate event
+to denote completion of host-side cleanup was discussed, but the
+prevailing opinion seems to be that it is not worth the added
+complexity, and leaves the issue open for other Device implementations
+to solve in the future.
+
+Signed-off-by: Michael Roth <mdroth@linux.vnet.ibm.com>
+Reviewed-by: Greg Kurz <groug@kaod.org>
+Tested-by: Eric Auger <eric.auger@redhat.com>
+Reviewed-by: David Gibson <david@gibson.dropbear.id.au>
+Message-Id: <20171016222315.407-4-mdroth@linux.vnet.ibm.com>
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit f7b879e072ae6839b1b1d1312f48fa7f256397e2)
+Signed-off-by: Serhii Popovych <spopovyc@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/core/qdev.c | 23 ++++++++++++-----------
+ 1 file changed, 12 insertions(+), 11 deletions(-)
+
+diff --git a/hw/core/qdev.c b/hw/core/qdev.c
+index 418cdac..1111295 100644
+--- a/hw/core/qdev.c
++++ b/hw/core/qdev.c
+@@ -1069,7 +1069,6 @@ static void device_finalize(Object *obj)
+     NamedGPIOList *ngl, *next;
+ 
+     DeviceState *dev = DEVICE(obj);
+-    qemu_opts_del(dev->opts);
+ 
+     QLIST_FOREACH_SAFE(ngl, &dev->gpios, node, next) {
+         QLIST_REMOVE(ngl, node);
+@@ -1080,6 +1079,18 @@ static void device_finalize(Object *obj)
+          * here
+          */
+     }
++
++    /* Only send event if the device had been completely realized */
++    if (dev->pending_deleted_event) {
++        g_assert(dev->canonical_path);
++
++        qapi_event_send_device_deleted(!!dev->id, dev->id, dev->canonical_path,
++                                       &error_abort);
++        g_free(dev->canonical_path);
++        dev->canonical_path = NULL;
++    }
++
++    qemu_opts_del(dev->opts);
+ }
+ 
+ static void device_class_base_init(ObjectClass *class, void *data)
+@@ -1109,16 +1120,6 @@ static void device_unparent(Object *obj)
+         object_unref(OBJECT(dev->parent_bus));
+         dev->parent_bus = NULL;
+     }
+-
+-    /* Only send event if the device had been completely realized */
+-    if (dev->pending_deleted_event) {
+-        g_assert(dev->canonical_path);
+-
+-        qapi_event_send_device_deleted(!!dev->id, dev->id, dev->canonical_path,
+-                                       &error_abort);
+-        g_free(dev->canonical_path);
+-        dev->canonical_path = NULL;
+-    }
+ }
+ 
+ static void device_class_init(ObjectClass *class, void *data)
+-- 
+1.8.3.1
+

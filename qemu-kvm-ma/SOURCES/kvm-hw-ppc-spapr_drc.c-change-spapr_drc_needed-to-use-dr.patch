@@ -1,0 +1,58 @@
+From 6984d8d007ed94067b37af90b1e20a0aad76a205 Mon Sep 17 00:00:00 2001
+From: David Gibson <dgibson@redhat.com>
+Date: Wed, 4 Oct 2017 05:40:11 +0200
+Subject: [PATCH 04/34] hw/ppc/spapr_drc.c: change spapr_drc_needed to use
+ drc->dev
+
+RH-Author: David Gibson <dgibson@redhat.com>
+Message-id: <20171004054014.14159-2-dgibson@redhat.com>
+Patchwork-id: 76799
+O-Subject: [RHEL-7.5 qemu-kvm-rhev PATCH 1/4] hw/ppc/spapr_drc.c: change spapr_drc_needed to use drc->dev
+Bugzilla: 1448344
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+From: Daniel Henrique Barboza <danielhb@linux.vnet.ibm.com>
+
+This patch makes a small fix in 'spapr_drc_needed' to change how we detect
+if a DRC has a device attached. Previously it used dr_entity_sense for this,
+which  works for physical DRCs.
+
+However, for logical DRCs, it didn't cover the case where a logical DRC has
+a drc->dev but the state is LOGICAL_UNUSABLE (e.g. a hotplugged CPU before
+CAS). In this case, the dr_entity_sense of this DRC returns UNUSABLE and the
+code was considering that there were no dev attached, making spapr_drc_needed
+return 'false' when in fact we would like to migrate the DRC.
+
+Changing it to check for drc->dev instead works for all DRC types.
+
+Signed-off-by: Daniel Henrique Barboza <danielhb@linux.vnet.ibm.com>
+Signed-off-by: David Gibson <david@gibson.dropbear.id.au>
+(cherry picked from commit c618e300eb2276996e7004100686768cf1445128)
+
+Signed-off-by: David Gibson <dgibson@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/ppc/spapr_drc.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/hw/ppc/spapr_drc.c b/hw/ppc/spapr_drc.c
+index 605697d..031ba7c 100644
+--- a/hw/ppc/spapr_drc.c
++++ b/hw/ppc/spapr_drc.c
+@@ -464,10 +464,9 @@ static bool spapr_drc_needed(void *opaque)
+ {
+     sPAPRDRConnector *drc = (sPAPRDRConnector *)opaque;
+     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+-    sPAPRDREntitySense value = drck->dr_entity_sense(drc);
+ 
+     /* If no dev is plugged in there is no need to migrate the DRC state */
+-    if (value != SPAPR_DR_ENTITY_SENSE_PRESENT) {
++    if (!drc->dev) {
+         return false;
+     }
+ 
+-- 
+1.8.3.1
+

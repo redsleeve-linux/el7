@@ -1,0 +1,73 @@
+From 1c4c0df8838e32c524c86ae7ab0fcdc56cb0cad0 Mon Sep 17 00:00:00 2001
+From: Kevin Wolf <kwolf@redhat.com>
+Date: Mon, 4 Dec 2017 12:10:00 +0100
+Subject: [PATCH 29/36] qemu-io: Drop write permissions before read-only reopen
+
+RH-Author: Kevin Wolf <kwolf@redhat.com>
+Message-id: <20171204121007.12964-2-kwolf@redhat.com>
+Patchwork-id: 78106
+O-Subject: [RHV-7.5 qemu-kvm-rhev PATCH v2 1/8] qemu-io: Drop write permissions before read-only reopen
+Bugzilla: 1492178
+RH-Acked-by: Fam Zheng <famz@redhat.com>
+RH-Acked-by: Max Reitz <mreitz@redhat.com>
+RH-Acked-by: Jeffrey Cody <jcody@redhat.com>
+
+qemu-io provides a 'reopen' command that allows switching from writable
+to read-only access. We need to make sure that we don't try to keep
+write permissions to a BlockBackend that becomes read-only, otherwise
+things are going to fail.
+
+This requires a bdrv_drain() call because otherwise in-flight AIO
+write requests could issue new internal requests while the permission
+has already gone away, which would cause assertion failures. Draining
+the queue doesn't break AIO requests in any new way, bdrv_reopen() would
+drain it anyway only a few lines later.
+
+Signed-off-by: Kevin Wolf <kwolf@redhat.com>
+Reviewed-by: Fam Zheng <famz@redhat.com>
+(cherry picked from commit f3adefb2cea1c63b7b198acaef5e40eb4b2d2d39)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ qemu-io-cmds.c             | 12 ++++++++++++
+ tests/qemu-iotests/187.out |  2 +-
+ 2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/qemu-io-cmds.c b/qemu-io-cmds.c
+index 2811a89..3727fb4 100644
+--- a/qemu-io-cmds.c
++++ b/qemu-io-cmds.c
+@@ -2010,6 +2010,18 @@ static int reopen_f(BlockBackend *blk, int argc, char **argv)
+         return 0;
+     }
+ 
++    if (!(flags & BDRV_O_RDWR)) {
++        uint64_t orig_perm, orig_shared_perm;
++
++        bdrv_drain(bs);
++
++        blk_get_perm(blk, &orig_perm, &orig_shared_perm);
++        blk_set_perm(blk,
++                     orig_perm & ~(BLK_PERM_WRITE | BLK_PERM_WRITE_UNCHANGED),
++                     orig_shared_perm,
++                     &error_abort);
++    }
++
+     qopts = qemu_opts_find(&reopen_opts, NULL);
+     opts = qopts ? qemu_opts_to_qdict(qopts, NULL) : NULL;
+     qemu_opts_reset(&reopen_opts);
+diff --git a/tests/qemu-iotests/187.out b/tests/qemu-iotests/187.out
+index 68fb944..30b987f 100644
+--- a/tests/qemu-iotests/187.out
++++ b/tests/qemu-iotests/187.out
+@@ -12,7 +12,7 @@ Start from read-write
+ 
+ wrote 65536/65536 bytes at offset 0
+ 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+-write failed: Operation not permitted
++Block node is read-only
+ wrote 65536/65536 bytes at offset 0
+ 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+ *** done
+-- 
+1.8.3.1
+

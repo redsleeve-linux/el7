@@ -1,0 +1,53 @@
+From 3ad6366bd5d0bea256b37b0e8cdef6ff5ac2e4e2 Mon Sep 17 00:00:00 2001
+From: Thomas Huth <thuth@redhat.com>
+Date: Mon, 9 Oct 2017 12:32:46 +0200
+Subject: [PATCH 27/34] s390x/sclp: mark sclp-cpu-hotplug as non-usercreatable
+
+RH-Author: Thomas Huth <thuth@redhat.com>
+Message-id: <1507552368-9245-11-git-send-email-thuth@redhat.com>
+Patchwork-id: 77028
+O-Subject: [RHEL-7.5 qemu-kvm-ma PATCH 10/12] s390x/sclp: mark sclp-cpu-hotplug as non-usercreatable
+Bugzilla: 1492033
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: David Gibson <dgibson@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+From: Cornelia Huck <cohuck@redhat.com>
+
+A TYPE_SCLP_CPU_HOTPLUG device for handling cpu hotplug events
+is already created by the sclp event facility. Adding a second
+TYPE_SCLP_CPU_HOTPLUG device via -device sclp-cpu-hotplug creates
+an ambiguity in raise_irq_cpu_hotplug(), leading to a crash once
+a cpu is hotplugged.
+
+To fix this, disallow creating a sclp-cpu-hotplug device manually.
+
+Reviewed-by: Thomas Huth <thuth@redhat.com>
+Acked-by: Christian Borntraeger <borntraeger@de.ibm.com>
+Signed-off-by: Cornelia Huck <cohuck@redhat.com>
+(cherry picked from commit 7aa4d85d2962a072931657bee964113727ebf0c8)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/s390x/sclpcpu.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/hw/s390x/sclpcpu.c b/hw/s390x/sclpcpu.c
+index b1f3ef8..fa17cc5 100644
+--- a/hw/s390x/sclpcpu.c
++++ b/hw/s390x/sclpcpu.c
+@@ -83,6 +83,12 @@ static void cpu_class_init(ObjectClass *oc, void *data)
+     k->get_receive_mask = receive_mask;
+     k->read_event_data = read_event_data;
+     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
++    /*
++     * Reason: raise_irq_cpu_hotplug() depends on an unique
++     * TYPE_SCLP_CPU_HOTPLUG device, which is already created
++     * by the sclp event facility
++     */
++    dc->user_creatable = false;
+ }
+ 
+ static const TypeInfo sclp_cpu_info = {
+-- 
+1.8.3.1
+

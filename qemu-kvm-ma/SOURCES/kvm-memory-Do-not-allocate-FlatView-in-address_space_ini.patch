@@ -1,0 +1,100 @@
+From 5bfc2be91ba382cf0c0353794ff9289cb9b064de Mon Sep 17 00:00:00 2001
+From: David Gibson <dgibson@redhat.com>
+Date: Thu, 16 Nov 2017 03:07:26 +0100
+Subject: [PATCH 22/30] memory: Do not allocate FlatView in address_space_init
+
+RH-Author: David Gibson <dgibson@redhat.com>
+Message-id: <20171116030732.8560-17-dgibson@redhat.com>
+Patchwork-id: 77705
+O-Subject: [PATCH 16/22] memory: Do not allocate FlatView in address_space_init
+Bugzilla: 1481593
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Eduardo Habkost <ehabkost@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+
+From: Alexey Kardashevskiy <aik@ozlabs.ru>
+
+This creates a new AS object without any FlatView as
+memory_region_transaction_commit() may want to reuse the empty FV.
+
+Signed-off-by: Alexey Kardashevskiy <aik@ozlabs.ru>
+Message-Id: <20170921085110.25598-14-aik@ozlabs.ru>
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit 67ace39b253ed5ae465275bc870f7e495547658b)
+
+Signed-off-by: David Gibson <dgibson@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ memory.c | 29 +++++++++++++++++++++++------
+ 1 file changed, 23 insertions(+), 6 deletions(-)
+
+diff --git a/memory.c b/memory.c
+index f0c8642..6914d87 100644
+--- a/memory.c
++++ b/memory.c
+@@ -966,22 +966,37 @@ static void flatviews_reset(void)
+ 
+ static void address_space_set_flatview(AddressSpace *as)
+ {
+-    FlatView *old_view = address_space_get_flatview(as);
++    FlatView *old_view = address_space_to_flatview(as);
+     MemoryRegion *physmr = memory_region_get_flatview_root(as->root);
+     FlatView *new_view = g_hash_table_lookup(flat_views, physmr);
+ 
+     assert(new_view);
+ 
++    if (old_view == new_view) {
++        return;
++    }
++
++    if (old_view) {
++        flatview_ref(old_view);
++    }
++
+     flatview_ref(new_view);
+ 
+     if (!QTAILQ_EMPTY(&as->listeners)) {
+-        address_space_update_topology_pass(as, old_view, new_view, false);
+-        address_space_update_topology_pass(as, old_view, new_view, true);
++        FlatView tmpview = { .nr = 0 }, *old_view2 = old_view;
++
++        if (!old_view2) {
++            old_view2 = &tmpview;
++        }
++        address_space_update_topology_pass(as, old_view2, new_view, false);
++        address_space_update_topology_pass(as, old_view2, new_view, true);
+     }
+ 
+     /* Writes are protected by the BQL.  */
+     atomic_rcu_set(&as->current_map, new_view);
+-    flatview_unref(old_view);
++    if (old_view) {
++        flatview_unref(old_view);
++    }
+ 
+     /* Note that all the old MemoryRegions are still alive up to this
+      * point.  This relieves most MemoryListeners from the need to
+@@ -989,7 +1004,9 @@ static void address_space_set_flatview(AddressSpace *as)
+      * outside the iothread mutex, in which case precise reference
+      * counting is necessary.
+      */
+-    flatview_unref(old_view);
++    if (old_view) {
++        flatview_unref(old_view);
++    }
+ }
+ 
+ void memory_region_transaction_begin(void)
+@@ -2707,7 +2724,7 @@ void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name)
+     as->ref_count = 1;
+     as->root = root;
+     as->malloced = false;
+-    as->current_map = flatview_new(root);
++    as->current_map = NULL;
+     as->ioeventfd_nb = 0;
+     as->ioeventfds = NULL;
+     QTAILQ_INIT(&as->listeners);
+-- 
+1.8.3.1
+
