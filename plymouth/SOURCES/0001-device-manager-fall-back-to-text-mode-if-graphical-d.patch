@@ -1,0 +1,411 @@
+From 6cffa8daaca920f1d57da40d93ff112f5f096ae9 Mon Sep 17 00:00:00 2001
+From: Ray Strode <rstrode@redhat.com>
+Date: Tue, 7 Nov 2017 13:49:30 -0500
+Subject: [PATCH] device-manager: fall back to text mode if graphical devices
+ fail
+
+Right now we assume if we find a /dev/dri/card0 that it will work.
+That may not be true. The proprietary nvidia driver, for instance,
+provides /dev/dri/card0 but disables modesetting by default.
+
+This commit makes sure we fall back to text mode if /dev/dri/card0
+is insufficient for our needs.
+---
+ src/libply-splash-core/ply-device-manager.c | 25 ++++++++++++++-----------
+ 1 file changed, 14 insertions(+), 11 deletions(-)
+
+diff --git a/src/libply-splash-core/ply-device-manager.c b/src/libply-splash-core/ply-device-manager.c
+index 14d7616..3a2db06 100644
+--- a/src/libply-splash-core/ply-device-manager.c
++++ b/src/libply-splash-core/ply-device-manager.c
+@@ -14,61 +14,61 @@
+  *
+  * You should have received a copy of the GNU General Public License
+  * along with this program; if not, write to the Free Software
+  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+  * 02111-1307, USA.
+  */
+ #include "config.h"
+ #include "ply-device-manager.h"
+ 
+ #include <assert.h>
+ #include <fcntl.h>
+ #include <stdbool.h>
+ #include <stdlib.h>
+ #include <stdio.h>
+ #include <string.h>
+ #include <sys/inotify.h>
+ #include <sys/stat.h>
+ #include <sys/types.h>
+ 
+ #include <libudev.h>
+ 
+ #include "ply-logger.h"
+ #include "ply-event-loop.h"
+ #include "ply-hashtable.h"
+ #include "ply-list.h"
+ #include "ply-utils.h"
+ 
+ #define SUBSYSTEM_DRM "drm"
+ #define SUBSYSTEM_FRAME_BUFFER "graphics"
+ 
+-static void create_devices_for_terminal_and_renderer_type (ply_device_manager_t *manager,
++static bool create_devices_for_terminal_and_renderer_type (ply_device_manager_t *manager,
+                                                            const char           *device_path,
+                                                            ply_terminal_t       *terminal,
+                                                            ply_renderer_type_t   renderer_type);
+ struct _ply_device_manager
+ {
+   ply_device_manager_flags_t  flags;
+   ply_event_loop_t           *loop;
+   ply_hashtable_t            *terminals;
+   ply_hashtable_t            *renderers;
+   ply_terminal_t             *local_console_terminal;
+   ply_list_t                 *keyboards;
+   ply_list_t                 *text_displays;
+   ply_list_t                 *pixel_displays;
+   struct udev                *udev_context;
+   struct udev_queue          *udev_queue;
+   int                         udev_queue_fd;
+   ply_fd_watch_t             *udev_queue_fd_watch;
+   struct udev_monitor        *udev_monitor;
+ 
+   ply_keyboard_added_handler_t         keyboard_added_handler;
+   ply_keyboard_removed_handler_t       keyboard_removed_handler;
+   ply_pixel_display_added_handler_t    pixel_display_added_handler;
+   ply_pixel_display_removed_handler_t  pixel_display_removed_handler;
+   ply_text_display_added_handler_t     text_display_added_handler;
+   ply_text_display_removed_handler_t   text_display_removed_handler;
+   void                                *event_handler_data;
+ 
+   uint32_t                    local_console_managed : 1;
+   uint32_t                    local_console_is_text : 1;
+   uint32_t                    serial_consoles_detected : 1;
+@@ -134,110 +134,112 @@ fb_device_has_drm_device (ply_device_manager_t *manager,
+ 
+   /* there should only ever be at most one match so we don't iterate through
+    * the list, but just look at the first entry */
+   card_entry = udev_enumerate_get_list_entry (card_matches);
+ 
+   if (card_entry != NULL)
+     {
+       struct udev_device *card_device = NULL;
+       const char *card_node;
+       const char *card_path;
+ 
+       card_path = udev_list_entry_get_name (card_entry);
+       card_device = udev_device_new_from_syspath (manager->udev_context, card_path);
+       card_node = udev_device_get_devnode (card_device);
+       if (card_node != NULL && drm_device_in_use (manager, card_node))
+         has_drm_device = true;
+       else
+         ply_trace ("no card node!");
+ 
+       udev_device_unref (card_device);
+     }
+   else
+     {
+       ply_trace ("no card entry!");
+     }
+ 
+   udev_enumerate_unref (card_matches);
+   return has_drm_device;
+ }
+ 
+-static void
++static bool
+ create_devices_for_udev_device (ply_device_manager_t *manager,
+                                 struct udev_device   *device)
+ {
+   const char *device_path;
++  bool created = false;
+ 
+   device_path = udev_device_get_devnode (device);
+ 
+   if (device_path != NULL)
+     {
+       const char *subsystem;
+ 
+       ply_renderer_type_t renderer_type = PLY_RENDERER_TYPE_NONE;
+ 
+       subsystem = udev_device_get_subsystem (device);
+       ply_trace ("device subsystem is %s", subsystem);
+ 
+       if (subsystem != NULL && strcmp (subsystem, SUBSYSTEM_DRM) == 0)
+         {
+           ply_trace ("found DRM device %s", device_path);
+           renderer_type = PLY_RENDERER_TYPE_DRM;
+         }
+       else if (strcmp (subsystem, SUBSYSTEM_FRAME_BUFFER) == 0)
+         {
+           ply_trace ("found frame buffer device %s", device_path);
+           if (!fb_device_has_drm_device (manager, device))
+             {
+               renderer_type = PLY_RENDERER_TYPE_FRAME_BUFFER;
+             }
+           else
+             {
+               ply_trace ("ignoring, since there's a DRM device associated with it");
+             }
+         }
+ 
+       if (renderer_type != PLY_RENDERER_TYPE_NONE)
+         {
+           ply_terminal_t *terminal = NULL;
+ 
+           if (!manager->local_console_managed)
+             {
+               terminal = manager->local_console_terminal;
+             }
+ 
+-          create_devices_for_terminal_and_renderer_type (manager,
+-                                                         device_path,
+-                                                         terminal,
+-                                                         renderer_type);
++          created = create_devices_for_terminal_and_renderer_type (manager,
++                                                                   device_path,
++                                                                   terminal,
++                                                                   renderer_type);
+        }
+     }
++    return created;
+ }
+ 
+ static void
+ free_displays_for_renderer (ply_device_manager_t *manager,
+                             ply_renderer_t       *renderer)
+ {
+   ply_list_node_t *node;
+ 
+   node = ply_list_get_first_node (manager->pixel_displays);
+   while (node != NULL)
+     {
+       ply_list_node_t *next_node;
+       ply_pixel_display_t *display;
+       ply_renderer_t *display_renderer;
+ 
+       display = ply_list_node_get_data (node);
+       next_node = ply_list_get_next_node (manager->pixel_displays, node);
+       display_renderer = ply_pixel_display_get_renderer (display);
+ 
+       if (display_renderer == renderer)
+         {
+           if (manager->pixel_display_removed_handler != NULL)
+             manager->pixel_display_removed_handler (manager->event_handler_data, display);
+ 
+           ply_pixel_display_free (display);
+           ply_list_remove_node (manager->pixel_displays, node);
+         }
+ 
+       node = next_node;
+     }
+@@ -300,62 +302,61 @@ create_devices_for_subsystem (ply_device_manager_t *manager,
+       const char *path;
+ 
+       path = udev_list_entry_get_name (entry);
+ 
+       if (path == NULL)
+         {
+           ply_trace ("path was null!");
+           continue;
+         }
+ 
+       ply_trace ("found device %s", path);
+ 
+       device = udev_device_new_from_syspath (manager->udev_context, path);
+ 
+       /* if device isn't fully initialized, we'll get an add event later
+        */
+       if (udev_device_get_is_initialized (device))
+         {
+           ply_trace ("device is initialized");
+ 
+           /* We only care about devices assigned to a (any) seat. Floating
+            * devices should be ignored.
+            */
+           if (udev_device_has_tag (device, "seat"))
+             {
+               const char *node;
+               node = udev_device_get_devnode (device);
+               if (node != NULL)
+                 {
+                   ply_trace ("found node %s", node);
+-                  found_device = true;
+-                  create_devices_for_udev_device (manager, device);
++                  found_device = create_devices_for_udev_device (manager, device);
+                 }
+             }
+           else
+             {
+               ply_trace ("device doesn't have a seat tag");
+             }
+         }
+       else
+         {
+           ply_trace ("it's not initialized");
+         }
+ 
+       udev_device_unref (device);
+     }
+ 
+   udev_enumerate_unref (matches);
+ 
+   return found_device;
+ }
+ 
+ static void
+ on_udev_event (ply_device_manager_t *manager)
+ {
+   struct udev_device *device;
+   const char *action;
+ 
+   device = udev_monitor_receive_device (manager->udev_monitor);
+   if (device == NULL)
+     return;
+ 
+@@ -655,137 +656,139 @@ create_pixel_displays_for_renderer (ply_device_manager_t *manager,
+       node = next_node;
+     }
+ }
+ 
+ static void
+ create_text_displays_for_terminal (ply_device_manager_t *manager,
+                                    ply_terminal_t       *terminal)
+ {
+   ply_text_display_t *display;
+ 
+   if (!ply_terminal_is_open (terminal))
+     {
+       if (!ply_terminal_open (terminal))
+         {
+           ply_trace ("could not add terminal %s: %m",
+                      ply_terminal_get_name (terminal));
+           return;
+         }
+     }
+ 
+   ply_trace ("adding text display for terminal %s",
+              ply_terminal_get_name (terminal));
+ 
+   display = ply_text_display_new (terminal);
+   ply_list_append_data (manager->text_displays, display);
+ 
+   if (manager->text_display_added_handler != NULL)
+     manager->text_display_added_handler (manager->event_handler_data, display);
+ }
+ 
+-static void
++static bool
+ create_devices_for_terminal_and_renderer_type (ply_device_manager_t *manager,
+                                                const char           *device_path,
+                                                ply_terminal_t       *terminal,
+                                                ply_renderer_type_t   renderer_type)
+ {
+   ply_renderer_t *renderer = NULL;
+   ply_keyboard_t *keyboard = NULL;
+ 
+   renderer = ply_hashtable_lookup (manager->renderers, (void *) device_path);
+ 
+   if (renderer != NULL)
+     {
+       ply_trace ("ignoring device %s since it's already managed",
+                  device_path);
+-      return;
++      return true;
+     }
+ 
+   ply_trace ("creating devices for %s (renderer type: %u) (terminal: %s)",
+              device_path? : "", renderer_type, terminal? ply_terminal_get_name (terminal): "none");
+ 
+   if (renderer_type != PLY_RENDERER_TYPE_NONE)
+     {
+       renderer = ply_renderer_new (renderer_type, device_path, terminal);
+ 
+       if (!ply_renderer_open (renderer))
+         {
+           ply_trace ("could not open renderer for %s", device_path);
+           ply_renderer_free (renderer);
+           renderer = NULL;
+           if (renderer_type != PLY_RENDERER_TYPE_AUTO)
+-            return;
++            return false;
+         }
+     }
+ 
+   if (renderer != NULL)
+     {
+       keyboard = ply_keyboard_new_for_renderer (renderer);
+       ply_list_append_data (manager->keyboards, keyboard);
+ 
+       if (manager->keyboard_added_handler != NULL)
+         manager->keyboard_added_handler (manager->event_handler_data, keyboard);
+ 
+       ply_hashtable_insert (manager->renderers, strdup (device_path), renderer);
+       create_pixel_displays_for_renderer (manager, renderer);
+ 
+       if (manager->renderers_activated)
+         {
+           ply_trace ("activating renderer");
+           ply_renderer_activate (renderer);
+         }
+     }
+   else if (terminal != NULL)
+     {
+       keyboard = ply_keyboard_new_for_terminal (terminal);
+       ply_list_append_data (manager->keyboards, keyboard);
+ 
+       if (manager->keyboard_added_handler != NULL)
+         manager->keyboard_added_handler (manager->event_handler_data, keyboard);
+     }
+ 
+   if (terminal != NULL)
+     {
+       create_text_displays_for_terminal (manager, terminal);
+ 
+       if (terminal == manager->local_console_terminal)
+         {
+           manager->local_console_is_text = renderer == NULL;
+           manager->local_console_managed = true;
+         }
+     }
+ 
+   if (keyboard != NULL && manager->keyboards_activated)
+     {
+       ply_trace ("activating keyboards");
+       ply_keyboard_watch_for_input (keyboard);
+     }
++
++  return true;
+ }
+ 
+ static void
+ create_devices_for_terminal (const char           *device_path,
+                              ply_terminal_t       *terminal,
+                              ply_device_manager_t *manager)
+ {
+   create_devices_for_terminal_and_renderer_type (manager,
+                                                  device_path,
+                                                  terminal,
+                                                  PLY_RENDERER_TYPE_NONE);
+ }
+ static bool
+ create_devices_from_terminals (ply_device_manager_t *manager)
+ {
+   bool has_serial_consoles;
+ 
+   ply_trace ("checking for consoles");
+ 
+   if (manager->flags & PLY_DEVICE_MANAGER_FLAGS_IGNORE_SERIAL_CONSOLES)
+     {
+       has_serial_consoles = false;
+       ply_trace ("ignoring all consoles but default console because explicitly told to.");
+     }
+   else
+     {
+       has_serial_consoles = add_consoles_from_file (manager, "/sys/class/tty/console/active");
+     }
+ 
+   if (has_serial_consoles)
+-- 
+2.14.3
+

@@ -7,7 +7,7 @@
 Summary: Graphical Boot Animation and Logger
 Name: plymouth
 Version: 0.8.9
-Release: 0.28.20140113%{?dist}.redsleeve
+Release: 0.31.20140113%{?dist}
 License: GPLv2+
 Group: System Environment/Base
 Source0: http://freedesktop.org/software/plymouth/releases/%{name}-%{version}.tar.bz2
@@ -26,6 +26,7 @@ Requires: initscripts >= 8.83-1
 Conflicts: filesystem < 3
 Conflicts: systemd < 185-3
 
+BuildRequires: git
 BuildRequires: pkgconfig(libdrm)
 BuildRequires: kernel-headers
 BuildRequires: pkgconfig(libudev)
@@ -58,6 +59,7 @@ Patch16: fix-progress-bar-colors.patch
 Patch17: fix-escape-key-for-media-check.patch
 Patch18: 0001-Revert-Recreate-boot-log-at-each-boot-instead-of-app.patch
 Patch19: 0001-Revert-Make-boot.log-world-readable-by-default.patch
+Patch20: 0001-device-manager-fall-back-to-text-mode-if-graphical-d.patch
 Patch99: colors.patch
 
 %description
@@ -236,7 +238,7 @@ Provides: plymouth(system-theme) = %{version}-%{release}
 
 %description theme-charge
 This package contains the "charge" boot splash theme for
-Plymouth. It is the default theme for RedSleeve Linux.
+Plymouth. It is the default theme for CentOS Linux.
 
 %package plugin-script
 Summary: Plymouth "script" plugin
@@ -273,28 +275,7 @@ This package contains the "spinner" boot splash theme for
 Plymouth. It features a small spinner on a dark background.
 
 %prep
-%setup -q
-%patch0 -p1 -b .dont-block-show-splash
-%patch1 -p1 -b .always-add-text-splash
-%patch2 -p1 -b .fix-text-splash-os-string
-%patch3 -p1 -b .fix-details
-%patch4 -p1 -b .fix-startup-race
-%patch5 -p1 -b .fix-hide-splash
-%patch6 -p1 -b .ignore-early-fb-devices
-%patch7 -p1 -b .fix-ask-password-race
-%patch8 -p1 -b .serial-console-fixes
-%patch9 -p1 -b .fix-init-bin-sh
-%patch10 -p1 -b .resize-proc-cmdline-buffer
-%patch11 -p1 -b .cursor-fix
-%patch12 -p1 -b .ship-label-plugin-in-initrd
-%patch13 -p1 -b .fix-coldplug-detection
-%patch14 -p1 -b .ensure-output-gets-terminal
-%patch15 -p1 -b .activate-new-renderers
-%patch16 -p1 -b .fix-progress-bar-colors
-%patch17 -p1 -b .fix-escape-key-for-media-check
-%patch18 -p1 -b .dont-truncate-boot.log
-%patch19 -p1 -b .dont-change-boot.log-file-mode
-%patch99 -p1 -b .colors
+%autosetup -S git
 
 # Change the default theme
 sed -i -e 's/fade-in/charge/g' src/plymouthd.defaults
@@ -359,9 +340,6 @@ rm -rf $RPM_BUILD_ROOT
 %post
 [ -f %{_localstatedir}/lib/plymouth/boot-duration ] || cp -f %{_datadir}/plymouth/default-boot-duration %{_localstatedir}/lib/plymouth/boot-duration
 
-%posttrans
-%{_libexecdir}/plymouth/plymouth-generate-initrd
-
 %postun
 if [ $1 -eq 0 ]; then
     rm -f %{_libdir}/plymouth/default.so
@@ -374,51 +352,10 @@ fi
 %post graphics-libs -p /sbin/ldconfig
 %postun graphics-libs -p /sbin/ldconfig
 
-%postun theme-spinfinity
-export LIB=%{_lib}
-if [ $1 -eq 0 ]; then
-    if [ "$(%{_sbindir}/plymouth-set-default-theme)" == "spinfinity" ]; then
-        %{_sbindir}/plymouth-set-default-theme text
-        %{_libexecdir}/plymouth/plymouth-generate-initrd
-    fi
-fi
-
-%postun theme-fade-in
-export LIB=%{_lib}
-if [ $1 -eq 0 ]; then
-    if [ "$(%{_sbindir}/plymouth-set-default-theme)" == "fade-in" ]; then
-        %{_sbindir}/plymouth-set-default-theme --reset
-        %{_libexecdir}/plymouth/plymouth-generate-initrd
-    fi
-fi
-
-%postun theme-spinner
-export LIB=%{_lib}
-if [ $1 -eq 0 ]; then
-    if [ "$(%{_sbindir}/plymouth-set-default-theme)" == "spinner" ]; then
-        %{_sbindir}/plymouth-set-default-theme --reset
-        %{_libexecdir}/plymouth/plymouth-generate-initrd
-    fi
-fi
-
-%postun theme-solar
-export LIB=%{_lib}
-if [ $1 -eq 0 ]; then
-    if [ "$(%{_sbindir}/plymouth-set-default-theme)" == "solar" ]; then
-        %{_sbindir}/plymouth-set-default-theme --reset
-        %{_libexecdir}/plymouth/plymouth-generate-initrd
-    fi
-fi
-
 %post theme-charge
 export LIB=%{_lib}
 if [ $1 -eq 1 ]; then
     %{_sbindir}/plymouth-set-default-theme charge
-else
-    if [ "$(%{_sbindir}/plymouth-set-default-theme)" == "solar" ]; then
-        %{_sbindir}/plymouth-set-default-theme charge
-        %{_libexecdir}/plymouth/plymouth-generate-initrd
-    fi
 fi
 
 %postun theme-charge
@@ -426,7 +363,6 @@ export LIB=%{_lib}
 if [ $1 -eq 0 ]; then
     if [ "$(%{_sbindir}/plymouth-set-default-theme)" == "charge" ]; then
         %{_sbindir}/plymouth-set-default-theme --reset
-        %{_libexecdir}/plymouth/plymouth-generate-initrd
     fi
 fi
 
@@ -441,7 +377,7 @@ fi
 %dir %{_localstatedir}/lib/plymouth
 %dir %{_libdir}/plymouth/renderers
 %dir %{_sysconfdir}/plymouth
-%config(noreplace) %{_sysconfdir}/plymouth/plymouthd.conf
+%config(noreplace) %verify(not md5 mtime size) %{_sysconfdir}/plymouth/plymouthd.conf
 %config(noreplace) %{_sysconfdir}/logrotate.d/bootlog
 %{plymouthdaemon_execdir}/plymouthd
 %{plymouthclient_execdir}/plymouth
@@ -562,11 +498,23 @@ fi
 %defattr(-, root, root)
 
 %changelog
-* Fri Aug 04 2017 Jacco Ligthart <jacco@redsleeve.org> 0.8.9-0.28.20140113.el7.redsleeve
+* Tue Apr 10 2018 CentOS Sources <bugs@centos.org> - 0.8.9-0.31.20140113.el7.centos
 - Roll in Branding Change in the SPEC
 
-* Mon Jul 31 2017 CentOS Sources <bugs@centos.org> - 0.8.9-0.28.20140113.el7.centos
-- Roll in Branding Change in the SPEC
+* Mon Jan 08 2018 Ray Strode <rstrode@redhat.com> - 0.8.9-0.31.20140113
+- Change how we do scripts one more time
+  Resolves: #1530727
+  Related: #1266085
+
+* Tue Nov 07 2017 Ray Strode <rstrode@redhat.com> - 0.8.9-0.30.20140113
+- Update logrotate script to not rotate if empty
+  Resolves: #1507197
+
+* Tue Nov 07 2017 Ray Strode <rstrode@redhat.com> - 0.8.9-0.29.20140113
+- Fall back to text mode if /dev/dri/card0 can't modeset
+  Resolves: #1431141
+- Remove unnecessary post scripts that rpm -V output
+  Resolves: #1266085
 
 * Thu May 11 2017 Ray Strode <rstrode@redhat.com> - 0.8.9-0.28.20140113
 - Don't change file mode of boot.log.  Instead, remember what mode
