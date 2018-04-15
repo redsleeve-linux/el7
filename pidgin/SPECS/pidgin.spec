@@ -30,7 +30,6 @@
 %global nss_md2_disabled        0
 %global vv_support              0
 %global libidn_support          0
-%global disable_silc            0
 %global disable_evolution       0
 %global split_evolution         0
 %global use_system_certs        0
@@ -82,12 +81,6 @@
 %if 0%{?fedora} >= 12
 %global krb4_removed            1
 %endif
-# EL6: Disable SILC protocol
-# (get rid of extra crypto lib for perpetually broken protocol that nobody uses)
-# (the above comment is not necessarily the view held by all maintaners of this package)
-%if 0%{?rhel} >= 6
-%global disable_silc            1
-%endif
 # F13+ Split Evolution plugin to separate package (#581144)
 %if 0%{?fedora} >= 13
 %global split_evolution         1
@@ -117,10 +110,10 @@
 
 Name:           pidgin
 Version:        2.10.11
-Release:        5%{?dist}.redsleeve
+Release:        7%{?dist}
 License:        GPLv2+ and GPLv2 and MIT
 # GPLv2+ - libpurple, gnt, finch, pidgin, most prpls
-# GPLv2 - silc & novell prpls
+# GPLv2 - novell prpls
 # MIT - Zephyr prpl
 Group:          Applications/Internet
 URL:            http://pidgin.im/
@@ -156,7 +149,13 @@ Patch1:         pidgin-2.10.9-valgrind.patch
 
 # https://bugzilla.redhat.com/show_bug.cgi?id=1026505
 # https://bugzilla.redhat.com/show_bug.cgi?id=1439296
-Patch2:         pidgin-2.10.11-drop-gadu-gadu-mxit.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1470677
+# https://bugzilla.redhat.com/show_bug.cgi?id=1470681
+# https://bugzilla.redhat.com/show_bug.cgi?id=1470685
+Patch2:         pidgin-2.10.11-drop-gadu-gadu-msn-mxit-etc.patch
+
+# https://bugzilla.redhat.com/show_bug.cgi?id=1500403
+Patch3:         pidgin-2.10.11-drop-aim.patch
 
 ## Patches 100+: To be Included in Future Upstream
 Patch100:       pidgin-2.10.11-CVE-2017-2640.patch
@@ -218,10 +217,6 @@ BuildRequires:  libxml2-devel
 %if ! %{krb4_removed}
 # krb5 needed for Zephyr (FC1+)
 BuildRequires:  krb5-devel
-%endif
-# SILC integration (FC3+)
-%if ! %{disable_silc}
-BuildRequires:  libsilc-devel
 %endif
 # DBus integration (FC5+)
 %if %{dbus_integration}
@@ -297,17 +292,16 @@ BuildRequires:  valgrind-devel
 
 %description
 Pidgin allows you to talk to anyone using a variety of messaging
-protocols including AIM, MSN, Yahoo!, Jabber, Bonjour, Gadu-Gadu,
-ICQ, IRC, Novell Groupwise, QQ, Lotus Sametime, SILC, Simple and
-Zephyr.  These protocols are implemented using a modular, easy to
-use design.  To use a protocol, just add an account using the
-account editor.
+protocols including AIM, Jabber, Bonjour, ICQ, IRC, Novell Groupwise,
+QQ, Lotus Sametime, Simple and Zephyr. These protocols are implemented
+using a modular, easy to use design. To use a protocol, just add an
+account using the account editor.
 
 Pidgin supports many common features of other clients, as well as many
 unique features, such as perl scripting, TCL scripting and C plugins.
 
 Pidgin is not affiliated with or endorsed by America Online, Inc.,
-Microsoft Corporation, Yahoo! Inc., or ICQ Inc.
+Microsoft Corporation, or ICQ Inc.
 
 %if %{split_evolution}
 %package evolution
@@ -377,9 +371,8 @@ Obsoletes:  pidgin-docs = 2.5.2
 libpurple contains the core IM support for IM clients such as Pidgin
 and Finch.
 
-libpurple supports a variety of messaging protocols including AIM, MSN,
-Yahoo!, Jabber, Bonjour, Gadu-Gadu, ICQ, IRC, Novell Groupwise, QQ,
-Lotus Sametime, SILC, Simple and Zephyr.
+libpurple supports a variety of messaging protocols including AIM, Jabber,
+Bonjour, ICQ, IRC, Novell Groupwise, QQ, Lotus Sametime, Simple and Zephyr.
 
 
 %package -n libpurple-devel
@@ -467,6 +460,7 @@ echo "FEDORA=%{fedora} RHEL=%{rhel}"
 %endif
 %patch1 -p1
 %patch2 -p1 -b .gadu-gadu
+%patch3 -p1 -b .aim
 
 ## Patches 100+: To be Included in Future Upstream
 
@@ -544,7 +538,6 @@ SWITCHES="--with-extraversion=%{release}"
 export RPM_OPT_FLAGS=${RPM_OPT_FLAGS//-fstack-protector /-fstack-protector-all }
 export CFLAGS="$RPM_OPT_FLAGS"
 
-# remove after irc-sasl patch has been merged upstream
 autoreconf --force --install
 
 # gnutls is buggy so use mozilla-nss on all distributions
@@ -552,11 +545,11 @@ autoreconf --force --install
            --enable-tcl --enable-tk \
            --disable-schemas-install $SWITCHES
 
-make %{?_smp_mflags} LIBTOOL="/usr/bin/libtool --tag=CC"
+make %{?_smp_mflags} LIBTOOL=/usr/bin/libtool
 
 # one_time_password plugin, included upstream but not built by default
 cd libpurple/plugins/
-make one_time_password.so LIBTOOL="/usr/bin/libtool --tag=CC"
+make one_time_password.so LIBTOOL=/usr/bin/libtool
 cd -
 
 %if %{api_docs}
@@ -566,7 +559,7 @@ find doc/html -empty -delete
 
 %install
 rm -rf $RPM_BUILD_ROOT
-make DESTDIR=$RPM_BUILD_ROOT install LIBTOOL="/usr/bin/libtool --tag=CC"
+make DESTDIR=$RPM_BUILD_ROOT install LIBTOOL=/usr/bin/libtool
 
 install -m 0755 libpurple/plugins/one_time_password.so $RPM_BUILD_ROOT%{_libdir}/purple-2/
 
@@ -770,8 +763,13 @@ rm -rf $RPM_BUILD_ROOT
 %endif
 
 %changelog
-* Fri Aug 04 2017 Jacco Ligthart <jacco@redsleeve.org> 2.10.11-5.el7.redsleeve
-- added "--tag=CC" to the make command due to libtool errors
+* Thu Oct 12 2017 Debarshi Ray <rishi@fedoraproject.org> - 2.10.11-7
+- Drop AIM in RHEL
+  Resolves: #1500403
+
+* Fri Oct 06 2017 Debarshi Ray <rishi@fedoraproject.org> - 2.10.11-6
+- Drop MSN, MySpace and Yahoo! support in RHEL
+  Resolves: #1470677, #1470681, #1470685
 
 * Fri May 19 2017 Debarshi Ray <rishi@fedoraproject.org> - 2.10.11-5
 - Drop MXit support in RHEL

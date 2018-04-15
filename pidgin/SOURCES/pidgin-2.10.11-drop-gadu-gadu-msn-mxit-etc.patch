@@ -1,16 +1,19 @@
-From af6bebddeb6a9e4c5c731d3c075dc5f955cbd94f Mon Sep 17 00:00:00 2001
+From 8e07fad7e7526be54b3d828549fe2abee7ead34b Mon Sep 17 00:00:00 2001
 From: Debarshi Ray <debarshir@gnome.org>
 Date: Fri, 19 May 2017 18:33:44 +0200
-Subject: [PATCH] Drop Gadu-Gadu and MXit
+Subject: [PATCH] Drop Gadu-Gadu, MSN, MXit, MySpace and Yahoo!
 
 https://bugzilla.redhat.com/show_bug.cgi?id=1026505
 https://bugzilla.redhat.com/show_bug.cgi?id=1439296
+https://bugzilla.redhat.com/show_bug.cgi?id=1470677
+https://bugzilla.redhat.com/show_bug.cgi?id=1470681
+https://bugzilla.redhat.com/show_bug.cgi?id=1470685
 ---
  configure.ac | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/configure.ac b/configure.ac
-index 51471b1f5deb..eeec35350d20 100644
+index 51471b1f5deb..edfc9377189a 100644
 --- a/configure.ac
 +++ b/configure.ac
 @@ -1091,7 +1091,7 @@ if test "x$STATIC_PRPLS" != "x" -a "x$DYNAMIC_PRPLS" = "xall"; then
@@ -18,7 +21,7 @@ index 51471b1f5deb..eeec35350d20 100644
  
  if test "x$STATIC_PRPLS" = "xall" ; then
 -	STATIC_PRPLS="bonjour gg irc jabber msn myspace mxit novell oscar sametime silc simple yahoo zephyr"
-+	STATIC_PRPLS="bonjour irc jabber msn myspace novell oscar sametime silc simple yahoo zephyr"
++	STATIC_PRPLS="bonjour irc jabber novell oscar sametime silc simple zephyr"
  fi
  if test "x$have_meanwhile" != "xyes" ; then
  	STATIC_PRPLS=`echo $STATIC_PRPLS | $sedpath 's/sametime//'`
@@ -27,10 +30,10 @@ index 51471b1f5deb..eeec35350d20 100644
  AC_ARG_WITH(dynamic_prpls, [AC_HELP_STRING([--with-dynamic-prpls], [specify which protocols to build dynamically])], [DYNAMIC_PRPLS=`echo $withval | $sedpath 's/,/ /g'`])
  if test "x$DYNAMIC_PRPLS" = "xall" ; then
 -	DYNAMIC_PRPLS="bonjour gg irc jabber msn myspace mxit novell oscar sametime silc simple yahoo zephyr"
-+	DYNAMIC_PRPLS="bonjour irc jabber msn myspace novell oscar sametime silc simple yahoo zephyr"
++	DYNAMIC_PRPLS="bonjour irc jabber novell oscar sametime silc simple zephyr"
  fi
  if test "x$have_meanwhile" != "xyes"; then
  	DYNAMIC_PRPLS=`echo $DYNAMIC_PRPLS | $sedpath 's/sametime//'`
 -- 
-2.9.4
+2.9.5
 

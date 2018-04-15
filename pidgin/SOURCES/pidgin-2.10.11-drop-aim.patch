@@ -1,0 +1,45 @@
+From cc96432e17b40d72dd5cef2d65ae5c8f99d3d4fb Mon Sep 17 00:00:00 2001
+From: Debarshi Ray <debarshir@gnome.org>
+Date: Thu, 12 Oct 2017 18:33:51 +0200
+Subject: [PATCH] Drop AIM
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1500403
+---
+ libpurple/protocols/oscar/Makefile.am | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/libpurple/protocols/oscar/Makefile.am b/libpurple/protocols/oscar/Makefile.am
+index fc78e47b0c35..4e23f42059ee 100644
+--- a/libpurple/protocols/oscar/Makefile.am
++++ b/libpurple/protocols/oscar/Makefile.am
+@@ -50,25 +50,21 @@ OSCARSOURCES = \
+ 
+ AM_CFLAGS = $(st)
+ 
+-libaim_la_LDFLAGS = -module -avoid-version
+ libicq_la_LDFLAGS = -module -avoid-version
+ if STATIC_OSCAR
+ 
+ st = -DPURPLE_STATIC_PRPL
+ noinst_LTLIBRARIES  = liboscar.la
+-liboscar_la_SOURCES = $(OSCARSOURCES) libaim.c libicq.c
++liboscar_la_SOURCES = $(OSCARSOURCES) libicq.c
+ liboscar_la_CFLAGS  = $(AM_CFLAGS)
+ 
+ else
+ 
+ st =
+-pkg_LTLIBRARIES     = liboscar.la libaim.la libicq.la
++pkg_LTLIBRARIES     = liboscar.la libicq.la
+ liboscar_la_SOURCES = $(OSCARSOURCES)
+ liboscar_la_LIBADD  = $(GLIB_LIBS)
+ 
+-libaim_la_SOURCES   = libaim.c
+-libaim_la_LIBADD    = liboscar.la
+-
+ libicq_la_SOURCES   = libicq.c
+ libicq_la_LIBADD    = liboscar.la
+ 
+-- 
+2.14.2
+
