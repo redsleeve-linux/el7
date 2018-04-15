@@ -1,9 +1,9 @@
-From b87c46fe008dc4df50b0103d598d218f8dd26735 Mon Sep 17 00:00:00 2001
+From 1a674be4e78d77ed40e3a07385c4cce617476129 Mon Sep 17 00:00:00 2001
 From: Ryan McCabe <rmccabe@redhat.com>
 Date: Tue, 5 Sep 2017 13:02:00 -0400
 Subject: [PATCH 5/5] Fix alibaba cloud unit tests to work with 0.7.9
 
-Resolves: rhbz#1496113
+Resolves: rhbz#1482547
 X-downstream-only: Yes
 
 Signed-off-by: Ryan McCabe <rmccabe@redhat.com>

@@ -7,7 +7,7 @@
 
 Name:           cloud-init
 Version:        0.7.9
-Release:        9%{?dist}.6.redsleeve
+Release:        24%{?dist}
 Summary:        Cloud instance init scripts
 
 Group:          System Environment/Base
@@ -42,20 +42,27 @@ Patch0017: 0017-sysconfig-Raise-ValueError-when-multiple-default-gat.patch
 Patch0018: 0018-Fix-dual-stack-IPv4-IPv6-configuration-for-RHEL.patch
 Patch0019: 0019-Add-missing-sysconfig-unit-test-data.patch
 Patch0020: 0020-Fix-ipv6-subnet-detection.patch
+# Not applied to work around additional issues related to rhbz#1474226
 #Patch0021: 0021-azure-ensure-that-networkmanager-hook-script-runs.patch
 Patch0022: 0022-RHEL-CentOS-Fix-default-routes-for-IPv4-IPv6-configu.patch
 Patch0023: 0023-DatasourceEc2-add-warning-message-when-not-on-AWS.patch
 Patch0024: 0024-Identify-Brightbox-as-an-Ec2-datasource-user.patch
 Patch0025: 0025-AliYun-Enable-platform-identification-and-enable-by-.patch
 Patch0026: 0026-Fix-alibaba-cloud-unit-tests-to-work-with-0.7.9.patch
-Patch0027: 0027-systemd-create-run-cloud-init-enabled.patch
-Patch0028: 0028-net-Allow-for-NetworkManager-configuration.patch
+Patch0027: 0027-Fix-eni-rendering-of-multiple-IPs-per-interface.patch
+Patch0028: 0028-systemd-create-run-cloud-init-enabled.patch
 Patch0029: 0029-support-loopback-as-a-device-type.patch
-Patch0030: 0030-Render-the-GATEWAY-value-in-interface-files-which-ha.patch
-Patch0031: 0031-sysconfig-Don-t-write-BOOTPROTO-dhcp-for-ipv6-dhcp.patch
-Patch0032: 0032-sysconfig-Render-IPV6_DEFAULTGW-correctly.patch
-Patch0033: 0033-sysconfig-Render-DNS-and-DOMAIN.patch
-Patch9999: cloud-init-add-redsleeve-os.patch
+Patch0030: 0030-sysconfig-include-GATEWAY-value-if-set-in-subnet.patch
+Patch0031: 0031-rh_subscription-Perform-null-checks-for-enabled-and-.patch
+Patch0032: 0032-net-Allow-for-NetworkManager-configuration.patch
+Patch0033: 0033-Render-DNS-and-DOMAIN-lines-for-sysconfig.patch
+Patch0034: 0034-Start_cloud_init_after_dbus.patch
+Patch0035: 0035-sysconfig-Render-IPV6_DEFAULTGW-correctly.patch
+Patch0036: 0036-sysconfig-Don-t-write-BOOTPROTO-dhcp-for-ipv6-dhcp.patch
+Patch0037: 0037-sysconfig-Fix-traceback.patch
+Patch0038: 0038-Fix-bug-that-resulted-in-an-attempt-to-rename-bonds.patch
+Patch0039: 0039-azure-Fix-publishing-of-hostname.patch
+Patch9999: cloud-init-add-centos-os.patch
 
 # Deal with noarch -> arch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1067089
@@ -146,6 +153,20 @@ if [ $1 -eq 1 ] ; then
     /bin/systemctl enable cloud-final.service      >/dev/null 2>&1 || :
     /bin/systemctl enable cloud-init.service       >/dev/null 2>&1 || :
     /bin/systemctl enable cloud-init-local.service >/dev/null 2>&1 || :
+elif [ $1 -eq 2 ]; then
+    # Upgrade. If the upgrade is from a version older than 0.7.9-8,
+    # there will be stale systemd config
+    /bin/systemctl is-enabled cloud-config.service >/dev/null 2>&1 &&
+      /bin/systemctl reenable cloud-config.service >/dev/null 2>&1 || :
+
+    /bin/systemctl is-enabled cloud-final.service >/dev/null 2>&1 &&
+      /bin/systemctl reenable cloud-final.service >/dev/null 2>&1 || :
+
+    /bin/systemctl is-enabled cloud-init.service >/dev/null 2>&1 &&
+      /bin/systemctl reenable cloud-init.service >/dev/null 2>&1 || :
+
+    /bin/systemctl is-enabled cloud-init-local.service >/dev/null 2>&1 &&
+      /bin/systemctl reenable cloud-init-local.service >/dev/null 2>&1 || :
 fi
 
 %preun
@@ -191,37 +212,73 @@ fi
 %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
 
 %changelog
-* Wed Mar 21 2018 Jacco Ligthart <jacco@redsleeve.org 0.7.9-9.el7.6.redsleeve
-- rebrand for redsleeve
-
-* Wed Mar  7 2018 Johnny Hughes <johnny@centos.org> 0.7.9-9.6
+* Wed Apr 11 2018 Johnny Hughes <johnny@centos.org> 0.7.9-24
 - Manual CentOS Debranding
 
-* Thu Feb 15 2018 Ryan McCabe <rmccabe@redhat.com> 0.7.9-9.6
-- Correctly render DNS and DOMAIN for sysconfig
-  Resolves: rhbz#1545525
+* Tue Feb 13 2018 Ryan McCabe <rmccabe@redhat.com> 0.7.9-24
+- Set DHCP_HOSTNAME on Azure to allow for the hostname to be
+  published correctly when bouncing the network.
+  Resolves: rhbz#1434109
 
-* Fri Feb 02 2018 Ryan McCabe <rmccabe@redhat.com> 0.7.9-9.5
-- sysconfig: Fix rendering of default gateway for ipv6
-  Resolves: rhbz#1540094
+* Mon Jan 15 2018 Ryan McCabe <rmccabe@redhat.com> 0.7.9-23
+- Fix a bug tha caused cloud-init to fail as a result of trying
+  to rename bonds.
+  Resolves: rhbz#1512247
 
-* Tue Jan 30 2018 Ryan McCabe <rmccabe@redhat.com> 0.7.9-9.4
-- sysconfig: Fix rendering of default gateway for ipv4
-  Resolves: rhbz#1540094
+* Mon Jan 15 2018 Ryan McCabe <rmccabe@redhat.com> 0.7.9-22
+- Apply patch from -21
+  Resolves: rhbz#1489270
+
+* Mon Jan 15 2018 Ryan McCabe <rmccabe@redhat.com> 0.7.9-21
+- sysconfig: Fix a potential traceback introduced in the
+  0.7.9-17 build
+  Resolves: rhbz#1489270
+
+* Sun Dec 17 2017 Ryan McCabe <rmccabe@redhat.com> 0.7.9-20
 - sysconfig: Correct rendering for dhcp on ipv6
-  Resolves: rhbz#1540093
+  Resolves: rhbz#1519271
 
-* Mon Jan 22 2018 Ryan McCabe <rmccabe@redhat.com> 0.7.9-9.3
+* Thu Nov 30 2017 Ryan McCabe <rmccabe@redhat.com> 0.7.9-19
+- sysconfig: Fix rendering of default gateway for ipv6
+  Resolves: rhbz#1492726
+
+* Fri Nov 24 2017 Ryan McCabe <rmccabe@redhat.com> 0.7.9-18
+- Start the cloud-init init local service after the dbus socket is created
+  so that the hostnamectl command works.
+  Resolves: rhbz#1450521
+
+* Tue Nov 21 2017 Ryan McCabe <rmccabe@redhat.com> 0.7.9-17
+- Correctly render DNS and DOMAIN for sysconfig
+  Resolves: rhbz#1489270
+
+* Mon Nov 20 2017 Ryan McCabe <rmccabe@redhat.com> 0.7.9-16
 - Disable NetworkManager management of resolv.conf if nameservers
   are specified by configuration.
-  Resolves: rhbz#1537439
+  Resolves: rhbz#1454491
 
-* Thu Dec 21 2017 Ryan McCabe <rmccabe@redhat.com> 0.7.9-9.2
+* Mon Nov 13 2017 Ryan McCabe <rmccabe@redhat.com> 0.7.9-15
+- Fix a null reference error in the rh_subscription module
+  Resolves: rhbz#1498974
+
+* Mon Nov 13 2017 Ryan McCabe <rmccabe@redhat.com> 0-7.9-14
+- Include gateway if it's included in subnet configration
+  Resolves: rhbz#1492726
+
+* Sun Nov 12 2017 Ryan McCabe <rmccabe@redhat.com> 0-7.9-13
+- Do proper cleanup of systemd units when upgrading from versions
+  0.7.9-3 through 0.7.9-8.
+  Resolves: rhbz#1465730
+
+* Thu Nov 09 2017 Ryan McCabe <rmccabe@redhat.com> 0.7.9-12
 - Prevent Azure NM and dhclient hooks from running when cloud-init is
-  disabled (rhbz#1530127)
+  disabled (rhbz#1474226)
 
-* Tue Sep 26 2017 Ryan McCabe <rmccabe@redhat.com> 0.7.9-9.1
-- Support AliCloud datasource (rhbz#1496113)
+* Tue Oct 31 2017 Ryan McCabe <rmccabe@redhat.com> 0.7.9-11
+- Fix rendering of multiple static IPs per interface file
+  Resolves: rhbz#bz1497954
+
+* Tue Sep 26 2017 Ryan McCabe <rmccabe@redhat.com> 0.7.9-10
+- AliCloud: Add support for the Alibaba Cloud datasource (rhbz#1482547)
 
 * Thu Jun 22 2017 Lars Kellogg-Stedman <lars@redhat.com> 0.7.9-9
 - RHEL/CentOS: Fix default routes for IPv4/IPv6 configuration. (rhbz#1438082)

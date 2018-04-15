@@ -1,4 +1,4 @@
-From 75ee377f902082f23de0feea190444e19a942420 Mon Sep 17 00:00:00 2001
+From aeaaf3f3b3f426a7906a2e03d924b2e42528c600 Mon Sep 17 00:00:00 2001
 From: Scott Moser <smoser@brickies.net>
 Date: Thu, 23 Feb 2017 17:15:27 -0500
 Subject: [PATCH 2/5] DatasourceEc2: add warning message when not on AWS.
@@ -8,7 +8,7 @@ will now warn once per instance.
 
 (cherry picked from commit 9bb55c6c45bcc5e310cf7e4d42cad53759dcca15)
 
-Resolves: rhbz#1496113
+Resolves: rhbz#1482547
 
 Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
 ---

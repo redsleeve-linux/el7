@@ -1,4 +1,4 @@
-From a7727ecf117a2bc02f68405823796afe1d76d3e3 Mon Sep 17 00:00:00 2001
+From 05561668e42d905cca7d72c2b80a939fbddb2c9d Mon Sep 17 00:00:00 2001
 From: Junjie Wang <jingni.wjj@alibaba-inc.com>
 Date: Fri, 21 Apr 2017 20:06:09 +0800
 Subject: [PATCH 4/5] AliYun: Enable platform identification and enable by
@@ -14,7 +14,7 @@ enable AliYun by default.
 LP: #1638931
 (cherry picked from commit 4a60af54957634920e84a928aa22b4fc9a6dfd11)
 
-Resolves: rhbz#1496113
+Resolves: rhbz#1482547
 
 Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
 ---
