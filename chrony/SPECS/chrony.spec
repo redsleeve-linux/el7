@@ -1,10 +1,10 @@
 %global _hardened_build 1
-%global clknetsim_ver ce89a1
+%global clknetsim_ver 71dbbc
 %bcond_without debug
 
 Name:           chrony
-Version:        3.1
-Release:        2%{?dist}.redsleeve
+Version:        3.2
+Release:        2%{?dist}
 Summary:        An NTP client/server
 
 Group:          System Environment/Daemons
@@ -20,10 +20,12 @@ Source10:       https://github.com/mlichvar/clknetsim/archive/%{clknetsim_ver}/c
 
 # add NTP servers from DHCP when starting service
 Patch1:         chrony-service-helper.patch
-# add limited support for SW/HW timestamping on older kernels
+# enable support for SW/HW timestamping on older kernels
 Patch2:         chrony-timestamping.patch
-# don't drop PHC samples with zero delay
-Patch3:         chrony-phcdelay.patch
+# revert upstream changes in packaged chrony.conf example
+Patch3:         chrony-defconfig.patch
+# fix chronyc getting stuck in infinite loop after clock step
+Patch4:         chrony-select-timeout.patch
 
 BuildRequires:  libcap-devel libedit-devel nss-devel pps-tools-devel
 %ifarch %{ix86} x86_64 %{arm} aarch64 ppc64 ppc64le s390 s390x
@@ -44,15 +46,15 @@ in permanently connected environments. It can use also hardware reference
 clocks, system real-time clock or manual input as time references.
 
 %if 0%{!?vendorzone:1}
-%{?fedora: %global vendorzone fedora.}
-%{?rhel: %global vendorzone redsleeve.}
+%global vendorzone %(source /etc/os-release && echo ${ID}.)
 %endif
 
 %prep
 %setup -q -n %{name}-%{version}%{?prerelease} -a 10
 %patch1 -p1 -b .service-helper
 %patch2 -p1 -b .timestamping
-%patch3 -p1 -b .phcdelay
+%patch3 -p1 -b .defconfig
+%patch4 -p1 -b .select-timeout
 
 # review changes in packaged configuration files and scripts
 md5sum -c <<-EOF | (! grep -v 'OK$')
@@ -60,9 +62,12 @@ md5sum -c <<-EOF | (! grep -v 'OK$')
         58978d335ec3752ac2c38fa82b48f0a5  examples/chrony.conf.example2
         ba6bb05c50e03f6b5ab54a2b7914800d  examples/chrony.keys.example
         6a3178c4670de7de393d9365e2793740  examples/chrony.logrotate
-        298b7f611078aa0176aad58e936c7b0d  examples/chrony.nm-dispatcher
+        27cbc940c94575de320dbd251cbb4514  examples/chrony.nm-dispatcher
         a85246982a89910b1e2d3356b7d131d7  examples/chronyd.service
 EOF
+
+# don't allow empty vendor zone
+test -n "%{vendorzone}"
 
 # use our vendor zone and replace the pool directive with server
 # directives as some configuration tools don't support it yet
@@ -136,7 +141,7 @@ echo 'chronyd.service' > \
 # set random seed to get deterministic results
 export CLKNETSIM_RANDOM_SEED=24502
 make %{?_smp_mflags} -C test/simulation/clknetsim
-make check
+make quickcheck
 
 %pre
 getent group chrony > /dev/null || /usr/sbin/groupadd -r chrony
@@ -174,11 +179,12 @@ getent passwd chrony > /dev/null || /usr/sbin/useradd -r -g chrony \
 %dir %attr(-,chrony,chrony) %{_localstatedir}/log/chrony
 
 %changelog
-* Fri Aug 04 2017 Jacco Ligthart <jacco@redsleeve.org> - 3.1-2.el7.redsleeve
-- rebrand vendorzone
+* Tue Dec 05 2017 Miroslav Lichvar <mlichvar@redhat.com> 3.2-2
+- fix chronyc getting stuck in infinite loop after clock step (#1520884)
 
-* Mon Jul 31 2017 CentOS Sources <bugs@centos.org> - 3.1-2.el7.centos
-- rebrand vendorzone
+* Tue Sep 19 2017 Miroslav Lichvar <mlichvar@redhat.com> 3.2-1
+- update to 3.2 (#1482565 #1462081 #1454765)
+- use ID from /etc/os-release to set pool.ntp.org vendor zone
 
 * Mon Apr 24 2017 Miroslav Lichvar <mlichvar@redhat.com> 3.1-2
 - don't drop PHC samples with zero delay (#1443342)

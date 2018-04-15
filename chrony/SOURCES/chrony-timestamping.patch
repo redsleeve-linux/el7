@@ -1,7 +1,7 @@
-diff -up chrony-3.1/configure.timestamping chrony-3.1/configure
---- chrony-3.1/configure.timestamping	2017-01-31 11:22:11.000000000 +0100
-+++ chrony-3.1/configure	2017-02-03 12:09:22.911633573 +0100
-@@ -651,8 +651,8 @@ if [ $feat_timestamping = "1" ] && [ $tr
+diff -up chrony-3.2/configure.timestamping chrony-3.2/configure
+--- chrony-3.2/configure.timestamping	2017-09-19 13:58:21.093194558 +0200
++++ chrony-3.2/configure	2017-09-19 13:57:56.109116276 +0200
+@@ -683,15 +683,15 @@ if [ $feat_timestamping = "1" ] && [ $tr
    test_code 'SW/HW timestamping' 'sys/types.h sys/socket.h linux/net_tstamp.h
                                    linux/errqueue.h linux/ptp_clock.h' '' '' '
      int val = SOF_TIMESTAMPING_SOFTWARE | SOF_TIMESTAMPING_RX_SOFTWARE |
@@ -12,10 +12,18 @@ diff -up chrony-3.1/configure.timestamping chrony-3.1/configure
             setsockopt(0, SOL_SOCKET, SO_SELECT_ERR_QUEUE + SO_TIMESTAMPING,
                        &val, sizeof (val));'
  then
-diff -up chrony-3.1/doc/chrony.conf.man.in.timestamping chrony-3.1/doc/chrony.conf.man.in
---- chrony-3.1/doc/chrony.conf.man.in.timestamping	2017-01-31 11:34:16.000000000 +0100
-+++ chrony-3.1/doc/chrony.conf.man.in	2017-02-03 12:09:22.911633573 +0100
-@@ -3065,7 +3065,7 @@ timestamping. If the server or peer supp
+   add_def HAVE_LINUX_TIMESTAMPING
+   EXTRA_OBJECTS="$EXTRA_OBJECTS hwclock.o ntp_io_linux.o"
+ 
+-  if test_code 'other timestamping options' \
++  if true || test_code 'other timestamping options' \
+     'sys/types.h sys/socket.h linux/net_tstamp.h' '' '' '
+     struct scm_ts_pktinfo pktinfo;
+     pktinfo.if_index = pktinfo.pkt_length = 0;
+diff -up chrony-3.2/doc/chrony.conf.man.in.timestamping chrony-3.2/doc/chrony.conf.man.in
+--- chrony-3.2/doc/chrony.conf.man.in.timestamping	2017-09-15 10:17:41.000000000 +0200
++++ chrony-3.2/doc/chrony.conf.man.in	2017-09-19 13:52:59.544187046 +0200
+@@ -3201,13 +3201,12 @@ timestamping. If the server or peer supp
  be enabled by the \fBxleave\fP option in the \fBserver\fP or the
  \fBpeer\fP directive.
  .sp
@@ -23,22 +31,35 @@ diff -up chrony-3.1/doc/chrony.conf.man.in.timestamping chrony-3.1/doc/chrony.co
 +This directive is supported on Linux. The NIC must support HW
  timestamping, which can be verified with the \fBethtool \-T\fP command. The list of
  capabilities should include \fISOF_TIMESTAMPING_RAW_HARDWARE\fP,
- \fISOF_TIMESTAMPING_TX_HARDWARE\fP, \fISOF_TIMESTAMPING_RX_HARDWARE\fP, and the filter
-diff -up chrony-3.1/ntp_io_linux.c.timestamping chrony-3.1/ntp_io_linux.c
---- chrony-3.1/ntp_io_linux.c.timestamping	2017-01-31 11:22:11.000000000 +0100
-+++ chrony-3.1/ntp_io_linux.c	2017-02-03 12:10:10.720767667 +0100
-@@ -36,6 +36,10 @@
+ \fISOF_TIMESTAMPING_TX_HARDWARE\fP, and \fISOF_TIMESTAMPING_RX_HARDWARE\fP. Receive
+ filter \fIHWTSTAMP_FILTER_ALL\fP, or \fIHWTSTAMP_FILTER_NTP_ALL\fP, is necessary for
+-timestamping of received packets. Timestamping of packets received from bridged
+-and bonded interfaces is supported on Linux 4.13 and newer. When \fBchronyd\fP is
++timestamping of received packets. When \fBchronyd\fP is
+ running, no other process (e.g. a PTP daemon) should be working with the NIC
+ clock.
+ .sp
+diff -up chrony-3.2/ntp_io_linux.c.timestamping chrony-3.2/ntp_io_linux.c
+--- chrony-3.2/ntp_io_linux.c.timestamping	2017-09-15 08:32:09.000000000 +0200
++++ chrony-3.2/ntp_io_linux.c	2017-09-19 13:52:59.544187046 +0200
+@@ -35,6 +35,16 @@
  #include <linux/sockios.h>
  #include <net/if.h>
  
 +/* Missing in older kernel headers */
 +#define SOF_TIMESTAMPING_OPT_CMSG (1<<10)
++#define SOF_TIMESTAMPING_OPT_PKTINFO (1<<13)
++#define SOF_TIMESTAMPING_OPT_TX_SWHW (1<<14)
 +#define SCM_TSTAMP_SND 0
++#define HWTSTAMP_FILTER_NTP_ALL 15
++#ifndef SCM_TIMESTAMPING_PKTINFO
++#define SCM_TIMESTAMPING_PKTINFO 58
++#endif
 +
  #include "array.h"
  #include "conf.h"
  #include "hwclock.h"
-@@ -95,6 +99,10 @@ static int ts_tx_flags;
+@@ -94,6 +104,10 @@ static int ts_tx_flags;
  /* Flag indicating the socket options can't be changed in control messages */
  static int permanent_ts_options;
  
@@ -49,33 +70,19 @@ diff -up chrony-3.1/ntp_io_linux.c.timestamping chrony-3.1/ntp_io_linux.c
  /* ================================================== */
  
  static int
-@@ -253,6 +261,84 @@ update_interface_speed(struct Interface
+@@ -278,7 +292,7 @@ update_interface_speed(struct Interface
  
  /* ================================================== */
  
-+static int
-+check_sof_opt_cmsg()
-+{
-+  int sock_fd, flags;
-+
-+  sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
-+  if (sock_fd < 0)
-+    return 0;
-+
-+  flags = SOF_TIMESTAMPING_OPT_CMSG;
-+
-+  if (setsockopt(sock_fd, SOL_SOCKET, SO_TIMESTAMPING, &flags, sizeof (flags)) < 0) {
-+    DEBUG_LOG(LOGF_NtpIOLinux, "SOF_TIMESTAMPING_OPT_CMSG not supported");
-+    close(sock_fd);
-+    return 0;
-+  }
-+
-+  close(sock_fd);
-+  return 1;
-+}
-+
-+/* ================================================== */
-+
+-#if defined(HAVE_LINUX_TIMESTAMPING_OPT_PKTINFO) || defined(HAVE_LINUX_TIMESTAMPING_OPT_TX_SWHW)
++#if 1
+ static int
+ check_timestamping_option(int option)
+ {
+@@ -301,6 +315,61 @@ check_timestamping_option(int option)
+ 
+ /* ================================================== */
+ 
 +static int
 +get_single_hwts_index()
 +{
@@ -89,7 +96,7 @@ diff -up chrony-3.1/ntp_io_linux.c.timestamping chrony-3.1/ntp_io_linux.c
 +    return INVALID_IF_INDEX;
 +
 +  if (getifaddrs(&ifaddr)) {
-+    DEBUG_LOG(LOGF_NtpIOLinux, "getifaddrs() failed : %s", strerror(errno));
++    DEBUG_LOG("getifaddrs() failed : %s", strerror(errno));
 +    close(sock_fd);
 +    return INVALID_IF_INDEX;
 +  }
@@ -134,8 +141,8 @@ diff -up chrony-3.1/ntp_io_linux.c.timestamping chrony-3.1/ntp_io_linux.c
  void
  NIO_Linux_Initialise(void)
  {
-@@ -289,8 +375,20 @@ NIO_Linux_Initialise(void)
-     ts_tx_flags = SOF_TIMESTAMPING_TX_SOFTWARE;
+@@ -345,8 +414,20 @@ NIO_Linux_Initialise(void)
+ #endif
    }
  
 -  /* Enable IP_PKTINFO in messages looped back to the error queue */
@@ -145,21 +152,34 @@ diff -up chrony-3.1/ntp_io_linux.c.timestamping chrony-3.1/ntp_io_linux.c
 +  /* Enable IP_PKTINFO in messages looped back to the error queue if possible.
 +     If not, HW timestamping of IPv4 packets can be supported only with one
 +     interface capable of HW timestamping. */
-+  if (check_sof_opt_cmsg()) {
++  if (check_timestamping_option(SOF_TIMESTAMPING_OPT_CMSG)) {
 +    ts_flags |= SOF_TIMESTAMPING_OPT_CMSG;
 +  } else if (ARR_GetSize(interfaces) > 0) {
 +    single_hwts_if_index = get_single_hwts_index();
 +    if (single_hwts_if_index == INVALID_IF_INDEX)
-+      LOG(LOGS_WARN, LOGF_NtpIOLinux, "Missing SOF_TIMESTAMPING_OPT_CMSG option for HW timestamping with multiple HW-timestamping interfaces");
++      LOG(LOGS_WARN, "Missing SOF_TIMESTAMPING_OPT_CMSG option for HW timestamping with multiple HW-timestamping interfaces");
 +    else
-+      LOG(LOGS_INFO, LOGF_NtpIOLinux, "Enabled single-interface HW-timestamping mode");
++      LOG(LOGS_INFO, "Enabled single-interface HW-timestamping mode");
 +  }
  
    /* Kernels before 4.7 ignore timestamping flags set in control messages */
    permanent_ts_options = !SYS_Linux_CheckKernelVersion(4, 7);
-@@ -499,7 +597,9 @@ NIO_Linux_ProcessMessage(NTP_Remote_Addr
- 
+@@ -590,7 +671,11 @@ NIO_Linux_ProcessMessage(NTP_Remote_Addr
    for (cmsg = CMSG_FIRSTHDR(hdr); cmsg; cmsg = CMSG_NXTHDR(hdr, cmsg)) {
+ #ifdef HAVE_LINUX_TIMESTAMPING_OPT_PKTINFO
+     if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_TIMESTAMPING_PKTINFO) {
+-      struct scm_ts_pktinfo ts_pktinfo;
++      struct {
++	      __u32 if_index;
++	      __u32 pkt_length;
++	      __u32 reserved[2];
++      } ts_pktinfo;
+ 
+       memcpy(&ts_pktinfo, CMSG_DATA(cmsg), sizeof (ts_pktinfo));
+ 
+@@ -602,11 +687,16 @@ NIO_Linux_ProcessMessage(NTP_Remote_Addr
+ #endif
+ 
      if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_TIMESTAMPING) {
 -      struct scm_timestamping ts3;
 +      struct {
@@ -168,14 +188,10 @@ diff -up chrony-3.1/ntp_io_linux.c.timestamping chrony-3.1/ntp_io_linux.c
  
        memcpy(&ts3, CMSG_DATA(cmsg), sizeof (ts3));
  
-@@ -507,6 +607,10 @@ NIO_Linux_ProcessMessage(NTP_Remote_Addr
-         LCL_CookTime(&ts3.ts[0], &local_ts->ts, &local_ts->err);
-         local_ts->source = NTP_TS_KERNEL;
-       } else if (!UTI_IsZeroTimespec(&ts3.ts[2])) {
-+        if (local_addr->if_index == INVALID_IF_INDEX &&
-+            single_hwts_if_index != INVALID_IF_INDEX)
-+          local_addr->if_index = single_hwts_if_index;
+       if (!UTI_IsZeroTimespec(&ts3.ts[2])) {
++        if (ts_if_index == INVALID_IF_INDEX)
++          ts_if_index = single_hwts_if_index;
 +
-         iface = get_interface(local_addr->if_index);
+         iface = get_interface(ts_if_index);
          if (iface) {
            process_hw_timestamp(iface, &ts3.ts[2], local_ts, !is_tx ? length : 0,
