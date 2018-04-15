@@ -1,7 +1,60 @@
-diff -up webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityNodeObject.cpp.b171443 webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityNodeObject.cpp
---- webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityNodeObject.cpp.b171443	2017-02-07 09:05:08.000000000 +0100
-+++ webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityNodeObject.cpp	2017-05-18 14:33:09.106642301 +0200
-@@ -96,6 +96,7 @@ AccessibilityNodeObject::AccessibilityNo
+From 85e337fda4f4ba947b9a68ee569666cf70afe8a7 Mon Sep 17 00:00:00 2001
+From: "n_wang@apple.com"
+ <n_wang@apple.com@268f45cc-cd09-0410-ab3c-d52691b4dbfc>
+Date: Sat, 29 Apr 2017 18:55:18 +0000
+Subject: [PATCH] AX: Improve performance of addChildren()/childrenChanged()
+ https://bugs.webkit.org/show_bug.cgi?id=171443
+
+Reviewed by Chris Fleizach.
+
+There's a lot of unnecessary work happening when childrenChanged() is being called.
+Some of the improvements here:
+1. When childrenChanged() is being called on some element, we are marking its parent
+   chain dirty. However, in the addChild() method we are then clearing each child of
+   that 'dirty' parent, eventually making the entire tree dirty.
+   Added a m_subTreeDirty flag and using the needsToUpdateChildren() check to make sure
+   we are only clearing the right chain without updating the unchanged siblings.
+2. In the addChild() method we are calling accessibilityIsIgnored() on each child and that
+   might lead to going up the parent chain again to get necessary information.
+   Since we are already traversing the tree from top to bottom to add children, added a
+   struct to store the information and pass it to the child so to avoid unnecessary traversal.
+3. Reduced the amount work of ARIA text controls perform when updating its parents in childrenChanged()
+   so that we don't update a big portion of the tree while typing.
+
+No new tests since this didn't change any functionality.
+
+* accessibility/AccessibilityNodeObject.cpp:
+(WebCore::AccessibilityNodeObject::AccessibilityNodeObject):
+(WebCore::AccessibilityNodeObject::childrenChanged):
+(WebCore::AccessibilityNodeObject::insertChild):
+(WebCore::AccessibilityNodeObject::addChildren):
+(WebCore::AccessibilityNodeObject::isDescendantOfBarrenParent):
+* accessibility/AccessibilityNodeObject.h:
+* accessibility/AccessibilityObject.cpp:
+(WebCore::AccessibilityObject::AccessibilityObject):
+(WebCore::AccessibilityObject::defaultObjectInclusion):
+(WebCore::AccessibilityObject::setIsIgnoredFromParentDataForChild):
+* accessibility/AccessibilityObject.h:
+(WebCore::AccessibilityIsIgnoredFromParentData::AccessibilityIsIgnoredFromParentData):
+(WebCore::AccessibilityIsIgnoredFromParentData::isNull):
+(WebCore::AccessibilityObject::setNeedsToUpdateSubTree):
+(WebCore::AccessibilityObject::needsToUpdateChildren):
+(WebCore::AccessibilityObject::setIsIgnoredFromParentData):
+* accessibility/AccessibilityRenderObject.cpp:
+(WebCore::AccessibilityRenderObject::updateChildrenIfNecessary):
+(WebCore::AccessibilityRenderObject::addChildren):
+* accessibility/AccessibilityRenderObject.h:
+(WebCore::AccessibilityRenderObject::setRenderObject):
+(WebCore::AccessibilityRenderObject::needsToUpdateChildren): Deleted.
+
+
+git-svn-id: http://svn.webkit.org/repository/webkit/trunk@215975 268f45cc-cd09-0410-ab3c-d52691b4dbfc
+
+diff --git a/Source/WebCore/accessibility/AccessibilityNodeObject.cpp b/Source/WebCore/accessibility/AccessibilityNodeObject.cpp
+index 66b83e7831d..8146f368646 100644
+--- a/Source/WebCore/accessibility/AccessibilityNodeObject.cpp
++++ b/Source/WebCore/accessibility/AccessibilityNodeObject.cpp
+@@ -85,6 +85,7 @@ AccessibilityNodeObject::AccessibilityNodeObject(Node* node)
      : AccessibilityObject()
      , m_ariaRole(UnknownRole)
      , m_childrenDirty(false)
@@ -9,7 +62,7 @@ diff -up webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityNodeObject.c
      , m_roleForMSAA(UnknownRole)
  #ifndef NDEBUG
      , m_initialized(false)
-@@ -140,13 +141,19 @@ void AccessibilityNodeObject::childrenCh
+@@ -129,13 +130,19 @@ void AccessibilityNodeObject::childrenChanged()
      if (!cache)
          return;
      cache->postNotification(this, document(), AXObjectCache::AXChildrenChanged);
@@ -30,7 +83,7 @@ diff -up webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityNodeObject.c
  
          // These notifications always need to be sent because screenreaders are reliant on them to perform. 
          // In other words, they need to be sent even when the screen reader has not accessed this live region since the last update.
-@@ -159,8 +166,13 @@ void AccessibilityNodeObject::childrenCh
+@@ -148,8 +155,13 @@ void AccessibilityNodeObject::childrenChanged()
              cache->postLiveRegionChangeNotification(parent);
          
          // If this element is an ARIA text control, notify the AT of changes.
@@ -45,7 +98,7 @@ diff -up webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityNodeObject.c
      }
  }
  
-@@ -344,8 +356,24 @@ void AccessibilityNodeObject::insertChil
+@@ -333,8 +345,24 @@ void AccessibilityNodeObject::insertChild(AccessibilityObject* child, unsigned i
      // If the parent is asking for this child's children, then either it's the first time (and clearing is a no-op),
      // or its visibility has changed. In the latter case, this child may have a stale child cached.
      // This can prevent aria-hidden changes from working correctly. Hence, whenever a parent is getting children, ensure data is not stale.
@@ -71,7 +124,7 @@ diff -up webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityNodeObject.c
      if (child->accessibilityIsIgnored()) {
          const auto& children = child->children();
          size_t length = children.size();
-@@ -355,6 +383,9 @@ void AccessibilityNodeObject::insertChil
+@@ -344,6 +372,9 @@ void AccessibilityNodeObject::insertChild(AccessibilityObject* child, unsigned i
          ASSERT(child->parentObject() == this);
          m_children.insert(index, child);
      }
@@ -81,7 +134,7 @@ diff -up webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityNodeObject.c
  }
  
  void AccessibilityNodeObject::addChild(AccessibilityObject* child)
-@@ -379,6 +410,8 @@ void AccessibilityNodeObject::addChildre
+@@ -368,6 +399,8 @@ void AccessibilityNodeObject::addChildren()
      
      for (Node* child = m_node->firstChild(); child; child = child->nextSibling())
          addChild(axObjectCache()->getOrCreate(child));
@@ -90,7 +143,7 @@ diff -up webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityNodeObject.c
  }
  
  bool AccessibilityNodeObject::canHaveChildren() const
-@@ -1049,6 +1082,9 @@ Element* AccessibilityNodeObject::mouseB
+@@ -1059,6 +1092,9 @@ Element* AccessibilityNodeObject::mouseButtonListener(MouseButtonListenerResultF
  
  bool AccessibilityNodeObject::isDescendantOfBarrenParent() const
  {
@@ -100,10 +153,11 @@ diff -up webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityNodeObject.c
      for (AccessibilityObject* object = parentObject(); object; object = object->parentObject()) {
          if (!object->canHaveChildren())
              return true;
-diff -up webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityNodeObject.h.b171443 webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityNodeObject.h
---- webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityNodeObject.h.b171443	2017-02-07 09:05:08.000000000 +0100
-+++ webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityNodeObject.h	2017-05-18 14:33:09.107642296 +0200
-@@ -162,6 +162,7 @@ protected:
+diff --git a/Source/WebCore/accessibility/AccessibilityNodeObject.h b/Source/WebCore/accessibility/AccessibilityNodeObject.h
+index 37d6eb01f40..587af7369d6 100644
+--- a/Source/WebCore/accessibility/AccessibilityNodeObject.h
++++ b/Source/WebCore/accessibility/AccessibilityNodeObject.h
+@@ -146,6 +146,7 @@ protected:
  
      AccessibilityRole m_ariaRole;
      bool m_childrenDirty;
@@ -111,18 +165,19 @@ diff -up webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityNodeObject.h
      mutable AccessibilityRole m_roleForMSAA;
  #ifndef NDEBUG
      bool m_initialized;
-diff -up webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityObject.cpp.b171443 webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityObject.cpp
---- webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityObject.cpp.b171443	2017-02-07 09:05:08.000000000 +0100
-+++ webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityObject.cpp	2017-05-18 14:34:02.282342082 +0200
-@@ -86,6 +86,7 @@ AccessibilityObject::AccessibilityObject
+diff --git a/Source/WebCore/accessibility/AccessibilityObject.cpp b/Source/WebCore/accessibility/AccessibilityObject.cpp
+index d2bcf3b6448..460a986e0e6 100644
+--- a/Source/WebCore/accessibility/AccessibilityObject.cpp
++++ b/Source/WebCore/accessibility/AccessibilityObject.cpp
+@@ -86,6 +86,7 @@ AccessibilityObject::AccessibilityObject()
      , m_haveChildren(false)
      , m_role(UnknownRole)
      , m_lastKnownIsIgnoredValue(DefaultBehavior)
 +    , m_isIgnoredFromParentData(AccessibilityIsIgnoredFromParentData())
- #if PLATFORM(GTK) || (PLATFORM(EFL) && HAVE(ACCESSIBILITY))
+ #if PLATFORM(GTK)
      , m_wrapper(nullptr)
  #endif
-@@ -2944,13 +2945,15 @@ bool AccessibilityObject::isDOMHidden()
+@@ -3097,13 +3098,15 @@ bool AccessibilityObject::isDOMHidden() const
  
  AccessibilityObjectInclusion AccessibilityObject::defaultObjectInclusion() const
  {
@@ -140,7 +195,7 @@ diff -up webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityObject.cpp.b
          return IgnoreObject;
      
      return accessibilityPlatformIncludesObject();
-@@ -3140,4 +3143,23 @@ void AccessibilityObject::ariaOwnsElemen
+@@ -3295,4 +3298,23 @@ void AccessibilityObject::ariaOwnsElements(AccessibilityChildrenVector& axObject
      ariaElementsFromAttribute(axObjects, aria_ownsAttr);
  }
  
@@ -164,10 +219,11 @@ diff -up webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityObject.cpp.b
 +}
 +
  } // namespace WebCore
-diff -up webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityObject.h.b171443 webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityObject.h
---- webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityObject.h.b171443	2017-02-07 09:05:08.000000000 +0100
-+++ webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityObject.h	2017-05-18 14:35:09.017965306 +0200
-@@ -284,6 +284,24 @@ struct AccessibilityTextUnderElementMode
+diff --git a/Source/WebCore/accessibility/AccessibilityObject.h b/Source/WebCore/accessibility/AccessibilityObject.h
+index 40587361a5a..bd649069be9 100644
+--- a/Source/WebCore/accessibility/AccessibilityObject.h
++++ b/Source/WebCore/accessibility/AccessibilityObject.h
+@@ -285,6 +285,24 @@ struct AccessibilityTextUnderElementMode {
          , ignoredChildNode(ignored)
          { }
  };
@@ -192,7 +248,7 @@ diff -up webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityObject.h.b17
      
  enum AccessibilityOrientation {
      AccessibilityOrientationVertical,
-@@ -809,7 +827,9 @@ public:
+@@ -822,7 +840,9 @@ public:
      virtual bool hasChildren() const { return m_haveChildren; }
      virtual void updateChildrenIfNecessary();
      virtual void setNeedsToUpdateChildren() { }
@@ -202,13 +258,13 @@ diff -up webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityObject.h.b17
  #if PLATFORM(COCOA)
      virtual void detachFromParent();
  #else
-@@ -1061,12 +1081,18 @@ public:
-     AccessibilityObject* editableAncestor();
-     AccessibilityObject* highestEditableAncestor();
+@@ -1078,12 +1098,18 @@ public:
+     
+     static const AccessibilityObject* matchedParent(const AccessibilityObject&, bool includeSelf, const std::function<bool(const AccessibilityObject&)>&);
      
 +    void clearIsIgnoredFromParentData() { m_isIgnoredFromParentData = AccessibilityIsIgnoredFromParentData(); }
 +    void setIsIgnoredFromParentDataForChild(AccessibilityObject*);
-+
++    
  protected:
      AXID m_id;
      AccessibilityChildrenVector m_children;
@@ -216,15 +272,16 @@ diff -up webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityObject.h.b17
      AccessibilityRole m_role;
      AccessibilityObjectInclusion m_lastKnownIsIgnoredValue;
 +    AccessibilityIsIgnoredFromParentData m_isIgnoredFromParentData;
-+
++    
 +    void setIsIgnoredFromParentData(AccessibilityIsIgnoredFromParentData& data) { m_isIgnoredFromParentData = data; }
  
      virtual bool computeAccessibilityIsIgnored() const { return true; }
  
-diff -up webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityRenderObject.cpp.b171443 webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityRenderObject.cpp
---- webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityRenderObject.cpp.b171443	2017-05-18 14:33:09.084642426 +0200
-+++ webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityRenderObject.cpp	2017-05-18 14:33:09.112642267 +0200
-@@ -2930,7 +2930,7 @@ void AccessibilityRenderObject::addImage
+diff --git a/Source/WebCore/accessibility/AccessibilityRenderObject.cpp b/Source/WebCore/accessibility/AccessibilityRenderObject.cpp
+index e277477e120..74a6d1b42a0 100644
+--- a/Source/WebCore/accessibility/AccessibilityRenderObject.cpp
++++ b/Source/WebCore/accessibility/AccessibilityRenderObject.cpp
+@@ -2982,7 +2982,7 @@ void AccessibilityRenderObject::addImageMapChildren()
  void AccessibilityRenderObject::updateChildrenIfNecessary()
  {
      if (needsToUpdateChildren())
@@ -233,7 +290,7 @@ diff -up webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityRenderObject
      
      AccessibilityObject::updateChildrenIfNecessary();
  }
-@@ -3155,6 +3155,8 @@ void AccessibilityRenderObject::addChild
+@@ -3207,6 +3207,8 @@ void AccessibilityRenderObject::addChildren()
      for (RefPtr<AccessibilityObject> obj = firstChild(); obj; obj = obj->nextSibling())
          addChild(obj.get());
      
@@ -242,10 +299,11 @@ diff -up webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityRenderObject
      addHiddenChildren();
      addAttachmentChildren();
      addImageMapChildren();
-diff -up webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityRenderObject.h.b171443 webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityRenderObject.h
---- webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityRenderObject.h.b171443	2017-02-07 09:05:08.000000000 +0100
-+++ webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityRenderObject.h	2017-05-18 14:33:09.113642262 +0200
-@@ -206,7 +206,6 @@ public:
+diff --git a/Source/WebCore/accessibility/AccessibilityRenderObject.h b/Source/WebCore/accessibility/AccessibilityRenderObject.h
+index cccb39ebed1..21227b64352 100644
+--- a/Source/WebCore/accessibility/AccessibilityRenderObject.h
++++ b/Source/WebCore/accessibility/AccessibilityRenderObject.h
+@@ -202,7 +202,6 @@ public:
  protected:
      explicit AccessibilityRenderObject(RenderObject*);
      void setRenderObject(RenderObject* renderer) { m_renderer = renderer; }
@@ -253,7 +311,7 @@ diff -up webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityRenderObject
      ScrollableArea* getScrollableAreaIfScrollable() const override;
      void scrollTo(const IntPoint&) const override;
      
-@@ -232,6 +231,8 @@ private:
+@@ -228,6 +227,8 @@ private:
      Element* rootEditableElementForPosition(const Position&) const;
      bool nodeIsTextControl(const Node*) const;
      void setNeedsToUpdateChildren() override { m_childrenDirty = true; }
@@ -262,3 +320,6 @@ diff -up webkitgtk-2.14.6/Source/WebCore/accessibility/AccessibilityRenderObject
      Path elementPath() const override;
      
      bool isTabItemSelected() const;
+-- 
+2.13.5
+

@@ -8,17 +8,26 @@
 # Bundle ICU 57 - see https://bugzilla.redhat.com/show_bug.cgi?id=1414413
 %define bundle_icu 1
 %if 0%{?bundle_icu}
-# Don't list bundled icu libraries in provides
+# Filter out provides/requires for private libraries
 %global __provides_exclude %{?__provides_exclude:%__provides_exclude|}libicu.*
-%global __requires_exclude %{?__provides_exclude:%__provides_exclude|}libicu.*
+%global __requires_exclude %{?__requires_exclude:%__requires_exclude|}libicu.*
+%global __provides_exclude_from ^%{_libdir}/webkit2gtk-4\\.0/.*\\.so$
 %endif
 
-# As we are using the DTS we have to build it as:
-# rhpkg build --target devtoolset-6-gnome-rhel-7.4-candidate
+# Increase the DIE limit so our debuginfo packages could be size optimized.
+# Fedora bug - https://bugzilla.redhat.com/show_bug.cgi?id=1456261
+%global _dwz_max_die_limit 250000000
+# The _dwz_max_die_limit is being overridden by the arch specific ones from the
+# redhat-rpm-config so we need to set the arch specific ones as well - now it
+# is only needed for x86_64.
+%global _dwz_max_die_limit_x86_64 250000000
+
+# As we are using the DTS we have to build this package as:
+# rhpkg build --target devtoolset-6-rhel-7.5-candidate
 
 Name:           webkitgtk4
-Version:        2.14.7
-Release:        3%{?dist}.redsleeve
+Version:        2.16.6
+Release:        6%{?dist}
 Summary:        GTK+ Web content engine library
 
 License:        LGPLv2
@@ -29,65 +38,45 @@ Source1:        http://download.icu-project.org/files/icu4c/57.1/icu4c-57_1-src.
 %endif
 
 # https://bugs.webkit.org/show_bug.cgi?id=156596
-Patch0:         inttypes_prid64.patch
-# Covscan fixes
-Patch1:         covscan.patch
-# https://bugs.webkit.org/show_bug.cgi?id=165923
-Patch2:         b165923.patch
-# https://bugs.webkit.org/show_bug.cgi?id=167845
-Patch3:         b167845.patch
-# https://bugs.webkit.org/show_bug.cgi?id=169027
-Patch4:         b169027.patch
-# https://bugs.webkit.org/show_bug.cgi?id=169028
-Patch5:         b169028.patch
-# https://bugs.webkit.org/show_bug.cgi?id=169029
-Patch6:         b169029.patch
-# https://bugs.webkit.org/show_bug.cgi?id=169035
-Patch7:         b169035.patch
-# https://bugs.webkit.org/show_bug.cgi?id=169055
-Patch8:        b169055.patch
-# https://bugs.webkit.org/show_bug.cgi?id=169597
-Patch9:        b169597.patch
-# https://bugs.webkit.org/show_bug.cgi?id=169598
-Patch10:        b169598.patch
-# https://bugs.webkit.org/show_bug.cgi?id=169602
-Patch11:        b169602.patch
-# https://bugs.webkit.org/show_bug.cgi?id=169604
-Patch12:        b169604.patch
-# https://bugs.webkit.org/show_bug.cgi?id=169610
-Patch13:        b169610.patch
-# https://bugs.webkit.org/show_bug.cgi?id=169665
-Patch14:        b169665.patch
-# https://bugs.webkit.org/show_bug.cgi?id=169666
-Patch15:        b169666.patch
-# https://bugs.webkit.org/show_bug.cgi?id=170448
-Patch16:        b170448.patch
-# https://bugs.webkit.org/show_bug.cgi?id=167691
-Patch17:        b167691.patch
-# https://bugs.webkit.org/show_bug.cgi?id=171429
-Patch18:        b171429.patch
-# https://bugs.webkit.org/show_bug.cgi?id=171443
-Patch19:        b171443.patch
-# https://bugs.webkit.org/show_bug.cgi?id=171768
-Patch20:        b171768.patch
-# https://bugs.webkit.org/show_bug.cgi?id=171546
-Patch21:        b171546.patch
-# https://bugs.webkit.org/show_bug.cgi?id=171547
-Patch22:        b171547.patch
-# https://bugs.webkit.org/show_bug.cgi?id=171927
-Patch23:        b171927.patch
-# https://bugs.webkit.org/show_bug.cgi?id=170945
-Patch24:        b170945.patch
+Patch0:         webkit-inttypes-prid64.patch
 # https://bugs.webkit.org/show_bug.cgi?id=132333
-Patch25:        b132333.patch
-# https://bugs.webkit.org/show_bug.cgi?id=162608
-Patch26:        webkit-update-bundled-woff2.patch
-# https://bugs.webkit.org/show_bug.cgi?id=177768
-Patch27:        webkit-update-bundled-brotli-and-woff2.patch
+Patch1:         webkit-cloop-big-endians.patch
+# https://bugs.webkit.org/show_bug.cgi?id=169029
+Patch2:         webkit-covscan-jsc-options.patch
+# https://bugs.webkit.org/show_bug.cgi?id=169055
+Patch3:         webkit-covscan-jsc-options-followup.patch
+# https://bugs.webkit.org/show_bug.cgi?id=169604
+Patch4:         webkit-covscan-webprocess.patch
+# https://bugs.webkit.org/show_bug.cgi?id=169602
+Patch5:         webkit-covscan-uiprocess.patch
+# https://bugs.webkit.org/show_bug.cgi?id=169598
+Patch6:         webkit-covscan-networkprocess.patch
+# Lower the required libgcrypt version as we don't have 1.6 in RHEL 7 and
+# actually it is not needed at all.
+Patch7:         webkit-lower-libgcrypt-version.patch
+# https://bugs.webkit.org/show_bug.cgi?id=175125
+# follow-up https://trac.webkit.org/changeset/220331/webkit
+Patch8:         webkit-egl-cflags.patch
+# https://bugs.webkit.org/show_bug.cgi?id=173306
+Patch10:         webkit-spreaker-gstreamer-fix.patch
+# https://bugs.webkit.org/show_bug.cgi?id=175416
+Patch11:         webkit-cmake-whole-archive.patch
+# https://bugs.webkit.org/show_bug.cgi?id=171161
+Patch12:        webkit-on-demand-ac-crash.patch
+# https://bugs.webkit.org/show_bug.cgi?id=129879
+Patch13:        webkit-geoclue2-desktop-id.patch
+# https://bugs.webkit.org/show_bug.cgi?id=171443
+Patch14:        webkit-accessibility-performance.patch
+# https://bugs.webkit.org/show_bug.cgi?id=171927
+Patch15:        webkit-accessibility-assertion.patch
+
+Patch16:        webkit-covscan-cssgrid.patch
+# https://bugs.webkit.org/show_bug.cgi?id=176357
+Patch17:        webkit-covscan-urlparser.patch
+# https://bugs.webkit.org/show_bug.cgi?id=167304
+Patch18:        webkit-update-bundled-brotli-and-woff2.patch
 # https://bugs.webkit.org/show_bug.cgi?id=177994
-Patch28:        webkit-relicense-bundled-woff2-to-mit.patch
-# https://github.com/google/woff2/pull/96
-Patch29:        webkit-woff2-cassert-include.patch
+Patch19:        webkit-relicense-bundled-woff2-to-mit.patch
 
 %if 0%{?bundle_icu}
 Patch50: icu-8198.revert.icu5431.patch
@@ -99,9 +88,9 @@ Patch55: icu-armv7hl-disable-tests.patch
 Patch56: icu-rhbz1360340-icu-changeset-39109.patch
 Patch57: icu-diff-icu_trunk_source_common_locid.cpp-from-39282-to-39384.patch
 Patch58: icu-dont_use_clang_even_if_installed.patch
+# CVE-2017-7867 CVE-2017-7868
+Patch59: icu-rhbz1444101-icu-changeset-39671.patch
 %endif
-
-Patch1000: webkitgtk4-arm-no-atomic.patch
 
 BuildRequires:  at-spi2-core-devel
 BuildRequires:  bison
@@ -133,20 +122,24 @@ BuildRequires:  libsoup-devel >= 2.56
 BuildRequires:  libwebp-devel
 BuildRequires:  libxslt-devel
 BuildRequires:  libXt-devel
+BuildRequires:  wayland-devel
 BuildRequires:  mesa-libGL-devel
 BuildRequires:  pcre-devel
 BuildRequires:  perl-Switch
+BuildRequires:  perl-JSON-PP
 BuildRequires:  ruby
 BuildRequires:  rubygems
 BuildRequires:  sqlite-devel
 BuildRequires:  hyphen-devel
 BuildRequires:  gnutls-devel
-%ifarch ppc
-BuildRequires:  libatomic
-%endif
+%if 0%{?rhel} == 7
 BuildRequires: devtoolset-6-gcc
 BuildRequires: devtoolset-6-gcc-c++
 BuildRequires: devtoolset-6-build
+BuildRequires: devtoolset-6-libatomic-devel
+%else
+BuildRequires:  libatomic
+%endif
 
 Requires:       geoclue2
 
@@ -172,9 +165,6 @@ Requires:       %{name}-jsc%{?_isa} = %{version}-%{release}
 # Require the support for the GTK+ 2 based NPAPI plugins
 # Would be nice to recommend as in Fedora, but RHEL7 RPM doesn't support it.
 Requires:       %{name}-plugin-process-gtk2%{?_isa} = %{version}-%{release}
-
-# Filter out provides for private libraries
-%global __provides_exclude_from ^%{_libdir}/webkit2gtk-4\\.0/.*\\.so$
 
 %description
 WebKitGTK+ is the port of the portable web rendering engine WebKit to the
@@ -238,6 +228,7 @@ Support for the GTK+ 2 based NPAPI plugins (such as Adobe Flash) for %{name}.
 %patch56 -p1 -b .rhbz1360340-icu-changeset-39109.patch
 %patch57 -p1 -b .diff-icu_trunk_source_common_locid.cpp-from-39282-to-39384.patch
 %patch58 -p1 -b .dont_use_clang_even_if_installed
+%patch59 -p1 -b .rhbz1444101-icu-changeset-39671.patch
 
 %setup -q -T -n webkitgtk-%{version} -b 0
 %patch0 -p1
@@ -249,7 +240,6 @@ Support for the GTK+ 2 based NPAPI plugins (such as Adobe Flash) for %{name}.
 %patch6 -p1
 %patch7 -p1
 %patch8 -p1
-%patch9 -p1
 %patch10 -p1
 %patch11 -p1
 %patch12 -p1
@@ -257,24 +247,12 @@ Support for the GTK+ 2 based NPAPI plugins (such as Adobe Flash) for %{name}.
 %patch14 -p1
 %patch15 -p1
 %patch16 -p1
-%patch17 -p1 -b .b167691
-%patch18 -p1 -b .b171429
-%patch19 -p1 -b .b171443
-%patch20 -p1 -b .b171768
-%patch21 -p1 -b .b171546
-%patch22 -p1 -b .b171547
-%patch23 -p1 -b .b171927
-%patch24 -p1 -b .b170945
-%patch25 -p1 -b .b132333
-%patch26 -p1
-%patch27 -p1
-%patch28 -p1
-%patch29 -p1
+%patch17 -p1
+%patch18 -p1
+%patch19 -p1
 %else
 %autosetup -p1 -n webkitgtk-%{version}
 %endif
-
-%patch1000 -p1
 
 # Remove bundled libraries
 rm -rf Source/ThirdParty/gtest/
@@ -345,7 +323,9 @@ popd
 %endif
 
 # Enable DTS
+%if 0%{?rhel} == 7
 %{?enable_devtoolset6:%{enable_devtoolset6}}
+%endif
 
 # Disable ld.gold on s390 as it does not have it.
 # Also for aarch64 as the support is in upstream, but not packaged in Fedora.
@@ -363,13 +343,13 @@ pushd %{_target_platform}
 %endif
   -DENABLE_GTKDOC=ON \
   -DENABLE_MINIBROWSER=ON \
-%ifarch s390 aarch64 %{arm}
+%ifarch s390 aarch64
   -DUSE_LD_GOLD=OFF \
 %endif
-%ifarch s390 s390x ppc %{power64} aarch64 %{mips} %{arm}
+%ifarch s390 s390x ppc %{power64} aarch64 %{mips}
   -DENABLE_JIT=OFF \
 %endif
-%ifarch s390 s390x ppc %{power64} aarch64 %{mips} %{arm}
+%ifarch s390 s390x ppc %{power64} aarch64 %{mips}
   -DUSE_SYSTEM_MALLOC=ON \
 %endif
   ..
@@ -385,7 +365,15 @@ cp -a libicudata.so.* $RPM_BUILD_ROOT%{_libdir}/webkit2gtk-4.0/
 cp -a libicui18n.so.* $RPM_BUILD_ROOT%{_libdir}/webkit2gtk-4.0/
 cp -a libicuuc.so.* $RPM_BUILD_ROOT%{_libdir}/webkit2gtk-4.0/
 popd
+# We don't want debuginfo generated for the bundled icu libraries.
+# Turn off execute bit so they aren't included in the debuginfo.list.
+# We'll turn the execute bit on again in %%files.
+# https://bugzilla.redhat.com/show_bug.cgi?id=1486771
+chmod 644 $RPM_BUILD_ROOT%{_libdir}/webkit2gtk-4.0/libicudata.so.57.1
+chmod 644 $RPM_BUILD_ROOT%{_libdir}/webkit2gtk-4.0/libicui18n.so.57.1
+chmod 644 $RPM_BUILD_ROOT%{_libdir}/webkit2gtk-4.0/libicuuc.so.57.1
 %endif
+
 %make_install %{?_smp_mflags} -C %{_target_platform}
 
 %find_lang WebKit2GTK-4.0
@@ -420,6 +408,11 @@ popd
 %{_libdir}/girepository-1.0/WebKit2-4.0.typelib
 %{_libdir}/girepository-1.0/WebKit2WebExtension-4.0.typelib
 %{_libdir}/webkit2gtk-4.0/
+# Turn on executable bit again for bundled icu libraries.
+# Was disabled in %%install to prevent debuginfo stripping.
+%attr(0755,root,root) %{_libdir}/webkit2gtk-4.0/libicudata.so.57.1
+%attr(0755,root,root) %{_libdir}/webkit2gtk-4.0/libicui18n.so.57.1
+%attr(0755,root,root) %{_libdir}/webkit2gtk-4.0/libicuuc.so.57.1
 %{_libexecdir}/webkit2gtk-4.0/
 %exclude %{_libexecdir}/webkit2gtk-4.0/WebKitPluginProcess2
 
@@ -456,15 +449,35 @@ popd
 %{_datadir}/gtk-doc/html/webkitdomgtk-4.0/
 
 %changelog
-* Fri Dec 01 2017 Jacco Ligthart <jacco@redsleeve.com> - 2.14.7-3.redsleeve
-- disabled LD_GOLD4, JIT for arm
-- use system malloc for arm
-- added a patch: https://bugs.webkit.org/show_bug.cgi?id=161900
+* Wed Nov 08 2017 Tomas Popela <tpopela@redhat.com> - 2.16.6-6
+- Don't strip debug info from bundled icu libraries, otherwise there
+  will be conflicts between webkitgtk4-debuginfo and icu-debuginfo packages
+- Resolves: rhbz#1486771
 
-* Mon Oct 09 2017 Tomas Popela <tpopela@redhat.com> - 2.14.7-3
+* Mon Oct 09 2017 Tomas Popela <tpopela@redhat.com> - 2.16.6-5
 - Update the bundled brotli and woff2 to the latest releases due to
   woff2's license incompatibility with WebKitGTK+ project
-- Resolves: rhbz#1500368
+- Resolves: rhbz#1499745
+- Drop unused patches
+
+* Fri Sep 29 2017 Tomas Popela <tpopela@redhat.com> - 2.16.6-4
+- Build wayland support
+- Backport fixes proposed by upstream to 2.16 branch
+- Remove accidentally committed workaround for rhbz#1486771
+- Resolves: rhbz#1496800
+
+* Tue Sep 05 2017 Tomas Popela <tpopela@redhat.com> - 2.16.6-3
+- Coverity scan fixes
+- Resolves: rhbz#1476707
+
+* Fri Aug 25 2017 Tomas Popela <tpopela@redhat.com> - 2.16.6-2
+- Backport security fixes for bundled icu
+- Backport geoclue2 id fixes
+- Resolves: rhbz#1476707
+
+* Thu Aug 17 2017 Tomas Popela <tpopela@redhat.com> - 2.16.6-1
+- Update to 2.16.6
+- Resolves: rhbz#1476707
 
 * Fri Jun 16 2017 Tomas Popela <tpopela@redhat.com> - 2.14.7-2
 - Fix a CLoop patch that was not correctly backported from upstream, causing
