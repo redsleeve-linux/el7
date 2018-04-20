@@ -131,7 +131,7 @@
 Summary: The GNU libc libraries
 Name: glibc
 Version: %{glibcversion}
-Release: %{glibcrelease}
+Release: %{glibcrelease}.redsleeve
 # GPLv2+ is used in a bunch of programs, LGPLv2+ is used for libraries.
 # Things that are linked directly into dynamically linked programs
 # and shared libraries (e.g. crt files, lib*_nonshared.a) have an additional
@@ -1297,6 +1297,8 @@ Patch2113: glibc-rh1445644.patch
 # End of glibc patches.
 ##############################################################################
 
+Patch3000: glibc-rh1256317-redsleeve.patch
+
 ##############################################################################
 # Continued list of core "glibc" package information:
 ##############################################################################
@@ -2291,6 +2293,8 @@ package or when debugging this package.
 %patch1900 -p1
 %patch1901 -p1
 %patch1902 -p1
+
+%patch3000 -p1
 
 ##############################################################################
 # %%prep - Additional prep required...
@@ -3454,6 +3458,9 @@ rm -f *.filelist*
 %endif
 
 %changelog
+* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.org> 2.17-222.redsleeve
+- enhanced the patch for rh1256317 to build on arm
+
 * Thu Feb  1 2018 Florian Weimer <fweimer@redhat.com> - 2.17-222
 - Restore internal GLIBC_PRIVATE symbols for use during upgrades (#1523119)
 
