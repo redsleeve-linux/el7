@@ -27,7 +27,7 @@
 
 Name:           webkitgtk4
 Version:        2.16.6
-Release:        6%{?dist}
+Release:        6%{?dist}.redsleeve
 Summary:        GTK+ Web content engine library
 
 License:        LGPLv2
@@ -91,6 +91,8 @@ Patch58: icu-dont_use_clang_even_if_installed.patch
 # CVE-2017-7867 CVE-2017-7868
 Patch59: icu-rhbz1444101-icu-changeset-39671.patch
 %endif
+
+Patch1000: webkitgtk4-arm-no-atomic.patch
 
 BuildRequires:  at-spi2-core-devel
 BuildRequires:  bison
@@ -254,6 +256,8 @@ Support for the GTK+ 2 based NPAPI plugins (such as Adobe Flash) for %{name}.
 %autosetup -p1 -n webkitgtk-%{version}
 %endif
 
+%patch1000 -p1
+
 # Remove bundled libraries
 rm -rf Source/ThirdParty/gtest/
 rm -rf Source/ThirdParty/qunit/
@@ -343,13 +347,13 @@ pushd %{_target_platform}
 %endif
   -DENABLE_GTKDOC=ON \
   -DENABLE_MINIBROWSER=ON \
-%ifarch s390 aarch64
+%ifarch s390 aarch64 %{arm}
   -DUSE_LD_GOLD=OFF \
 %endif
-%ifarch s390 s390x ppc %{power64} aarch64 %{mips}
+%ifarch s390 s390x ppc %{power64} aarch64 %{mips} %{arm}
   -DENABLE_JIT=OFF \
 %endif
-%ifarch s390 s390x ppc %{power64} aarch64 %{mips}
+%ifarch s390 s390x ppc %{power64} aarch64 %{mips} %{arm}
   -DUSE_SYSTEM_MALLOC=ON \
 %endif
   ..
@@ -449,6 +453,11 @@ chmod 644 $RPM_BUILD_ROOT%{_libdir}/webkit2gtk-4.0/libicuuc.so.57.1
 %{_datadir}/gtk-doc/html/webkitdomgtk-4.0/
 
 %changelog
+* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.com> - 2.16.6-6.redsleeve
+- disabled LD_GOLD4, JIT for arm
+- use system malloc for arm
+- added a patch: https://bugs.webkit.org/show_bug.cgi?id=161900
+
 * Wed Nov 08 2017 Tomas Popela <tpopela@redhat.com> - 2.16.6-6
 - Don't strip debug info from bundled icu libraries, otherwise there
   will be conflicts between webkitgtk4-debuginfo and icu-debuginfo packages
