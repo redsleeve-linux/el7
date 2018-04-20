@@ -1,62 +1,72 @@
-From 31ada779ef88258e2fa71f225e92331b74ae4c82 Mon Sep 17 00:00:00 2001
+From 52fd3d440f8b17dd7cb93e0b2cca4eadbcc5f15b Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Fri, 4 Aug 2017 11:28:06 +0200
+Date: Sun, 15 Apr 2018 14:35:29 +0200
 Subject: [PATCH] SPEC adjusted to build on armv5
 
 ---
- SPECS/mesa.spec | 12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
+ SPECS/mesa.spec | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)
 
 diff --git a/SPECS/mesa.spec b/SPECS/mesa.spec
-index 5046980..45a8b84 100644
+index e676192..11da7c0 100644
 --- a/SPECS/mesa.spec
 +++ b/SPECS/mesa.spec
+@@ -7,7 +7,7 @@
+ %define with_vdpau 1
+ %define with_wayland 1
+ 
+-%ifnarch ppc
++%ifnarch ppc %{arm}
+ %define with_radeonsi 1
+ %endif
+ 
+@@ -18,7 +18,7 @@
+ # S390 doesn't have video cards, but we need swrast for xserver's GLX
+ # llvm (and thus llvmpipe) doesn't actually work on ppc32 or s390
+ 
+-%ifnarch s390 ppc
++%ifnarch s390 ppc %{arm}
+ %define with_llvm 1
+ %endif
+ 
 @@ -61,7 +61,7 @@
  Summary: Mesa graphics libraries
  Name: mesa
- Version: 17.0.1
--Release: 6.%{gitdate}%{?dist}
-+Release: 6.%{gitdate}%{?dist}.redsleeve
+ Version: 17.2.3
+-Release: 8.%{gitdate}%{?dist}
++Release: 8.%{gitdate}%{?dist}.redsleeve
  License: MIT
  Group: System Environment/Libraries
  URL: http://www.mesa3d.org
-@@ -112,7 +112,7 @@ BuildRequires: python-mako
+@@ -119,7 +119,8 @@ BuildRequires: python-mako
  BuildRequires: gettext
  %if 0%{?with_llvm}
  %if 0%{?with_private_llvm}
--BuildRequires: mesa-private-llvm-devel >= 3.9
+-BuildRequires: llvm-private-devel >= 5.0
++#BuildRequires: llvm-private-devel >= 5.0
 +BuildRequires: mesa-private-llvm-devel
  %else
  BuildRequires: llvm-devel >= 3.0
  %endif
-@@ -389,7 +389,7 @@ export CXXFLAGS="$RPM_OPT_FLAGS -fno-rtti -fno-exceptions"
-     --enable-dri \
- %if %{with_hardware}
-     %{?with_vmware:--enable-xa} \
--    --with-gallium-drivers=%{?with_vmware:svga,}%{?with_radeonsi:radeonsi,}%{?with_llvm:swrast,r600,r300}%{?with_freedreno:freedreno,},nouveau,virgl \
-+    --with-gallium-drivers=%{?with_vmware:svga,}%{?with_radeonsi:radeonsi,}%{?with_llvm:swrast,r600,r300}%{?with_freedreno:,freedreno},nouveau,virgl \
- %else
-     --with-gallium-drivers=%{?with_llvm:swrast} \
+@@ -540,8 +541,8 @@ rm -rf $RPM_BUILD_ROOT
+ # exist on s390x where swrast is llvmpipe, but does exist on s390 where
+ # swrast is classic mesa.  this seems like a bug?  in that it probably
+ # means the gallium drivers are linking dricore statically?  fixme.
+-%{_libdir}/dri/swrast_dri.so
+ %if 0%{?with_llvm}
++%{_libdir}/dri/swrast_dri.so
+ %{_libdir}/dri/kms_swrast_dri.so
  %endif
-@@ -513,6 +513,7 @@ rm -rf $RPM_BUILD_ROOT
- %endif
- %if 0%{?with_freedreno}
- %{_libdir}/dri/kgsl_dri.so
-+%{_libdir}/dri/msm_dri.so
- %endif
- %{_libdir}/dri/nouveau_dri.so
- %{_libdir}/dri/virtio_gpu_dri.so
-@@ -654,6 +655,11 @@ rm -rf $RPM_BUILD_ROOT
+ 
+@@ -670,6 +671,9 @@ rm -rf $RPM_BUILD_ROOT
  %endif
  
  %changelog
-+* Fri Aug 04 2017 Jacco Ligthart <jacco@redsleeve.org> - 17.0.1-6.20170307.redsleeve
-+- add msm_dri.so to the %files section
-+- drop the version number from the mesa-private-llvm BuildRequire
-+- fixed typo around freedreno
++* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.org> - 17.2.3-8.20171019.redsleeve
++- small changes to the spec to make it build on armv5
 +
- * Thu May 11 2017 Dave Airlie <airlied@redhat.com> - 17.0.1-6.20170307
- - enable VDPAU drivers (#1297276)
+ * Mon Jan 15 2018 Dave Airlie <airlied@redhat.com> - 17.2.3-8.20171019
+ - Add missing Intel CFL ids.
  
 -- 
 1.8.3.1
