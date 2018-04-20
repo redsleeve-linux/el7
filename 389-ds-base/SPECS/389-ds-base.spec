@@ -19,7 +19,7 @@
 %global use_tcmalloc 0
 %global variant base-asan
 %else
-%if %{_arch} != "s390x" && %{_arch} != "s390"
+%ifnarch s390 s390x %{arm}
 %global use_tcmalloc 1
 %else
 %global use_tcmalloc 0
@@ -39,7 +39,7 @@
 Summary:          389 Directory Server (%{variant})
 Name:             389-ds-base
 Version:          1.3.7.5
-Release:          %{?relprefix}19%{?prerel}%{?dist}
+Release:          %{?relprefix}19%{?prerel}%{?dist}.redsleeve
 License:          GPLv3+
 URL:              https://www.port389.org/
 Group:            System Environment/Daemons
@@ -571,6 +571,9 @@ fi
 %{_sysconfdir}/%{pkgname}/dirsrvtests
 
 %changelog
+* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.org> - 1.3.7.5-19.redsleeve
+- disabled tcmalloc for arm
+
 * Tue Apr  3 2018 Matus Honek <mhonek@redhat.com> - 1.3.7.5-19
 - Bump version to 1.3.7.5-19
 - Resolves: Bug 1563107 - IPA server is not responding, all authentication and admin tests failed [rhel-7.5.z]
