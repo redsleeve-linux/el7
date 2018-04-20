@@ -1,6 +1,6 @@
-From bedcb8a783877403fb69b37b155f591a3b0a798f Mon Sep 17 00:00:00 2001
+From 9c12a765e127d921d530a264573fbdba2d260b81 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Fri, 4 Aug 2017 11:03:25 +0200
+Date: Sun, 15 Apr 2018 14:17:39 +0200
 Subject: [PATCH] added arm to golang_arches
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] added arm to golang_arches
  1 file changed, 9 insertions(+), 2 deletions(-)
 
 diff --git a/SPECS/golang.spec b/SPECS/golang.spec
-index 0cb6635..ca5cc19 100644
+index d02c0f7..bbbbc79 100644
 --- a/SPECS/golang.spec
 +++ b/SPECS/golang.spec
 @@ -25,7 +25,7 @@
@@ -34,22 +34,22 @@ index 0cb6635..ca5cc19 100644
 @@ -85,7 +89,7 @@
  
  Name:           golang
- Version:        1.8.3
+ Version:        1.9.4
 -Release:        1%{?dist}
 +Release:        1%{?dist}.redsleeve
  Summary:        The Go Programming Language
  # source tree includes several copies of Mark.Twain-Tom.Sawyer.txt under Public Domain
  License:        BSD and Public Domain
-@@ -474,6 +478,9 @@ fi
+@@ -467,6 +471,9 @@ fi
  %endif
  
  %changelog
-+* Fri Aug 04 2017 Jacco Ligthart <jacco@redsleeve.org> - 1.8.3-1.redsleeve
++* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.org> - 1.9.4-1.redsleeve
 +- added arm to golang_arches
 +
- * Wed May 31 2017 Jakub Čajka <jcajka@redhat.com> - 1.8.3-1
- - bump to 1.8.3
- - fix CVE-2017-8932
+ * Thu Feb 08 2018 Jakub Čajka <jcajka@redhat.com> - 1.9.4-1
+ - Rebase to 1.9.4
+ - Fix CVE-2018-6574
 -- 
 1.8.3.1
 
