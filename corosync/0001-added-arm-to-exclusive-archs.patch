@@ -1,6 +1,6 @@
-From b25ef11960fcb81f2171d5e2311a8eee8782b7c7 Mon Sep 17 00:00:00 2001
+From c49c5354afc93b6272ae3df7f47349ac5fbd3686 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Thu, 21 Sep 2017 00:35:23 +0200
+Date: Sun, 15 Apr 2018 14:06:06 +0200
 Subject: [PATCH] added arm to exclusive archs
 
 ---
@@ -8,20 +8,20 @@ Subject: [PATCH] added arm to exclusive archs
  1 file changed, 5 insertions(+), 2 deletions(-)
 
 diff --git a/SPECS/corosync.spec b/SPECS/corosync.spec
-index eef90da..4e23ad5 100644
+index c1add45..03556ec 100644
 --- a/SPECS/corosync.spec
 +++ b/SPECS/corosync.spec
 @@ -24,7 +24,7 @@
  Name: corosync
  Summary: The Corosync Cluster Engine and Application Programming Interfaces
- Version: 2.4.0
--Release: 9%{?gitver}%{?dist}.2
-+Release: 9%{?gitver}%{?dist}.2.redsleeve
+ Version: 2.4.3
+-Release: 2%{?gitver}%{?dist}
++Release: 2%{?gitver}%{?dist}.redsleeve
  License: BSD
  Group: System Environment/Base
  URL: http://corosync.github.io/corosync/
-@@ -60,7 +60,7 @@ Patch26: bz1484264-3-totemcrypto-Use-different-method-to-import-key.patch
- Patch27: bz1484264-4-totemcrypto-Fix-compiler-warning.patch
+@@ -34,7 +34,7 @@ Patch0: bz1536219-1-logging-Make-blackbox-configurable.patch
+ Patch1: bz1536219-2-logging-Close-before-and-open-blackbox-after-fork.patch
  
  %if 0%{?rhel}
 -ExclusiveArch: i686 x86_64 s390x ppc64le
@@ -29,15 +29,15 @@ index eef90da..4e23ad5 100644
  %endif
  
  # Runtime bits
-@@ -574,6 +574,9 @@ fi
+@@ -522,6 +522,9 @@ fi
  %endif
  
  %changelog
-+* Thu Sep 21 2017 Jacco Ligthart <jacco@redsleeve.org> 2.4.0-9.2.redsleeve
++* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.org> 2.4.3-2.redsleeve
 +- added arm to exclusive archs
 +
- * Thu Aug 24 2017 Jan Friesse <jfriesse@redhat.com> 2.4.0-9.2
- - Resolves: rhbz#1484264
+ * Mon Feb 05 2018 Jan Friesse <jfriesse@redhat.com> 2.4.3-2
+ - Resolves: rhbz#1536219
  
 -- 
 1.8.3.1

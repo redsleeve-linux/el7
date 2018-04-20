@@ -24,7 +24,7 @@
 Name: corosync
 Summary: The Corosync Cluster Engine and Application Programming Interfaces
 Version: 2.4.3
-Release: 2%{?gitver}%{?dist}
+Release: 2%{?gitver}%{?dist}.redsleeve
 License: BSD
 Group: System Environment/Base
 URL: http://corosync.github.io/corosync/
@@ -34,7 +34,7 @@ Patch0: bz1536219-1-logging-Make-blackbox-configurable.patch
 Patch1: bz1536219-2-logging-Close-before-and-open-blackbox-after-fork.patch
 
 %if 0%{?rhel}
-ExclusiveArch: i686 x86_64 s390x ppc64le
+ExclusiveArch: i686 x86_64 s390x ppc64le %{arm}
 %endif
 
 # Runtime bits
@@ -522,6 +522,9 @@ fi
 %endif
 
 %changelog
+* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.org> 2.4.3-2.redsleeve
+- added arm to exclusive archs
+
 * Mon Feb 05 2018 Jan Friesse <jfriesse@redhat.com> 2.4.3-2
 - Resolves: rhbz#1536219
 
