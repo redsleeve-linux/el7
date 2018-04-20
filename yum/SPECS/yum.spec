@@ -32,11 +32,11 @@
 Summary: RPM package installer/updater/manager
 Name: yum
 Version: 3.4.3
-Release: 158%{?dist}
+Release: 158%{?dist}.redsleeve
 License: GPLv2+
 Group: System Environment/Base
 Source0: http://yum.baseurl.org/download/3.4/%{name}-%{version}.tar.gz
-Source1: yum.conf.centos
+Source1: yum.conf.redsleeve
 Source2: yum-updatesd.conf.fedora
 Patch1: yum-distro-configs.patch
 Patch5: geode-arch.patch
@@ -160,7 +160,7 @@ Patch289: BZ-1411692-docs-conf-var-naming-rules.patch
 Patch290: BZ-1278333-yum-shell-support-exit-status.patch
 
 #CentOS Branding
-Patch1000: centos-branding-yum.patch
+Patch1000: redsleeve-branding-yum.patch
 
 URL: http://yum.baseurl.org/
 BuildArchitectures: noarch
@@ -636,6 +636,9 @@ exit 0
 %endif
 
 %changelog
+* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.org> - 3.4.3-158.el7.redsleeve
+- RedSleeve rebranding
+
 * Tue Apr 10 2018 CentOS Sources <bugs@centos.org> - 3.4.3-158.el7.centos
 - CentOS yum config
 -  use the CentOS bug tracker url
