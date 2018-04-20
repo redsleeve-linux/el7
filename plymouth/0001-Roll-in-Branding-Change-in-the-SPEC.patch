@@ -1,6 +1,6 @@
-From 7b4dbb0b899b03d307376d40ba93da7c12297bdd Mon Sep 17 00:00:00 2001
+From d77693e2f552576d8e8c1af6a5de9684101fcc3f Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Fri, 4 Aug 2017 12:17:19 +0200
+Date: Sun, 15 Apr 2018 14:52:47 +0200
 Subject: [PATCH] Roll in Branding Change in the SPEC
 
 ---
@@ -8,19 +8,19 @@ Subject: [PATCH] Roll in Branding Change in the SPEC
  1 file changed, 5 insertions(+), 2 deletions(-)
 
 diff --git a/SPECS/plymouth.spec b/SPECS/plymouth.spec
-index b25886f..82592dc 100644
+index 4519c49..ae06c26 100644
 --- a/SPECS/plymouth.spec
 +++ b/SPECS/plymouth.spec
 @@ -7,7 +7,7 @@
  Summary: Graphical Boot Animation and Logger
  Name: plymouth
  Version: 0.8.9
--Release: 0.28.20140113%{?dist}
-+Release: 0.28.20140113%{?dist}.redsleeve
+-Release: 0.31.20140113%{?dist}
++Release: 0.31.20140113%{?dist}.redsleeve
  License: GPLv2+
  Group: System Environment/Base
  Source0: http://freedesktop.org/software/plymouth/releases/%{name}-%{version}.tar.bz2
-@@ -236,7 +236,7 @@ Provides: plymouth(system-theme) = %{version}-%{release}
+@@ -238,7 +238,7 @@ Provides: plymouth(system-theme) = %{version}-%{release}
  
  %description theme-charge
  This package contains the "charge" boot splash theme for
@@ -29,14 +29,14 @@ index b25886f..82592dc 100644
  
  %package plugin-script
  Summary: Plymouth "script" plugin
-@@ -562,6 +562,9 @@ fi
+@@ -498,6 +498,9 @@ fi
  %defattr(-, root, root)
  
  %changelog
-+* Fri Aug 04 2017 Jacco Ligthart <jacco@redsleeve.org> 0.8.9-0.28.20140113.el7.redsleeve
++* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.org> 0.8.9-0.31.20140113.el7.redsleeve
 +- Roll in Branding Change in the SPEC
 +
- * Mon Jul 31 2017 CentOS Sources <bugs@centos.org> - 0.8.9-0.28.20140113.el7.centos
+ * Tue Apr 10 2018 CentOS Sources <bugs@centos.org> - 0.8.9-0.31.20140113.el7.centos
  - Roll in Branding Change in the SPEC
  
 -- 
