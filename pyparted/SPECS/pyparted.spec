@@ -2,7 +2,7 @@ Summary: Python module for GNU parted
 Name:    pyparted
 Epoch:   1
 Version: 3.9
-Release: 15%{?dist}
+Release: 15%{?dist}.redsleeve
 License: GPLv2+
 Group:   System Environment/Libraries
 URL:     https://github.com/dcantrell/pyparted
@@ -22,6 +22,8 @@ Patch11: 0006-Remember-to-pass-the-arguments-to-the-exception-hand.patch
 Patch12: 0007-Put-new-_ped-constants-and-functions-into-the-parted.patch
 Patch13: pyparted-3.9-null-dereference.patch
 Patch14: pyparted-3.9-clang-warning.patch
+
+Patch10001: pyparted-3.9-arm.patch
 
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(id -u -n)
 BuildRequires: python-devel
@@ -55,6 +57,8 @@ partition tables.
 %patch13 -p 1
 %patch14 -p 1
 
+%patch10001 -p 1
+
 %build
 make %{?_smp_mflags}
 
@@ -76,6 +80,9 @@ rm -rf %{buildroot}
 %{python_sitearch}/%{name}-%{version}-*.egg-info
 
 %changelog
+* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.org> 1:3.9-15.redsleeve
+- added a patch to build (and test) on arm
+
 * Fri Jan 12 2018 David Cantrell <dcantrell@redhat.com> - 1:3.9-15
 - Fix a number Coverity bugs in the _ped module source
   Resolves: rhbz#1534014
