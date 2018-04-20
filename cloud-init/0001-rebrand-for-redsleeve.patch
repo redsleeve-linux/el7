@@ -1,6 +1,6 @@
-From 8580ce2af83c99c680b8464f072ce2fa8e278f03 Mon Sep 17 00:00:00 2001
+From b6f85a80d00dd148a4f0b1cca11ac8febf5ad438 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Wed, 21 Mar 2018 21:56:26 +0100
+Date: Sun, 15 Apr 2018 14:00:53 +0200
 Subject: [PATCH] rebrand for redsleeve
 
 ---
@@ -73,35 +73,35 @@ index 675df1c..e0df9f4 100644
      gecos: Cloud User
      groups: [wheel, adm, systemd-journal]
 diff --git a/SPECS/cloud-init.spec b/SPECS/cloud-init.spec
-index 6db5679..0ea9133 100644
+index b5712d1..34b592c 100644
 --- a/SPECS/cloud-init.spec
 +++ b/SPECS/cloud-init.spec
 @@ -7,7 +7,7 @@
  
  Name:           cloud-init
  Version:        0.7.9
--Release:        9%{?dist}.6
-+Release:        9%{?dist}.6.redsleeve
+-Release:        24%{?dist}
++Release:        24%{?dist}.redsleeve
  Summary:        Cloud instance init scripts
  
  Group:          System Environment/Base
-@@ -55,7 +55,7 @@ Patch0030: 0030-Render-the-GATEWAY-value-in-interface-files-which-ha.patch
- Patch0031: 0031-sysconfig-Don-t-write-BOOTPROTO-dhcp-for-ipv6-dhcp.patch
- Patch0032: 0032-sysconfig-Render-IPV6_DEFAULTGW-correctly.patch
- Patch0033: 0033-sysconfig-Render-DNS-and-DOMAIN.patch
+@@ -62,7 +62,7 @@ Patch0036: 0036-sysconfig-Don-t-write-BOOTPROTO-dhcp-for-ipv6-dhcp.patch
+ Patch0037: 0037-sysconfig-Fix-traceback.patch
+ Patch0038: 0038-Fix-bug-that-resulted-in-an-attempt-to-rename-bonds.patch
+ Patch0039: 0039-azure-Fix-publishing-of-hostname.patch
 -Patch9999: cloud-init-add-centos-os.patch
 +Patch9999: cloud-init-add-redsleeve-os.patch
  
  # Deal with noarch -> arch
  # https://bugzilla.redhat.com/show_bug.cgi?id=1067089
-@@ -191,6 +191,9 @@ fi
+@@ -212,6 +212,9 @@ fi
  %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
  
  %changelog
-+* Wed Mar 21 2018 Jacco Ligthart <jacco@redsleeve.org 0.7.9-9.el7.6.redsleeve
++* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.org 0.7.9-24.el7.redsleeve
 +- rebrand for redsleeve
 +
- * Wed Mar  7 2018 Johnny Hughes <johnny@centos.org> 0.7.9-9.6
+ * Wed Apr 11 2018 Johnny Hughes <johnny@centos.org> 0.7.9-24
  - Manual CentOS Debranding
  
 -- 

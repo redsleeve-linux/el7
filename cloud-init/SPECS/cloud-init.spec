@@ -7,7 +7,7 @@
 
 Name:           cloud-init
 Version:        0.7.9
-Release:        24%{?dist}
+Release:        24%{?dist}.redsleeve
 Summary:        Cloud instance init scripts
 
 Group:          System Environment/Base
@@ -62,7 +62,7 @@ Patch0036: 0036-sysconfig-Don-t-write-BOOTPROTO-dhcp-for-ipv6-dhcp.patch
 Patch0037: 0037-sysconfig-Fix-traceback.patch
 Patch0038: 0038-Fix-bug-that-resulted-in-an-attempt-to-rename-bonds.patch
 Patch0039: 0039-azure-Fix-publishing-of-hostname.patch
-Patch9999: cloud-init-add-centos-os.patch
+Patch9999: cloud-init-add-redsleeve-os.patch
 
 # Deal with noarch -> arch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1067089
@@ -212,6 +212,9 @@ fi
 %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
 
 %changelog
+* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.org 0.7.9-24.el7.redsleeve
+- rebrand for redsleeve
+
 * Wed Apr 11 2018 Johnny Hughes <johnny@centos.org> 0.7.9-24
 - Manual CentOS Debranding
 
