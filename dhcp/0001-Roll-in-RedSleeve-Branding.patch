@@ -1,6 +1,6 @@
-From abf6bb85300f54b2d8057afdfe32225ec05059ba Mon Sep 17 00:00:00 2001
+From 47d61d106750c5c12cdca40c26d7e5a54ae28e40 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Tue, 13 Mar 2018 19:58:55 +0100
+Date: Sun, 15 Apr 2018 14:10:15 +0200
 Subject: [PATCH] Roll in RedSleeve Branding
 
 ---
@@ -30,35 +30,35 @@ index 0000000..cc034f5
 +   log_error ("exiting.");
 + #endif
 diff --git a/SPECS/dhcp.spec b/SPECS/dhcp.spec
-index de80f84..9e80452 100644
+index 754a31a..73d26ac 100644
 --- a/SPECS/dhcp.spec
 +++ b/SPECS/dhcp.spec
 @@ -18,7 +18,7 @@
  Summary:  Dynamic host configuration protocol software
  Name:     dhcp
  Version:  4.2.5
--Release:  58%{?dist}.3
-+Release:  58%{?dist}.3.redsleeve
+-Release:  68%{?dist}
++Release:  68%{?dist}.redsleeve
  # NEVER CHANGE THE EPOCH on this package.  The previous maintainer (prior to
  # dcantrell maintaining the package) made incorrect use of the epoch and
  # that's why it is at 12 now.  It should have never been used, but it was.
-@@ -102,7 +102,7 @@ Patch64:  dhcp-4.2.5-reap_orphan_sockets.patch
- Patch65:  dhcp-4.2.5-options_overflow.patch
+@@ -108,7 +108,7 @@ Patch68:  dhcp-4.2.5-reap_orphan_sockets.patch
+ Patch69:  dhcp-4.2.5-options_overflow.patch
  # CVE-2018-5733
- Patch66:  dhcp-4.2.5-reference_count_overflow.patch
--Patch67:  dhcp-4.2.5-centos-branding.patch
-+Patch67:  dhcp-4.2.5-redsleeve-branding.patch
+ Patch70:  dhcp-4.2.5-reference_count_overflow.patch
+-Patch71:  dhcp-4.2.5-centos-branding.patch
++Patch71:  dhcp-4.2.5-redsleeve-branding.patch
+ 
  
  BuildRequires: autoconf
- BuildRequires: automake
-@@ -699,6 +699,9 @@ done
+@@ -719,6 +719,9 @@ done
  
  
  %changelog
-+* Tue Mar 13 2018 Jacco Ligthart <jacco@redsleeve.org> - 4.2.5-58.el7.3.redsleeve
++* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.org> - 4.2.5-68.el7.redsleeve
 +- Roll in RedSleeve Branding
 +
- * Mon Mar 12 2018 CentOS Sources <bugs@centos.org> - 4.2.5-58.el7.centos.3
+ * Tue Apr 10 2018 CentOS Sources <bugs@centos.org> - 4.2.5-68.el7.centos
  - Roll in CentOS Branding
  
 -- 
