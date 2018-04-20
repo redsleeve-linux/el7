@@ -106,7 +106,7 @@ Summary: An interpreted, interactive, object-oriented programming language
 Name: %{python}
 # Remember to also rebase python-docs when changing this:
 Version: 2.7.5
-Release: 68%{?dist}
+Release: 68%{?dist}.redsleeve
 License: Python
 Group: Development/Languages
 Requires: %{python}-libs%{?_isa} = %{version}-%{release}
@@ -1253,6 +1253,9 @@ Patch296: 00296-Readd-the-private-_set_hostport-api-to-httplib.patch
 # above:
 Patch5000: 05000-autotool-intermediates.patch
 
+Patch6001: python-2.7.5-Fix-re-engine-redsleeve.patch
+Patch6002: python-2.7.5-Fix-re-engine2-redsleeve.patch
+
 # ======================================================
 # Additional metadata, and subpackages
 # ======================================================
@@ -1663,6 +1666,8 @@ find -name "*~" |xargs rm -f
 %patch5000 -p0 -b .autotool-intermediates
 %endif
 
+%patch6001 -p1
+%patch6002 -p1
 
 # ======================================================
 # Configuring and building the code:
@@ -2525,6 +2530,13 @@ rm -fr %{buildroot}
 # ======================================================
 
 %changelog
+* Sun Apr 15 2018 Jacco Ligthart <jacco@ligthart.nu> - 2.7.5-68.redsleeve
+- Issue #17998: Fix an internal error in regular expression engine.
+- https://github.com/OpenSCAP/scap-security-guide/issues/1332
+- https://bugs.python.org/issue17998
+- and related issues #18684
+- https://bugs.python.org/issue18684
+
 * Mon Feb 19 2018 Tomas Orsava <torsava@redhat.com> - 2.7.5-68
 - Add Conflicts tag with old virtualenv versions due to new behaviour of
   httplib (patch 295)
