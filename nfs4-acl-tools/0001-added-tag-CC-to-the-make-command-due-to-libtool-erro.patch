@@ -1,6 +1,6 @@
-From 371366a9c8dd9bcd84221cd3de7c39e58e505ba6 Mon Sep 17 00:00:00 2001
+From 8752bfc30590e4b75a97ac175c96cb71a2cb58f0 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Tue, 13 Dec 2016 21:53:49 +0100
+Date: Sun, 15 Apr 2018 14:38:32 +0200
 Subject: [PATCH] added "--tag=CC" to the make command due to libtool errors
 
 ---
@@ -28,18 +28,18 @@ index 0000000..ecb6e1b
 + 
 + ENABLE_SHARED = @enable_shared@
 diff --git a/SPECS/nfs4-acl-tools.spec b/SPECS/nfs4-acl-tools.spec
-index f44dbf2..d2246ce 100644
+index d009fdf..4ded239 100644
 --- a/SPECS/nfs4-acl-tools.spec
 +++ b/SPECS/nfs4-acl-tools.spec
 @@ -1,6 +1,6 @@
  Name:           nfs4-acl-tools
  Version:        0.3.3
--Release:        15%{?dist}
-+Release:        15%{?dist}.redsleeve
+-Release:        17%{?dist}
++Release:        17%{?dist}.redsleeve
  Summary:        The nfs4 ACL tools
  Group:          Applications/System
  License:        BSD
-@@ -24,6 +24,8 @@ Patch006: nfs4-acl-tools-0.3.3-fd-leak.patch
+@@ -28,6 +28,8 @@ Patch007: nfs4-acl-tools-0.3.3-manpage-acls.patch
  
  Patch100: nfs4acl-0.2.0-compile.patch
  
@@ -48,7 +48,7 @@ index f44dbf2..d2246ce 100644
  %description
  This package contains commandline and GUI ACL utilities for the Linux
  NFSv4 client.
-@@ -43,6 +45,8 @@ NFSv4 client.
+@@ -49,6 +51,8 @@ NFSv4 client.
  
  %patch100 -p1
  
@@ -57,16 +57,16 @@ index f44dbf2..d2246ce 100644
  %build
  %ifarch s390 s390x sparc
  PIE="-fPIE"
-@@ -75,6 +79,9 @@ rm -rf %{buildroot}
+@@ -82,6 +86,9 @@ rm -rf %{buildroot}
  %{_mandir}/man5/*
  
  %changelog
-+* Fri Nov 04 2016 Jacco Ligthart <jacco@redsleeve.org> - 0.3.3-15.redsleeve
++* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.org> - 0.3.3-17.redsleeve
 +- added "--tag=CC" to the make command due to libtool errors
 +
- * Tue Apr  5 2016 Steve Dickson <steved@redhat.com> 0.3.3-15
- - Allow spaces in group principal names (bz 1284597)
- - Fixed FD leak in edit_ACL() (bz 1284608)
+ * Tue Dec 12 2016 Steve Dickson <steved@redhat.com> 0.3.3-17
+ - Describe how the Linux server handles inheritable acls (bz 1493905)
+ 
 -- 
 1.8.3.1
 
