@@ -1,7 +1,7 @@
 Summary: CentOS specific rpm configuration files
 Name: redhat-rpm-config
 Version: 9.1.0
-Release: 80%{?dist}
+Release: 80%{?dist}.redsleeve
 # No version specified.
 License: GPL+
 Group: Development/System
@@ -120,7 +120,7 @@ Requires: zip
 Provides: system-rpm-config = %{version}-%{release}
 
 %description
-CentOS specific rpm configuration files.
+RedSleeve specific rpm configuration files.
 
 %prep
 %setup -q
@@ -199,6 +199,9 @@ rm -rf ${RPM_BUILD_ROOT}
 %{_sysconfdir}/rpm/*
 
 %changelog
+* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.org> - 9.1.0-80.el7.redsleeve
+- rebrand SPEC file
+
 * Tue Apr 10 2018 CentOS Sources <bugs@centos.org> - 9.1.0-80.el7.centos
 - update check_rhl function in dist.sh
 

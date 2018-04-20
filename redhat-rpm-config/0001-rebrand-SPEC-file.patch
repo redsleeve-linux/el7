@@ -1,6 +1,6 @@
-From 60bb6b1e2567c579aa4fd80db6cbbc448d7ca4a3 Mon Sep 17 00:00:00 2001
+From 48fcea92c8a75189a8331ce3d2ac250242880126 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Fri, 4 Aug 2017 13:30:30 +0200
+Date: Sun, 15 Apr 2018 15:37:39 +0200
 Subject: [PATCH] rebrand SPEC file
 
 ---
@@ -8,19 +8,19 @@ Subject: [PATCH] rebrand SPEC file
  1 file changed, 5 insertions(+), 2 deletions(-)
 
 diff --git a/SPECS/redhat-rpm-config.spec b/SPECS/redhat-rpm-config.spec
-index 1f887ab..b9f65b2 100644
+index 0fcf8d1..5715c76 100644
 --- a/SPECS/redhat-rpm-config.spec
 +++ b/SPECS/redhat-rpm-config.spec
 @@ -1,7 +1,7 @@
  Summary: CentOS specific rpm configuration files
  Name: redhat-rpm-config
  Version: 9.1.0
--Release: 76%{?dist}
-+Release: 76%{?dist}.redsleeve
+-Release: 80%{?dist}
++Release: 80%{?dist}.redsleeve
  # No version specified.
  License: GPL+
  Group: Development/System
-@@ -110,7 +110,7 @@ Requires: zip
+@@ -120,7 +120,7 @@ Requires: zip
  Provides: system-rpm-config = %{version}-%{release}
  
  %description
@@ -29,14 +29,14 @@ index 1f887ab..b9f65b2 100644
  
  %prep
  %setup -q
-@@ -185,6 +185,9 @@ rm -rf ${RPM_BUILD_ROOT}
+@@ -199,6 +199,9 @@ rm -rf ${RPM_BUILD_ROOT}
  %{_sysconfdir}/rpm/*
  
  %changelog
-+* Fri Aug 04 2017 Jacco Ligthart <jacco@redsleeve.org> - 9.1.0-76.el7.redsleeve
++* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.org> - 9.1.0-80.el7.redsleeve
 +- rebrand SPEC file
 +
- * Mon Jul 31 2017 CentOS Sources <bugs@centos.org> - 9.1.0-76.el7.centos
+ * Tue Apr 10 2018 CentOS Sources <bugs@centos.org> - 9.1.0-80.el7.centos
  - update check_rhl function in dist.sh
  
 -- 
