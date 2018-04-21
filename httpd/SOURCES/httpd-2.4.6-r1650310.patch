@@ -1,0 +1,132 @@
+diff --git a/docs/manual/mod/mod_ssl.html.en b/docs/manual/mod/mod_ssl.html.en
+index ca178ab..4580f1c 100644
+--- a/docs/manual/mod/mod_ssl.html.en
++++ b/docs/manual/mod/mod_ssl.html.en
+@@ -57,6 +57,7 @@ to provide the cryptography engine.</p>
+ <li><img alt="" src="../images/down.gif" /> <a href="#sslcertificatekeyfile">SSLCertificateKeyFile</a></li>
+ <li><img alt="" src="../images/down.gif" /> <a href="#sslciphersuite">SSLCipherSuite</a></li>
+ <li><img alt="" src="../images/down.gif" /> <a href="#sslcompression">SSLCompression</a></li>
++<li><img alt="" src="../images/down.gif" /> <a href="#sslsessiontickets">SSLSessionTickets</a></li>
+ <li><img alt="" src="../images/down.gif" /> <a href="#sslcryptodevice">SSLCryptoDevice</a></li>
+ <li><img alt="" src="../images/down.gif" /> <a href="#sslengine">SSLEngine</a></li>
+ <li><img alt="" src="../images/down.gif" /> <a href="#sslfips">SSLFIPS</a></li>
+@@ -797,6 +798,26 @@ CRIME attack).</p>
+ </div>
+ 
+ </div>
++
++<div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
++<div class="directive-section"><h2><a name="SSLSessionTickets" id="SSLSessionTickets">SSLSessionTickets</a> <a name="sslsessiontickets" id="sslsessiontickets">Directive</a></h2>
++<table class="directive">
++<tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Enable or disable use of TLS session tickets</td></tr>
++<tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>SSLSessionTickets on|off</code></td></tr>
++<tr><th><a href="directive-dict.html#Default">Default:</a></th><td><code>SSLCompression on</code></td></tr>
++<tr><th><a href="directive-dict.html#Context">Context:</a></th><td>server config, virtual host</td></tr>
++<tr><th><a href="directive-dict.html#Status">Status:</a></th><td>Extension</td></tr>
++<tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_ssl</td></tr>
++<tr><th><a href="directive-dict.html#Compatibility">Compatibility:</a></th><td>Available.</td></tr>
++</table>
++<p>This directive allows to enable or disable the use of TLS session tickets(RFC 5077).</p>
++<div class="warning">
++<p>TLS session tickets are enabled by default. Using them without restarting
++the web server with an appropriate frequency (e.g. daily) compromises perfect
++forward secrecy.</p>
++</div>
++
++</div>
+ <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
+ <div class="directive-section"><h2><a name="SSLCryptoDevice" id="SSLCryptoDevice">SSLCryptoDevice</a> <a name="sslcryptodevice" id="sslcryptodevice">Directive</a></h2>
+ <table class="directive">
+diff --git a/modules/ssl/mod_ssl.c b/modules/ssl/mod_ssl.c
+index bbe1d20..4a8b661 100644
+--- a/modules/ssl/mod_ssl.c
++++ b/modules/ssl/mod_ssl.c
+@@ -141,6 +141,9 @@ static const command_rec ssl_config_cmds[] = {
+     SSL_CMD_SRV(Compression, FLAG,
+                 "Enable SSL level compression"
+                 "(`on', `off')")
++    SSL_CMD_SRV(SessionTickets, FLAG,
++                "Enable or disable TLS session tickets"
++                "(`on', `off')")
+     SSL_CMD_SRV(InsecureRenegotiation, FLAG,
+                 "Enable support for insecure renegotiation")
+     SSL_CMD_ALL(UserName, TAKE1,
+diff --git a/modules/ssl/ssl_engine_config.c b/modules/ssl/ssl_engine_config.c
+index 9530fcc..86a7f0f 100644
+--- a/modules/ssl/ssl_engine_config.c
++++ b/modules/ssl/ssl_engine_config.c
+@@ -216,6 +216,7 @@ static SSLSrvConfigRec *ssl_config_server_new(apr_pool_t *p)
+ #ifndef OPENSSL_NO_COMP
+     sc->compression            = UNSET;
+ #endif
++    sc->session_tickets        = UNSET;
+ 
+     modssl_ctx_init_proxy(sc, p);
+ 
+@@ -346,6 +347,7 @@ void *ssl_config_server_merge(apr_pool_t *p, void *basev, void *addv)
+ #ifndef OPENSSL_NO_COMP
+     cfgMergeBool(compression);
+ #endif
++    cfgMergeBool(session_tickets);
+ 
+     modssl_ctx_cfg_merge_proxy(base->proxy, add->proxy, mrg->proxy);
+ 
+@@ -720,6 +722,17 @@ const char *ssl_cmd_SSLHonorCipherOrder(cmd_parms *cmd, void *dcfg, int flag)
+ #endif
+ }
+ 
++const char *ssl_cmd_SSLSessionTickets(cmd_parms *cmd, void *dcfg, int flag)
++{
++    SSLSrvConfigRec *sc = mySrvConfig(cmd->server);
++#ifndef SSL_OP_NO_TICKET
++    return "This version of OpenSSL does not support using "
++           "SSLSessionTickets.";
++#endif
++    sc->session_tickets = flag ? TRUE : FALSE;
++    return NULL;
++}
++
+ const char *ssl_cmd_SSLInsecureRenegotiation(cmd_parms *cmd, void *dcfg, int flag)
+ {
+ #ifdef SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION
+diff --git a/modules/ssl/ssl_engine_init.c b/modules/ssl/ssl_engine_init.c
+index 568627f..672760c 100644
+--- a/modules/ssl/ssl_engine_init.c
++++ b/modules/ssl/ssl_engine_init.c
+@@ -566,6 +566,16 @@ static void ssl_init_ctx_protocol(server_rec *s,
+     }
+ #endif
+ 
++#ifdef SSL_OP_NO_TICKET
++    /*
++     * Configure using RFC 5077 TLS session tickets
++     * for session resumption.
++     */
++    if (sc->session_tickets == FALSE) {
++        SSL_CTX_set_options(ctx, SSL_OP_NO_TICKET);
++    }
++#endif
++
+ #ifdef SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION
+     if (sc->insecure_reneg == TRUE) {
+         SSL_CTX_set_options(ctx, SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION);
+diff --git a/modules/ssl/ssl_private.h b/modules/ssl/ssl_private.h
+index 0cc6d3f..b601316 100644
+--- a/modules/ssl/ssl_private.h
++++ b/modules/ssl/ssl_private.h
+@@ -701,6 +701,7 @@ struct SSLSrvConfigRec {
+ #ifndef OPENSSL_NO_COMP
+     BOOL             compression;
+ #endif
++    BOOL             session_tickets;
+ };
+ 
+ /**
+@@ -756,6 +757,7 @@ const char  *ssl_cmd_SSLCARevocationFile(cmd_parms *, void *, const char *);
+ const char  *ssl_cmd_SSLCARevocationCheck(cmd_parms *, void *, const char *);
+ const char  *ssl_cmd_SSLHonorCipherOrder(cmd_parms *cmd, void *dcfg, int flag);
+ const char  *ssl_cmd_SSLCompression(cmd_parms *, void *, int flag);
++const char  *ssl_cmd_SSLSessionTickets(cmd_parms *, void *, int flag);
+ const char  *ssl_cmd_SSLVerifyClient(cmd_parms *, void *, const char *);
+ const char  *ssl_cmd_SSLVerifyDepth(cmd_parms *, void *, const char *);
+ const char  *ssl_cmd_SSLSessionCache(cmd_parms *, void *, const char *);

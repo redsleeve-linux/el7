@@ -1,0 +1,156 @@
+diff --git a/docs/manual/mod/mod_ssl.html.en b/docs/manual/mod/mod_ssl.html.en
+index 98540cd..4580f1c 100644
+--- a/docs/manual/mod/mod_ssl.html.en
++++ b/docs/manual/mod/mod_ssl.html.en
+@@ -197,6 +197,12 @@ the <code class="directive"><a href="#ssloptions">SSLOptions</a></code> directiv
+ first (or only) attribute of any DN is added only under a non-suffixed
+ name; i.e. no <code>_0</code> suffixed entries are added.</p>
+ 
++<p>The <em>_RAW</em> suffix may now be added to mod_ssl DN variable names
++(such as SSL_CLIENT_I_O_RAW). When this suffix is used, conversion
++of certificate name attributes to UTF-8 is omitted. This allows variable
++lookups and comparisons for certificates with incorrectly tagged name
++attributes.</p>
++
+ <p>The format of the <em>*_DN</em> variables has changed in Apache HTTPD
+ 2.3.11. See the <code>LegacyDNStringFormat</code> option for
+ <code class="directive"><a href="#ssloptions">SSLOptions</a></code> for details.</p>
+@@ -861,7 +867,7 @@ SSLEngine on
+ &lt;/VirtualHost&gt;
+ </pre>
+ </div>
+-<p>In Apache 2.1 and later, <code class="directive">SSLEngine</code> can be set to
++<p>In httpd 2.2.0 and later, <code class="directive">SSLEngine</code> can be set to
+ <code>optional</code>. This enables support for
+ <a href="http://www.ietf.org/rfc/rfc2817.txt">RFC 2817</a>, Upgrading to TLS
+ Within HTTP/1.1. At this time no web browsers support RFC 2817.</p>
+diff --git a/modules/ssl/ssl_engine_vars.c b/modules/ssl/ssl_engine_vars.c
+index 2b7c9ba..e25a6d4 100644
+--- a/modules/ssl/ssl_engine_vars.c
++++ b/modules/ssl/ssl_engine_vars.c
+@@ -41,7 +41,7 @@
+ 
+ static char *ssl_var_lookup_ssl(apr_pool_t *p, conn_rec *c, request_rec *r, char *var);
+ static char *ssl_var_lookup_ssl_cert(apr_pool_t *p, request_rec *r, X509 *xs, char *var);
+-static char *ssl_var_lookup_ssl_cert_dn(apr_pool_t *p, X509_NAME *xsname, char *var);
++static char *ssl_var_lookup_ssl_cert_dn(apr_pool_t *p, X509_NAME *xsname, const char *var);
+ static char *ssl_var_lookup_ssl_cert_san(apr_pool_t *p, X509 *xs, char *var);
+ static char *ssl_var_lookup_ssl_cert_valid(apr_pool_t *p, ASN1_TIME *tm);
+ static char *ssl_var_lookup_ssl_cert_remain(apr_pool_t *p, ASN1_TIME *tm);
+@@ -562,15 +562,23 @@ static const struct {
+     { NULL,    0,                          0 }
+ };
+ 
+-static char *ssl_var_lookup_ssl_cert_dn(apr_pool_t *p, X509_NAME *xsname, char *var)
++static char *ssl_var_lookup_ssl_cert_dn(apr_pool_t *p, X509_NAME *xsname,
++                                        const char *var)
+ {
+-    char *result, *ptr;
++    const char *ptr;
++    char *result;
+     X509_NAME_ENTRY *xsne;
+-    int i, j, n, idx = 0;
++    int i, j, n, idx = 0, raw = 0;
+     apr_size_t varlen;
+ 
++    ptr = ap_strrchr_c(var, '_');
++    if (ptr && ptr > var && strcmp(ptr + 1, "RAW") == 0) {
++        var = apr_pstrmemdup(p, var, ptr - var);
++        raw = 1;
++    }
++
+     /* if an _N suffix is used, find the Nth attribute of given name */
+-    ptr = strchr(var, '_');
++    ptr = ap_strchr_c(var, '_');
+     if (ptr != NULL && strspn(ptr + 1, "0123456789") == strlen(ptr + 1)) {
+         idx = atoi(ptr + 1);
+         varlen = ptr - var;
+@@ -592,7 +600,7 @@ static char *ssl_var_lookup_ssl_cert_dn(apr_pool_t *p, X509_NAME *xsname, char *
+                 n =OBJ_obj2nid((ASN1_OBJECT *)X509_NAME_ENTRY_get_object(xsne));
+ 
+                 if (n == ssl_var_lookup_ssl_cert_dn_rec[i].nid && idx-- == 0) {
+-                    result = SSL_X509_NAME_ENTRY_to_string(p, xsne);
++                    result = SSL_X509_NAME_ENTRY_to_string(p, xsne, raw);
+                     break;
+                 }
+             }
+@@ -897,7 +905,7 @@ static void extract_dn(apr_table_t *t, apr_hash_t *nids, const char *pfx,
+                  apr_hash_set(count, &nid, sizeof nid, dup);
+                  key = apr_pstrcat(p, pfx, tag, NULL);
+              }
+-             value = SSL_X509_NAME_ENTRY_to_string(p, xsne);
++             value = SSL_X509_NAME_ENTRY_to_string(p, xsne, 0);
+              apr_table_setn(t, key, value);
+          }
+     }
+diff --git a/modules/ssl/ssl_util_ssl.c b/modules/ssl/ssl_util_ssl.c
+index 09a9877..fbd701f 100644
+--- a/modules/ssl/ssl_util_ssl.c
++++ b/modules/ssl/ssl_util_ssl.c
+@@ -236,18 +236,21 @@ BOOL SSL_X509_getBC(X509 *cert, int *ca, int *pathlen)
+     return TRUE;
+ }
+ 
+-/* convert an ASN.1 string to a UTF-8 string (escaping control characters) */
+-char *SSL_ASN1_STRING_to_utf8(apr_pool_t *p, ASN1_STRING *asn1str)
++/* Convert ASN.1 string to a pool-allocated char * string, escaping
++ * control characters.  If raw is zero, convert to UTF-8, otherwise
++ * unchanged from the character set. */
++char *SSL_ASN1_STRING_convert(apr_pool_t *p, ASN1_STRING *asn1str, int raw)
+ {
+     char *result = NULL;
+     BIO *bio;
+-    int len;
++    int len, flags = ASN1_STRFLGS_ESC_CTRL;
+ 
+     if ((bio = BIO_new(BIO_s_mem())) == NULL)
+         return NULL;
+ 
+-    ASN1_STRING_print_ex(bio, asn1str, ASN1_STRFLGS_ESC_CTRL|
+-                                       ASN1_STRFLGS_UTF8_CONVERT);
++    if (!raw) flags |= ASN1_STRFLGS_UTF8_CONVERT;
++
++    ASN1_STRING_print_ex(bio, asn1str, flags);
+     len = BIO_pending(bio);
+     if (len > 0) {
+         result = apr_palloc(p, len+1);
+@@ -258,10 +261,13 @@ char *SSL_ASN1_STRING_to_utf8(apr_pool_t *p, ASN1_STRING *asn1str)
+     return result;
+ }
+ 
++#define SSL_ASN1_STRING_to_utf8(p, a) SSL_ASN1_STRING_convert(p, a, 0)
++
+ /* convert a NAME_ENTRY to UTF8 string */
+-char *SSL_X509_NAME_ENTRY_to_string(apr_pool_t *p, X509_NAME_ENTRY *xsne)
++char *SSL_X509_NAME_ENTRY_to_string(apr_pool_t *p, X509_NAME_ENTRY *xsne,
++                                    int raw) 
+ {
+-    char *result = SSL_ASN1_STRING_to_utf8(p, X509_NAME_ENTRY_get_data(xsne));
++    char *result = SSL_ASN1_STRING_convert(p, X509_NAME_ENTRY_get_data(xsne), raw);
+     ap_xlate_proto_from_ascii(result, len);
+     return result;
+ }
+@@ -414,7 +420,7 @@ BOOL SSL_X509_getIDs(apr_pool_t *p, X509 *x509, apr_array_header_t **ids)
+     subj = X509_get_subject_name(x509);
+     while ((i = X509_NAME_get_index_by_NID(subj, NID_commonName, i)) != -1) {
+         APR_ARRAY_PUSH(*ids, const char *) = 
+-            SSL_X509_NAME_ENTRY_to_string(p, X509_NAME_get_entry(subj, i));
++            SSL_X509_NAME_ENTRY_to_string(p, X509_NAME_get_entry(subj, i), 0);
+     }
+ 
+     return apr_is_empty_array(*ids) ? FALSE : TRUE;
+diff --git a/modules/ssl/ssl_util_ssl.h b/modules/ssl/ssl_util_ssl.h
+index be07ab7..611957e 100644
+--- a/modules/ssl/ssl_util_ssl.h
++++ b/modules/ssl/ssl_util_ssl.h
+@@ -65,8 +65,8 @@ EVP_PKEY   *SSL_read_PrivateKey(char *, EVP_PKEY **, pem_password_cb *, void *);
+ int         SSL_smart_shutdown(SSL *ssl);
+ BOOL        SSL_X509_isSGC(X509 *);
+ BOOL        SSL_X509_getBC(X509 *, int *, int *);
+-char       *SSL_ASN1_STRING_to_utf8(apr_pool_t *, ASN1_STRING *);
+-char       *SSL_X509_NAME_ENTRY_to_string(apr_pool_t *p, X509_NAME_ENTRY *xsne);
++char       *SSL_ASN1_STRING_to_utf8(apr_pool_t *, ASN1_STRING *, int raw);
++char       *SSL_X509_NAME_ENTRY_to_string(apr_pool_t *p, X509_NAME_ENTRY *xsne, int raw);
+ char       *SSL_X509_NAME_to_string(apr_pool_t *, X509_NAME *, int);
+ BOOL        SSL_X509_getSAN(apr_pool_t *, X509 *, int, const char *, int, apr_array_header_t **);
+ BOOL        SSL_X509_getIDs(apr_pool_t *, X509 *, apr_array_header_t **);

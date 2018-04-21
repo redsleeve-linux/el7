@@ -1,0 +1,67 @@
+diff --git a/server/scoreboard.c b/server/scoreboard.c
+index a2e5daf..f989b99 100644
+--- a/server/scoreboard.c
++++ b/server/scoreboard.c
+@@ -138,8 +138,6 @@ AP_DECLARE(int) ap_calc_scoreboard_size(void)
+     scoreboard_size += sizeof(process_score) * server_limit;
+     scoreboard_size += sizeof(worker_score) * server_limit * thread_limit;
+ 
+-    pfn_ap_logio_get_last_bytes = APR_RETRIEVE_OPTIONAL_FN(ap_logio_get_last_bytes);
+-
+     return scoreboard_size;
+ }
+ 
+@@ -148,6 +146,11 @@ AP_DECLARE(void) ap_init_scoreboard(void *shared_score)
+     char *more_storage;
+     int i;
+ 
++    pfn_ap_logio_get_last_bytes = APR_RETRIEVE_OPTIONAL_FN(ap_logio_get_last_bytes);
++    if (!shared_score) {
++        return;
++    }
++
+     ap_calc_scoreboard_size();
+     ap_scoreboard_image =
+         ap_calloc(1, sizeof(scoreboard) + server_limit * sizeof(worker_score *));
+@@ -299,8 +302,6 @@ int ap_create_scoreboard(apr_pool_t *p, ap_scoreboard_e sb_type)
+     apr_status_t rv;
+ #endif
+ 
+-    pfn_ap_logio_get_last_bytes = APR_RETRIEVE_OPTIONAL_FN(ap_logio_get_last_bytes);
+-
+     if (ap_scoreboard_image) {
+         ap_scoreboard_image->global->restart_time = apr_time_now();
+         memset(ap_scoreboard_image->parent, 0,
+@@ -309,6 +310,7 @@ int ap_create_scoreboard(apr_pool_t *p, ap_scoreboard_e sb_type)
+             memset(ap_scoreboard_image->servers[i], 0,
+                    sizeof(worker_score) * thread_limit);
+         }
++        ap_init_scoreboard(NULL);
+         return OK;
+     }
+ 
+diff --git a/server/core.c b/server/core.c
+index c125015..eaa81a6 100644
+--- a/server/core.c
++++ b/server/core.c
+@@ -4843,6 +4843,11 @@ static void core_child_init(apr_pool_t *pchild, server_rec *s)
+     apr_random_after_fork(&proc);
+ }
+ 
++static void core_optional_fn_retrieve(void)
++{
++    ap_init_scoreboard(NULL);
++}
++
+ AP_CORE_DECLARE(void) ap_random_parent_after_fork(void)
+ {
+     /*
+@@ -5022,6 +5027,8 @@ static void register_hooks(apr_pool_t *p)
+                                   APR_HOOK_REALLY_LAST);
+     ap_hook_dirwalk_stat(core_dirwalk_stat, NULL, NULL, APR_HOOK_REALLY_LAST);
+     ap_hook_open_htaccess(ap_open_htaccess, NULL, NULL, APR_HOOK_REALLY_LAST);
++    ap_hook_optional_fn_retrieve(core_optional_fn_retrieve, NULL, NULL,
++                                 APR_HOOK_MIDDLE);
+     
+     /* register the core's insert_filter hook and register core-provided
+      * filters

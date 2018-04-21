@@ -1,0 +1,46 @@
+diff --git a/modules/proxy/mod_proxy.c b/modules/proxy/mod_proxy.c
+index b10be15..506a046 100644
+--- a/modules/proxy/mod_proxy.c
++++ b/modules/proxy/mod_proxy.c
+@@ -1320,6 +1320,7 @@ static void *create_proxy_dir_config(apr_pool_t *p, char *dummy)
+     new->error_override = 0;
+     new->error_override_set = 0;
+     new->add_forwarded_headers = 1;
++    new->add_forwarded_headers_set = 0;
+ 
+     return (void *) new;
+ }
+@@ -1350,7 +1351,12 @@ static void *merge_proxy_dir_config(apr_pool_t *p, void *basev, void *addv)
+     new->error_override_set = add->error_override_set || base->error_override_set;
+     new->alias = (add->alias_set == 0) ? base->alias : add->alias;
+     new->alias_set = add->alias_set || base->alias_set;
+-    new->add_forwarded_headers = add->add_forwarded_headers;
++    new->add_forwarded_headers =
++        (add->add_forwarded_headers_set == 0) ? base->add_forwarded_headers
++        : add->add_forwarded_headers;
++    new->add_forwarded_headers_set = add->add_forwarded_headers_set
++        || base->add_forwarded_headers_set;
++
+     return new;
+ }
+ 
+@@ -1837,6 +1843,7 @@ static const char *
+ {
+    proxy_dir_conf *conf = dconf;
+    conf->add_forwarded_headers = flag;
++   conf->add_forwarded_headers_set = 1;
+    return NULL;
+ }
+ static const char *
+diff --git a/modules/proxy/mod_proxy.h b/modules/proxy/mod_proxy.h
+index 06f2b17..8c76d4c 100644
+--- a/modules/proxy/mod_proxy.h
++++ b/modules/proxy/mod_proxy.h
+@@ -219,6 +219,7 @@ typedef struct {
+     unsigned int error_override_set:1;
+     unsigned int alias_set:1;
+     unsigned int add_forwarded_headers:1;
++    unsigned int add_forwarded_headers_set:1;
+ } proxy_dir_conf;
+ 
+ /* if we interpolate env vars per-request, we'll need a per-request

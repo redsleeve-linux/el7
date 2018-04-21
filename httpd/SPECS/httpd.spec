@@ -15,10 +15,10 @@
 Summary: Apache HTTP Server
 Name: httpd
 Version: 2.4.6
-Release: 67%{?dist}.6.redsleeve
+Release: 80%{?dist}
 URL: http://httpd.apache.org/
 Source0: http://www.apache.org/dist/httpd/httpd-%{version}.tar.bz2
-Source1: index.html
+Source1: centos-noindex.tar.gz
 Source2: httpd.logrotate
 Source3: httpd.sysconf
 Source4: httpd-ssl-pass-dialog
@@ -154,8 +154,24 @@ Patch120: httpd-2.4.6-r1738878.patch
 Patch121: httpd-2.4.6-http-protocol-options-define.patch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1332242
 Patch122: httpd-2.4.6-statements-comment.patch
-# https://bugzilla.redhat.com/show_bug.cgi?id=1467402
+# https://bugzilla.redhat.com/show_bug.cgi?id=1451333
 Patch123: httpd-2.4.6-rotatelogs-zombie.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1368491
+Patch124: httpd-2.4.6-mod_authz_dbd-missing-query.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1288395
+Patch125: httpd-2.4.6-r1668532.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1499253
+Patch126: httpd-2.4.6-r1681289.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1430640
+Patch127: httpd-2.4.6-r1805099.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1448892
+Patch128: httpd-2.4.6-r1811831.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1464406
+Patch129: httpd-2.4.6-r1811746.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1440590
+Patch130: httpd-2.4.6-r1811976.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1506392
+Patch131: httpd-2.4.6-r1650310.patch
 
 # Security fixes
 Patch200: httpd-2.4.6-CVE-2013-6438.patch
@@ -383,6 +399,14 @@ rm modules/ssl/ssl_engine_dh.c
 %patch121 -p1 -b .httpprotdefine
 %patch122 -p1 -b .statement-comment
 %patch123 -p1 -b .logrotate-zombie
+%patch124 -p1 -b .modauthzdbd-segfault
+%patch125 -p1 -b .r1668532
+%patch126 -p1 -b .r1681289
+%patch127 -p1 -b .r1805099
+%patch128 -p1 -b .r1811831
+%patch129 -p1 -b .r1811746
+%patch130 -p1 -b .r1811976
+%patch131 -p1 -b .r1650310
 
 %patch200 -p1 -b .cve6438
 %patch201 -p1 -b .cve0098
@@ -558,8 +582,9 @@ EOF
 
 # Handle contentdir
 mkdir $RPM_BUILD_ROOT%{contentdir}/noindex
-install -m 644 -p $RPM_SOURCE_DIR/index.html \
-        $RPM_BUILD_ROOT%{contentdir}/noindex/index.html
+tar xzf $RPM_SOURCE_DIR/centos-noindex.tar.gz \
+        -C $RPM_BUILD_ROOT%{contentdir}/noindex/ \
+        --strip-components=1
 
 rm -rf %{contentdir}/htdocs
 
@@ -583,7 +608,7 @@ rm -v $RPM_BUILD_ROOT%{docroot}/html/*.html \
       $RPM_BUILD_ROOT%{docroot}/cgi-bin/*
 
 # Symlink for the powered-by-$DISTRO image:
-ln -s ../../pixmaps/poweredby.png \
+ln -s ../noindex/images/poweredby.png \
         $RPM_BUILD_ROOT%{contentdir}/icons/poweredby.png
 
 # symlinks for /etc/httpd
@@ -769,7 +794,7 @@ rm -rf $RPM_BUILD_ROOT
 %{contentdir}/error/README
 %{contentdir}/error/*.var
 %{contentdir}/error/include/*.html
-%{contentdir}/noindex/index.html
+%{contentdir}/noindex/*
 
 %dir %{docroot}
 %dir %{docroot}/cgi-bin
@@ -835,23 +860,54 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/rpm/macros.httpd
 
 %changelog
-* Sat Oct 21 2017 Jacco Ligthart <jacco@redsleeve.org> - 2.4.6-67.el7.6.redsleeve
-- roll in redsleeve branding, based on RHEL
-
-* Thu Oct 19 2017 CentOS Sources <bugs@centos.org> - 2.4.6-67.el7.centos.6
+* Tue Apr 10 2018 CentOS Sources <bugs@centos.org> - 2.4.6-80.el7.centos
 - Remove index.html, add centos-noindex.tar.gz
 - change vstring
 - change symlink for poweredby.png
 - update welcome.conf with proper aliases
 
-* Tue Oct 03 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-67.6
-- Resolves: #1498020 - rotatelogs: creation of zombie processes when -p is used
+* Mon Jan 08 2018 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-80
+- Related: #1288395 - httpd segfault when logrotate invoked
 
-* Tue Sep 19 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-67.5
-- Resolves: #1493064 - CVE-2017-9798 httpd: Use-after-free by limiting
+* Wed Nov 01 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-79
+- Resolves: #1274890 - mod_ssl config: tighten defaults
+
+* Tue Oct 31 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-78
+- Resolves: #1506392 - Backport: SSLSessionTickets directive support
+
+* Mon Oct 16 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-77
+- Resolves: #1440590 - Need an option to disable UTF8-conversion
+  of certificate DN
+
+* Thu Oct 12 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-76
+- Resolves: #1464406 - Apache consumes too much memory for CGI output
+
+* Thu Oct 12 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-75
+- Resolves: #1448892 - Cannot override LD_LIBARY_PATH in Apache HTTPD
+  using SetEnv or PassEnv. Needs documentation.
+
+* Mon Oct 09 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-74
+- Resolves: #1430640 - "ProxyAddHeaders Off" does not become effective
+  when it's defined outside <Proxy> setting
+
+* Fri Oct 06 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-73
+- Resolves: #1499253 - ProxyRemote with HTTPS backend sends requests
+  with absoluteURI instead of abs_path
+
+* Tue Oct 03 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-72
+- Resolves: #1288395 - httpd segfault when logrotate invoked
+
+* Tue Oct 03 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-71
+- Resolves: #1368491 - mod_authz_dbd segfaults when AuthzDBDQuery missing
+
+* Mon Oct 02 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-70
+- Resolves: #1467402 - rotatelogs: creation of zombie processes when -p is used
+
+* Tue Sep 19 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-69
+- Resolves: #1493065 - CVE-2017-9798 httpd: Use-after-free by limiting
   unregistered HTTP method
 
-* Wed Jul 26 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-67.2
+* Tue Jul 25 2017 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-68
 - Resolves: #1463194 - CVE-2017-3167 httpd: ap_get_basic_auth_pw()
   authentication bypass
 - Resolves: #1463197 - CVE-2017-3169 httpd: mod_ssl NULL pointer dereference
