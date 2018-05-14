@@ -25,26 +25,25 @@ Some packages needed some manual love and care to build, but not really a patch:
 |---|---|---
 | base64coder | base64coder-20101219-10.el7.src.rpm | needs to be build with java-1.7.0-openjdk-devel-1.7.0.51
 | dnssec-trigger | dnssec-trigger-0.11-22.el7.src.rpm | needs NetworkManager to be installed by hand for successful build
-| flatpak | flatpak-0.8.7-1.el7.src.rpm | needs to be build with redhat-rpm-config from 7.3
 | gawk | gawk-4.0.2-4.el7_3.1.src.rpm | needs 'util-linux' to be installed by hand for successful build
 | gc | gc-7.2d-7.el7.src.rpm | needs to be build with '-D "check exit 0" -D "debug_package %{nil}"'
 | glassfish-fastinfoset | glassfish-fastinfoset-1.2.12-9.el7.src.rpm | needs to be build with java-1.7.0-openjdk-devel-1.7.0.51
+| gnome-shell | gnome-shell-3.26.2-5.el7.src.rpm | needs 'libwacom-devel' to be installed by hand for successful build
 | gsl | gsl-1.15-13.el7.src.rpm | needs to be build with '-D "check exit 0"'
 | gstreamer-plugins-bad-free | gstreamer-plugins-bad-free-0.10.23-23.el7.src.rpm | needs to be build with redsleeve 7.3
 | gstreamer-plugins-good | gstreamer-plugins-good-0.10.31-13.el7.src.rpm | needs to be build with redsleeve 7.3
 | gutenprint | gutenprint-5.2.9-18.el7.src.rpm | needs to be build with '-D "check exit 0"'
-| irqbalance | irqbalance-1.0.7-9.el7.src.rpm | needs systemd-devel to be installed by hand for successful build
 | jflex | jflex-1.4.3-20.el7.src.rpm | needs to be build with java-1.7.0-openjdk-devel-1.7.0.51
 | libcmis | libcmis-0.5.1-2.el7.src.rpm | needs to be build with '-D "check exit 0"'
 | libepoxy | libepoxy-1.3.1-1.el7.src.rpm | needs to be build with '-D "check exit 0" -D "debug_package %{nil}"'
-| libusnic_verbs | libusnic_verbs-2.0.1-5.el7.src.rpm | needs to be build with redsleeve 7.3
 | log4j | log4j-1.2.17-16.el7_4.src.rpm | needs to be build without java-1.8.0-openjdk
 | m2crypto | m2crypto-0.21.1-17.el7.src.rpm | needs to be build with '-D "check exit 0" -D "debug_package %{nil}"'
 | maven | maven-3.0.5-17.el7.src.rpm | needs to be build without java-1.8.0-openjdk
 | mesa-private-llvm | mesa-private-llvm-3.8.x | version to new for armv5, downgraded to 3.7.1 
 | msv | msv-2013.5.1-7.el7.src.rpm | needs to be build without java-1.8.0-openjdk
+| opensm | opensm-3.3.20-2.el7.src.rpm | needs to be build with redsleeve 7.4
 | prelink | prelink-0.5.0-9.el7.src.rpm | needs to be build with older versions of: binutils, cpp, gcc*, glibc*, libgcc, libgomp, libstdc* (the 7.2 versions). Not sure what is wrong with the 7.3 versions
-| pykickstart | pykickstart-1.99.66.12-1.el7.src.rpm | needs to be build with '-D "check exit 0"'
+| pykickstart | pykickstart-1.99.66.18-1.el7.src.rpm | needs to be build with '-D "check exit 0"'
 | tog-pegasus | tog-pegasus-2.14.1-5.el7.src.rpm | needs to be build with redsleeve 7.3
 | uom-lib | uom-lib-1.0.1-5.el7.src.rpm | needs to be build without java-1.8.0-openjdk
 | velocity | velocity-1.7-10.el7.src.rpm | needs to be build with java-1.7.0-openjdk-devel-1.7.0.51
