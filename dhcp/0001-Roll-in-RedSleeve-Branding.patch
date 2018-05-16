@@ -1,6 +1,6 @@
-From 47d61d106750c5c12cdca40c26d7e5a54ae28e40 Mon Sep 17 00:00:00 2001
+From 49f10c2927e51fd8642c745ed292e912f610ce69 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sun, 15 Apr 2018 14:10:15 +0200
+Date: Wed, 16 May 2018 23:25:48 +0200
 Subject: [PATCH] Roll in RedSleeve Branding
 
 ---
@@ -30,15 +30,15 @@ index 0000000..cc034f5
 +   log_error ("exiting.");
 + #endif
 diff --git a/SPECS/dhcp.spec b/SPECS/dhcp.spec
-index 754a31a..73d26ac 100644
+index 14da097..81c4a35 100644
 --- a/SPECS/dhcp.spec
 +++ b/SPECS/dhcp.spec
 @@ -18,7 +18,7 @@
  Summary:  Dynamic host configuration protocol software
  Name:     dhcp
  Version:  4.2.5
--Release:  68%{?dist}
-+Release:  68%{?dist}.redsleeve
+-Release:  68%{?dist}.1
++Release:  68%{?dist}.1.redsleeve
  # NEVER CHANGE THE EPOCH on this package.  The previous maintainer (prior to
  # dcantrell maintaining the package) made incorrect use of the epoch and
  # that's why it is at 12 now.  It should have never been used, but it was.
@@ -55,10 +55,10 @@ index 754a31a..73d26ac 100644
  
  
  %changelog
-+* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.org> - 4.2.5-68.el7.redsleeve
++* Wed May 16 2018 Jacco Ligthart <jacco@redsleeve.org> - 4.2.5-68.el7.1.redsleeve
 +- Roll in RedSleeve Branding
 +
- * Tue Apr 10 2018 CentOS Sources <bugs@centos.org> - 4.2.5-68.el7.centos
+ * Tue May 15 2018 CentOS Sources <bugs@centos.org> - 4.2.5-68.el7.centos.1
  - Roll in CentOS Branding
  
 -- 
