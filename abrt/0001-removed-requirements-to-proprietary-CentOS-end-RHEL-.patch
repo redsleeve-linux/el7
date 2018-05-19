@@ -1,27 +1,27 @@
-From 19304e160009b10945c6be185685b21f4a6f60c6 Mon Sep 17 00:00:00 2001
+From b784a34551f84c367aa9eef1184a2de70306d398 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sun, 13 Aug 2017 00:25:15 +0200
+Date: Sun, 20 May 2018 00:04:16 +0200
 Subject: [PATCH] removed requirements to proprietary CentOS end RHEL libreport
  packages
 
 ---
- SPECS/abrt.spec | 50 +++++++++++++++++++++++++++-----------------------
- 1 file changed, 27 insertions(+), 23 deletions(-)
+ SPECS/abrt.spec | 48 ++++++++++++++++++++++++++----------------------
+ 1 file changed, 26 insertions(+), 22 deletions(-)
 
 diff --git a/SPECS/abrt.spec b/SPECS/abrt.spec
-index 1d39018..254cc09 100644
+index d66bd7d..af55687 100644
 --- a/SPECS/abrt.spec
 +++ b/SPECS/abrt.spec
 @@ -33,7 +33,7 @@
  Summary: Automatic bug detection and reporting tool
  Name: abrt
  Version: 2.1.11
--Release: 48%{?dist}
-+Release: 48%{?dist}.redsleeve
+-Release: 50%{?dist}
++Release: 50%{?dist}.redsleeve
  License: GPLv2+
  Group: Applications/System
- URL: https://fedorahosted.org/abrt/
-@@ -343,7 +343,7 @@ Patch271: 0271-Translation-updates.patch
+ URL: https://abrt.readthedocs.org/
+@@ -381,7 +381,7 @@ Patch306: 0306-a-harvest-vmcore-fix-regresion.patch
  
  Patch1000: 1000-event-don-t-run-the-reporter-bugzilla-h-on-RHEL-and-.patch
  #Patch1001: 1001-spec-added-dependency-to-libreport-centos.patch
@@ -30,7 +30,7 @@ index 1d39018..254cc09 100644
  #Patch1003: 1003-spec-add-dependenci-on-abrt-retrace-client.patch
  Patch1004: 1004-turn-sosreport-off.patch
  Patch1005: 1005-cli-list-revert-patch-7966e5737e8d3af43b1ecdd6a82323.patch
-@@ -355,6 +355,7 @@ Patch1005: 1005-cli-list-revert-patch-7966e5737e8d3af43b1ecdd6a82323.patch
+@@ -393,6 +393,7 @@ Patch1005: 1005-cli-list-revert-patch-7966e5737e8d3af43b1ecdd6a82323.patch
  BuildRequires: git
  
  BuildRequires: dbus-devel
@@ -38,7 +38,7 @@ index 1d39018..254cc09 100644
  BuildRequires: gtk3-devel
  BuildRequires: rpm-devel >= 4.6
  BuildRequires: desktop-file-utils
-@@ -390,9 +391,9 @@ Requires: python-augeas
+@@ -429,9 +430,9 @@ Requires: python-augeas
  Requires: python-dbus
  Requires: python-dmidecode
  Requires: libreport-plugin-ureport >= %{libreport_ver}
@@ -51,7 +51,7 @@ index 1d39018..254cc09 100644
  
  # we used to have abrt-plugin-bodhi, but we have removed it
  # and we want allow users to update abrt without necessity to
-@@ -575,14 +576,14 @@ Requires: abrt-addon-ccpp
+@@ -614,14 +615,14 @@ Requires: abrt-addon-ccpp
  Requires: abrt-addon-python
  Requires: abrt-addon-xorg
  %if 0%{?rhel}
@@ -74,7 +74,7 @@ index 1d39018..254cc09 100644
  Requires: abrt-retrace-client
  Requires: libreport-plugin-bugzilla >= %{libreport_ver}
  Requires: libreport-plugin-logger >= %{libreport_ver}
-@@ -614,19 +615,19 @@ Requires: elfutils
+@@ -653,19 +654,19 @@ Requires: elfutils
  Requires: abrt-gui
  Requires: gnome-abrt
  %if 0%{?rhel}
@@ -103,23 +103,14 @@ index 1d39018..254cc09 100644
  %endif
  #Requires: abrt-plugin-firefox
  Provides: bug-buddy = 2.28.0
-@@ -703,7 +704,7 @@ CFLAGS="%{optflags} -Werror -Wno-error=deprecated-declarations" %configure --ena
-         --enable-native-unwinder \
- %endif
-         --enable-dump-time-unwind \
--        --enable-suggest-autoreporting \
-+        --enable-suggest-autoreporting
- make %{?_smp_mflags}
- 
- %install
-@@ -1179,6 +1180,9 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
+@@ -1218,6 +1219,9 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
  %config(noreplace) %{_sysconfdir}/profile.d/abrt-console-notification.sh
  
  %changelog
-+* Fri Aug 04 2017 Jacco Ligthart <jacco@redsleeve.org> - 2.1.11-48.el7.redsleeve
++* Sun Apr 29 2018 Jacco Ligthart <jacco@redsleeve.org> - 2.1.11-50.el7.redsleeve
 +- removed requirements to proprietary CentOS end RHEL libreport packages
 +
- * Mon Jul 31 2017 CentOS Sources <bugs@centos.org> - 2.1.11-48.el7.centos
+ * Tue Apr 10 2018 CentOS Sources <bugs@centos.org> - 2.1.11-50.el7.centos
  - Drop RHTS hint
  -  Change by David Mansfield <david@orthanc.cobite.com>
 -- 
