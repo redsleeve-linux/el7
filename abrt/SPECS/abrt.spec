@@ -27,17 +27,17 @@
 %define desktopvendor fedora
 %endif
 
-%define libreport_ver 2.1.11-38
+%define libreport_ver 2.1.11-40
 %define satyr_ver 0.13-10
 
 Summary: Automatic bug detection and reporting tool
 Name: abrt
 Version: 2.1.11
-Release: 48%{?dist}.redsleeve
+Release: 50%{?dist}
 License: GPLv2+
 Group: Applications/System
-URL: https://fedorahosted.org/abrt/
-Source: https://fedorahosted.org/released/%{name}/%{name}-%{version}.tar.gz
+URL: https://abrt.readthedocs.org/
+Source: %{name}-%{version}.tar.gz
 
 Patch1: 0001-Do-not-enabled-Shortened-reporting-in-GNOME.patch
 Patch2: 0002-remove-abrt-bodhi-from-configuration.patch
@@ -340,10 +340,48 @@ Patch269: 0269-ccpp-add-h-parameter-into-abrt-hook-ccpp.patch
 #Patch270: 0270-testsuite-add-test-for-core-template-substitution.patch
 # git format-patch 2.1.11-47.el7 -N --start-number 271 --topo-order
 Patch271: 0271-Translation-updates.patch
+# git format-patch 2.1.11-48.el7 -N --start-number 272 --topo-order
+#Patch272: 0272-spec-allow-deprecated-declarations-warning.patch
+#Patch273: 0273-spec-add-missing-dependecy-on-dbus-glib-devel.patch
+Patch274: 0274-python-provide-more-information-about-exception.patch
+#Patch275: 0275-testsuite-provide-more-information-about-exception.patch
+Patch276: 0276-Translation-updates.patch
+Patch277: 0277-Fix-pt_BR.po-translation.patch
+Patch278: 0278-koops-add-suspicious-strings-blacklist.patch
+#Patch279: 0279-testsuite-suspicious-strings-blacklist-test.patch
+Patch280: 0280-koops-Improve-fatal-MCE-check-when-dumping-backtrace.patch
+#Patch281: 0281-testsuite-add-test-for-dumping-kernel-panic-oom-oops.patch
+Patch282: 0282-Add-oops-processing-for-kernel-panics-caused-by-hung.patch
+Patch283: 0283-vmcore-remove-original-vmcore-file-in-the-last-step.patch
+Patch284: 0284-vmcore-use-libreport-dd-API-in-the-harvestor.patch
+#Patch285: 0285-testsuite-add-test-case-for-copyvmcore.patch
+Patch286: 0286-koops-Improve-not-reportable-for-oopses-with-taint-f.patch
+Patch287: 0287-a-a-ureport-add-check-if-crash-is-from-packaged-exec.patch
+#Patch288: 0288-testsuite-test-not-sending-ureport-from-unpackaged-e.patch
+#Patch289: 289-spec-update-URL-and-Source-to-recent-values.patch
+#Patch290: 0290-Revert-testsuite-reporter-rhtsupport-no-longer-uses-.patch
+#Patch291: 0291-testsuite-reporter-rhtsupport-parameter-t-extend-fun.patch
+# git format-patch 2.1.11-49.el7 -N --start-number 292 --topo-order
+#Patch292: 0292-testsuite-switch-order-of-g_crash_path-and-wait_f_h.patch
+#Patch293: 0293-testsuite-wait-for-hooks-at-least-1-second.patch
+#Patch294: 0294-testsuite-tell-the-runner-about-problem-sub-director.patch
+#Patch295: 0295-CI-make-debugging-easier-with-more-log-messages.patch
+#Patch296: 0296-testsuite-rhts-test-remove-trailing-characters.patch
+#Patch297: 0297-testsuite-restart-abrt-ccpp-in-abrtd-directories.patch
+#Patch298: 0298-testsuite-Install-missing-rpm-sign-package.patch
+#Patch299: 0299-testsuite-Show-warning-instead-of-failing-test.patch
+#Patch300: 0300-testsuite-check-for-correct-group-and-permissions.patch
+#Patch301: 0301-testsuite-disable-failing-tests.patch
+#Patch302: 0302-testsuite-extend-timeout-to-10-minutes.patch
+#Patch303: 0303-testsuite-Correct-the-name-of-configuration-file.patch
+#Patch304: 0304-tests-cli-sanity-re-enable-report-non-reportable-pha.patch
+#Patch305: 0305-testsuite-fix-backtrace-verification-on-power.patch
+Patch306: 0306-a-harvest-vmcore-fix-regresion.patch
+# git format-patch 2.1.11-50.el7 -N --start-number 306 --topo-order
 
 Patch1000: 1000-event-don-t-run-the-reporter-bugzilla-h-on-RHEL-and-.patch
 #Patch1001: 1001-spec-added-dependency-to-libreport-centos.patch
-#Patch1002: 1002-plugin-set-URL-to-retrace-server.patch
+Patch1002: 1002-plugin-set-URL-to-retrace-server.patch
 #Patch1003: 1003-spec-add-dependenci-on-abrt-retrace-client.patch
 Patch1004: 1004-turn-sosreport-off.patch
 Patch1005: 1005-cli-list-revert-patch-7966e5737e8d3af43b1ecdd6a82323.patch
@@ -355,11 +393,11 @@ Patch1005: 1005-cli-list-revert-patch-7966e5737e8d3af43b1ecdd6a82323.patch
 BuildRequires: git
 
 BuildRequires: dbus-devel
-BuildRequires: dbus-glib-devel
 BuildRequires: gtk3-devel
 BuildRequires: rpm-devel >= 4.6
 BuildRequires: desktop-file-utils
 BuildRequires: libnotify-devel
+BuildRequires: dbus-glib-devel
 #why? BuildRequires: file-devel
 BuildRequires: python-devel
 BuildRequires: gettext
@@ -391,9 +429,9 @@ Requires: python-augeas
 Requires: python-dbus
 Requires: python-dmidecode
 Requires: libreport-plugin-ureport >= %{libreport_ver}
-#%if 0%{?rhel}
-#Requires: libreport-plugin-rhtsupport
-#%endif
+%if 0%{?rhel}
+Requires: libreport-plugin-rhtsupport
+%endif
 
 # we used to have abrt-plugin-bodhi, but we have removed it
 # and we want allow users to update abrt without necessity to
@@ -576,14 +614,14 @@ Requires: abrt-addon-ccpp
 Requires: abrt-addon-python
 Requires: abrt-addon-xorg
 %if 0%{?rhel}
-#%if 0%{?centos_ver}
-#Requires: libreport-centos >= %{libreport_ver}
-#Requires: libreport-plugin-mantisbt >= %{libreport_ver}
-#%else
-#Requires: libreport-rhel >= %{libreport_ver}
-#Requires: libreport-plugin-rhtsupport >= %{libreport_ver}
-#%endif
-#%else
+%if 0%{?centos_ver}
+Requires: libreport-centos >= %{libreport_ver}
+Requires: libreport-plugin-mantisbt >= %{libreport_ver}
+%else
+Requires: libreport-rhel >= %{libreport_ver}
+Requires: libreport-plugin-rhtsupport >= %{libreport_ver}
+%endif
+%else
 Requires: abrt-retrace-client
 Requires: libreport-plugin-bugzilla >= %{libreport_ver}
 Requires: libreport-plugin-logger >= %{libreport_ver}
@@ -615,19 +653,19 @@ Requires: elfutils
 Requires: abrt-gui
 Requires: gnome-abrt
 %if 0%{?rhel}
-#%if 0%{?centos_ver}
-#Requires: libreport-centos >= %{libreport_ver}
-#Requires: libreport-plugin-mantisbt >= %{libreport_ver}
-#%else
-#Requires: libreport-rhel >= %{libreport_ver}
-#Requires: libreport-plugin-rhtsupport >= %{libreport_ver}
-#%endif
-#%else
+%if 0%{?centos_ver}
+Requires: libreport-centos >= %{libreport_ver}
+Requires: libreport-plugin-mantisbt >= %{libreport_ver}
+%else
+Requires: libreport-rhel >= %{libreport_ver}
+Requires: libreport-plugin-rhtsupport >= %{libreport_ver}
+%endif
+%else
 Requires: abrt-retrace-client
 Requires: libreport-plugin-bugzilla >= %{libreport_ver}
 Requires: libreport-plugin-logger >= %{libreport_ver}
 Requires: libreport-plugin-ureport >= %{libreport_ver}
-#Requires: libreport-fedora >= %{libreport_ver}
+Requires: libreport-fedora >= %{libreport_ver}
 %endif
 #Requires: abrt-plugin-firefox
 Provides: bug-buddy = 2.28.0
@@ -1180,10 +1218,7 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 %config(noreplace) %{_sysconfdir}/profile.d/abrt-console-notification.sh
 
 %changelog
-* Fri Aug 04 2017 Jacco Ligthart <jacco@redsleeve.org> - 2.1.11-48.el7.redsleeve
-- removed requirements to proprietary CentOS end RHEL libreport packages
-
-* Mon Jul 31 2017 CentOS Sources <bugs@centos.org> - 2.1.11-48.el7.centos
+* Tue Apr 10 2018 CentOS Sources <bugs@centos.org> - 2.1.11-50.el7.centos
 - Drop RHTS hint
 -  Change by David Mansfield <david@orthanc.cobite.com>
 -  Per http://bugs.centos.org/view.php?id=7192
@@ -1191,6 +1226,20 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 - set URL to retrace server
 - update to not run sosreport
 -  Per http://bugs.centos.org/view.php?id=7913
+
+* Thu Feb 8 2018 Martin Kutlak <mkutlak@redhat.com> - 2.1.11-50
+- vmcore: fix analyzer regression
+- Related: #1543323
+
+* Thu Oct 26 2017 Martin Kutlak <mkutlak@redhat.com> - 2.1.11-49
+- Translation updates
+- Stop creating uReports for unpackaged executables
+- koops: add detailed taint flag description for kernel oopses
+- koops: fix kernel oops and fatal MCE recognition
+- python: provide more information about Python exceptions
+- vmcore: fix replication of vmcore files
+- Related: #1271213, #1460224, #1374648, #1361116, #1228344,
+- Related: #1395285, #1214730, #1446410, #1319828, #1501718
 
 * Tue May 30 2017 Matej Habrnal <mhabrnal@redhat.com> - 2.1.11-48
 - Translation updates

@@ -1,0 +1,45 @@
+From e12300d1a8ec7e61db2838cb0b7c3dce193f1464 Mon Sep 17 00:00:00 2001
+From: Martin Kutlak <mkutlak@redhat.com>
+Date: Mon, 10 Apr 2017 13:56:17 +0200
+Subject: [PATCH] python: provide more information about exception
+
+Message was modified to provide more information about where exception happened.
+
+$ python -c 1/0
+
+Before:
+python: detected unhandled Python exception
+
+Now:
+python: detected unhandled Python exception in 'interactive mode (python -c ...)'
+
+Related to: #1361116
+
+Signed-off-by: Martin Kutlak <mkutlak@redhat.com>
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+
+Conflicts:
+	src/hooks/abrt_exception_handler3.py.in
+	tests/runtests/python3-addon/runtest.sh
+---
+ src/hooks/abrt_exception_handler.py.in | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/hooks/abrt_exception_handler.py.in b/src/hooks/abrt_exception_handler.py.in
+index 7455663..dacde37 100644
+--- a/src/hooks/abrt_exception_handler.py.in
++++ b/src/hooks/abrt_exception_handler.py.in
+@@ -220,7 +220,9 @@ def handleMyException((etype, value, tb)):
+         ## argv0 is:-c
+         # Are there other cases when sys.argv[0][0] is "-"?
+         if not sys.argv[0] or sys.argv[0][0] == "-":
+-            syslog("detected unhandled Python exception")
++            einfo = "" if not sys.argv[0] else " (python %s ...)" % sys.argv[0]
++            syslog("detected unhandled Python exception in 'interactive mode%s'"
++                   % einfo)
+             raise Exception
+ 
+         # Ignore scripts with relative path unless "RequireAbsolutePath = no".
+-- 
+1.8.3.1
+

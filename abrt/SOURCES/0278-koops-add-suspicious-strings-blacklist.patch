@@ -1,0 +1,127 @@
+From a2cdf73fa34cf196b08932841d107a82c5bc16e5 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Mon, 14 Aug 2017 13:34:59 +0200
+Subject: [PATCH] koops: add suspicious strings blacklist
+
+Some strings were accidentally considered suspicious.
+In this concrete case strings containing "DEBUG" substring.
+Since "BUG" and "DEBUG" overlaps and "BUG" is
+listed in suspicious string list, kernel DEBUG messages were
+recognized as "BUG"s which are kernel oops-es.
+
+Added "DEBUG" string into mentioned new blacklist.
+
+Related to rhbz#1228344
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/include/libabrt.h |  2 ++
+ src/lib/kernel.c      | 60 ++++++++++++++++++++++++++++++++++-----------------
+ 2 files changed, 42 insertions(+), 20 deletions(-)
+
+diff --git a/src/include/libabrt.h b/src/include/libabrt.h
+index 2510a77..5346328 100644
+--- a/src/include/libabrt.h
++++ b/src/include/libabrt.h
+@@ -125,6 +125,8 @@ char *kernel_tainted_long(const char *tainted_short);
+ int koops_hash_str(char hash_str[SHA1_RESULT_LEN*2 + 1], const char *oops_buf);
+ #define koops_extract_oopses abrt_koops_extract_oopses
+ void koops_extract_oopses(GList **oops_list, char *buffer, size_t buflen);
++#define koops_suspicious_strings_blacklist abrt_koops_suspicious_strings_blacklist
++GList *koops_suspicious_strings_blacklist(void);
+ #define koops_print_suspicious_strings abrt_koops_print_suspicious_strings
+ void koops_print_suspicious_strings(void);
+ /**
+diff --git a/src/lib/kernel.c b/src/lib/kernel.c
+index 1a9d327..79e7424 100644
+--- a/src/lib/kernel.c
++++ b/src/lib/kernel.c
+@@ -158,11 +158,46 @@ static const char *const s_koops_suspicious_strings[] = {
+     NULL
+ };
+ 
++static const char *const s_koops_suspicious_strings_blacklist[] = {
++    /* "BUG:" and "DEBUG:" overlaps, we don't want to recognize DEBUG messages as BUG */
++    "DEBUG:",
++
++    /* Termination */
++    NULL
++};
++
++static bool suspicious_line(const char *line)
++{
++    const char *const *str = s_koops_suspicious_strings;
++    for ( ; *str; ++str)
++        if (strstr(line, *str))
++            break;
++
++    if (!*str)
++        return false;
++
++    str = s_koops_suspicious_strings_blacklist;
++    for ( ; *str; ++str)
++        if (strstr(line, *str))
++           break;
++
++    return !*str;
++}
++
+ void koops_print_suspicious_strings(void)
+ {
+     koops_print_suspicious_strings_filtered(NULL);
+ }
+ 
++GList *koops_suspicious_strings_blacklist(void)
++{
++    GList *strings = NULL;
++    for (const char *const *str = s_koops_suspicious_strings_blacklist; *str; ++str)
++        strings = g_list_prepend(strings, (gpointer)*str);
++
++    return strings;
++}
++
+ static bool match_any(const regex_t **res, const char *str)
+ {
+     for (const regex_t **r = res; *r != NULL; ++r)
+@@ -312,14 +347,8 @@ next_line:
+         if (oopsstart < 0)
+         {
+             /* Find start-of-oops markers */
+-            for (const char *const *str = s_koops_suspicious_strings; *str; ++str)
+-            {
+-                if (strstr(curline, *str))
+-                {
+-                    oopsstart = i;
+-                    break;
+-                }
+-            }
++            if (suspicious_line(curline))
++                oopsstart = i;
+ 
+             if (oopsstart >= 0)
+             {
+@@ -407,18 +436,9 @@ next_line:
+             /* kernel end-of-oops marker (not including marker itself) */
+             else if (strstr(curline, "---[ end trace"))
+                 oopsend = i-1;
+-            else
+-            {
+-                /* if a new oops starts, this one has ended */
+-                for (const char *const *str = s_koops_suspicious_strings; *str; ++str)
+-                {
+-                    if (strstr(curline, *str))
+-                    {
+-                        oopsend = i-1;
+-                        break;
+-                    }
+-                }
+-            }
++            /* if a new oops starts, this one has ended */
++            else if (suspicious_line(curline))
++                oopsend = i-1;
+ 
+             if (oopsend <= i)
+             {
+-- 
+1.8.3.1
+

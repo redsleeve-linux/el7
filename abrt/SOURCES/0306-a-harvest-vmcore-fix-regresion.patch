@@ -1,0 +1,35 @@
+From 092baaf1924b85b91fb9340c11a4c5c51ab7a7b2 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Thu, 8 Feb 2018 10:21:01 +0100
+Subject: [PATCH] a-harvest-vmcore: fix regresion
+
+Problem is in the analyzer file, which holds value 'abrt-vmcore' (was 'vmcore'
+in 7.4). The change has been introduced in
+0284-vmcore-use-libreport-dd-API-in-the-harvestor.patch
+
+In Fedora we are using problem dir element 'type' as EVENTs conditions.
+In RHEL is the element still 'analyzer'.
+
+Fixes: #1543323
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/hooks/abrt_harvest_vmcore.py.in | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/hooks/abrt_harvest_vmcore.py.in b/src/hooks/abrt_harvest_vmcore.py.in
+index c85db8cc..b2ff283d 100644
+--- a/src/hooks/abrt_harvest_vmcore.py.in
++++ b/src/hooks/abrt_harvest_vmcore.py.in
+@@ -120,7 +120,7 @@ def create_abrtd_info(dest, uuid):
+         return None
+ 
+     dd.create_basic_files(0)
+-    dd.save_text('analyzer', 'abrt-vmcore')
++    dd.save_text('analyzer', 'vmcore')
+     dd.save_text('type', 'vmcore')
+     dd.save_text('component', 'kernel')
+     dd.save_text('uuid', uuid)
+-- 
+2.14.3
+

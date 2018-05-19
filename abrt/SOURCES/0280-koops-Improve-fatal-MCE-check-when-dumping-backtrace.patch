@@ -1,0 +1,45 @@
+From 69047b8b02d8f7635fe106daac9e17d72d4a8130 Mon Sep 17 00:00:00 2001
+From: Julius Milan <jmilan@redhat.com>
+Date: Mon, 10 Apr 2017 16:30:58 +0200
+Subject: [PATCH] koops: Improve fatal MCE check when dumping backtrace
+
+Problem was, that regular kernel panic message was treated as fatal MCE,
+for which we don't want to have backtrace.
+
+The logic in koops_extract_oopses_from_lines is a bit complex,
+so I describe it:
+If fatal MCE was recognized, dumping of backtrace was skipped by following
+to the next part of cycle (hacky, in the next part of cycle, there is
+condition with many allowed strings to continue but not "Call Trace").
+The check responsible for this "jump" (kernel.c:396) just checked whether
+there is a string beginning with "Kernel panic - not syncing", however
+this string appears in all kernel panics, not just fatal MCEs.
+
+Fatal MCE may have form of:
+"Kernel panic - not syncing: Fatal Machine check" or
+"Kernel panic - not syncing: Machine check" or I found even
+"Kernel panic - not syncing: Uncorrected machine check"
+so I modified the condition appropriately and added test covering this
+case.
+
+Related to rhbz#1374648
+---
+ src/lib/kernel.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib/kernel.c b/src/lib/kernel.c
+index 1a9d327..f1a0f2c 100644
+--- a/src/lib/kernel.c
++++ b/src/lib/kernel.c
+@@ -356,7 +356,7 @@ next_line:
+              * In order to capture all these lines, we treat final line
+              * as "backtrace" (which is admittedly a hack):
+              */
+-            if (strstr(curline, "Kernel panic - not syncing"))
++            if (strstr(curline, "Kernel panic - not syncing:") && strcasestr(curline, "Machine check"))
+                 inbacktrace = 1;
+             else
+             if (strnlen(curline, 9) > 8
+-- 
+1.8.3.1
+

@@ -1,0 +1,477 @@
+From a14728448321f220ae50e8e50fa9031816cc93e8 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Thu, 10 Aug 2017 12:53:40 +0200
+Subject: [PATCH] Translation updates
+
+Related to #1271213
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ po/de.po    |  9 +++++----
+ po/es.po    | 24 +++++++++++++++++-------
+ po/fr.po    | 11 +++++++----
+ po/it.po    |  8 ++++----
+ po/ja.po    | 21 +++++++++------------
+ po/ko.po    |  8 ++++----
+ po/pt_BR.po | 17 +++++++++++------
+ po/ru.po    | 12 +++++++-----
+ po/zh_CN.po | 13 +++++++------
+ po/zh_TW.po | 11 ++++++-----
+ 10 files changed, 77 insertions(+), 57 deletions(-)
+
+diff --git a/po/de.po b/po/de.po
+index a53667a..bbefefa 100644
+--- a/po/de.po
++++ b/po/de.po
+@@ -13,7 +13,8 @@
+ # noxin <transifex.com@davidmainzer.com>, 2013
+ # Rainer Gromansperg <rgromans@redhat.com>, 2013
+ # Roman Spirgi <bigant@fedoraproject.org>, 2011-2012
+-# mhabrnal <mhabrnal@redhat.com>, 2017. #zanata
++# Hedda Peters <hpeters@redhat.com>, 2015. #zanata
++# Roman Spirgi <rspirgi@gmail.com>, 2015. #zanata
+ msgid ""
+ msgstr ""
+ "Project-Id-Version: PACKAGE VERSION\n"
+@@ -22,13 +23,13 @@ msgstr ""
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
+-"PO-Revision-Date: 2017-05-16 07:08+0000\n"
+-"Last-Translator: Copied by Zanata <copied-by-zanata@zanata.org>\n"
++"PO-Revision-Date: 2015-07-16 08:12-0400\n"
++"Last-Translator: Hedda Peters <hpeters@redhat.com>\n"
+ "Language-Team: German (http://www.transifex.com/projects/p/fedora-abrt/"
+ "language/de/)\n"
+ "Language: de\n"
+ "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+-"X-Generator: Zanata 4.1.1\n"
++"X-Generator: Zanata 3.9.6\n"
+ 
+ #: ../src/applet/abrt-applet.desktop.in.h:1
+ msgid "Automatic Bug Reporting Tool"
+diff --git a/po/es.po b/po/es.po
+index a661355..ba70814 100644
+--- a/po/es.po
++++ b/po/es.po
+@@ -19,7 +19,12 @@
+ # Luis Bazán <lbazan@fedoraproject.org>, 2011
+ # Israel Torres <dnlsrl.kaiser@gmail.com>, 2013
+ # vareli <ehespinosa@ya.com>, 2013
+-# mhabrnal <mhabrnal@redhat.com>, 2017. #zanata
++# Alex Puchades <alex94puchades@gmail.com>, 2015. #zanata
++# Gerardo Rosales <grosale86@gmail.com>, 2015. #zanata
++# Gladys Guerrero Lozano <gguerrer@redhat.com>, 2015. #zanata
++# Jakub Filak <jfilak@redhat.com>, 2015. #zanata
++# Máximo Castañeda Riloba <mcrcctm@gmail.com>, 2016. #zanata
++# Máximo Castañeda Riloba <mcrcctm@gmail.com>, 2017. #zanata
+ msgid ""
+ msgstr ""
+ "Project-Id-Version: PACKAGE VERSION\n"
+@@ -28,13 +33,13 @@ msgstr ""
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
+-"PO-Revision-Date: 2017-05-16 07:08+0000\n"
+-"Last-Translator: Copied by Zanata <copied-by-zanata@zanata.org>\n"
++"PO-Revision-Date: 2017-05-20 08:25-0400\n"
++"Last-Translator: Máximo Castañeda Riloba <mcrcctm@gmail.com>\n"
+ "Language-Team: Spanish (http://www.transifex.com/projects/p/fedora-abrt/"
+ "language/es/)\n"
+ "Language: es\n"
+ "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+-"X-Generator: Zanata 4.1.1\n"
++"X-Generator: Zanata 3.9.6\n"
+ 
+ #: ../src/applet/abrt-applet.desktop.in.h:1
+ msgid "Automatic Bug Reporting Tool"
+@@ -251,7 +256,7 @@ msgstr "Informe acortado"
+ 
+ #: ../src/configuration-gui/abrt-config-widget.glade.h:4
+ msgid "Silent shortened reporting"
+-msgstr "Informe acortado en silencio"
++msgstr "Presentación silenciosa de informes acortados"
+ 
+ #: ../src/configuration-gui/abrt-config-widget.glade.h:5
+ msgid ""
+@@ -2111,12 +2116,12 @@ msgstr "No se puede encontrar el problema '%s'"
+ #: ../src/cli/report.c:52
+ #, c-format
+ msgid "Problem '%s' cannot be reported"
+-msgstr ""
++msgstr "No se puede informar del problema '%s'"
+ 
+ #: ../src/cli/report.c:57
+ #, c-format
+ msgid "Problem '%s' is labeled as 'not-reportable'?"
+-msgstr ""
++msgstr "¿Está marcado el problema '%s' como 'no informar'?"
+ 
+ #: ../src/cli/report.c:78 ../src/cli/process.c:70
+ #, c-format
+@@ -2134,6 +2139,8 @@ msgstr "Elimina PROBLEM_DIR después de reportarlos"
+ #: ../src/cli/report.c:106 ../src/cli/process.c:154
+ msgid "Ignore security checks to be able to report all problems"
+ msgstr ""
++"Descartar las comprobaciones de seguridad para poder informar de todos los "
++"problemas"
+ 
+ #: ../src/cli/process.c:64
+ msgid "Actions: remove(rm), report(e), info(i), skip(s):"
+@@ -2159,6 +2166,9 @@ msgid ""
+ "\n"
+ "Without --since argument, iterates over all detected problems."
+ msgstr ""
++"& process [opciones]\n"
++"\n"
++"Sin el parámetro --since se procesan todos los problemas detectados"
+ 
+ #: ../src/cli/process.c:153
+ msgid "Selects only problems detected after timestamp"
+diff --git a/po/fr.po b/po/fr.po
+index d177a91..d649b50 100644
+--- a/po/fr.po
++++ b/po/fr.po
+@@ -13,7 +13,10 @@
+ # Sam Friedmann <sam.friedmann@redhat.com>, 2014
+ # Vincent HERBER <vincent.herber@gmail.com>, 2011
+ # Vincent  <vincent.herber@gmail.com>, 2011
+-# mhabrnal <mhabrnal@redhat.com>, 2017. #zanata
++# Jakub Filak <jfilak@redhat.com>, 2015. #zanata
++# Julie Carbone <jcarbone@redhat.com>, 2015. #zanata
++# Richard Marko <rmarko@fedoraproject.org>, 2015. #zanata
++# Sam Friedmann <sfriedma@redhat.com>, 2015. #zanata
+ msgid ""
+ msgstr ""
+ "Project-Id-Version: PACKAGE VERSION\n"
+@@ -22,13 +25,13 @@ msgstr ""
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
+-"PO-Revision-Date: 2017-05-16 07:08+0000\n"
+-"Last-Translator: Copied by Zanata <copied-by-zanata@zanata.org>\n"
++"PO-Revision-Date: 2015-07-29 09:45-0400\n"
++"Last-Translator: Richard Marko <rmarko@fedoraproject.org>\n"
+ "Language-Team: French (http://www.transifex.com/projects/p/fedora-abrt/"
+ "language/fr/)\n"
+ "Language: fr\n"
+ "Plural-Forms: nplurals=2; plural=(n > 1);\n"
+-"X-Generator: Zanata 4.1.1\n"
++"X-Generator: Zanata 3.9.6\n"
+ 
+ #: ../src/applet/abrt-applet.desktop.in.h:1
+ msgid "Automatic Bug Reporting Tool"
+diff --git a/po/it.po b/po/it.po
+index 0849ab4..cabb317 100644
+--- a/po/it.po
++++ b/po/it.po
+@@ -14,7 +14,7 @@
+ # Luigi Votta <lewis41@fedoraproject.org>, 2011
+ # Mauro Gaggiotti <mauro.gaggiotti@gmail.com>, 2012
+ # Silvio Pierro <perplesso82@gmail.com>, 2012
+-# mhabrnal <mhabrnal@redhat.com>, 2017. #zanata
++# Francesco Valente <fvalen@redhat.com>, 2015. #zanata
+ msgid ""
+ msgstr ""
+ "Project-Id-Version: PACKAGE VERSION\n"
+@@ -23,13 +23,13 @@ msgstr ""
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
+-"PO-Revision-Date: 2017-05-16 07:08+0000\n"
+-"Last-Translator: Copied by Zanata <copied-by-zanata@zanata.org>\n"
++"PO-Revision-Date: 2015-07-16 10:44-0400\n"
++"Last-Translator: Francesco Valente <fvalen@redhat.com>\n"
+ "Language-Team: Italian (http://www.transifex.com/projects/p/fedora-abrt/"
+ "language/it/)\n"
+ "Language: it\n"
+ "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+-"X-Generator: Zanata 4.1.1\n"
++"X-Generator: Zanata 3.9.6\n"
+ 
+ #: ../src/applet/abrt-applet.desktop.in.h:1
+ msgid "Automatic Bug Reporting Tool"
+diff --git a/po/ja.po b/po/ja.po
+index 08028bd..74f4f55 100644
+--- a/po/ja.po
++++ b/po/ja.po
+@@ -12,8 +12,8 @@
+ # noriko <noriko@fedoraproject.org>, 2014
+ # noriko <noriko@fedoraproject.org>, 2010,2012-2013
+ # carrotsoft <www.carrotsoft@gmail.com>, 2011-2012
+-# kmoriguc <kmoriguc@redhat.com>, 2017. #zanata
+-# mhabrnal <mhabrnal@redhat.com>, 2017. #zanata
++# Noriko Mizumoto <noriko@redhat.com>, 2015. #zanata
++# Matej Habrnal <mhabrnal@redhat.com>, 2017. #zanata
+ msgid ""
+ msgstr ""
+ "Project-Id-Version: PACKAGE VERSION\n"
+@@ -22,13 +22,13 @@ msgstr ""
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
+-"PO-Revision-Date: 2017-05-21 11:21+0000\n"
+-"Last-Translator: kmoriguc <kmoriguc@redhat.com>\n"
++"PO-Revision-Date: 2017-08-10 05:37-0400\n"
++"Last-Translator: Matej Habrnal <mhabrnal@redhat.com>\n"
+ "Language-Team: Japanese (http://www.transifex.com/projects/p/fedora-abrt/"
+ "language/ja/)\n"
+ "Language: ja\n"
+ "Plural-Forms: nplurals=1; plural=0;\n"
+-"X-Generator: Zanata 4.1.1\n"
++"X-Generator: Zanata 3.9.6\n"
+ 
+ #: ../src/applet/abrt-applet.desktop.in.h:1
+ msgid "Automatic Bug Reporting Tool"
+@@ -1922,7 +1922,7 @@ msgstr "詳細については abrt-cli COMMAND --help を参照してくださ
+ #, c-format
+ msgid ""
+ "%sRun 'abrt-cli report %s' for creating a case in Red Hat Customer Portal\n"
+-msgstr "Red Hat カスタマーポータルにケースを作成するため %s'abrt-cli report を実行する%s'\n"
++msgstr "%sRed Hat カスタマーポータルにケースを作成するため 'abrt-cli report %s' を実行する\n"
+ 
+ #: ../src/cli/list.c:176
+ msgid "& list [options]"
+@@ -1993,12 +1993,12 @@ msgstr "問題 '%s' が見つかりません"
+ #: ../src/cli/report.c:52
+ #, c-format
+ msgid "Problem '%s' cannot be reported"
+-msgstr "問題 '%s' は報告できません"
++msgstr ""
+ 
+ #: ../src/cli/report.c:57
+ #, c-format
+ msgid "Problem '%s' is labeled as 'not-reportable'?"
+-msgstr "問題 '%s' に 'not-reportable' のラベル付けをしますか?"
++msgstr ""
+ 
+ #: ../src/cli/report.c:78 ../src/cli/process.c:70
+ #, c-format
+@@ -2015,7 +2015,7 @@ msgstr "レポート後に PROBLEM_DIR を削除します"
+ 
+ #: ../src/cli/report.c:106 ../src/cli/process.c:154
+ msgid "Ignore security checks to be able to report all problems"
+-msgstr "すべての問題を報告できるようにするためセキュリティーチェックを無視する"
++msgstr ""
+ 
+ #: ../src/cli/process.c:64
+ msgid "Actions: remove(rm), report(e), info(i), skip(s):"
+@@ -2041,9 +2041,6 @@ msgid ""
+ "\n"
+ "Without --since argument, iterates over all detected problems."
+ msgstr ""
+-"& process [options]\n"
+-"\n"
+-"Without --since argument, iterates over all detected problems."
+ 
+ #: ../src/cli/process.c:153
+ msgid "Selects only problems detected after timestamp"
+diff --git a/po/ko.po b/po/ko.po
+index 83a5f41..7c2c437 100644
+--- a/po/ko.po
++++ b/po/ko.po
+@@ -8,7 +8,7 @@
+ # eukim <eukim@redhat.com>, 2014
+ # Jiří Moskovčák <jmoskovc@redhat.com>, 2011
+ #   <raypoatssium@gmail.com>, 2011-2012, 2013
+-# mhabrnal <mhabrnal@redhat.com>, 2017. #zanata
++# Eun-Ju Kim <eukim@redhat.com>, 2015. #zanata
+ msgid ""
+ msgstr ""
+ "Project-Id-Version: PACKAGE VERSION\n"
+@@ -17,13 +17,13 @@ msgstr ""
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
+-"PO-Revision-Date: 2017-05-16 07:08+0000\n"
+-"Last-Translator: Copied by Zanata <copied-by-zanata@zanata.org>\n"
++"PO-Revision-Date: 2015-07-19 09:20-0400\n"
++"Last-Translator: Eun-Ju Kim <eukim@redhat.com>\n"
+ "Language-Team: Korean (http://www.transifex.com/projects/p/fedora-abrt/"
+ "language/ko/)\n"
+ "Language: ko\n"
+ "Plural-Forms: nplurals=1; plural=0;\n"
+-"X-Generator: Zanata 4.1.1\n"
++"X-Generator: Zanata 3.9.6\n"
+ 
+ #: ../src/applet/abrt-applet.desktop.in.h:1
+ msgid "Automatic Bug Reporting Tool"
+diff --git a/po/pt_BR.po b/po/pt_BR.po
+index 04c8aee..029c05b 100644
+--- a/po/pt_BR.po
++++ b/po/pt_BR.po
+@@ -22,7 +22,8 @@
+ # Taylon Silmer <taylon@taylon.eti.br>, 2011
+ # Teseu <tuliomac@gmail.com>, 2011
+ # Vitor Lobo Ramos <lobocode@gmail.com>, 2014
+-# mhabrnal <mhabrnal@redhat.com>, 2017. #zanata
++# Daniel Lara <danniel@fedoraproject.org>, 2016. #zanata
++# Mateus de Melo Santos <mateusms@tutanota.com>, 2017. #zanata
+ msgid ""
+ msgstr ""
+ "Project-Id-Version: PACKAGE VERSION\n"
+@@ -31,13 +32,13 @@ msgstr ""
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
+-"PO-Revision-Date: 2017-05-16 07:09+0000\n"
+-"Last-Translator: Copied by Zanata <copied-by-zanata@zanata.org>\n"
++"PO-Revision-Date: 2017-06-09 04:19-0400\n"
++"Last-Translator: Mateus de Melo Santos <mateusms@tutanota.com>\n"
+ "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/"
+ "fedora-abrt/language/pt_BR/)\n"
+ "Language: pt-BR\n"
+ "Plural-Forms: nplurals=2; plural=(n > 1);\n"
+-"X-Generator: Zanata 4.1.1\n"
++"X-Generator: Zanata 3.9.6\n"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+ #: ../src/applet/abrt-applet.desktop.in.h:1
+@@ -2347,12 +2348,12 @@ msgstr "Não foi possível encontrar problema '%s'"
+ #: ../src/cli/report.c:52
+ #, c-format
+ msgid "Problem '%s' cannot be reported"
+-msgstr ""
++msgstr "Problema '%s' não pode ser relatado"
+ 
+ #: ../src/cli/report.c:57
+ #, c-format
+ msgid "Problem '%s' is labeled as 'not-reportable'?"
+-msgstr ""
++msgstr "O problema '%s' é rotulado como 'não-relatável'?"
+ 
+ #: ../src/cli/report.c:78 ../src/cli/process.c:70
+ #, c-format
+@@ -2370,6 +2371,7 @@ msgstr "Remover PROBLEM_DIR após relatar"
+ #: ../src/cli/report.c:106 ../src/cli/process.c:154
+ msgid "Ignore security checks to be able to report all problems"
+ msgstr ""
++"Ignorar verificações de segurança para poder relatar todos os problemas"
+ 
+ #: ../src/cli/process.c:64
+ msgid "Actions: remove(rm), report(e), info(i), skip(s):"
+@@ -2395,6 +2397,9 @@ msgid ""
+ "\n"
+ "Without --since argument, iterates over all detected problems."
+ msgstr ""
++"& process [options]\n"
++"\n"
++"Sem ---desde o argumento, itera sobre todos os problemas detectados."
+ 
+ #: ../src/cli/process.c:153
+ msgid "Selects only problems detected after timestamp"
+diff --git a/po/ru.po b/po/ru.po
+index e235dee..adf261a 100644
+--- a/po/ru.po
++++ b/po/ru.po
+@@ -12,7 +12,9 @@
+ # Stanislav Hanzhin <hanzhin.stas@gmail.com>, 2011
+ # Yulia <yulia.poyarkova@redhat.com>, 2012,2014
+ # Yuri Khabarov <madb00blik@gmail.com>, 2011
+-# mhabrnal <mhabrnal@redhat.com>, 2017. #zanata
++# Igor Gorbounov <igor.gorbounov@gmail.com>, 2015. #zanata
++# yuliya <ypoyarko@redhat.com>, 2015. #zanata
++# Matej Habrnal <mhabrnal@redhat.com>, 2017. #zanata
+ msgid ""
+ msgstr ""
+ "Project-Id-Version: PACKAGE VERSION\n"
+@@ -21,14 +23,14 @@ msgstr ""
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
+-"PO-Revision-Date: 2017-05-16 07:08+0000\n"
+-"Last-Translator: Copied by Zanata <copied-by-zanata@zanata.org>\n"
++"PO-Revision-Date: 2017-08-10 04:58-0400\n"
++"Last-Translator: Matej Habrnal <mhabrnal@redhat.com>\n"
+ "Language-Team: Russian (http://www.transifex.com/projects/p/fedora-abrt/"
+ "language/ru/)\n"
+ "Language: ru\n"
+ "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
+ "n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+-"X-Generator: Zanata 4.1.1\n"
++"X-Generator: Zanata 3.9.6\n"
+ 
+ #: ../src/applet/abrt-applet.desktop.in.h:1
+ msgid "Automatic Bug Reporting Tool"
+@@ -2000,7 +2002,7 @@ msgstr ""
+ msgid ""
+ "%sRun 'abrt-cli report %s' for creating a case in Red Hat Customer Portal\n"
+ msgstr ""
+-"%Выполните «abrt-cli report %s», чтобы создать отчет на портале "
++"%sВыполните «abrt-cli report %s», чтобы создать отчет на портале "
+ "пользователей Red Hat\n"
+ 
+ # translation auto-copied from project abrt, version master, document abrt, author Igor Gorbounov
+diff --git a/po/zh_CN.po b/po/zh_CN.po
+index 8531a11..6a61daf 100644
+--- a/po/zh_CN.po
++++ b/po/zh_CN.po
+@@ -14,7 +14,8 @@
+ # wangwenye <wangwenye_wwy@163.com>, 2013
+ # yusuf <yusufma77@yahoo.com>, 2011
+ # Zamir SUN <zamirs@163.com>, 2013
+-# mhabrnal <mhabrnal@redhat.com>, 2017. #zanata
++# Leah Liu <lliu@redhat.com>, 2015. #zanata
++# Alex Eng （新伦） <aeng@redhat.com>, 2016. #zanata
+ msgid ""
+ msgstr ""
+ "Project-Id-Version: PACKAGE VERSION\n"
+@@ -23,18 +24,18 @@ msgstr ""
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
+-"PO-Revision-Date: 2017-05-16 07:08+0000\n"
+-"Last-Translator: Copied by Zanata <copied-by-zanata@zanata.org>\n"
++"PO-Revision-Date: 2016-09-12 06:33-0400\n"
++"Last-Translator: Alex Eng （新伦） <aeng@redhat.com>\n"
+ "Language-Team: Chinese (China) (http://www.transifex.com/projects/p/fedora-"
+ "abrt/language/zh_CN/)\n"
+-"Language: zh-Hans\n"
++"Language: zh-CN\n"
+ "Plural-Forms: nplurals=1; plural=0;\n"
+-"X-Generator: Zanata 4.1.1\n"
++"X-Generator: Zanata 3.9.6\n"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+ #: ../src/applet/abrt-applet.desktop.in.h:1
+ msgid "Automatic Bug Reporting Tool"
+-msgstr "错误自动报告工具 alex"
++msgstr "错误自动报告工具"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+ #: ../src/applet/abrt-applet.desktop.in.h:2
+diff --git a/po/zh_TW.po b/po/zh_TW.po
+index 48b1b20..3fe87ad 100644
+--- a/po/zh_TW.po
++++ b/po/zh_TW.po
+@@ -6,7 +6,8 @@
+ # Chester Cheng <ccheng@redhat.com>, 2012,2014
+ # Jiří Moskovčák <jmoskovc@redhat.com>, 2011
+ # Terry Chuang <tchuang@redhat.com>, 2014
+-# mhabrnal <mhabrnal@redhat.com>, 2017. #zanata
++# Chester Cheng <snowlet.cheng@gmail.com>, 2015. #zanata
++# Terry Chuang <tchuang@redhat.com>, 2015. #zanata
+ msgid ""
+ msgstr ""
+ "Project-Id-Version: PACKAGE VERSION\n"
+@@ -15,13 +16,13 @@ msgstr ""
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
+-"PO-Revision-Date: 2017-05-16 07:08+0000\n"
+-"Last-Translator: Copied by Zanata <copied-by-zanata@zanata.org>\n"
++"PO-Revision-Date: 2015-07-17 07:14-0400\n"
++"Last-Translator: Terry Chuang <tchuang@redhat.com>\n"
+ "Language-Team: Chinese (Taiwan) (http://www.transifex.com/projects/p/fedora-"
+ "abrt/language/zh_TW/)\n"
+-"Language: zh-Hant\n"
++"Language: zh-TW\n"
+ "Plural-Forms: nplurals=1; plural=0;\n"
+-"X-Generator: Zanata 4.1.1\n"
++"X-Generator: Zanata 3.9.6\n"
+ 
+ # translation auto-copied from project abrt, version master, document abrt
+ #: ../src/applet/abrt-applet.desktop.in.h:1
+-- 
+1.8.3.1
+

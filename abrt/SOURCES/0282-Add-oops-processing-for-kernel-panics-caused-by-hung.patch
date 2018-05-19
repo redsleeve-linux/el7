@@ -1,0 +1,35 @@
+From 4499cfbae77f3b1dfcd476db40095e7d1b8148f5 Mon Sep 17 00:00:00 2001
+From: credmon <credmonster@gmail.com>
+Date: Fri, 20 May 2016 15:30:13 -0400
+Subject: [PATCH] Add oops processing for kernel panics caused by hung tasks.
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/lib/kernel.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/lib/kernel.c b/src/lib/kernel.c
+index f1a0f2c..a715624 100644
+--- a/src/lib/kernel.c
++++ b/src/lib/kernel.c
+@@ -110,6 +110,7 @@ static const char *const s_koops_suspicious_strings[] = {
+     /*s*/"ysctl table check failed",
+     ": nobody cared",
+     "IRQ handler type mismatch",
++    "Kernel panic - not syncing:",
+     /*
+      * MCE examples for various CPUs/architectures (collected 2013-04):
+      * arch/arc/kernel/traps.c:			die("Machine Check Exception", regs, address, cause);
+@@ -387,6 +388,9 @@ next_line:
+              && !strstr(curline, "<EOI>")
+              && !strstr(curline, "<NMI>")
+              && !strstr(curline, "<<EOE>>")
++             && !strstr(curline, "Comm:")
++             && !strstr(curline, "Hardware name:")
++             && !strstr(curline, "Backtrace:")
+              && strncmp(curline, "Code: ", 6) != 0
+              && strncmp(curline, "RIP ", 4) != 0
+              && strncmp(curline, "RSP ", 4) != 0
+-- 
+1.8.3.1
+

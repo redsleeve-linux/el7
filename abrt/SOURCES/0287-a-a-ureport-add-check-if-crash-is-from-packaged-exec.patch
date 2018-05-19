@@ -1,0 +1,42 @@
+From 9971c9376e59f1b74c7e5844a732ea5cee996599 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Tue, 10 Oct 2017 11:31:09 +0200
+Subject: [PATCH] a-a-ureport: add check if crash is from packaged executable
+
+uReport cannot be created for unpackaged executable.
+This commit adds check if the problem is packaged. If not
+uReport creating ends with log message explaining it.
+
+Resolves #1319828
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/plugins/abrt-action-ureport | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/plugins/abrt-action-ureport b/src/plugins/abrt-action-ureport
+index 48bebef..2616b03 100755
+--- a/src/plugins/abrt-action-ureport
++++ b/src/plugins/abrt-action-ureport
+@@ -118,6 +118,7 @@ if __name__ == "__main__":
+         report_type = dd.load_text("analyzer", 0)
+ 
+     core_backtrace_exists = dd.exist("core_backtrace")
++    packaged = dd.exist("package")
+     reported_to = dd.load_text("reported_to", DD_FAIL_QUIETLY_ENOENT)
+     ureports_counter = try_parse_number(dd, "ureports_counter")
+     count = try_parse_number(dd, "count")
+@@ -154,6 +155,10 @@ if __name__ == "__main__":
+             log1("uReport can't be sent without core_backtrace. Exiting.")
+             sys.exit(1)
+ 
++    if not packaged:
++        log(_("Problem comes from unpackaged executable. Unable to create uReport."))
++        sys.exit(1)
++
+     exitcode = spawn_and_wait("reporter-ureport")
+     if exitcode == 0 or exitcode == 70:
+         dd = dd_opendir(dirname, 0)
+-- 
+1.8.3.1
+

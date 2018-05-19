@@ -1,0 +1,43 @@
+From e29d4d264d5ccc53fc0f4cc18ac477395a82af10 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Thu, 27 Nov 2014 14:30:48 +0100
+Subject: [PATCH] vmcore: remove original vmcore file in the last step
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/hooks/abrt_harvest_vmcore.py.in | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/hooks/abrt_harvest_vmcore.py.in b/src/hooks/abrt_harvest_vmcore.py.in
+index 6b2719e..990a2b1 100644
+--- a/src/hooks/abrt_harvest_vmcore.py.in
++++ b/src/hooks/abrt_harvest_vmcore.py.in
+@@ -278,12 +278,6 @@ def harvest_vmcore():
+             shutil.rmtree(destdirnew)
+             continue
+ 
+-        if copyvmcore == 'no':
+-            try:
+-                shutil.rmtree(f_full)
+-            except OSError:
+-                sys.stderr.write("Unable to delete '%s'. Ignoring\n" % f_full)
+-
+         try:
+             # Let abrtd know what type of problem it is:
+             create_abrtd_info(destdirnew)
+@@ -303,6 +297,12 @@ def harvest_vmcore():
+         # Get rid of  the .new suffix
+         shutil.move(destdirnew, destdir)
+ 
++        if copyvmcore == 'no':
++            try:
++                shutil.rmtree(f_full)
++            except OSError:
++                sys.stderr.write("Unable to delete '%s'. Ignoring\n" % f_full)
++
+         problem.notify_new_path(destdir)
+ 
+ 
+-- 
+1.8.3.1
+

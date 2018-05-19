@@ -1,0 +1,75 @@
+From 80087d0d88e2ff5a3c644f939bbe602a064096c4 Mon Sep 17 00:00:00 2001
+From: Julius Milan <jmilan@redhat.com>
+Date: Tue, 26 Sep 2017 15:56:42 +0200
+Subject: [PATCH] koops: Improve not-reportable for oopses with taint flags
+
+Adds detailed info about taint flags to not-reportable. This
+additional info contains description of every taint flag that appeared
+in particular oops.
+It is either good for user information and also solves the problem when users
+opened bugs on abrt from misunderstanding tainted flags.
+
+Related to rhbz#1452160
+---
+ src/lib/kernel.c             | 7 ++++---
+ src/plugins/abrt-dump-oops.c | 8 ++++----
+ 2 files changed, 8 insertions(+), 7 deletions(-)
+
+diff --git a/src/lib/kernel.c b/src/lib/kernel.c
+index 3c8cbdf..346b0a6 100644
+--- a/src/lib/kernel.c
++++ b/src/lib/kernel.c
+@@ -695,9 +695,10 @@ static const char *const tnts_long[] = {
+     /* B */ "System has hit bad_page.",
+     /* C */ "Modules from drivers/staging are loaded.",
+     /* D */ "Kernel has oopsed before",
+-    /* E */ NULL,
++    /* E */ "Unsigned module has been loaded.",
+     /* F */ "Module has been forcibly loaded.",
+-    /* G */ "Proprietary module has not been loaded.",
++            /* We don't want to be more descriptive about G flag */
++    /* G */ NULL, /* "Proprietary module has not been loaded." */
+     /* H */ NULL,
+     /* I */ "Working around severe firmware bug.",
+     /* J */ NULL,
+@@ -729,7 +730,7 @@ char *kernel_tainted_long(const char *tainted_short)
+         {
+             const char *const txt = tnts_long[tnt_index];
+             if (txt)
+-                strbuf_append_strf(tnt_long, "%s\n", txt);
++                strbuf_append_strf(tnt_long, "%c - %s\n", tainted_short[0], txt);
+         }
+ 
+         ++tainted_short;
+diff --git a/src/plugins/abrt-dump-oops.c b/src/plugins/abrt-dump-oops.c
+index 05cb728..e7db19a 100644
+--- a/src/plugins/abrt-dump-oops.c
++++ b/src/plugins/abrt-dump-oops.c
+@@ -139,13 +139,12 @@ static void save_oops_data_in_dump_dir(struct dump_dir *dd, char *oops, const ch
+ 
+             char *tnt_long = kernel_tainted_long(tainted_short);
+             dd_save_text(dd, FILENAME_TAINTED_LONG, tnt_long);
+-            free(tnt_long);
+ 
+             struct strbuf *reason = strbuf_new();
+             const char *fmt = _("A kernel problem occurred, but your kernel has been "
+-                    "tainted (flags:%s). Kernel maintainers are unable to "
+-                    "diagnose tainted reports.");
+-            strbuf_append_strf(reason, fmt, tainted_short);
++                    "tainted (flags:%s). Explanation:\n%s"
++                    "Kernel maintainers are unable to diagnose tainted reports.");
++            strbuf_append_strf(reason, fmt, tainted_short, tnt_long);
+ 
+             char *modlist = !proc_modules ? NULL : list_of_tainted_modules(proc_modules);
+             if (modlist)
+@@ -157,6 +156,7 @@ static void save_oops_data_in_dump_dir(struct dump_dir *dd, char *oops, const ch
+             dd_save_text(dd, FILENAME_NOT_REPORTABLE, reason->buf);
+             strbuf_free(reason);
+             free(tainted_short);
++            free(tnt_long);
+         }
+     }
+ 
+-- 
+1.8.3.1
+
