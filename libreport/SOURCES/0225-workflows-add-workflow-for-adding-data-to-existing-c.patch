@@ -1,0 +1,443 @@
+From 08cde7d66147769cd160630e0bac4fae93db3ada Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Thu, 31 Aug 2017 12:56:36 +0200
+Subject: [PATCH] workflows: add workflow for adding data to existing case
+
+Change behavior of -t parameter in reporter-rhtsupport.
+
+If option -t without support case ID is used and problem data in DIR was never
+reported to RHTSupport, you will ask to enter case ID to which you want to
+upload the FILEs. If the data in DIR was reported, the case ID is obtained from
+'reported_to' element in problem dir. In this case, you will be asked if you
+want to attach the data to the support case or you want to change the support
+case ID.
+
+Related to #1395285
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+
+Conflicts:
+	po/POTFILES.in
+	src/plugins/rhtsupport_event.conf
+	src/workflows/Makefile.am
+---
+ doc/reporter-rhtsupport.txt                        |  3 +-
+ po/POTFILES.in                                     |  8 +++
+ src/plugins/Makefile.am                            |  2 +
+ src/plugins/report_RHTSupport_AddData.xml.in       | 18 ++++++
+ src/plugins/reporter-rhtsupport.c                  | 67 +++++++++++++++++-----
+ src/plugins/rhtsupport_event.conf                  |  4 ++
+ src/workflows/Makefile.am                          | 16 ++++++
+ src/workflows/report_rhel_add_data.conf            | 27 +++++++++
+ src/workflows/workflow_RHELAddDataCCpp.xml.in      | 11 ++++
+ src/workflows/workflow_RHELAddDataJava.xml.in      | 11 ++++
+ .../workflow_RHELAddDataKerneloops.xml.in          | 11 ++++
+ src/workflows/workflow_RHELAddDataLibreport.xml.in | 10 ++++
+ src/workflows/workflow_RHELAddDataPython.xml.in    | 11 ++++
+ src/workflows/workflow_RHELAddDatavmcore.xml.in    | 12 ++++
+ src/workflows/workflow_RHELAddDataxorg.xml.in      | 10 ++++
+ 15 files changed, 205 insertions(+), 16 deletions(-)
+ create mode 100644 src/plugins/report_RHTSupport_AddData.xml.in
+ create mode 100644 src/workflows/report_rhel_add_data.conf
+ create mode 100644 src/workflows/workflow_RHELAddDataCCpp.xml.in
+ create mode 100644 src/workflows/workflow_RHELAddDataJava.xml.in
+ create mode 100644 src/workflows/workflow_RHELAddDataKerneloops.xml.in
+ create mode 100644 src/workflows/workflow_RHELAddDataLibreport.xml.in
+ create mode 100644 src/workflows/workflow_RHELAddDataPython.xml.in
+ create mode 100644 src/workflows/workflow_RHELAddDatavmcore.xml.in
+ create mode 100644 src/workflows/workflow_RHELAddDataxorg.xml.in
+
+diff --git a/doc/reporter-rhtsupport.txt b/doc/reporter-rhtsupport.txt
+index 66e5bed..2e779bc 100644
+--- a/doc/reporter-rhtsupport.txt
++++ b/doc/reporter-rhtsupport.txt
+@@ -28,7 +28,8 @@ If not specified, CONFFILE defaults to /etc/libreport/plugins/rhtsupport.conf.
+ 
+ Option -t uploads FILEs to the already created case on RHTSupport site.
+ The case ID is retrieved from directory specified by -d DIR.
+-If problem data in DIR was never reported to RHTSupport, upload will fail.
++If problem data in DIR was never reported to RHTSupport, you will be asked
++to enter case ID to which you want to upload the FILEs.
+ 
+ Option -tCASE uploads FILEs to the case CASE on RHTSupport site.
+ -d DIR is ignored.
+diff --git a/po/POTFILES.in b/po/POTFILES.in
+index 4246e06..9f972ae 100644
+--- a/po/POTFILES.in
++++ b/po/POTFILES.in
+@@ -42,6 +42,7 @@ src/plugins/report_Kerneloops.xml.in
+ src/plugins/report_Logger.xml.in
+ src/plugins/report_Mailx.xml.in
+ src/plugins/report_RHTSupport.xml.in
++src/plugins/report_RHTSupport_AddData.xml.in
+ src/plugins/report_Uploader.xml.in
+ src/plugins/report_uReport.xml.in
+ src/plugins/report_EmergencyAnalysis.xml.in
+@@ -73,6 +74,13 @@ src/workflows/workflow_RHELvmcore.xml.in
+ src/workflows/workflow_RHELxorg.xml.in
+ src/workflows/workflow_RHELLibreport.xml.in
+ src/workflows/workflow_RHELJava.xml.in
++src/workflows/workflow_RHELAddDataCCpp.xml.in
++src/workflows/workflow_RHELAddDataJava.xml.in
++src/workflows/workflow_RHELAddDataKerneloops.xml.in
++src/workflows/workflow_RHELAddDataLibreport.xml.in
++src/workflows/workflow_RHELAddDataPython.xml.in
++src/workflows/workflow_RHELAddDatavmcore.xml.in
++src/workflows/workflow_RHELAddDataxorg.xml.in
+ src/workflows/workflow_RHELBugzillaCCpp.xml.in
+ src/workflows/workflow_RHELBugzillaKerneloops.xml.in
+ src/workflows/workflow_RHELBugzillaPython.xml.in
+diff --git a/src/plugins/Makefile.am b/src/plugins/Makefile.am
+index 8e1a166..c5e8ec1 100644
+--- a/src/plugins/Makefile.am
++++ b/src/plugins/Makefile.am
+@@ -62,6 +62,7 @@ dist_events_DATA = $(reporters_events) \
+     report_Logger.xml \
+     report_Mailx.xml \
+     report_RHTSupport.xml \
++    report_RHTSupport_AddData.xml \
+     report_Kerneloops.xml \
+     report_Uploader.xml \
+     report_EmergencyAnalysis.xml
+@@ -96,6 +97,7 @@ EXTRA_DIST = $(reporters_extra_dist) \
+     report_Logger.xml.in \
+     report_Mailx.xml.in \
+     report_RHTSupport.xml.in \
++    report_RHTSupport_AddData.xml.in \
+     report_Kerneloops.xml.in \
+     report_Uploader.xml.in \
+     report_EmergencyAnalysis.xml.in
+diff --git a/src/plugins/report_RHTSupport_AddData.xml.in b/src/plugins/report_RHTSupport_AddData.xml.in
+new file mode 100644
+index 0000000..b4aa7e1
+--- /dev/null
++++ b/src/plugins/report_RHTSupport_AddData.xml.in
+@@ -0,0 +1,18 @@
++<?xml version="1.0" encoding="UTF-8" ?>
++<event>
++    <_name>Red Hat Customer Support</_name>
++    <_description>Attach the data to existing Red Hat support case</_description>
++
++    <requires-items>package</requires-items>
++    <requires-details>yes</requires-details>
++    <exclude-items-by-default>event_log</exclude-items-by-default>
++    <exclude-items-always></exclude-items-always>
++    <exclude-binary-items>no</exclude-binary-items>
++    <include-items-by-default></include-items-by-default>
++    <minimal-rating>0</minimal-rating>
++    <gui-review-elements>yes</gui-review-elements>
++
++    <options>
++        <import-event-options event="report_RHTSupport"/>
++    </options>
++</event>
+diff --git a/src/plugins/reporter-rhtsupport.c b/src/plugins/reporter-rhtsupport.c
+index 14b3864..dc0d04e 100644
+--- a/src/plugins/reporter-rhtsupport.c
++++ b/src/plugins/reporter-rhtsupport.c
+@@ -44,6 +44,8 @@
+ 
+ #define ABRT_ELEMENTS_KB_ARTICLE "https://access.redhat.com/articles/2134281"
+ 
++#define RHTSUPPORT_CASE_URL_PATH "cases"
++
+ #define QUERY_HINTS_IF_SMALLER_THAN  (8*1024*1024)
+ 
+ static void ask_rh_credentials(char **login, char **password);
+@@ -449,6 +451,32 @@ void prepare_ureport_configuration(const char *urcfile,
+     }
+ }
+ 
++static char *create_case_url(char *url, const char *case_no)
++{
++    char *url1 = concat_path_file(url, RHTSUPPORT_CASE_URL_PATH);
++    free(url);
++    url = concat_path_file(url1, case_no);
++    free(url1);
++
++    return url;
++}
++
++static char *ask_case_no_create_url(char *url)
++{
++    char *msg = xasprintf(_("Please enter customer case number to which you want to attach the data:"));
++    char *case_no = ask(msg);
++    free(msg);
++    if (case_no == NULL || case_no[0] == '\0')
++    {
++        set_xfunc_error_retval(EXIT_CANCEL_BY_USER);
++        error_msg_and_die(_("Can't continue without RHTSupport case number"));
++    }
++    char *new_url = create_case_url(url, (const char *)case_no);
++    free(case_no);
++
++    return new_url;
++}
++
+ int main(int argc, char **argv)
+ {
+     abrt_init(argv);
+@@ -484,7 +512,8 @@ int main(int argc, char **argv)
+         "\n"
+         "Option -t uploads FILEs to the already created case on RHTSupport site.\n"
+         "The case ID is retrieved from directory specified by -d DIR.\n"
+-        "If problem data in DIR was never reported to RHTSupport, upload will fail.\n"
++        "If problem data in DIR was never reported to Red Hat Support, you will be asked\n"
++        "to enter case ID to which you want to upload the FILEs.\n"
+         "\n"
+         "Option -tCASE uploads FILEs to the case CASE on RHTSupport site.\n"
+         "-d DIR is ignored."
+@@ -586,24 +615,32 @@ int main(int argc, char **argv)
+         {
+             /* -t: extract URL where we previously reported it */
+             report_result_t *reported_to = get_reported_to(dump_dir_name);
+-            if (!reported_to || !reported_to->url)
+-                error_msg_and_die("Can't attach: problem data in '%s' "
+-                        "was not reported to RHTSupport and therefore has no URL",
+-                        dump_dir_name);
+-            //log("URL:'%s'", reported_to->url);
+-            //log("MSG:'%s'", reported_to->msg);
+-            free(url);
+-            url = reported_to->url;
+-            reported_to->url = NULL;
+-            free_report_result(reported_to);
++            if (reported_to && reported_to->url)
++            {
++                free(url);
++                url = reported_to->url;
++                reported_to->url = NULL;
++                free_report_result(reported_to);
++                char *msg = xasprintf(
++                    _("We found a similar Red Hat support case %s. "
++                      "Do you want to attach the data to the case? "
++                      "Otherwise, you will have to enter the existing "
++                      "Red Hat support case number."), url);
++                int yes = ask_yes_no(msg);
++                free(msg);
++                if (!yes)
++                    url = ask_case_no_create_url(url);
++            }
++            else
++            {
++                log("Problem was not reported to RHTSupport.");
++                url = ask_case_no_create_url(url);
++            }
+         }
+         else
+         {
+             /* -tCASE */
+-            char *url1 = concat_path_file(url, "cases");
+-            free(url);
+-            url = concat_path_file(url1, case_no);
+-            free(url1);
++            url = create_case_url(url, case_no);
+         }
+ 
+         if (*argv)
+diff --git a/src/plugins/rhtsupport_event.conf b/src/plugins/rhtsupport_event.conf
+index f6a9d47..cc2f05d 100644
+--- a/src/plugins/rhtsupport_event.conf
++++ b/src/plugins/rhtsupport_event.conf
+@@ -1,3 +1,7 @@
+ EVENT=report_RHTSupport
+     # Submit an uReport and create a case in Red Hat Customer Portal
+     reporter-rhtsupport -u
++
++EVENT=report_RHTSupport_AddData
++    # Attach data to a case in Red Hat Customer Portal
++    reporter-rhtsupport -t
+diff --git a/src/workflows/Makefile.am b/src/workflows/Makefile.am
+index 72502ca..e853030 100644
+--- a/src/workflows/Makefile.am
++++ b/src/workflows/Makefile.am
+@@ -15,6 +15,13 @@ dist_workflows_DATA = \
+     workflow_RHELxorg.xml \
+     workflow_RHELLibreport.xml \
+     workflow_RHELJava.xml \
++    workflow_RHELAddDataCCpp.xml \
++    workflow_RHELAddDataJava.xml \
++    workflow_RHELAddDataKerneloops.xml \
++    workflow_RHELAddDataLibreport.xml \
++    workflow_RHELAddDataPython.xml \
++    workflow_RHELAddDatavmcore.xml \
++    workflow_RHELAddDataxorg.xml \
+     workflow_uReport.xml \
+     workflow_Mailx.xml \
+     workflow_MailxCCpp.xml \
+@@ -43,6 +50,7 @@ workflowsdefdir = $(WORKFLOWS_DEFINITION_DIR)
+ dist_workflowsdef_DATA =\
+     report_fedora.conf \
+     report_rhel.conf \
++    report_rhel_add_data.conf \
+     report_uReport.conf \
+     report_mailx.conf \
+     report_logger.conf \
+@@ -72,6 +80,14 @@ EXTRA_DIST = \
+     workflow_RHELxorg.xml.in \
+     workflow_RHELLibreport.xml.in \
+     workflow_RHELJava.xml.in \
++    workflow_RHELAddDataCCpp.xml.in \
++    workflow_RHELAddDataJava.xml.in \
++    workflow_RHELAddDataKerneloops.xml.in \
++    workflow_RHELAddDataLibreport.xml.in \
++    workflow_RHELAddDataPython.xml.in \
++    workflow_RHELAddDatavmcore.xml.in \
++    workflow_RHELAddDataxorg.xml.in \
++    workflow_uReport.xml.in \
+     workflow_Mailx.xml.in \
+     workflow_MailxCCpp.xml.in \
+     workflow_Upload.xml.in \
+diff --git a/src/workflows/report_rhel_add_data.conf b/src/workflows/report_rhel_add_data.conf
+new file mode 100644
+index 0000000..be8251e
+--- /dev/null
++++ b/src/workflows/report_rhel_add_data.conf
+@@ -0,0 +1,27 @@
++EVENT=workflow_RHELAddDataLibreport analyzer=libreport
++# this is just a meta event which consists of other events
++# the list is defined in the xml file
++
++EVENT=workflow_RHELAddDataCCpp type=CCpp
++# this is just a meta event which consists of other events
++# the list is defined in the xml file
++
++EVENT=workflow_RHELAddDataPython type=Python component!=anaconda
++# this is just a meta event which consists of other events
++# the list is defined in the xml file
++
++EVENT=workflow_RHELAddDataKerneloops type=Kerneloops
++# this is just a meta event which consists of other events
++# the list is defined in the xml file
++
++EVENT=workflow_RHELAddDatavmcore type=vmcore
++# this is just a meta event which consists of other events
++# the list is defined in the xml file
++
++EVENT=workflow_RHELAddDataxorg type=xorg
++# this is just a meta event which consists of other events
++# the list is defined in the xml file
++
++EVENT=workflow_RHELAddDataJava type=Java
++# this is just a meta event which consists of other events
++# the list is defined in the xml file
+diff --git a/src/workflows/workflow_RHELAddDataCCpp.xml.in b/src/workflows/workflow_RHELAddDataCCpp.xml.in
+new file mode 100644
+index 0000000..6d0f5e0
+--- /dev/null
++++ b/src/workflows/workflow_RHELAddDataCCpp.xml.in
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="UTF-8" ?>
++<workflow>
++    <_name>Attach crash data to an existing Red Hat support case</_name>
++    <_description>Provide Red Hat Support with crash details</_description>
++    <priority>99</priority>
++
++    <events>
++        <event>collect_*</event>
++        <event>report_RHTSupport_AddData</event>
++    </events>
++</workflow>
+diff --git a/src/workflows/workflow_RHELAddDataJava.xml.in b/src/workflows/workflow_RHELAddDataJava.xml.in
+new file mode 100644
+index 0000000..6d0f5e0
+--- /dev/null
++++ b/src/workflows/workflow_RHELAddDataJava.xml.in
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="UTF-8" ?>
++<workflow>
++    <_name>Attach crash data to an existing Red Hat support case</_name>
++    <_description>Provide Red Hat Support with crash details</_description>
++    <priority>99</priority>
++
++    <events>
++        <event>collect_*</event>
++        <event>report_RHTSupport_AddData</event>
++    </events>
++</workflow>
+diff --git a/src/workflows/workflow_RHELAddDataKerneloops.xml.in b/src/workflows/workflow_RHELAddDataKerneloops.xml.in
+new file mode 100644
+index 0000000..6d0f5e0
+--- /dev/null
++++ b/src/workflows/workflow_RHELAddDataKerneloops.xml.in
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="UTF-8" ?>
++<workflow>
++    <_name>Attach crash data to an existing Red Hat support case</_name>
++    <_description>Provide Red Hat Support with crash details</_description>
++    <priority>99</priority>
++
++    <events>
++        <event>collect_*</event>
++        <event>report_RHTSupport_AddData</event>
++    </events>
++</workflow>
+diff --git a/src/workflows/workflow_RHELAddDataLibreport.xml.in b/src/workflows/workflow_RHELAddDataLibreport.xml.in
+new file mode 100644
+index 0000000..26dc4c9
+--- /dev/null
++++ b/src/workflows/workflow_RHELAddDataLibreport.xml.in
+@@ -0,0 +1,10 @@
++<?xml version="1.0" encoding="UTF-8" ?>
++<workflow>
++    <_name>Attach crash data to an existing Red Hat support case</_name>
++    <_description>Provide Red Hat Support with crash details</_description>
++    <priority>99</priority>
++
++    <events>
++        <event>report_RHTSupport_AddData</event>
++    </events>
++</workflow>
+diff --git a/src/workflows/workflow_RHELAddDataPython.xml.in b/src/workflows/workflow_RHELAddDataPython.xml.in
+new file mode 100644
+index 0000000..6d0f5e0
+--- /dev/null
++++ b/src/workflows/workflow_RHELAddDataPython.xml.in
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="UTF-8" ?>
++<workflow>
++    <_name>Attach crash data to an existing Red Hat support case</_name>
++    <_description>Provide Red Hat Support with crash details</_description>
++    <priority>99</priority>
++
++    <events>
++        <event>collect_*</event>
++        <event>report_RHTSupport_AddData</event>
++    </events>
++</workflow>
+diff --git a/src/workflows/workflow_RHELAddDatavmcore.xml.in b/src/workflows/workflow_RHELAddDatavmcore.xml.in
+new file mode 100644
+index 0000000..79af822
+--- /dev/null
++++ b/src/workflows/workflow_RHELAddDatavmcore.xml.in
+@@ -0,0 +1,12 @@
++<?xml version="1.0" encoding="UTF-8" ?>
++<workflow>
++    <_name>Attach crash data to an existing Red Hat support case</_name>
++    <_description>Provide Red Hat Support with crash details</_description>
++    <priority>99</priority>
++
++    <events>
++        <event>collect_*</event>
++        <event>analyze_VMcore</event>
++        <event>report_RHTSupport_AddData</event>
++    </events>
++</workflow>
+diff --git a/src/workflows/workflow_RHELAddDataxorg.xml.in b/src/workflows/workflow_RHELAddDataxorg.xml.in
+new file mode 100644
+index 0000000..26dc4c9
+--- /dev/null
++++ b/src/workflows/workflow_RHELAddDataxorg.xml.in
+@@ -0,0 +1,10 @@
++<?xml version="1.0" encoding="UTF-8" ?>
++<workflow>
++    <_name>Attach crash data to an existing Red Hat support case</_name>
++    <_description>Provide Red Hat Support with crash details</_description>
++    <priority>99</priority>
++
++    <events>
++        <event>report_RHTSupport_AddData</event>
++    </events>
++</workflow>
+-- 
+1.8.3.1
+

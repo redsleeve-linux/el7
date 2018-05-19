@@ -1,0 +1,106 @@
+From ee2446d94b1355b4c5cbfce97a126e6ddc0c8241 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Wed, 9 Aug 2017 16:16:51 +0200
+Subject: [PATCH] reporter-ureport: change default URL to FAF
+
+Since internal FAF migrated from ITOS, the default
+URL (http://bug-report.itos.redhat.com) is deprecated.
+
+Related to #1463313
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/plugins/report_uReport.xml.in |  2 +-
+ src/plugins/reporter-ureport.c    |  2 +-
+ src/plugins/ureport.conf          |  2 +-
+ tests/make_description.at         | 10 +++++-----
+ 4 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/plugins/report_uReport.xml.in b/src/plugins/report_uReport.xml.in
+index b997851..49ba8ce 100644
+--- a/src/plugins/report_uReport.xml.in
++++ b/src/plugins/report_uReport.xml.in
+@@ -12,7 +12,7 @@
+             <_label>uReport Server URL</_label>
+             <allow-empty>no</allow-empty>
+             <_description>Address of uReport webservice</_description>
+-            <default-value>http://bug-report.itos.redhat.com</default-value>
++            <default-value>http://bug-report.redhat.com</default-value>
+         </option>
+         <option type="text" name="uReport_ContactEmail">
+             <_label>Contact email address</_label>
+diff --git a/src/plugins/reporter-ureport.c b/src/plugins/reporter-ureport.c
+index 6dcce81..8c77700 100644
+--- a/src/plugins/reporter-ureport.c
++++ b/src/plugins/reporter-ureport.c
+@@ -22,7 +22,7 @@
+ #include "ureport.h"
+ #include "libreport_curl.h"
+ 
+-#define DEFAULT_WEB_SERVICE_URL "http://bug-report.itos.redhat.com"
++#define DEFAULT_WEB_SERVICE_URL "http://bug-report.redhat.com"
+ 
+ int main(int argc, char **argv)
+ {
+diff --git a/src/plugins/ureport.conf b/src/plugins/ureport.conf
+index 2256a7f..7037010 100644
+--- a/src/plugins/ureport.conf
++++ b/src/plugins/ureport.conf
+@@ -1,5 +1,5 @@
+ # Base URL to uReport server
+-# URL = http://bug-report.itos.redhat.com
++# URL = http://bug-report.redhat.com
+ 
+ # no means that ssl certificates will not be checked
+ # SSLVerify = no
+diff --git a/tests/make_description.at b/tests/make_description.at
+index e606065..358be30 100644
+--- a/tests/make_description.at
++++ b/tests/make_description.at
+@@ -47,14 +47,14 @@ int main(int argc, char **argv)
+             "Bugzilla: URL=https://bugzilla.redhat.com/1000000\n"
+             "ABRT Server: BTHASH=81680083BIGBOOBS\n"
+             "RHTSupport: TIME=12345678 URL=https://access.redhat.com/home MSG=The world's best IT support\n"
+-            "ABRT Server: URL=https://bug-report.itos.redhat.com\n");
++            "ABRT Server: URL=https://bug-report.redhat.com\n");
+ 
+     description = make_description(pd, /*skipped names*/NULL, CD_MAX_TEXT_SIZE, MAKEDESC_SHOW_URLS);
+     expected = xasprintf(
+            /*0123456789ABCDEF*/
+             "Reported:       https://bugzilla.redhat.com/1000000\n"
+             "                https://access.redhat.com/home\n"
+-            "                https://bug-report.itos.redhat.com\n");
++            "                https://bug-report.redhat.com\n");
+ 
+     if (strcmp(expected, description) != 0)
+     {
+@@ -91,7 +91,7 @@ int main(int argc, char **argv)
+             "Bugzilla: URL=https://bugzilla.redhat.com/1000000\n"
+             "ABRT Server: BTHASH=81680083BIGBOOBS\n"
+             "RHTSupport: TIME=12345678 URL=https://access.redhat.com/home MSG=The world's best IT support\n"
+-            "ABRT Server: URL=https://bug-report.itos.redhat.com\n");
++            "ABRT Server: URL=https://bug-report.redhat.com\n");
+ 
+     description = make_description(pd, /*skipped names*/NULL, CD_MAX_TEXT_SIZE, MAKEDESC_SHOW_ONLY_LIST | MAKEDESC_SHOW_URLS);
+ 
+@@ -102,7 +102,7 @@ int main(int argc, char **argv)
+            /*0123456789ABCDEF*/
+             "Reported:       https://bugzilla.redhat.com/1000000\n"
+             "                https://access.redhat.com/home\n"
+-            "                https://bug-report.itos.redhat.com\n",
++            "                https://bug-report.redhat.com\n",
+             FILENAME_REASON,     14 - strlen(FILENAME_REASON),     "", "will_segfault killed by SIGSEGV",
+             FILENAME_PACKAGE,    14 - strlen(FILENAME_PACKAGE),    "", "libreport",
+             FILENAME_COUNT,      14 - strlen(FILENAME_COUNT),      "", "0");
+@@ -129,7 +129,7 @@ int main(int argc, char **argv)
+            /*0123456789ABCDEF*/
+             "Reported:       https://bugzilla.redhat.com/1000000\n"
+             "                https://access.redhat.com/home\n"
+-            "                https://bug-report.itos.redhat.com\n"
++            "                https://bug-report.redhat.com\n"
+             "\n"
+             "%s: %*sText file, %llu bytes\n"
+             "%s: %*sText file, %llu bytes\n",
+-- 
+1.8.3.1
+

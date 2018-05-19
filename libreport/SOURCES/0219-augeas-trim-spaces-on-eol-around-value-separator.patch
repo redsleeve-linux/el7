@@ -1,0 +1,100 @@
+From 3fc1e286151e12b3229750da7a550b8f799a35bc Mon Sep 17 00:00:00 2001
+From: Julius Milan <jmilan@redhat.com>
+Date: Wed, 22 Mar 2017 14:10:04 +0100
+Subject: [PATCH] augeas: trim spaces on eol, around value separator
+
+Resolves abrt/libreport#474
+Related to rhbz#1435256
+---
+ augeas/libreport.aug      | 19 ++++++++++++-------
+ augeas/test_libreport.aug | 20 ++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 7 deletions(-)
+
+diff --git a/augeas/libreport.aug b/augeas/libreport.aug
+index 7125be2..76b3bcc 100644
+--- a/augeas/libreport.aug
++++ b/augeas/libreport.aug
+@@ -2,19 +2,24 @@ module Libreport =
+     autoload xfm
+ 
+     (* Define useful primitives *)
+-    let value_sep    = del / ?= ?/ " = "
+-    let value_to_eol = store /([^ \t\n].*[^ \t\n]|[^ \t\n]?)/
+-    let eol          = del /\n/ "\n"
+-    let ident        = /[a-zA-Z][a-zA-Z_]+/
++    let val_sep        = del /[ \t]*=[ \t]*/ " = "
++    let val            = store /([^ \t\n].*[^ \t\n]|[^ \t\n])/
++    let eol            = del /\n/ "\n"
++    let whitespace_eol = del /[ \t]*\n/ "\n"
++    let ident          = /[a-zA-Z][a-zA-Z_]+/
+ 
+     (* Define comment *)
+-    let comment = [ label "#comment" . del /#[ \t]*/ "# " . value_to_eol . eol ]
++    let commented_line = [ label "#comment" . del /#[ \t]*/ "# " . val . eol ]
++    let empty_comment  = [ label "#comment" . value "" . del /#[ \t]*/ "# " . eol ]
++    let comment        = commented_line | empty_comment
+ 
+     (* Define empty *)
+-    let empty = [ del /[ \t]*\n/ "\n" ]
++    let empty          = [ del /[ \t]*\n/ "\n" ]
+ 
+     (* Define option *)
+-    let option = [ del /[ \t]*/ "" . key ident . value_sep . value_to_eol . eol ]
++    let option_val     = [ del /[ \t]*/ "" . key ident . val_sep . val . whitespace_eol ]
++    let option_no_val  = [ value "" . del /[ \t]*/ "" . key ident . val_sep . eol ]
++    let option         = option_val | option_no_val
+ 
+     (* Define lens *)
+     let lns = ( comment | empty | option )*
+diff --git a/augeas/test_libreport.aug b/augeas/test_libreport.aug
+index 116e97c..3dfbfa6 100644
+--- a/augeas/test_libreport.aug
++++ b/augeas/test_libreport.aug
+@@ -16,6 +16,8 @@ Password =
+ # bugs in selinux-policy component.
+ # (If you need to add more, the syntax is: \"component[,component...]\")
+ #
++#       
++#		
+ DontMatchComponents = selinux-policy
+ 
+ # for more info about these settings see: https://github.com/abrt/abrt/wiki/FAQ#creating-private-bugzilla-tickets
+@@ -25,6 +27,14 @@ PrivateGroups=private
+   Whitespace_two=start
+ 	Whitespace_three =start
+ 	 Whitespace_four= start
++
++AssignmentWhitespace_a   =what
++     AssignmentWhitespace_b   =    an
++AssignmentWhitespace_c=   		 original
++  AssignmentWhitespace_d =      idea
++
++EOLWhitespace_a = nice      
++EOLWhitespace_b = nice 		 
+ "
+ 
+     test Libreport.lns get conf =
+@@ -44,6 +54,8 @@ PrivateGroups=private
+         { "#comment" = "bugs in selinux-policy component." }
+         { "#comment" = "(If you need to add more, the syntax is: \"component[,component...]\")" }
+         { "#comment" = "" }
++        { "#comment" = "" }
++        { "#comment" = "" }
+         { "DontMatchComponents" = "selinux-policy" }
+         {}
+         { "#comment" = "for more info about these settings see: https://github.com/abrt/abrt/wiki/FAQ#creating-private-bugzilla-tickets" }
+@@ -53,3 +65,11 @@ PrivateGroups=private
+         { "Whitespace_two" = "start" }
+         { "Whitespace_three" = "start" }
+         { "Whitespace_four" = "start" }
++        {}
++        { "AssignmentWhitespace_a" = "what" }
++        { "AssignmentWhitespace_b" = "an" }
++        { "AssignmentWhitespace_c" = "original" }
++        { "AssignmentWhitespace_d" = "idea" }
++        {}
++        { "EOLWhitespace_a" = "nice" }
++        { "EOLWhitespace_b" = "nice" }
+-- 
+1.8.3.1
+

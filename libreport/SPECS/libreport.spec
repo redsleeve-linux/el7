@@ -7,7 +7,7 @@
 Summary: Generic library for reporting various problems
 Name: libreport
 Version: 2.1.11
-Release: 38%{?dist}.redsleeve
+Release: 40%{?dist}
 License: GPLv2+
 Group: System Environment/Libraries
 URL: https://fedorahosted.org/abrt/
@@ -242,24 +242,35 @@ Patch214: 0214-tree-wide-introduce-stop_on_not_reportable-option.patch
 Patch215: 0215-rhtsupport-fix-a-double-free-of-config-at-exit.patch
 Patch216: 0216-reportclient-fix-verbosity-test.patch
 Patch217: 0217-report-newt-free-allocated-variables-don-t-close-dd-.patch
+# git format-patch 2.1.11-38.el7 -N --start-number 218 --topo-order
+#Patch218: 0218-spec-allow-deprecated-declarations-warning.patch
+Patch219: 0219-augeas-trim-spaces-on-eol-around-value-separator.patch
+Patch220: 0220-reporter-ureport-change-default-URL-to-FAF.patch
+Patch221: 0221-dump_dir-introduce-dd_copy_file.patch
+Patch222: 0222-report-wrap-more-dump-dir-functions.patch
+Patch223: 0223-wizard-fix-the-broken-Show-log-widget.patch
+#Patch224: 0224-spec-add-workflow-for-adding-data-to-existing-case.patch
+Patch225: 0225-workflows-add-workflow-for-adding-data-to-existing-c.patch
+# git format-patch 2.1.11-39.el7 -N --start-number 226 --topo-order
+Patch226: 0226-reporter-rhtsupport-remove-dependency-of-redhat-acce.patch
+# git format-patch 2.1.11-40.el7 -N --start-number 227 --topo-order
 
 
-#Patch1000: 1000-bugzilla-port-to-Problem-Format-API.patch
-#Patch1001: 1001-lib-created-a-new-lib-file-for-reporters.patch
+Patch1000: 1000-bugzilla-port-to-Problem-Format-API.patch
+Patch1001: 1001-lib-created-a-new-lib-file-for-reporters.patch
 #Patch1002: 1002-spec-changed-spec-file-to-work-with-last-commit.patch
-#Patch1003: 1003-ureport-set-url-to-public-faf-server.patch
-#Patch1004: 1004-conf-changed-URL-for-sending-uReport.patch
-#Patch1005: 1005-reporter-mantisbt-first-version-of-the-reporter-mant.patch
+Patch1003: 1003-ureport-set-url-to-public-faf-server.patch
+Patch1004: 1004-conf-changed-URL-for-sending-uReport.patch
+Patch1005: 1005-reporter-mantisbt-first-version-of-the-reporter-mant.patch
 #Patch1006: 1006-spec-changed-spec-file-to-work-with-reporter-mantisb.patch
-#Patch1007: 1007-reporter-mantisbt-change-default-formating-file-for-.patch
+Patch1007: 1007-reporter-mantisbt-change-default-formating-file-for-.patch
 #Patch1008: 1008-spec-change-spec-file-to-work-with-last-commit.patch
-#Patch1009: 1009-reporter-mantisbt-adds-man-pages-for-reporter-mantis.patch
-#Patch1010: 1010-move-problem_report-to-plugins.patch
+Patch1009: 1009-reporter-mantisbt-adds-man-pages-for-reporter-mantis.patch
+Patch1010: 1010-move-problem_report-to-plugins.patch
 #Patch1011: 1011-spec-change-related-to-moving-problem_report-to-plug.patch
-#Patch1012: 1012-reporter-mantisbt-add-event-for-reporting-AVCs.patch
+Patch1012: 1012-reporter-mantisbt-add-event-for-reporting-AVCs.patch
 #Patch1013: 1013-spec-add-files-related-to-reporting-AVCs-by-reporter.patch
-#Patch1014: 1014-event-disable-report_RHTSupport-event-and-change-URL.patch
-#Patch1015: 1015-spec-remove-dependecy-on-redhat-access-insights.patch
+Patch1014: 1014-event-disable-report_RHTSupport-event-and-change-URL.patch
 
 # git is need for '%%autosetup -S git' which automatically applies all the
 # patches above. Please, be aware that the patches must be generated
@@ -449,32 +460,30 @@ Uploads micro-report to abrt server
 %description plugin-bugzilla
 Plugin to report bugs into the bugzilla.
 
-#%package plugin-mantisbt
-#Summary: %{name}'s mantisbt plugin
-#Group: System Environment/Libraries
-#Requires: %{name} = %{version}-%{release}
-#Requires: libreport-web = %{version}-%{release}
+%package plugin-mantisbt
+Summary: %{name}'s mantisbt plugin
+Group: System Environment/Libraries
+Requires: %{name} = %{version}-%{release}
+Requires: libreport-web = %{version}-%{release}
 
-#%description plugin-mantisbt
-#Plugin to report bugs into the mantisbt.
+%description plugin-mantisbt
+Plugin to report bugs into the mantisbt.
 
-#%package centos
-#Summary: %{name}'s CentOS Bug Tracker workflow
-#Group: System Environment/Libraries
-#Requires: %{name} = %{version}-%{release}
-#Requires: libreport-web = %{version}-%{release}
-#Requires: libreport-plugin-mantisbt = %{version}-%{release}
+%package centos
+Summary: %{name}'s CentOS Bug Tracker workflow
+Group: System Environment/Libraries
+Requires: %{name} = %{version}-%{release}
+Requires: libreport-web = %{version}-%{release}
+Requires: libreport-plugin-mantisbt = %{version}-%{release}
 
-#%description centos
-#Workflows to report issues into the CentOS Bug Tracker.
+%description centos
+Workflows to report issues into the CentOS Bug Tracker.
 
 %package plugin-rhtsupport
 Summary: %{name}'s RHTSupport plugin
 Group: System Environment/Libraries
 Requires: %{name} = %{version}-%{release}
 Requires: libreport-web = %{version}-%{release}
-# This feature is only for RHEL so we do not need another dependency
-# Requires: redhat-access-insights
 
 %description plugin-rhtsupport
 Plugin to report bugs into RH support system.
@@ -572,7 +581,7 @@ data over ftp/scp...
 %build
 autoreconf --force --install
 intltoolize --force --copy
-CFLAGS="%{optflags} -Werror" %configure --enable-doxygen-docs --disable-silent-rules
+CFLAGS="%{optflags} -Werror -Wno-error=deprecated-declarations" %configure --enable-doxygen-docs --disable-silent-rules
 make %{?_smp_mflags}
 
 %install
@@ -631,7 +640,15 @@ rm -f $RPM_BUILD_ROOT/%{_datadir}/libreport/workflows/workflow_RHELBugzillaVmcor
 rm -f $RPM_BUILD_ROOT/%{_datadir}/libreport/workflows/workflow_RHELBugzillaXorg.xml
 rm -f $RPM_BUILD_ROOT/%{_datadir}/libreport/workflows/workflow_RHELBugzillaLibreport.xml
 rm -f $RPM_BUILD_ROOT/%{_datadir}/libreport/workflows/workflow_RHELBugzillaJava.xml
+rm -f $RPM_BUILD_ROOT/%{_datadir}/libreport/workflows/workflow_RHELAddDataCCpp.xml
+rm -f $RPM_BUILD_ROOT/%{_datadir}/libreport/workflows/workflow_RHELAddDataJava.xml
+rm -f $RPM_BUILD_ROOT/%{_datadir}/libreport/workflows/workflow_RHELAddDataKerneloops.xml
+rm -f $RPM_BUILD_ROOT/%{_datadir}/libreport/workflows/workflow_RHELAddDataLibreport.xml
+rm -f $RPM_BUILD_ROOT/%{_datadir}/libreport/workflows/workflow_RHELAddDataPython.xml
+rm -f $RPM_BUILD_ROOT/%{_datadir}/libreport/workflows/workflow_RHELAddDatavmcore.xml
+rm -f $RPM_BUILD_ROOT/%{_datadir}/libreport/workflows/workflow_RHELAddDataxorg.xml
 rm -f $RPM_BUILD_ROOT/%{_sysconfdir}/libreport/workflows.d/report_rhel.conf
+rm -f $RPM_BUILD_ROOT/%{_sysconfdir}/libreport/workflows.d/report_rhel_add_data.conf
 rm -f $RPM_BUILD_ROOT/%{_sysconfdir}/libreport/workflows.d/report_uReport.conf
 rm -f $RPM_BUILD_ROOT/%{_sysconfdir}/libreport/workflows.d/report_rhel_bugzilla.conf
 rm -f $RPM_BUILD_ROOT%{_mandir}/man5/report_rhel.conf.5
@@ -707,7 +724,6 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 %{_includedir}/libreport/dump_dir.h
 %{_includedir}/libreport/event_config.h
 %{_includedir}/libreport/problem_data.h
-%{_includedir}/libreport/problem_report.h
 %{_includedir}/libreport/report.h
 %{_includedir}/libreport/run_event.h
 %{_includedir}/libreport/file_obj.h
@@ -715,7 +731,7 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 %{_includedir}/libreport/workflow.h
 %{_includedir}/libreport/ureport.h
 %{_includedir}/libreport/global_configuration.h
-#%{_includedir}/libreport/reporters.h
+%{_includedir}/libreport/reporters.h
 # Private api headers:
 %{_includedir}/libreport/internal_abrt_dbus.h
 %{_includedir}/libreport/internal_libreport.h
@@ -835,46 +851,48 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 %{_mandir}/man5/bugzilla_format_kernel.conf.5.*
 %{_bindir}/reporter-bugzilla
 
-#%files plugin-mantisbt
-#%defattr(-,root,root,-)
-#%config(noreplace) %{_sysconfdir}/libreport/plugins/mantisbt.conf
-#%{_datadir}/%{name}/conf.d/plugins/mantisbt.conf
-#%config(noreplace) %{_sysconfdir}/libreport/plugins/mantisbt_format.conf
-#%config(noreplace) %{_sysconfdir}/libreport/plugins/mantisbt_formatdup.conf
-#%config(noreplace) %{_sysconfdir}/libreport/plugins/mantisbt_format_analyzer_libreport.conf
-#%config(noreplace) %{_sysconfdir}/libreport/plugins/mantisbt_formatdup_analyzer_libreport.conf
-#%{_bindir}/reporter-mantisbt
-#%{_mandir}/man1/reporter-mantisbt.1.gz
-#%{_mandir}/man5/mantisbt.conf.5.*
-#%{_mandir}/man5/mantisbt_format.conf.5.*
-#%{_mandir}/man5/mantisbt_formatdup.conf.5.*
-#%{_mandir}/man5/mantisbt_format_analyzer_libreport.conf.5.*
-#%{_mandir}/man5/mantisbt_formatdup_analyzer_libreport.conf.5.*
+%files plugin-mantisbt
+%defattr(-,root,root,-)
+%config(noreplace) %{_sysconfdir}/libreport/plugins/mantisbt.conf
+%{_datadir}/%{name}/conf.d/plugins/mantisbt.conf
+%config(noreplace) %{_sysconfdir}/libreport/plugins/mantisbt_format.conf
+%config(noreplace) %{_sysconfdir}/libreport/plugins/mantisbt_formatdup.conf
+%config(noreplace) %{_sysconfdir}/libreport/plugins/mantisbt_format_analyzer_libreport.conf
+%config(noreplace) %{_sysconfdir}/libreport/plugins/mantisbt_formatdup_analyzer_libreport.conf
+%{_bindir}/reporter-mantisbt
+%{_mandir}/man1/reporter-mantisbt.1.gz
+%{_mandir}/man5/mantisbt.conf.5.*
+%{_mandir}/man5/mantisbt_format.conf.5.*
+%{_mandir}/man5/mantisbt_formatdup.conf.5.*
+%{_mandir}/man5/mantisbt_format_analyzer_libreport.conf.5.*
+%{_mandir}/man5/mantisbt_formatdup_analyzer_libreport.conf.5.*
 
-#%files centos
-#%{_datadir}/%{name}/workflows/workflow_CentOSCCpp.xml
-#%{_datadir}/%{name}/workflows/workflow_CentOSKerneloops.xml
-#%{_datadir}/%{name}/workflows/workflow_CentOSPython.xml
-#%{_datadir}/%{name}/workflows/workflow_CentOSPython3.xml
-#%{_datadir}/%{name}/workflows/workflow_CentOSVmcore.xml
-#%{_datadir}/%{name}/workflows/workflow_CentOSXorg.xml
-#%{_datadir}/%{name}/workflows/workflow_CentOSLibreport.xml
-#%{_datadir}/%{name}/workflows/workflow_CentOSJava.xml
-#%config(noreplace) %{_sysconfdir}/libreport/workflows.d/report_centos.conf
-#%{_mandir}/man5/report_centos.conf.5.*
-#%{_datadir}/%{name}/events/report_CentOSBugTracker.xml
-#%config(noreplace) %{_sysconfdir}/libreport/events/report_CentOSBugTracker.conf
-#%{_mandir}/man5/report_CentOSBugTracker.conf.5.*
+%files centos
+%{_datadir}/%{name}/workflows/workflow_CentOSCCpp.xml
+%{_datadir}/%{name}/workflows/workflow_CentOSKerneloops.xml
+%{_datadir}/%{name}/workflows/workflow_CentOSPython.xml
+%{_datadir}/%{name}/workflows/workflow_CentOSPython3.xml
+%{_datadir}/%{name}/workflows/workflow_CentOSVmcore.xml
+%{_datadir}/%{name}/workflows/workflow_CentOSXorg.xml
+%{_datadir}/%{name}/workflows/workflow_CentOSLibreport.xml
+%{_datadir}/%{name}/workflows/workflow_CentOSJava.xml
+%config(noreplace) %{_sysconfdir}/libreport/workflows.d/report_centos.conf
+%{_mandir}/man5/report_centos.conf.5.*
+%{_datadir}/%{name}/events/report_CentOSBugTracker.xml
+%config(noreplace) %{_sysconfdir}/libreport/events/report_CentOSBugTracker.conf
+%{_mandir}/man5/report_CentOSBugTracker.conf.5.*
 # report_CentOSBugTracker events are shipped by libreport package
-#%config(noreplace) %{_sysconfdir}/libreport/events.d/centos_report_event.conf
-#%{_mandir}/man5/centos_report_event.conf.5.gz
+%config(noreplace) %{_sysconfdir}/libreport/events.d/centos_report_event.conf
+%{_mandir}/man5/centos_report_event.conf.5.gz
 
 %files plugin-rhtsupport
 %defattr(-,root,root,-)
 %config(noreplace) %{_sysconfdir}/libreport/plugins/rhtsupport.conf
 %{_datadir}/%{name}/conf.d/plugins/rhtsupport.conf
 %{_datadir}/%{name}/events/report_RHTSupport.xml
+%{_datadir}/%{name}/events/report_RHTSupport_AddData.xml
 %{_datadir}/dbus-1/interfaces/com.redhat.problems.configuration.rhtsupport.xml
+%attr(600,-,-)%{_sysconfdir}/%{name}/cert-api.access.redhat.com.pem
 %config(noreplace) %{_sysconfdir}/libreport/events.d/rhtsupport_event.conf
 %{_mandir}/man1/reporter-rhtsupport.1.gz
 %{_mandir}/man5/rhtsupport.conf.5.*
@@ -927,8 +945,16 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 %{_datadir}/%{name}/workflows/workflow_RHELxorg.xml
 %{_datadir}/%{name}/workflows/workflow_RHELLibreport.xml
 %{_datadir}/%{name}/workflows/workflow_RHELJava.xml
+%{_datadir}/%{name}/workflows/workflow_RHELAddDataCCpp.xml
+%{_datadir}/%{name}/workflows/workflow_RHELAddDataJava.xml
+%{_datadir}/%{name}/workflows/workflow_RHELAddDataKerneloops.xml
+%{_datadir}/%{name}/workflows/workflow_RHELAddDataLibreport.xml
+%{_datadir}/%{name}/workflows/workflow_RHELAddDataPython.xml
+%{_datadir}/%{name}/workflows/workflow_RHELAddDatavmcore.xml
+%{_datadir}/%{name}/workflows/workflow_RHELAddDataxorg.xml
 %{_datadir}/%{name}/workflows/workflow_uReport.xml
 %config(noreplace) %{_sysconfdir}/libreport/workflows.d/report_rhel.conf
+%config(noreplace) %{_sysconfdir}/libreport/workflows.d/report_rhel_add_data.conf
 %config(noreplace) %{_sysconfdir}/libreport/workflows.d/report_uReport.conf
 %{_mandir}/man5/report_rhel.conf.5.*
 %{_mandir}/man5/report_uReport.conf.5.*
@@ -970,8 +996,16 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 
 
 %changelog
-* Sun Aug 13 2017 Jacco Ligthart <jacco@redsleeve.org> = 2.1.11-38.el7.redsleeve
-- undo most of the CentOS work to get an unbranded version.
+* Tue Jan 23 2018 Martin Kutlak <mkutlak@redhat.com> - 2.1.11-40.el7.centos
+- Remove dependency on redhat-access-insights
+- Related: #1524481
+
+* Thu Oct 26 2017 Martin Kutlak <mkutlak@redhat.com> - 2.1.11-39.el7.centos
+- Introduce workflow for adding data to existing case
+- Change default URL to the FAF server
+- wizard: fix 'Show log' window not displaying correctly
+- augeas: fix parsing spaces in configuration files
+- Related: #1303326, #1435256, #1463313
 
 * Tue Feb 21 2017 Matej Habrnal <mhabrnal@redhat.com> - 2.1.11-38.el7.centos
 - free allocated variables, don't close dd twice
@@ -986,8 +1020,6 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 - Related: #1373094, #1257159
 
 * Thu Sep  1 2016 Matej Habrnal <mhabrnal@redhat.com> - 2.1.11-35
-
-* Thu Sep  1 2016 Matej Habrnal <mhabrnal@redhat.com> - 2.1.11-35.el7.centos
 - Translation updates
 - Related: #1304240
 
