@@ -19,7 +19,7 @@
 %global use_tcmalloc 0
 %global variant base-asan
 %else
-%ifnarch s390 s390x %{arm}
+%if %{_arch} != "s390x" && %{_arch} != "s390"
 %global use_tcmalloc 1
 %else
 %global use_tcmalloc 0
@@ -39,7 +39,7 @@
 Summary:          389 Directory Server (%{variant})
 Name:             389-ds-base
 Version:          1.3.7.5
-Release:          %{?relprefix}19%{?prerel}%{?dist}.redsleeve
+Release:          %{?relprefix}21%{?prerel}%{?dist}
 License:          GPLv3+
 URL:              https://www.port389.org/
 Group:            System Environment/Daemons
@@ -190,7 +190,7 @@ Patch40:          0040-Ticket-49470-overflow-in-pblock_get.patch
 Patch41:          0041-Ticket-49471-heap-buffer-overflow-in-ss_unescape.patch
 Patch42:          0042-Ticket-49298-fix-complier-warn.patch
 Patch43:          0043-Ticket-49495-Fix-memory-management-is-vattr.patch
-# Patch44:          0044-Ticket-48184-close-connections-at-shutdown-cleanly.patch
+Patch44:          0044-Ticket-48184-close-connections-at-shutdown-cleanly.patch
 Patch45:          0045-Ticket-49509-Indexing-of-internationalized-matching-.patch
 Patch46:          0046-Ticket-49493-heap-use-after-free-in-csn_as_string.patch
 Patch47:          0047-Ticket-49524-Password-policy-minimum-token-length-fa.patch
@@ -215,6 +215,15 @@ Patch65:          0065-Ticket-bz1525628-invalid-password-migration-causes-u.patc
 Patch66:          0066-Ticket-49545-final-substring-extended-filter-search-.patch
 Patch67:          0067-Ticket-49551-v3-correct-handling-of-numsubordinates-.patch
 Patch68:          0068-Ticket-49551-fix-memory-leak-found-by-coverity.patch
+Patch69:          0069-Ticket-48184-revert-previous-patch-around-nunc-stans.patch
+Patch70:          0070-Ticket-49619-adjustment-of-csn_generator-can-fail-so.patch
+Patch71:          0071-Ticket-49161-memberof-fails-if-group-is-moved-into-s.patch
+Patch72:          0072-Ticket-49296-Fix-race-condition-in-connection-code-w.patch
+Patch73:          0073-Ticket-49540-Indexing-task-is-reported-finished-too-.patch
+Patch74:          0074-Ticket-49566-ds-replcheck-needs-to-work-with-hidden-.patch
+Patch75:          0075-Ticket-49460-replica_write_ruv-log-a-failure-even-wh.patch  
+Patch76:          0076-Ticket-49631-same-csn-generated-twice.patch
+Patch77:          0077-CVE-2018-1089-Crash-from-long-search-filter.patch
 
 %description
 389 Directory Server is an LDAPv3 compliant server.  The base package includes
@@ -355,11 +364,11 @@ popd
 sed -i -e 's|#{{PERL-EXEC}}|#!/usr/bin/perl|' $RPM_BUILD_ROOT%{_datadir}/%{pkgname}/script-templates/template-*.pl
 
 ## exclude 32-bit platforms from running tests
-#%if %{_arch} != "s390x" && %{_arch} != "s390" && %{_arch} != "i386" && %{_arch} != "ppc"
-#%check
+%if %{_arch} != "s390x" && %{_arch} != "s390" && %{_arch} != "i386" && %{_arch} != "ppc"
+%check
 ## This checks the code, if it fails it prints why, then re-raises the fail to shortcircuit the rpm build#.
-#if ! make DESTDIR="$RPM_BUILD_ROOT" check; then cat ./test-suite.log && false; fi
-#%endif
+if ! make DESTDIR="$RPM_BUILD_ROOT" check; then cat ./test-suite.log && false; fi
+%endif
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -571,10 +580,20 @@ fi
 %{_sysconfdir}/%{pkgname}/dirsrvtests
 
 %changelog
-* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.org> - 1.3.7.5-19.redsleeve
-- disabled tcmalloc for arm
+* Thu Apr 5 2018 Mark Reynolds <mreynolds@redhat.com> - 1.3.7.5-21
+- Bump version to 1.3.7.5-21
+- Resolves: Bug 1559818 - EMBARGOED CVE-2018-1089 389-ds-base: ns-slapd crash via large filter value in ldapsearch
 
-* Tue Apr  3 2018 Matus Honek <mhonek@redhat.com> - 1.3.7.5-19
+* Wed Apr 4 2018 Mark Reynolds <mreynolds@redhat.com> - 1.3.7.5-20
+- Bump version to 1.3.7.5-20
+- Resolves: Bug 1563079 - adjustment of csn_generator can fail so next generated csn can be equal to the most recent one received 
+- Resolves: Bug 1559764 - memberof fails if group is moved into scope
+- Resolves: Bug 1554720 - "Truncated search results" pop-up appears in user details in WebUI 
+- Resolves: Bug 1553605 - ipa-server-install fails with Error: Upgrade failed with no such entry
+- Resolves: Bug 1559760 - ds-replcheck: add -W option to ask for the password from stdin instead of passing it on command line
+- Resolves: Bug 1559464 - replica_write_ruv log a failure even when it succeeds
+
+* Tue Apr 3 2018 Matus Honek <mhonek@redhat.com> - 1.3.7.5-19
 - Bump version to 1.3.7.5-19
 - Resolves: Bug 1563107 - IPA server is not responding, all authentication and admin tests failed [rhel-7.5.z]
 
