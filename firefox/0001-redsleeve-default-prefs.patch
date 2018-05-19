@@ -1,6 +1,6 @@
-From 4bd1d055b73785a87ff688b3056e472231df7a1e Mon Sep 17 00:00:00 2001
+From f3d4fa3c0a0839b3b6812439f4de14c40e80ea56 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Wed, 21 Mar 2018 00:28:16 +0100
+Date: Sat, 19 May 2018 11:34:28 +0200
 Subject: [PATCH] redsleeve default prefs
 
 ---
@@ -43,20 +43,20 @@ index 0000000..8327af8
 +pref("geo.wifi.uri", "https://location.services.mozilla.com/v1/geolocate?key=%MOZILLA_API_KEY%");
 +pref("browser.tabs.remote.autostart",       false);
 diff --git a/SPECS/firefox.spec b/SPECS/firefox.spec
-index 35e3629..5fea784 100644
+index f570467..e623e5e 100644
 --- a/SPECS/firefox.spec
 +++ b/SPECS/firefox.spec
 @@ -77,7 +77,7 @@
  Summary:        Mozilla Firefox Web browser
  Name:           firefox
- Version:        52.7.2
+ Version:        52.8.0
 -Release:        1%{?dist}
 +Release:        1%{?dist}.redsleeve
  URL:            http://www.mozilla.org/projects/firefox/
  License:        MPLv1.1 or GPLv2+ or LGPLv2+
  Group:          Applications/Internet
 @@ -91,7 +91,7 @@ Source0:        firefox-%{version}%{?ext_version}.source.tar.xz
- Source1:        firefox-langpacks-%{version}%{?ext_version}-20180316.tar.xz
+ Source1:        firefox-langpacks-%{version}%{?ext_version}-20180509.tar.xz
  %endif
  Source10:       firefox-mozconfig
 -Source12:       firefox-centos-default-prefs.js
@@ -79,11 +79,11 @@ index 35e3629..5fea784 100644
  #---------------------------------------------------------------------
  
  %changelog
-+* Tue Mar 20 2018 Jacco Ligthart <jacco@redsleeve.org> - 52.7.2-1.el7.redsleeve
++* Sat May 19 2018 Jacco Ligthart <jacco@redsleeve.org> - 52.8.0-1.el7.redsleeve
 +- redsleeve default prefs
 +- limited the number of CPU's for building to 2 (OOM otherwise)
 +
- * Mon Mar 19 2018 Johnny Hughes <johnny@centos.org> - 52.7.2-1
+ * Mon May 14 2018 Johnny Hughes <johnny@centos.org> - 52.8.0-1
  - Manual CentOS Debranding
  
 -- 
