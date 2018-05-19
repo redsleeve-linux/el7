@@ -1,0 +1,40 @@
+From 30285352cad7b393c67a7c7c64a6fce902190bef Mon Sep 17 00:00:00 2001
+From: Pavel Moravec <pmoravec@redhat.com>
+Date: Thu, 16 Nov 2017 16:51:40 +0100
+Subject: [PATCH] [origin] fix typo in oc adm diagnostics
+ --prevent-modification
+
+The argument is singular --prevent-modification .
+
+Resolves: #1150
+
+Signed-off-by: Pavel Moravec <pmoravec@redhat.com>
+---
+ sos/plugins/origin.py | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/sos/plugins/origin.py b/sos/plugins/origin.py
+index d7ba0817..4e50bdee 100644
+--- a/sos/plugins/origin.py
++++ b/sos/plugins/origin.py
+@@ -48,7 +48,7 @@ class OpenShiftOrigin(Plugin):
+     option_list = [
+         ("diag", "run 'oc adm diagnostics' to collect its output",
+          'fast', True),
+-        ("diag-prevent", "set --prevent-modifications on 'oc adm diagnostics'",
++        ("diag-prevent", "set --prevent-modification on 'oc adm diagnostics'",
+          'fast', False),
+     ]
+ 
+@@ -137,7 +137,7 @@ class OpenShiftOrigin(Plugin):
+             if self.get_option('diag'):
+                 diag_cmd = "%s adm diagnostics -l 0" % self.oc_cmd_admin
+                 if self.get_option('diag-prevent'):
+-                    diag_cmd += " --prevent-modifications=true"
++                    diag_cmd += " --prevent-modification=true"
+                 self.add_cmd_output(diag_cmd)
+             self.add_journal(units=["atomic-openshift-master",
+                                     "atomic-openshift-master-api",
+-- 
+2.13.6
+

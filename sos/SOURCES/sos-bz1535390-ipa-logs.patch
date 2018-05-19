@@ -1,0 +1,205 @@
+From 15ba40684bf4dceb0cc5ae535212c005c5bb7f9a Mon Sep 17 00:00:00 2001
+From: Martin Basti <mbasti@redhat.com>
+Date: Wed, 17 May 2017 13:45:41 +0200
+Subject: [PATCH] [ipa] add KRA logs
+
+IPA v4 can be installed with KRA subsystem. Adding particular logs to
+plugin.
+
+Closes: #1010
+
+Signed-off-by: Martin Basti <mbasti@redhat.com>
+---
+ sos/plugins/ipa.py | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/sos/plugins/ipa.py b/sos/plugins/ipa.py
+index dc0eb839..03c601d4 100644
+--- a/sos/plugins/ipa.py
++++ b/sos/plugins/ipa.py
+@@ -60,6 +60,10 @@ class Ipa(Plugin, RedHatPlugin):
+                "/var/log/pki/pki-tomcat/ca/transactions",
+                "/var/log/pki/pki-tomcat/catalina.*",
+                "/var/log/pki/pki-ca-spawn.*"
++               "/var/log/pki/pki-tomcat/kra/debug",
++               "/var/log/pki/pki-tomcat/kra/system",
++               "/var/log/pki/pki-tomcat/kra/transactions",
++               "/var/log/pki/pki-kra-spawn.*"
+             ])
+         elif ipa_version == "v3":
+             self.add_copy_spec([
+-- 
+2.13.6
+
+From 4562b41f0d9dcfc07e7fc0ab3b0b253d609a459f Mon Sep 17 00:00:00 2001
+From: Thorsten Scherf <tscherf@redhat.com>
+Date: Mon, 11 Dec 2017 11:04:17 +0100
+Subject: [PATCH] [ipa] use correct PKI directories for tomcat version
+
+The PKI subsystem uses different folders in IPA v3 and v4 for the NSS DB and
+the configuration files. The plugin needs to take this into account.
+
+Closes: #1163
+
+Signed-off-by: Thorsten Scherf <tscherf@redhat.com>
+Signed-off-by: Bryn M. Reeves <bmr@redhat.com>
+---
+ sos/plugins/ipa.py | 23 ++++++++++++++++++-----
+ 1 file changed, 18 insertions(+), 5 deletions(-)
+
+diff --git a/sos/plugins/ipa.py b/sos/plugins/ipa.py
+index 683f8254..fe6ddf08 100644
+--- a/sos/plugins/ipa.py
++++ b/sos/plugins/ipa.py
+@@ -83,6 +83,9 @@ class Ipa(Plugin, RedHatPlugin):
+         self.pki_tomcat_dir_v4 = "/var/lib/pki/pki-tomcat"
+         self.pki_tomcat_dir_v3 = "/var/lib/pki-ca"
+ 
++        self.pki_tomcat_conf_dir_v4 = "/etc/pki/pki-tomcat/ca"
++        self.pki_tomcat_conf_dir_v3 = "/etc/pki-ca"
++
+         if self.ipa_server_installed():
+             self._log_debug("IPA server install detected")
+ 
+@@ -111,7 +114,6 @@ class Ipa(Plugin, RedHatPlugin):
+             "/etc/dirsrv/slapd-*/schema/99user.ldif",
+             "/etc/hosts",
+             "/etc/named.*",
+-            "/etc/pki-ca/CS.cfg",
+             "/etc/ipa/ca.crt",
+             "/etc/ipa/default.conf",
+             "/var/lib/certmonger/requests/[0-9]*",
+@@ -119,22 +121,33 @@ class Ipa(Plugin, RedHatPlugin):
+         ])
+ 
+         self.add_forbidden_path("/etc/pki/nssdb/key*")
+-        self.add_forbidden_path("/etc/pki-ca/flatfile.txt")
+-        self.add_forbidden_path("/etc/pki-ca/password.conf")
+-        self.add_forbidden_path("/var/lib/pki-ca/alias/key*")
+         self.add_forbidden_path("/etc/dirsrv/slapd-*/key*")
+         self.add_forbidden_path("/etc/dirsrv/slapd-*/pin.txt")
+         self.add_forbidden_path("/etc/dirsrv/slapd-*/pwdfile.txt")
+         self.add_forbidden_path("/etc/named.keytab")
+ 
++        #  Make sure to use the right PKI config and NSS DB folders
++        if ipa_version == "v4":
++            self.pki_tomcat_dir = self.pki_tomcat_dir_v4
++            self.pki_tomcat_conf_dir = self.pki_tomcat_conf_dir_v4
++        else:
++            self.pki_tomcat_dir = self.pki_tomcat_dir_v3
++            self.pki_tomcat_conf_dir = self.pki_tomcat_conf_dir_v3
++
++        self.add_cmd_output("certutil -L -d %s/alias" % self.pki_tomcat_dir)
++        self.add_copy_spec("%s/CS.cfg" % self.pki_tomcat_conf_dir)
++        self.add_forbidden_path("%s/alias/key*" % self.pki_tomcat_dir)
++        self.add_forbidden_path("%s/flatfile.txt" % self.pki_tomcat_conf_dir)
++        self.add_forbidden_path("%s/password.conf" % self.pki_tomcat_conf_dir)
++
+         self.add_cmd_output([
+             "ls -la /etc/dirsrv/slapd-*/schema/",
+             "getcert list",
+-            "certutil -L -d /var/lib/pki-ca/alias",
+             "certutil -L -d /etc/httpd/alias/",
+             "klist -ket /etc/dirsrv/ds.keytab",
+             "klist -ket /etc/httpd/conf/ipa.keytab"
+         ])
++
+         for certdb_directory in glob("/etc/dirsrv/slapd-*/"):
+             self.add_cmd_output(["certutil -L -d %s" % certdb_directory])
+         return
+-- 
+2.13.6
+
+From 66ef850794ad250bfe5c72795f442f908e1e3e19 Mon Sep 17 00:00:00 2001
+From: Pavel Moravec <pmoravec@redhat.com>
+Date: Fri, 26 Jan 2018 15:11:15 +0100
+Subject: [PATCH] [ipa] fix implicit concatenation of one copy_spec
+
+Missing comma between "/var/log/pki/pki-ca-spawn.*"
+and "/var/log/pki/pki-tomcat/kra/debug"
+
+Resolves: #1195
+
+Signed-off-by: Pavel Moravec <pmoravec@redhat.com>
+---
+ sos/plugins/ipa.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sos/plugins/ipa.py b/sos/plugins/ipa.py
+index fe6ddf08..08f9bcf1 100644
+--- a/sos/plugins/ipa.py
++++ b/sos/plugins/ipa.py
+@@ -59,7 +59,7 @@ class Ipa(Plugin, RedHatPlugin):
+                "/var/log/pki/pki-tomcat/ca/system",
+                "/var/log/pki/pki-tomcat/ca/transactions",
+                "/var/log/pki/pki-tomcat/catalina.*",
+-               "/var/log/pki/pki-ca-spawn.*"
++               "/var/log/pki/pki-ca-spawn.*",
+                "/var/log/pki/pki-tomcat/kra/debug",
+                "/var/log/pki/pki-tomcat/kra/system",
+                "/var/log/pki/pki-tomcat/kra/transactions",
+-- 
+2.13.6
+
+From 37c6601ddbc5ab6559a8420ce8f630d00086b1e1 Mon Sep 17 00:00:00 2001
+From: Martin Basti <mbasti@redhat.com>
+Date: Wed, 17 May 2017 13:53:20 +0200
+Subject: [PATCH] [ipa] add apache profile
+
+httpd error_log collected by apache plugin contains useful
+information about IPA API operations
+
+Closes: #1010
+
+Signed-off-by: Martin Basti <mbasti@redhat.com>
+---
+ sos/plugins/ipa.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sos/plugins/ipa.py b/sos/plugins/ipa.py
+index 3a0565bc..683f8254 100644
+--- a/sos/plugins/ipa.py
++++ b/sos/plugins/ipa.py
+@@ -24,7 +24,7 @@ class Ipa(Plugin, RedHatPlugin):
+     """
+ 
+     plugin_name = 'ipa'
+-    profiles = ('identity',)
++    profiles = ('identity', 'apache')
+ 
+     ipa_server = False
+     ipa_client = False
+-- 
+2.13.6
+
+From 400f61627fe0e45192fd05c7323ee9c96d2cad37 Mon Sep 17 00:00:00 2001
+From: Pavel Moravec <pmoravec@redhat.com>
+Date: Tue, 13 Feb 2018 16:42:59 +0100
+Subject: [PATCH] [ipa] set ipa_version variable before referencing it
+
+In case neither IPA v3 or v4 is installed, ipa_version remains
+uninitialized before referencing it.
+
+Resolves: #1214
+
+Signed-off-by: Pavel Moravec <pmoravec@redhat.com>
+---
+ sos/plugins/ipa.py | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/sos/plugins/ipa.py b/sos/plugins/ipa.py
+index 08f9bcf1..0d79063f 100644
+--- a/sos/plugins/ipa.py
++++ b/sos/plugins/ipa.py
+@@ -86,6 +86,8 @@ class Ipa(Plugin, RedHatPlugin):
+         self.pki_tomcat_conf_dir_v4 = "/etc/pki/pki-tomcat/ca"
+         self.pki_tomcat_conf_dir_v3 = "/etc/pki-ca"
+ 
++        ipa_version = None
++
+         if self.ipa_server_installed():
+             self._log_debug("IPA server install detected")
+ 
+-- 
+2.13.6
+

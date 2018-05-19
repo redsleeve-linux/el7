@@ -1,0 +1,28 @@
+From b9ace2788c2f9c327ac519fa007bc08470f4fd2b Mon Sep 17 00:00:00 2001
+From: Jake Hunsaker <jhunsake@redhat.com>
+Date: Thu, 25 Jan 2018 17:43:12 -0500
+Subject: [PATCH] [etcd] Do not collect private etcd keys
+
+Prevents sos from capturing the /etc/etcd/ca directory and its contents,
+which is primarily private keys and the like.
+
+Signed-off-by: Jake Hunsaker <jhunsake@redhat.com>
+---
+ sos/plugins/etcd.py | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/sos/plugins/etcd.py b/sos/plugins/etcd.py
+index d80bbeeb..884aa1bd 100644
+--- a/sos/plugins/etcd.py
++++ b/sos/plugins/etcd.py
+@@ -31,6 +31,7 @@ class etcd(Plugin, RedHatPlugin):
+     def setup(self):
+         etcd_url = self.get_etcd_url()
+ 
++        self.add_forbidden_path('/etc/etcd/ca')
+         self.add_copy_spec('/etc/etcd')
+ 
+         subcmds = [
+-- 
+2.13.6
+

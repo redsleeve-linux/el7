@@ -1,0 +1,160 @@
+From 24dc645e5f09af921bd74bf2808ef8c99dd4cfb9 Mon Sep 17 00:00:00 2001
+From: Dmitry Tantsur <divius.inside@gmail.com>
+Date: Thu, 26 Oct 2017 11:59:26 +0000
+Subject: [PATCH 1/4] [openstack_ironic] collect drivers, ports and port groups
+
+Existing collection of ports is extended with the --long option.
+
+Signed-off-by: Dmitry Tantsur <divius.inside@gmail.com>
+---
+ sos/plugins/openstack_ironic.py | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/sos/plugins/openstack_ironic.py b/sos/plugins/openstack_ironic.py
+index f4e0a97d3..b25bf81b2 100644
+--- a/sos/plugins/openstack_ironic.py
++++ b/sos/plugins/openstack_ironic.py
+@@ -82,8 +82,10 @@ def setup(self):
+                                 "the environment file for the user intended "
+                                 "to connect to the OpenStack environment.")
+         else:
++            self.add_cmd_output("openstack baremetal driver list --long")
+             self.add_cmd_output("openstack baremetal node list --long")
+-            self.add_cmd_output("openstack baremetal port list")
++            self.add_cmd_output("openstack baremetal port list --long")
++            self.add_cmd_output("openstack baremetal port group list --long")
+ 
+     def postproc(self):
+         protect_keys = [
+
+From a03031587a3470a92f3c4002c7e645b18867ff61 Mon Sep 17 00:00:00 2001
+From: Dmitry Tantsur <divius.inside@gmail.com>
+Date: Thu, 26 Oct 2017 12:01:46 +0000
+Subject: [PATCH 2/4] [openstack_ironic] collect information about
+ ironic-inspector
+
+ironic-discoverd was renamed to ironic-inspector in the Liberty
+release. This change adds support for the new name.
+
+Signed-off-by: Dmitry Tantsur <divius.inside@gmail.com>
+---
+ sos/plugins/openstack_ironic.py | 24 +++++++++++++++++++++++-
+ 1 file changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/sos/plugins/openstack_ironic.py b/sos/plugins/openstack_ironic.py
+index b25bf81b2..123d4b7cc 100644
+--- a/sos/plugins/openstack_ironic.py
++++ b/sos/plugins/openstack_ironic.py
+@@ -77,7 +77,9 @@ def setup(self):
+         vars_any = [p in os.environ for p in [
+                     'OS_TENANT_NAME', 'OS_PROJECT_NAME']]
+ 
+-        if not (all(vars_all) and any(vars_any)):
++        self.osc_available = all(vars_all) and any(vars_any)
++
++        if not self.osc_available:
+             self.soslog.warning("Not all environment variables set. Source "
+                                 "the environment file for the user intended "
+                                 "to connect to the OpenStack environment.")
+@@ -137,4 +139,24 @@ def setup(self):
+             self.add_journal(units="openstack-ironic-discoverd")
+             self.add_journal(units="openstack-ironic-discoverd-dnsmasq")
+ 
++        # ironic-discoverd was renamed to ironic-inspector in Liberty
++        self.conf_list.append('/etc/ironic-inspector/*')
++        self.conf_list.append(self.var_puppet_gen + '/etc/ironic-inspector/*')
++        self.add_copy_spec('/etc/ironic-inspector/')
++        self.add_copy_spec(self.var_puppet_gen + '/etc/ironic-inspector/')
++        self.add_copy_spec('/var/lib/ironic-inspector/')
++        if self.get_option("all_logs"):
++            self.add_copy_spec('/var/log/ironic-inspector/')
++            self.add_copy_spec('/var/log/containers/ironic-inspector/')
++        else:
++            self.add_copy_spec('/var/log/ironic-inspector/*.log')
++            self.add_copy_spec('/var/log/ironic-inspector/ramdisk/')
++            self.add_copy_spec('/var/log/containers/ironic-inspector/*.log')
++            self.add_copy_spec('/var/log/containers/ironic-inspector/ramdisk/')
++
++        self.add_journal(units="openstack-ironic-inspector-dnsmasq")
++
++        if self.osc_available:
++            self.add_cmd_output("openstack baremetal introspection list")
++
+ # vim: set et ts=4 sw=4 :
+
+From 9c91e28aa7356b96a198606a74d1b39d7ec66891 Mon Sep 17 00:00:00 2001
+From: Dmitry Tantsur <divius.inside@gmail.com>
+Date: Thu, 26 Oct 2017 12:12:25 +0000
+Subject: [PATCH 3/4] [openstack_ironic] collect PXE environment information
+
+This adds two directories, /httpboot and /tftpboot, as well as version
+of iPXE boot images package.
+
+Signed-off-by: Dmitry Tantsur <divius.inside@gmail.com>
+---
+ sos/plugins/openstack_ironic.py | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/sos/plugins/openstack_ironic.py b/sos/plugins/openstack_ironic.py
+index 123d4b7cc..51118634b 100644
+--- a/sos/plugins/openstack_ironic.py
++++ b/sos/plugins/openstack_ironic.py
+@@ -63,10 +63,9 @@ def setup(self):
+                 "/var/log/containers/httpd/ironic-api/*log"
+             ], sizelimit=self.limit)
+ 
+-        self.add_cmd_output('ls -laRt /var/lib/ironic/')
+-        self.add_cmd_output(
+-            'ls -laRt ' + self.var_puppet_gen + '/var/lib/ironic/'
+-        )
++        for path in ['/var/lib/ironic', '/httpboot', '/tftpboot']:
++            self.add_cmd_output('ls -laRt %s' % path)
++            self.add_cmd_output('ls -laRt %s' % (self.var_puppet_gen + path))
+ 
+         if self.get_option("verify"):
+             self.add_cmd_output("rpm -V %s" % ' '.join(self.packages))
+
+From c33d82592b7145c6a26a47280b750eea41eeb63e Mon Sep 17 00:00:00 2001
+From: Dmitry Tantsur <divius.inside@gmail.com>
+Date: Thu, 26 Oct 2017 12:25:08 +0000
+Subject: [PATCH 4/4] [openstack_ironic] collect introspection data for all
+ nodes
+
+Signed-off-by: Dmitry Tantsur <divius.inside@gmail.com>
+---
+ sos/plugins/openstack_ironic.py | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/sos/plugins/openstack_ironic.py b/sos/plugins/openstack_ironic.py
+index 51118634b..ddb094e01 100644
+--- a/sos/plugins/openstack_ironic.py
++++ b/sos/plugins/openstack_ironic.py
+@@ -125,6 +125,20 @@ class RedHatIronic(OpenStackIronic, RedHatPlugin):
+         'openstack-ironic-discoverd-ramdisk'
+     ]
+ 
++    def collect_introspection_data(self):
++        uuids_result = self.call_ext_prog('openstack baremetal node list '
++                                          '-f value -c UUID')
++        if uuids_result['status']:
++            self.soslog.warning('Failed to fetch list of ironic node UUIDs, '
++                                'introspection data won\'t be collected')
++            return
++
++        uuids = [uuid for uuid in uuids_result['output'].split()
++                 if uuid.strip()]
++        for uuid in uuids:
++            self.add_cmd_output('openstack baremetal introspection '
++                                'data save %s' % uuid)
++
+     def setup(self):
+         super(RedHatIronic, self).setup()
+ 
+@@ -157,5 +171,7 @@ def setup(self):
+ 
+         if self.osc_available:
+             self.add_cmd_output("openstack baremetal introspection list")
++            if self.get_option("all_logs"):
++                self.collect_introspection_data()
+ 
+ # vim: set et ts=4 sw=4 :

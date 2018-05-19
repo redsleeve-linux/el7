@@ -1,0 +1,81 @@
+From 2780f6d6ec3a4db72ed5a00aea15ac750394314c Mon Sep 17 00:00:00 2001
+From: Michele Baldessari <michele@acksyn.org>
+Date: Wed, 17 Jan 2018 15:07:53 +0100
+Subject: [PATCH] [rabbitmq] Log collection fixes when rabbitmq runs in a
+ container
+
+When rabbitmq is running inside a container all the rabbitmqctl
+commands will fail with some obscure (welsh?) error messages like:
+
+$ rabbitmqctl cluster_status
+erno" ienrirto rt elromgigneart ipnrge sienn td)o _booetr"r,o{r: b<a0d.ar2g.,0[>{
+l_prim_loader,check_file_result,3,[]},{init,get_boot,1,[]},{init,get_boot,2,[]},{init,do_boot,3,[]}]}}
+init terminating in do_boot ()
+
+When run inside containers we need to run any rabbitmqctl command inside
+the container, so that output is properly collected:
+$ docker exec -t rabbitmq-bundle-docker-0 rabbitmqctl cluster_status
+Cluster status of node 'rabbit@controller-0' ...
+[{nodes,[{disc,['rabbit@controller-0','rabbit@controller-1',
+                'rabbit@controller-2']}]},
+ {running_nodes,['rabbit@controller-2','rabbit@controller-1',
+                 'rabbit@controller-0']},
+ {cluster_name,<<"rabbit@controller-0.localdomain">>},
+ {partitions,[]},
+ {alarms,[{'rabbit@controller-2',[]},
+          {'rabbit@controller-1',[]},
+          {'rabbit@controller-0',[]}]}]
+
+While we're at it we also collect the logs of any rabbitmq container.
+This is particularly useful in containerized openstack deployments
+where short-lived containers are used to set up the cloud.
+
+Since the info output by 'rabbitmqctl cluster_status' and 'rabbitmqctl
+list_policies' is already contained in 'rabbitmqctl report', we just
+remove the former two commands.
+
+First reported via RHBZ#1525620
+
+Signed-off-by: Michele Baldessari <michele@acksyn.org>
+Signed-off-by: John Eckersberg <jeckersb@redhat.com>
+---
+ sos/plugins/rabbitmq.py | 23 ++++++++++++++++++++---
+ 1 file changed, 20 insertions(+), 3 deletions(-)
+
+diff --git a/sos/plugins/rabbitmq.py b/sos/plugins/rabbitmq.py
+index 2c7e428a..8057dd90 100644
+--- a/sos/plugins/rabbitmq.py
++++ b/sos/plugins/rabbitmq.py
+@@ -28,9 +28,26 @@ class RabbitMQ(Plugin, RedHatPlugin, DebianPlugin, UbuntuPlugin):
+     packages = ('rabbitmq-server',)
+ 
+     def setup(self):
+-        self.add_cmd_output("rabbitmqctl report")
+-        self.add_cmd_output("rabbitmqctl cluster_status")
+-        self.add_cmd_output("rabbitmqctl list_policies")
++        container_status = self.get_command_output(
++            "docker ps -a --format='{{ .Names }}'")
++
++        in_container = False
++        container_names = []
++        if container_status['status'] == 0:
++            for line in container_status['output'].splitlines():
++                if line.startswith("rabbitmq"):
++                    in_container = True
++                    container_names.append(line)
++
++        if in_container:
++            for container in container_names:
++                self.add_cmd_output('docker logs {0}'.format(container))
++                self.add_cmd_output(
++                    'docker exec -t {0} rabbitmqctl report'
++                    .format(container)
++                )
++        else:
++            self.add_cmd_output("rabbitmqctl report")
+ 
+         self.add_copy_spec([
+             "/etc/rabbitmq/*",
+-- 
+2.13.6
+

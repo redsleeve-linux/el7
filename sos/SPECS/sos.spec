@@ -1,8 +1,8 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 Summary: A set of tools to gather troubleshooting information from a system
 Name: sos
-Version: 3.4
-Release: 13%{?dist}.redsleeve
+Version: 3.5
+Release: 7%{?dist}
 Group: Applications/System
 Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
 License: GPLv2+
@@ -17,23 +17,23 @@ Requires: bzip2
 Requires: xz
 Obsoletes: sos-plugins-openstack
 Patch0: skip-generating-doc.patch
-Patch1: sos-bz1438257-collect-cmds-with-return-1.patch
-Patch2: sos-bz1438269-ceph-collect-etc-calamari.patch
-Patch3: sos-bz1444641-virsh-uncaught-exception.patch
-Patch4: sos-bz1250346-openstack-tripleo.patch
-Patch5: sos-bz1442078-container-test-oci.patch
-Patch6: sos-bz1416535-pacemaker-user-logs.patch
-Patch7: sos-bz1148381-libvirt-cgroups-collection.patch
-Patch8: sos-bz1449904-ceph-tmp-mount-exclude.patch
-Patch9: sos-bz1393961-missing-filesystem-nonfatal.patch
-Patch10: sos-bz1400407-samba-dc-connect.patch
-Patch11: sos-bz1470573-tripleo-add-ui-logs.patch
-Patch12: sos-bz1463635-openstack-containerized-tripleo.patch
-Patch13: sos-bz1482574-jars-redundant-os-walk.patch
-Patch14: sos-bz1491964-gluster-block-plugin.patch
-Patch15: sos-bz1511087-openstack-containerized-further-updates.patch
-Patch16: sos-bz1515113-postgresql-from-scl.patch
-Patch17: sos-3.4-redsleeve-branding.patch
+Patch1: sos-bz1509079-vdo.patch
+Patch2: sos-bz1506908-openstack-containerized.patch
+Patch3: sos-bz1483414-opendaylight-plugin.patch
+Patch4: sos-bz1491042-keystone-domains.patch
+Patch5: sos-bz1519267-haproxy-etcd-tracebacks.patch
+Patch6: sos-bz1463509-oc-adm-diagnostics.patch
+Patch7: sos-bz1494420-postgresql-scl-path.patch
+Patch8: sos-bz1353873-pcp-logsize.patch
+Patch9: sos-bz1517767-osp-ironic.patch
+Patch10: sos-bz1539038-etcd-private-keys.patch
+Patch11: sos-bz1535390-ipa-logs.patch
+Patch12: sos-bz1525620-rabbitmq-osp12-containerized.patch
+Patch13: sos-bz1568960-ovirt-provider-ovn.patch
+Patch14: sos-bz1568884-kernel-dont-collect-timer.patch
+Patch15: sos-bz1568882-openstack-octavia-plugin.patch
+Patch16: sos-3.4-centos-branding.patch 
+
 
 %description
 Sos is a set of tools that gathers information about system
@@ -60,7 +60,6 @@ support technicians and developers.
 %patch14 -p1
 %patch15 -p1
 %patch16 -p1
-%patch17 -p1
 
 %build
 make
@@ -84,37 +83,61 @@ rm -rf ${RPM_BUILD_ROOT}
 %config(noreplace) %{_sysconfdir}/sos.conf
 
 %changelog
-* Fri Jan 26 2018 Jacco Ligthart <jacco@redsleeve.org> - 3.4-13.el7.redsleeve
-- Roll in RedSleeve Branding
-
-* Thu Jan 25 2018 CentOS Sources <bugs@centos.org> - 3.4-13.el7.centos
+* Mon May 14 2018 CentOS Sources <bugs@centos.org> - 3.5-7.el7.centos
 - Roll in CentOS Branding
 
-* Thu Jan 04 2018 Pavel Moravec <pmoravec@redhat.com> = 3.4-13
-- [plugins] allow add_cmd_output to collect binary output
-  Resolves: bz1515113
+* Wed Apr 18 2018 Pavel Moravec <pmoravec@redhat.com> = 3.5-7
+- [kernel] Disable gathering /proc/timer* statistics
+  Resolves: bz1568884
+- [openstack_octavia] Add new plugin
+  Resolves: bz1568882
+- [ovirt-provider-ovn] A new plugin
+  Resolves: bz1568960
 
-* Thu Jan 04 2018 Pavel Moravec <pmoravec@redhat.com> = 3.4-12
+* Tue Feb 13 2018 Pavel Moravec <pmoravec@redhat.com> = 3.5-6
+- [ipa] set ipa_version variable before referencing it
+  Resolves: bz1535390
+
+* Tue Feb 13 2018 Pavel Moravec <pmoravec@redhat.com> = 3.5-5
+- [rabbitmq] Log collection when run in containerized OSP
+  Resolves: bz1525620
+- [ipa] add KRA logs and correct PKI directories
+  Resolves: bz1535390
+- [opendaylight] Enable plugin by puppet-opendaylight package
+  Resolves: bz1483414
+- [etcd] Do not collect private etcd keys
+  Resolves: bz1539038
+
+* Tue Jan 16 2018 Pavel Moravec <pmoravec@redhat.com> = 3.5-4
+- [pcp] really apply sizelimit to logs collected
+  Resolves: bz1353873
+- [opendaylight] collect more logs and puppet config
+  Resolves: bz1483414
+- [plugins] allow add_cmd_output to collect binary output
+  Resolves: bz1494420
+- [openstack_ironic] collect drivers, ports and much more
+  Resolves: bz1517767
 - [openstack_cinder] check for api service running
-  Resolves: bz1511087
-- [plugins] allow add_cmd_output to collect binary output
-  Resolves: bz1515113
+  Resolves: bz1506908
 
-* Fri Dec 08 2017 Pavel Moravec <pmoravec@redhat.com> = 3.4-11
+* Fri Dec 08 2017 Pavel Moravec <pmoravec@redhat.com> = 3.5-2
+- [vdo] revise collected files
+  Resolves: bz1509079
+- further updates to OSP plugins in containerized environment
+  Resolves: bz1506908
+- [opendaylight] new plugin
+  Resolves: bz1483414
+- collect all keystone domains
+  Resolves: bz1491042
+- haproxy, etcd and docker tracebacks
+  Resolves: bz1519267
+- [origin] fix typo in oc adm diagnostics
+  Resolves: bz1463509
 - [postgresql] Call SCL pg_dump with proper path
-  Resolves: bz1515113
+  Resolves: bz1494420
 
-* Mon Nov 20 2017 Pavel Moravec <pmoravec@redhat.com> = 3.4-10
-- [postgresql] Collect data for postgreSQL from RHSCL
-  Resolves: bz1515113
-
-* Wed Nov 15 2017 Pavel Moravec <pmoravec@redhat.com> = 3.4-9
-- [openstack_*] further updates to OSP plugins in containers
-  Resolves: bz1511087
-
-* Thu Oct 12 2017 Pavel Moravec <pmoravec@redhat.com> = 3.4-8
-- [gnocchi] Tripleo specific containerized services logs
-  Resolves: bz1463635
+* Thu Nov 02 2017 Pavel Moravec <pmoravec@redhat.com> = 3.5-1
+- New upstream release sos-3.5
 
 * Tue Oct 10 2017 Pavel Moravec <pmoravec@redhat.com> = 3.4-7
 - [openstack plugins] Tripleo specific containerized services
