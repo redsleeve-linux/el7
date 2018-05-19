@@ -75,7 +75,7 @@
 Summary:        Mozilla Thunderbird mail/newsgroup client
 Name:           thunderbird
 Version:        52.7.0
-Release:        1%{?dist}
+Release:        1%{?dist}.redsleeve
 URL:            http://www.mozilla.org/projects/thunderbird/
 License:        MPLv1.1 or GPLv2+ or LGPLv2+
 Group:          Applications/Internet
@@ -102,9 +102,9 @@ Source300:      gcc48-%{gcc_version}.el5.src.rpm
 Source301:      yasm-1.2.0-3.el5.src.rpm
 Source302:      devtoolset-2-binutils-2.23.52.0.1-10.el5.src.rpm
 Source600:      thunderbird.sh.in.rhel6
-Source601:      thunderbird-redhat-default-prefs.js.el6
+Source601:      thunderbird-redsleeve-default-prefs.js.el6
 Source700:      thunderbird.sh.in.rhel7
-Source701:      thunderbird-redhat-default-prefs.js.el7
+Source701:      thunderbird-redsleeve-default-prefs.js.el7
 
 # Mozilla (XULRunner) patches
 Patch0:         firefox-install-dir.patch
@@ -637,8 +637,8 @@ MOZ_SMP_FLAGS=-j1
 [ -z "$RPM_BUILD_NCPUS" ] && \
      RPM_BUILD_NCPUS="`/usr/bin/getconf _NPROCESSORS_ONLN`"
 [ "$RPM_BUILD_NCPUS" -ge 2 ] && MOZ_SMP_FLAGS=-j2
-[ "$RPM_BUILD_NCPUS" -ge 4 ] && MOZ_SMP_FLAGS=-j4
-[ "$RPM_BUILD_NCPUS" -ge 8 ] && MOZ_SMP_FLAGS=-j8
+#[ "$RPM_BUILD_NCPUS" -ge 4 ] && MOZ_SMP_FLAGS=-j4
+#[ "$RPM_BUILD_NCPUS" -ge 8 ] && MOZ_SMP_FLAGS=-j8
 #FIXME echo "test config.guess"
 #./mozilla/build/autoconf/config.guess
 #echo "test LDAP config.guess"
@@ -858,6 +858,10 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 #===============================================================================
 
 %changelog
+* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.org> - 52.7.0-1.redsleeve
+- Set max CPU's to 2
+- Roll in RedSleeve Branding
+
 * Mon Apr  9 2018 Johnny Hughes <johnny@centos.org> - 52.7.0-1
 - Manual CentOS Debranding
 
