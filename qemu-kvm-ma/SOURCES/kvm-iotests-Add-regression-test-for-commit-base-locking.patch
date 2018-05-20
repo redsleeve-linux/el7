@@ -1,0 +1,64 @@
+From 9cac958ac666c9095490cf6814110c8083ad8929 Mon Sep 17 00:00:00 2001
+From: Fam Zheng <famz@redhat.com>
+Date: Tue, 13 Mar 2018 15:27:55 +0100
+Subject: [PATCH 2/4] iotests: Add regression test for commit base locking
+
+RH-Author: Fam Zheng <famz@redhat.com>
+Message-id: <20180313152755.31475-3-famz@redhat.com>
+Patchwork-id: 79276
+O-Subject: [RHV7.5 qemu-kvm-ma PATCH v4 2/2] iotests: Add regression test for commit base locking
+Bugzilla: 1557206
+RH-Acked-by: Max Reitz <mreitz@redhat.com>
+RH-Acked-by: Kevin Wolf <kwolf@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+
+Signed-off-by: Fam Zheng <famz@redhat.com>
+Reviewed-by: Max Reitz <mreitz@redhat.com>
+Signed-off-by: Kevin Wolf <kwolf@redhat.com>
+Signed-off-by: Fam Zheng <famz@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ tests/qemu-iotests/153     | 11 +++++++++++
+ tests/qemu-iotests/153.out |  4 ++++
+ 2 files changed, 15 insertions(+)
+
+diff --git a/tests/qemu-iotests/153 b/tests/qemu-iotests/153
+index fa25eb2..0b62ac9 100755
+--- a/tests/qemu-iotests/153
++++ b/tests/qemu-iotests/153
+@@ -178,6 +178,17 @@ ln -s ${TEST_IMG} "${TEST_IMG}.lnk" || echo "Failed to create link"
+ _run_qemu_with_images "${TEST_IMG}.lnk" "${TEST_IMG}"
+ 
+ echo
++echo "== Active commit to intermediate layer should work when base in use =="
++_launch_qemu -drive format=$IMGFMT,file="${TEST_IMG}.a",id=drive0,if=none \
++             -device virtio-blk,drive=drive0
++
++_send_qemu_cmd $QEMU_HANDLE \
++    "{ 'execute': 'qmp_capabilities' }" \
++    'return'
++_run_cmd $QEMU_IMG commit -b "${TEST_IMG}.b" "${TEST_IMG}.c"
++
++_cleanup_qemu
++
+ echo "== Closing an image should unlock it =="
+ _launch_qemu
+ 
+diff --git a/tests/qemu-iotests/153.out b/tests/qemu-iotests/153.out
+index 5b917b1..3f19afb 100644
+--- a/tests/qemu-iotests/153.out
++++ b/tests/qemu-iotests/153.out
+@@ -373,6 +373,10 @@ Is another process using the image?
+ QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2: Failed to get "write" lock
+ Is another process using the image?
+ 
++== Active commit to intermediate layer should work when base in use ==
++{"return": {}}
++
++_qemu_img_wrapper commit -b TEST_DIR/t.qcow2.b TEST_DIR/t.qcow2.c
+ == Closing an image should unlock it ==
+ {"return": {}}
+ Adding drive
+-- 
+1.8.3.1
+

@@ -19,7 +19,7 @@
     %global have_usbredir 0
 %endif
 
-%ifnarch s390 s390x %{arm}
+%ifnarch s390 s390x
     %global have_librdma 1
     %global have_tcmalloc 1
 %else
@@ -54,11 +54,6 @@
     %global kvm_target    aarch64
     %global have_fdt     1
 %endif
-%ifarch %{arm}
-    %global kvm_target    arm
-    %global have_fdt     1
-%endif
-
 
 #Versions of various parts:
 
@@ -111,7 +106,7 @@ Obsoletes: %1%{rhel_ma_suffix} < %{obsoletes_version2}                 \
 Summary: QEMU is a machine emulator and virtualizer
 Name: %{pkgname}%{?pkgsuffix}
 Version: 2.10.0
-Release: 21%{?dist}.1.redsleeve
+Release: 21%{?dist}.2
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 Epoch: 10
 License: GPLv2+ and LGPLv2+ and BSD
@@ -120,7 +115,7 @@ URL: http://www.qemu.org/
 %if %{rhev}
 ExclusiveArch: x86_64 %{power64} aarch64 s390x
 %else
-ExclusiveArch: %{power64} aarch64 s390x %{arm}
+ExclusiveArch: %{power64} aarch64 s390x
 %endif
 %ifarch %{ix86} x86_64
 Requires: seabios-bin >= 1.10.2-1
@@ -1054,9 +1049,14 @@ Patch446: kvm-redhat-Define-the-pseries-rhel7.5-sxxm-machine-type.patch
 Patch447: kvm-redhat-Define-the-pseries-rhel7.4-sxxm-machine-type.patch
 # For bz#1554957 - [CVE-2017-5754] Variant3: POWER {qemu-kvm-ma} Add machine type variants [rhel-7.5.z]
 Patch448: kvm-redhat-Define-the-pseries-rhel7.3-sxxm-machine-type.patch
-
-Patch1000: qemu_reenable_register_for_arm-softmmu.patch
-Patch1001: qemu_less_qtest-arm_tests.patch
+# For bz#1557206 - [Regression] Cannot delete VM's snapshot [rhel-7.5.z]
+Patch449: kvm-block-Fix-flags-in-reopen-queue.patch
+# For bz#1557206 - [Regression] Cannot delete VM's snapshot [rhel-7.5.z]
+Patch450: kvm-iotests-Add-regression-test-for-commit-base-locking.patch
+# For bz#1566878 - CVE-2018-7858 qemu-kvm-ma: Qemu: cirrus: OOB access when updating vga display [rhel-7] [rhel-7.5.z]
+Patch451: kvm-vga-add-ram_addr_t-cast.patch
+# For bz#1566878 - CVE-2018-7858 qemu-kvm-ma: Qemu: cirrus: OOB access when updating vga display [rhel-7] [rhel-7.5.z]
+Patch452: kvm-vga-fix-region-calculation.patch
 
 BuildRequires: zlib-devel
 BuildRequires: glib2-devel
@@ -1682,9 +1682,10 @@ cp %{SOURCE29} pc-bios
 %patch446 -p1
 %patch447 -p1
 %patch448 -p1
-
-%patch1000 -p1
-%patch1001 -p1
+%patch449 -p1
+%patch450 -p1
+%patch451 -p1
+%patch452 -p1
 
 # for tscdeadline_latency.flat
 %ifarch x86_64
@@ -2183,10 +2184,15 @@ useradd -r -u 107 -g qemu -G kvm -d / -s /sbin/nologin \
 %endif
 
 %changelog
-* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.org> - 2.10.0-21.el7.1.redsleeve
-- added kvm_target arm
-- do not use rdma-core
-- small patches to Makefiles
+* Fri Apr 13 2018 Miroslav Rezanina <mrezanin@redhat.com> - ma-2.10.0-21.el7_5.2
+- kvm-block-Fix-flags-in-reopen-queue.patch [bz#1557206]
+- kvm-iotests-Add-regression-test-for-commit-base-locking.patch [bz#1557206]
+- kvm-vga-add-ram_addr_t-cast.patch [bz#1566878]
+- kvm-vga-fix-region-calculation.patch [bz#1566878]
+- Resolves: bz#1557206
+  ([Regression] Cannot delete VM's snapshot [rhel-7.5.z])
+- Resolves: bz#1566878
+  (CVE-2018-7858 qemu-kvm-ma: Qemu: cirrus: OOB access when updating vga display [rhel-7] [rhel-7.5.z])
 
 * Wed Mar 14 2018 Miroslav Rezanina <mrezanin@redhat.com> - ma-2.10.0-21.el7_5.1
 - kvm-memory-inline-some-performance-sensitive-accessors.patch [bz#1554930]
