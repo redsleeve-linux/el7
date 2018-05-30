@@ -1,6 +1,6 @@
-From 114ee2a96825f9e05c7c7c24703264958e19f537 Mon Sep 17 00:00:00 2001
+From db2c5362a4757e5c57dc3e00b8540c6afa7bf7a2 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sun, 15 Apr 2018 15:40:33 +0200
+Date: Mon, 28 May 2018 22:35:13 +0200
 Subject: [PATCH] Roll in RedSleeve Branding
 
 ---
@@ -80,13 +80,13 @@ index 0000000..fa9821b
 +/* Workaround for mozbz#1063315 */
 +pref("security.use_mozillapkix_verification", false);
 diff --git a/SPECS/thunderbird.spec b/SPECS/thunderbird.spec
-index efe9ac2..69f50be 100644
+index 1a714ef..991c2ec 100644
 --- a/SPECS/thunderbird.spec
 +++ b/SPECS/thunderbird.spec
 @@ -75,7 +75,7 @@
  Summary:        Mozilla Thunderbird mail/newsgroup client
  Name:           thunderbird
- Version:        52.7.0
+ Version:        52.8.0
 -Release:        1%{?dist}
 +Release:        1%{?dist}.redsleeve
  URL:            http://www.mozilla.org/projects/thunderbird/
@@ -96,10 +96,10 @@ index efe9ac2..69f50be 100644
  Source301:      yasm-1.2.0-3.el5.src.rpm
  Source302:      devtoolset-2-binutils-2.23.52.0.1-10.el5.src.rpm
  Source600:      thunderbird.sh.in.rhel6
--Source601:      thunderbird-redhat-default-prefs.js.el6
+-Source601:      thunderbird-centos-default-prefs.js.el6
 +Source601:      thunderbird-redsleeve-default-prefs.js.el6
  Source700:      thunderbird.sh.in.rhel7
--Source701:      thunderbird-redhat-default-prefs.js.el7
+-Source701:      thunderbird-centos-default-prefs.js.el7
 +Source701:      thunderbird-redsleeve-default-prefs.js.el7
  
  # Mozilla (XULRunner) patches
@@ -119,11 +119,11 @@ index efe9ac2..69f50be 100644
  #===============================================================================
  
  %changelog
-+* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.org> - 52.7.0-1.redsleeve
++* Mon May 28 2018 Jacco Ligthart <jacco@redsleeve.org> - 52.8.0-1.redsleeve
 +- Set max CPU's to 2
 +- Roll in RedSleeve Branding
 +
- * Mon Apr  9 2018 Johnny Hughes <johnny@centos.org> - 52.7.0-1
+ * Thu May 24 2018 Johnny Hughes <johnny@centos.org>  - 52.8.0-1
  - Manual CentOS Debranding
  
 -- 
