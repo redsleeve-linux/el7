@@ -7,7 +7,7 @@
 
 Name:           cloud-init
 Version:        0.7.9
-Release:        24%{?dist}.redsleeve
+Release:        24%{?dist}.1
 Summary:        Cloud instance init scripts
 
 Group:          System Environment/Base
@@ -62,7 +62,14 @@ Patch0036: 0036-sysconfig-Don-t-write-BOOTPROTO-dhcp-for-ipv6-dhcp.patch
 Patch0037: 0037-sysconfig-Fix-traceback.patch
 Patch0038: 0038-Fix-bug-that-resulted-in-an-attempt-to-rename-bonds.patch
 Patch0039: 0039-azure-Fix-publishing-of-hostname.patch
-Patch9999: cloud-init-add-redsleeve-os.patch
+# For bz#1568717 - Add patch to bounce NICs in Azure/update DNS [rhel-7.5.z]
+Patch40: ci-Revert-azure-Fix-publishing-of-hostname.patch
+# For bz#1568717 - Add patch to bounce NICs in Azure/update DNS [rhel-7.5.z]
+Patch41: ci-DataSourceAzure.py-use-hostnamectl-to-set-hostname.patch
+# For bz#1578702 - cloud-init-0.7.9-9.el7_4.6 breaks IPv4/IPv6 dual-stack EC2 instances in AWS [rhel-7.5.z]
+Patch42: ci-sysconfig-Don-t-disable-IPV6_AUTOCONF.patch
+
+Patch9999: cloud-init-add-centos-os.patch
 
 # Deal with noarch -> arch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1067089
@@ -212,11 +219,17 @@ fi
 %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
 
 %changelog
-* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.org 0.7.9-24.el7.redsleeve
-- rebrand for redsleeve
-
-* Wed Apr 11 2018 Johnny Hughes <johnny@centos.org> 0.7.9-24
+* Tue Jun 25 2018 Johnny Hughes <johnny@centos.org> - 0.7.9-24.el7_5.1
 - Manual CentOS Debranding
+
+* Thu May 17 2018 Miroslav Rezanina <mrezanin@redhat.com> - 0.7.9-24.el7_5.1
+- ci-Revert-azure-Fix-publishing-of-hostname.patch [bz#1568717]
+- ci-DataSourceAzure.py-use-hostnamectl-to-set-hostname.patch [bz#1568717]
+- ci-sysconfig-Don-t-disable-IPV6_AUTOCONF.patch [bz#1578702]
+- Resolves: bz#1568717
+  (Add patch to bounce NICs in Azure/update DNS [rhel-7.5.z])
+- Resolves: bz#1578702
+  (cloud-init-0.7.9-9.el7_4.6 breaks IPv4/IPv6 dual-stack EC2 instances in AWS [rhel-7.5.z])
 
 * Tue Feb 13 2018 Ryan McCabe <rmccabe@redhat.com> 0.7.9-24
 - Set DHCP_HOSTNAME on Azure to allow for the hostname to be
