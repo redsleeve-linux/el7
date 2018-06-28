@@ -1,0 +1,104 @@
+From 5f67a7f6cd532a4dea57a0c8ece51f1734ed8cbe Mon Sep 17 00:00:00 2001
+From: Takayoshi Kimura <takayoshi@gmail.com>
+Date: Mon, 22 May 2017 10:45:13 +0900
+Subject: [PATCH] [docker] Enable log timestamp in docker logs
+
+Enable docker logs -t option to make container troubleshooting
+easier.  Container logs sometimes have different TZ timestapms
+without TZ info or no timestamps at all.
+
+Fixes: #1013
+
+Signed-off-by: Takayoshi Kimura <tkimura@redhat.com>
+Signed-off-by: Bryn M. Reeves <bmr@redhat.com>
+---
+ sos/plugins/docker.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sos/plugins/docker.py b/sos/plugins/docker.py
+index 4f6c98828..50fdc9c28 100644
+--- a/sos/plugins/docker.py
++++ b/sos/plugins/docker.py
+@@ -99,7 +99,7 @@ def setup(self):
+             if self.get_option('logs'):
+                 for container in insp:
+                     self.add_cmd_output(
+-                        "{0} logs {1}".format(
++                        "{0} logs -t {1}".format(
+                             self.docker_cmd,
+                             container
+                         )
+
+From 9fc6eb234682ce695c2b1b1608f755928d441585 Mon Sep 17 00:00:00 2001
+From: Jake Hunsaker <jhunsake@redhat.com>
+Date: Wed, 6 Sep 2017 14:44:20 -0400
+Subject: [PATCH] [docker] Collect new registry config location
+
+For the Red Hat release of docker, registries are now configured in
+/etc/containers/registries.conf instead of /etc/sysconfig/docker.
+
+This patch adds collection of /etc/containers to collect registry
+configuration files. /etc/sysconfig/docker can still be used for daemon
+configuration, so that is still collected.
+
+Resolves: #1096
+
+Signed-off-by: Jake Hunsaker <jhunsake@redhat.com>
+Signed-off-by: Bryn M. Reeves <bmr@redhat.com>
+---
+ sos/plugins/docker.py | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/sos/plugins/docker.py b/sos/plugins/docker.py
+index 50fdc9c28..80b6af30a 100644
+--- a/sos/plugins/docker.py
++++ b/sos/plugins/docker.py
+@@ -114,7 +114,8 @@ def setup(self):
+         super(RedHatDocker, self).setup()
+ 
+         self.add_copy_spec([
+-            "/etc/udev/rules.d/80-docker.rules"
++            "/etc/udev/rules.d/80-docker.rules",
++            "/etc/containers/"
+         ])
+ 
+ 
+From 15d7237527fe26da95070b48e7aafd0597dc245f Mon Sep 17 00:00:00 2001
+From: Jake Hunsaker <jhunsake@redhat.com>
+Date: Fri, 15 Dec 2017 12:11:57 -0500
+Subject: [PATCH] [docker] Collect daemon.json for all OSes
+
+The Red Hat packaging of docker now also supports using
+/etc/docker/daemon.json for configuring docker.
+
+This moves collect of daemon.json from being Ubuntu-only to being for
+any OS installation.
+
+Resolves: #1168
+
+Signed-off-by: Jake Hunsaker <jhunsake@redhat.com>
+Signed-off-by: Bryn M. Reeves <bmr@redhat.com>
+---
+ sos/plugins/docker.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sos/plugins/docker.py b/sos/plugins/docker.py
+index 80b6af30a..f372845c3 100644
+--- a/sos/plugins/docker.py
++++ b/sos/plugins/docker.py
+@@ -36,6 +36,7 @@ class Docker(Plugin):
+ 
+     def setup(self):
+         self.add_copy_spec([
++            "/etc/docker/daemon.json",
+             "/var/lib/docker/repositories-*"
+         ])
+ 
+@@ -127,7 +128,6 @@ def setup(self):
+         super(UbuntuDocker, self).setup()
+         self.add_copy_spec([
+             "/etc/default/docker",
+-            "/etc/docker/daemon.json",
+             "/var/run/docker/libcontainerd/containerd/events.log"
+         ])
+ 

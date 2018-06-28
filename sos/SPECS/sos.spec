@@ -2,7 +2,7 @@
 Summary: A set of tools to gather troubleshooting information from a system
 Name: sos
 Version: 3.5
-Release: 7%{?dist}.redsleeve
+Release: 9%{?dist}
 Group: Applications/System
 Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
 License: GPLv2+
@@ -32,7 +32,10 @@ Patch12: sos-bz1525620-rabbitmq-osp12-containerized.patch
 Patch13: sos-bz1568960-ovirt-provider-ovn.patch
 Patch14: sos-bz1568884-kernel-dont-collect-timer.patch
 Patch15: sos-bz1568882-openstack-octavia-plugin.patch
-Patch16: sos-3.4-redsleeve-branding.patch 
+Patch16: sos-bz1580526-docker-backport.patch
+Patch17: sos-bz1580525-ovn-plugins.patch
+Patch18: sos-bz1584548-traceback-memory.patch
+Patch19: sos-3.4-centos-branding.patch
 
 
 %description
@@ -60,6 +63,9 @@ support technicians and developers.
 %patch14 -p1
 %patch15 -p1
 %patch16 -p1
+%patch17 -p1
+%patch18 -p1
+%patch19 -p1
 
 %build
 make
@@ -83,11 +89,18 @@ rm -rf ${RPM_BUILD_ROOT}
 %config(noreplace) %{_sysconfdir}/sos.conf
 
 %changelog
-* Sat May 19 2018 Jacco Ligthart <jacco@redsleeve.org> - 3.5-7.el7.redsleeve
-- Roll in RedSleeve Branding
-
-* Mon May 14 2018 CentOS Sources <bugs@centos.org> - 3.5-7.el7.centos
+* Tue Jun 26 2018 CentOS Sources <bugs@centos.org> - 3.5-9.el7.centos
 - Roll in CentOS Branding
+
+* Thu May 31 2018 Pavel Moravec <pmoravec@redhat.com> = 3.5-9
+- [logs] collect journalctl verbosed logs with --all-logs only
+  Resolves: bz1584548
+
+* Mon May 21 2018 Pavel Moravec <pmoravec@redhat.com> = 3.5-8
+- [docker] backport three container related patches
+  Resolves: bz1580526
+- [ovn] add two OpenVSwitch plugins
+  Resoles: bz1580525
 
 * Wed Apr 18 2018 Pavel Moravec <pmoravec@redhat.com> = 3.5-7
 - [kernel] Disable gathering /proc/timer* statistics
