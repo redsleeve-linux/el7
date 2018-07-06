@@ -1,6 +1,6 @@
-From 1c2b5316c6255bc8008a4c10f7fd9ee6297696ea Mon Sep 17 00:00:00 2001
+From 7f159269d39a073c9bcba889efa7e81378b4768b Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sat, 19 May 2018 11:12:47 +0200
+Date: Thu, 28 Jun 2018 23:03:47 +0200
 Subject: [PATCH] Roll in RedSleeve Branding
 
 ---
@@ -73,35 +73,35 @@ index 0000000..34caa32
 + This command will collect diagnostic and configuration \
 + information from this %(distro)s system.
 diff --git a/SPECS/sos.spec b/SPECS/sos.spec
-index 91796a8..e82b04f 100644
+index bb526d1..14317b2 100644
 --- a/SPECS/sos.spec
 +++ b/SPECS/sos.spec
 @@ -2,7 +2,7 @@
  Summary: A set of tools to gather troubleshooting information from a system
  Name: sos
  Version: 3.5
--Release: 7%{?dist}
-+Release: 7%{?dist}.redsleeve
+-Release: 9%{?dist}
++Release: 9%{?dist}.redsleeve
  Group: Applications/System
  Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
  License: GPLv2+
-@@ -32,7 +32,7 @@ Patch12: sos-bz1525620-rabbitmq-osp12-containerized.patch
- Patch13: sos-bz1568960-ovirt-provider-ovn.patch
- Patch14: sos-bz1568884-kernel-dont-collect-timer.patch
- Patch15: sos-bz1568882-openstack-octavia-plugin.patch
--Patch16: sos-3.4-centos-branding.patch 
-+Patch16: sos-3.4-redsleeve-branding.patch 
+@@ -35,7 +35,7 @@ Patch15: sos-bz1568882-openstack-octavia-plugin.patch
+ Patch16: sos-bz1580526-docker-backport.patch
+ Patch17: sos-bz1580525-ovn-plugins.patch
+ Patch18: sos-bz1584548-traceback-memory.patch
+-Patch19: sos-3.4-centos-branding.patch
++Patch19: sos-3.4-redsleeve-branding.patch
  
  
  %description
-@@ -83,6 +83,9 @@ rm -rf ${RPM_BUILD_ROOT}
+@@ -89,6 +89,9 @@ rm -rf ${RPM_BUILD_ROOT}
  %config(noreplace) %{_sysconfdir}/sos.conf
  
  %changelog
-+* Sat May 19 2018 Jacco Ligthart <jacco@redsleeve.org> - 3.5-7.el7.redsleeve
++* Thu Jun 28 2018 Jacco Ligthart <jacco@redsleeve.org> - 3.5-9.el7.redsleeve
 +- Roll in RedSleeve Branding
 +
- * Mon May 14 2018 CentOS Sources <bugs@centos.org> - 3.5-7.el7.centos
+ * Tue Jun 26 2018 CentOS Sources <bugs@centos.org> - 3.5-9.el7.centos
  - Roll in CentOS Branding
  
 -- 

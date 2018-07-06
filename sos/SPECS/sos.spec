@@ -2,7 +2,7 @@
 Summary: A set of tools to gather troubleshooting information from a system
 Name: sos
 Version: 3.5
-Release: 9%{?dist}
+Release: 9%{?dist}.redsleeve
 Group: Applications/System
 Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
 License: GPLv2+
@@ -35,7 +35,7 @@ Patch15: sos-bz1568882-openstack-octavia-plugin.patch
 Patch16: sos-bz1580526-docker-backport.patch
 Patch17: sos-bz1580525-ovn-plugins.patch
 Patch18: sos-bz1584548-traceback-memory.patch
-Patch19: sos-3.4-centos-branding.patch
+Patch19: sos-3.4-redsleeve-branding.patch
 
 
 %description
@@ -89,6 +89,9 @@ rm -rf ${RPM_BUILD_ROOT}
 %config(noreplace) %{_sysconfdir}/sos.conf
 
 %changelog
+* Thu Jun 28 2018 Jacco Ligthart <jacco@redsleeve.org> - 3.5-9.el7.redsleeve
+- Roll in RedSleeve Branding
+
 * Tue Jun 26 2018 CentOS Sources <bugs@centos.org> - 3.5-9.el7.centos
 - Roll in CentOS Branding
 
