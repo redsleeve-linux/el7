@@ -7,7 +7,7 @@
 
 Name:           cloud-init
 Version:        0.7.9
-Release:        24%{?dist}.1
+Release:        24%{?dist}.1.redsleeve
 Summary:        Cloud instance init scripts
 
 Group:          System Environment/Base
@@ -69,7 +69,7 @@ Patch41: ci-DataSourceAzure.py-use-hostnamectl-to-set-hostname.patch
 # For bz#1578702 - cloud-init-0.7.9-9.el7_4.6 breaks IPv4/IPv6 dual-stack EC2 instances in AWS [rhel-7.5.z]
 Patch42: ci-sysconfig-Don-t-disable-IPV6_AUTOCONF.patch
 
-Patch9999: cloud-init-add-centos-os.patch
+Patch9999: cloud-init-add-redsleeve-os.patch
 
 # Deal with noarch -> arch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1067089
@@ -219,6 +219,9 @@ fi
 %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
 
 %changelog
+* Thu Jun 28 2018 Jacco Ligthart <jacco@redsleeve.org 0.7.9-24.el7.1.redsleeve
+- rebrand for redsleeve
+
 * Tue Jun 25 2018 Johnny Hughes <johnny@centos.org> - 0.7.9-24.el7_5.1
 - Manual CentOS Debranding
 
