@@ -106,7 +106,7 @@ Summary: An interpreted, interactive, object-oriented programming language
 Name: %{python}
 # Remember to also rebase python-docs when changing this:
 Version: 2.7.5
-Release: 69%{?dist}
+Release: 69%{?dist}.redsleeve
 License: Python
 Group: Development/Languages
 Requires: %{python}-libs%{?_isa} = %{version}-%{release}
@@ -1259,6 +1259,9 @@ Patch305: 00305-CVE-2016-2183.patch
 # above:
 Patch5000: 05000-autotool-intermediates.patch
 
+Patch6001: python-2.7.5-Fix-re-engine-redsleeve.patch
+Patch6002: python-2.7.5-Fix-re-engine2-redsleeve.patch
+
 # ======================================================
 # Additional metadata, and subpackages
 # ======================================================
@@ -1670,6 +1673,8 @@ find -name "*~" |xargs rm -f
 %patch5000 -p0 -b .autotool-intermediates
 %endif
 
+%patch6001 -p1
+%patch6002 -p1
 
 # ======================================================
 # Configuring and building the code:
@@ -2532,6 +2537,13 @@ rm -fr %{buildroot}
 # ======================================================
 
 %changelog
+* Fri Jul 06 2018 Jacco Ligthart <jacco@ligthart.nu> - 2.7.5-69.redsleeve
+- Issue #17998: Fix an internal error in regular expression engine.
+- https://github.com/OpenSCAP/scap-security-guide/issues/1332
+- https://bugs.python.org/issue17998
+- and related issue #18684
+- https://bugs.python.org/issue18684
+
 * Wed May 30 2018 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-70
 - Remove 3DS cipher to mitigate CVE-2016-2183 (sweet32).
 Resolves: rhbz#1584545
