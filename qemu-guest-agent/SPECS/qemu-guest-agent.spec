@@ -51,10 +51,6 @@
     %global kvm_target    aarch64
     %global have_fdt     1
 %endif
-%ifarch %{arm}
-    %global kvm_target    arm
-    %global have_fdt     1
-%endif
 
 #Versions of various parts:
 
@@ -63,7 +59,7 @@
 Summary: QEMU guest agent
 Name: qemu-guest-agent
 Version: 2.8.0
-Release: 2%{?dist}.redsleeve
+Release: 2%{?dist}.1
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 Epoch: 10
 License: GPLv2+ and LGPLv2+ and BSD
@@ -85,6 +81,20 @@ Source2: 99-qemu-guest-agent.rules
 Source3: qemu-ga.sysconfig
 Source4: build_configure.sh
 
+# For bz#1598210 - Backport some features to 2.8 in RHEL 7.5 [rhel-7.5.z]
+Patch1: qemuga-qga-Add-guest-get-host-name-command.patch
+# For bz#1598210 - Backport some features to 2.8 in RHEL 7.5 [rhel-7.5.z]
+Patch2: qemuga-qga-Add-guest-get-users-command.patch
+# For bz#1598210 - Backport some features to 2.8 in RHEL 7.5 [rhel-7.5.z]
+Patch3: qemuga-qga-Add-guest-get-timezone-command.patch
+# For bz#1598210 - Backport some features to 2.8 in RHEL 7.5 [rhel-7.5.z]
+Patch4: qemuga-qemu-ga-check-if-utmpx.h-is-available-on-the-system.patch
+# For bz#1598210 - Backport some features to 2.8 in RHEL 7.5 [rhel-7.5.z]
+Patch5: qemuga-qemu-ga-add-guest-get-osinfo-command.patch
+# For bz#1598210 - Backport some features to 2.8 in RHEL 7.5 [rhel-7.5.z]
+Patch6: qemuga-test-qga-pass-environemnt-to-qemu-ga.patch
+# For bz#1598210 - Backport some features to 2.8 in RHEL 7.5 [rhel-7.5.z]
+Patch7: qemuga-test-qga-add-test-for-guest-get-osinfo.patch
 
 BuildRequires: zlib-devel
 BuildRequires: glib2-devel
@@ -159,6 +169,14 @@ ApplyOptionalPatch()
 
 
 ApplyOptionalPatch qemu-kvm-test.patch
+
+%patch1 -p1
+%patch2 -p1
+%patch3 -p1
+%patch4 -p1
+%patch5 -p1
+%patch6 -p1
+%patch7 -p1
 
 %build
 buildarch="%{kvm_target}-softmmu"
@@ -260,8 +278,21 @@ install -m 0644  qemu-ga.8 ${RPM_BUILD_ROOT}%{_mandir}/man8/
 
 
 %changelog
-* Fri Aug 04 2017 Jacco Ligthart <jacco@redsleeve.org> - 2.8.0-2.el7.redsleeve
-- added kvm_target arm
+* Tue Jul 17 2018 Wainer dos Santos Moschetta <wainersm@redhat.com> - 2.8.0-2.el7_5.1
+- Corrected the package version from 2.8.0-3.el7 to 2.8.0-2.el7_5.1
+- Resolves: bz#1598210
+  (Backport some features to 2.8 in RHEL 7.5 [rhel-7.5.z])
+
+* Fri Jul 13 2018 Wainer dos Santos Moschetta <wainersm@redhat.com> - 2.8.0-3.el7
+- qemuga-qga-Add-guest-get-host-name-command.patch [bz#1598210]
+- qemuga-qga-Add-guest-get-users-command.patch [bz#1598210]
+- qemuga-qga-Add-guest-get-timezone-command.patch [bz#1598210]
+- qemuga-qemu-ga-check-if-utmpx.h-is-available-on-the-system.patch [bz#1598210]
+- qemuga-qemu-ga-add-guest-get-osinfo-command.patch [bz#1598210]
+- qemuga-test-qga-pass-environemnt-to-qemu-ga.patch [bz#1598210]
+- qemuga-test-qga-add-test-for-guest-get-osinfo.patch [bz#1598210]
+- Resolves: bz#1598210
+  (Backport some features to 2.8 in RHEL 7.5 [rhel-7.5.z])
 
 * Fri May 19 2017 Miroslav Rezanina <mrezanin@redhat.com> - 2.8.0-2.el7
 - qemuga-Remove-unnecessary-dependencies.patch [bz#1441999]
