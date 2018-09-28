@@ -19,7 +19,7 @@
 %global use_tcmalloc 0
 %global variant base-asan
 %else
-%if %{_arch} != "s390x" && %{_arch} != "s390"
+%ifnarch s390 s390x %{arm}
 %global use_tcmalloc 1
 %else
 %global use_tcmalloc 0
@@ -39,7 +39,7 @@
 Summary:          389 Directory Server (%{variant})
 Name:             389-ds-base
 Version:          1.3.7.5
-Release:          %{?relprefix}25%{?prerel}%{?dist}
+Release:          %{?relprefix}25%{?prerel}%{?dist}.redsleeve
 License:          GPLv3+
 URL:              https://www.port389.org/
 Group:            System Environment/Daemons
@@ -593,6 +593,9 @@ fi
 %{_sysconfdir}/%{pkgname}/dirsrvtests
 
 %changelog
+* Fri Aug 17 2018 Jacco Ligthart <jacco@redsleeve.org> - 1.3.7.5-25.redsleeve
+- disabled tcmalloc for arm
+
 * Tue Jul 3 2018 Mark Reynolds <mreynolds@redhat.com> - 1.3.7.5-25
 - Bump version to 1.3.7.5-25
 - Resolves: Bug 1597530 - Async operations can hang when the server is running nunc-stans
