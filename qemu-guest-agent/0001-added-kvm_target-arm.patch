@@ -1,6 +1,6 @@
-From 3b3a788ba1b42e32b794ceb87ce16bd7403585b3 Mon Sep 17 00:00:00 2001
+From fafda3f3bcf40f4e7e40647fd686ef3f995c2d47 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Fri, 4 Aug 2017 13:10:06 +0200
+Date: Fri, 17 Aug 2018 23:36:04 +0200
 Subject: [PATCH] added kvm_target arm
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] added kvm_target arm
  1 file changed, 8 insertions(+), 1 deletion(-)
 
 diff --git a/SPECS/qemu-guest-agent.spec b/SPECS/qemu-guest-agent.spec
-index 1104b1a..0a8e11d 100644
+index 4770f39..4bd98e4 100644
 --- a/SPECS/qemu-guest-agent.spec
 +++ b/SPECS/qemu-guest-agent.spec
 @@ -51,6 +51,10 @@
@@ -26,21 +26,21 @@ index 1104b1a..0a8e11d 100644
  Summary: QEMU guest agent
  Name: qemu-guest-agent
  Version: 2.8.0
--Release: 2%{?dist}
-+Release: 2%{?dist}.redsleeve
+-Release: 2%{?dist}.1
++Release: 2%{?dist}.1.redsleeve
  # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
  Epoch: 10
  License: GPLv2+ and LGPLv2+ and BSD
-@@ -256,6 +260,9 @@ install -m 0644  qemu-ga.8 ${RPM_BUILD_ROOT}%{_mandir}/man8/
+@@ -278,6 +282,9 @@ install -m 0644  qemu-ga.8 ${RPM_BUILD_ROOT}%{_mandir}/man8/
  
  
  %changelog
-+* Fri Aug 04 2017 Jacco Ligthart <jacco@redsleeve.org> - 2.8.0-2.el7.redsleeve
++* Fri Aug 17 2018 Jacco Ligthart <jacco@redsleeve.org> - 2.8.0-2.el7.1.redsleeve
 +- added kvm_target arm
 +
- * Fri May 19 2017 Miroslav Rezanina <mrezanin@redhat.com> - 2.8.0-2.el7
- - qemuga-Remove-unnecessary-dependencies.patch [bz#1441999]
- - Resolves: bz#1441999
+ * Tue Jul 17 2018 Wainer dos Santos Moschetta <wainersm@redhat.com> - 2.8.0-2.el7_5.1
+ - Corrected the package version from 2.8.0-3.el7 to 2.8.0-2.el7_5.1
+ - Resolves: bz#1598210
 -- 
 1.8.3.1
 

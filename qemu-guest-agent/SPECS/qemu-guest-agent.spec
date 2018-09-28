@@ -51,6 +51,10 @@
     %global kvm_target    aarch64
     %global have_fdt     1
 %endif
+%ifarch %{arm}
+    %global kvm_target    arm
+    %global have_fdt     1
+%endif
 
 #Versions of various parts:
 
@@ -59,7 +63,7 @@
 Summary: QEMU guest agent
 Name: qemu-guest-agent
 Version: 2.8.0
-Release: 2%{?dist}.1
+Release: 2%{?dist}.1.redsleeve
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 Epoch: 10
 License: GPLv2+ and LGPLv2+ and BSD
@@ -278,6 +282,9 @@ install -m 0644  qemu-ga.8 ${RPM_BUILD_ROOT}%{_mandir}/man8/
 
 
 %changelog
+* Fri Aug 17 2018 Jacco Ligthart <jacco@redsleeve.org> - 2.8.0-2.el7.1.redsleeve
+- added kvm_target arm
+
 * Tue Jul 17 2018 Wainer dos Santos Moschetta <wainersm@redhat.com> - 2.8.0-2.el7_5.1
 - Corrected the package version from 2.8.0-3.el7 to 2.8.0-2.el7_5.1
 - Resolves: bz#1598210
