@@ -19,7 +19,7 @@
     %global have_usbredir 0
 %endif
 
-%ifnarch s390 s390x
+%ifnarch s390 s390x %{arm}
     %global have_librdma 1
     %global have_tcmalloc 1
 %else
@@ -54,6 +54,11 @@
     %global kvm_target    aarch64
     %global have_fdt     1
 %endif
+%ifarch %{arm}
+    %global kvm_target    arm
+    %global have_fdt     1
+%endif
+
 
 #Versions of various parts:
 
@@ -106,7 +111,7 @@ Obsoletes: %1%{rhel_ma_suffix} < %{obsoletes_version2}                 \
 Summary: QEMU is a machine emulator and virtualizer
 Name: %{pkgname}%{?pkgsuffix}
 Version: 2.10.0
-Release: 21%{?dist}.4
+Release: 21%{?dist}.4.redsleeve
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 Epoch: 10
 License: GPLv2+ and LGPLv2+ and BSD
@@ -115,7 +120,7 @@ URL: http://www.qemu.org/
 %if %{rhev}
 ExclusiveArch: x86_64 %{power64} aarch64 s390x
 %else
-ExclusiveArch: %{power64} aarch64 s390x
+ExclusiveArch: %{power64} aarch64 s390x %{arm}
 %endif
 %ifarch %{ix86} x86_64
 Requires: seabios-bin >= 1.10.2-1
@@ -1070,6 +1075,9 @@ Patch457: kvm-slirp-reformat-m_inc-routine.patch
 # For bz#1586247 - CVE-2018-11806 qemu-kvm-ma: QEMU: slirp: heap buffer overflow while reassembling fragmented datagrams [rhel-7.5.z]
 Patch458: kvm-slirp-Correct-size-check-in-m_inc.patch
 
+Patch1000: qemu_reenable_register_for_arm-softmmu.patch
+Patch1001: qemu_less_qtest-arm_tests.patch
+
 BuildRequires: zlib-devel
 BuildRequires: glib2-devel
 BuildRequires: which
@@ -1705,6 +1713,9 @@ cp %{SOURCE29} pc-bios
 %patch457 -p1
 %patch458 -p1
 
+%patch1000 -p1
+%patch1001 -p1
+
 # for tscdeadline_latency.flat
 %ifarch x86_64
   tar -xf %{SOURCE25}
@@ -2202,6 +2213,11 @@ useradd -r -u 107 -g qemu -G kvm -d / -s /sbin/nologin \
 %endif
 
 %changelog
+* Sun Sep 30 2018 Jacco Ligthart <jacco@redsleeve.org> - 2.10.0-21.el7.4.redsleeve
+- added kvm_target arm
+- do not use rdma-core
+- small patches to Makefiles
+
 * Tue Aug 21 2018 Miroslav Rezanina <mrezanin@redhat.com> - ma-2.10.0-21.el7_5.4
 - kvm-slirp-correct-size-computation-while-concatenating-m.patch [bz#1586247]
 - kvm-slirp-reformat-m_inc-routine.patch [bz#1586247]

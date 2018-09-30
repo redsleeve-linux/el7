@@ -1,6 +1,6 @@
-From 9d32e518cdabe03c6c8f9ff462b17205f444329a Mon Sep 17 00:00:00 2001
+From 7e00e0028fb83df1b86542f48bcd04d5eb61aa70 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sun, 20 May 2018 09:44:09 +0200
+Date: Sun, 30 Sep 2018 12:21:49 +0200
 Subject: [PATCH] small changes to build/test on armv5
 
 ---
@@ -57,7 +57,7 @@ index 0000000..f70b804
 + # common-obj-$(CONFIG_SOFTMMU) += or-irq.o
 + 
 diff --git a/SPECS/qemu-kvm.spec b/SPECS/qemu-kvm.spec
-index 9f7889a..5a95704 100644
+index 6825e64..0f5c11c 100644
 --- a/SPECS/qemu-kvm.spec
 +++ b/SPECS/qemu-kvm.spec
 @@ -19,7 +19,7 @@
@@ -85,8 +85,8 @@ index 9f7889a..5a95704 100644
  Summary: QEMU is a machine emulator and virtualizer
  Name: %{pkgname}%{?pkgsuffix}
  Version: 2.10.0
--Release: 21%{?dist}.2
-+Release: 21%{?dist}.2.redsleeve
+-Release: 21%{?dist}.4
++Release: 21%{?dist}.4.redsleeve
  # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
  Epoch: 10
  License: GPLv2+ and LGPLv2+ and BSD
@@ -99,9 +99,9 @@ index 9f7889a..5a95704 100644
  %endif
  %ifarch %{ix86} x86_64
  Requires: seabios-bin >= 1.10.2-1
-@@ -1058,6 +1063,9 @@ Patch451: kvm-vga-add-ram_addr_t-cast.patch
- # For bz#1566878 - CVE-2018-7858 qemu-kvm-ma: Qemu: cirrus: OOB access when updating vga display [rhel-7] [rhel-7.5.z]
- Patch452: kvm-vga-fix-region-calculation.patch
+@@ -1070,6 +1075,9 @@ Patch457: kvm-slirp-reformat-m_inc-routine.patch
+ # For bz#1586247 - CVE-2018-11806 qemu-kvm-ma: QEMU: slirp: heap buffer overflow while reassembling fragmented datagrams [rhel-7.5.z]
+ Patch458: kvm-slirp-Correct-size-check-in-m_inc.patch
  
 +Patch1000: qemu_reenable_register_for_arm-softmmu.patch
 +Patch1001: qemu_less_qtest-arm_tests.patch
@@ -109,9 +109,9 @@ index 9f7889a..5a95704 100644
  BuildRequires: zlib-devel
  BuildRequires: glib2-devel
  BuildRequires: which
-@@ -1687,6 +1695,9 @@ cp %{SOURCE29} pc-bios
- %patch451 -p1
- %patch452 -p1
+@@ -1705,6 +1713,9 @@ cp %{SOURCE29} pc-bios
+ %patch457 -p1
+ %patch458 -p1
  
 +%patch1000 -p1
 +%patch1001 -p1
@@ -119,18 +119,18 @@ index 9f7889a..5a95704 100644
  # for tscdeadline_latency.flat
  %ifarch x86_64
    tar -xf %{SOURCE25}
-@@ -2184,6 +2195,11 @@ useradd -r -u 107 -g qemu -G kvm -d / -s /sbin/nologin \
+@@ -2202,6 +2213,11 @@ useradd -r -u 107 -g qemu -G kvm -d / -s /sbin/nologin \
  %endif
  
  %changelog
-+* Sun May 20 2018 Jacco Ligthart <jacco@redsleeve.org> - 2.10.0-21.el7.2.redsleeve
++* Sun Sep 30 2018 Jacco Ligthart <jacco@redsleeve.org> - 2.10.0-21.el7.4.redsleeve
 +- added kvm_target arm
 +- do not use rdma-core
 +- small patches to Makefiles
 +
- * Fri Apr 13 2018 Miroslav Rezanina <mrezanin@redhat.com> - ma-2.10.0-21.el7_5.2
- - kvm-block-Fix-flags-in-reopen-queue.patch [bz#1557206]
- - kvm-iotests-Add-regression-test-for-commit-base-locking.patch [bz#1557206]
+ * Tue Aug 21 2018 Miroslav Rezanina <mrezanin@redhat.com> - ma-2.10.0-21.el7_5.4
+ - kvm-slirp-correct-size-computation-while-concatenating-m.patch [bz#1586247]
+ - kvm-slirp-reformat-m_inc-routine.patch [bz#1586247]
 -- 
 1.8.3.1
 
