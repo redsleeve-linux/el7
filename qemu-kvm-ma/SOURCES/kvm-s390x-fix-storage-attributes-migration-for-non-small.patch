@@ -1,0 +1,65 @@
+From 56c0724bf309a7d6d89f2aba0d38147b1e77954f Mon Sep 17 00:00:00 2001
+From: Cornelia Huck <cohuck@redhat.com>
+Date: Fri, 29 Jun 2018 12:57:01 +0200
+Subject: [PATCH 3/3] s390x: fix storage attributes migration for non-small
+ guests
+
+RH-Author: Cornelia Huck <cohuck@redhat.com>
+Message-id: <20180629125701.12755-1-cohuck@redhat.com>
+Patchwork-id: 81166
+O-Subject: [RHEL-7.5.z qemu-kvm-ma PATCH] s390x: fix storage attributes migration for non-small guests
+Bugzilla: 1596553
+RH-Acked-by: David Hildenbrand <david@redhat.com>
+RH-Acked-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+From: Claudio Imbrenda <imbrenda@linux.vnet.ibm.com>
+
+Fix storage attribute migration so that it does not fail for guests
+with more than a few GB of RAM.
+With such guests, the index in the buffer would go out of bounds,
+usually by large amounts, thus receiving -EFAULT from the kernel.
+Migration itself would be successful, but storage attributes would then
+not be migrated completely.
+
+This patch fixes the out of bounds access, and thus migration of all
+storage attributes when the guest have large amounts of memory.
+
+Cc: qemu-stable@nongnu.org
+Signed-off-by: Claudio Imbrenda <imbrenda@linux.vnet.ibm.com>
+Fixes: 903fd80b03243476 ("s390x/migration: Storage attributes device")
+Message-Id: <1516297904-18188-1-git-send-email-imbrenda@linux.vnet.ibm.com>
+Reviewed-by: Christian Borntraeger <borntraeger@de.ibm.com>
+Signed-off-by: Cornelia Huck <cohuck@redhat.com>
+(cherry picked from commit 46fa893355e0bd88f3c59b886f0d75cbd5f0bbbe)
+Signed-off-by: Cornelia Huck <cohuck@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/s390x/s390-stattrib-kvm.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/hw/s390x/s390-stattrib-kvm.c b/hw/s390x/s390-stattrib-kvm.c
+index bc0274d..1212c47 100644
+--- a/hw/s390x/s390-stattrib-kvm.c
++++ b/hw/s390x/s390-stattrib-kvm.c
+@@ -115,7 +115,7 @@ static void kvm_s390_stattrib_synchronize(S390StAttribState *sa)
+         for (cx = 0; cx + len <= max; cx += len) {
+             clog.start_gfn = cx;
+             clog.count = len;
+-            clog.values = (uint64_t)(sas->incoming_buffer + cx * len);
++            clog.values = (uint64_t)(sas->incoming_buffer + cx);
+             r = kvm_vm_ioctl(kvm_state, KVM_S390_SET_CMMA_BITS, &clog);
+             if (r) {
+                 error_report("KVM_S390_SET_CMMA_BITS failed: %s", strerror(-r));
+@@ -125,7 +125,7 @@ static void kvm_s390_stattrib_synchronize(S390StAttribState *sa)
+         if (cx < max) {
+             clog.start_gfn = cx;
+             clog.count = max - cx;
+-            clog.values = (uint64_t)(sas->incoming_buffer + cx * len);
++            clog.values = (uint64_t)(sas->incoming_buffer + cx);
+             r = kvm_vm_ioctl(kvm_state, KVM_S390_SET_CMMA_BITS, &clog);
+             if (r) {
+                 error_report("KVM_S390_SET_CMMA_BITS failed: %s", strerror(-r));
+-- 
+1.8.3.1
+

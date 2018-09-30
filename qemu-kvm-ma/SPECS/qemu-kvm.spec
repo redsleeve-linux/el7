@@ -19,7 +19,7 @@
     %global have_usbredir 0
 %endif
 
-%ifnarch s390 s390x %{arm}
+%ifnarch s390 s390x
     %global have_librdma 1
     %global have_tcmalloc 1
 %else
@@ -54,11 +54,6 @@
     %global kvm_target    aarch64
     %global have_fdt     1
 %endif
-%ifarch %{arm}
-    %global kvm_target    arm
-    %global have_fdt     1
-%endif
-
 
 #Versions of various parts:
 
@@ -111,7 +106,7 @@ Obsoletes: %1%{rhel_ma_suffix} < %{obsoletes_version2}                 \
 Summary: QEMU is a machine emulator and virtualizer
 Name: %{pkgname}%{?pkgsuffix}
 Version: 2.10.0
-Release: 21%{?dist}.2.redsleeve
+Release: 21%{?dist}.4
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 Epoch: 10
 License: GPLv2+ and LGPLv2+ and BSD
@@ -120,7 +115,7 @@ URL: http://www.qemu.org/
 %if %{rhev}
 ExclusiveArch: x86_64 %{power64} aarch64 s390x
 %else
-ExclusiveArch: %{power64} aarch64 s390x %{arm}
+ExclusiveArch: %{power64} aarch64 s390x
 %endif
 %ifarch %{ix86} x86_64
 Requires: seabios-bin >= 1.10.2-1
@@ -1062,9 +1057,18 @@ Patch450: kvm-iotests-Add-regression-test-for-commit-base-locking.patch
 Patch451: kvm-vga-add-ram_addr_t-cast.patch
 # For bz#1566878 - CVE-2018-7858 qemu-kvm-ma: Qemu: cirrus: OOB access when updating vga display [rhel-7] [rhel-7.5.z]
 Patch452: kvm-vga-fix-region-calculation.patch
-
-Patch1000: qemu_reenable_register_for_arm-softmmu.patch
-Patch1001: qemu_less_qtest-arm_tests.patch
+# For bz#1593193 - Pegas1.1 - SCSI pass-thru of aacraid RAID1 is inaccessible (qemu-kvm-ma) [rhel-7.5.z]
+Patch453: kvm-scsi-disk-allow-customizing-the-SCSI-version.patch
+# For bz#1593193 - Pegas1.1 - SCSI pass-thru of aacraid RAID1 is inaccessible (qemu-kvm-ma) [rhel-7.5.z]
+Patch454: kvm-hw-scsi-support-SCSI-2-passthrough-without-PI.patch
+# For bz#1596553 - RHEL-Alt-7.5 - qemu has error during migration of larger guests [rhel-7.5.z]
+Patch455: kvm-s390x-fix-storage-attributes-migration-for-non-small.patch
+# For bz#1586247 - CVE-2018-11806 qemu-kvm-ma: QEMU: slirp: heap buffer overflow while reassembling fragmented datagrams [rhel-7.5.z]
+Patch456: kvm-slirp-correct-size-computation-while-concatenating-m.patch
+# For bz#1586247 - CVE-2018-11806 qemu-kvm-ma: QEMU: slirp: heap buffer overflow while reassembling fragmented datagrams [rhel-7.5.z]
+Patch457: kvm-slirp-reformat-m_inc-routine.patch
+# For bz#1586247 - CVE-2018-11806 qemu-kvm-ma: QEMU: slirp: heap buffer overflow while reassembling fragmented datagrams [rhel-7.5.z]
+Patch458: kvm-slirp-Correct-size-check-in-m_inc.patch
 
 BuildRequires: zlib-devel
 BuildRequires: glib2-devel
@@ -1694,9 +1698,12 @@ cp %{SOURCE29} pc-bios
 %patch450 -p1
 %patch451 -p1
 %patch452 -p1
-
-%patch1000 -p1
-%patch1001 -p1
+%patch453 -p1
+%patch454 -p1
+%patch455 -p1
+%patch456 -p1
+%patch457 -p1
+%patch458 -p1
 
 # for tscdeadline_latency.flat
 %ifarch x86_64
@@ -2195,10 +2202,21 @@ useradd -r -u 107 -g qemu -G kvm -d / -s /sbin/nologin \
 %endif
 
 %changelog
-* Sun May 20 2018 Jacco Ligthart <jacco@redsleeve.org> - 2.10.0-21.el7.2.redsleeve
-- added kvm_target arm
-- do not use rdma-core
-- small patches to Makefiles
+* Tue Aug 21 2018 Miroslav Rezanina <mrezanin@redhat.com> - ma-2.10.0-21.el7_5.4
+- kvm-slirp-correct-size-computation-while-concatenating-m.patch [bz#1586247]
+- kvm-slirp-reformat-m_inc-routine.patch [bz#1586247]
+- kvm-slirp-Correct-size-check-in-m_inc.patch [bz#1586247]
+- Resolves: bz#1586247
+  (CVE-2018-11806 qemu-kvm-ma: QEMU: slirp: heap buffer overflow while reassembling fragmented datagrams [rhel-7.5.z])
+
+* Mon Jul 02 2018 Miroslav Rezanina <mrezanin@redhat.com> - ma-2.10.0-21.el7_5.3
+- kvm-scsi-disk-allow-customizing-the-SCSI-version.patch [bz#1593193]
+- kvm-hw-scsi-support-SCSI-2-passthrough-without-PI.patch [bz#1593193]
+- kvm-s390x-fix-storage-attributes-migration-for-non-small.patch [bz#1596553]
+- Resolves: bz#1593193
+  (Pegas1.1 - SCSI pass-thru of aacraid RAID1 is inaccessible (qemu-kvm-ma) [rhel-7.5.z])
+- Resolves: bz#1596553
+  (RHEL-Alt-7.5 - qemu has error during migration of larger guests [rhel-7.5.z])
 
 * Fri Apr 13 2018 Miroslav Rezanina <mrezanin@redhat.com> - ma-2.10.0-21.el7_5.2
 - kvm-block-Fix-flags-in-reopen-queue.patch [bz#1557206]
