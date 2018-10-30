@@ -790,7 +790,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
 
 Name:    java-%{javaver}-%{origin}
 Version: %{javaver}.%{updatever}.%{buildver}
-Release: 0%{?dist}
+Release: 0%{?dist}.redsleeve
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons,
 # and this change was brought into RHEL-4.  java-1.5.0-ibm packages
 # also included the epoch in their virtual provides.  This created a
@@ -1567,18 +1567,18 @@ do
 done
 
 # Make sure gdb can do a backtrace based on line numbers on libjvm.so
-gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
-handle SIGSEGV pass nostop noprint
-handle SIGILL pass nostop noprint
-set breakpoint pending on
-break javaCalls.cpp:1
-commands 1
-backtrace
-quit
-end
-run -version
-EOF
-grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
+#gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
+#handle SIGSEGV pass nostop noprint
+#handle SIGILL pass nostop noprint
+#set breakpoint pending on
+#break javaCalls.cpp:1
+#commands 1
+#backtrace
+#quit
+#end
+#run -version
+#EOF
+#grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
 
 # Check src.zip has all sources. See RHBZ#1130490
 jar -tf $JAVA_HOME/src.zip | grep 'sun.misc.Unsafe'
@@ -1989,6 +1989,9 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
+* Wed Oct 24 2018 Jacco Ligthart <jacco@ligthart.nu> 1:1.8.0.191-b12-0.redsleeve
+- removed the gdb section of the SPEC file
+
 * Tue Oct 09 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.191.b12-0
 - Update to aarch64-shenandoah-jdk8u191-b12.
 - Resolves: rhbz#1633817
