@@ -1,6 +1,3 @@
-# Build time setting
-%global SLOF_gittagdate 20140630
-
 %global have_usbredir 1
 %global have_spice    1
 %global have_fdt      0
@@ -51,10 +48,6 @@
     %global kvm_target    aarch64
     %global have_fdt     1
 %endif
-%ifarch %{arm}
-    %global kvm_target    arm
-    %global have_fdt     1
-%endif
 
 #Versions of various parts:
 
@@ -62,11 +55,11 @@
 
 Summary: QEMU guest agent
 Name: qemu-guest-agent
-Version: 2.8.0
-Release: 2%{?dist}.1.redsleeve
+Version: 2.12.0
+Release: 2%{?dist}
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 Epoch: 10
-License: GPLv2+ and LGPLv2+ and BSD
+License: GPLv2
 Group: System Environment/Daemons
 URL: http://www.qemu.org/
 Requires(post): systemd-units
@@ -78,27 +71,17 @@ Requires(postun): systemd-units
     %define _smp_mflags %{nil}
 %endif
 
-Source0: http://wiki.qemu.org/download/qemu-2.8.0.tar.bz2
+Source0: http://wiki.qemu.org/download/qemu-2.12.0.tar.xz
 
 Source1: qemu-guest-agent.service
 Source2: 99-qemu-guest-agent.rules
 Source3: qemu-ga.sysconfig
 Source4: build_configure.sh
 
-# For bz#1598210 - Backport some features to 2.8 in RHEL 7.5 [rhel-7.5.z]
-Patch1: qemuga-qga-Add-guest-get-host-name-command.patch
-# For bz#1598210 - Backport some features to 2.8 in RHEL 7.5 [rhel-7.5.z]
-Patch2: qemuga-qga-Add-guest-get-users-command.patch
-# For bz#1598210 - Backport some features to 2.8 in RHEL 7.5 [rhel-7.5.z]
-Patch3: qemuga-qga-Add-guest-get-timezone-command.patch
-# For bz#1598210 - Backport some features to 2.8 in RHEL 7.5 [rhel-7.5.z]
-Patch4: qemuga-qemu-ga-check-if-utmpx.h-is-available-on-the-system.patch
-# For bz#1598210 - Backport some features to 2.8 in RHEL 7.5 [rhel-7.5.z]
-Patch5: qemuga-qemu-ga-add-guest-get-osinfo-command.patch
-# For bz#1598210 - Backport some features to 2.8 in RHEL 7.5 [rhel-7.5.z]
-Patch6: qemuga-test-qga-pass-environemnt-to-qemu-ga.patch
-# For bz#1598210 - Backport some features to 2.8 in RHEL 7.5 [rhel-7.5.z]
-Patch7: qemuga-test-qga-add-test-for-guest-get-osinfo.patch
+# For bz#1567041 - qemu-guest-agent does not parse PCI bridge links in "build_guest_fsinfo_for_real_device" (q35)
+Patch1: qemuga-qemu-ga-make-get-fsinfo-work-over-pci-bridges.patch
+# For bz#1567041 - qemu-guest-agent does not parse PCI bridge links in "build_guest_fsinfo_for_real_device" (q35)
+Patch2: qemuga-qga-fix-driver-leak-in-guest-get-fsinfo.patch
 
 BuildRequires: zlib-devel
 BuildRequires: glib2-devel
@@ -133,6 +116,8 @@ This package does not need to be installed on the host OS.
 
 %prep
 %setup -q -n qemu-%{version}
+%patch1 -p1
+%patch2 -p1
 
 # if patch fuzzy patch applying will be forbidden
 %define with_fuzzy_patches 0
@@ -173,14 +158,6 @@ ApplyOptionalPatch()
 
 
 ApplyOptionalPatch qemu-kvm-test.patch
-
-%patch1 -p1
-%patch2 -p1
-%patch3 -p1
-%patch4 -p1
-%patch5 -p1
-%patch6 -p1
-%patch7 -p1
 
 %build
 buildarch="%{kvm_target}-softmmu"
@@ -282,24 +259,16 @@ install -m 0644  qemu-ga.8 ${RPM_BUILD_ROOT}%{_mandir}/man8/
 
 
 %changelog
-* Fri Aug 17 2018 Jacco Ligthart <jacco@redsleeve.org> - 2.8.0-2.el7.1.redsleeve
-- added kvm_target arm
+* Tue Jul 24 2018 Miroslav Rezanina <mrezanin@redhat.com> - 2.12.0-2.el7
+- qemuga-qemu-ga-make-get-fsinfo-work-over-pci-bridges.patch [bz#1567041]
+- qemuga-qga-fix-driver-leak-in-guest-get-fsinfo.patch [bz#1567041]
+- Resolves: bz#1567041
+  (qemu-guest-agent does not parse PCI bridge links in "build_guest_fsinfo_for_real_device" (q35))
 
-* Tue Jul 17 2018 Wainer dos Santos Moschetta <wainersm@redhat.com> - 2.8.0-2.el7_5.1
-- Corrected the package version from 2.8.0-3.el7 to 2.8.0-2.el7_5.1
-- Resolves: bz#1598210
-  (Backport some features to 2.8 in RHEL 7.5 [rhel-7.5.z])
-
-* Fri Jul 13 2018 Wainer dos Santos Moschetta <wainersm@redhat.com> - 2.8.0-3.el7
-- qemuga-qga-Add-guest-get-host-name-command.patch [bz#1598210]
-- qemuga-qga-Add-guest-get-users-command.patch [bz#1598210]
-- qemuga-qga-Add-guest-get-timezone-command.patch [bz#1598210]
-- qemuga-qemu-ga-check-if-utmpx.h-is-available-on-the-system.patch [bz#1598210]
-- qemuga-qemu-ga-add-guest-get-osinfo-command.patch [bz#1598210]
-- qemuga-test-qga-pass-environemnt-to-qemu-ga.patch [bz#1598210]
-- qemuga-test-qga-add-test-for-guest-get-osinfo.patch [bz#1598210]
-- Resolves: bz#1598210
-  (Backport some features to 2.8 in RHEL 7.5 [rhel-7.5.z])
+* Wed May 02 2018 Miroslav Rezanina <mrezanin@redhat.com> - 2.12.0-1.el7
+- Rebase to 2.12.0 base [bz#1562218]
+- Resolves: bz#1562218
+  (Rebase qemu-guest-agent for RHEL-7.6)
 
 * Fri May 19 2017 Miroslav Rezanina <mrezanin@redhat.com> - 2.8.0-2.el7
 - qemuga-Remove-unnecessary-dependencies.patch [bz#1441999]

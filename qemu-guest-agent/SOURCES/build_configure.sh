@@ -35,7 +35,6 @@ shift
     --with-pkgversion=${nvr} \
     --with-confsuffix=/${pkgname} \
     --with-coroutine=ucontext \
-    --disable-archipelago \
     --disable-bluez \
     --disable-brlapi \
     --disable-cap-ng \
