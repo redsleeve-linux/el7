@@ -1,6 +1,6 @@
 Name: rdma-core
-Version: 15
-Release: 7%{?dist}.redsleeve
+Version: 17.2
+Release: 3%{?dist}
 Summary: RDMA core userspace libraries and daemons
 
 # Almost everything is licensed under the OFA dual GPLv2, 2 Clause BSD license
@@ -10,22 +10,13 @@ Summary: RDMA core userspace libraries and daemons
 License: GPLv2 or BSD
 Url: https://github.com/linux-rdma/rdma-core
 Source: https://github.com/linux-rdma/rdma-core/releases/download/v%{version}/%{name}-%{version}.tar.gz
-Patch1: redhat-kernel-init-ocrdma-is-tech-preview.patch
-Patch2: redhat-kernel-init-libi40iw-no-longer-tech-preview.patch
-Patch3: 0001-ibacm-incorrect-usage-of-be-byte.patch
-Patch4: 0002-ibacm-incorrect-list-used-for.patch
-Patch5: 0001-srp_daemon-Don-t-create-async_ev_thread-if-only-run-.patch
-Patch6: 0001-srp_daemon-Remove-unsupported-systemd-configurations.patch
-Patch7: 0001-srp_daemon-srp_daemon.service-should-be-started-afte.patch
-Patch8: librdmacm-add-support-for-extended-join-mc.patch
-Patch9: librdmacm-mckey-test-support-for-send-only-full-member.patch
-Patch10: 0001-Add-a-helper-function-to-verify-64-bit-comp-mask.patch
-Patch11: 0002-mlx5-Report-Multi-Packet-RQ-capabilities-through-mlx.patch
-Patch12: 0003-mlx5-Allow-creation-of-a-Multi-Packet-RQ-using-direc.patch
-Patch13: mlx4-add-a-report-of-rss-cap.patch
-Patch14: 0001-iwpmd-fix-double-mutex-unlock.patch
-Patch15: libbnxt_re_fix_lat_test_failure_in_event_mode.patch
-Patch16: i40iw-autoload-breaks-suspend.patch
+Patch1: 0001-redhat-kernel-init-ocrdma-is-tech-preview-too.patch
+Patch2: 0002-redhat-kernel-init-libi40iw-no-longer-tech-preview.patch
+Patch3: 0003-rdma-hw-modules.rules-i40iw-autoload-breaks-suspend.patch
+Patch4: 0004-Revert-redhat-remove-files-that-we-no-longer-use.patch
+Patch5: 0005-fix_mtu_limiting_for_ipoib.patch
+Patch6: 0006-srp_daemon-Remove-unsupported-systemd-configurations.patch
+Patch7: 0007-srp_daemon-srp_daemon.service-should-be-started-afte.patch
 
 BuildRequires: binutils
 BuildRequires: cmake >= 2.8.11
@@ -51,11 +42,14 @@ Provides: rdma = %{version}-%{release}
 Obsoletes: rdma < %{version}-%{release}
 Provides: rdma-ndd = %{version}-%{release}
 Obsoletes: rdma-ndd < %{version}-%{release}
+# libibcm was deprecated and removed
+Provides: libibcm = %{version}-%{release}
+Obsoletes: libibcm < %{version}-%{release}
 # the ndd utility moved from infiniband-diags to rdma-core
 Conflicts: infiniband-diags <= 1.6.5
 Requires: pciutils
 # 32-bit arm is missing required arch-specific memory barriers,
-#ExcludeArch: %{arm}
+ExcludeArch: %{arm}
 
 # Since we recommend developers use Ninja, so should packagers, for consistency.
 %define CMAKE_FLAGS %{nil}
@@ -85,11 +79,6 @@ Provides: libibverbs-devel = %{version}-%{release}
 Obsoletes: libibverbs-devel < %{version}-%{release}
 Provides: libibverbs-devel-static = %{version}-%{release}
 Obsoletes: libibverbs-devel-static < %{version}-%{release}
-Requires: libibcm = %{version}-%{release}
-Provides: libibcm-devel = %{version}-%{release}
-Obsoletes: libibcm-devel < %{version}-%{release}
-Provides: libibcm-static = %{version}-%{release}
-Obsoletes: libibcm-static < %{version}-%{release}
 Requires: libibumad = %{version}-%{release}
 Provides: libibumad-devel = %{version}-%{release}
 Obsoletes: libibumad-devel < %{version}-%{release}
@@ -111,12 +100,10 @@ Provides: libhfi1-static = %{version}-%{release}
 Obsoletes: libhfi1-static < %{version}-%{release}
 Provides: libipathverbs-static = %{version}-%{release}
 Obsoletes: libipathverbs-static < %{version}-%{release}
-%ifnarch %{arm}
 Provides: libmlx4-static = %{version}-%{release}
 Obsoletes: libmlx4-static < %{version}-%{release}
 Provides: libmlx5-static = %{version}-%{release}
 Obsoletes: libmlx5-static < %{version}-%{release}
-%endif
 Provides: libnes-static = %{version}-%{release}
 Obsoletes: libnes-static < %{version}-%{release}
 Provides: libocrdma-static = %{version}-%{release}
@@ -125,6 +112,10 @@ Provides: libi40iw-devel-static = %{version}-%{release}
 Obsoletes: libi40iw-devel-static < %{version}-%{release}
 Provides: libmthca-static = %{version}-%{release}
 Obsoletes: libmthca-static < %{version}-%{release}
+Provides: libehca-devel = %{version}-%{release}
+Obsoletes: libehca-devel < %{version}-%{release}
+Provides: libehca-static = %{version}-%{release}
+Obsoletes: libehca-static < %{version}-%{release}
 
 %description devel
 RDMA core development libraries and headers.
@@ -142,13 +133,11 @@ Provides: libi40iw = %{version}-%{release}
 Obsoletes: libi40iw < %{version}-%{release}
 Provides: libipathverbs = %{version}-%{release}
 Obsoletes: libipathverbs < %{version}-%{release}
-%ifnarch %{arm}
 Provides: libmlx4 = %{version}-%{release}
 Obsoletes: libmlx4 < %{version}-%{release}
 %ifnarch s390
 Provides: libmlx5 = %{version}-%{release}
 Obsoletes: libmlx5 < %{version}-%{release}
-%endif
 %endif
 Provides: libmthca = %{version}-%{release}
 Obsoletes: libmthca < %{version}-%{release}
@@ -160,6 +149,8 @@ Provides: librxe = %{version}-%{release}
 Obsoletes: librxe < %{version}-%{release}
 Provides: libusnic_verbs = %{version}-%{release}
 Obsoletes: libusnic_verbs < %{version}-%{release}
+Provides: libehca = %{version}-%{release}
+Obsoletes: libehca < %{version}-%{release}
 
 %description -n libibverbs
 libibverbs is a library that allows userspace processes to use RDMA
@@ -224,15 +215,6 @@ Requires: %{name}%{?_isa} = %{version}-%{release}
 iwpmd provides a userspace service for iWarp drivers to claim
 tcp ports through the standard socket interface.
 
-%package -n libibcm
-Summary: Userspace InfiniBand Connection Manager
-Requires: %{name}%{?_isa} = %{version}-%{release}
-Requires: libibverbs%{?_isa} = %{version}-%{release}
-
-%description -n libibcm
-libibcm provides a userspace library that handles the majority of the low
-level work required to open an RDMA connection between two machines.
-
 %package -n libibumad
 Summary: OpenFabrics Alliance InfiniBand umad (userspace management datagram) library
 Requires: %{name}%{?_isa} = %{version}-%{release}
@@ -283,15 +265,6 @@ discover and use SCSI devices via the SCSI RDMA Protocol over InfiniBand.
 %patch5 -p1
 %patch6 -p1
 %patch7 -p1
-%patch8 -p1
-%patch9 -p1
-%patch10 -p1
-%patch11 -p1
-%patch12 -p1
-%patch13 -p1
-%patch14 -p1
-%patch15 -p1
-%patch16 -p1
 
 %build
 
@@ -329,7 +302,6 @@ mkdir -p %{buildroot}/%{_sysconfdir}/rdma
 # Red Hat specific glue
 %global dracutlibdir %{_prefix}/lib/dracut
 %global sysmodprobedir %{_prefix}/lib/modprobe.d
-mkdir -p %{buildroot}/%{_sysconfdir}/sysconfig/network-scripts
 mkdir -p %{buildroot}%{_sysconfdir}/udev/rules.d
 mkdir -p %{buildroot}%{_libexecdir}
 mkdir -p %{buildroot}%{_udevrulesdir}
@@ -360,9 +332,6 @@ rm -rf %{buildroot}/%{_initrddir}/
 
 %post -n libibverbs -p /sbin/ldconfig
 %postun -n libibverbs -p /sbin/ldconfig
-
-%post -n libibcm -p /sbin/ldconfig
-%postun -n libibcm -p /sbin/ldconfig
 
 %post -n libibumad -p /sbin/ldconfig
 %postun -n libibumad -p /sbin/ldconfig
@@ -398,7 +367,7 @@ rm -rf %{buildroot}/%{_initrddir}/
 %doc %{_docdir}/%{name}-%{version}/udev.md
 %config(noreplace) %{_sysconfdir}/rdma/*
 %config(noreplace) %{_sysconfdir}/udev/rules.d/*
-%ifnarch s390 %{arm}
+%ifnarch s390
 %config(noreplace) %{_sysconfdir}/modprobe.d/mlx4.conf
 %endif
 %config(noreplace) %{_sysconfdir}/modprobe.d/truescale.conf
@@ -430,7 +399,7 @@ rm -rf %{buildroot}/%{_initrddir}/
 %{_mandir}/man3/rdma*
 %{_mandir}/man3/umad*
 %{_mandir}/man3/*_to_ibv_rate.*
-%ifnarch s390 %{arm}
+%ifnarch s390
 %{_mandir}/man3/mlx4dv*
 %{_mandir}/man3/mlx5dv*
 %endif
@@ -441,16 +410,17 @@ rm -rf %{buildroot}/%{_initrddir}/
 %dir %{_libdir}/libibverbs
 %{_libdir}/libibverbs*.so.*
 %{_libdir}/libibverbs/*.so
-%ifnarch s390 %{arm}
+%ifnarch s390
 %{_libdir}/libmlx4.so.*
 %{_libdir}/libmlx5.so.*
 %endif
 %config(noreplace) %{_sysconfdir}/libibverbs.d/*.driver
 %doc %{_docdir}/%{name}-%{version}/libibverbs.md
 %doc %{_docdir}/%{name}-%{version}/rxe.md
+%doc %{_docdir}/%{name}-%{version}/tag_matching.md
 %{_bindir}/rxe_cfg
 %{_mandir}/man7/rxe*
-%ifnarch s390 %{arm}
+%ifnarch s390
 %{_mandir}/man7/mlx4dv*
 %{_mandir}/man7/mlx5dv*
 %endif
@@ -480,10 +450,6 @@ rm -rf %{buildroot}/%{_initrddir}/
 %config(noreplace) %{_sysconfdir}/iwpmd.conf
 %{_mandir}/man8/iwpmd.*
 %{_mandir}/man5/iwpmd.*
-
-%files -n libibcm
-%{_libdir}/libibcm*.so.*
-%doc %{_docdir}/%{name}-%{version}/libibcm.md
 
 %files -n libibumad
 %{_libdir}/libibumad*.so.*
@@ -539,14 +505,46 @@ rm -rf %{buildroot}/%{_initrddir}/
 %doc %{_docdir}/%{name}-%{version}/ibsrpdm.md
 
 %changelog
-* Sat May 19 2018 Jacco Ligthart <jacco@redsleeve.org> 15-7.redsleeve
-- undo ExcludeArch
+* Tue Jun 26 2018 Jarod Wilson <jarod@redhat.com> 17.2-3
+- Restore RHEL7 systemd compat patches for srp_daemon
+- Resolves: rhbz#1595019
+
+* Wed Jun 20 2018 Jarod Wilson <jarod@redhat.com> 17.2-2
+- Restore SysV Initscripts ib ifup and ifdown helpers
+- Adjust MTU limit for IPoIB in datagram mode via ifup-ib
+- Resolves: rhbz#1593426
+- Resolves: rhbz#1593334
+
+* Fri Jun 15 2018 Jarod Wilson <jarod@redhat.com> 17.2-1
+- Rebase to upstream rdma-core v17.2 stable release
+
+* Wed Jun 13 2018 Jarod Wilson <jarod@redhat.com> 17.1-3
+- Grab latest stable-v17 fixes from upstream
+- Fix Provides/Obsoletes on removed libibcm
+- Fix Provides/Obsoletes on removed libehca
+- Straighten out SW parsing feature support for DPDK
+- Fix mlx5 rate-limiting support
+- Resolves: rhbz#1588096
+- Resovles: rhbz#1534856
+- Resolves: rhbz#1589525
+
+* Thu May 03 2018 Jarod Wilson <jarod@redhat.com> 17.1-2
+- Match kernel ABI with kernel v4.17 for 32-on-64bit compatibility
+- Resolves: rhbz#1573884
+
+* Mon Apr 16 2018 Jarod Wilson <jarod@redhat.com> 17.1-1
+- Rebase to upstream rdma-core v17.1 stable release
+- No more libibcm or ib sysv initscripts
+- Resolves: rhbz#1515647
+- Resolves: rhbz#1517208
+- Resolves: rhbz#1523201
+- Resolves: rhbz#1541751
 
 * Tue Feb 27 2018 Jarod Wilson <jarod@redhat.com> 15-7
 - i40iw: revoke systemd udev rules auto-load on i40e hardware, due to
   causing problems with suspend and resume, and fall back to load via
   systemd rdma initscript.
-- Resolves: rhbz#1568325
+- Resolves: rhbz#1561566
 
 * Mon Feb 19 2018 Jarod Wilson <jarod@redhat.com> 15-6
 - libbnxt_re: fix lat test failure in event mode

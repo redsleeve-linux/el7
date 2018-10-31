@@ -1,16 +1,19 @@
-commit bda9530d37c5451928f6ba2c0ddc8c14d367d581
-Author: Jarod Wilson <jarod@redhat.com>
-Date:   Mon Mar 6 15:44:49 2017 -0500
+From 93ceaf5ddbb06d93eaa9dcc73a836528eeaf1bf9 Mon Sep 17 00:00:00 2001
+From: Jarod Wilson <jarod@redhat.com>
+Date: Tue, 5 Jun 2018 10:40:47 -0400
+Subject: [PATCH rdma-core 14/29] redhat/kernel-init: libi40iw no longer
+ tech-preview
 
-    redhat/kernel-init: libi40iw no longer tech-preview
-    
-    Signed-off-by: Jarod Wilson <jarod@redhat.com>
+Signed-off-by: Jarod Wilson <jarod@redhat.com>
+---
+ redhat/rdma.kernel-init | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
 diff --git a/redhat/rdma.kernel-init b/redhat/rdma.kernel-init
-index d323f830..65b7a45c 100644
+index acce0066..9ed33541 100644
 --- a/redhat/rdma.kernel-init
 +++ b/redhat/rdma.kernel-init
-@@ -166,11 +166,11 @@ load_hardware_modules()
+@@ -137,11 +137,11 @@ load_hardware_modules()
  	load_modules usnic_verbs
  	RC+=$?
      fi
@@ -26,3 +29,6 @@ index d323f830..65b7a45c 100644
          if is_loaded be2net -a ! is_loaded ocrdma; then
  	    load_modules ocrdma
  	    RC+=$?
+-- 
+2.16.1
+
