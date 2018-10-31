@@ -1,0 +1,11 @@
+--- redhat-rpm-config-9.1.0/brp-java-repack-jars.old	2018-04-23 11:17:21.121577268 +0200
++++ redhat-rpm-config-9.1.0/brp-java-repack-jars	2018-05-09 12:54:52.018083468 +0200
+@@ -29,7 +29,7 @@
+ 	IFS=$(printf '\n\t')
+ 	for j in $JARS ; do
+ 		JAROWN=`ls -l $j | cut -d' ' -f3`
+-		JARGRP=`ls -l $j | cut -d' ' -f4`
++		JARGRP=`stat $j --printf="%G"`
+ 		JARNAME=`basename "$j"`
+ 		JTMPDIR=`mktemp -d -p $RPM_BUILD_ROOT/tmp "$JARNAME.tmpdir.XXXXXXXXXX"` || exit 1
+ 		JARDIR=`mktemp -d -p $RPM_BUILD_ROOT/tmp "$JARNAME.jardir.XXXXXXXXXX"` || exit 1

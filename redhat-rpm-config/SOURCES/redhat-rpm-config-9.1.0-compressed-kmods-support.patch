@@ -1,0 +1,147 @@
+Index: redhat-rpm-config-9.1.0/find-requires
+===================================================================
+--- redhat-rpm-config-9.1.0.orig/find-requires	2018-08-24 09:58:45.437193389 +0200
++++ redhat-rpm-config-9.1.0/find-requires	2018-08-24 09:59:31.902739176 +0200
+@@ -143,7 +143,7 @@
+ unset is_kmod
+ 
+ for f in $filelist; do
+-    if [ $(echo "$f" | sed -r -ne 's:^.*/lib/modules/(.*)/(.*).ko$:\2:p') ]
++    if [ $(echo "$f" | sed -r -ne 's:^.*/lib/modules/(.*)/(.*)\.ko(\.gz|\.bz2|\.xz)?$:\2:p') ]
+     then
+         is_kmod=1;
+     elif [ $(echo "$f" | sed -r -ne 's:^.*/boot/(.*):\1:p') ]
+Index: redhat-rpm-config-9.1.0/find-requires.ksyms
+===================================================================
+--- redhat-rpm-config-9.1.0.orig/find-requires.ksyms	2018-08-24 09:55:19.122210171 +0200
++++ redhat-rpm-config-9.1.0/find-requires.ksyms	2018-08-24 10:01:02.895849695 +0200
+@@ -9,24 +9,49 @@
+ 
+ # Extract all of the symbols provided by this module.
+ all_provides() {
+-    if [[ -n $(nm "$@" | sed -r -ne 's:^0*([0-9a-f]+) A __crc_(.+):0x\1 \2:p') ]]; then
+-        nm "$@" \
+-        | sed -r -ne 's:^0*([0-9a-f]+) A __crc_(.+):0x\1 \2:p' \
+-        | awk --non-decimal-data '{printf("%s:0x%08x\n", $2, $1)}' \
+-        | LC_ALL=C sort -k1,1 -u
+-    else
+-        ELFRODATA=$(readelf -R .rodata "$@" | awk '/0x/{printf $2$3$4$5}')
+-        if [[ -n $(readelf -h "$@" | grep "little endian") ]]; then
+-            RODATA=$(echo $ELFRODATA | sed 's/\(..\)\(..\)\(..\)\(..\)/\4\3\2\1/g')
++    for module in "$@"; do
++        tmpfile=""
++        if [ "x${module%.ko}" = "x${module}" ]; then
++            tmpfile=$(mktemp -t ${0##*/}.XXXXXX.ko)
++            proc_bin=
++            case "${module##*.}" in
++            xz)
++                    proc_bin=xz
++                    ;;
++            bz2)
++                    proc_bin=bzip2
++                    ;;
++            gz)
++                    proc_bin=gzip
++                    ;;
++            esac
++
++            [ -n "$proc_bin" ] || continue
++
++            "$proc_bin" -d -c - < "$module" > "$tmpfile"
++            module="$tmpfile"
++        fi
++
++        if [[ -n $(nm "$module" | sed -r -ne 's:^0*([0-9a-f]+) A __crc_(.+):0x\1 \2:p') ]]; then
++            nm "$module" \
++            | sed -r -ne 's:^0*([0-9a-f]+) A __crc_(.+):0x\1 \2:p' \
++            | awk --non-decimal-data '{printf("%s:0x%08x\n", $2, $1)}'
+         else
+-            RODATA=$ELFRODATA
++            ELFRODATA=$(readelf -R .rodata "$module" | awk '/0x/{printf $2$3$4$5}')
++            if [[ -n $(readelf -h "$module" | grep "little endian") ]]; then
++                RODATA=$(echo $ELFRODATA | sed 's/\(..\)\(..\)\(..\)\(..\)/\4\3\2\1/g')
++            else
++                RODATA=$ELFRODATA
++            fi
++            for sym in $(nm "$module" | sed -r -ne 's:^0*([0-9a-f]+) R __crc_(.+):0x\1 \2:p'); do
++                echo $sym $RODATA
++            done \
++            | awk --non-decimal-data '{printf("%s:0x%08s\n", $2, substr($3,($1*2)+1,8))}'
+         fi
+-        for sym in $(nm "$@" | sed -r -ne 's:^0*([0-9a-f]+) R __crc_(.+):0x\1 \2:p'); do
+-            echo $sym $RODATA
+-        done \
+-        | awk --non-decimal-data '{printf("%s:0x%08s\n", $2, substr($3,($1*2)+1,8))}' \
+-        | LC_ALL=C sort -k1,1 -u
+-    fi
++
++        [ -z "$tmpfile" ] || rm -f -- "$tmpfile"
++    done \
++    | LC_ALL=C sort -k1,1 -u
+ }
+ 
+ # Extract all of the requirements of this module.
+@@ -100,7 +125,7 @@
+     fi
+ }
+ 
+-modules=($(grep -E '/lib/modules/.+\.ko$'))
++modules=($(grep -E '/lib/modules/.+\.ko(\.gz|\.bz2|\.xz)?$'))
+ if [ ${#modules[@]} -gt 0 ]; then
+     kernel=$(/sbin/modinfo -F vermagic "${modules[0]}" | sed -e 's: .*::' -e q)
+ 
+Index: redhat-rpm-config-9.1.0/find-provides
+===================================================================
+--- redhat-rpm-config-9.1.0.orig/find-provides	2010-02-02 10:24:04.000000000 +0100
++++ redhat-rpm-config-9.1.0/find-provides	2018-08-24 10:02:26.666030820 +0200
+@@ -92,7 +92,7 @@
+ 
+ is_kmod=1
+ for f in $filelist; do
+-    if [ $(echo "$f" | sed -r -ne 's:^.*/lib/modules/(.*)/(.*).ko$:\2:p') ]
++    if [ $(echo "$f" | sed -r -ne 's:^.*/lib/modules/(.*)/(.*)\.ko(\.gz|\.bz2|\.xz)?$:\2:p') ]
+     then
+         is_kernel=1;
+     fi
+Index: redhat-rpm-config-9.1.0/find-provides.ksyms
+===================================================================
+--- redhat-rpm-config-9.1.0.orig/find-provides.ksyms	2018-08-24 09:55:19.065210728 +0200
++++ redhat-rpm-config-9.1.0/find-provides.ksyms	2018-08-24 10:03:17.727531681 +0200
+@@ -2,7 +2,29 @@
+ 
+ IFS=$'\n'
+ 
+-for module in $(grep -E '/lib/modules/.+\.ko$'); do
++for module in $(grep -E '/lib/modules/.+\.ko(\.gz|\.bz2|\.xz)?$'); do
++    tmpfile=""
++    if [ "x${module%.ko}" = "x${module}" ]; then
++        tmpfile=$(mktemp -t ${0##*/}.XXXXXX.ko)
++        proc_bin=
++        case "${module##*.}" in
++        xz)
++                proc_bin=xz
++                ;;
++        bz2)
++                proc_bin=bzip2
++                ;;
++        gz)
++                proc_bin=gzip
++                ;;
++        esac
++
++        [ -n "$proc_bin" ] || continue
++
++        "$proc_bin" -d -c - < "$module" > "$tmpfile"
++        module="$tmpfile"
++    fi
++
+     if [[ -n $(nm $module | sed -r -ne 's:^0*([0-9a-f]+) A __crc_(.+):0x\1 \2:p') ]]; then
+         nm $module \
+         | sed -r -ne 's:^0*([0-9a-f]+) A __crc_(.+):0x\1 \2:p' \
+@@ -21,4 +43,6 @@
+         | awk --non-decimal-data '{printf("ksym(%s) = 0x%08s\n", $2, substr($3,($1*2)+1,8))}' \
+         | LC_ALL=C sort -u
+     fi
++
++    [ -z "$tmpfile" ] || rm -f -- "$tmpfile"
+ done

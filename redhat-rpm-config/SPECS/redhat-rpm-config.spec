@@ -1,11 +1,11 @@
 Summary: CentOS specific rpm configuration files
 Name: redhat-rpm-config
 Version: 9.1.0
-Release: 80%{?dist}.redsleeve
+Release: 87%{?dist}
 # No version specified.
 License: GPL+
 Group: Development/System
-URL: http://git.fedorahosted.org/git/redhat-rpm-config
+URL: https://src.fedoraproject.org/rpms/redhat-rpm-config
 Source: redhat-rpm-config-%{version}.tar.bz2
 
 # gcc specs files for hardened builds
@@ -105,6 +105,14 @@ Patch41: redhat-rpm-config-9.1.0.Remove-hardcoded-limit-of-16-CPUs.patch
 Patch42: redhat-rpm-config-9.1.0-ksyms-2.patch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1467319
 Patch43: redhat-rpm-config-9.1.0-ksym-requires-multifile.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1445632
+Patch44: redhat-rpm-config-9.1.0-mono-ppc64le-aarch64-support.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1460628
+Patch45: redhat-rpm-config-9.1.0-fix-group-owners-in-jars.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1619235
+Patch46: redhat-rpm-config-9.1.0-fix-ksym-requires-generation.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1619891
+Patch47: redhat-rpm-config-9.1.0-compressed-kmods-support.patch
 
 # ppc64 little endian support
 Patch99: redhat-rpm-config-9.1.0-ppc64le.patch
@@ -120,7 +128,7 @@ Requires: zip
 Provides: system-rpm-config = %{version}-%{release}
 
 %description
-RedSleeve specific rpm configuration files.
+CentOS specific rpm configuration files.
 
 %prep
 %setup -q
@@ -168,6 +176,10 @@ RedSleeve specific rpm configuration files.
 %patch41 -p1
 %patch42 -p1
 %patch43 -p1
+%patch44 -p1
+%patch45 -p1
+%patch46 -p1
+%patch47 -p1
 
 %patch99 -p2
 %patch100 -p1
@@ -199,11 +211,35 @@ rm -rf ${RPM_BUILD_ROOT}
 %{_sysconfdir}/rpm/*
 
 %changelog
-* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.org> - 9.1.0-80.el7.redsleeve
-- rebrand SPEC file
-
-* Tue Apr 10 2018 CentOS Sources <bugs@centos.org> - 9.1.0-80.el7.centos
+* Tue Oct 30 2018 CentOS Sources <bugs@centos.org> - 9.1.0-87.el7.centos
 - update check_rhl function in dist.sh
+
+* Fri Sep 14 2018 Eugene Syromiatnikov <esyr@redhat.com> - 9.1.0-87
+- Revert to usage of join instead of comm in find-requires.ksym:mod_requires()
+  as generated "Requires:" and "Provides:" lists have different format
+  and unsuitable for processing with comm (#1619235)
+
+* Fri Aug 24 2018 Eugene Syromiatnikov <esyr@redhat.com> - 9.1.0-86
+- Add support for compressed kernel modules to find-provides,
+  find-provides.ksyms, find-requires, find-requires.ksyms (#1619891)
+
+* Fri Aug 24 2018 Eugene Syromiatnikov <esyr@redhat.com> - 9.1.0-85
+- Fix generation of kernel module versioned symbol dependencies for the case
+  when module depends on a symbol with the same name as the one present
+  in kernel but with a different version (#1619235)
+
+* Wed May  9 2018 Pavlina Moravcova Varekova <pmoravco@redhat.com> - 9.1.0-84
+- Revert dropping brp-java-repack-jars
+- fix generating group owner name when processing a jar file (#1460628)
+
+* Fri May  4 2018 Pavlina Moravcova Varekova <pmoravco@redhat.com> - 9.1.0-83
+- Drop brp-java-repack-jars (#1460628)
+
+* Mon Apr 30 2018 Pavlina Moravcova Varekova <pmoravco@redhat.com> - 9.1.0-82
+- Add mono support for ppc64le and aarch64 (#1445632)
+
+* Mon Apr 23 2018 Pavlina Moravcova Varekova <pmoravco@redhat.com> - 9.1.0-81
+- Upgrade URL tag (#1502411)
 
 * Thu Nov 30 2017 Florian Festi <ffesti@redhat.com> - 9.1.0-80
 - More support for CONFIG_MODULE_REL_CRCS style kernel symbols (#1494262)

@@ -1,0 +1,86 @@
+Index: redhat-rpm-config-9.1.0/find-requires.ksyms
+===================================================================
+--- redhat-rpm-config-9.1.0.orig/find-requires.ksyms	2018-08-24 09:55:19.094210445 +0200
++++ redhat-rpm-config-9.1.0/find-requires.ksyms	2018-09-14 12:40:34.744601952 +0200
+@@ -12,8 +12,8 @@
+     if [[ -n $(nm "$@" | sed -r -ne 's:^0*([0-9a-f]+) A __crc_(.+):0x\1 \2:p') ]]; then
+         nm "$@" \
+         | sed -r -ne 's:^0*([0-9a-f]+) A __crc_(.+):0x\1 \2:p' \
+-        | awk --non-decimal-data '{printf("0x%08x\t%s\n", $1, $2)}' \
+-        | LC_ALL=C sort -k2,2 -u
++        | awk --non-decimal-data '{printf("%s:0x%08x\n", $2, $1)}' \
++        | LC_ALL=C sort -k1,1 -u
+     else
+         ELFRODATA=$(readelf -R .rodata "$@" | awk '/0x/{printf $2$3$4$5}')
+         if [[ -n $(readelf -h "$@" | grep "little endian") ]]; then
+@@ -24,8 +24,8 @@
+         for sym in $(nm "$@" | sed -r -ne 's:^0*([0-9a-f]+) R __crc_(.+):0x\1 \2:p'); do
+             echo $sym $RODATA
+         done \
+-        | awk --non-decimal-data '{printf("0x%08s\t%s\n", substr($3,($1*2)+1,8), $2)}' \
+-        | LC_ALL=C sort -k2,2 -u
++        | awk --non-decimal-data '{printf("%s:0x%08s\n", $2, substr($3,($1*2)+1,8))}' \
++        | LC_ALL=C sort -k1,1 -u
+     fi
+ }
+ 
+@@ -36,15 +36,15 @@
+         /sbin/modprobe --dump-modversions "$module" \
+         | awk --non-decimal-data '
+             BEGIN { FS = "\t" ; OFS = "\t" }
+-            {printf("0x%08x\t%s\n", $1, $2)}' \
++            {printf("%s:0x%08x\n", $2, $1)}' \
+         | sed -r -e 's:$:\t'"$1"':'
+     done \
+-    | LC_ALL=C sort -k2,2 -u
++    | LC_ALL=C sort -k1,1 -u
+ }
+ 
+ # Filter out requirements fulfilled by the module itself.
+ mod_requires() {
+-    LC_ALL=C join -t $'\t' -j 2 -v 1 \
++    LC_ALL=C join -t $'\t' -j 1 -v 1 \
+         <(all_requires "$@") \
+         <(all_provides "$@") \
+     | LC_ALL=C sort -k1,1 -u
+@@ -55,6 +55,8 @@
+     exit 0
+ fi
+ 
++export LC_ALL=C
++
+ check_kabi() {
+     arch=$(uname -m)
+     kabi_file="/lib/modules/kabi-current/kabi_whitelist_$arch"
+@@ -107,22 +109,24 @@
+ 
+     cat /usr/src/kernels/$kernel/Module.symvers | awk '
+         BEGIN { FS = "\t" ; OFS = "\t" }
+-        { print $2 "\t" $1 }
++        { print $2 ":" $1 }
+     ' \
+     | sed -r -e 's:$:\t'"$kernel"':' \
+     | LC_ALL=C sort -k1,1 -u > $symvers
+ 
+     # Symbols matching with the kernel get a "kernel" dependency
+-    LC_ALL=C join -t $'\t' -j 1 $symvers <(mod_requires "${modules[@]}") | LC_ALL=C sort -u \
+-    | awk '{ FS = "\t" ; OFS = "\t" } { print "kernel(" $1 ") = " $2 }'
++    mod_req=$(mktemp -t mod_req.XXXXX)
++    mod_requires "${modules[@]}" > "$mod_req"
++    LC_ALL=C join -t $'\t' -j 1 $symvers "$mod_req" | LC_ALL=C sort -u \
++    | awk 'BEGIN { FS = "[\t:]" ; OFS = "\t" } { print "kernel(" $1 ") = " $2 }'
+ 
+     # Symbols from elsewhere get a "ksym" dependency
+-    LC_ALL=C join -t $'\t' -j 1 -v 2 $symvers <(mod_requires "${modules[@]}") | LC_ALL=C sort -u \
+-    | awk '{ FS = "\t" ; OFS = "\t" } { print "ksym(" $1 ") = " $2 }'
++    LC_ALL=C join -t $'\t' -j 1 -v 2 $symvers "$mod_req" | LC_ALL=C sort -u \
++    | awk 'BEGIN { FS = "[\t:]" ; OFS = "\t" } { print "ksym(" $1 ") = " $2 }'
+ 
+     # Check kABI if the kabi-whitelists package is installed
+     # Do this last so we can try to output this error at the end
+-    kabi_check_symbols=($(LC_ALL=C join -t $'\t' -j 1 $symvers <(mod_requires "${modules[@]}") | LC_ALL=C sort -u \
+-    | awk '{ FS = "\t" ; OFS = "\t" } { print $1 }'))
++    kabi_check_symbols=($(LC_ALL=C join -t $'\t' -j 1 $symvers "$mod_req" | LC_ALL=C sort -u \
++    | awk 'BEGIN { FS = "[\t:]" ; OFS = "\t" } { print $1 }'))
+     check_kabi "${kabi_check_symbols[@]}"
+ fi
