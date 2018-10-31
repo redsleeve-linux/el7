@@ -1,3 +1,4 @@
+
 # ======================================================
 # Conditionals and other variables controlling the build
 # ======================================================
@@ -49,6 +50,13 @@
 %global with_valgrind 1
 %else
 %global with_valgrind 0
+%endif
+
+# Having more than 28 cores on a PPC machine will lead to race conditions
+# during build so we have to set a limit.
+# See: https://bugzilla.redhat.com/show_bug.cgi?id=1568974
+%ifarch ppc %{power64} &&  %_smp_ncpus_max > 28
+%global _smp_ncpus_max 28
 %endif
 
 %global with_gdbm 1
@@ -106,7 +114,7 @@ Summary: An interpreted, interactive, object-oriented programming language
 Name: %{python}
 # Remember to also rebase python-docs when changing this:
 Version: 2.7.5
-Release: 69%{?dist}.redsleeve
+Release: 76%{?dist}
 License: Python
 Group: Development/Languages
 Requires: %{python}-libs%{?_isa} = %{version}-%{release}
@@ -1204,6 +1212,12 @@ Patch281: 00281-add-context-parameter-to-xmlrpclib.ServerProxy.patch
 # Resolves: rhbz#1468410
 Patch282: 00282-obmalloc-mmap-threshold.patch
 
+# 00285 #
+# Fix nondeterministic read in test_pty which fails randomly in brew.
+# FIXED UPSTREAM: https://bugs.python.org/issue31158
+# Resolves: rhbz#1512160
+Patch285: 00285-fix-non-deterministic-read-in-test_pty.patch
+
 # 00287 #
 # On the creation of io.FileIO() and builtin file() objects the GIL is now released
 # when checking the file descriptor. io.FileIO.readall(), io.FileIO.read(), and
@@ -1228,11 +1242,39 @@ Patch295: 00295-fix-https-behind-proxy.patch
 # Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1546351
 Patch296: 00296-Readd-the-private-_set_hostport-api-to-httplib.patch
 
+# 00298 #
+# The SSL module no longer sends IP addresses in SNI TLS extension on
+# platforms with OpenSSL 1.0.2+ or inet_pton.
+# FIXED UPSTREAM: https://bugs.python.org/issue32185
+# Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1555314
+Patch298: 00298-do-not-send-IP-in-SNI-TLS-extension.patch
+
+# 00299 #
+# Fix ssl module, Python 2.7 doesn't have Py_MAX
+# The previous patch 298 broke python2. This is a fixup.
+# FIXED UPSTREAM: https://github.com/python/cpython/pull/5878
+# Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1555314
+Patch299: 00299-fix-ssl-module-pymax.patch
+
+# 00303 #
+# Fix CVE-2018-1060 and CVE-2018-1061
+# FIXED UPSTREAM: https://bugs.python.org/issue32981
+# Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1563454
+# and https://bugzilla.redhat.com/show_bug.cgi?id=1549192
+Patch303: 00303-CVE-2018-1060-1.patch
+
 # 00305 #
 # Remove 3DES from the cipher list to mitigate CVE-2016-2183 (sweet32).
 # FIXED UPSTREAM: https://bugs.python.org/issue27850
-# Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1584545
+# Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1581901
 Patch305: 00305-CVE-2016-2183.patch
+
+# 00306 #
+# Fix OSERROR 17 due to _multiprocessing/semaphore.c
+# assuming a one-to-one Pid -> process mapping
+# FIXED UPSTREAM: https://bugs.python.org/issue24303
+# Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1579432
+Patch306: 00306-fix-oserror-17-upon-semaphores-creation.patch
 
 # (New patches go here ^^^)
 #
@@ -1259,9 +1301,6 @@ Patch305: 00305-CVE-2016-2183.patch
 # above:
 Patch5000: 05000-autotool-intermediates.patch
 
-Patch6001: python-2.7.5-Fix-re-engine-redsleeve.patch
-Patch6002: python-2.7.5-Fix-re-engine2-redsleeve.patch
-
 # ======================================================
 # Additional metadata, and subpackages
 # ======================================================
@@ -1269,7 +1308,6 @@ Patch6002: python-2.7.5-Fix-re-engine2-redsleeve.patch
 %if %{main_python}
 Obsoletes: Distutils
 Provides: Distutils
-Obsoletes: python2 
 Provides: python2 = %{version}
 Obsoletes: python-elementtree <= 1.2.6
 Obsoletes: python-sqlite < 2.3.2
@@ -1333,6 +1371,9 @@ Conflicts: python-virtualenv < 15.1.0-1
 # prevent "import pyexpat" from failing with a linker error if someone hasn't
 # yet upgraded expat:
 Requires: expat >= 2.1.0
+
+Provides: python2-libs = %{version}-%{release}
+Provides: python2-libs%{?_isa} = %{version}-%{release}
 
 %description libs
 This package contains runtime libraries for use by Python:
@@ -1658,10 +1699,15 @@ mv Modules/cryptmodule.c Modules/_cryptmodule.c
 %patch276 -p1
 %patch281 -p1
 %patch282 -p1
+%patch285 -p1
 %patch287 -p1
 %patch295 -p1
 %patch296 -p1
+%patch298 -p1
+%patch299 -p1
+%patch303 -p1
 %patch305 -p1
+%patch306 -p1
 
 
 # This shouldn't be necesarry, but is right now (2.2a3)
@@ -1673,8 +1719,6 @@ find -name "*~" |xargs rm -f
 %patch5000 -p0 -b .autotool-intermediates
 %endif
 
-%patch6001 -p1
-%patch6002 -p1
 
 # ======================================================
 # Configuring and building the code:
@@ -2112,6 +2156,10 @@ sed -i "s|^#\!.\?/usr/bin.*$|#\! %{__python}|" \
 mkdir %{buildroot}%{_tmpfilesdir}
 cp %{SOURCE9} %{buildroot}%{_tmpfilesdir}/python.conf
 
+# Create the platform-python symlink pointing to usr/bin/python2.7
+mkdir -p %{buildroot}%{_libexecdir}
+ln -s %{_bindir}/python%{pybasever} %{buildroot}%{_libexecdir}/platform-python
+
 # ======================================================
 # Running the upstream test suite
 # ======================================================
@@ -2199,6 +2247,9 @@ rm -fr %{buildroot}
 %{_bindir}/python2
 %endif
 %{_bindir}/python%{pybasever}
+
+%{_libexecdir}/platform-python
+
 %{_mandir}/*/*
 
 %files libs
@@ -2537,16 +2588,40 @@ rm -fr %{buildroot}
 # ======================================================
 
 %changelog
-* Fri Jul 06 2018 Jacco Ligthart <jacco@ligthart.nu> - 2.7.5-69.redsleeve
-- Issue #17998: Fix an internal error in regular expression engine.
-- https://github.com/OpenSCAP/scap-security-guide/issues/1332
-- https://bugs.python.org/issue17998
-- and related issue #18684
-- https://bugs.python.org/issue18684
+* Mon Sep 10 2018 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-76
+- Remove an unversioned obsoletes tag
+Resolves: rhbz#1627059
 
-* Wed May 30 2018 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-70
+* Mon Jul 16 2018 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-75
+- Provide the /usr/libexec/platform-python symlink to the main binary
+Resolves: rhbz#1599159
+
+* Tue Jun 12 2018 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-74
+- Fix OSERROR 17 due to _multiprocessing/semaphore.c assuming
+  a one-to-one Pid -> process mapping
+Resolves: rhbz#1579432
+
+* Wed May 30 2018 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-73
 - Remove 3DS cipher to mitigate CVE-2016-2183 (sweet32).
-Resolves: rhbz#1584545
+Resolves: rhbz#1581901
+
+* Thu May 03 2018 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-72
+- Fix CVE-2018-1060 and CVE-2018-1061
+Resolves: rhbz#1563454 and rhbz#1549192
+- Provide python2-libs from the python-libs subpackage
+Resolves: rhbz#1557460
+
+* Wed Apr 18 2018 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-71
+- Limit the number of CPU cores when building the package on power architectures
+Resolves: rhbz#1568974
+
+* Tue Apr 17 2018 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-70
+- Do not send IP addresses in SNI TLS extension
+Resolves: rhbz#1555314
+
+* Tue Apr 17 2018 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-69
+- Fix nondeterministic read in test_pty
+Resolves: rhbz#1512160
 
 * Mon Feb 19 2018 Tomas Orsava <torsava@redhat.com> - 2.7.5-68
 - Add Conflicts tag with old virtualenv versions due to new behaviour of
