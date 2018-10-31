@@ -1,0 +1,95 @@
+commit 6630629bb661a7f48fb9856f7fd9616ce1499efa
+Author: Kenneth Dsouza <kdsouza@redhat.com>
+Date:   Sat Feb 3 02:03:31 2018 +0530
+
+    nfs4_getfacl: Add support to accept more paths
+    
+    Accept more than one path on the nfs4_getfacl command line, and
+    add man page information for multiple file path support.
+    
+    Signed-off-by: Kenneth D'souza <kdsouza@redhat.com>
+    Signed-off-by: J. Bruce Fields <bfields@redhat.com>
+
+diff --git a/man/man1/nfs4_getfacl.1 b/man/man1/nfs4_getfacl.1
+index fc092be..81c542d 100644
+--- a/man/man1/nfs4_getfacl.1
++++ b/man/man1/nfs4_getfacl.1
+@@ -9,14 +9,12 @@
+ nfs4_getfacl \- get NFSv4 file/directory access control lists
+ .SH SYNOPSIS
+ .B nfs4_getfacl [-H]
+-.I file
++file ...
+ .SH DESCRIPTION
+ .B nfs4_getfacl 
+-will display the NFSv4 Access Control List (ACL) for 
+-.I file 
+-(a file or directory), provided 
+-.I file 
+-is on a mounted NFSv4 filesystem which supports ACLs.
++will display the NFSv4 Access Control List (ACL) for the files given
++as arguments, provided they are on mounted NFSv4 filesystems which
++support ACLs.
+ 
+ If the 
+ .BR -H / --more-help
+@@ -28,6 +26,7 @@ The output format for an NFSv4 file ACL, e.g., is:
+ .RS
+ .nf
+ 
++# file: /somedir
+ A::OWNER@:rwatTnNcCy
+ A::alice@nfsdomain.org:rxtncy
+ A::bob@nfsdomain.org:rwadtTnNcCy
+@@ -42,6 +41,8 @@ In the example output above, the user `alice@nfsdomain.org' has the equivalent
+ of "read" and "execute" permissions, `bob@nfsdomain.org' has "read" and 
+ "write", and both `GROUP@' and `EVERYONE@' have "read".
+ 
++The ACL listings of multiple files are separated by blank lines.
++
+ Refer to the 
+ .BR nfs4_acl (5)
+ manpage for detailed information about NFSv4 ACL terminology and syntax. 
+diff --git a/nfs4_getfacl/nfs4_getfacl.c b/nfs4_getfacl/nfs4_getfacl.c
+index 5363096..610fe16 100644
+--- a/nfs4_getfacl/nfs4_getfacl.c
++++ b/nfs4_getfacl/nfs4_getfacl.c
+@@ -48,6 +48,7 @@ int main(int argc, char **argv)
+ {
+ 	struct nfs4_acl *acl;
+ 	int res = 1;
++	int counter = 1;
+ 	
+ 	execname = basename(argv[0]);
+ 
+@@ -55,10 +56,6 @@ int main(int argc, char **argv)
+ 		fprintf(stderr, "%s: you must specify a path.\n", execname);
+ 		usage(0);
+ 		goto out;
+-	} else if (argc > 2) {
+-		fprintf(stderr, "%s: currently, you may only specify a single path.\n", execname);
+-		usage(0);
+-		goto out;
+ 	} else if (!strcmp(argv[1], "-?") || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
+ 		usage(1);
+ 		res = 0;
+@@ -68,11 +65,14 @@ int main(int argc, char **argv)
+ 		res = 0;
+ 		goto out;
+ 	}
+-	acl = nfs4_acl_for_path(argv[1]);
+-	if (acl != NULL) {
+-		nfs4_print_acl(stdout, acl);
+-		nfs4_free_acl(acl);
+-		res = 0;
++	for (counter = 1; counter < argc; counter++) {
++		acl = nfs4_acl_for_path(argv[counter]);
++		if (acl != NULL) {
++			printf("\n# file: %s\n",argv[counter]);
++			nfs4_print_acl(stdout, acl);
++			nfs4_free_acl(acl);
++			res = 0;
++               }
+ 	}
+ out:
+ 	return res;

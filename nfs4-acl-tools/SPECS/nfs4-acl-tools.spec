@@ -1,6 +1,6 @@
 Name:           nfs4-acl-tools
 Version:        0.3.3
-Release:        17%{?dist}.redsleeve
+Release:        19%{?dist}
 Summary:        The nfs4 ACL tools
 Group:          Applications/System
 License:        BSD
@@ -25,10 +25,13 @@ Patch006: nfs4-acl-tools-0.3.3-fd-leak.patch
 # RHEL 7.4
 #
 Patch007: nfs4-acl-tools-0.3.3-manpage-acls.patch
+#
+# RHEL 7.6
+#
+Patch008: nfs4-acl-tools-0.3.3-more-paths.patch
+Patch009: nfs4-acl-tools-0.3.3-R-flag.patch
 
 Patch100: nfs4acl-0.2.0-compile.patch
-
-Patch10001: ../SOURCES/nfs4acl-0.3.3-libtool.patch
 
 %description
 This package contains commandline and GUI ACL utilities for the Linux
@@ -48,10 +51,12 @@ NFSv4 client.
 %patch006 -p1
 # 1493905 - Need to add the method used for inheritance-only flag...
 %patch007 -p1
+# 1412181 - nfs4_getfacl should accept more paths
+%patch008 -p1
+# 1416685 - nfs4_setfacl -R should not bail out on error 
+%patch009 -p1
 
 %patch100 -p1
-
-%patch10001 -p1
 
 %build
 %ifarch s390 s390x sparc
@@ -86,8 +91,11 @@ rm -rf %{buildroot}
 %{_mandir}/man5/*
 
 %changelog
-* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.org> - 0.3.3-17.redsleeve
-- added "--tag=CC" to the make command due to libtool errors
+* Mon Jul  9 2018 Steve Dickson <steved@redhat.com> 0.3.3-18
+- Add support for recursive nfs4_getfacl option (bz 1416685)
+
+* Tue Jun 26 2018 Steve Dickson <steved@redhat.com> 0.3.3-17
+-  nfs4_getfacl: Add support to accept more paths (bz 1412181)
 
 * Tue Dec 12 2016 Steve Dickson <steved@redhat.com> 0.3.3-17
 - Describe how the Linux server handles inheritable acls (bz 1493905)
