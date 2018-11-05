@@ -1,7 +1,7 @@
-From b1961175270372dd2a3c2801b0c231af3574a857 Mon Sep 17 00:00:00 2001
+From 4ddf34bba3eb2a302ed370813e43ac804a8060a3 Mon Sep 17 00:00:00 2001
 From: Vitaly Kuznetsov <vkuznets@redhat.com>
 Date: Tue, 17 Apr 2018 13:07:54 +0200
-Subject: [PATCH 2/3] DataSourceAzure.py: use hostnamectl to set hostname
+Subject: DataSourceAzure.py: use hostnamectl to set hostname
 
 RH-Author: Vitaly Kuznetsov <vkuznets@redhat.com>
 Message-id: <20180417130754.12918-3-vkuznets@redhat.com>
@@ -39,10 +39,10 @@ Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/cloudinit/sources/DataSourceAzure.py b/cloudinit/sources/DataSourceAzure.py
-index 48a3e1d..6ce700f 100644
+index 0ee622e..23b4d53 100644
 --- a/cloudinit/sources/DataSourceAzure.py
 +++ b/cloudinit/sources/DataSourceAzure.py
-@@ -71,7 +71,7 @@ def get_hostname(hostname_command='hostname'):
+@@ -228,7 +228,7 @@ def get_hostname(hostname_command='hostname'):
  
  
  def set_hostname(hostname, hostname_command='hostname'):

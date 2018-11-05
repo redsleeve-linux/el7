@@ -1,7 +1,7 @@
-From 69de56ef080be2d017a84d1fd48ddd1fc7f2124f Mon Sep 17 00:00:00 2001
+From 7f22035de59580789e68975aef89c34cb1800bbf Mon Sep 17 00:00:00 2001
 From: Vitaly Kuznetsov <vkuznets@redhat.com>
 Date: Thu, 26 Apr 2018 09:27:49 +0200
-Subject: [PATCH 3/3] sysconfig: Don't disable IPV6_AUTOCONF
+Subject: sysconfig: Don't disable IPV6_AUTOCONF
 
 RH-Author: Vitaly Kuznetsov <vkuznets@redhat.com>
 Message-id: <20180426092749.7251-2-vkuznets@redhat.com>
@@ -33,10 +33,10 @@ Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
  1 file changed, 1 deletion(-)
 
 diff --git a/cloudinit/net/sysconfig.py b/cloudinit/net/sysconfig.py
-index ec41251..9fd4d92 100644
+index f870b0f..bd81832 100644
 --- a/cloudinit/net/sysconfig.py
 +++ b/cloudinit/net/sysconfig.py
-@@ -287,7 +287,6 @@ class Renderer(renderer.Renderer):
+@@ -286,7 +286,6 @@ class Renderer(renderer.Renderer):
              if subnet_type == 'dhcp6':
                  iface_cfg['IPV6INIT'] = True
                  iface_cfg['DHCPV6C'] = True

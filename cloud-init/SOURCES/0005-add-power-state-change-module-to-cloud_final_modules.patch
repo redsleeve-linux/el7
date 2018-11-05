@@ -1,10 +1,11 @@
-From b48c5aede6fb5187b994a06462c79ff331888c81 Mon Sep 17 00:00:00 2001
-From: Lars Kellogg-Stedman <lars@redhat.com>
-Date: Fri, 7 Apr 2017 00:40:22 -0400
-Subject: [PATCH] add power-state-change module to cloud_final_modules
+From 31614be664a68968291f5fcbd8c90aac112876a4 Mon Sep 17 00:00:00 2001
+From: Miroslav Rezanina <mrezanin@redhat.com>
+Date: Thu, 31 May 2018 19:47:44 +0200
+Subject: add power-state-change module to cloud_final_modules
 
 Resolves: rhbz#1252477
 X-downstream-only: true
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
 ---
  rhel/cloud.cfg | 1 +
  1 file changed, 1 insertion(+)
@@ -21,3 +22,6 @@ index 986f241..8644872 100644
  
  system_info:
    default_user:
+-- 
+1.8.3.1
+
