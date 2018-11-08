@@ -1,0 +1,11 @@
+--- a/modules/ldap/util_ldap_cache.c 2013/08/19 11:41:29 1515371
++++ b/modules/ldap/util_ldap_cache.c 2013/08/19 11:45:19 1515372
+@@ -52,7 +52,7 @@
+ 
+     if (node) {
+         if (!(node->url = util_ald_strdup(cache, n->url))) {
+-            util_ald_free(cache, node->url);
++            util_ald_free(cache, node);
+             return NULL;
+         }
+         node->search_cache = n->search_cache;

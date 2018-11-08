@@ -1,0 +1,13 @@
+diff --git a/modules/proxy/proxy_util.c b/modules/proxy/proxy_util.c
+index e672e4a..8be833a 100644
+--- a/modules/proxy/proxy_util.c
++++ b/modules/proxy/proxy_util.c
+@@ -3557,6 +3557,8 @@ static proxy_schemes_t pschemes[] =
+     {"fcgi",     8000},
+     {"ajp",      AJP13_DEF_PORT},
+     {"scgi",     4000},
++    {"ws",       80},
++    {"wss",      443},
+     { NULL, 0xFFFF }     /* unknown port */
+ };
+ 

@@ -1,0 +1,26 @@
+# ./pullrev.sh 1737363
+http://svn.apache.org/viewvc?view=revision&revision=1737363
+
+--- httpd-2.4.6/modules/proxy/mod_proxy_express.c
++++ httpd-2.4.6/modules/proxy/mod_proxy_express.c
+@@ -145,16 +145,14 @@
+     key.dsize = strlen(key.dptr);
+ 
+     rv = apr_dbm_fetch(db, key, &val);
++    if (rv == APR_SUCCESS) {
++        backend = apr_pstrmemdup(r->pool, val.dptr, val.dsize);
++    }
+     apr_dbm_close(db);
+-    if (rv != APR_SUCCESS) {
++    if (rv != APR_SUCCESS || !backend) {
+         return DECLINED;
+     }
+ 
+-    backend = apr_pstrmemdup(r->pool, val.dptr, val.dsize);
+-    if (!backend) {
+-        return DECLINED;
+-    }
+-
+     ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(01004)
+                   "proxy_express: found %s -> %s", name, backend);
+     r->filename = apr_pstrcat(r->pool, "proxy:", backend, r->uri, NULL);

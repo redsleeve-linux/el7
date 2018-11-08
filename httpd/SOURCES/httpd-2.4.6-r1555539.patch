@@ -1,0 +1,265 @@
+diff --git a/docs/manual/expr.html.en b/docs/manual/expr.html.en
+index 5c3ae45..8bd941a 100644
+--- a/docs/manual/expr.html.en
++++ b/docs/manual/expr.html.en
+@@ -46,7 +46,7 @@
+ <li><img alt="" src="./images/down.gif" /> <a href="#other">Other</a></li>
+ <li><img alt="" src="./images/down.gif" /> <a href="#sslrequire">Comparison with SSLRequire</a></li>
+ <li><img alt="" src="./images/down.gif" /> <a href="#compatibility">Version History</a></li>
+-</ul><h3>See also</h3><ul class="seealso"><li><code class="directive"><a href="./mod/core.html#if">&lt;If&gt;</a></code></li><li><code class="directive"><a href="./mod/core.html#elseif">&lt;ElseIf&gt;</a></code></li><li><code class="directive"><a href="./mod/core.html#else">&lt;Else&gt;</a></code></li><li><code class="directive"><a href="./mod/mod_auth_basic.html#authbasicfake">AuthBasicFake</a></code></li><li><code class="directive"><a href="./mod/mod_auth_form.html#authformloginrequiredlocation">AuthFormLoginRequiredLocation</a></code></li><li><code class="directive"><a href="./mod/mod_auth_form.html#authformloginsuccesslocation">AuthFormLoginSuccessLocation</a></code></li><li><code class="directive"><a href="./mod/mod_auth_form.html#authformlogoutlocation">AuthFormLogoutLocation</a></code></li><li><code class="directive"><a href="./mod/mod_rewrite.html#rewritecond">RewriteCond</a></code></li><li><code class="directive"><a href="./mod/mod_setenvif.html#setenvifexpr">SetEnvIfExpr</a></code></li><li><code class="directive"><a href="./mod/mod_headers.html#header">Header</a></code></li><li><code class="directive"><a href="./mod/mod_headers.html#requestheader">RequestHeader</a></code></li><li><code class="directive"><a href="./mod/mod_filter.html#filterprovider">FilterProvider</a></code></li><li><a href="mod/mod_authz_core.html#reqexpr">Require expr</a></li><li><code class="directive"><a href="./mod/mod_ssl.html#sslrequire">SSLRequire</a></code></li><li><code class="directive"><a href="./mod/mod_log_debug.html#logmessage">LogMessage</a></code></li><li><code class="module"><a href="./mod/mod_include.html">mod_include</a></code></li></ul><ul class="seealso"><li><a href="#comments_section">Comments</a></li></ul></div>
++</ul><h3>See also</h3><ul class="seealso"><li><code class="directive"><a href="./mod/core.html#if">&lt;If&gt;</a></code></li><li><code class="directive"><a href="./mod/core.html#elseif">&lt;ElseIf&gt;</a></code></li><li><code class="directive"><a href="./mod/core.html#else">&lt;Else&gt;</a></code></li><li><code class="directive"><a href="./mod/mod_auth_basic.html#authbasicfake">AuthBasicFake</a></code></li><li><code class="directive"><a href="./mod/mod_auth_form.html#authformloginrequiredlocation">AuthFormLoginRequiredLocation</a></code></li><li><code class="directive"><a href="./mod/mod_auth_form.html#authformloginsuccesslocation">AuthFormLoginSuccessLocation</a></code></li><li><code class="directive"><a href="./mod/mod_auth_form.html#authformlogoutlocation">AuthFormLogoutLocation</a></code></li><li><code class="directive"><a href="./mod/mod_rewrite.html#rewritecond">RewriteCond</a></code></li><li><code class="directive"><a href="./mod/mod_setenvif.html#setenvifexpr">SetEnvIfExpr</a></code></li><li><code class="directive"><a href="./mod/mod_headers.html#header">Header</a></code></li><li><code class="directive"><a href="./mod/mod_headers.html#requestheader">RequestHeader</a></code></li><li><code class="directive"><a href="./mod/mod_filter.html#filterprovider">FilterProvider</a></code></li><li><a href="mod/mod_authz_core.html#reqexpr">Require expr</a></li><li><code class="directive"><a href="mod/mod_authnz_ldap.html#requser">Require ldap-user</a></code></li><li><code class="directive"><a href="mod/mod_authnz_ldap.html#reqgroup">Require ldap-group</a></code></li><li><code class="directive"><a href="mod/mod_authnz_ldap.html#reqdn">Require ldap-dn</a></code></li><li><code class="directive"><a href="mod/mod_authnz_ldap.html#reqattribute">Require ldap-attribute</a></code></li><li><code class="directive"><a href="mod/mod_authnz_ldap.html#reqfilter">Require ldap-filter</a></code></li><li><code class="directive"><a href="./mod/mod_ssl.html#sslrequire">SSLRequire</a></code></li><li><code class="directive"><a href="./mod/mod_log_debug.html#logmessage">LogMessage</a></code></li><li><code class="module"><a href="./mod/mod_include.html">mod_include</a></code></li></ul><ul class="seealso"><li><a href="#comments_section">Comments</a></li></ul></div>
+ <div class="top"><a href="#page-header"><img alt="top" src="./images/up.gif" /></a></div>
+ <div class="section">
+ <h2><a name="grammar" id="grammar">Grammar in Backus-Naur Form notation</a></h2>
+diff --git a/docs/manual/mod/mod_authnz_ldap.html.en b/docs/manual/mod/mod_authnz_ldap.html.en
+index 7199052..c86dc8a 100644
+--- a/docs/manual/mod/mod_authnz_ldap.html.en
++++ b/docs/manual/mod/mod_authnz_ldap.html.en
+@@ -350,6 +350,9 @@ for HTTP Basic authentication.</td></tr>
+     <code>ldap-filter</code>.  Other authorization types may also be
+     used but may require that additional authorization modules be loaded.</p>
+ 
++    <p>Since v2.5.0, <a href="../expr.html">expressions</a> are supported
++    within the LDAP require directives.</p>
++
+ <h3><a name="requser" id="requser">Require ldap-user</a></h3>
+ 
+     <p>The <code>Require ldap-user</code> directive specifies what
+@@ -576,6 +579,16 @@ Require ldap-group cn=Administrators, o=Example
+       </li>
+ 
+       <li>
++        Grant access to anybody in the group whose name matches the
++        hostname of the virtual host. In this example an
++        <a href="../expr.html">expression</a> is used to build the filter.
++<highlight language="config">
++AuthLDAPURL ldap://ldap.example.com/o=Example?uid
++Require ldap-group cn=%{SERVER_NAME}, o=Example
++</highlight>
++      </li>
++
++      <li>
+         The next example assumes that everyone at Example who
+         carries an alphanumeric pager will have an LDAP attribute
+         of <code>qpagePagerID</code>. The example will grant access
+diff --git a/modules/aaa/mod_authnz_ldap.c b/modules/aaa/mod_authnz_ldap.c
+index 2c25dbc..063debe 100644
+--- a/modules/aaa/mod_authnz_ldap.c
++++ b/modules/aaa/mod_authnz_ldap.c
+@@ -607,6 +607,10 @@ static authz_status ldapuser_check_authorization(request_rec *r,
+ 
+     util_ldap_connection_t *ldc = NULL;
+ 
++    const char *err = NULL;
++    const ap_expr_info_t *expr = parsed_require_args;
++    const char *require;
++
+     const char *t;
+     char *w;
+ 
+@@ -680,11 +684,19 @@ static authz_status ldapuser_check_authorization(request_rec *r,
+         return AUTHZ_DENIED;
+     }
+ 
++    require = ap_expr_str_exec(r, expr, &err);
++    if (err) {
++        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(02585)
++                      "auth_ldap authorize: require user: Can't evaluate expression: %s",
++                      err);
++        return AUTHZ_DENIED;
++    }
++
+     /*
+      * First do a whole-line compare, in case it's something like
+      *   require user Babs Jensen
+      */
+-    result = util_ldap_cache_compare(r, ldc, sec->url, req->dn, sec->attribute, require_args);
++    result = util_ldap_cache_compare(r, ldc, sec->url, req->dn, sec->attribute, require);
+     switch(result) {
+         case LDAP_COMPARE_TRUE: {
+             ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(01703)
+@@ -704,7 +716,7 @@ static authz_status ldapuser_check_authorization(request_rec *r,
+     /*
+      * Now break apart the line and compare each word on it
+      */
+-    t = require_args;
++    t = require;
+     while ((w = ap_getword_conf(r->pool, &t)) && w[0]) {
+         result = util_ldap_cache_compare(r, ldc, sec->url, req->dn, sec->attribute, w);
+         switch(result) {
+@@ -744,6 +756,10 @@ static authz_status ldapgroup_check_authorization(request_rec *r,
+ 
+     util_ldap_connection_t *ldc = NULL;
+ 
++    const char *err = NULL;
++    const ap_expr_info_t *expr = parsed_require_args;
++    const char *require;
++
+     const char *t;
+ 
+     char filtbuf[FILTER_LENGTH];
+@@ -863,7 +879,15 @@ static authz_status ldapgroup_check_authorization(request_rec *r,
+         }
+     }
+ 
+-    t = require_args;
++    require = ap_expr_str_exec(r, expr, &err);
++    if (err) {
++        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(02586)
++                      "auth_ldap authorize: require group: Can't evaluate expression: %s",
++                      err);
++        return AUTHZ_DENIED;
++    }
++
++    t = require;
+ 
+     ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(01713)
+                   "auth_ldap authorize: require group: testing for group "
+@@ -959,6 +983,10 @@ static authz_status ldapdn_check_authorization(request_rec *r,
+ 
+     util_ldap_connection_t *ldc = NULL;
+ 
++    const char *err = NULL;
++    const ap_expr_info_t *expr = parsed_require_args;
++    const char *require;
++
+     const char *t;
+ 
+     char filtbuf[FILTER_LENGTH];
+@@ -1021,7 +1049,15 @@ static authz_status ldapdn_check_authorization(request_rec *r,
+         req->user = r->user;
+     }
+ 
+-    t = require_args;
++    require = ap_expr_str_exec(r, expr, &err);
++    if (err) {
++        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(02587)
++                      "auth_ldap authorize: require dn: Can't evaluate expression: %s",
++                      err);
++        return AUTHZ_DENIED;
++    }
++
++    t = require;
+ 
+     if (req->dn == NULL || strlen(req->dn) == 0) {
+         ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(01725)
+@@ -1068,6 +1104,10 @@ static authz_status ldapattribute_check_authorization(request_rec *r,
+ 
+     util_ldap_connection_t *ldc = NULL;
+ 
++    const char *err = NULL;
++    const ap_expr_info_t *expr = parsed_require_args;
++    const char *require;
++
+     const char *t;
+     char *w, *value;
+ 
+@@ -1138,7 +1178,16 @@ static authz_status ldapattribute_check_authorization(request_rec *r,
+         return AUTHZ_DENIED;
+     }
+ 
+-    t = require_args;
++    require = ap_expr_str_exec(r, expr, &err);
++    if (err) {
++        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(02588)
++                      "auth_ldap authorize: require ldap-attribute: Can't "
++                      "evaluate expression: %s", err);
++        return AUTHZ_DENIED;
++    }
++
++    t = require;
++
+     while (t[0]) {
+         w = ap_getword(r->pool, &t, '=');
+         value = ap_getword_conf(r->pool, &t);
+@@ -1183,6 +1232,11 @@ static authz_status ldapfilter_check_authorization(request_rec *r,
+         (authn_ldap_config_t *)ap_get_module_config(r->per_dir_config, &authnz_ldap_module);
+ 
+     util_ldap_connection_t *ldc = NULL;
++
++    const char *err = NULL;
++    const ap_expr_info_t *expr = parsed_require_args;
++    const char *require;
++
+     const char *t;
+ 
+     char filtbuf[FILTER_LENGTH];
+@@ -1252,7 +1306,15 @@ static authz_status ldapfilter_check_authorization(request_rec *r,
+         return AUTHZ_DENIED;
+     }
+ 
+-    t = require_args;
++    require = ap_expr_str_exec(r, expr, &err);
++    if (err) {
++        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(02589)
++                      "auth_ldap authorize: require ldap-filter: Can't "
++                      "evaluate require expression: %s", err);
++        return AUTHZ_DENIED;
++    }
++
++    t = require;
+ 
+     if (t[0]) {
+         ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(01743)
+@@ -1311,6 +1373,25 @@ static authz_status ldapfilter_check_authorization(request_rec *r,
+     return AUTHZ_DENIED;
+ }
+ 
++static const char *ldap_parse_config(cmd_parms *cmd, const char *require_line,
++                                     const void **parsed_require_line)
++{
++    const char *expr_err = NULL;
++    ap_expr_info_t *expr;
++
++    expr = ap_expr_parse_cmd(cmd, require_line, AP_EXPR_FLAG_STRING_RESULT,
++            &expr_err, NULL);
++
++    if (expr_err)
++        return apr_pstrcat(cmd->temp_pool,
++                           "Cannot parse expression in require line: ",
++                           expr_err, NULL);
++
++    *parsed_require_line = expr;
++
++    return NULL;
++}
++
+ 
+ /*
+  * Use the ldap url parsing routines to break up the ldap url into
+@@ -1769,30 +1850,30 @@ static const authn_provider authn_ldap_provider =
+ static const authz_provider authz_ldapuser_provider =
+ {
+     &ldapuser_check_authorization,
+-    NULL,
++    &ldap_parse_config,
+ };
+ static const authz_provider authz_ldapgroup_provider =
+ {
+     &ldapgroup_check_authorization,
+-    NULL,
++    &ldap_parse_config,
+ };
+ 
+ static const authz_provider authz_ldapdn_provider =
+ {
+     &ldapdn_check_authorization,
+-    NULL,
++    &ldap_parse_config,
+ };
+ 
+ static const authz_provider authz_ldapattribute_provider =
+ {
+     &ldapattribute_check_authorization,
+-    NULL,
++    &ldap_parse_config,
+ };
+ 
+ static const authz_provider authz_ldapfilter_provider =
+ {
+     &ldapfilter_check_authorization,
+-    NULL,
++    &ldap_parse_config,
+ };
+ 
+ static void ImportULDAPOptFn(void)

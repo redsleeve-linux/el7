@@ -15,10 +15,10 @@
 Summary: Apache HTTP Server
 Name: httpd
 Version: 2.4.6
-Release: 80%{?dist}.1.redsleeve
+Release: 88%{?dist}
 URL: http://httpd.apache.org/
 Source0: http://www.apache.org/dist/httpd/httpd-%{version}.tar.bz2
-Source1: index.html
+Source1: centos-noindex.tar.gz
 Source2: httpd.logrotate
 Source3: httpd.sysconf
 Source4: httpd-ssl-pass-dialog
@@ -135,6 +135,7 @@ Patch111: httpd-2.4.6-r1348019.patch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1396197
 Patch112: httpd-2.4.6-r1587053.patch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1376835
+# https://bugzilla.redhat.com/show_bug.cgi?id=1527295
 Patch113: httpd-2.4.6-mpm-segfault.patch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1372692
 Patch114: httpd-2.4.6-r1681114.patch
@@ -174,6 +175,20 @@ Patch130: httpd-2.4.6-r1811976.patch
 Patch131: httpd-2.4.6-r1650310.patch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1557785
 Patch132: httpd-2.4.6-r1530999.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1533793
+Patch133: httpd-2.4.6-r1555539.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1523536
+Patch134: httpd-2.4.6-r1737363.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1548501
+Patch135: httpd-2.4.6-r1826995.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1556761
+Patch136: httpd-2.4.6-default-port-worker.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1493181
+Patch137: httpd-2.4.6-r1825120.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1458364
+Patch138: httpd-2.4.6-r1515372.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1458364
+Patch139: httpd-2.4.6-r1824872.patch
 
 # Security fixes
 Patch200: httpd-2.4.6-CVE-2013-6438.patch
@@ -410,6 +425,14 @@ rm modules/ssl/ssl_engine_dh.c
 %patch130 -p1 -b .r1811976
 %patch131 -p1 -b .r1650310
 %patch132 -p1 -b .r1530999
+%patch133 -p1 -b .r1555539
+%patch134 -p1 -b .r1523536
+%patch135 -p1 -b .r1826995
+%patch136 -p1 -b .defaultport-proxy
+%patch137 -p1 -b .r1825120
+%patch138 -p1 -b .r1515372
+%patch139 -p1 -b .r1824872
+
 
 %patch200 -p1 -b .cve6438
 %patch201 -p1 -b .cve0098
@@ -585,8 +608,9 @@ EOF
 
 # Handle contentdir
 mkdir $RPM_BUILD_ROOT%{contentdir}/noindex
-install -m 644 -p $RPM_SOURCE_DIR/index.html \
-        $RPM_BUILD_ROOT%{contentdir}/noindex/index.html
+tar xzf $RPM_SOURCE_DIR/centos-noindex.tar.gz \
+        -C $RPM_BUILD_ROOT%{contentdir}/noindex/ \
+        --strip-components=1
 
 rm -rf %{contentdir}/htdocs
 
@@ -610,7 +634,7 @@ rm -v $RPM_BUILD_ROOT%{docroot}/html/*.html \
       $RPM_BUILD_ROOT%{docroot}/cgi-bin/*
 
 # Symlink for the powered-by-$DISTRO image:
-ln -s ../../pixmaps/poweredby.png \
+ln -s ../noindex/images/poweredby.png \
         $RPM_BUILD_ROOT%{contentdir}/icons/poweredby.png
 
 # symlinks for /etc/httpd
@@ -796,7 +820,7 @@ rm -rf $RPM_BUILD_ROOT
 %{contentdir}/error/README
 %{contentdir}/error/*.var
 %{contentdir}/error/include/*.html
-%{contentdir}/noindex/index.html
+%{contentdir}/noindex/*
 
 %dir %{docroot}
 %dir %{docroot}/cgi-bin
@@ -862,19 +886,38 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/rpm/macros.httpd
 
 %changelog
-* Thu Jun 28 2018 Jacco Ligthart <jacco@redsleeve.org> - 2.4.6-80.el7.1.redsleeve
-- roll in redsleeve branding, based on RHEL
-
-* Tue Jun 26 2018 CentOS Sources <bugs@centos.org> - 2.4.6-80.el7.centos.1
+* Tue Oct 30 2018 CentOS Sources <bugs@centos.org> - 2.4.6-88.el7.centos
 - Remove index.html, add centos-noindex.tar.gz
 - change vstring
 - change symlink for poweredby.png
 - update welcome.conf with proper aliases
 
-* Mon May 28 2018 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-80.1
-- Resolves: #1560609 - httpd: active connections being terminated when httpd
-  gets gracefully stopped/restarted, GracefulShutdownTimeout is not being
-  honored
+* Thu Jun 21 2018 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-88
+- Resolves: #1527295 - httpd with worker/event mpm segfaults after multiple
+  SIGUSR1
+
+* Thu Jun 21 2018 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-87
+- Resolves: #1458364 - RMM list corruption in ldap module results in server hang
+
+* Thu Jun 21 2018 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-86
+- Resolves: #1493181 - RFE: mod_ssl: allow sending multiple CA names which
+  differ only in case
+
+* Wed Jun 20 2018 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-85
+- Resolves: #1556761 - mod_proxy_wstunned config needs the default port number
+
+* Mon Jun 18 2018 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-84
+- Resolves: #1548501 - Make OCSP more configurable (like CRL)
+
+* Mon Jun 11 2018 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-83
+- Resolves: #1523536 - Backport Apache BZ#59230 mod_proxy_express uses db
+  after close
+
+* Mon Jun 11 2018 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-82
+- Resolves: #1533793 - Use Variable with mod_authnz_ldap
+
+* Mon Mar 26 2018 Joe Orton <jorton@redhat.com> - 2.4.6-81
+- don't terminate connections during graceful stop/restart (#1557785)
 
 * Mon Jan 08 2018 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-80
 - Related: #1288395 - httpd segfault when logrotate invoked

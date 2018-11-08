@@ -1,0 +1,198 @@
+diff --git a/docs/manual/mod/mod_ssl.html.en b/docs/manual/mod/mod_ssl.html.en
+index 4580f1c..fb8202e 100644
+--- a/docs/manual/mod/mod_ssl.html.en
++++ b/docs/manual/mod/mod_ssl.html.en
+@@ -991,7 +991,8 @@ the certificate being verified.</p>
+ <p>This option enables OCSP validation of the client certificate
+ chain.  If this option is enabled, certificates in the client's
+ certificate chain will be validated against an OCSP responder after
+-normal verification (including CRL checks) have taken place.</p>
++normal verification (including CRL checks) have taken place. In 
++mode 'leaf', only the client certificate itself will be validated.</p>
+ 
+ <p>The OCSP responder used is either extracted from the certificate
+ itself, or derived by configuration; see the
+diff --git a/modules/ssl/mod_ssl.c b/modules/ssl/mod_ssl.c
+index 4a8b661..e637a9d 100644
+--- a/modules/ssl/mod_ssl.c
++++ b/modules/ssl/mod_ssl.c
+@@ -227,8 +227,8 @@ static const command_rec ssl_config_cmds[] = {
+                 "request body if a per-location SSL renegotiation is required due to "
+                 "changed access control requirements")
+ 
+-    SSL_CMD_SRV(OCSPEnable, FLAG,
+-               "Enable use of OCSP to verify certificate revocation ('on', 'off')")
++    SSL_CMD_SRV(OCSPEnable, RAW_ARGS,
++               "Enable use of OCSP to verify certificate revocation mode ('on', 'leaf', 'off')")
+     SSL_CMD_SRV(OCSPDefaultResponder, TAKE1,
+                "URL of the default OCSP Responder")
+     SSL_CMD_SRV(OCSPOverrideResponder, FLAG,
+diff --git a/modules/ssl/ssl_engine_config.c b/modules/ssl/ssl_engine_config.c
+index 86a7f0f..714aee9 100644
+--- a/modules/ssl/ssl_engine_config.c
++++ b/modules/ssl/ssl_engine_config.c
+@@ -130,7 +130,7 @@ static void modssl_ctx_init(modssl_ctx_t *mctx)
+     mctx->auth.verify_depth   = UNSET;
+     mctx->auth.verify_mode    = SSL_CVERIFY_UNSET;
+ 
+-    mctx->ocsp_enabled        = FALSE;
++    mctx->ocsp_mask           = UNSET;
+     mctx->ocsp_force_default  = FALSE;
+     mctx->ocsp_responder      = NULL;
+     mctx->ocsp_resptime_skew  = UNSET;
+@@ -264,7 +264,7 @@ static void modssl_ctx_cfg_merge(modssl_ctx_t *base,
+     cfgMergeInt(auth.verify_depth);
+     cfgMerge(auth.verify_mode, SSL_CVERIFY_UNSET);
+ 
+-    cfgMergeBool(ocsp_enabled);
++    cfgMergeInt(ocsp_mask);
+     cfgMergeBool(ocsp_force_default);
+     cfgMerge(ocsp_responder, NULL);
+     cfgMergeInt(ocsp_resptime_skew);
+@@ -1575,11 +1575,46 @@ const char *ssl_cmd_SSLUserName(cmd_parms *cmd, void *dcfg,
+     return NULL;
+ }
+ 
+-const char *ssl_cmd_SSLOCSPEnable(cmd_parms *cmd, void *dcfg, int flag)
++static const char *ssl_cmd_ocspcheck_parse(cmd_parms *parms,
++                                           const char *arg,
++                                           int *mask)
+ {
+-    SSLSrvConfigRec *sc = mySrvConfig(cmd->server);
++    const char *w;
++
++    w = ap_getword_conf(parms->temp_pool, &arg);
++    if (strcEQ(w, "off")) {
++        *mask = SSL_OCSPCHECK_NONE;
++    }
++    else if (strcEQ(w, "leaf")) {
++        *mask = SSL_OCSPCHECK_LEAF;
++    }
++    else if (strcEQ(w, "on")) {
++        *mask = SSL_OCSPCHECK_CHAIN;
++    }
++    else {
++        return apr_pstrcat(parms->temp_pool, parms->cmd->name,
++                           ": Invalid argument '", w, "'",
++                           NULL);
++    }
++
++    while (*arg) {
++        w = ap_getword_conf(parms->temp_pool, &arg);
++        if (strcEQ(w, "no_ocsp_for_cert_ok")) {
++            *mask |= SSL_OCSPCHECK_NO_OCSP_FOR_CERT_OK;
++        }
++        else {
++            return apr_pstrcat(parms->temp_pool, parms->cmd->name,
++                               ": Invalid argument '", w, "'",
++                               NULL);
++        }
++    }
+ 
+-    sc->server->ocsp_enabled = flag ? TRUE : FALSE;
++    return NULL;
++}
++
++const char *ssl_cmd_SSLOCSPEnable(cmd_parms *cmd, void *dcfg, const char *arg)
++{
++    SSLSrvConfigRec *sc = mySrvConfig(cmd->server);
+ 
+ #ifdef OPENSSL_NO_OCSP
+     if (flag) {
+@@ -1588,7 +1623,7 @@ const char *ssl_cmd_SSLOCSPEnable(cmd_parms *cmd, void *dcfg, int flag)
+     }
+ #endif
+ 
+-    return NULL;
++    return ssl_cmd_ocspcheck_parse(cmd, arg, &sc->server->ocsp_mask);
+ }
+ 
+ const char *ssl_cmd_SSLOCSPOverrideResponder(cmd_parms *cmd, void *dcfg, int flag)
+diff --git a/modules/ssl/ssl_engine_init.c b/modules/ssl/ssl_engine_init.c
+index 672760c..57b76c0 100644
+--- a/modules/ssl/ssl_engine_init.c
++++ b/modules/ssl/ssl_engine_init.c
+@@ -762,6 +762,10 @@ static void ssl_init_ctx_crl(server_rec *s,
+     unsigned long crlflags = 0;
+     char *cfgp = mctx->pkp ? "SSLProxy" : "SSL";
+ 
++    if (mctx->ocsp_mask == UNSET) {
++        mctx->ocsp_mask = SSL_OCSPCHECK_NONE;
++    }
++
+     /*
+      * Configure Certificate Revocation List (CRL) Details
+      */
+diff --git a/modules/ssl/ssl_engine_kernel.c b/modules/ssl/ssl_engine_kernel.c
+index 5ff35f5..9dc236c 100644
+--- a/modules/ssl/ssl_engine_kernel.c
++++ b/modules/ssl/ssl_engine_kernel.c
+@@ -1416,7 +1416,8 @@ int ssl_callback_SSLVerify(int ok, X509_STORE_CTX *ctx)
+     /*
+      * Perform OCSP-based revocation checks
+      */
+-    if (ok && sc->server->ocsp_enabled) {
++    if (ok && ((sc->server->ocsp_mask & SSL_OCSPCHECK_CHAIN) ||
++         (errdepth == 0 && (sc->server->ocsp_mask & SSL_OCSPCHECK_LEAF)))) {
+         /* If there was an optional verification error, it's not
+          * possible to perform OCSP validation since the issuer may be
+          * missing/untrusted.  Fail in that case. */
+diff --git a/modules/ssl/ssl_engine_ocsp.c b/modules/ssl/ssl_engine_ocsp.c
+index 90da5c2..58d267b 100644
+--- a/modules/ssl/ssl_engine_ocsp.c
++++ b/modules/ssl/ssl_engine_ocsp.c
+@@ -136,7 +136,14 @@ static int verify_ocsp_status(X509 *cert, X509_STORE_CTX *ctx, conn_rec *c,
+ 
+     ruri = determine_responder_uri(sc, cert, c, pool);
+     if (!ruri) {
+-        return V_OCSP_CERTSTATUS_UNKNOWN;
++        if (sc->server->ocsp_mask & SSL_OCSPCHECK_NO_OCSP_FOR_CERT_OK) {
++            ap_log_cerror(APLOG_MARK, APLOG_TRACE2, 0, c, 
++                          "Skipping OCSP check for certificate cos no OCSP URL"
++                          " found and no_ocsp_for_cert_ok is set");
++            return V_OCSP_CERTSTATUS_GOOD;
++        } else {
++            return V_OCSP_CERTSTATUS_UNKNOWN;
++        }
+     }
+ 
+     request = create_request(ctx, cert, &certID, s, pool);
+diff --git a/modules/ssl/ssl_private.h b/modules/ssl/ssl_private.h
+index b601316..2d505f9 100644
+--- a/modules/ssl/ssl_private.h
++++ b/modules/ssl/ssl_private.h
+@@ -379,6 +379,16 @@ typedef enum {
+ } ssl_crlcheck_t;
+ 
+ /**
++  * OCSP checking mask (mode | flags)
++  */
++typedef enum {
++    SSL_OCSPCHECK_NONE  = (0),
++    SSL_OCSPCHECK_LEAF  = (1 << 0),
++    SSL_OCSPCHECK_CHAIN = (1 << 1),
++    SSL_OCSPCHECK_NO_OCSP_FOR_CERT_OK = (1 << 2)
++} ssl_ocspcheck_t;
++
++/**
+  * Define the SSL pass phrase dialog types
+  */
+ typedef enum {
+@@ -668,7 +678,7 @@ typedef struct {
+ 
+     modssl_auth_ctx_t auth;
+ 
+-    BOOL ocsp_enabled; /* true if OCSP verification enabled */
++    int ocsp_mask;
+     BOOL ocsp_force_default; /* true if the default responder URL is
+                               * used regardless of per-cert URL */
+     const char *ocsp_responder; /* default responder URL */
+@@ -796,7 +806,7 @@ const char *ssl_cmd_SSLOCSPDefaultResponder(cmd_parms *cmd, void *dcfg, const ch
+ const char *ssl_cmd_SSLOCSPResponseTimeSkew(cmd_parms *cmd, void *dcfg, const char *arg);
+ const char *ssl_cmd_SSLOCSPResponseMaxAge(cmd_parms *cmd, void *dcfg, const char *arg);
+ const char *ssl_cmd_SSLOCSPResponderTimeout(cmd_parms *cmd, void *dcfg, const char *arg);
+-const char *ssl_cmd_SSLOCSPEnable(cmd_parms *cmd, void *dcfg, int flag);
++const char *ssl_cmd_SSLOCSPEnable(cmd_parms *cmd, void *dcfg, const char *flag);
+ 
+ #ifndef OPENSSL_NO_SRP
+ const char *ssl_cmd_SSLSRPVerifierFile(cmd_parms *cmd, void *dcfg, const char *arg);
