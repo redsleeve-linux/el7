@@ -1,13 +1,13 @@
-From ebad012fad51bd72c0618face6188086ee9c2be4 Mon Sep 17 00:00:00 2001
+From 44dfd8eea4b562e77587cdd1b2ae6b6decc870f9 Mon Sep 17 00:00:00 2001
 From: Xiao Wang <jasowang@redhat.com>
-Date: Wed, 8 Aug 2018 06:01:52 +0200
-Subject: [PATCH 3/3] slirp: Correct size check in m_inc()
+Date: Wed, 8 Aug 2018 07:52:57 +0200
+Subject: [PATCH 2/5] slirp: Correct size check in m_inc()
 
 RH-Author: Xiao Wang <jasowang@redhat.com>
-Message-id: <1533708112-14286-4-git-send-email-jasowang@redhat.com>
-Patchwork-id: 81672
-O-Subject: [RHEL-7.5.z qemu-kvm-ma PATCH V2 3/3] slirp: Correct size check in m_inc()
-Bugzilla: 1586247
+Message-id: <1533714777-24827-3-git-send-email-jasowang@redhat.com>
+Patchwork-id: 81674
+O-Subject: [RHEL-7.6/7.5z qemu-kvm-rhev 2/2] slirp: Correct size check in m_inc()
+Bugzilla: 1586255
 RH-Acked-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
 RH-Acked-by: wexu@redhat.com
 RH-Acked-by: Thomas Huth <thuth@redhat.com>

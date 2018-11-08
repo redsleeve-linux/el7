@@ -1,4 +1,4 @@
-From 5d293a214ca093a133011d0edc9039b1e71b4219 Mon Sep 17 00:00:00 2001
+From f8f33512aefd597c9664eeb26a97cafc12d958da Mon Sep 17 00:00:00 2001
 From: Markus Armbruster <armbru@redhat.com>
 Date: Tue, 14 Mar 2017 14:16:45 +0100
 Subject: QMP: Forward-port __com.redhat_drive_add from RHEL-6
@@ -52,22 +52,29 @@ Rebase notes (2.4.0):
 Merged patches (2.9.0):
 - 599ec5f QMP: Fix forward port of __com.redhat_drive_add
 
+Merged patches (2.12.0):
+- 8679189 qmp: Report __com.redhat_drive_add error to monitor
+
 Merged patches (2.7.0):
 - 20af75a QMP: Relax __com.redhat_drive_add parameter checking
 
 (cherry picked from commit 6b8c0495aa317dfc5caa6d204373140811880d1a)
+(cherry picked from commit 5d293a214ca093a133011d0edc9039b1e71b4219)
+(cherry picked from commit 45f0a917e663aab47217bb8b6cc5bca3a8b1baac)
+(cherry picked from commit e15f0bd3c4ccce535ae9a08156aebcd780c38132)
+(cherry picked from commit c7ae434601e7439371012494cd026179369af330)
 ---
- device-hotplug.c          | 64 +++++++++++++++++++++++++++++++++++++++++++++++
+ device-hotplug.c          | 63 +++++++++++++++++++++++++++++++++++++++++++++++
  include/sysemu/blockdev.h |  2 ++
  monitor.c                 |  2 ++
  qapi/block.json           | 45 +++++++++++++++++++++++++++++++++
- 4 files changed, 113 insertions(+)
+ 4 files changed, 112 insertions(+)
 
 diff --git a/device-hotplug.c b/device-hotplug.c
-index 126f73c..12c17e5 100644
+index 23fd665..5575eb7 100644
 --- a/device-hotplug.c
 +++ b/device-hotplug.c
-@@ -31,6 +31,10 @@
+@@ -33,6 +33,10 @@
  #include "sysemu/sysemu.h"
  #include "monitor/monitor.h"
  #include "block/block_int.h"
@@ -78,7 +85,7 @@ index 126f73c..12c17e5 100644
  
  static DriveInfo *add_init_drive(const char *optstr)
  {
-@@ -89,3 +93,63 @@ err:
+@@ -91,3 +95,62 @@ err:
          blk_unref(blk);
      }
  }
@@ -134,8 +141,7 @@ index 126f73c..12c17e5 100644
 +    mc = MACHINE_GET_CLASS(current_machine);
 +    dinfo = drive_new(opts, mc->block_default_type);
 +    if (!dinfo) {
-+        error_report(QERR_DEVICE_INIT_FAILED,
-+                      qemu_opts_id(opts));
++        error_setg(errp, QERR_DEVICE_INIT_FAILED, qemu_opts_id(opts));
 +        qemu_opts_del(opts);
 +        return;
 +    }
@@ -154,10 +160,10 @@ index ac22f2a..3bda14c 100644
 +void simple_drive_add(QDict *qdict, QObject **ret_data, Error **errp);
  #endif
 diff --git a/monitor.c b/monitor.c
-index de0a70e..76b8605 100644
+index 1813d34..c587f21 100644
 --- a/monitor.c
 +++ b/monitor.c
-@@ -1034,6 +1034,8 @@ void monitor_init_qmp_commands(void)
+@@ -1204,6 +1204,8 @@ static void monitor_init_qmp_commands(void)
                           QCO_NO_OPTIONS);
      qmp_register_command(&qmp_commands, "netdev_add", qmp_netdev_add,
                           QCO_NO_OPTIONS);
@@ -167,10 +173,10 @@ index de0a70e..76b8605 100644
      qmp_unregister_commands_hack();
  
 diff --git a/qapi/block.json b/qapi/block.json
-index 03115d3..2083bc7 100644
+index e1fe18e..48c732f 100644
 --- a/qapi/block.json
 +++ b/qapi/block.json
-@@ -212,6 +212,51 @@
+@@ -211,6 +211,51 @@
    'data': { 'id': 'str' } }
  
  ##

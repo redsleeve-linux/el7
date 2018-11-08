@@ -1,4 +1,4 @@
-From e2bf476c86cf5697ef3ea6aab2249aa85b8be2cd Mon Sep 17 00:00:00 2001
+From 171f9db1f1217a217c7c13b3282b66eec7a165d1 Mon Sep 17 00:00:00 2001
 From: Luiz Capitulino <lcapitulino@redhat.com>
 Date: Wed, 15 Mar 2017 13:25:17 +0100
 Subject: qmp: add __com.redhat_reason to the BLOCK_IO_ERROR event
@@ -37,16 +37,20 @@ Rebase notes (2.9.0):
 - moved documentation to schema
 
 (cherry picked from commit 2f9487b60f700de33551208c543f5d3b4fa89236)
+(cherry picked from commit e2bf476c86cf5697ef3ea6aab2249aa85b8be2cd)
+(cherry picked from commit 025b8d9385cab3c7c00e0caf9af84722a9ac914c)
+(cherry picked from commit 264ccd5fc938bc26362046a697ad0d535531e69b)
+(cherry picked from commit 88802f4552223d31f0ea9cf6c943ad3b091120cd)
 ---
  block/block-backend.c | 27 +++++++++++++++++++++++----
  qapi/block-core.json  | 20 ++++++++++++++++++--
  2 files changed, 41 insertions(+), 6 deletions(-)
 
 diff --git a/block/block-backend.c b/block/block-backend.c
-index 1031742..0819b3a 100644
+index 681b240..fd342db 100644
 --- a/block/block-backend.c
 +++ b/block/block-backend.c
-@@ -1510,9 +1510,25 @@ BlockErrorAction blk_get_error_action(BlockBackend *blk, bool is_read,
+@@ -1650,9 +1650,25 @@ BlockErrorAction blk_get_error_action(BlockBackend *blk, bool is_read,
      }
  }
  
@@ -72,9 +76,9 @@ index 1031742..0819b3a 100644
 +                                 RHEL7BlockErrorReason res)
  {
      IoOperationType optype;
- 
-@@ -1521,7 +1537,7 @@ static void send_qmp_error_event(BlockBackend *blk,
-                                    bdrv_get_node_name(blk_bs(blk)), optype,
+     BlockDriverState *bs = blk_bs(blk);
+@@ -1662,7 +1678,7 @@ static void send_qmp_error_event(BlockBackend *blk,
+                                    bs ? bdrv_get_node_name(bs) : NULL, optype,
                                     action, blk_iostatus_is_enabled(blk),
                                     error == ENOSPC, strerror(error),
 -                                   &error_abort);
@@ -82,7 +86,7 @@ index 1031742..0819b3a 100644
  }
  
  /* This is done by device models because, while the block layer knows
-@@ -1531,7 +1547,10 @@ static void send_qmp_error_event(BlockBackend *blk,
+@@ -1672,7 +1688,10 @@ static void send_qmp_error_event(BlockBackend *blk,
  void blk_error_action(BlockBackend *blk, BlockErrorAction action,
                        bool is_read, int error)
  {
@@ -93,7 +97,7 @@ index 1031742..0819b3a 100644
  
      if (action == BLOCK_ERROR_ACTION_STOP) {
          /* First set the iostatus, so that "info block" returns an iostatus
-@@ -1549,10 +1568,10 @@ void blk_error_action(BlockBackend *blk, BlockErrorAction action,
+@@ -1690,10 +1709,10 @@ void blk_error_action(BlockBackend *blk, BlockErrorAction action,
           * also ensures that the STOP/RESUME pair of events is emitted.
           */
          qemu_system_vmstop_request_prepare();
@@ -107,10 +111,10 @@ index 1031742..0819b3a 100644
  }
  
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 833c602..8f5f105 100644
+index c50517b..b38d5d6 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -3552,6 +3552,19 @@
+@@ -4404,6 +4404,19 @@
              'fatal'      : 'bool' } }
  
  ##
@@ -130,7 +134,7 @@ index 833c602..8f5f105 100644
  # @BLOCK_IO_ERROR:
  #
  # Emitted when a disk I/O error occurs
-@@ -3577,6 +3590,8 @@
+@@ -4430,6 +4443,8 @@
  #          (This field is a debugging aid for humans, it should not
  #           be parsed by applications) (since: 2.2)
  #
@@ -139,7 +143,7 @@ index 833c602..8f5f105 100644
  # Note: If action is "stop", a STOP event will eventually follow the
  # BLOCK_IO_ERROR event
  #
-@@ -3588,14 +3603,15 @@
+@@ -4441,7 +4456,8 @@
  #      "data": { "device": "ide0-hd1",
  #                "node-name": "#block212",
  #                "operation": "write",
@@ -149,8 +153,9 @@ index 833c602..8f5f105 100644
  #      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
  #
  ##
- { 'event': 'BLOCK_IO_ERROR',
-   'data': { 'device': 'str', 'node-name': 'str', 'operation': 'IoOperationType',
+@@ -4449,7 +4465,7 @@
+   'data': { 'device': 'str', '*node-name': 'str',
+             'operation': 'IoOperationType',
              'action': 'BlockErrorAction', '*nospace': 'bool',
 -            'reason': 'str' } }
 +            'reason': 'str', '__com.redhat_reason': 'RHEL7BlockErrorReason' } }

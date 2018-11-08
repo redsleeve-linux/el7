@@ -1,4 +1,4 @@
-From 60b62c9d02e5e19e4cfa6eaeb6652339d4c4ede5 Mon Sep 17 00:00:00 2001
+From 0c3a08560e7aecb443e2f4a70d909aef413ca66f Mon Sep 17 00:00:00 2001
 From: Markus Armbruster <armbru@redhat.com>
 Date: Tue, 14 Mar 2017 14:03:39 +0100
 Subject: QMP: Forward-port __com.redhat_drive_del from RHEL-6
@@ -44,6 +44,9 @@ Rebase notes (2.4.0):
 - use traditional cmd for qmp
 - remove user_print
 
+Merged patches (2.11.0):
+- bacc223630 blockdev: Report proper error class in __com.redhat.drive_del
+
 Merged patches (2.9.0):
 - 4831182 QMP: Fix forward port of __com.redhat_drive_del
 
@@ -51,16 +54,20 @@ Merged patches (2.7.0):
 - 85786e0 Fix crash with __com.redhat_drive_del
 
 (cherry picked from commit b7a0cafd6494cd3855fe10934314b6b1d2df5d2d)
+(cherry picked from commit 60b62c9d02e5e19e4cfa6eaeb6652339d4c4ede5)
+(cherry picked from commit 9534cde84567c6e83bf925911781737b4c15b145)
+(cherry picked from commit a5aa34fcd3f532e91535a4c568c66e30671120ca)
+(cherry picked from commit 26bcd54a059c1949d6f1f2d72cd04794776446e1)
 ---
- blockdev.c      | 28 ++++++++++++++++------------
+ blockdev.c      | 29 +++++++++++++++++------------
  qapi/block.json | 23 +++++++++++++++++++++++
- 2 files changed, 39 insertions(+), 12 deletions(-)
+ 2 files changed, 40 insertions(+), 12 deletions(-)
 
 diff --git a/blockdev.c b/blockdev.c
-index 02cd69b..d5e8ee3 100644
+index c31bf3d..f65d37c 100644
 --- a/blockdev.c
 +++ b/blockdev.c
-@@ -2854,32 +2854,27 @@ BlockDirtyBitmapSha256 *qmp_x_debug_block_dirty_bitmap_sha256(const char *node,
+@@ -2948,32 +2948,28 @@ BlockDirtyBitmapSha256 *qmp_x_debug_block_dirty_bitmap_sha256(const char *node,
      return ret;
  }
  
@@ -86,7 +93,8 @@ index 02cd69b..d5e8ee3 100644
      blk = blk_by_name(id);
      if (!blk) {
 -        error_report("Device '%s' not found", id);
-+        error_setg(errp, "Device '%s' not found", id);
++        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
++                  "Device '%s' not found", id);
          return;
      }
  
@@ -98,7 +106,7 @@ index 02cd69b..d5e8ee3 100644
          return;
      }
  
-@@ -2888,8 +2883,7 @@ void hmp_drive_del(Monitor *mon, const QDict *qdict)
+@@ -2982,8 +2978,7 @@ void hmp_drive_del(Monitor *mon, const QDict *qdict)
  
      bs = blk_bs(blk);
      if (bs) {
@@ -108,7 +116,7 @@ index 02cd69b..d5e8ee3 100644
              aio_context_release(aio_context);
              return;
          }
-@@ -2914,6 +2908,16 @@ void hmp_drive_del(Monitor *mon, const QDict *qdict)
+@@ -3008,6 +3003,16 @@ void hmp_drive_del(Monitor *mon, const QDict *qdict)
      aio_context_release(aio_context);
  }
  
@@ -126,10 +134,10 @@ index 02cd69b..d5e8ee3 100644
                        bool has_node_name, const char *node_name,
                        int64_t size, Error **errp)
 diff --git a/qapi/block.json b/qapi/block.json
-index 414b61b..03115d3 100644
+index c694524..e1fe18e 100644
 --- a/qapi/block.json
 +++ b/qapi/block.json
-@@ -189,6 +189,29 @@
+@@ -188,6 +188,29 @@
              '*force': 'bool' } }
  
  ##
@@ -143,7 +151,7 @@ index 414b61b..03115d3 100644
 +# errors in the guest for applications that are reading/writing to the device.
 +# These errors are always reported to the guest, regardless of the drive's error
 +# actions (drive options rerror, werror).
-+# 
++#
 +# @id: the device's ID
 +#
 +# Example:

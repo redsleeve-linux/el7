@@ -1,4 +1,4 @@
-From 3cb35556dc7d994f203d732fe952f95fcdb03c0a Mon Sep 17 00:00:00 2001
+From dcf1c9f485cefd4dad8040efb9555f33a118074b Mon Sep 17 00:00:00 2001
 From: Bandan Das <bsd@redhat.com>
 Date: Tue, 3 Dec 2013 20:05:13 +0100
 Subject: vfio: cap number of devices that can be assigned
@@ -31,15 +31,19 @@ Merged patches (2.9.0):
 - 17eb774 vfio: Use error_setg when reporting max assigned device overshoot
 
 (cherry picked from commit 9fa3c9fc6dfcde76d80db1aa601b2d577f72ceec)
+(cherry picked from commit 3cb35556dc7d994f203d732fe952f95fcdb03c0a)
+(cherry picked from commit 17e46c50515e8935c0f99a868fe07bd3c92a4586)
+(cherry picked from commit 726bd82965a9e1a58065a3226597b3c2bafdbf68)
+(cherry picked from commit efd8c5d78242c2e0892e165b75d2c8f1afb172a6)
 ---
  hw/vfio/pci.c | 15 ++++++++++++++-
  1 file changed, 14 insertions(+), 1 deletion(-)
 
 diff --git a/hw/vfio/pci.c b/hw/vfio/pci.c
-index 31e1edf..f3f1ce6 100644
+index b9bc6cd..34b9d19 100644
 --- a/hw/vfio/pci.c
 +++ b/hw/vfio/pci.c
-@@ -34,6 +34,7 @@
+@@ -35,6 +35,7 @@
  #include "qapi/error.h"
  
  #define MSIX_CAP_LENGTH 12
@@ -47,7 +51,7 @@ index 31e1edf..f3f1ce6 100644
  
  static void vfio_disable_interrupts(VFIOPCIDevice *vdev);
  static void vfio_mmap_set_enabled(VFIOPCIDevice *vdev, bool enabled);
-@@ -2639,7 +2640,19 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
+@@ -2807,7 +2808,19 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
      ssize_t len;
      struct stat st;
      int groupid;

@@ -1,4 +1,4 @@
-From 5dd2f4706e2fef945771949e59a8fcc1b5452de9 Mon Sep 17 00:00:00 2001
+From e93d5457df2dde297089b44d185f5fe5b608d744 Mon Sep 17 00:00:00 2001
 From: Eduardo Habkost <ehabkost@redhat.com>
 Date: Wed, 4 Dec 2013 18:53:17 +0100
 Subject: Add support statement to -help output
@@ -17,15 +17,19 @@ as unsupported by Red Hat, and advising users to use libvirt instead.
 
 Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
 (cherry picked from commit 2a07700936e39856cc9f149c6a6517f0715536a6)
+(cherry picked from commit 5dd2f4706e2fef945771949e59a8fcc1b5452de9)
+(cherry picked from commit d660aafa98635de49f7f7a416a4e910d99b10bce)
+(cherry picked from commit 6a5d4b1f602318a5b6f4e49bed90624c67848629)
+(cherry picked from commit 506816e81f899d3daa6202e50ef12a21dcee7b96)
 ---
  vl.c | 9 +++++++++
  1 file changed, 9 insertions(+)
 
 diff --git a/vl.c b/vl.c
-index 253da17..ff4e7f7 100644
+index 8dee9d0..7fce42d 100644
 --- a/vl.c
 +++ b/vl.c
-@@ -1927,9 +1927,17 @@ static void version(void)
+@@ -1953,9 +1953,17 @@ static void version(void)
             QEMU_COPYRIGHT "\n");
  }
  
@@ -43,7 +47,7 @@ index 253da17..ff4e7f7 100644
      printf("usage: %s [options] [disk_image]\n\n"
             "'disk_image' is a raw hard disk image for IDE hard disk 0\n\n",
              error_get_progname());
-@@ -1946,6 +1954,7 @@ static void help(int exitcode)
+@@ -1972,6 +1980,7 @@ static void help(int exitcode)
             "\n"
             QEMU_HELP_BOTTOM "\n");
  

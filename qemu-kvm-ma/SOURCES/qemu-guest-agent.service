@@ -18,4 +18,3 @@ RestartSec=0
 
 [Install]
 WantedBy=dev-virtio\x2dports-org.qemu.guest_agent.0.device
-
