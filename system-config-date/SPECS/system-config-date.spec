@@ -26,17 +26,17 @@
 Summary: A graphical interface for modifying system date and time
 Name: system-config-date
 Version: 1.10.6
-Release: 2%{?dist}.redsleeve
-URL: http://fedorahosted.org/%{name}
+Release: 3%{?dist}
 License: GPLv2+
 Group: System Environment/Base
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildArch: noarch
-Source0: http://fedorahosted.org/released/%{name}/%{name}-%{version}.tar.bz2
+Source0: %{name}-%{version}.tar.bz2
 # Until version 1.9.34, system-config-date contained online documentation.
 # From version 1.9.35 on, online documentation is split off into its own
 # package system-config-date-docs. The following ensures that updating from
 # earlier versions gives you both the main package and documentation.
+Patch0: system-config-date-systemd.patch
 Obsoletes: system-config-date < 1.9.35
 %if %{with require_docs}
 Requires: system-config-date-docs
@@ -78,6 +78,7 @@ synchronize the time of the system with an NTP time server.
 
 %prep
 %setup -q
+%patch0 -p 1
 
 %build
 make \
@@ -87,8 +88,8 @@ make \
 %if 0%{?rhel} > 0
     POOL_NTP_ORG_VENDOR=rhel \
 %endif
-%if 0%{?redsleeve_ver} > 0
-    POOL_NTP_ORG_VENDOR=redsleeve \
+%if 0%{?centos_ver} > 0
+    POOL_NTP_ORG_VENDOR=centos \
 %endif
     %{?_smp_mflags}
 
@@ -131,14 +132,14 @@ fi
 %{_datadir}/polkit-1/actions/org.fedoraproject.config.date.policy
 %{python_sitelib}/scdate
 %{python_sitelib}/scdate-%{version}-py%{python_version}.egg-info
-#%{python_sitelib}/scdate.dbus-%{version}-py%{python_version}.egg-info
 
 %changelog
-* Tue May 19 2015 Jacco Ligthart <jacco@redsleeve.org> - 1.10.6-2.el7
-- change POOL_NTP_ORG_VENDOR=redsleeve if redsleeve_ver >0
-
-* Thu Jun 19 2014 Johnny Hughes <johnny@centos.org> - 1.10.6-2.el7
+* Tue Oct 30 2018 CentOS Sources <bugs@centos.org> - 1.10.6-3.el7.centos
 - change POOL_NTP_ORG_VENDOR=centos if centos_ver >0
+
+* Tue Jun 05 2018 Jan Synáček <jsynacek@redhat.com> - 1.10.6-3
+- remove invalid source links (#1502430)
+- system-config-date can't enable ntp because /bin/systemd doesn't exist (#1381321)
 
 * Fri Dec 27 2013 Daniel Mach <dmach@redhat.com> - 1.10.6-2
 - Mass rebuild 2013-12-27
