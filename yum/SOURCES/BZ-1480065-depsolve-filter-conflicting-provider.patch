@@ -1,0 +1,39 @@
+commit ae2d51ba77db4a4855912d9c33565ef2f4203803
+Author: Michal Domonkos <mdomonko@redhat.com>
+Date:   Wed Jun 20 17:43:44 2018 +0200
+
+    depsolve: filter out conflicting provider. BZ 1480065
+    
+    When there are multiple providers available for a requirement, yum would
+    happily pick the one that the requiring package also has a "Conflicts:"
+    on (via another virtual provide), failing to resolve the transaction.
+    
+    Example:
+    - foo requires bar and conflicts my-bar
+    - bax provides bar
+    - bay provides bar, my-bar
+    
+    Yum might decide to pick bay, only to fail due to the conflict with foo
+    later in the process.
+    
+    This commit fixes that by dropping such a provider from the candidate
+    list when depsolving.
+
+diff --git a/yum/depsolve.py b/yum/depsolve.py
+index 3453456c..26369b7b 100644
+--- a/yum/depsolve.py
++++ b/yum/depsolve.py
+@@ -1556,6 +1556,13 @@ class Depsolve(object):
+                 continue
+             unique_nevra_pkgs[pkg.pkgtup] = pkg
+         pkgs = unique_nevra_pkgs.values()
++
++        # Do a conflict filtering; get rid of those pkgs that reqpo conflicts
++        # with
++        if reqpo is not None:
++            pkgs = [pkg for pkg in pkgs
++                        if not any(pkg.checkPrco('provides', conflict)
++                                   for conflict in reqpo.conflicts)]
+             
+         pkgresults = {}
+ 

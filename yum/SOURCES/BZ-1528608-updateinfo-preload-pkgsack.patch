@@ -1,0 +1,22 @@
+commit 0ee2b5e245d04e8b376b0191e086c40d0b80e87e
+Author: Michal Domonkos <mdomonko@redhat.com>
+Date:   Thu Jun 14 11:38:07 2018 +0200
+
+    updateinfo: preload pkgSack. BZ 1528608
+    
+    This ensures that we honor the skip_if_unavailable option and disable
+    unavailable repos when initializing the upinfo object (such as when
+    running "yum updateinfo" or "yum check-update --security").
+
+diff --git a/yum/__init__.py b/yum/__init__.py
+index 451b2b81..a156a6a6 100644
+--- a/yum/__init__.py
++++ b/yum/__init__.py
+@@ -1037,6 +1037,7 @@ class YumBase(depsolve.Depsolve):
+             self._upinfo = update_md.UpdateMetadata(logger=logger,
+                                                     vlogger=vlogger)
+ 
++            self.pkgSack  # Preload the sack now, to honor skip_if_unavailable
+             for repo in self.repos.listEnabled():
+                 if 'updateinfo' not in repo.repoXML.fileTypes():
+                     continue

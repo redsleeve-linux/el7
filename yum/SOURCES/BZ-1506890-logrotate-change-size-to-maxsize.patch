@@ -1,0 +1,19 @@
+commit d0ec7d920c1c84f70840d653770417310c397309
+Author: Valentina Mukhamedzhanova <vmukhame@redhat.com>
+Date:   Thu Apr 3 10:03:12 2014 +0200
+
+    Change 'size' option to 'maxsize' in yum.logrotate. BZ 1005879
+
+diff --git a/etc/yum.logrotate b/etc/yum.logrotate
+index e587f968..e716c01e 100644
+--- a/etc/yum.logrotate
++++ b/etc/yum.logrotate
+@@ -1,7 +1,7 @@
+ /var/log/yum.log {
+     missingok
+     notifempty
+-    size 30k
++    maxsize 30k
+     yearly
+     create 0600 root root
+ }

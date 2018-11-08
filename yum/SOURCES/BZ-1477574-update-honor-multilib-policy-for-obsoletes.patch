@@ -1,0 +1,127 @@
+commit 25a1cf0a8f0002b16d6ef9c24d530019fd88fd64
+Author: Michal Domonkos <mdomonko@redhat.com>
+Date:   Wed May 16 17:40:22 2018 +0200
+
+    update(): honor multilib_policy for obsoletes. BZ 1477574
+    
+    When a package migrates from noarch to arch during an update, we usually
+    don't want to install all the newly available multilib arches.
+    
+    For "yum install", this is already controlled by multilib_policy, even
+    if the noarch package is already installed (since yum will try to update
+    it).  However, with "yum update", multilib_policy isn't checked.
+    
+    This commit adds the check to update() so that "yum update" works the
+    same as "yum install" in the noarch->arch scenario.
+    
+    Tests calling "update" without arguments now need to specify
+    multilib_policy='all'.
+
+diff --git a/test/simpleobsoletestests.py b/test/simpleobsoletestests.py
+index 6cede1e0..a26a5d42 100644
+--- a/test/simpleobsoletestests.py
++++ b/test/simpleobsoletestests.py
+@@ -38,7 +38,8 @@ class SimpleObsoletesTests(OperationsTests):
+ 
+     def testObsoletenoarchToi386(self):
+         p = self.pkgs
+-        res, msg = self.runOperation(['update'], [p.installed_noarch], [p.obsoletes_i386])
++        res, msg = self.runOperation(['update'], [p.installed_noarch], [p.obsoletes_i386],
++                                     {'multilib_policy': 'all'})
+         self.assert_(res=='ok', msg)
+         self.assertResult((p.obsoletes_i386,))
+     def testObsoletenoarchToi386ForDependency(self):
+@@ -50,7 +51,8 @@ class SimpleObsoletesTests(OperationsTests):
+ 
+     def testObsoletenoarchTox86_64(self):
+         p = self.pkgs
+-        res, msg = self.runOperation(['update'], [p.installed_noarch], [p.obsoletes_x86_64])
++        res, msg = self.runOperation(['update'], [p.installed_noarch], [p.obsoletes_x86_64],
++                                     {'multilib_policy': 'all'})
+         self.assert_(res=='ok', msg)
+         self.assertResult((p.obsoletes_x86_64,))
+     def testObsoletenoarchTox86_64ForDependency(self):
+@@ -62,7 +64,8 @@ class SimpleObsoletesTests(OperationsTests):
+ 
+     def testObsoletenoarchToMultiarch(self):
+         p = self.pkgs
+-        res, msg = self.runOperation(['update'], [p.installed_noarch], [p.obsoletes_i386, p.obsoletes_x86_64])
++        res, msg = self.runOperation(['update'], [p.installed_noarch], [p.obsoletes_i386, p.obsoletes_x86_64],
++                                     {'multilib_policy': 'all'})
+         self.assert_(res=='ok', msg)
+         if new_behavior:
+             self.assertResult((p.obsoletes_x86_64,), (p.obsoletes_i386,))
+diff --git a/yum/__init__.py b/yum/__init__.py
+index a156a6a6..7b7293f3 100644
+--- a/yum/__init__.py
++++ b/yum/__init__.py
+@@ -4779,6 +4779,21 @@ much more problems).
+             return False
+         return True
+ 
++    def _valid_obsoleter_arch(self, obsoleter, obsoletee):
++        """Return whether this obsoleter meets multilib_policy in case we are
++        dealing with the noarch->arch obsoletion case."""
++        if not self.arch.multilib or self.conf.multilib_policy != 'best':
++            # Install everything
++            return True
++        if obsoletee.arch != 'noarch' or obsoleter.arch == 'noarch':
++            # We do respect any arch->(no)arch obsoletions (having
++            # obsoletee.i386 installed on x86_64, you'd still expect
++            # obsoleter.i386 to replace it, even if you have
++            # multilib_policy=best).
++            return True
++        # noarch->arch case
++        return obsoleter.arch in self.arch.legit_multi_arches
++
+     def install(self, po=None, **kwargs):
+         """Mark the specified item for installation.  If a package
+         object is given, mark it for installation.  Otherwise, mark
+@@ -5146,10 +5161,12 @@ much more problems).
+                                                        allow_missing=True)
+                 if obsoleting_pkg is None:
+                     continue
++                installed_pkg =  self.getInstalledPackageObject(installed)
++                if not self._valid_obsoleter_arch(obsoleting_pkg, installed_pkg):
++                    continue
+                 topkg = self._test_loop(obsoleting_pkg, self._pkg2obspkg)
+                 if topkg is not None:
+                     obsoleting_pkg = topkg
+-                installed_pkg =  self.getInstalledPackageObject(installed)
+                 txmbr = self.tsInfo.addObsoleting(obsoleting_pkg, installed_pkg)
+                 self.tsInfo.addObsoleted(installed_pkg, obsoleting_pkg)
+                 if requiringPo:
+@@ -5183,6 +5200,7 @@ much more problems).
+         
+         instpkgs = []
+         availpkgs = []
++        arch_specified = True
+         if po: # just a po
+             if po.repoid == 'installed':
+                 instpkgs.append(po)
+@@ -5244,6 +5262,8 @@ much more problems).
+                 self.logger.critical(_('No Match for argument: %s') % to_unicode(arg))
+                 if not self.conf.skip_missing_names_on_update:
+                     raise Errors.UpdateMissingNameError, _('Not tolerating missing names on update, stopping.')
++
++            arch_specified = '.' in kwargs['pattern']
+         
+         else: # we have kwargs, sort them out.
+             nevra_dict = self._nevra_kwarg_parse(kwargs)
+@@ -5296,12 +5316,16 @@ much more problems).
+                                                            allow_missing=True)
+                     if obsoleting_pkg is None:
+                         continue
++                    if not arch_specified and not self._valid_obsoleter_arch(obsoleting_pkg, installed_pkg):
++                        continue
+                     obs_pkgs.append(obsoleting_pkg)
+                 # NOTE: Broekn wrt. repoid
+                 for obsoleting_pkg in packagesNewestByName(obs_pkgs):
+                     tx_return.extend(self.install(po=obsoleting_pkg))
+             for available_pkg in availpkgs:
+                 for obsoleted_pkg in self._find_obsoletees(available_pkg):
++                    if not arch_specified and not self._valid_obsoleter_arch(available_pkg, obsoleted_pkg):
++                        continue
+                     obsoleted = obsoleted_pkg.pkgtup
+                     txmbr = self.tsInfo.addObsoleting(available_pkg, obsoleted_pkg)
+                     if requiringPo:

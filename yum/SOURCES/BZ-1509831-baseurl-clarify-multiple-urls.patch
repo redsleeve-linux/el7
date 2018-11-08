@@ -1,0 +1,36 @@
+commit 98c6fbf4a338239ce7e54bdd48e25e8b294359db
+Author: Michal Domonkos <mdomonko@redhat.com>
+Date:   Wed Jun 13 17:19:27 2018 +0200
+
+    docs: baseurl: clarify multiple URLs
+
+diff --git a/docs/yum.conf.5 b/docs/yum.conf.5
+index 5d9ab61a..0f77d913 100644
+--- a/docs/yum.conf.5
++++ b/docs/yum.conf.5
+@@ -1032,8 +1032,10 @@ A human readable string describing the repository.
+ .IP
+ \fBbaseurl\fR
+ Must be a URL to the directory where the yum repository's `repodata' directory
+-lives. Can be an http://, ftp:// or file:// URL. You can specify multiple URLs
+-in one baseurl statement. The best way to do this is like this:
++lives. Can be an http://, ftp:// or file:// URL.
++
++You can specify multiple URLs in one baseurl statement. The best way to do this
++is like this:
+ .br
+ [repositoryid]
+ .br
+@@ -1046,6 +1048,12 @@ baseurl=url://server1/path/to/repository/
+         url://server3/path/to/repository/
+ .br
+ 
++The URLs listed are considered different locations (mirrors) of the same
++repository.
++That means, if one URL fails, another one is tried, and so on.
++The order in which the URLs are tried is determined by the \fBfailovermethod\fR
++option.
++
+ If you list more than one baseurl= statement in a repository you will find
+ yum will ignore the earlier ones and probably act bizarrely. Don't do this,
+ you've been warned.

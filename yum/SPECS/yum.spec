@@ -32,11 +32,11 @@
 Summary: RPM package installer/updater/manager
 Name: yum
 Version: 3.4.3
-Release: 158%{?dist}.redsleeve
+Release: 161%{?dist}
 License: GPLv2+
 Group: System Environment/Base
 Source0: http://yum.baseurl.org/download/3.4/%{name}-%{version}.tar.gz
-Source1: yum.conf.redsleeve
+Source1: yum.conf.centos
 Source2: yum-updatesd.conf.fedora
 Patch1: yum-distro-configs.patch
 Patch5: geode-arch.patch
@@ -159,8 +159,17 @@ Patch288: BZ-1432319-add-usercache-opt.patch
 Patch289: BZ-1411692-docs-conf-var-naming-rules.patch
 Patch290: BZ-1278333-yum-shell-support-exit-status.patch
 
+# rhel-7.6
+Patch310: BZ-1520454-gpgkey-retry-broken-redirects.patch
+Patch311: BZ-1509831-baseurl-clarify-multiple-urls.patch
+Patch312: BZ-1528608-updateinfo-preload-pkgsack.patch
+Patch313: BZ-1477574-update-honor-multilib-policy-for-obsoletes.patch
+Patch314: BZ-1481220-print-disk-usage-on-yum-clean-all.patch
+Patch315: BZ-1480065-depsolve-filter-conflicting-provider.patch
+Patch316: BZ-1506890-logrotate-change-size-to-maxsize.patch
+
 #CentOS Branding
-Patch1000: redsleeve-branding-yum.patch
+Patch1000: centos-branding-yum.patch
 
 URL: http://yum.baseurl.org/
 BuildArchitectures: noarch
@@ -404,6 +413,15 @@ Install this package if you want auto yum updates nightly via cron.
 %patch289 -p1
 %patch290 -p1
 
+# rhel-7.6
+%patch310 -p1
+%patch311 -p1
+%patch312 -p1
+%patch313 -p1
+%patch314 -p1
+%patch315 -p1
+%patch316 -p1
+
 %patch1000 -p1
 
 # Do distro config. changes after everything else.
@@ -636,15 +654,37 @@ exit 0
 %endif
 
 %changelog
-* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.org> - 3.4.3-158.el7.redsleeve
-- RedSleeve rebranding
-
-* Tue Apr 10 2018 CentOS Sources <bugs@centos.org> - 3.4.3-158.el7.centos
+* Tue Oct 30 2018 CentOS Sources <bugs@centos.org> - 3.4.3-161.el7.centos
 - CentOS yum config
 -  use the CentOS bug tracker url
 -  retain installonly limit of 5
 -  ensure distrover is always from centos-release
 - Make yum require yum-plugin-fastestmirror
+- add centos-branding-yum.patch
+
+* Wed Aug 15 2018 Michal Domonkos <mdomonko@redhat.com> - 3.4.3-161
+- Improve retry logic for gpg keys
+- Resolves: bug#1520454
+
+* Mon Jul 16 2018 Michal Domonkos <mdomonko@redhat.com> - 3.4.3-160
+- Only print full disk usage in verbose mode on "yum clean all"
+- Resolves: bug#1481220
+
+* Fri Jun 22 2018 Michal Domonkos <mdomonko@redhat.com> - 3.4.3-159
+- Retry on gpgkey timeout from MirrorManager
+- Resolves: bug#1520454
+- docs: baseurl: clarify multiple URLs
+- Resolves: bug#1509831
+- updateinfo: preload pkgSack
+- Resolves: bug#1528608
+- update(): honor multilib_policy for obsoletes
+- Resolves: bug#1477574
+- Print a disk usage summary on "yum clean all" and clarify docs
+- Resolves: bug#1481220
+- depsolve: filter out conflicting provider
+- Resolves: bug#1480065
+- Change 'size' option to 'maxsize' in yum.logrotate
+- Resolves: bug#1506890
 
 * Sun Nov 26 2017 Valentina Mukhamedzhanova <vmukhame@redhat.com> - 3.4.3-158
 - Add support for yum-shell exit status.
