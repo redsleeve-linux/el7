@@ -1,8 +1,8 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 Summary: A set of tools to gather troubleshooting information from a system
 Name: sos
-Version: 3.5
-Release: 9%{?dist}.redsleeve
+Version: 3.6
+Release: 9%{?dist}
 Group: Applications/System
 Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
 License: GPLv2+
@@ -15,28 +15,22 @@ Requires: libxml2-python
 Requires: python-six
 Requires: bzip2
 Requires: xz
+Requires: python2-futures
 Obsoletes: sos-plugins-openstack
 Patch0: skip-generating-doc.patch
-Patch1: sos-bz1509079-vdo.patch
-Patch2: sos-bz1506908-openstack-containerized.patch
-Patch3: sos-bz1483414-opendaylight-plugin.patch
-Patch4: sos-bz1491042-keystone-domains.patch
-Patch5: sos-bz1519267-haproxy-etcd-tracebacks.patch
-Patch6: sos-bz1463509-oc-adm-diagnostics.patch
-Patch7: sos-bz1494420-postgresql-scl-path.patch
-Patch8: sos-bz1353873-pcp-logsize.patch
-Patch9: sos-bz1517767-osp-ironic.patch
-Patch10: sos-bz1539038-etcd-private-keys.patch
-Patch11: sos-bz1535390-ipa-logs.patch
-Patch12: sos-bz1525620-rabbitmq-osp12-containerized.patch
-Patch13: sos-bz1568960-ovirt-provider-ovn.patch
-Patch14: sos-bz1568884-kernel-dont-collect-timer.patch
-Patch15: sos-bz1568882-openstack-octavia-plugin.patch
-Patch16: sos-bz1580526-docker-backport.patch
-Patch17: sos-bz1580525-ovn-plugins.patch
-Patch18: sos-bz1584548-traceback-memory.patch
-Patch19: sos-3.4-redsleeve-branding.patch
-
+Patch1: sos-bz1474976-regexp-sub.patch
+Patch2: sos-bz1594327-archive-encryption.patch
+Patch3: sos-bz1597532-stat-isblk.patch
+Patch4: sos-bz1596494-cds-on-rhui3.patch
+Patch5: sos-bz1609135-ceph-dont-collect-tmp-mnt.patch
+Patch6: sos-bz1608384-archive-name-sanitize.patch
+Patch7: sos-bz1613806-rhosp-lsof-optional.patch
+Patch8: sos-bz1600158-rhv-log-collector-analyzer.patch
+Patch9: sos-bz1616030-etcd-kube-osp-3-10.patch
+Patch10: sos-bz1624043-symlinks-not-copied.patch
+Patch11: sos-bz1626159-atomic-attribute-error.patch
+Patch12: sos-bz1623070-pipe-returncode.patch
+Patch13: sos-3.6-centos-branding.patch
 
 %description
 Sos is a set of tools that gathers information about system
@@ -60,12 +54,6 @@ support technicians and developers.
 %patch11 -p1
 %patch12 -p1
 %patch13 -p1
-%patch14 -p1
-%patch15 -p1
-%patch16 -p1
-%patch17 -p1
-%patch18 -p1
-%patch19 -p1
 
 %build
 make
@@ -89,29 +77,77 @@ rm -rf ${RPM_BUILD_ROOT}
 %config(noreplace) %{_sysconfdir}/sos.conf
 
 %changelog
-* Thu Jun 28 2018 Jacco Ligthart <jacco@redsleeve.org> - 3.5-9.el7.redsleeve
-- Roll in RedSleeve Branding
-
-* Tue Jun 26 2018 CentOS Sources <bugs@centos.org> - 3.5-9.el7.centos
+* Tue Oct 30 2018 CentOS Sources <bugs@centos.org> - 3.6-9.el7.centos
 - Roll in CentOS Branding
+
+* Fri Sep 14 2018 Pavel Moravec <pmoravec@redhat.com> = 3.6-9
+- [archive] recursive symlink fix and simplify directory destination
+  Resolves: bz1624043
+
+* Thu Sep 13 2018 Pavel Moravec <pmoravec@redhat.com> = 3.6-8
+- [plugin,archive] fix remaining add_link issues
+  Resolves: bz1624043
+
+* Tue Sep 11 2018 Pavel Moravec <pmoravec@redhat.com> = 3.6-7
+- [archive] fix copy&paste error in link_path
+  Resolves: bz1624043
+
+* Mon Sep 10 2018 Pavel Moravec <pmoravec@redhat.com> = 3.6-6
+- [archive] fix leading path creation
+  Resolves: bz1624043
+- [atomic] Define valid preset for RHEL Atomic
+  Resolves: bz1626159
+- [utilities] wait till AsyncReader p.poll() returns None
+  Resolves: bz1623070
+
+* Tue Aug 21 2018 Pavel Moravec <pmoravec@redhat.com> = 3.6-5
+- [rhv-log-collector-analyzer] Add new plugin for RHV
+  Resolves: bz1600158
+- [kubernetes|etcd] Support OpenShift 3.10 deployments
+  Resolves: bz1616030
+
+* Fri Aug 10 2018 Pavel Moravec <pmoravec@redhat.com> = 3.6-4
+- [apparmor,ceph] fix typo in add_forbidden_path
+  Resolves: bz1609135
+- [policies] sanitize report label
+  Resolves: bz1608384
+- [policies,process] make lsof execution optional, dont call on RHOSP
+  Resolves: bz1613806
+
+* Thu Jul 12 2018 Pavel Moravec <pmoravec@redhat.com> = 3.6-3
+- [sosreport] Add mechanism to encrypt final archive
+  Resolves: bz1594327
+- [archive] fix stat typo
+  Resolves: bz1597532
+- [rhui] Fix detection of CDS for RHUI3
+  Resolves: bz1596494
+
+* Mon Jul 02 2018 Pavel Moravec <pmoravec@redhat.com> = 3.6-2
+- [archive] fix add_string()/do_*_sub() regression
+  Resolves: bz1474976
+- [kernel] handle case when bpftool installed but not implemented
+  Resolves: bz1559756
+
+* Fri Jun 22 2018 Pavel Moravec <pmoravec@redhat.com> = 3.6-1
+- New upstream release sos-3.6
 
 * Thu May 31 2018 Pavel Moravec <pmoravec@redhat.com> = 3.5-9
 - [logs] collect journalctl verbosed logs with --all-logs only
-  Resolves: bz1584548
+  Resolves: bz1183244
 
 * Mon May 21 2018 Pavel Moravec <pmoravec@redhat.com> = 3.5-8
 - [docker] backport three container related patches
-  Resolves: bz1580526
+  Resolves: bz1573907
 - [ovn] add two OpenVSwitch plugins
-  Resoles: bz1580525
+  Resoles: bz1560845
 
 * Wed Apr 18 2018 Pavel Moravec <pmoravec@redhat.com> = 3.5-7
 - [kernel] Disable gathering /proc/timer* statistics
-  Resolves: bz1568884
+  Resolves: bz1566933
 - [openstack_octavia] Add new plugin
-  Resolves: bz1568882
+  Resolves: bz1541100
 - [ovirt-provider-ovn] A new plugin
-  Resolves: bz1568960
+  Resolves: bz1547544
 
 * Tue Feb 13 2018 Pavel Moravec <pmoravec@redhat.com> = 3.5-6
 - [ipa] set ipa_version variable before referencing it

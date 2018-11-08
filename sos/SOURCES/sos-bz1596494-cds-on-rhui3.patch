@@ -1,0 +1,33 @@
+From 62f4affbc9fb6da06dd5707e9aa659d206352e87 Mon Sep 17 00:00:00 2001
+From: Pavel Moravec <pmoravec@redhat.com>
+Date: Tue, 3 Jul 2018 13:02:09 +0200
+Subject: [PATCH] [rhui] Fix detection of CDS for RHUI3
+
+Detection of CDS node on RHUI 3 cant rely on deprecated pulp-cds package
+but rather on rhui-mirrorlist one.
+
+Resolves: #1375
+
+Signed-off-by: Pavel Moravec <pmoravec@redhat.com>
+Signed-off-by: Bryn M. Reeves <bmr@redhat.com>
+---
+ sos/plugins/rhui.py | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/sos/plugins/rhui.py b/sos/plugins/rhui.py
+index 2b1e2baa7..459a89831 100644
+--- a/sos/plugins/rhui.py
++++ b/sos/plugins/rhui.py
+@@ -22,7 +22,11 @@ class Rhui(Plugin, RedHatPlugin):
+     files = [rhui_debug_path]
+ 
+     def setup(self):
+-        if self.is_installed("pulp-cds"):
++        cds_installed = [
++            self.is_installed("pulp-cds"),
++            self.is_installed("rhui-mirrorlist")
++        ]
++        if any(cds_installed):
+             cds = "--cds"
+         else:
+             cds = ""

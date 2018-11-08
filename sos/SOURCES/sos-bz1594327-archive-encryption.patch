@@ -1,0 +1,262 @@
+From 7b475f1da0f843b20437896737be04cc1c7bbc0a Mon Sep 17 00:00:00 2001
+From: Jake Hunsaker <jhunsake@redhat.com>
+Date: Fri, 25 May 2018 13:38:27 -0400
+Subject: [PATCH] [sosreport] Add mechanism to encrypt final archive
+
+Adds an option to encrypt the resulting archive that sos generates.
+There are two methods for doing so:
+
+	--encrypt-key	Uses a key-pair for asymmetric encryption
+	--encrypt-pass  Uses a password for symmetric encryption
+
+For key-pair encryption, the key-to-be-used must be imported into the
+root user's keyring, as gpg does not allow for the use of keyfiles.
+
+If the encryption process fails, sos will not abort as the unencrypted
+archive will have already been created. The assumption being that the
+archive is still of use and/or the user has another means of encrypting
+it.
+
+Resolves: #1320
+
+Signed-off-by: Jake Hunsaker <jhunsake@redhat.com>
+Signed-off-by: Bryn M. Reeves <bmr@redhat.com>
+---
+ man/en/sosreport.1     | 28 ++++++++++++++++++++++
+ sos/__init__.py        | 10 ++++----
+ sos/archive.py         | 63 ++++++++++++++++++++++++++++++++++++++++++++++----
+ sos/sosreport.py       | 20 ++++++++++++++--
+ tests/archive_tests.py |  3 ++-
+ 5 files changed, 113 insertions(+), 11 deletions(-)
+
+diff --git a/man/en/sosreport.1 b/man/en/sosreport.1
+index b0adcd8bb..b6051edc1 100644
+--- a/man/en/sosreport.1
++++ b/man/en/sosreport.1
+@@ -22,6 +22,8 @@ sosreport \- Collect and package diagnostic and support data
+           [--log-size]\fR
+           [--all-logs]\fR
+           [-z|--compression-type method]\fR
++          [--encrypt-key KEY]\fR
++          [--encrypt-pass PASS]\fR
+           [--experimental]\fR
+           [-h|--help]\fR
+ 
+@@ -120,6 +122,32 @@ increase the size of reports.
+ .B \-z, \--compression-type METHOD
+ Override the default compression type specified by the active policy.
+ .TP
++.B \--encrypt-key KEY
++Encrypts the resulting archive that sosreport produces using GPG. KEY must be
++an existing key in the user's keyring as GPG does not allow for keyfiles.
++KEY can be any value accepted by gpg's 'recipient' option.
++
++Note that the user running sosreport must match the user owning the keyring
++from which keys will be obtained. In particular this means that if sudo is
++used to run sosreport, the keyring must also be set up using sudo
++(or direct shell access to the account).
++
++Users should be aware that encrypting the final archive will result in sos
++using double the amount of temporary disk space - the encrypted archive must be
++written as a separate, rather than replacement, file within the temp directory
++that sos writes the archive to. However, since the encrypted archive will be
++the same size as the original archive, there is no additional space consumption
++once the temporary directory is removed at the end of execution.
++
++This means that only the encrypted archive is present on disk after sos
++finishes running.
++
++If encryption fails for any reason, the original unencrypted archive is
++preserved instead.
++.TP
++.B \--encrypt-pass PASS
++The same as \--encrypt-key, but use the provided PASS for symmetric encryption
++rather than key-pair encryption.
+ .TP
+ .B \--batch
+ Generate archive without prompting for interactive input.
+diff --git a/sos/__init__.py b/sos/__init__.py
+index ef4524c60..cd9779bdc 100644
+--- a/sos/__init__.py
++++ b/sos/__init__.py
+@@ -45,10 +45,10 @@ def _default(msg):
+ _arg_names = [
+     'add_preset', 'alloptions', 'all_logs', 'batch', 'build', 'case_id',
+     'chroot', 'compression_type', 'config_file', 'desc', 'debug', 'del_preset',
+-    'enableplugins', 'experimental', 'label', 'list_plugins', 'list_presets',
+-    'list_profiles', 'log_size', 'noplugins', 'noreport', 'note',
+-    'onlyplugins', 'plugopts', 'preset', 'profiles', 'quiet', 'sysroot',
+-    'threads', 'tmp_dir', 'verbosity', 'verify'
++    'enableplugins', 'encrypt_key', 'encrypt_pass', 'experimental', 'label',
++    'list_plugins', 'list_presets', 'list_profiles', 'log_size', 'noplugins',
++    'noreport', 'note', 'onlyplugins', 'plugopts', 'preset', 'profiles',
++    'quiet', 'sysroot', 'threads', 'tmp_dir', 'verbosity', 'verify'
+ ]
+ 
+ #: Arguments with non-zero default values
+@@ -84,6 +84,8 @@ class SoSOptions(object):
+     del_preset = ""
+     desc = ""
+     enableplugins = []
++    encrypt_key = None
++    encrypt_pass = None
+     experimental = False
+     label = ""
+     list_plugins = False
+diff --git a/sos/archive.py b/sos/archive.py
+index e153c09ad..263e3dd3f 100644
+--- a/sos/archive.py
++++ b/sos/archive.py
+@@ -142,11 +142,12 @@ class FileCacheArchive(Archive):
+     _archive_root = ""
+     _archive_name = ""
+ 
+-    def __init__(self, name, tmpdir, policy, threads):
++    def __init__(self, name, tmpdir, policy, threads, enc_opts):
+         self._name = name
+         self._tmp_dir = tmpdir
+         self._policy = policy
+         self._threads = threads
++        self.enc_opts = enc_opts
+         self._archive_root = os.path.join(tmpdir, name)
+         with self._path_lock:
+             os.makedirs(self._archive_root, 0o700)
+@@ -384,12 +385,65 @@ def finalize(self, method):
+                       os.stat(self._archive_name).st_size))
+         self.method = method
+         try:
+-            return self._compress()
++            res = self._compress()
+         except Exception as e:
+             exp_msg = "An error occurred compressing the archive: "
+             self.log_error("%s %s" % (exp_msg, e))
+             return self.name()
+ 
++        if self.enc_opts['encrypt']:
++            try:
++                return self._encrypt(res)
++            except Exception as e:
++                exp_msg = "An error occurred encrypting the archive:"
++                self.log_error("%s %s" % (exp_msg, e))
++                return res
++        else:
++            return res
++
++    def _encrypt(self, archive):
++        """Encrypts the compressed archive using GPG.
++
++        If encryption fails for any reason, it should be logged by sos but not
++        cause execution to stop. The assumption is that the unencrypted archive
++        would still be of use to the user, and/or that the end user has another
++        means of securing the archive.
++
++        Returns the name of the encrypted archive, or raises an exception to
++        signal that encryption failed and the unencrypted archive name should
++        be used.
++        """
++        arc_name = archive.replace("sosreport-", "secured-sosreport-")
++        arc_name += ".gpg"
++        enc_cmd = "gpg --batch -o %s " % arc_name
++        env = None
++        if self.enc_opts["key"]:
++            # need to assume a trusted key here to be able to encrypt the
++            # archive non-interactively
++            enc_cmd += "--trust-model always -e -r %s " % self.enc_opts["key"]
++            enc_cmd += archive
++        if self.enc_opts["password"]:
++            # prevent change of gpg options using a long password, but also
++            # prevent the addition of quote characters to the passphrase
++            passwd = "%s" % self.enc_opts["password"].replace('\'"', '')
++            env = {"sos_gpg": passwd}
++            enc_cmd += "-c --passphrase-fd 0 "
++            enc_cmd = "/bin/bash -c \"echo $sos_gpg | %s\"" % enc_cmd
++            enc_cmd += archive
++        r = sos_get_command_output(enc_cmd, timeout=0, env=env)
++        if r["status"] == 0:
++            return arc_name
++        elif r["status"] == 2:
++            if self.enc_opts["key"]:
++                msg = "Specified key not in keyring"
++            else:
++                msg = "Could not read passphrase"
++        else:
++            # TODO: report the actual error from gpg. Currently, we cannot as
++            # sos_get_command_output() does not capture stderr
++            msg = "gpg exited with code %s" % r["status"]
++        raise Exception(msg)
++
+ 
+ # Compatibility version of the tarfile.TarFile class. This exists to allow
+ # compatibility with PY2 runtimes that lack the 'filter' parameter to the
+@@ -468,8 +522,9 @@ class TarFileArchive(FileCacheArchive):
+     method = None
+     _with_selinux_context = False
+ 
+-    def __init__(self, name, tmpdir, policy, threads):
+-        super(TarFileArchive, self).__init__(name, tmpdir, policy, threads)
++    def __init__(self, name, tmpdir, policy, threads, enc_opts):
++        super(TarFileArchive, self).__init__(name, tmpdir, policy, threads,
++                                             enc_opts)
+         self._suffix = "tar"
+         self._archive_name = os.path.join(tmpdir, self.name())
+ 
+diff --git a/sos/sosreport.py b/sos/sosreport.py
+index 60802617c..00c3e8110 100644
+--- a/sos/sosreport.py
++++ b/sos/sosreport.py
+@@ -316,6 +316,13 @@ def _parse_args(args):
+     preset_grp.add_argument("--del-preset", type=str, action="store",
+                             help="Delete the named command line preset")
+ 
++    encrypt_grp = parser.add_mutually_exclusive_group()
++    encrypt_grp.add_argument("--encrypt-key",
++                             help="Encrypt the final archive using a GPG "
++                                  "key-pair")
++    encrypt_grp.add_argument("--encrypt-pass",
++                             help="Encrypt the final archive using a password")
++
+     return parser.parse_args(args)
+ 
+ 
+@@ -431,16 +438,25 @@ def get_temp_file(self):
+         return self.tempfile_util.new()
+ 
+     def _set_archive(self):
++        enc_opts = {
++            'encrypt': True if (self.opts.encrypt_pass or
++                                self.opts.encrypt_key) else False,
++            'key': self.opts.encrypt_key,
++            'password': self.opts.encrypt_pass
++        }
++
+         archive_name = os.path.join(self.tmpdir,
+                                     self.policy.get_archive_name())
+         if self.opts.compression_type == 'auto':
+             auto_archive = self.policy.get_preferred_archive()
+             self.archive = auto_archive(archive_name, self.tmpdir,
+-                                        self.policy, self.opts.threads)
++                                        self.policy, self.opts.threads,
++                                        enc_opts)
+ 
+         else:
+             self.archive = TarFileArchive(archive_name, self.tmpdir,
+-                                          self.policy, self.opts.threads)
++                                          self.policy, self.opts.threads,
++                                          enc_opts)
+ 
+         self.archive.set_debug(True if self.opts.debug else False)
+ 
+diff --git a/tests/archive_tests.py b/tests/archive_tests.py
+index b4dd8d0ff..e5b329b5f 100644
+--- a/tests/archive_tests.py
++++ b/tests/archive_tests.py
+@@ -19,7 +19,8 @@ class TarFileArchiveTest(unittest.TestCase):
+ 
+     def setUp(self):
+         self.tmpdir = tempfile.mkdtemp()
+-        self.tf = TarFileArchive('test', self.tmpdir, Policy(), 1)
++        enc = {'encrypt': False}
++        self.tf = TarFileArchive('test', self.tmpdir, Policy(), 1, enc)
+ 
+     def tearDown(self):
+         shutil.rmtree(self.tmpdir)

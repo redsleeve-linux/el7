@@ -1,0 +1,66 @@
+From d297b2116fd864c65dba76b343f5101466c0eeb7 Mon Sep 17 00:00:00 2001
+From: Douglas Schilling Landgraf <dougsland@gmail.com>
+Date: Tue, 10 Jul 2018 12:03:41 -0400
+Subject: [PATCH] [rhv-log-collector-analyzer] Add new plugin for RHV
+
+This commit adds the plugin rhv-log-collector-analyzer, it will
+collect:
+
+- Output of rhv-log-collector-analyer --json
+- Generated HTML file from --live
+
+Signed-off-by: Douglas Schilling Landgraf <dougsland@redhat.com>
+---
+ sos/plugins/rhv_analyzer.py | 40 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)
+ create mode 100644 sos/plugins/rhv_analyzer.py
+
+diff --git a/sos/plugins/rhv_analyzer.py b/sos/plugins/rhv_analyzer.py
+new file mode 100644
+index 00000000..7c233a0b
+--- /dev/null
++++ b/sos/plugins/rhv_analyzer.py
+@@ -0,0 +1,40 @@
++# Copyright (C) 2018 Red Hat, Inc.
++#
++# This file is part of the sos project: https://github.com/sosreport/sos
++#
++# This copyrighted material is made available to anyone wishing to use,
++# modify, copy, or redistribute it subject to the terms and conditions of
++# version 2 of the GNU General Public License.
++#
++# See the LICENSE file in the source distribution for further information.
++
++from sos.plugins import Plugin, RedHatPlugin
++
++
++class RhvLogCollectorAnalyzer(Plugin, RedHatPlugin):
++    """RHV Log Collector Analyzer"""
++
++    packages = ('rhv-log-collector-analyzer',)
++
++    plugin_name = 'RhvLogCollectorAnalyzer'
++    profiles = ('virt',)
++
++    def setup(self):
++        tool_name = 'rhv-log-collector-analyzer'
++        report = "{dircmd}/analyzer-report.html".format(
++            dircmd=self.get_cmd_output_path()
++        )
++
++        self.add_cmd_output(
++            "{tool_name}"
++            " --live"
++            " --html={report}".format(
++                report=report, tool_name=tool_name)
++        )
++
++        self.add_cmd_output(
++            "{tool_name}"
++            " --json".format(tool_name=tool_name)
++        )
++
++# vim: expandtab tabstop=4 shiftwidth=4
+-- 
+2.17.1
+

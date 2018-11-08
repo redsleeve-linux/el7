@@ -1,0 +1,52 @@
+From bc650cd161548159e551ddc201596bf19b1865d0 Mon Sep 17 00:00:00 2001
+From: Pavel Moravec <pmoravec@redhat.com>
+Date: Fri, 27 Jul 2018 08:56:37 +0200
+Subject: [PATCH] [policies] sanitize report label
+
+similarly like we sanitize case id, we should sanitize report label
+to e.g. exclude spaces from final tarball name.
+
+Resolves: #1389
+
+Signed-off-by: Pavel Moravec <pmoravec@redhat.com>
+---
+ sos/policies/__init__.py | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/sos/policies/__init__.py b/sos/policies/__init__.py
+index 7b301dec..65d8aac6 100644
+--- a/sos/policies/__init__.py
++++ b/sos/policies/__init__.py
+@@ -408,7 +408,7 @@ No changes will be made to system configuration.
+             date=date,
+             rand=rand
+         )
+-        return time.strftime(nstr)
++        return self.sanitize_filename(time.strftime(nstr))
+ 
+     # for some specific binaries like "xz", we need to determine package
+     # providing it; that is policy specific. By default return the binary
+@@ -726,8 +726,8 @@ class LinuxPolicy(Policy):
+         """Returns the name usd in the pre_work step"""
+         return self.host_name()
+ 
+-    def sanitize_case_id(self, case_id):
+-        return re.sub(r"[^-a-z,A-Z.0-9]", "", case_id)
++    def sanitize_filename(self, name):
++        return re.sub(r"[^-a-z,A-Z.0-9]", "", name)
+ 
+     def lsmod(self):
+         """Return a list of kernel module names as strings.
+@@ -755,9 +755,6 @@ class LinuxPolicy(Policy):
+         if cmdline_opts.case_id:
+             self.case_id = cmdline_opts.case_id
+ 
+-        if self.case_id:
+-            self.case_id = self.sanitize_case_id(self.case_id)
+-
+         return
+ 
+ 
+-- 
+2.17.1
+
