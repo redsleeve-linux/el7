@@ -790,7 +790,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
 
 Name:    java-%{javaver}-%{origin}
 Version: %{javaver}.%{updatever}.%{buildver}
-Release: 0%{?dist}.redsleeve
+Release: 1%{?dist}
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons,
 # and this change was brought into RHEL-4.  java-1.5.0-ibm packages
 # also included the epoch in their virtual provides.  This created a
@@ -900,6 +900,8 @@ Patch523: pr2974-rh1337583.patch
 Patch528: pr3083-rh1346460.patch
 # RH1566890: CVE-2018-3639
 Patch529: rh1566890_embargoed20180521.patch
+# PR3601: Fix additional -Wreturn-type issues introduced by 8061651
+Patch530: pr3601.patch
 
 # Upstreamable debugging patches
 # Patches 204 and 205 stop the build adding .gnu_debuglink sections to unstripped files
@@ -915,8 +917,8 @@ Patch102: %{name}-size_t.patch
 Patch103: pr3593-s390-size_t_format_flags.patch
 # x86: S8199936, PR3533: HotSpot generates code with unaligned stack, crashes on SSE operations (-mstackrealign workaround)
 Patch105: 8199936-pr3533-workaround.patch
-# Zero: Fix more cases of missing return statements
-Patch106: pr3458-rh1540242-zero.patch
+# AArch64: PR3519: Fix further functions with a missing return value (AArch64)
+Patch106: pr3519.patch
 
 # Patches which need backporting to 8u
 # S8073139, RH1191652; fix name of ppc64le architecture
@@ -929,44 +931,59 @@ Patch7: include-all-srcs.patch
 Patch202: system-libpng.patch
 # 8042159: Allow using a system-installed lcms2
 Patch203: system-lcms.patch
-# PR2462: Backport "8074839: Resolve disabled warnings for libunpack and the unpack200 binary"
+# S8074839, PR2462: Resolve disabled warnings for libunpack and the unpack200 binary
 # This fixes printf warnings that lead to build failure with -Werror=format-security from optflags
 Patch502: pr2462.patch
-# S8148351, PR2842: Only display resolved symlink for compiler, do not change path
-Patch506: pr2842-01.patch
-Patch507: pr2842-02.patch
 # S8154313: Generated javadoc scattered all over the place
 Patch400: 8154313.patch
-# S6260348, PR3066: GTK+ L&F JTextComponent not respecting desktop caret blink rate
-Patch526: 6260348-pr3066.patch
-# 8061305, PR3335, RH1423421: Javadoc crashes when method name ends with "Property"
-Patch538: 8061305-pr3335-rh1423421.patch
-# 8188030, PR3459, RH1484079: AWT java apps fail to start when some minimal fonts are present
-Patch560: 8188030-pr3459-rh1484079.patch
 # 8197429, PR3546, RH153662{2,3}: 32 bit java app started via JNI crashes with larger stack sizes
 Patch561: 8197429-pr3546-rh1536622.patch
 # 8171000, PR3542, RH1402819: Robot.createScreenCapture() crashes in wayland mode
 Patch563: 8171000-pr3542-rh1402819.patch
 # 8197546, PR3542, RH1402819: Fix for 8171000 breaks Solaris + Linux builds
 Patch564: 8197546-pr3542-rh1402819.patch
-# 8185723, PR3553: Zero: segfaults on Power PC 32-bit
-Patch565: 8185723-pr3553.patch
-# 8186461, PR3557: Zero's atomic_copy64() should use SPE instructions on linux-powerpcspe
-Patch566: 8186461-pr3557.patch
 # PR3559: Use ldrexd for atomic reads on ARMv7.
 Patch567: pr3559.patch
-# 8201509, PR3579: Zero: S390 31bit atomic_copy64 inline assembler is wrong
-Patch569: 8201509-pr3579.patch
 # PR3591: Fix for bug 3533 doesn't add -mstackrealign to JDK code
 Patch571: pr3591.patch
 # 8184309, PR3596: Build warnings from GCC 7.1 on Fedora 26
 Patch572: 8184309-pr3596.patch
+# 8141570, PR3548: Fix Zero interpreter build for --disable-precompiled-headers
+Patch573: 8141570-pr3548.patch
+# 8143245, PR3548: Zero build requires disabled warnings
+Patch574: 8143245-pr3548.patch
+# 8197981, PR3548: Missing return statement in __sync_val_compare_and_swap_8
+Patch575: 8197981-pr3548.patch
+# 8064786, PR3599: Fix debug build after 8062808: Turn on the -Wreturn-type warning
+Patch576: 8064786-pr3599.patch
+# 8062808, PR3548: Turn on the -Wreturn-type warning
+Patch577: 8062808-pr3548.patch
 # 8207057, PR3613: Enable debug information for assembly code files
 Patch206: 8207057-pr3613-hotspot-assembler-debuginfo.patch
 
 # Patches appearing in 8u192
+# S8031668, PR2842: TOOLCHAIN_FIND_COMPILER unexpectedly resolves symbolic links
+Patch506: pr2842-01.patch
+# S8148351, PR2842: Only display resolved symlink for compiler, do not change path
+Patch507: pr2842-02.patch
+# S6260348, PR3066: GTK+ L&F JTextComponent not respecting desktop caret blink rate
+Patch526: 6260348-pr3066.patch
+# 8061305, PR3335, RH1423421: Javadoc crashes when method name ends with "Property"
+Patch538: 8061305-pr3335-rh1423421.patch
+# 8188030, PR3459, RH1484079: AWT java apps fail to start when some minimal fonts are present
+Patch560: 8188030-pr3459-rh1484079.patch
 # 8205104, PR3539, RH1548475: Pass EXTRA_LDFLAGS to HotSpot build
 Patch562: pr3539-rh1548475.patch
+# 8185723, PR3553: Zero: segfaults on Power PC 32-bit
+Patch565: 8185723-pr3553.patch
+# 8186461, PR3557: Zero's atomic_copy64() should use SPE instructions on linux-powerpcspe
+Patch566: 8186461-pr3557.patch
+# 8201509, PR3579: Zero: S390 31bit atomic_copy64 inline assembler is wrong
+Patch569: 8201509-pr3579.patch
+# 8075942, PR3602: ArrayIndexOutOfBoundsException in sun.java2d.pisces.Dasher.goTo
+Patch578: 8075942-pr3602-rh1582032.patch
+# 8203182, PR3603: Release session if initialization of SunPKCS11 Signature fails
+Patch579: 8203182-pr3603-rh1568033.patch
 # 8206406, PR3610, RH1597825: StubCodeDesc constructor publishes partially-constructed objects on StubCodeDesc::_list
 Patch580: 8206406-pr3610-rh1597825.patch
 # 8206425: .gnu_debuglink sections added unconditionally when no debuginfo is stripped
@@ -1292,6 +1309,7 @@ sh %{SOURCE12}
 %patch103
 
 # AArch64 fixes
+%patch106
 
 # x86 fixes
 %patch105
@@ -1300,9 +1318,6 @@ sh %{SOURCE12}
 %patch603
 %patch601
 %patch602
-
-# Zero fixes.
-%patch106
 
 # Upstreamable fixes
 %patch502
@@ -1325,6 +1340,7 @@ sh %{SOURCE12}
 %patch526
 %patch528
 %patch529
+%patch530
 %patch538
 %patch560
 %patch561
@@ -1337,6 +1353,13 @@ sh %{SOURCE12}
 %patch569
 %patch571
 %patch572
+%patch573
+%patch574
+%patch575
+%patch576
+%patch577
+%patch578
+%patch579
 %patch580
 
 # RPM-only fixes
@@ -1567,18 +1590,18 @@ do
 done
 
 # Make sure gdb can do a backtrace based on line numbers on libjvm.so
-#gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
-#handle SIGSEGV pass nostop noprint
-#handle SIGILL pass nostop noprint
-#set breakpoint pending on
-#break javaCalls.cpp:1
-#commands 1
-#backtrace
-#quit
-#end
-#run -version
-#EOF
-#grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
+gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
+handle SIGSEGV pass nostop noprint
+handle SIGILL pass nostop noprint
+set breakpoint pending on
+break javaCalls.cpp:1
+commands 1
+backtrace
+quit
+end
+run -version
+EOF
+grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
 
 # Check src.zip has all sources. See RHBZ#1130490
 jar -tf $JAVA_HOME/src.zip | grep 'sun.misc.Unsafe'
@@ -1989,11 +2012,12 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
-* Wed Oct 24 2018 Jacco Ligthart <jacco@ligthart.nu> 1:1.8.0.191-b12-0.redsleeve
-- removed the gdb section of the SPEC file
-
-* Tue Oct 09 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.191.b12-0
+* Tue Oct 09 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.191.b12-1
 - Update to aarch64-shenandoah-jdk8u191-b12.
+- Resolves: rhbz#1633817
+
+* Fri Oct 05 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.191.b10-1
+- Bump release to be greater than rhel-7.5.z
 - Resolves: rhbz#1633817
 
 * Tue Oct 02 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.191.b10-0
@@ -2003,12 +2027,12 @@ require "copy_jdk_configs.lua"
 
 * Mon Oct 01 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181.b16-0
 - Add new Shenandoah patch PR3634 as upstream still fails on s390.
-- Resolves: rhbz#1633817
+- Resolves: rhbz#1633822
 
 * Mon Oct 01 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181.b16-0
 - Update to aarch64-shenandoah-jdk8u181-b16.
 - Drop PR3619 & PR3620 Shenandoah patches which should now be fixed upstream.
-- Resolves: rhbz#1633817
+- Resolves: rhbz#1633822
 
 * Thu Aug 23 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181.b15-0
 - Move to single OpenJDK tarball build, based on aarch64/shenandoah-jdk8u.
@@ -2017,112 +2041,146 @@ require "copy_jdk_configs.lua"
 - Move buildver to where it should be in the OpenJDK version.
 - Split ppc64 Shenandoah fix into separate patch file with its own bug ID (PR3620).
 - Update pr3539-rh1548475.patch to apply after 8187045.
-- Resolves: rhbz#1633817
+- Resolves: rhbz#1594249
 
-* Sat Aug 11 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-4.b13
+* Sat Aug 11 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-8.b13
 - Remove unneeded functions from ppc shenandoahBarrierSet.
-- Resolves: rhbz#1633817
+- Resolves: rhbz#1594249
 
-* Wed Aug 08 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-4.b13
+* Wed Aug 08 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-8.b13
 - Add missing shenandoahBarrierSet implementation for ppc64{be,le}.
-- Resolves: rhbz#1633817
+- Resolves: rhbz#1594249
 
-* Tue Aug 07 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-4.b13
+* Tue Aug 07 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-8.b13
 - Fix wrong format specifiers in Shenandoah code.
-- Resolves: rhbz#1633817
+- Resolves: rhbz#1594249
 
-* Tue Aug 07 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-4.b13
+* Tue Aug 07 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-8.b13
 - Avoid changing variable types to fix size_t, at least for now.
-- Resolves: rhbz#1633817
+- Resolves: rhbz#1594249
 
-* Tue Aug 07 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-4.b13
+* Tue Aug 07 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-8.b13
 - More size_t fixes for Shenandoah.
-- Resolves: rhbz#1633817
+- Resolves: rhbz#1594249
 
-* Fri Aug 03 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-4.b13
+* Fri Aug 03 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-8.b13
 - Add additional s390 size_t case for Shenandoah.
-- Resolves: rhbz#1633817
+- Resolves: rhbz#1594249
 
-* Fri Aug 03 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-4.b13
+* Fri Aug 03 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-8.b13
 - Actually add the patch...
-- Resolves: rhbz#1633817
+- Resolves: rhbz#1594249
 
-* Fri Aug 03 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-4.b13
+* Fri Aug 03 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-8.b13
 - Attempt to fix Shenandoah build issues on s390.
-- Resolves: rhbz#1633817
+- Resolves: rhbz#1594249
 
-* Mon Jul 23 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-4.b13
+* Mon Jul 23 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-8.b13
 - Use the Shenandoah HotSpot on all architectures.
-- Resolves: rhbz#1633817
+- Resolves: rhbz#1594249
 
-* Mon Jul 16 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-3.b13
+* Mon Jul 16 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-7.b13
 - Update to aarch64-jdk8u181-b13 and aarch64-shenandoah-jdk8u181-b13.
 - Remove 8187577/PR3578 now applied upstream.
 - Resolves: rhbz#1594249
 
-* Mon Jul 16 2018 Severin Gehwolf <sgehwolf@redhat.com> - 1:1.8.0.181-3.b04
+* Mon Jul 16 2018 Severin Gehwolf <sgehwolf@redhat.com> - 1:1.8.0.181-7.b04
 - Fix hook to show hs_err*.log files on failures.
 - Resolves: rhbz#1594249
 
-* Mon Jul 16 2018 Severin Gehwolf <sgehwolf@redhat.com> - 1:1.8.0.181-3.b04
+* Mon Jul 16 2018 Severin Gehwolf <sgehwolf@redhat.com> - 1:1.8.0.181-7.b04
 - Fix requires/provides filters for internal libs. See RHBZ#1590796
 - Resolves: rhbz#1594249
 
-* Mon Jul 16 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-3.b04
+* Mon Jul 16 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-7.b04
 - Update bug status and add missing bug IDs
 - Resolves: rhbz#1594249
 
-* Wed Jul 11 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-2.b04
+* Thu Jul 12 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-6.b04
+- Add "8146115, PR3508, RH1463098: Improve docker container detection and resource configuration usage"
+- Resolves: rhbz#1463098
+
+* Wed Jul 11 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-5.b04
 - Add "8206406, PR3610, RH1597825: StubCodeDesc constructor publishes partially-constructed objects on StubCodeDesc::_list"
+- Resolves: rhbz#1597825
+
+* Tue Jul 03 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-4.b04
+- Mark bugs now backported to OpenJDK 8u upstream
 - Resolves: rhbz#1594249
 
-* Wed Jun 27 2018 Severin Gehwolf <sgehwolf@redhat.com> - 1:1.8.0.181-1.b04
+* Tue Jul 03 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-4.b04
+- Backport "8203182, PR3603: Release session if initialization of SunPKCS11 Signature fails"
+- Resolves: rhbz#1568033
+
+* Tue Jul 03 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-4.b04
+- Backport "8075942, PR3602: ArrayIndexOutOfBoundsException in sun.java2d.pisces.Dasher.goTo"
+- Resolves: rhbz#1582032
+
+* Wed Jun 27 2018 Severin Gehwolf <sgehwolf@redhat.com> - 1:1.8.0.181-3.b04
 - Add hook to show hs_err*.log files on failures.
 - Resolves: rhbz#1594249
 
-* Wed Jun 27 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-1.b04
+* Wed Jun 27 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-3.b04
 - Mark bugs that have been pushed to 8u upstream and are scheduled for a release.
 - Resolves: rhbz#1594249
 
-* Wed Jun 27 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-1.b04
+* Wed Jun 27 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-2.b04
 - Update to aarch64-jdk8u181-b04 and aarch64-shenandoah-jdk8u181-b04.
 - Resolves: rhbz#1594249
 
-* Sun Jun 24 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-0.b03
+* Sun Jun 24 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.181-1.b03
 - Update to aarch64-jdk8u181-b03 and aarch64-shenandoah-jdk8u181-b03.
 - Remove AArch64 patch for PR3458/RH1540242 as applied upstream.
 - Resolves: rhbz#1594249
 
-* Thu Jun 21 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.172-4.b11
-- Read jssecacerts file prior to trying either cacerts file (system or local) (PR3575)
-- Resolves: rhbz#1593737
-
-* Thu Jun 21 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.172-3.b11
+* Thu Jun 21 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.172-11.b11
 - Update Shenandoah tarball to fix TCK overflow failure.
-- Resolves: rhbz#1588364
+- Resolves: rhbz#1573700
 
-* Wed Jun 20 2018 Jiri Vanek <jvanek@redhat.com> - 11:1.8.0.172-3.b11
+* Wed Jun 20 2018 Jiri Vanek <jvanek@redhat.com> - 11:1.8.0.172-10.b11
 - jsa files changed to 444 to pass rpm verification
 - Fix reg-ex for filtering private libraries' provides/requires.
-- Resolves: rhbz#1588364
+- Resolves: rhbz#1573700
 
-* Wed Jun 13 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.172-2.b11
+* Wed Jun 20 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.172-7.b11
+- Add additional fix (PR3601) to fix -Wreturn-type failures introduced by 8061651
+- Resolves: rhbz#1573700
+
+* Tue Jun 19 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.172-7.b11
+- Backport 8064786 (PR3601) to fix -Wreturn-type failure on debug builds.
+- Resolves: rhbz#1573700
+
+* Mon Jun 18 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.172-7.b11
+- Bring in PR3519 from IcedTea 3.7.0 to fix remaining -Wreturn-type failure on AArch64.
+- Resolves: rhbz#1573700
+
+* Sat Jun 16 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.172-7.b11
+- Sync with IcedTea 3.8.0 patches to use -Wreturn-type.
+- Add backports of 8141570, 8143245, 8197981 & 8062808.
+- Drop pr3458-rh1540242-zero.patch which is covered by 8143245.
+- Resolves: rhbz#1573700
+
+* Wed Jun 13 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.172-6.b11
 - Remove build flags exemption for aarch64 now the platform is more mature and can bootstrap OpenJDK with these flags.
 - Remove duplicate -fstack-protector-strong; it is provided by the RHEL cflags.
-- Resolves: rhbz#1588364
+- Resolves: rhbz#1573700
 
-* Mon Jun 11 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.172-1.b11
+* Mon Jun 11 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.172-5.b11
+- Read jssecacerts file prior to trying either cacerts file (system or local) (PR3575)
+- Resolves: rhbz#1567204
+
+* Mon Jun 11 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.172-5.b11
 - Fix a number of bad bug identifiers (PR3546 should be PR3578, PR3456 should be PR3546)
-- Resolves: rhbz#1588364
+- Resolves: rhbz#1573700
 
-* Mon Jun 11 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.172-1.b11
+* Thu Jun 07 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.172-4.b11
 - Update Shenandoah tarball to include 2018-05-15 merge.
 - Split PR3458/RH1540242 fix into AArch64 & Zero sections, so former can be skipped on Shenandoah builds.
 - Drop PR3573 patch applied upstream.
 - Restrict 8187577 fix to non-Shenandoah builds, as it's included in the new tarball.
-- Resolves: rhbz#1588364
+- Resolves: rhbz#1573700
 
-* Mon Jun 11 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.172-1.b11
+* Thu Jun 07 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.172-3.b11
 - Sync with IcedTea 3.8.0.
 - Label architecture-specific fixes with architecture concerned
 - x86: S8199936, PR3533: HotSpot generates code with unaligned stack, crashes on SSE operations (-mstackrealign workaround)
@@ -2137,48 +2195,50 @@ require "copy_jdk_configs.lua"
 - 8165489, PR3589: Missing G1 barrier in Unsafe_GetObjectVolatile
 - PR3591: Fix for bug 3533 doesn't add -mstackrealign to JDK code
 - 8184309, PR3596: Build warnings from GCC 7.1 on Fedora 26
-- Resolves: rhbz#1588364
+- Resolves: rhbz#1573700
 
-* Mon Jun 11 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.172-0.b11
+* Wed May 16 2018 Jiri Vanek <jvanek@redhat.com> - 1:1.8.0.172-2.b11
+- added and applied 1566890_embargoed20180521.patch
+- Resolves: rhbz#1578558
+
+* Wed May 09 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.172-1.b11
 - Update to aarch64-jdk8u172-b11 and aarch64-shenandoah-jdk8u172-b11.
-- Resolves: rhbz#1588364
+- Resolves: rhbz#1573700
 
-* Mon Jun 11 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.171-9.b12
+* Thu May 03 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.171-9.b12
 - Update to aarch64-jdk8u171-b12 and aarch64-shenandoah-jdk8u171-b12.
 - Remove patch for 8200556/PR3566 as applied upstream.
-- Resolves: rhbz#1588364
+- Resolves: rhbz#1573700
 
-* Wed May 16 2018 Jiri Vanek <jvanek@redhat.com> - 1:1.8.0.171-8.b10
-- added and applied 1566890_embargoed20180521.patch
-- Resolves: rhbz#1578555
-
-* Tue Apr 17 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.171-7.b10
-- Bump release number to be greater than RHEL 7.6 package to allow build with .el7 suffix
-- Resolves: rhbz#1559766
-
-* Tue Apr 17 2018 Jiri Vanek <jvanek@redhat.com> - 1:1.8.0.171-4.b10
-- Rebuilding due to bad nss-softokn brew-root build override
+* Wed Apr 18 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.171-8.b10
+- Bump release to 8 so it is again greater than the 7.5.z version.
 - Resolves: rhbz#1559766
 
 * Thu Apr 12 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.171-3.b10
 - Fix jconsole.desktop.in subcategory, replacing "Monitor" with "Profiling" (PR3550)
 - Resolves: rhbz#1559766
 
-* Thu Apr 12 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.171-3.b10
+* Thu Apr 12 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.171-6.b10
 - Fix invalid license 'LGPL+' (should be LGPLv2+ for ECC code) and add misisng ones
 - Resolves: rhbz#1559766
 
-* Thu Apr 12 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.171-2.b10
+* Thu Apr 12 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.171-5.b10
 - Add fix for TCK crash on Shenandoah.
 - Resolves: rhbz#1559766
 
-* Mon Apr 02 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.171-1.b10
+* Mon Apr 02 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.171-4.b10
 - Cleanup from previous commit.
 - Remove unused upstream patch 8167200.hotspotAarch64.patch.
 - Resolves: rhbz#1559766
+- Resolves: rhbz#1536623
 
-* Thu Mar 29 2018 Jiri Vanek <jvanek@redhat.com> - 1:1.8.0.171-1.b10
+* Thu Mar 29 2018 Jiri Vanek <jvanek@redhat.com> - 1:1.8.0.171-3.b10
 - Backported from fedora: aarch64BuildFailure.patch, rhbz_1536622-JDK8197429-jdk8.patch, rhbz_1540242.patch
+- Resolves: rhbz#1559766
+
+* Mon Mar 26 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.171-1.b10
+- Bump release for RHEL 7.6 now branch is available.
+- Resolves: rhbz#1538772
 - Resolves: rhbz#1559766
 
 * Sat Mar 24 2018 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.171-0.b10
