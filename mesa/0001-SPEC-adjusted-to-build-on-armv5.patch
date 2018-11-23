@@ -1,6 +1,6 @@
-From 52fd3d440f8b17dd7cb93e0b2cca4eadbcc5f15b Mon Sep 17 00:00:00 2001
+From e1dfffd1966a7948b37ea6a18f1d51ad568b6e16 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sun, 15 Apr 2018 14:35:29 +0200
+Date: Wed, 31 Oct 2018 23:48:13 +0100
 Subject: [PATCH] SPEC adjusted to build on armv5
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] SPEC adjusted to build on armv5
  1 file changed, 9 insertions(+), 5 deletions(-)
 
 diff --git a/SPECS/mesa.spec b/SPECS/mesa.spec
-index e676192..11da7c0 100644
+index 1b7ce7e..54be78e 100644
 --- a/SPECS/mesa.spec
 +++ b/SPECS/mesa.spec
 @@ -7,7 +7,7 @@
@@ -32,23 +32,23 @@ index e676192..11da7c0 100644
 @@ -61,7 +61,7 @@
  Summary: Mesa graphics libraries
  Name: mesa
- Version: 17.2.3
--Release: 8.%{gitdate}%{?dist}
-+Release: 8.%{gitdate}%{?dist}.redsleeve
+ Version: 18.0.5
+-Release: 3%{?dist}
++Release: 3%{?dist}.redsleeve
  License: MIT
  Group: System Environment/Libraries
  URL: http://www.mesa3d.org
-@@ -119,7 +119,8 @@ BuildRequires: python-mako
+@@ -112,7 +112,8 @@ BuildRequires: python-mako
  BuildRequires: gettext
  %if 0%{?with_llvm}
  %if 0%{?with_private_llvm}
--BuildRequires: llvm-private-devel >= 5.0
-+#BuildRequires: llvm-private-devel >= 5.0
+-BuildRequires: llvm-private-devel >= 6.0
++#BuildRequires: llvm-private-devel >= 6.0
 +BuildRequires: mesa-private-llvm-devel
  %else
  BuildRequires: llvm-devel >= 3.0
  %endif
-@@ -540,8 +541,8 @@ rm -rf $RPM_BUILD_ROOT
+@@ -532,8 +533,8 @@ rm -rf $RPM_BUILD_ROOT
  # exist on s390x where swrast is llvmpipe, but does exist on s390 where
  # swrast is classic mesa.  this seems like a bug?  in that it probably
  # means the gallium drivers are linking dricore statically?  fixme.
@@ -58,15 +58,15 @@ index e676192..11da7c0 100644
  %{_libdir}/dri/kms_swrast_dri.so
  %endif
  
-@@ -670,6 +671,9 @@ rm -rf $RPM_BUILD_ROOT
+@@ -659,6 +660,9 @@ rm -rf $RPM_BUILD_ROOT
  %endif
  
  %changelog
-+* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.org> - 17.2.3-8.20171019.redsleeve
++* Wed Oct 31 2018 Jacco Ligthart <jacco@redsleeve.org> - 18.0.5-3.redsleeve
 +- small changes to the spec to make it build on armv5
 +
- * Mon Jan 15 2018 Dave Airlie <airlied@redhat.com> - 17.2.3-8.20171019
- - Add missing Intel CFL ids.
+ * Tue Jul 24 2018 Dave Airlie <airlied@redhat.com> - 18.0.5-3
+ - rename fedora to system in glvnd fallback
  
 -- 
 1.8.3.1
