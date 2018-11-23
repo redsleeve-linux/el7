@@ -26,7 +26,7 @@
 Summary: A graphical interface for modifying system date and time
 Name: system-config-date
 Version: 1.10.6
-Release: 3%{?dist}
+Release: 3%{?dist}.redsleeve
 License: GPLv2+
 Group: System Environment/Base
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
@@ -88,8 +88,8 @@ make \
 %if 0%{?rhel} > 0
     POOL_NTP_ORG_VENDOR=rhel \
 %endif
-%if 0%{?centos_ver} > 0
-    POOL_NTP_ORG_VENDOR=centos \
+%if 0%{?redsleeve_ver} > 0
+    POOL_NTP_ORG_VENDOR=redsleeve \
 %endif
     %{?_smp_mflags}
 
@@ -134,6 +134,9 @@ fi
 %{python_sitelib}/scdate-%{version}-py%{python_version}.egg-info
 
 %changelog
+* Thu Nov 08 2018 Jacco Ligthart <jacco@redsleeve.org> - 1.10.6-3.el7
+- change POOL_NTP_ORG_VENDOR=redsleeve if redsleeve_ver >0
+
 * Tue Oct 30 2018 CentOS Sources <bugs@centos.org> - 1.10.6-3.el7.centos
 - change POOL_NTP_ORG_VENDOR=centos if centos_ver >0
 
