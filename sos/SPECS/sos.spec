@@ -2,7 +2,7 @@
 Summary: A set of tools to gather troubleshooting information from a system
 Name: sos
 Version: 3.6
-Release: 9%{?dist}.redsleeve
+Release: 11%{?dist}
 Group: Applications/System
 Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
 License: GPLv2+
@@ -30,7 +30,9 @@ Patch9: sos-bz1616030-etcd-kube-osp-3-10.patch
 Patch10: sos-bz1624043-symlinks-not-copied.patch
 Patch11: sos-bz1626159-atomic-attribute-error.patch
 Patch12: sos-bz1623070-pipe-returncode.patch
-Patch13: sos-3.6-redsleeve-branding.patch
+Patch13: sos-bz1636093-openstack-relax-enabling-plugins.patch
+Patch14: sos-bz1637632-kernel-dont-collect-tracing-instance.patch
+Patch15: sos-3.6-centos-branding.patch
 
 %description
 Sos is a set of tools that gathers information about system
@@ -54,6 +56,8 @@ support technicians and developers.
 %patch11 -p1
 %patch12 -p1
 %patch13 -p1
+%patch14 -p1
+%patch15 -p1
 
 %build
 make
@@ -77,11 +81,16 @@ rm -rf ${RPM_BUILD_ROOT}
 %config(noreplace) %{_sysconfdir}/sos.conf
 
 %changelog
-* Thu Nov 08 2018 Jacco Ligthart <jacco@redsleeve.org> - 3.6-9.el7.redsleeve
-- Roll in RedSleeve Branding
-
-* Tue Oct 30 2018 CentOS Sources <bugs@centos.org> - 3.6-9.el7.centos
+* Mon Nov 12 2018 CentOS Sources <bugs@centos.org> - 3.6-11.el7.centos
 - Roll in CentOS Branding
+
+* Tue Oct 09 2018 Pavel Moravec <pmoravec@redhat.com> = 3.6-11
+- [kernel] dont collect some tracing instance files
+  Resolves: bz1637632
+
+* Thu Oct 04 2018 Pavel Moravec <pmoravec@redhat.com> = 3.6-10
+- [openstack_*] relax enabling of OSP RedHat plugins
+  Resolves: bz1636093
 
 * Fri Sep 14 2018 Pavel Moravec <pmoravec@redhat.com> = 3.6-9
 - [archive] recursive symlink fix and simplify directory destination

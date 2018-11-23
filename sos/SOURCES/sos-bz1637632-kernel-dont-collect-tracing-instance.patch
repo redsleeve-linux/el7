@@ -1,0 +1,33 @@
+From d6379b5ba0f381ea8ec2403b9985100a946a5866 Mon Sep 17 00:00:00 2001
+From: Pavel Moravec <pmoravec@redhat.com>
+Date: Mon, 8 Oct 2018 10:45:04 +0200
+Subject: [PATCH] [kernel] dont collect some tracing instance files
+
+As copying of them hangs.
+
+Resolves: #1445
+
+Signed-off-by: Pavel Moravec <pmoravec@redhat.com>
+---
+ sos/plugins/kernel.py | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/sos/plugins/kernel.py b/sos/plugins/kernel.py
+index 73109326..558e7143 100644
+--- a/sos/plugins/kernel.py
++++ b/sos/plugins/kernel.py
+@@ -93,7 +93,10 @@ class Kernel(Plugin, RedHatPlugin, DebianPlugin, UbuntuPlugin):
+             '/sys/kernel/debug/tracing/events/*',
+             '/sys/kernel/debug/tracing/free_buffer',
+             '/sys/kernel/debug/tracing/trace_marker',
+-            '/sys/kernel/debug/tracing/trace_marker_raw'
++            '/sys/kernel/debug/tracing/trace_marker_raw',
++            '/sys/kernel/debug/tracing/instances/*/per_cpu/*/snapshot_raw',
++            '/sys/kernel/debug/tracing/instances/*/per_cpu/*/trace_pipe*',
++            '/sys/kernel/debug/tracing/instances/*/trace_pipe'
+         ])
+ 
+         self.add_copy_spec([
+-- 
+2.17.1
+
