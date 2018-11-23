@@ -1,6 +1,6 @@
-From 5167ab618590dc66e5e79070539f7d8f9553d844 Mon Sep 17 00:00:00 2001
+From 6f9e11e32f6fde049e8e6c12e8cf813e02b7ba00 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sun, 15 Apr 2018 15:52:33 +0200
+Date: Thu, 8 Nov 2018 22:34:20 +0100
 Subject: [PATCH] RedSleeve rebranding
 
 ---
@@ -78,15 +78,15 @@ index 0000000..89e64d7
 +# PUT YOUR REPOS HERE OR IN separate files named file.repo
 +# in /etc/yum.repos.d
 diff --git a/SPECS/yum.spec b/SPECS/yum.spec
-index 8e8359f..03455e1 100644
+index 819642a..11250a6 100644
 --- a/SPECS/yum.spec
 +++ b/SPECS/yum.spec
 @@ -32,11 +32,11 @@
  Summary: RPM package installer/updater/manager
  Name: yum
  Version: 3.4.3
--Release: 158%{?dist}
-+Release: 158%{?dist}.redsleeve
+-Release: 161%{?dist}
++Release: 161%{?dist}.redsleeve
  License: GPLv2+
  Group: System Environment/Base
  Source0: http://yum.baseurl.org/download/3.4/%{name}-%{version}.tar.gz
@@ -95,8 +95,8 @@ index 8e8359f..03455e1 100644
  Source2: yum-updatesd.conf.fedora
  Patch1: yum-distro-configs.patch
  Patch5: geode-arch.patch
-@@ -160,7 +160,7 @@ Patch289: BZ-1411692-docs-conf-var-naming-rules.patch
- Patch290: BZ-1278333-yum-shell-support-exit-status.patch
+@@ -169,7 +169,7 @@ Patch315: BZ-1480065-depsolve-filter-conflicting-provider.patch
+ Patch316: BZ-1506890-logrotate-change-size-to-maxsize.patch
  
  #CentOS Branding
 -Patch1000: centos-branding-yum.patch
@@ -104,14 +104,14 @@ index 8e8359f..03455e1 100644
  
  URL: http://yum.baseurl.org/
  BuildArchitectures: noarch
-@@ -636,6 +636,9 @@ exit 0
+@@ -654,6 +654,9 @@ exit 0
  %endif
  
  %changelog
-+* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.org> - 3.4.3-158.el7.redsleeve
++* Thu Nov 08 2018 Jacco Ligthart <jacco@redsleeve.org> - 3.4.3-161.el7.redsleeve
 +- RedSleeve rebranding
 +
- * Tue Apr 10 2018 CentOS Sources <bugs@centos.org> - 3.4.3-158.el7.centos
+ * Tue Oct 30 2018 CentOS Sources <bugs@centos.org> - 3.4.3-161.el7.centos
  - CentOS yum config
  -  use the CentOS bug tracker url
 -- 
