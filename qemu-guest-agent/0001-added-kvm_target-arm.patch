@@ -1,6 +1,6 @@
-From fafda3f3bcf40f4e7e40647fd686ef3f995c2d47 Mon Sep 17 00:00:00 2001
+From fab6ea1f80199ca13bd4b45d69900641231082c8 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Fri, 17 Aug 2018 23:36:04 +0200
+Date: Wed, 31 Oct 2018 23:59:48 +0100
 Subject: [PATCH] added kvm_target arm
 
 ---
@@ -8,10 +8,10 @@ Subject: [PATCH] added kvm_target arm
  1 file changed, 8 insertions(+), 1 deletion(-)
 
 diff --git a/SPECS/qemu-guest-agent.spec b/SPECS/qemu-guest-agent.spec
-index 4770f39..4bd98e4 100644
+index 297bc69..7b66c58 100644
 --- a/SPECS/qemu-guest-agent.spec
 +++ b/SPECS/qemu-guest-agent.spec
-@@ -51,6 +51,10 @@
+@@ -48,6 +48,10 @@
      %global kvm_target    aarch64
      %global have_fdt     1
  %endif
@@ -22,25 +22,25 @@ index 4770f39..4bd98e4 100644
  
  #Versions of various parts:
  
-@@ -59,7 +63,7 @@
+@@ -56,7 +60,7 @@
  Summary: QEMU guest agent
  Name: qemu-guest-agent
- Version: 2.8.0
--Release: 2%{?dist}.1
-+Release: 2%{?dist}.1.redsleeve
+ Version: 2.12.0
+-Release: 2%{?dist}
++Release: 2%{?dist}.redsleeve
  # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
  Epoch: 10
- License: GPLv2+ and LGPLv2+ and BSD
-@@ -278,6 +282,9 @@ install -m 0644  qemu-ga.8 ${RPM_BUILD_ROOT}%{_mandir}/man8/
+ License: GPLv2
+@@ -259,6 +263,9 @@ install -m 0644  qemu-ga.8 ${RPM_BUILD_ROOT}%{_mandir}/man8/
  
  
  %changelog
-+* Fri Aug 17 2018 Jacco Ligthart <jacco@redsleeve.org> - 2.8.0-2.el7.1.redsleeve
++* Wed Oct 31 2018 Jacco Ligthart <jacco@redsleeve.org> - 2.12.0-2.el7.redsleeve
 +- added kvm_target arm
 +
- * Tue Jul 17 2018 Wainer dos Santos Moschetta <wainersm@redhat.com> - 2.8.0-2.el7_5.1
- - Corrected the package version from 2.8.0-3.el7 to 2.8.0-2.el7_5.1
- - Resolves: bz#1598210
+ * Tue Jul 24 2018 Miroslav Rezanina <mrezanin@redhat.com> - 2.12.0-2.el7
+ - qemuga-qemu-ga-make-get-fsinfo-work-over-pci-bridges.patch [bz#1567041]
+ - qemuga-qga-fix-driver-leak-in-guest-get-fsinfo.patch [bz#1567041]
 -- 
 1.8.3.1
 
