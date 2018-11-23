@@ -1,6 +1,6 @@
-From e176451d0dbb9d29dde39ab7ca40edd38c12d6ce Mon Sep 17 00:00:00 2001
+From f61c4b1da64dd959d7a4a190519cae699d6f7c10 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Thu, 8 Nov 2018 23:14:44 +0100
+Date: Fri, 23 Nov 2018 09:57:15 +0100
 Subject: [PATCH] Roll in RedSleeve Branding
 
 ---
@@ -121,35 +121,35 @@ index 0000000..8761274
 + This command will collect diagnostic and configuration \
 + information from this %(distro)s system.
 diff --git a/SPECS/sos.spec b/SPECS/sos.spec
-index 765c50c..4d0c31d 100644
+index 33dfb8c..59daf91 100644
 --- a/SPECS/sos.spec
 +++ b/SPECS/sos.spec
 @@ -2,7 +2,7 @@
  Summary: A set of tools to gather troubleshooting information from a system
  Name: sos
  Version: 3.6
--Release: 9%{?dist}
-+Release: 9%{?dist}.redsleeve
+-Release: 11%{?dist}
++Release: 11%{?dist}.redsleeve
  Group: Applications/System
  Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
  License: GPLv2+
-@@ -30,7 +30,7 @@ Patch9: sos-bz1616030-etcd-kube-osp-3-10.patch
- Patch10: sos-bz1624043-symlinks-not-copied.patch
- Patch11: sos-bz1626159-atomic-attribute-error.patch
+@@ -32,7 +32,7 @@ Patch11: sos-bz1626159-atomic-attribute-error.patch
  Patch12: sos-bz1623070-pipe-returncode.patch
--Patch13: sos-3.6-centos-branding.patch
-+Patch13: sos-3.6-redsleeve-branding.patch
+ Patch13: sos-bz1636093-openstack-relax-enabling-plugins.patch
+ Patch14: sos-bz1637632-kernel-dont-collect-tracing-instance.patch
+-Patch15: sos-3.6-centos-branding.patch
++Patch15: sos-3.6-redsleeve-branding.patch
  
  %description
  Sos is a set of tools that gathers information about system
-@@ -77,6 +77,9 @@ rm -rf ${RPM_BUILD_ROOT}
+@@ -81,6 +81,9 @@ rm -rf ${RPM_BUILD_ROOT}
  %config(noreplace) %{_sysconfdir}/sos.conf
  
  %changelog
-+* Thu Nov 08 2018 Jacco Ligthart <jacco@redsleeve.org> - 3.6-9.el7.redsleeve
++* Fri Nov 23 2018 Jacco Ligthart <jacco@redsleeve.org> - 3.6-11.el7.redsleeve
 +- Roll in RedSleeve Branding
 +
- * Tue Oct 30 2018 CentOS Sources <bugs@centos.org> - 3.6-9.el7.centos
+ * Mon Nov 12 2018 CentOS Sources <bugs@centos.org> - 3.6-11.el7.centos
  - Roll in CentOS Branding
  
 -- 

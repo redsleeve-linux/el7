@@ -2,7 +2,7 @@
 Summary: A set of tools to gather troubleshooting information from a system
 Name: sos
 Version: 3.6
-Release: 11%{?dist}
+Release: 11%{?dist}.redsleeve
 Group: Applications/System
 Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
 License: GPLv2+
@@ -32,7 +32,7 @@ Patch11: sos-bz1626159-atomic-attribute-error.patch
 Patch12: sos-bz1623070-pipe-returncode.patch
 Patch13: sos-bz1636093-openstack-relax-enabling-plugins.patch
 Patch14: sos-bz1637632-kernel-dont-collect-tracing-instance.patch
-Patch15: sos-3.6-centos-branding.patch
+Patch15: sos-3.6-redsleeve-branding.patch
 
 %description
 Sos is a set of tools that gathers information about system
@@ -81,6 +81,9 @@ rm -rf ${RPM_BUILD_ROOT}
 %config(noreplace) %{_sysconfdir}/sos.conf
 
 %changelog
+* Fri Nov 23 2018 Jacco Ligthart <jacco@redsleeve.org> - 3.6-11.el7.redsleeve
+- Roll in RedSleeve Branding
+
 * Mon Nov 12 2018 CentOS Sources <bugs@centos.org> - 3.6-11.el7.centos
 - Roll in CentOS Branding
 
