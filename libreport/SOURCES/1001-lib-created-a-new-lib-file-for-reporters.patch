@@ -33,7 +33,7 @@ index 4246e06..003e686 100644
 +src/lib/reporters.c
  src/lib/run_event.c
  src/plugins/abrt_rh_support.c
- src/plugins/report_Bugzilla.xml.in
+ src/plugins/report_Bugzilla.xml.in.in
 diff --git a/src/include/Makefile.am b/src/include/Makefile.am
 index 87e5e60..4d8c6a5 100644
 --- a/src/include/Makefile.am
@@ -52,7 +52,7 @@ diff --git a/src/include/internal_libreport.h b/src/include/internal_libreport.h
 index cf5730c..a867649 100644
 --- a/src/include/internal_libreport.h
 +++ b/src/include/internal_libreport.h
-@@ -98,6 +98,7 @@ int vdprintf(int d, const char *format, va_list ap);
+@@ -99,6 +99,7 @@ int vdprintf(int d, const char *format, va_list ap);
  #include "workflow.h"
  #include "file_obj.h"
  #include "libreport_types.h"
@@ -60,7 +60,7 @@ index cf5730c..a867649 100644
  
  #ifdef __cplusplus
  extern "C" {
-@@ -107,6 +108,10 @@ extern "C" {
+@@ -108,6 +109,10 @@ extern "C" {
  int prefixcmp(const char *str, const char *prefix);
  #define suffixcmp libreport_suffixcmp
  int suffixcmp(const char *str, const char *suffix);

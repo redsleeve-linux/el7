@@ -36,7 +36,7 @@ index 9cf8f72..8b62b59 100644
  src/lib/run_event.c
  src/plugins/abrt_rh_support.c
 +src/plugins/problem_report.c
- src/plugins/report_Bugzilla.xml.in
+ src/plugins/report_Bugzilla.xml.in.in
  src/plugins/report.c
  src/plugins/reporter-bugzilla.c
 diff --git a/src/include/Makefile.am b/src/include/Makefile.am
