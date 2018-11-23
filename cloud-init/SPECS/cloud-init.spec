@@ -7,7 +7,7 @@
 
 Name:           cloud-init
 Version:        18.2
-Release:        1%{?dist}.1
+Release:        1%{?dist}.1.redsleeve
 Summary:        Cloud instance init scripts
 
 Group:          System Environment/Base
@@ -34,7 +34,7 @@ Patch12: ci-azure-Add-reported-ready-marker-file.patch
 # For bz#1633282 - [Azure] cloud-init fails to mount /dev/sdb1 after stop(deallocate)&&start VM
 Patch13: ci-Adding-disk_setup-to-rhel-cloud.cfg.patch
 
-Patch9999: cloud-init-centos-user.patch 
+Patch9999: cloud-init-redsleeve-user.patch 
 
 # Deal with noarch -> arch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1067089
@@ -187,6 +187,9 @@ fi
 %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
 
 %changelog
+* Thu Nov 08 2018 Jacco Ligthart <jacco@redsleeve.org 18.2-1.el7_6.1.redsleeve
+- rebrand for redsleeve
+
 * Thu Sep 27 2018 Miroslav Rezanina <mrezanin@redhat.com> - 18.2-1.el7_6.1
 - ci-Adding-systemd-mount-options-to-wait-for-cloud-init.patch [bz#1633282]
 - ci-Azure-Ignore-NTFS-mount-errors-when-checking-ephemer.patch [bz#1633282]
