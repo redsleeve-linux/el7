@@ -1,6 +1,6 @@
-From 80a0faa40e9d359e47d04f4eb4f58f0408d21bd9 Mon Sep 17 00:00:00 2001
+From 5e3c93a2ccdec0f22eba17cc2c7d0ae340e02a3f Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sat, 29 Sep 2018 00:40:49 +0200
+Date: Wed, 31 Oct 2018 23:26:44 +0100
 Subject: [PATCH] disabled tcmalloc for arm
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] disabled tcmalloc for arm
  1 file changed, 5 insertions(+), 2 deletions(-)
 
 diff --git a/SPECS/389-ds-base.spec b/SPECS/389-ds-base.spec
-index 6c9df65..b928a11 100644
+index 09f1e05..93d880a 100644
 --- a/SPECS/389-ds-base.spec
 +++ b/SPECS/389-ds-base.spec
 @@ -19,7 +19,7 @@
@@ -23,22 +23,22 @@ index 6c9df65..b928a11 100644
 @@ -39,7 +39,7 @@
  Summary:          389 Directory Server (%{variant})
  Name:             389-ds-base
- Version:          1.3.7.5
--Release:          %{?relprefix}28%{?prerel}%{?dist}
-+Release:          %{?relprefix}28%{?prerel}%{?dist}.redsleeve
+ Version:          1.3.8.4
+-Release:          %{?relprefix}15%{?prerel}%{?dist}
++Release:          %{?relprefix}15%{?prerel}%{?dist}.redsleeve
  License:          GPLv3+
  URL:              https://www.port389.org/
  Group:            System Environment/Daemons
-@@ -599,6 +599,9 @@ fi
+@@ -505,6 +505,9 @@ fi
  %{_sysconfdir}/%{pkgname}/dirsrvtests
  
  %changelog
-+* Fri Sep 28 2018 Jacco Ligthart <jacco@redsleeve.org> - 1.3.7.5-28.redsleeve
++* Wed Oct 31 2018 Jacco Ligthart <jacco@redsleeve.org> - 1.3.8.4-15.redsleeve
 +- disabled tcmalloc for arm
 +
- * Thu Sep 13 2018 Mark Reynolds <mreynolds@redhat.com> - 1.3.7.5-28
- - Bump version to 1.3.7.5-28
- - Resolves: Bug 1628676 - 389-ds-base: race condition on reference counter leads to DoS using persistent search
+ * Wed Sep 19 2018 Mark Reynolds <mreynolds@redhat.com> - 1.3.8.4-15
+ - Bump version to 1.3.8.4-15
+ - Resolves: Bug 1624004 - Fix regression in last patch
 -- 
 1.8.3.1
 

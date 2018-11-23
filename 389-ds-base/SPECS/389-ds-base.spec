@@ -19,7 +19,7 @@
 %global use_tcmalloc 0
 %global variant base-asan
 %else
-%if %{_arch} != "s390x" && %{_arch} != "s390"
+%ifnarch s390 s390x %{arm}
 %global use_tcmalloc 1
 %else
 %global use_tcmalloc 0
@@ -39,7 +39,7 @@
 Summary:          389 Directory Server (%{variant})
 Name:             389-ds-base
 Version:          1.3.8.4
-Release:          %{?relprefix}15%{?prerel}%{?dist}
+Release:          %{?relprefix}15%{?prerel}%{?dist}.redsleeve
 License:          GPLv3+
 URL:              https://www.port389.org/
 Group:            System Environment/Daemons
@@ -505,6 +505,9 @@ fi
 %{_sysconfdir}/%{pkgname}/dirsrvtests
 
 %changelog
+* Wed Oct 31 2018 Jacco Ligthart <jacco@redsleeve.org> - 1.3.8.4-15.redsleeve
+- disabled tcmalloc for arm
+
 * Wed Sep 19 2018 Mark Reynolds <mreynolds@redhat.com> - 1.3.8.4-15
 - Bump version to 1.3.8.4-15
 - Resolves: Bug 1624004 - Fix regression in last patch
