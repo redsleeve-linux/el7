@@ -1,6 +1,6 @@
-From 8752bfc30590e4b75a97ac175c96cb71a2cb58f0 Mon Sep 17 00:00:00 2001
+From 8836bb2cd31f305973107d32c82df60f32acdec8 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sun, 15 Apr 2018 14:38:32 +0200
+Date: Wed, 31 Oct 2018 23:50:52 +0100
 Subject: [PATCH] added "--tag=CC" to the make command due to libtool errors
 
 ---
@@ -28,18 +28,18 @@ index 0000000..ecb6e1b
 + 
 + ENABLE_SHARED = @enable_shared@
 diff --git a/SPECS/nfs4-acl-tools.spec b/SPECS/nfs4-acl-tools.spec
-index d009fdf..4ded239 100644
+index f0c7a68..1733f79 100644
 --- a/SPECS/nfs4-acl-tools.spec
 +++ b/SPECS/nfs4-acl-tools.spec
 @@ -1,6 +1,6 @@
  Name:           nfs4-acl-tools
  Version:        0.3.3
--Release:        17%{?dist}
-+Release:        17%{?dist}.redsleeve
+-Release:        19%{?dist}
++Release:        19%{?dist}.redsleeve
  Summary:        The nfs4 ACL tools
  Group:          Applications/System
  License:        BSD
-@@ -28,6 +28,8 @@ Patch007: nfs4-acl-tools-0.3.3-manpage-acls.patch
+@@ -33,6 +33,8 @@ Patch009: nfs4-acl-tools-0.3.3-R-flag.patch
  
  Patch100: nfs4acl-0.2.0-compile.patch
  
@@ -48,7 +48,7 @@ index d009fdf..4ded239 100644
  %description
  This package contains commandline and GUI ACL utilities for the Linux
  NFSv4 client.
-@@ -49,6 +51,8 @@ NFSv4 client.
+@@ -58,6 +60,8 @@ NFSv4 client.
  
  %patch100 -p1
  
@@ -57,15 +57,15 @@ index d009fdf..4ded239 100644
  %build
  %ifarch s390 s390x sparc
  PIE="-fPIE"
-@@ -82,6 +86,9 @@ rm -rf %{buildroot}
+@@ -91,6 +95,9 @@ rm -rf %{buildroot}
  %{_mandir}/man5/*
  
  %changelog
-+* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.org> - 0.3.3-17.redsleeve
++* Wed Oct 31 2018 Jacco Ligthart <jacco@redsleeve.org> - 0.3.3-18.redsleeve
 +- added "--tag=CC" to the make command due to libtool errors
 +
- * Tue Dec 12 2016 Steve Dickson <steved@redhat.com> 0.3.3-17
- - Describe how the Linux server handles inheritable acls (bz 1493905)
+ * Mon Jul  9 2018 Steve Dickson <steved@redhat.com> 0.3.3-18
+ - Add support for recursive nfs4_getfacl option (bz 1416685)
  
 -- 
 1.8.3.1

@@ -1,6 +1,6 @@
 Name:           nfs4-acl-tools
 Version:        0.3.3
-Release:        19%{?dist}
+Release:        19%{?dist}.redsleeve
 Summary:        The nfs4 ACL tools
 Group:          Applications/System
 License:        BSD
@@ -33,6 +33,8 @@ Patch009: nfs4-acl-tools-0.3.3-R-flag.patch
 
 Patch100: nfs4acl-0.2.0-compile.patch
 
+Patch10001: ../SOURCES/nfs4acl-0.3.3-libtool.patch
+
 %description
 This package contains commandline and GUI ACL utilities for the Linux
 NFSv4 client.
@@ -57,6 +59,8 @@ NFSv4 client.
 %patch009 -p1
 
 %patch100 -p1
+
+%patch10001 -p1
 
 %build
 %ifarch s390 s390x sparc
@@ -91,6 +95,9 @@ rm -rf %{buildroot}
 %{_mandir}/man5/*
 
 %changelog
+* Wed Oct 31 2018 Jacco Ligthart <jacco@redsleeve.org> - 0.3.3-18.redsleeve
+- added "--tag=CC" to the make command due to libtool errors
+
 * Mon Jul  9 2018 Steve Dickson <steved@redhat.com> 0.3.3-18
 - Add support for recursive nfs4_getfacl option (bz 1416685)
 
