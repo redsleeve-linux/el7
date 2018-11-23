@@ -1,6 +1,6 @@
-From a163dcf14fa6fbfb84af157171a0cef22160dfb4 Mon Sep 17 00:00:00 2001
+From a183272a31be93360289dc1bd4eac04984af72a2 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sat, 19 May 2018 12:15:32 +0200
+Date: Thu, 1 Nov 2018 00:02:45 +0100
 Subject: [PATCH] undo ExcludeArch
 
 ---
@@ -8,18 +8,18 @@ Subject: [PATCH] undo ExcludeArch
  1 file changed, 13 insertions(+), 6 deletions(-)
 
 diff --git a/SPECS/rdma-core.spec b/SPECS/rdma-core.spec
-index b6ef394..010e915 100644
+index d2b81cc..a0dbb04 100644
 --- a/SPECS/rdma-core.spec
 +++ b/SPECS/rdma-core.spec
 @@ -1,6 +1,6 @@
  Name: rdma-core
- Version: 15
--Release: 7%{?dist}
-+Release: 7%{?dist}.redsleeve
+ Version: 17.2
+-Release: 3%{?dist}
++Release: 3%{?dist}.redsleeve
  Summary: RDMA core userspace libraries and daemons
  
  # Almost everything is licensed under the OFA dual GPLv2, 2 Clause BSD license
-@@ -55,7 +55,7 @@ Obsoletes: rdma-ndd < %{version}-%{release}
+@@ -49,7 +49,7 @@ Obsoletes: libibcm < %{version}-%{release}
  Conflicts: infiniband-diags <= 1.6.5
  Requires: pciutils
  # 32-bit arm is missing required arch-specific memory barriers,
@@ -28,7 +28,7 @@ index b6ef394..010e915 100644
  
  # Since we recommend developers use Ninja, so should packagers, for consistency.
  %define CMAKE_FLAGS %{nil}
-@@ -111,10 +111,12 @@ Provides: libhfi1-static = %{version}-%{release}
+@@ -100,10 +100,12 @@ Provides: libhfi1-static = %{version}-%{release}
  Obsoletes: libhfi1-static < %{version}-%{release}
  Provides: libipathverbs-static = %{version}-%{release}
  Obsoletes: libipathverbs-static < %{version}-%{release}
@@ -41,7 +41,7 @@ index b6ef394..010e915 100644
  Provides: libnes-static = %{version}-%{release}
  Obsoletes: libnes-static < %{version}-%{release}
  Provides: libocrdma-static = %{version}-%{release}
-@@ -140,12 +142,14 @@ Provides: libi40iw = %{version}-%{release}
+@@ -133,12 +135,14 @@ Provides: libi40iw = %{version}-%{release}
  Obsoletes: libi40iw < %{version}-%{release}
  Provides: libipathverbs = %{version}-%{release}
  Obsoletes: libipathverbs < %{version}-%{release}
@@ -56,7 +56,7 @@ index b6ef394..010e915 100644
  Provides: libmthca = %{version}-%{release}
  Obsoletes: libmthca < %{version}-%{release}
  Provides: libnes = %{version}-%{release}
-@@ -394,7 +398,7 @@ rm -rf %{buildroot}/%{_initrddir}/
+@@ -367,7 +371,7 @@ rm -rf %{buildroot}/%{_initrddir}/
  %doc %{_docdir}/%{name}-%{version}/udev.md
  %config(noreplace) %{_sysconfdir}/rdma/*
  %config(noreplace) %{_sysconfdir}/udev/rules.d/*
@@ -65,7 +65,7 @@ index b6ef394..010e915 100644
  %config(noreplace) %{_sysconfdir}/modprobe.d/mlx4.conf
  %endif
  %config(noreplace) %{_sysconfdir}/modprobe.d/truescale.conf
-@@ -426,7 +430,7 @@ rm -rf %{buildroot}/%{_initrddir}/
+@@ -399,7 +403,7 @@ rm -rf %{buildroot}/%{_initrddir}/
  %{_mandir}/man3/rdma*
  %{_mandir}/man3/umad*
  %{_mandir}/man3/*_to_ibv_rate.*
@@ -74,7 +74,7 @@ index b6ef394..010e915 100644
  %{_mandir}/man3/mlx4dv*
  %{_mandir}/man3/mlx5dv*
  %endif
-@@ -437,7 +441,7 @@ rm -rf %{buildroot}/%{_initrddir}/
+@@ -410,7 +414,7 @@ rm -rf %{buildroot}/%{_initrddir}/
  %dir %{_libdir}/libibverbs
  %{_libdir}/libibverbs*.so.*
  %{_libdir}/libibverbs/*.so
@@ -83,8 +83,8 @@ index b6ef394..010e915 100644
  %{_libdir}/libmlx4.so.*
  %{_libdir}/libmlx5.so.*
  %endif
-@@ -446,7 +450,7 @@ rm -rf %{buildroot}/%{_initrddir}/
- %doc %{_docdir}/%{name}-%{version}/rxe.md
+@@ -420,7 +424,7 @@ rm -rf %{buildroot}/%{_initrddir}/
+ %doc %{_docdir}/%{name}-%{version}/tag_matching.md
  %{_bindir}/rxe_cfg
  %{_mandir}/man7/rxe*
 -%ifnarch s390
@@ -92,16 +92,16 @@ index b6ef394..010e915 100644
  %{_mandir}/man7/mlx4dv*
  %{_mandir}/man7/mlx5dv*
  %endif
-@@ -535,6 +539,9 @@ rm -rf %{buildroot}/%{_initrddir}/
+@@ -505,6 +509,9 @@ rm -rf %{buildroot}/%{_initrddir}/
  %doc %{_docdir}/%{name}-%{version}/ibsrpdm.md
  
  %changelog
-+* Sat May 19 2018 Jacco Ligthart <jacco@redsleeve.org> 15-7.redsleeve
++* Wed Oct 31 2018 Jacco Ligthart <jacco@redsleeve.org> 17.2-3.redsleeve
 +- undo ExcludeArch
 +
- * Tue Feb 27 2018 Jarod Wilson <jarod@redhat.com> 15-7
- - i40iw: revoke systemd udev rules auto-load on i40e hardware, due to
-   causing problems with suspend and resume, and fall back to load via
+ * Tue Jun 26 2018 Jarod Wilson <jarod@redhat.com> 17.2-3
+ - Restore RHEL7 systemd compat patches for srp_daemon
+ - Resolves: rhbz#1595019
 -- 
 1.8.3.1
 
