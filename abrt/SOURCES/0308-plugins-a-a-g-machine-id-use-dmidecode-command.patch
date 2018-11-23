@@ -1,0 +1,87 @@
+From 685bf3a4a05e02f628c19f23a60107b98b52d199 Mon Sep 17 00:00:00 2001
+From: Martin Kutlak <mkutlak@redhat.com>
+Date: Wed, 18 Apr 2018 17:12:17 +0200
+Subject: [PATCH] plugins: a-a-g-machine-id use dmidecode command
+
+python-dmidecode is broken on aarch64 [1] and the issue won't be fixed.
+Recommendation is to use regular dmidecode command instead.
+
+Related to BZ#1566707
+
+[1] https://bugzilla.redhat.com/show_bug.cgi?id=1509938
+
+Signed-off-by: Martin Kutlak <mkutlak@redhat.com>
+---
+ src/plugins/abrt-action-generate-machine-id | 40 ++++++++-------------
+ 1 file changed, 15 insertions(+), 25 deletions(-)
+
+diff --git a/src/plugins/abrt-action-generate-machine-id b/src/plugins/abrt-action-generate-machine-id
+index 6f43258c..f843d773 100644
+--- a/src/plugins/abrt-action-generate-machine-id
++++ b/src/plugins/abrt-action-generate-machine-id
+@@ -20,8 +20,10 @@
+ """This module provides algorithms for generating Machine IDs.
+ """
+ 
++import os
+ import sys
+ from argparse import ArgumentParser
++from subprocess import check_output
+ import logging
+ 
+ import hashlib
+@@ -35,38 +37,26 @@ def generate_machine_id_dmidecode():
+ 
+     """
+ 
+-    try:
+-        import dmidecode
+-    except ImportError as ex:
+-        raise RuntimeError("Could not import dmidecode module: {0}"
+-                .format(str(ex)))
+-
+-    dmixml = dmidecode.dmidecodeXML()
+-    # Fetch all DMI data into a libxml2.xmlDoc object
+-    dmixml.SetResultType(dmidecode.DMIXML_DOC)
+-    xmldoc = dmixml.QuerySection('all')
++    if not os.path.isfile("/usr/sbin/dmidecode"):
++        raise RuntimeError("Could not find dmidecode. It might not be available for this " \
++                           "architecture.")
+ 
+-    # Do some XPath queries on the XML document
+-    dmixp = xmldoc.xpathNewContext()
+-
+-    # What to look for - XPath expressions
+-    keys = ['/dmidecode/SystemInfo/Manufacturer',
+-            '/dmidecode/SystemInfo/ProductName',
+-            '/dmidecode/SystemInfo/SerialNumber',
+-            '/dmidecode/SystemInfo/SystemUUID']
++    # What to look for
++    keys = ['system-manufacturer',
++            'system-product-name',
++            'system-serial-number',
++            'system-uuid']
+ 
+     # Create a sha256 of ^ for machine_id
+     machine_id = hashlib.sha256()
+ 
+-    # Run xpath expressions
++    # Run dmidecode command
+     for k in keys:
+-        data = dmixp.xpathEval(k)
+-        for d in data:
+-            # Update the hash as we find the fields we are looking for
+-            machine_id.update(d.get_content())
++        data = check_output(["dmidecode", "-s", k]).strip()
++
++        # Update the hash as we find the fields we are looking for
++        machine_id.update(data)
+ 
+-    del dmixp
+-    del xmldoc
+     # Create sha256 digest
+     return machine_id.hexdigest()
+ 
+-- 
+2.17.1
+

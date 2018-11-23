@@ -27,13 +27,13 @@
 %define desktopvendor fedora
 %endif
 
-%define libreport_ver 2.1.11-40
+%define libreport_ver 2.1.11-42
 %define satyr_ver 0.13-10
 
 Summary: Automatic bug detection and reporting tool
 Name: abrt
 Version: 2.1.11
-Release: 50%{?dist}.redsleeve
+Release: 52%{?dist}
 License: GPLv2+
 Group: Applications/System
 URL: https://abrt.readthedocs.org/
@@ -377,11 +377,17 @@ Patch287: 0287-a-a-ureport-add-check-if-crash-is-from-packaged-exec.patch
 #Patch304: 0304-tests-cli-sanity-re-enable-report-non-reportable-pha.patch
 #Patch305: 0305-testsuite-fix-backtrace-verification-on-power.patch
 Patch306: 0306-a-harvest-vmcore-fix-regresion.patch
-# git format-patch 2.1.11-50.el7 -N --start-number 306 --topo-order
+# git format-patch 2.1.11-50.el7 -N --start-number 307 --topo-order
+#Patch307: 0307-spec-use-dmidecode-instead-of-python-dmidecode.patch
+Patch308: 0308-plugins-a-a-g-machine-id-use-dmidecode-command.patch
+#Patch309: 0309-spec-turn-on-enable-native-unwinder-aarch64.patch
+Patch310: 0310-a-a-s-p-data-fix-segfault-if-GPGKeysDir-isn-t-config.patch
+# git format-patch 2.1.11-51.el7 -N --start-number 311 --topo-order
+Patch311: 0311-plugin-general-from-sos-has-been-split-into-two-new-.patch
 
 Patch1000: 1000-event-don-t-run-the-reporter-bugzilla-h-on-RHEL-and-.patch
 #Patch1001: 1001-spec-added-dependency-to-libreport-centos.patch
-#Patch1002: 1002-plugin-set-URL-to-retrace-server.patch
+Patch1002: 1002-plugin-set-URL-to-retrace-server.patch
 #Patch1003: 1003-spec-add-dependenci-on-abrt-retrace-client.patch
 Patch1004: 1004-turn-sosreport-off.patch
 Patch1005: 1005-cli-list-revert-patch-7966e5737e8d3af43b1ecdd6a82323.patch
@@ -393,7 +399,6 @@ Patch1005: 1005-cli-list-revert-patch-7966e5737e8d3af43b1ecdd6a82323.patch
 BuildRequires: git
 
 BuildRequires: dbus-devel
-BuildRequires: dbus-glib-devel
 BuildRequires: gtk3-devel
 BuildRequires: rpm-devel >= 4.6
 BuildRequires: desktop-file-utils
@@ -417,7 +422,7 @@ BuildRequires: libselinux-devel
 Requires: abrt-python = %{version}-%{release}
 Requires: libreport >= %{libreport_ver}
 Requires: satyr >= %{satyr_ver}
-Requires: sos
+Requires: sos >= 3.6
 
 %if %{with systemd}
 Requires: systemd-units
@@ -428,11 +433,13 @@ Requires: %{name}-python = %{version}-%{release}
 Requires(pre): shadow-utils
 Requires: python-augeas
 Requires: python-dbus
-Requires: python-dmidecode
+%ifarch aarch64 i686 x86_64
+Requires: dmidecode
+%endif
 Requires: libreport-plugin-ureport >= %{libreport_ver}
-#%if 0%{?rhel}
-#Requires: libreport-plugin-rhtsupport
-#%endif
+%if 0%{?rhel}
+Requires: libreport-plugin-rhtsupport
+%endif
 
 # we used to have abrt-plugin-bodhi, but we have removed it
 # and we want allow users to update abrt without necessity to
@@ -615,14 +622,14 @@ Requires: abrt-addon-ccpp
 Requires: abrt-addon-python
 Requires: abrt-addon-xorg
 %if 0%{?rhel}
-#%if 0%{?centos_ver}
-#Requires: libreport-centos >= %{libreport_ver}
-#Requires: libreport-plugin-mantisbt >= %{libreport_ver}
-#%else
-#Requires: libreport-rhel >= %{libreport_ver}
-#Requires: libreport-plugin-rhtsupport >= %{libreport_ver}
-#%endif
-#%else
+%if 0%{?centos_ver}
+Requires: libreport-centos >= %{libreport_ver}
+Requires: libreport-plugin-mantisbt >= %{libreport_ver}
+%else
+Requires: libreport-rhel >= %{libreport_ver}
+Requires: libreport-plugin-rhtsupport >= %{libreport_ver}
+%endif
+%else
 Requires: abrt-retrace-client
 Requires: libreport-plugin-bugzilla >= %{libreport_ver}
 Requires: libreport-plugin-logger >= %{libreport_ver}
@@ -654,19 +661,19 @@ Requires: elfutils
 Requires: abrt-gui
 Requires: gnome-abrt
 %if 0%{?rhel}
-#%if 0%{?centos_ver}
-#Requires: libreport-centos >= %{libreport_ver}
-#Requires: libreport-plugin-mantisbt >= %{libreport_ver}
-#%else
-#Requires: libreport-rhel >= %{libreport_ver}
-#Requires: libreport-plugin-rhtsupport >= %{libreport_ver}
-#%endif
-#%else
+%if 0%{?centos_ver}
+Requires: libreport-centos >= %{libreport_ver}
+Requires: libreport-plugin-mantisbt >= %{libreport_ver}
+%else
+Requires: libreport-rhel >= %{libreport_ver}
+Requires: libreport-plugin-rhtsupport >= %{libreport_ver}
+%endif
+%else
 Requires: abrt-retrace-client
 Requires: libreport-plugin-bugzilla >= %{libreport_ver}
 Requires: libreport-plugin-logger >= %{libreport_ver}
 Requires: libreport-plugin-ureport >= %{libreport_ver}
-#Requires: libreport-fedora >= %{libreport_ver}
+Requires: libreport-fedora >= %{libreport_ver}
 %endif
 #Requires: abrt-plugin-firefox
 Provides: bug-buddy = 2.28.0
@@ -739,7 +746,7 @@ autoconf
 CFLAGS="%{optflags} -Werror -Wno-error=deprecated-declarations" %configure --enable-doxygen-docs \
         --disable-silent-rules \
         --without-bodhi \
-%ifnarch arm armhfp armv7hl armv7l aarch64
+%ifnarch %{arm}
         --enable-native-unwinder \
 %endif
         --enable-dump-time-unwind \
@@ -1219,10 +1226,7 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 %config(noreplace) %{_sysconfdir}/profile.d/abrt-console-notification.sh
 
 %changelog
-* Sun Apr 29 2018 Jacco Ligthart <jacco@redsleeve.org> - 2.1.11-50.el7.redsleeve
-- removed requirements to proprietary CentOS end RHEL libreport packages
-
-* Tue Apr 10 2018 CentOS Sources <bugs@centos.org> - 2.1.11-50.el7.centos
+* Tue Oct 30 2018 CentOS Sources <bugs@centos.org> - 2.1.11-52.el7.centos
 - Drop RHTS hint
 -  Change by David Mansfield <david@orthanc.cobite.com>
 -  Per http://bugs.centos.org/view.php?id=7192
@@ -1230,6 +1234,17 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 - set URL to retrace server
 - update to not run sosreport
 -  Per http://bugs.centos.org/view.php?id=7913
+
+* Mon Aug 20 2018 Matej Habrnal <mhabrnal@redhat.com> - 2.1.11-52
+- plugin "general" from sos has been split into two new plugins
+- Related: #1608444
+
+* Mon Jun 25 2018 Matej Marusak <mmarusak@redhat.com> - 2.1.11-51
+- a-a-s-p-data: fix segfault if GPGKeysDir isn't configured
+- spec: turn on --enable-native-unwinder aarch64
+- plugins: a-a-g-machine-id use dmidecode command
+- spec: use dmidecode instead of python-dmidecode
+- Related: #1566707, #1566707, #1260074, #1591141
 
 * Thu Feb 8 2018 Martin Kutlak <mkutlak@redhat.com> - 2.1.11-50
 - vmcore: fix analyzer regression
