@@ -1,6 +1,6 @@
-From 40184943d034491f7de6d34f0ac66347d3d46ad4 Mon Sep 17 00:00:00 2001
+From f3e4a1dac4b6b62d5c5ff7899c74ca7a75a93b57 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sat, 19 May 2018 11:55:32 +0200
+Date: Wed, 31 Oct 2018 23:30:05 +0100
 Subject: [PATCH] added arm to exclusive archs
 
 ---
@@ -8,24 +8,24 @@ Subject: [PATCH] added arm to exclusive archs
  1 file changed, 5 insertions(+), 2 deletions(-)
 
 diff --git a/SPECS/corosync.spec b/SPECS/corosync.spec
-index 4c30c0f..b72f7e6 100644
+index 1ce46b5..6d59acf 100644
 --- a/SPECS/corosync.spec
 +++ b/SPECS/corosync.spec
 @@ -24,7 +24,7 @@
  Name: corosync
  Summary: The Corosync Cluster Engine and Application Programming Interfaces
  Version: 2.4.3
--Release: 2%{?gitver}%{?dist}.1
-+Release: 2%{?gitver}%{?dist}.1.redsleeve
+-Release: 4%{?gitver}%{?dist}
++Release: 4%{?gitver}%{?dist}.redsleeve
  License: BSD
  Group: System Environment/Base
  URL: http://corosync.github.io/corosync/
 @@ -35,7 +35,7 @@ Patch1: bz1536219-2-logging-Close-before-and-open-blackbox-after-fork.patch
- Patch2: bz1560467-1-totemcrypto-Check-length-of-the-packet.patch
+ Patch2: bz1560468-1-totemcrypto-Check-length-of-the-packet.patch
  
  %if 0%{?rhel}
--ExclusiveArch: i686 x86_64 s390x ppc64le
-+ExclusiveArch: i686 x86_64 s390x ppc64le %{arm}
+-ExclusiveArch: i686 x86_64 s390x ppc64le aarch64
++ExclusiveArch: i686 x86_64 s390x ppc64le aarch64 %{arm}
  %endif
  
  # Runtime bits
@@ -33,11 +33,11 @@ index 4c30c0f..b72f7e6 100644
  %endif
  
  %changelog
-+* Sat May 19 2018 Jacco Ligthart <jacco@redsleeve.org> 2.4.3-2.1.redsleeve
++* Wed Oct 31 2018 Jacco Ligthart <jacco@redsleeve.org> 2.4.3-4.redsleeve
 +- added arm to exclusive archs
 +
- * Fri Apr 06 2018 Jan Friesse <jfriesse@redhat.com> 2.4.3-2.1
- - Resolves: rhbz#1560467
+ * Tue Apr 17 2018 Jan Friesse <jfriesse@redhat.com> 2.4.3-4
+ - Resolves: rhbz#1422598
  
 -- 
 1.8.3.1
