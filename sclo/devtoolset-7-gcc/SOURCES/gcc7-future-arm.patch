@@ -1,0 +1,60 @@
+diff -ruN gcc-7.3.1-20180303-orig/libstdc++-v3/src/nonshared11/future48.cc gcc-7.3.1-20180303/libstdc++-v3/src/nonshared11/future48.cc
+--- gcc-7.3.1-20180303-orig/libstdc++-v3/src/nonshared11/future48.cc	2018-07-02 01:13:01.263605240 +0200
++++ gcc-7.3.1-20180303/libstdc++-v3/src/nonshared11/future48.cc	2018-07-02 01:18:53.918516017 +0200
+@@ -23,7 +23,7 @@
+ #define _GLIBCXX_NONSHARED_CXX11_48
+ #include "../c++11/future.cc"
+ asm (".hidden _ZSt16__at_thread_exitPSt20__at_thread_exit_elt");
+-asm (".hidden _ZNSt13__future_base13_State_baseV211_Make_ready6_S_runEPv");
++asm (".weak _ZNSt13__future_base13_State_baseV211_Make_ready6_S_runEPv");
+ asm (".hidden _ZNSt12future_errorC1ESt10error_code");
+ asm (".hidden _ZNSt12future_errorC2ESt10error_code");
+ asm (".hidden _ZSt20__throw_future_errori");
+diff -ruN gcc-7.3.1-20180303-orig/libstdc++-v3/src/nonshared11/future.cc gcc-7.3.1-20180303/libstdc++-v3/src/nonshared11/future.cc
+--- gcc-7.3.1-20180303-orig/libstdc++-v3/src/nonshared11/future.cc	2018-07-02 01:13:00.753605377 +0200
++++ gcc-7.3.1-20180303/libstdc++-v3/src/nonshared11/future.cc	2018-07-02 01:18:53.918516017 +0200
+@@ -24,11 +24,11 @@
+ #undef _GLIBCXX_HAVE_AS_SYMVER_DIRECTIVE
+ #include "../c++11/future.cc"
+ const std::error_category* _ZSt15future_category = &__future_category_instance();
+-asm (".hidden _ZNSt13__future_base11_State_base15_M_run_deferredEv");
+-asm (".hidden _ZTSNSt13__future_base11_State_baseE");
+-asm (".hidden _ZTSNSt13__future_base12_Result_baseE");
+-asm (".hidden _ZNSt15_Sp_counted_ptrIDnLN9__gnu_cxx12_Lock_policyE2EE10_M_disposeEv");
+-asm (".hidden _ZNSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE2EE10_M_destroyEv");
+-asm (".hidden _ZNSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE2EE10_M_releaseEv");
++asm (".weak _ZNSt13__future_base11_State_base15_M_run_deferredEv");
++asm (".weak _ZTSNSt13__future_base11_State_baseE");
++asm (".weak _ZTSNSt13__future_base12_Result_baseE");
++asm (".hidden _ZNSt15_Sp_counted_ptrIDnLN9__gnu_cxx12_Lock_policyE1EE10_M_disposeEv");
++asm (".hidden _ZNSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE1EE10_M_destroyEv");
++asm (".hidden _ZNSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE1EE10_M_releaseEv");
+ asm (".hidden _ZSt16__at_thread_exitPSt20__at_thread_exit_elt");
+-asm (".hidden _ZNSt13__future_base13_State_baseV211_Make_ready6_S_runEPv");
++asm (".weak _ZNSt13__future_base13_State_baseV211_Make_ready6_S_runEPv");
+diff -ruN gcc-7.3.1-20180303-orig/libstdc++-v3/src/nonshared11/thread44.cc gcc-7.3.1-20180303/libstdc++-v3/src/nonshared11/thread44.cc
+--- gcc-7.3.1-20180303-orig/libstdc++-v3/src/nonshared11/thread44.cc	2018-07-02 01:13:00.753605377 +0200
++++ gcc-7.3.1-20180303/libstdc++-v3/src/nonshared11/thread44.cc	2018-07-02 01:18:53.918516017 +0200
+@@ -22,6 +22,6 @@
+ 
+ #define _GLIBCXX_NONSHARED_CXX11_44
+ #include "../c++11/thread.cc"
+-asm (".hidden _ZNSt15_Sp_counted_ptrIDnLN9__gnu_cxx12_Lock_policyE2EE10_M_disposeEv");
+-asm (".hidden _ZNSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE2EE10_M_destroyEv");
+-asm (".hidden _ZNSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE2EE10_M_releaseEv");
++asm (".hidden _ZNSt15_Sp_counted_ptrIDnLN9__gnu_cxx12_Lock_policyE1EE10_M_disposeEv");
++asm (".hidden _ZNSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE1EE10_M_destroyEv");
++asm (".hidden _ZNSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE1EE10_M_releaseEv");
+diff -ruN gcc-7.3.1-20180303-orig/libstdc++-v3/src/nonshared11/thread48.cc gcc-7.3.1-20180303/libstdc++-v3/src/nonshared11/thread48.cc
+--- gcc-7.3.1-20180303-orig/libstdc++-v3/src/nonshared11/thread48.cc	2018-07-02 01:13:00.763605374 +0200
++++ gcc-7.3.1-20180303/libstdc++-v3/src/nonshared11/thread48.cc	2018-07-02 01:18:53.918516017 +0200
+@@ -23,6 +23,6 @@
+ #define _GLIBCXX_NONSHARED_CXX11_44
+ #define _GLIBCXX_NONSHARED_CXX11_48
+ #include "../c++11/thread.cc"
+-asm (".hidden _ZNSt15_Sp_counted_ptrIDnLN9__gnu_cxx12_Lock_policyE2EE10_M_disposeEv");
+-asm (".hidden _ZNSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE2EE10_M_destroyEv");
+-asm (".hidden _ZNSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE2EE10_M_releaseEv");
++asm (".hidden _ZNSt15_Sp_counted_ptrIDnLN9__gnu_cxx12_Lock_policyE1EE10_M_disposeEv");
++asm (".hidden _ZNSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE1EE10_M_destroyEv");
++asm (".hidden _ZNSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE1EE10_M_releaseEv");

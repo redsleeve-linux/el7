@@ -95,7 +95,7 @@
 Summary: GCC version 7
 Name: %{?scl_prefix}gcc
 Version: %{gcc_version}
-Release: %{gcc_release}.10%{?dist}
+Release: %{gcc_release}.10%{?dist}.redsleeve
 # libgcc, libgfortran, libgomp, libstdc++ and crtstuff have
 # GCC Runtime Exception.
 License: GPLv3+ and GPLv3+ with exceptions and GPLv2+ with exceptions and LGPLv2+ and BSD
@@ -295,6 +295,10 @@ Patch3022: 0022-Default-values-for-certain-field-descriptors-in-form.patch
 Patch3023: gcc7-fortranlines.patch
 Patch3024: gcc7-fortran-include.patch
 
+Patch10001: gcc6-decimal-rtti-arm.patch
+Patch10002: gcc7-nonshared11-arm.patch
+Patch10003: gcc7-future-arm.patch
+Patch10004: gcc6-nonshared98-arm.patch
 
 
 %if 0%{?rhel} >= 7
@@ -314,7 +318,10 @@ Patch3024: gcc7-fortran-include.patch
 %ifarch ppc
 %global gcc_target_platform ppc64-%{_vendor}-%{_target_os}%{?_gnu}
 %endif
-%ifnarch sparcv9 ppc
+%ifarch %{arm}
+%global gcc_target_platform armv5tel-%{_vendor}-%{_target_os}-gnueabi
+%endif
+%ifnarch sparcv9 ppc %{arm}
 %global gcc_target_platform %{_target_platform}
 %endif
 
@@ -746,6 +753,13 @@ cd ..
 %patch3022 -p1 -b .fortran22~
 %patch3023 -p1 -b .fortran23~
 %patch3024 -p1 -b .fortran24~
+%endif
+
+%ifarch %{arm}
+%patch10001 -p1 -b .arm1
+%patch10002 -p1 -b .arm2
+%patch10003 -p1 -b .arm3
+%patch10004 -p1 -b .arm4
 %endif
 
 echo 'Red Hat %{version}-%{gcc_release}' > gcc/DEV-PHASE
@@ -2901,6 +2915,13 @@ fi
 %doc rpm.doc/changelogs/libcc1/ChangeLog*
 
 %changelog
+* Sat Jun 30 2018 Jacco Ligthart <jacco@redsleeve.org> 7.3.1-5.10.redsleeve
+- added gcc_target_platform for armv5tel
+- added gcc6-decimal-rtti-arm.patch
+- added gcc7-nonshared11-arm.patch
+- added gcc7-future-arm.patch
+- added gcc6-nonshared98-arm.patch
+
 * Tue Jun 12 2018 Marek Polacek <polacek@redhat.com> 7.3.1-5.10
 - bump for rebuild
 
