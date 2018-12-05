@@ -19,7 +19,7 @@
 %global use_tcmalloc 0
 %global variant base-asan
 %else
-%if %{_arch} != "s390x" && %{_arch} != "s390"
+%ifnarch s390 s390x %{arm}
 %global use_tcmalloc 1
 %else
 %global use_tcmalloc 0
@@ -39,7 +39,7 @@
 Summary:          389 Directory Server (%{variant})
 Name:             389-ds-base
 Version:          1.3.8.4
-Release:          %{?relprefix}18%{?prerel}%{?dist}
+Release:          %{?relprefix}18%{?prerel}%{?dist}.redsleeve
 License:          GPLv3+
 URL:              https://www.port389.org/
 Group:            System Environment/Daemons
@@ -507,6 +507,9 @@ fi
 %{_sysconfdir}/%{pkgname}/dirsrvtests
 
 %changelog
+* Wed Dec 05 2018 Jacco Ligthart <jacco@redsleeve.org> - 1.3.8.4-18.redsleeve
+- disabled tcmalloc for arm
+
 * Mon Oct 29 2018 Mark Reynolds <mreynolds@redhat.com> - 1.3.8.4-18
 - Bump version to 1.3.8.4-18
 - Resolves: Bug 1638516 - CRIT - list_candidates - NULL idl was recieved from filter_candidates_ex
