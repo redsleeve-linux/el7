@@ -1,69 +1,74 @@
-From 6a90128f2bb5e26366fcf82546c07401037695c5 Mon Sep 17 00:00:00 2001
+From 92fb51e5cfd9a56970d973b95b41b83284a67026 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sun, 15 Apr 2018 15:47:39 +0200
+Date: Tue, 18 Dec 2018 23:55:35 +0100
 Subject: [PATCH] patched for arm
 
 ---
- SOURCES/webkitgtk4-arm-no-atomic.patch | 26 ++++++++++++++++++++++++++
- SPECS/webkitgtk4.spec                  | 17 +++++++++++++----
- 2 files changed, 39 insertions(+), 4 deletions(-)
- create mode 100644 SOURCES/webkitgtk4-arm-no-atomic.patch
+ SOURCES/webkitgtk4_always_inc_atomic.patch | 31 ++++++++++++++++++++++++++++++
+ SPECS/webkitgtk4.spec                      | 18 +++++++++++++----
+ 2 files changed, 45 insertions(+), 4 deletions(-)
+ create mode 100644 SOURCES/webkitgtk4_always_inc_atomic.patch
 
-diff --git a/SOURCES/webkitgtk4-arm-no-atomic.patch b/SOURCES/webkitgtk4-arm-no-atomic.patch
+diff --git a/SOURCES/webkitgtk4_always_inc_atomic.patch b/SOURCES/webkitgtk4_always_inc_atomic.patch
 new file mode 100644
-index 0000000..69be087
+index 0000000..a3dd583
 --- /dev/null
-+++ b/SOURCES/webkitgtk4-arm-no-atomic.patch
-@@ -0,0 +1,26 @@
-+--- a/Source/WTF/wtf/CMakeLists.txt	
-++++ a/Source/WTF/wtf/CMakeLists.txt	
-+@@ -182,7 +182,6 @@
++++ b/SOURCES/webkitgtk4_always_inc_atomic.patch
+@@ -0,0 +1,31 @@
++diff -ruN a/Source/JavaScriptCore/CMakeLists.txt b/Source/JavaScriptCore/CMakeLists.txt
++--- a/Source/JavaScriptCore/CMakeLists.txt	2018-07-31 07:57:41.000000000 +0200
+++++ b/Source/JavaScriptCore/CMakeLists.txt	2018-11-24 08:57:28.944383874 +0100
++@@ -116,9 +116,9 @@
++     ${LLVM_LIBRARIES}
++ )
 + 
-+ set(WTF_SOURCES
-+     Assertions.cpp
-+-    Atomics.cpp
-+     AutomaticThread.cpp
-+     BitVector.cpp
-+     ClockType.cpp
-+@@ -304,6 +303,15 @@
-+     list(APPEND WTF_LIBRARIES bmalloc)
++-if (ATOMIC_INT64_REQUIRES_LIBATOMIC)
+++#if (ATOMIC_INT64_REQUIRES_LIBATOMIC)
++     list(APPEND JavaScriptCore_LIBRARIES atomic)
++-endif ()
+++#endif ()
++ 
++ set(JavaScriptCore_SCRIPTS_SOURCES_DIR "${JAVASCRIPTCORE_DIR}/Scripts")
++ 
++diff -ruN a/Source/WebKit/CMakeLists.txt b/Source/WebKit/CMakeLists.txt
++--- a/Source/WebKit/CMakeLists.txt	2018-06-11 11:28:11.000000000 +0200
+++++ b/Source/WebKit/CMakeLists.txt	2018-11-24 08:56:41.194424930 +0100
++@@ -778,9 +778,9 @@
++     set(JavaScriptCore_SCRIPTS_DIR "${FORWARDING_HEADERS_DIR}/JavaScriptCore/Scripts")
 + endif ()
 + 
-++file(WRITE ${CMAKE_BINARY_DIR}/test_atomics.cpp
-++     "int main(void)\n"
-++     "{ long long x = 1; return (int) __sync_add_and_fetch_8(&x, 1); }\n")
-++try_compile(ATOMICS_BUILD_SUCCEEDED ${CMAKE_BINARY_DIR} ${CMAKE_BINARY_DIR}/test_atomics.cpp)
-++if (NOT ATOMICS_BUILD_SUCCEEDED)
-++    list(APPEND WTF_SOURCES Atomics.cpp)
-++endif ()
-++file(REMOVE ${CMAKE_BINARY_DIR}/test_atomics.cpp)
-++
-+ list(APPEND WTF_SOURCES
-+     unicode/icu/CollatorICU.cpp
-+ )
++-if (ATOMIC_INT64_REQUIRES_LIBATOMIC)
++-    list(APPEND WebKit_LIBRARIES atomic)
++-endif ()
+++#if (ATOMIC_INT64_REQUIRES_LIBATOMIC)
+++#    list(APPEND WebKit_LIBRARIES atomic)
+++#endif ()
++ 
++ if (UNIX)
++     check_function_exists(shm_open SHM_OPEN_EXISTS)
 diff --git a/SPECS/webkitgtk4.spec b/SPECS/webkitgtk4.spec
-index 36683b3..9cc0978 100644
+index 0f5bc31..236be45 100644
 --- a/SPECS/webkitgtk4.spec
 +++ b/SPECS/webkitgtk4.spec
 @@ -27,7 +27,7 @@
  
  Name:           webkitgtk4
- Version:        2.16.6
--Release:        6%{?dist}
-+Release:        6%{?dist}.redsleeve
+ Version:        2.20.5
+-Release:        1%{?dist}
++Release:        1%{?dist}.redsleeve
  Summary:        GTK+ Web content engine library
  
  License:        LGPLv2
-@@ -92,6 +92,8 @@ Patch58: icu-dont_use_clang_even_if_installed.patch
+@@ -99,6 +99,8 @@ Patch58: icu-dont_use_clang_even_if_installed.patch
  Patch59: icu-rhbz1444101-icu-changeset-39671.patch
  %endif
  
-+Patch1000: webkitgtk4-arm-no-atomic.patch
++Patch1000: webkitgtk4_always_inc_atomic.patch
 +
  BuildRequires:  at-spi2-core-devel
  BuildRequires:  bison
  BuildRequires:  cairo-devel
-@@ -254,6 +256,8 @@ Support for the GTK+ 2 based NPAPI plugins (such as Adobe Flash) for %{name}.
+@@ -270,6 +272,8 @@ Support for the GTK+ 2 based NPAPI plugins (such as Adobe Flash) for %{name}.
  %autosetup -p1 -n webkitgtk-%{version}
  %endif
  
@@ -72,10 +77,10 @@ index 36683b3..9cc0978 100644
  # Remove bundled libraries
  rm -rf Source/ThirdParty/gtest/
  rm -rf Source/ThirdParty/qunit/
-@@ -343,13 +347,13 @@ pushd %{_target_platform}
- %endif
+@@ -363,10 +367,10 @@ pushd %{_target_platform}
    -DENABLE_GTKDOC=ON \
    -DENABLE_MINIBROWSER=ON \
+   -DENABLE_SUBTLE_CRYPTO=OFF \
 -%ifarch s390 aarch64
 +%ifarch s390 aarch64 %{arm}
    -DUSE_LD_GOLD=OFF \
@@ -83,24 +88,30 @@ index 36683b3..9cc0978 100644
 -%ifarch s390 s390x ppc %{power64} aarch64 %{mips}
 +%ifarch s390 s390x ppc %{power64} aarch64 %{mips} %{arm}
    -DENABLE_JIT=OFF \
- %endif
--%ifarch s390 s390x ppc %{power64} aarch64 %{mips}
-+%ifarch s390 s390x ppc %{power64} aarch64 %{mips} %{arm}
    -DUSE_SYSTEM_MALLOC=ON \
  %endif
-   ..
-@@ -449,6 +453,11 @@ chmod 644 $RPM_BUILD_ROOT%{_libdir}/webkit2gtk-4.0/libicuuc.so.57.1
+@@ -376,7 +380,7 @@ popd
+ # Remove the static amount of jobs once
+ # https://projects.engineering.redhat.com/browse/BREW-2146 is resolved
+ # make %{?_smp_mflags} -C %{_target_platform}
+-make -j4 -C %{_target_platform}
++make -j2 -C %{_target_platform}
+ 
+ %install
+ %if 0%{?bundle_icu}
+@@ -479,6 +483,12 @@ chmod 644 $RPM_BUILD_ROOT%{_libdir}/webkit2gtk-4.0/libicuuc.so.57.1
  %{_datadir}/gtk-doc/html/webkitdomgtk-4.0/
  
  %changelog
-+* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.com> - 2.16.6-6.redsleeve
++* Sat Nov 24 2018 Jacco Ligthart <jacco@redsleeve.com> - 2.20.5-1.redsleeve
 +- disabled LD_GOLD4, JIT for arm
 +- use system malloc for arm
-+- added a patch: https://bugs.webkit.org/show_bug.cgi?id=161900
++- added a patch to always link against atomic
++- only use 2 cpus for building, better for not swapping
 +
- * Wed Nov 08 2017 Tomas Popela <tpopela@redhat.com> - 2.16.6-6
- - Don't strip debug info from bundled icu libraries, otherwise there
-   will be conflicts between webkitgtk4-debuginfo and icu-debuginfo packages
+ * Tue Aug 14 2018 Tomas Popela <tpopela@redhat.com> - 2.20.5-1
+ - Update to 2.20.5 - technically it was not necessary as the only difference
+   between 2.20.4 and .5 was the revert of one change, that we already reverted
 -- 
 1.8.3.1
 
