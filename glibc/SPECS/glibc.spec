@@ -1,6 +1,6 @@
 %define glibcsrcdir glibc-2.17-c758a686
 %define glibcversion 2.17
-%define glibcrelease 260%{?dist}
+%define glibcrelease 260%{?dist}.3
 ##############################################################################
 # We support the following options:
 # --with/--without,
@@ -125,7 +125,7 @@
 Summary: The GNU libc libraries
 Name: glibc
 Version: %{glibcversion}
-Release: %{glibcrelease}.redsleeve
+Release: %{glibcrelease}
 # GPLv2+ is used in a bunch of programs, LGPLv2+ is used for libraries.
 # Things that are linked directly into dynamically linked programs
 # and shared libraries (e.g. crt files, lib*_nonshared.a) have an additional
@@ -1417,6 +1417,9 @@ Patch2748: glibc-rh1401665-2.patch
 Patch2749: glibc-rh1401665-3.patch
 Patch2750: glibc-rh1401665-4.patch
 Patch2751: glibc-rh1401665-5.patch
+Patch2752: glibc-rh1661244.patch
+Patch2753: glibc-rh1661242-1.patch
+Patch2754: glibc-rh1661242-2.patch
 
 ##############################################################################
 #
@@ -1554,9 +1557,6 @@ Patch2114: glibc-rh1471405.patch
 ##############################################################################
 # End of glibc patches.
 ##############################################################################
-
-Patch3000: glibc-rh1256317-redsleeve.patch
-Patch3001: glibc-rh1505492-redsleeve.patch
 
 ##############################################################################
 # Continued list of core "glibc" package information:
@@ -2819,9 +2819,9 @@ package or when debugging this package.
 %patch2749 -p1
 %patch2750 -p1
 %patch2751 -p1
-
-%patch3000 -p1
-%patch3001 -p1
+%patch2752 -p1
+%patch2753 -p1
+%patch2754 -p1
 
 ##############################################################################
 # %%prep - Additional prep required...
@@ -3985,9 +3985,11 @@ rm -f *.filelist*
 %endif
 
 %changelog
-* Wed Oct 31 2018 Jacco Ligthart <jacco@redsleeve.org> 2.17-260.redsleeve
-- enhanced the patch for rh1256317 to build on arm
-- enhanced the patch for rh1505492 to build on arm
+* Thu Jan  3 2019 Florian Weimer <fweimer@redhat.com> - 2.17-260.3
+- elf: Fix data race in _dl_profile_fixup (#1661242)
+
+* Thu Dec 20 2018 Florian Weimer <fweimer@redhat.com> - 2.17-260.1
+- aarch64: Disable lazy symbol binding of TLSDESC (#1661244)
 
 * Wed Jun 27 2018 Patsy Franklin <pfrankli@redhat.com> - 2.17-260
 - Update glibc-rh1560641.patch to initialize pad outside
