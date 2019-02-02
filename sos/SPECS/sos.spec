@@ -2,7 +2,7 @@
 Summary: A set of tools to gather troubleshooting information from a system
 Name: sos
 Version: 3.6
-Release: 11%{?dist}.redsleeve
+Release: 13%{?dist}
 Group: Applications/System
 Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
 License: GPLv2+
@@ -32,7 +32,10 @@ Patch11: sos-bz1626159-atomic-attribute-error.patch
 Patch12: sos-bz1623070-pipe-returncode.patch
 Patch13: sos-bz1636093-openstack-relax-enabling-plugins.patch
 Patch14: sos-bz1637632-kernel-dont-collect-tracing-instance.patch
-Patch15: sos-3.6-redsleeve-branding.patch
+Patch15: sos-bz1656732-ovirt_node-plugin.patch
+Patch16: sos-bz1658570-docker-podman-containers.patch
+Patch17: sos-bz1658571-postgresql-collect-full-dump.patch
+Patch18: sos-3.6-centos-branding.patch
 
 %description
 Sos is a set of tools that gathers information about system
@@ -58,6 +61,9 @@ support technicians and developers.
 %patch13 -p1
 %patch14 -p1
 %patch15 -p1
+%patch16 -p1
+%patch17 -p1
+%patch18 -p1
 
 %build
 make
@@ -81,11 +87,16 @@ rm -rf ${RPM_BUILD_ROOT}
 %config(noreplace) %{_sysconfdir}/sos.conf
 
 %changelog
-* Fri Nov 23 2018 Jacco Ligthart <jacco@redsleeve.org> - 3.6-11.el7.redsleeve
-- Roll in RedSleeve Branding
-
-* Mon Nov 12 2018 CentOS Sources <bugs@centos.org> - 3.6-11.el7.centos
+* Tue Jan 29 2019 CentOS Sources <bugs@centos.org> - 3.6-13.el7.centos
 - Roll in CentOS Branding
+
+* Wed Dec 12 2018 Pavel Moravec <pmoravec@redhat.com> = 3.6-13
+- [ovirt_node] New plugin for oVirt Node
+  Resolves: bz1656732
+- [podman] Add support for gathering information on podman
+  Resolves: bz1658570
+- [postgresql] Do not limit dump size
+  Resolves: bz1658571
 
 * Tue Oct 09 2018 Pavel Moravec <pmoravec@redhat.com> = 3.6-11
 - [kernel] dont collect some tracing instance files

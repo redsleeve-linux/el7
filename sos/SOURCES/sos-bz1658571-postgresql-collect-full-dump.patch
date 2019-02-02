@@ -1,0 +1,76 @@
+From 47e6b3d92c8a13560b248e6f0e2ffb334b547d07 Mon Sep 17 00:00:00 2001
+From: Yedidyah Bar David <didi@redhat.com>
+Date: Tue, 4 Dec 2018 13:08:44 +0200
+Subject: [PATCH] [Plugin] Obey sizelimit=0
+
+If sizelimit is 0, do not limit. Only use the default if it's None.
+
+Bug-Url: https://bugzilla.redhat.com/1654068
+Signed-off-by: Yedidyah Bar David <didi@redhat.com>
+---
+ sos/plugins/__init__.py | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/sos/plugins/__init__.py b/sos/plugins/__init__.py
+index 7d2a8b2d..97f3cc59 100644
+--- a/sos/plugins/__init__.py
++++ b/sos/plugins/__init__.py
+@@ -569,7 +569,8 @@ class Plugin(object):
+         a single file the file will be tailed to meet sizelimit. If the first
+         file in a glob is too large it will be tailed to meet the sizelimit.
+         """
+-        sizelimit = sizelimit or self.get_option("log_size")
++        if sizelimit is None:
++            sizelimit = self.get_option("log_size")
+ 
+         if self.get_option('all_logs'):
+             sizelimit = None
+@@ -703,7 +704,8 @@ class Plugin(object):
+             cmds = [cmds]
+         if len(cmds) > 1 and (suggest_filename or root_symlink):
+             self._log_warn("ambiguous filename or symlink for command list")
+-        sizelimit = sizelimit or self.get_option("log_size")
++        if sizelimit is None:
++            sizelimit = self.get_option("log_size")
+         for cmd in cmds:
+             self._add_cmd_output(cmd, suggest_filename=suggest_filename,
+                                  root_symlink=root_symlink, timeout=timeout,
+-- 
+2.17.2
+
+From 254d93499d64acaff5103e15c25649d418004737 Mon Sep 17 00:00:00 2001
+From: Yedidyah Bar David <didi@redhat.com>
+Date: Tue, 4 Dec 2018 13:10:32 +0200
+Subject: [PATCH] [postgresql] Do not limit dump size
+
+In principle, this might be risky - if a database is huge, we might not
+want to collect all of it. But there is no sense in collecting only its
+tail. If this turns out problematic, a future patch might check db size
+and do not collect it at all if it's too large.
+
+Bug-Url: https://bugzilla.redhat.com/1654068
+
+Resolves: #1497
+
+Signed-off-by: Yedidyah Bar David <didi@redhat.com>
+Signed-off-by: Bryn M. Reeves <bmr@redhat.com>
+---
+ sos/plugins/postgresql.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sos/plugins/postgresql.py b/sos/plugins/postgresql.py
+index d47f7e8b..aef431f8 100644
+--- a/sos/plugins/postgresql.py
++++ b/sos/plugins/postgresql.py
+@@ -64,7 +64,7 @@ class PostgreSQL(Plugin):
+                 if scl is not None:
+                     cmd = self.convert_cmd_scl(scl, cmd)
+                 self.add_cmd_output(cmd, suggest_filename=filename,
+-                                    binary=True)
++                                    binary=True, sizelimit=0)
+ 
+             else:  # no password in env or options
+                 self.soslog.warning(
+-- 
+2.17.2
+
