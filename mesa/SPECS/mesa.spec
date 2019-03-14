@@ -7,7 +7,7 @@
 %define with_vdpau 1
 %define with_wayland 1
 
-%ifnarch ppc
+%ifnarch ppc %{arm}
 %define with_radeonsi 1
 %endif
 
@@ -18,7 +18,7 @@
 # S390 doesn't have video cards, but we need swrast for xserver's GLX
 # llvm (and thus llvmpipe) doesn't actually work on ppc32 or s390
 
-%ifnarch s390 ppc
+%ifnarch s390 ppc %{arm}
 %define with_llvm 1
 %endif
 
@@ -61,7 +61,7 @@
 Summary: Mesa graphics libraries
 Name: mesa
 Version: 18.0.5
-Release: 4%{?dist}
+Release: 4%{?dist}.redsleeve
 License: MIT
 Group: System Environment/Libraries
 URL: http://www.mesa3d.org
@@ -116,7 +116,8 @@ BuildRequires: python-mako
 BuildRequires: gettext
 %if 0%{?with_llvm}
 %if 0%{?with_private_llvm}
-BuildRequires: llvm-private-devel >= 6.0
+#BuildRequires: llvm-private-devel >= 6.0
+BuildRequires: mesa-private-llvm-devel
 %else
 BuildRequires: llvm-devel >= 3.0
 %endif
@@ -537,8 +538,8 @@ rm -rf $RPM_BUILD_ROOT
 # exist on s390x where swrast is llvmpipe, but does exist on s390 where
 # swrast is classic mesa.  this seems like a bug?  in that it probably
 # means the gallium drivers are linking dricore statically?  fixme.
-%{_libdir}/dri/swrast_dri.so
 %if 0%{?with_llvm}
+%{_libdir}/dri/swrast_dri.so
 %{_libdir}/dri/kms_swrast_dri.so
 %endif
 
@@ -664,6 +665,9 @@ rm -rf $RPM_BUILD_ROOT
 %endif
 
 %changelog
+* Sat Feb 02 2019 Jacco Ligthart <jacco@redsleeve.org> - 18.0.5-4.redsleeve
+- small changes to the spec to make it build on armv5
+
 * Sat Dec 15 2018 Dave Airlie <airlied@redhat.com> - 18.0.5-4
 - disable shm put/get for now it caused regressions
 

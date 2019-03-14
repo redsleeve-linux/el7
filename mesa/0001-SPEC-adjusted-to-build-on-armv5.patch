@@ -1,6 +1,6 @@
-From e1dfffd1966a7948b37ea6a18f1d51ad568b6e16 Mon Sep 17 00:00:00 2001
+From 9f89ba25cc4d004677d7a4c14765f6b7f8200da6 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Wed, 31 Oct 2018 23:48:13 +0100
+Date: Sat, 2 Feb 2019 14:11:49 +0100
 Subject: [PATCH] SPEC adjusted to build on armv5
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] SPEC adjusted to build on armv5
  1 file changed, 9 insertions(+), 5 deletions(-)
 
 diff --git a/SPECS/mesa.spec b/SPECS/mesa.spec
-index 1b7ce7e..54be78e 100644
+index 40c88d9..c6cdc81 100644
 --- a/SPECS/mesa.spec
 +++ b/SPECS/mesa.spec
 @@ -7,7 +7,7 @@
@@ -33,12 +33,12 @@ index 1b7ce7e..54be78e 100644
  Summary: Mesa graphics libraries
  Name: mesa
  Version: 18.0.5
--Release: 3%{?dist}
-+Release: 3%{?dist}.redsleeve
+-Release: 4%{?dist}
++Release: 4%{?dist}.redsleeve
  License: MIT
  Group: System Environment/Libraries
  URL: http://www.mesa3d.org
-@@ -112,7 +112,8 @@ BuildRequires: python-mako
+@@ -116,7 +116,8 @@ BuildRequires: python-mako
  BuildRequires: gettext
  %if 0%{?with_llvm}
  %if 0%{?with_private_llvm}
@@ -48,7 +48,7 @@ index 1b7ce7e..54be78e 100644
  %else
  BuildRequires: llvm-devel >= 3.0
  %endif
-@@ -532,8 +533,8 @@ rm -rf $RPM_BUILD_ROOT
+@@ -537,8 +538,8 @@ rm -rf $RPM_BUILD_ROOT
  # exist on s390x where swrast is llvmpipe, but does exist on s390 where
  # swrast is classic mesa.  this seems like a bug?  in that it probably
  # means the gallium drivers are linking dricore statically?  fixme.
@@ -58,15 +58,15 @@ index 1b7ce7e..54be78e 100644
  %{_libdir}/dri/kms_swrast_dri.so
  %endif
  
-@@ -659,6 +660,9 @@ rm -rf $RPM_BUILD_ROOT
+@@ -664,6 +665,9 @@ rm -rf $RPM_BUILD_ROOT
  %endif
  
  %changelog
-+* Wed Oct 31 2018 Jacco Ligthart <jacco@redsleeve.org> - 18.0.5-3.redsleeve
++* Sat Feb 02 2019 Jacco Ligthart <jacco@redsleeve.org> - 18.0.5-4.redsleeve
 +- small changes to the spec to make it build on armv5
 +
- * Tue Jul 24 2018 Dave Airlie <airlied@redhat.com> - 18.0.5-3
- - rename fedora to system in glvnd fallback
+ * Sat Dec 15 2018 Dave Airlie <airlied@redhat.com> - 18.0.5-4
+ - disable shm put/get for now it caused regressions
  
 -- 
 1.8.3.1
