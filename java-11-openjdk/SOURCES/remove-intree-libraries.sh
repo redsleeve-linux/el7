@@ -94,13 +94,13 @@ if [ ! -d ${PNG_SRC} ]; then
 fi	
 rm -rvf ${PNG_SRC}
 
-echo "Skipping removal of LCMS on rhel7. Internal will be used intentionally"
-exit 0
 echo "Removing lcms"
 if [ ! -d ${LCMS_SRC} ]; then
 	echo "${LCMS_SRC} does not exist. Refusing to proceed."
 	exit 1
 fi
+echo "Skipped on RHEL 7 as system LCMS is too old"
+if [ ! true ]; then
 rm -vf ${LCMS_SRC}/cmscam02.c
 rm -vf ${LCMS_SRC}/cmscgats.c
 rm -vf ${LCMS_SRC}/cmscnvrt.c
@@ -129,3 +129,12 @@ rm -vf ${LCMS_SRC}/cmsxform.c
 rm -vf ${LCMS_SRC}/lcms2.h
 rm -vf ${LCMS_SRC}/lcms2_internal.h
 rm -vf ${LCMS_SRC}/lcms2_plugin.h
+fi
+
+# Get rid of in-tree SunEC until RH1656676 is implemented
+echo "Removing SunEC native code"
+mv -v src/jdk.crypto.ec/share/native/libsunec/impl/ecc_impl.h .
+rm -vrf src/jdk.crypto.ec/share/native/libsunec/impl
+mv -v ecc_impl.h src/jdk.crypto.ec/share/native/libsunec
+
+
