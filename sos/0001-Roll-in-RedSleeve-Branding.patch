@@ -1,6 +1,6 @@
-From f61c4b1da64dd959d7a4a190519cae699d6f7c10 Mon Sep 17 00:00:00 2001
+From 0913e44081b9ffb5000821769320a0988fd1af58 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Fri, 23 Nov 2018 09:57:15 +0100
+Date: Sat, 2 Feb 2019 14:15:54 +0100
 Subject: [PATCH] Roll in RedSleeve Branding
 
 ---
@@ -121,35 +121,35 @@ index 0000000..8761274
 + This command will collect diagnostic and configuration \
 + information from this %(distro)s system.
 diff --git a/SPECS/sos.spec b/SPECS/sos.spec
-index 33dfb8c..59daf91 100644
+index 3b225c4..19de978 100644
 --- a/SPECS/sos.spec
 +++ b/SPECS/sos.spec
 @@ -2,7 +2,7 @@
  Summary: A set of tools to gather troubleshooting information from a system
  Name: sos
  Version: 3.6
--Release: 11%{?dist}
-+Release: 11%{?dist}.redsleeve
+-Release: 13%{?dist}
++Release: 13%{?dist}.redsleeve
  Group: Applications/System
  Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
  License: GPLv2+
-@@ -32,7 +32,7 @@ Patch11: sos-bz1626159-atomic-attribute-error.patch
- Patch12: sos-bz1623070-pipe-returncode.patch
- Patch13: sos-bz1636093-openstack-relax-enabling-plugins.patch
- Patch14: sos-bz1637632-kernel-dont-collect-tracing-instance.patch
--Patch15: sos-3.6-centos-branding.patch
-+Patch15: sos-3.6-redsleeve-branding.patch
+@@ -35,7 +35,7 @@ Patch14: sos-bz1637632-kernel-dont-collect-tracing-instance.patch
+ Patch15: sos-bz1656732-ovirt_node-plugin.patch
+ Patch16: sos-bz1658570-docker-podman-containers.patch
+ Patch17: sos-bz1658571-postgresql-collect-full-dump.patch
+-Patch18: sos-3.6-centos-branding.patch
++Patch18: sos-3.6-redsleeve-branding.patch
  
  %description
  Sos is a set of tools that gathers information about system
-@@ -81,6 +81,9 @@ rm -rf ${RPM_BUILD_ROOT}
+@@ -87,6 +87,9 @@ rm -rf ${RPM_BUILD_ROOT}
  %config(noreplace) %{_sysconfdir}/sos.conf
  
  %changelog
-+* Fri Nov 23 2018 Jacco Ligthart <jacco@redsleeve.org> - 3.6-11.el7.redsleeve
++* Sat Feb 02 2019 Jacco Ligthart <jacco@redsleeve.org> - 3.6-13.el7.redsleeve
 +- Roll in RedSleeve Branding
 +
- * Mon Nov 12 2018 CentOS Sources <bugs@centos.org> - 3.6-11.el7.centos
+ * Tue Jan 29 2019 CentOS Sources <bugs@centos.org> - 3.6-13.el7.centos
  - Roll in CentOS Branding
  
 -- 
