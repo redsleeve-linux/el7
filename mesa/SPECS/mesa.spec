@@ -18,7 +18,7 @@
 # S390 doesn't have video cards, but we need swrast for xserver's GLX
 # llvm (and thus llvmpipe) doesn't actually work on ppc32 or s390
 
-%ifnarch s390 ppc %{arm}
+%ifnarch s390 ppc
 %define with_llvm 1
 %endif
 
@@ -61,7 +61,7 @@
 Summary: Mesa graphics libraries
 Name: mesa
 Version: 18.0.5
-Release: 4%{?dist}.redsleeve
+Release: 4%{?dist}.redsleeve.1
 License: MIT
 Group: System Environment/Libraries
 URL: http://www.mesa3d.org
@@ -342,8 +342,8 @@ grep -q ^/ src/gallium/auxiliary/vl/vl_decoder.c && exit 1
 %patch21 -p1 -b .glpc
 
 %if 0%{with_private_llvm}
-sed -i 's/\[llvm-config\]/\[llvm-private-config-%{__isa_bits}\]/g' configure.ac
-sed -i 's/`$LLVM_CONFIG --version`/$LLVM_VERSION_MAJOR.$LLVM_VERSION_MINOR-rhel/' configure.ac
+sed -i 's/\[llvm-config\]/\[mesa-private-llvm-config-%{__isa_bits}\]/g' configure.ac
+sed -i 's/`$LLVM_CONFIG --version`/$LLVM_VERSION_MAJOR.$LLVM_VERSION_MINOR-mesa/' configure.ac
 %endif
 
 # need to use libdrm_nouveau2 on F17
@@ -395,7 +395,7 @@ export CXXFLAGS="$RPM_OPT_FLAGS -fno-rtti -fno-exceptions"
     --enable-dri \
 %if %{with_hardware}
     %{?with_vmware:--enable-xa} \
-    --with-gallium-drivers=%{?with_vmware:svga,}%{?with_radeonsi:radeonsi,}%{?with_llvm:swrast,r600,r300,}%{?with_freedreno:freedreno,}nouveau,virgl \
+    --with-gallium-drivers=%{?with_vmware:svga,}%{?with_radeonsi:radeonsi,}%{?with_llvm:swrast,r300,}%{?with_freedreno:freedreno,}nouveau,virgl \
 %else
     --with-gallium-drivers=%{?with_llvm:swrast} \
 %endif
@@ -515,7 +515,7 @@ rm -rf $RPM_BUILD_ROOT
 %endif
 %if 0%{?with_llvm}
 %{_libdir}/dri/r300_dri.so
-%{_libdir}/dri/r600_dri.so
+#%{_libdir}/dri/r600_dri.so
 %if 0%{?with_radeonsi}
 %{_libdir}/dri/radeonsi_dri.so
 %endif
@@ -538,8 +538,8 @@ rm -rf $RPM_BUILD_ROOT
 # exist on s390x where swrast is llvmpipe, but does exist on s390 where
 # swrast is classic mesa.  this seems like a bug?  in that it probably
 # means the gallium drivers are linking dricore statically?  fixme.
-%if 0%{?with_llvm}
 %{_libdir}/dri/swrast_dri.so
+%if 0%{?with_llvm}
 %{_libdir}/dri/kms_swrast_dri.so
 %endif
 
@@ -549,8 +549,8 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,root,root,-)
 %{_libdir}/vdpau/libvdpau_nouveau.so.1*
 %if 0%{?with_llvm}
-%{_libdir}/vdpau/libvdpau_r600.so.1*
-%{_libdir}/vdpau/libvdpau_radeonsi.so.1*
+#%{_libdir}/vdpau/libvdpau_r600.so.1*
+#%{_libdir}/vdpau/libvdpau_radeonsi.so.1*
 %endif
 %endif
 %endif
