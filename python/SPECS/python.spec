@@ -114,7 +114,7 @@ Summary: An interpreted, interactive, object-oriented programming language
 Name: %{python}
 # Remember to also rebase python-docs when changing this:
 Version: 2.7.5
-Release: 76%{?dist}.redsleeve
+Release: 77%{?dist}
 License: Python
 Group: Development/Languages
 Requires: %{python}-libs%{?_isa} = %{version}-%{release}
@@ -1276,6 +1276,12 @@ Patch305: 00305-CVE-2016-2183.patch
 # Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1579432
 Patch306: 00306-fix-oserror-17-upon-semaphores-creation.patch
 
+# 00320 #
+# Security fix for CVE-2019-9636: Information Disclosure due to urlsplit improper NFKC normalization
+# FIXED UPSTREAM: https://bugs.python.org/issue36216
+# Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1689316
+Patch320: 00320-CVE-2019-9636.patch
+
 # (New patches go here ^^^)
 #
 # When adding new patches to "python" and "python3" in Fedora 17 onwards,
@@ -1300,9 +1306,6 @@ Patch306: 00306-fix-oserror-17-upon-semaphores-creation.patch
 #   %%{regenerate_autotooling_patch}
 # above:
 Patch5000: 05000-autotool-intermediates.patch
-
-Patch6001: python-2.7.5-Fix-re-engine-redsleeve.patch
-Patch6002: python-2.7.5-Fix-re-engine2-redsleeve.patch
 
 # ======================================================
 # Additional metadata, and subpackages
@@ -1711,6 +1714,7 @@ mv Modules/cryptmodule.c Modules/_cryptmodule.c
 %patch303 -p1
 %patch305 -p1
 %patch306 -p1
+%patch320 -p1
 
 
 # This shouldn't be necesarry, but is right now (2.2a3)
@@ -1722,8 +1726,6 @@ find -name "*~" |xargs rm -f
 %patch5000 -p0 -b .autotool-intermediates
 %endif
 
-%patch6001 -p1
-%patch6002 -p1
 
 # ======================================================
 # Configuring and building the code:
@@ -2593,12 +2595,9 @@ rm -fr %{buildroot}
 # ======================================================
 
 %changelog
-* Wed Oct 31 2018 Jacco Ligthart <jacco@ligthart.nu> - 2.7.5-76.redsleeve
-- Issue #17998: Fix an internal error in regular expression engine.
-- https://github.com/OpenSCAP/scap-security-guide/issues/1332
-- https://bugs.python.org/issue17998
-- and related issue #18684
-- https://bugs.python.org/issue18684
+* Tue Mar 26 2019 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-77
+- Security fix for CVE-2019-9636
+Resolves: rhbz#1689316
 
 * Mon Sep 10 2018 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-76
 - Remove an unversioned obsoletes tag
