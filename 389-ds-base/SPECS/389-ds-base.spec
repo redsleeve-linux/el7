@@ -19,7 +19,7 @@
 %global use_tcmalloc 0
 %global variant base-asan
 %else
-%if %{_arch} != "s390x" && %{_arch} != "s390"
+%ifnarch s390 s390x %{arm}
 %global use_tcmalloc 1
 %else
 %global use_tcmalloc 0
@@ -39,7 +39,7 @@
 Summary:          389 Directory Server (%{variant})
 Name:             389-ds-base
 Version:          1.3.8.4
-Release:          %{?relprefix}23%{?prerel}%{?dist}
+Release:          %{?relprefix}23%{?prerel}%{?dist}.redsleeve
 License:          GPLv3+
 URL:              https://www.port389.org/
 Group:            System Environment/Daemons
@@ -517,6 +517,9 @@ fi
 %{_sysconfdir}/%{pkgname}/dirsrvtests
 
 %changelog
+* Thu Mar 14 2019 Jacco Ligthart <jacco@redsleeve.org> - 1.3.8.4-23.redsleeve
+- disabled tcmalloc for arm
+
 * Wed Feb 6 2019 Mark Reynolds <mreynolds@redhat.com> - 1.3.8.4-23
 - Bump version to 1.3.8.4-23
 - Resolves: Bug 1672173 - import task should not be deleted after import finishes to be able to query the status
