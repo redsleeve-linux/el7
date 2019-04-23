@@ -53,7 +53,7 @@
 %global ppc64le         ppc64le
 %global ppc64be         ppc64 ppc64p7
 %global multilib_arches %{power64} sparc64 x86_64
-%global jit_arches      %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64} s390x
+%global jit_arches      %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64} %{arm} s390x
 %global aot_arches      x86_64 %{aarch64}
 
 # By default, we build a debug build during main build on JIT architectures
@@ -189,7 +189,11 @@
 
 # New Version-String scheme-style defines
 %global majorver 11
-%global securityver 2
+%global securityver 3
+# buildjdkver is usually same as %%{majorver},
+# but in time of bootstrap of next jdk, it is majorver-1, 
+# and this it is better to change it here, on single place
+%global buildjdkver %{majorver}
 # Used via new version scheme. JDK 11 was
 # GA'ed in September 2018 => 18.9
 %global vendor_version_string 18.9
@@ -846,7 +850,7 @@ Provides: java-%{javaver}-%{origin}-src%1 = %{epoch}:%{version}-%{release}
 
 Name:    java-%{javaver}-%{origin}
 Version: %{newjavaver}.%{buildver}
-Release: 0%{?dist}.redsleeve
+Release: 0%{?dist}
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
 # and this change was brought into RHEL-4. java-1.5.0-ibm packages
 # also included the epoch in their virtual provides. This created a
@@ -925,7 +929,7 @@ Patch5:    pr1983-rh1565658-support_using_the_system_installation_of_nss_with_th
 
 #############################################
 #
-# Shenandaoh specific patches
+# Shenandoah specific patches
 #
 #############################################
 
@@ -935,27 +939,14 @@ Patch5:    pr1983-rh1565658-support_using_the_system_installation_of_nss_with_th
 #
 #############################################
 
-# 8210416, RHBZ#1632174: [linux] Poor StrictMath performance due to non-optimized compilation
-Patch8:    jdk8210416-rh1632174-compile_fdlibm_with_o2_ffp_contract_off_on_gcc_clang_arches.patch
-# 8210425, RHBZ#1632174: [x86] sharedRuntimeTrig/sharedRuntimeTrans compiled without optimization
-Patch9:    jdk8210425-rh1632174-sharedRuntimeTrig_sharedRuntimeTrans_compiled_without_optimization.patch
+# RH1566890: CVE-2018-3639
+Patch6:    rh1566890-CVE_2018_3639-speculative_store_bypass.patch
+# S390 ambiguous log2_intptr call
+Patch8: s390-8214206_fix.patch
 
 #############################################
 #
 # JDK 9+ only patches
-#
-#############################################
-
-# 8210647, RHBZ#1632174: libsaproc is being compiled without optimization
-Patch10:    jdk8210647-rh1632174-libsaproc_is_being_compiled_without_optimization.patch
-# 8210761, RHBZ#1632174: libjsig is being compiled without optimization
-Patch11:    jdk8210761-rh1632174-libjsig_is_being_compiled_without_optimization.patch
-# 8210703, RHBZ#1632174: vmStructs.cpp compiled with -O0
-Patch12:    jdk8210703-rh1632174-vmStructs_cpp_no_longer_compiled_with_o0
-
-#############################################
-#
-# Patches appearing in 11.0.2
 #
 #############################################
 
@@ -972,6 +963,13 @@ BuildRequires: freetype-devel
 BuildRequires: giflib-devel
 BuildRequires: gcc-c++
 BuildRequires: gdb
+%ifarch %{arm}
+BuildRequires: devtoolset-7-build
+BuildRequires: devtoolset-7-binutils
+BuildRequires: devtoolset-7-gcc
+BuildRequires: devtoolset-7-gcc-c++
+BuildRequires: devtoolset-7-gdb
+%endif
 BuildRequires: gtk2-devel
 # LCMS on rhel7 is older then LCMS in intree JDK
 BuildRequires: lcms2-devel
@@ -1222,11 +1220,8 @@ pushd %{top_level_dir_name}
 %patch3 -p1
 %patch4 -p1
 %patch5 -p1
+%patch6 -p1
 %patch8 -p1
-%patch9 -p1
-%patch10 -p1
-%patch11 -p1
-%patch12 -p1
 %patch525 -p1
 popd # openjdk
 
@@ -1278,6 +1273,10 @@ sed -e "s:@NSS_LIBDIR@:%{NSS_LIBDIR}:g" %{SOURCE11} > nss.cfg
 
 
 %build
+%ifarch %{arm}
+%{?enable_devtoolset7:%{enable_devtoolset7}}
+%endif
+
 # How many CPU's do we have?
 export NUM_PROC=%(/usr/bin/getconf _NPROCESSORS_ONLN 2> /dev/null || :)
 export NUM_PROC=${NUM_PROC:-1}
@@ -1298,6 +1297,10 @@ export CFLAGS="$CFLAGS -mieee"
 # Explicitly set the C++ standard as the default has changed on GCC >= 6
 EXTRA_CFLAGS="%ourcppflags -std=gnu++98 -Wno-error -fno-delete-null-pointer-checks"
 EXTRA_CPP_FLAGS="%ourcppflags -std=gnu++98 -fno-delete-null-pointer-checks"
+%ifarch %{ix86}
+EXTRA_CFLAGS="${EXTRA_CFLAGS} -mstackrealign"
+EXTRA_CPP_FLAGS="${EXTRA_CPP_FLAGS} -mstackrealign"
+%endif
 
 %ifarch %{power64} ppc
 # fix rpmlint warnings
@@ -1455,18 +1458,21 @@ done
 # Using line number 1 might cause build problems. See:
 # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
 # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
-#gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
-#handle SIGSEGV pass nostop noprint
-#handle SIGILL pass nostop noprint
-#set breakpoint pending on
-#break javaCalls.cpp:1
-#commands 1
-#backtrace
-#quit
-#end
-#run -version
-#EOF
-#grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
+# Temporarily disabled on s390x as it sporadically crashes with SIGFPE, Arithmetic exception.
+%ifnarch s390x
+gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
+handle SIGSEGV pass nostop noprint
+handle SIGILL pass nostop noprint
+set breakpoint pending on
+break javaCalls.cpp:1
+commands 1
+backtrace
+quit
+end
+run -version
+EOF
+grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
+%endif
 
 # Check src.zip has all sources. See RHBZ#1130490
 jar -tf $JAVA_HOME/lib/src.zip | grep 'sun.misc.Unsafe'
@@ -1765,9 +1771,34 @@ require "copy_jdk_configs.lua"
 
 
 %changelog
-* Wed Mar 06 2019 Jacco Ligthart <jacco@redsleeve.org> - 1:11.0.2.7-0.redsleeve
-- removed arm from jit_arches
-- removed the gdb section of the SPEC file
+* Wed Apr 17 2019 Johnny Hughes <johnny@centos.org> - 1:11.0.3.7-0
+- Mnaual CentOS debranding
+
+* Mon Apr 08 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.3.7-0
+- Add -mstackrealign workaround to build flags to avoid SSE issues on x86
+- Resolves: rhbz#1693468
+
+* Mon Apr 08 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.3.7-0
+- Update to shenandoah-jdk-11.0.3+7 (April 2019 GA)
+- Resolves: rhbz#1693468
+
+* Sat Apr 06 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.3.6-0
+- Update to shenandoah-jdk-11.0.3+6 (April 2019 EA)
+- Drop JDK-8210416/RH1632174 applied upstream.
+- Drop JDK-8210425/RH1632174 applied upstream.
+- Drop JDK-8210647/RH1632174 applied upstream.
+- Drop JDK-8210761/RH1632174 applied upstream.
+- Drop JDK-8210703/RH1632174 applied upstream.
+- Add cast to resolve s390 ambiguity in call to log2_intptr
+- Resolves: rhbz#1693468
+
+* Wed Apr 03 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.2.7-1
+- Disable gdb check on s390 as it sporadically fails with SIGFPE
+- Resolves: rhbz#1693468
+
+* Thu Mar 21 2019 Severin Gehwolf <sgehwolf@redhat.com> - 1:11.0.2.7-1
+- Add patch for RH1566890
+- Resolves: rhbz#1693468
 
 * Tue Jan 15 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.2.7-0
 - Update to shenandoah-jdk-11.0.2+7 (January 2019 CPU)
