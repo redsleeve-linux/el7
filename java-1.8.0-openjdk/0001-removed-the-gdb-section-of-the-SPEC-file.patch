@@ -1,6 +1,6 @@
-From ff3cc286cc823f25bf40838a24fc23ddf298a6f0 Mon Sep 17 00:00:00 2001
+From 4b07f6c40a53f53e578be8613453aea25cd13ede Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Thu, 14 Mar 2019 22:38:47 +0100
+Date: Tue, 23 Apr 2019 22:33:43 +0200
 Subject: [PATCH] removed the gdb section of the SPEC file
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] removed the gdb section of the SPEC file
  1 file changed, 16 insertions(+), 13 deletions(-)
 
 diff --git a/SPECS/java-1.8.0-openjdk.spec b/SPECS/java-1.8.0-openjdk.spec
-index e2f5cdb..a4be562 100644
+index 5b4e58e..c9ddc53 100644
 --- a/SPECS/java-1.8.0-openjdk.spec
 +++ b/SPECS/java-1.8.0-openjdk.spec
 @@ -819,7 +819,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
@@ -20,7 +20,7 @@ index e2f5cdb..a4be562 100644
  # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
  # and this change was brought into RHEL-4. java-1.5.0-ibm packages
  # also included the epoch in their virtual provides. This created a
-@@ -1696,18 +1696,18 @@ done
+@@ -1651,18 +1651,18 @@ done
  # Using line number 1 might cause build problems. See:
  # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
  # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
@@ -51,15 +51,15 @@ index e2f5cdb..a4be562 100644
  
  # Check src.zip has all sources. See RHBZ#1130490
  jar -tf $JAVA_HOME/src.zip | grep 'sun.misc.Unsafe'
-@@ -2130,6 +2130,9 @@ require "copy_jdk_configs.lua"
+@@ -2085,6 +2085,9 @@ require "copy_jdk_configs.lua"
  %endif
  
  %changelog
-+* Wed Mar 06 2019 Jacco Ligthart <jacco@ligthart.nu> 1:1.8.0.201.b09-0.redsleeve
++* Tue Apr 23 2019 Jacco Ligthart <jacco@redsleeve.org> 1:1.8.0.212.b04-0.redsleeve
 +- removed the gdb section of the SPEC file
 +
- * Mon Mar 04 2019 Johnny Hughes <johnny@centos.org>
- - Roll in Changes for armhfp
+ * Wed Apr 17 2019 Johnny Hughes <johnny@centos.org> - 1:1.8.0.212.b04-0
+ - Manual CentOS Debranding
  
 -- 
 1.8.3.1
