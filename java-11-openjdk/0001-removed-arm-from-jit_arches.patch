@@ -1,14 +1,14 @@
-From 51ba00a4e50eef5d81637c49b5e55865251c9991 Mon Sep 17 00:00:00 2001
+From 190bd9d5d3a32746d2daf41a5ba37bf3582b56a5 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Thu, 14 Mar 2019 22:34:38 +0100
+Date: Tue, 23 Apr 2019 22:48:55 +0200
 Subject: [PATCH] removed arm from jit_arches
 
 ---
- SPECS/java-11-openjdk.spec | 32 ++++++++++++++++++--------------
- 1 file changed, 18 insertions(+), 14 deletions(-)
+ SPECS/java-11-openjdk.spec | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
 
 diff --git a/SPECS/java-11-openjdk.spec b/SPECS/java-11-openjdk.spec
-index 89cad59..f0ec221 100644
+index 05953f9..9a6bea8 100644
 --- a/SPECS/java-11-openjdk.spec
 +++ b/SPECS/java-11-openjdk.spec
 @@ -53,7 +53,7 @@
@@ -20,7 +20,7 @@ index 89cad59..f0ec221 100644
  %global aot_arches      x86_64 %{aarch64}
  
  # By default, we build a debug build during main build on JIT architectures
-@@ -846,7 +846,7 @@ Provides: java-%{javaver}-%{origin}-src%1 = %{epoch}:%{version}-%{release}
+@@ -850,7 +850,7 @@ Provides: java-%{javaver}-%{origin}-src%1 = %{epoch}:%{version}-%{release}
  
  Name:    java-%{javaver}-%{origin}
  Version: %{newjavaver}.%{buildver}
@@ -29,48 +29,26 @@ index 89cad59..f0ec221 100644
  # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
  # and this change was brought into RHEL-4. java-1.5.0-ibm packages
  # also included the epoch in their virtual provides. This created a
-@@ -1455,18 +1455,18 @@ done
- # Using line number 1 might cause build problems. See:
+@@ -1459,7 +1459,7 @@ done
  # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
  # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
--gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
--handle SIGSEGV pass nostop noprint
--handle SIGILL pass nostop noprint
--set breakpoint pending on
--break javaCalls.cpp:1
--commands 1
--backtrace
--quit
--end
--run -version
--EOF
--grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
-+#gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
-+#handle SIGSEGV pass nostop noprint
-+#handle SIGILL pass nostop noprint
-+#set breakpoint pending on
-+#break javaCalls.cpp:1
-+#commands 1
-+#backtrace
-+#quit
-+#end
-+#run -version
-+#EOF
-+#grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
- 
- # Check src.zip has all sources. See RHBZ#1130490
- jar -tf $JAVA_HOME/lib/src.zip | grep 'sun.misc.Unsafe'
-@@ -1765,6 +1765,10 @@ require "copy_jdk_configs.lua"
+ # Temporarily disabled on s390x as it sporadically crashes with SIGFPE, Arithmetic exception.
+-%ifnarch s390x
++%ifnarch s390x %{arm}
+ gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
+ handle SIGSEGV pass nostop noprint
+ handle SIGILL pass nostop noprint
+@@ -1771,6 +1771,10 @@ require "copy_jdk_configs.lua"
  
  
  %changelog
-+* Wed Mar 06 2019 Jacco Ligthart <jacco@redsleeve.org> - 1:11.0.2.7-0.redsleeve
++* Tue Apr 23 2019 Jacco Ligthart <jacco@redsleeve.org> - 1:11.0.3.7-0.redsleeve
 +- removed arm from jit_arches
 +- removed the gdb section of the SPEC file
 +
- * Tue Jan 15 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.2.7-0
- - Update to shenandoah-jdk-11.0.2+7 (January 2019 CPU)
- - Make tagsuffix optional and comment it out while unused.
+ * Wed Apr 17 2019 Johnny Hughes <johnny@centos.org> - 1:11.0.3.7-0
+ - Mnaual CentOS debranding
+ 
 -- 
 1.8.3.1
 
