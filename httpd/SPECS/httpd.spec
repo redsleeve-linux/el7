@@ -15,10 +15,10 @@
 Summary: Apache HTTP Server
 Name: httpd
 Version: 2.4.6
-Release: 88%{?dist}.redsleeve
+Release: 89%{?dist}
 URL: http://httpd.apache.org/
 Source0: http://www.apache.org/dist/httpd/httpd-%{version}.tar.bz2
-Source1: index.html
+Source1: centos-noindex.tar.gz
 Source2: httpd.logrotate
 Source3: httpd.sysconf
 Source4: httpd-ssl-pass-dialog
@@ -189,6 +189,8 @@ Patch137: httpd-2.4.6-r1825120.patch
 Patch138: httpd-2.4.6-r1515372.patch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1458364
 Patch139: httpd-2.4.6-r1824872.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1583218
+Patch140: httpd-2.4.6-r1833014.patch
 
 # Security fixes
 Patch200: httpd-2.4.6-CVE-2013-6438.patch
@@ -432,6 +434,7 @@ rm modules/ssl/ssl_engine_dh.c
 %patch137 -p1 -b .r1825120
 %patch138 -p1 -b .r1515372
 %patch139 -p1 -b .r1824872
+%patch140 -p1 -b .r1833014
 
 
 %patch200 -p1 -b .cve6438
@@ -608,8 +611,9 @@ EOF
 
 # Handle contentdir
 mkdir $RPM_BUILD_ROOT%{contentdir}/noindex
-install -m 644 -p $RPM_SOURCE_DIR/index.html \
-        $RPM_BUILD_ROOT%{contentdir}/noindex/index.html
+tar xzf $RPM_SOURCE_DIR/centos-noindex.tar.gz \
+        -C $RPM_BUILD_ROOT%{contentdir}/noindex/ \
+        --strip-components=1
 
 rm -rf %{contentdir}/htdocs
 
@@ -633,7 +637,7 @@ rm -v $RPM_BUILD_ROOT%{docroot}/html/*.html \
       $RPM_BUILD_ROOT%{docroot}/cgi-bin/*
 
 # Symlink for the powered-by-$DISTRO image:
-ln -s ../../pixmaps/poweredby.png \
+ln -s ../noindex/images/poweredby.png \
         $RPM_BUILD_ROOT%{contentdir}/icons/poweredby.png
 
 # symlinks for /etc/httpd
@@ -819,7 +823,7 @@ rm -rf $RPM_BUILD_ROOT
 %{contentdir}/error/README
 %{contentdir}/error/*.var
 %{contentdir}/error/include/*.html
-%{contentdir}/noindex/index.html
+%{contentdir}/noindex/*
 
 %dir %{docroot}
 %dir %{docroot}/cgi-bin
@@ -885,14 +889,14 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/rpm/macros.httpd
 
 %changelog
-* Thu Nov 08 2018 Jacco Ligthart <jacco@redsleeve.org> - 2.4.6-88.el7.redsleeve
-- roll in redsleeve branding, based on RHEL
-
-* Tue Oct 30 2018 CentOS Sources <bugs@centos.org> - 2.4.6-88.el7.centos
+* Wed Apr 24 2019 CentOS Sources <bugs@centos.org> - 2.4.6-89.el7.centos
 - Remove index.html, add centos-noindex.tar.gz
 - change vstring
 - change symlink for poweredby.png
 - update welcome.conf with proper aliases
+
+* Fri Mar 15 2019 Joe Orton <jorton@redhat.com> - 2.4.6-89
+- fix per-request leak of bucket brigade structure (#1583218)
 
 * Thu Jun 21 2018 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-88
 - Resolves: #1527295 - httpd with worker/event mpm segfaults after multiple

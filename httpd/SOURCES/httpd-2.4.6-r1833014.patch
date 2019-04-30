@@ -1,0 +1,83 @@
+diff --git a/modules/http/http_request.c b/modules/http/http_request.c
+index c97dc77..9885de4 100644
+--- a/modules/http/http_request.c
++++ b/modules/http/http_request.c
+@@ -227,11 +227,21 @@ AP_DECLARE(void) ap_die(int type, request_rec *r)
+     ap_die_r(type, r, r->status);
+ }
+ 
+-static void check_pipeline(conn_rec *c)
++#define RETRIEVE_BRIGADE_FROM_POOL(bb, key, pool, allocator) do {       \
++    apr_pool_userdata_get((void **)&bb, key, pool);                     \
++    if (bb == NULL) {                                                   \
++        bb = apr_brigade_create(pool, allocator);                       \
++        apr_pool_userdata_setn((const void *)bb, key, NULL, pool);      \
++    }                                                                   \
++    else {                                                              \
++        apr_brigade_cleanup(bb);                                        \
++    }                                                                   \
++} while(0)
++
++static void check_pipeline(conn_rec *c, apr_bucket_brigade *bb)
+ {
+     if (c->keepalive != AP_CONN_CLOSE) {
+         apr_status_t rv;
+-        apr_bucket_brigade *bb = apr_brigade_create(c->pool, c->bucket_alloc);
+ 
+         rv = ap_get_brigade(c->input_filters, bb, AP_MODE_SPECULATIVE,
+                             APR_NONBLOCK_READ, 1);
+@@ -245,11 +255,10 @@ static void check_pipeline(conn_rec *c)
+         else {
+             c->data_in_input_filters = 1;
+         }
+-        apr_brigade_destroy(bb);
++        apr_brigade_cleanup(bb);
+     }
+ }
+ 
+-
+ AP_DECLARE(void) ap_process_request_after_handler(request_rec *r)
+ {
+     apr_bucket_brigade *bb;
+@@ -260,11 +269,13 @@ AP_DECLARE(void) ap_process_request_after_handler(request_rec *r)
+      * this bucket is destroyed, the request will be logged and
+      * its pool will be freed
+      */
+-    bb = apr_brigade_create(r->connection->pool, r->connection->bucket_alloc);
++    RETRIEVE_BRIGADE_FROM_POOL(bb, "ap_process_request_after_handler_brigade",
++                               c->pool, c->bucket_alloc);
+     b = ap_bucket_eor_create(r->connection->bucket_alloc, r);
+     APR_BRIGADE_INSERT_HEAD(bb, b);
+ 
+     ap_pass_brigade(r->connection->output_filters, bb);
++    apr_brigade_cleanup(bb);
+ 
+     /* From here onward, it is no longer safe to reference r
+      * or r->pool, because r->pool may have been destroyed
+@@ -273,7 +284,7 @@ AP_DECLARE(void) ap_process_request_after_handler(request_rec *r)
+ 
+     if (c->cs)
+         c->cs->state = CONN_STATE_WRITE_COMPLETION;
+-    check_pipeline(c);
++    check_pipeline(c, bb);
+     AP_PROCESS_REQUEST_RETURN((uintptr_t)r, r->uri, r->status);
+     if (ap_extended_status) {
+         ap_time_process_request(c->sbh, STOP_PREQUEST);
+@@ -363,7 +374,8 @@ void ap_process_request(request_rec *r)
+     ap_process_async_request(r);
+ 
+     if (!c->data_in_input_filters) {
+-        bb = apr_brigade_create(c->pool, c->bucket_alloc);
++        RETRIEVE_BRIGADE_FROM_POOL(bb, "ap_process_request_after_handler_brigade",
++                                   c->pool, c->bucket_alloc);
+         b = apr_bucket_flush_create(c->bucket_alloc);
+         APR_BRIGADE_INSERT_HEAD(bb, b);
+         rv = ap_pass_brigade(c->output_filters, bb);
+@@ -380,6 +392,7 @@ void ap_process_request(request_rec *r)
+                           "Timeout while writing data for URI %s to the"
+                           " client", r->unparsed_uri);
+         }
++        apr_brigade_cleanup(bb);
+     }
+     if (ap_extended_status) {
+         ap_time_process_request(c->sbh, STOP_PREQUEST);
