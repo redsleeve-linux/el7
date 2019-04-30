@@ -2,7 +2,7 @@
 Summary: A set of tools to gather troubleshooting information from a system
 Name: sos
 Version: 3.6
-Release: 16%{?dist}.redsleeve
+Release: 17%{?dist}
 Group: Applications/System
 Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
 License: GPLv2+
@@ -37,7 +37,8 @@ Patch16: sos-bz1658570-docker-podman-containers.patch
 Patch17: sos-bz1658571-postgresql-collect-full-dump.patch
 Patch18: sos-bz1669045-rhcos-policy-and-plugins.patch
 Patch19: sos-bz1679238-crio-plugin.patch
-Patch20: sos-3.6-redsleeve-branding.patch
+Patch20: sos-bz1690999-docker-skip-system-df.patch
+Patch21: sos-3.6-centos-branding.patch
 
 %description
 Sos is a set of tools that gathers information about system
@@ -68,6 +69,7 @@ support technicians and developers.
 %patch18 -p1
 %patch19 -p1
 %patch20 -p1
+%patch21 -p1
 
 %build
 make
@@ -91,11 +93,12 @@ rm -rf ${RPM_BUILD_ROOT}
 %config(noreplace) %{_sysconfdir}/sos.conf
 
 %changelog
-* Thu Mar 14 2019 Jacco Ligthart <jacco@redsleeve.org> - 3.6-16.el7.redsleeve
-- Roll in RedSleeve Branding
-
-* Tue Mar 12 2019 CentOS Sources <bugs@centos.org> - 3.6-16.el7.centos
+* Tue Apr 23 2019 CentOS Sources <bugs@centos.org> - 3.6-17.el7.centos
 - Roll in CentOS Branding
+
+* Wed Mar 20 2019 Pavel Moravec <pmoravec@redhat.com> = 3.6-17
+- [docker] do not collect 'system df' by default
+  Resolves: bz1690999
 
 * Mon Feb 25 2019 Pavel Moravec <pmoravec@redhat.com> = 3.6-16
 - [crio] Add tagging classes

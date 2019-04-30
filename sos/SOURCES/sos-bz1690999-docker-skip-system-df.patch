@@ -1,0 +1,43 @@
+From 372e9389e83befbb9d48ae9bebd83c7dde87d95c Mon Sep 17 00:00:00 2001
+From: Jake Hunsaker <jhunsake@redhat.com>
+Date: Wed, 20 Mar 2019 14:48:21 +0000
+Subject: [PATCH] [docker] do not collect 'system df' by default
+
+Gates collection of 'docker system df' behind the docker.size option
+as this command can take a long time to run just like 'ps -as'.
+
+Related: #1580
+
+Signed-off-by: Jake Hunsaker <jhunsake@redhat.com>
+Signed-off-by: Bryn M. Reeves <bmr@redhat.com>
+---
+ sos/plugins/docker.py | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/sos/plugins/docker.py b/sos/plugins/docker.py
+index d8c854f9..80c4946f 100644
+--- a/sos/plugins/docker.py
++++ b/sos/plugins/docker.py
+@@ -49,7 +49,6 @@ class Docker(Plugin):
+             'ps',
+             'ps -a',
+             'stats --no-stream',
+-            'system df',
+             'version',
+             'volume ls'
+         ]
+@@ -48,9 +48,10 @@ class Docker(Plugin):
+         for subcmd in subcmds:
+             self.add_cmd_output("docker %s" % subcmd)
+ 
+-        # separately grab ps -s as this can take a *very* long time
++        # separately grab these separately as they can take a *very* long time
+         if self.get_option('size'):
+             self.add_cmd_output('docker ps -as')
++            self.add_cmd_output('docker system df')
+ 
+         self.add_journal(units="docker")
+         self.add_cmd_output("ls -alhR /etc/docker")
+-- 
+2.17.2
+
