@@ -1,14 +1,14 @@
-From f55e2dc3d845a4a405a906b4f3fd5fd5deeeae93 Mon Sep 17 00:00:00 2001
+From 6b99739598800f30b5cfca7d747715ba2a9328c7 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Wed, 10 Apr 2019 00:49:27 +0200
+Date: Tue, 30 Apr 2019 23:13:37 +0200
 Subject: [PATCH] added arm to the ExclusiveArch and nobuildarches lists
 
 ---
- SPECS/kernel.spec | 18 +++++++++++++-----
- 1 file changed, 13 insertions(+), 5 deletions(-)
+ SPECS/kernel.spec | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)
 
 diff --git a/SPECS/kernel.spec b/SPECS/kernel.spec
-index 1c77c8e..15151fc 100644
+index 52b3582..83ea012 100644
 --- a/SPECS/kernel.spec
 +++ b/SPECS/kernel.spec
 @@ -222,6 +222,11 @@ Summary: The Linux kernel
@@ -45,30 +45,16 @@ index 1c77c8e..15151fc 100644
  ExclusiveOS: Linux
  
  %kernel_reqprovconf
-@@ -396,11 +401,11 @@ Source11: x509.genkey
- Source12: extra_certificates
- %if %{?released_kernel}
- Source13: centos-ca-secureboot.der
--Source14: centossecureboot001.crt
-+#Source14: centossecureboot001.crt
- %define  centossecureboot001
- %else
- Source13: centos-ca-secureboot.der
--Source14: centossecureboot001.crt
-+#Source14: centossecureboot001.crt
- %define  centossecureboot001
- %endif
- Source15: centos-ldup.x509
 @@ -1757,6 +1762,9 @@ fi
  %kernel_variant_files %{with_kdump} kdump
  
  %changelog
-+* Thu Mar 14 2019 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-957.10.1.el7.redsleeve
++* Tue Apr 30 2019 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-957.12.1.el7.redsleeve
 +- added arm to the ExclusiveArch and nobuildarches lists
 +
- * Tue Mar 12 2019 CentOS Sources <bugs@centos.org> - 3.10.0-957.10.1.el7
+ * Tue Apr 23 2019 CentOS Sources <bugs@centos.org> - 3.10.0-957.12.1.el7
  - Apply debranding changes
- - Sign with new secureboot key
+ - Sign with new Secureboot key
 -- 
 1.8.3.1
 
