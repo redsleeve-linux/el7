@@ -1,6 +1,6 @@
 %define glibcsrcdir glibc-2.17-c758a686
 %define glibcversion 2.17
-%define glibcrelease 260%{?dist}.4
+%define glibcrelease 260%{?dist}.5
 ##############################################################################
 # We support the following options:
 # --with/--without,
@@ -125,7 +125,7 @@
 Summary: The GNU libc libraries
 Name: glibc
 Version: %{glibcversion}
-Release: %{glibcrelease}.redsleeve
+Release: %{glibcrelease}
 # GPLv2+ is used in a bunch of programs, LGPLv2+ is used for libraries.
 # Things that are linked directly into dynamically linked programs
 # and shared libraries (e.g. crt files, lib*_nonshared.a) have an additional
@@ -258,6 +258,11 @@ Patch0068: glibc-rh1349982.patch
 
 # These changes were brought forward from RHEL 6 for compatibility
 Patch0069: glibc-rh1448107.patch
+
+# Armhfp build issue
+Patch9998: glibc-armhfp-ELF_MACHINE_NO_REL-undefined.patch
+Patch9999: glibc-rh1256317-armhfp-build-issue.patch
+
 ##############################################################################
 #
 # Patches from upstream
@@ -1560,16 +1565,12 @@ Patch2114: glibc-rh1471405.patch
 # End of glibc patches.
 ##############################################################################
 
-Patch3000: glibc-rh1256317-redsleeve.patch
-Patch3001: glibc-rh1505492-redsleeve.patch
-
 ##############################################################################
 # Continued list of core "glibc" package information:
 ##############################################################################
 
 Buildroot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 Obsoletes: glibc-profile < 2.4
-Obsoletes: nss_db
 Provides: ldconfig
 # The dynamic linker supports DT_GNU_HASH
 Provides: rtld(GNU_HASH)
@@ -1581,7 +1582,7 @@ Provides: ld-linux.so.3
 Provides: ld-linux.so.3(GLIBC_2.4)
 %endif
 
-# This should remain "Provides: nss_db" (or become a subpackage) to allow easy
+# This should remain (or become a subpackage) to allow easy
 # migration from old systems that previously had the old nss_db package
 # installed. Note that this doesn't make the migration that smooth, the
 # databases still need rebuilding because the formats were different.
@@ -1589,7 +1590,9 @@ Provides: ld-linux.so.3(GLIBC_2.4)
 # https://lists.fedoraproject.org/pipermail/devel/2011-July/153665.html
 # The different database format does cause some issues for users:
 # https://lists.fedoraproject.org/pipermail/devel/2011-December/160497.html
-Provides: nss_db
+Obsoletes: nss_db < 2.17
+Provides: nss_db = %{version}-%{release}
+Provides: nss_db%{_isa} = %{version}-%{release}
 
 Requires: glibc-common = %{version}-%{release}
 
@@ -2830,8 +2833,10 @@ package or when debugging this package.
 %patch2755 -p1
 %patch2756 -p1
 
-%patch3000 -p1
-%patch3001 -p1
+%ifarch %{arm}
+%patch9998 -p1
+%patch9999 -p1
+%endif
 
 ##############################################################################
 # %%prep - Additional prep required...
@@ -3995,9 +4000,8 @@ rm -f *.filelist*
 %endif
 
 %changelog
-* Tue Apr 09 2019 Jacco Ligthart <jacco@redsleeve.org> 2.17-260.4.redsleeve
-- enhanced the patch for rh1256317 to build on arm
-- enhanced the patch for rh1505492 to build on arm
+* Tue Apr 30 2019 Florian Weimer <fweimer@redhat.com> - 2.17-260.5
+- Use versioned Obsoletes: for nss_db (#1704593)
 
 * Mon Apr  1 2019 Florian Weimer <fweimer@redhat.com> - 2.17-260.4
 - ja_JP: Add new Japanese Era name (#1693152)
