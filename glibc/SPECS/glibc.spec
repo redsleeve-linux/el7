@@ -125,7 +125,7 @@
 Summary: The GNU libc libraries
 Name: glibc
 Version: %{glibcversion}
-Release: %{glibcrelease}
+Release: %{glibcrelease}.redsleeve
 # GPLv2+ is used in a bunch of programs, LGPLv2+ is used for libraries.
 # Things that are linked directly into dynamically linked programs
 # and shared libraries (e.g. crt files, lib*_nonshared.a) have an additional
@@ -1565,6 +1565,9 @@ Patch2114: glibc-rh1471405.patch
 # End of glibc patches.
 ##############################################################################
 
+Patch3000: glibc-rh1256317-redsleeve.patch
+Patch3001: glibc-rh1505492-redsleeve.patch
+
 ##############################################################################
 # Continued list of core "glibc" package information:
 ##############################################################################
@@ -2837,6 +2840,9 @@ package or when debugging this package.
 %patch9998 -p1
 %patch9999 -p1
 %endif
+
+%patch3000 -p1
+%patch3001 -p1
 
 ##############################################################################
 # %%prep - Additional prep required...

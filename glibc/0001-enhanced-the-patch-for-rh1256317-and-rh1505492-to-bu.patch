@@ -1,14 +1,14 @@
-From 384f0de4d373d213dc0331a25552cb389bfe73be Mon Sep 17 00:00:00 2001
+From 2192ec487712ed71eba7442b463c087264281bcc Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Wed, 17 Apr 2019 21:56:15 +0200
+Date: Mon, 3 Jun 2019 23:17:57 +0200
 Subject: [PATCH] enhanced the patch for rh1256317 and rh1505492 to build on
  arm
 
 ---
  SOURCES/glibc-rh1256317-redsleeve.patch | 11 +++++++++++
  SOURCES/glibc-rh1505492-redsleeve.patch | 10 ++++++++++
- SPECS/glibc.spec                        | 12 +++++++++++-
- 3 files changed, 32 insertions(+), 1 deletion(-)
+ SPECS/glibc.spec                        |  8 +++++++-
+ 3 files changed, 28 insertions(+), 1 deletion(-)
  create mode 100644 SOURCES/glibc-rh1256317-redsleeve.patch
  create mode 100644 SOURCES/glibc-rh1505492-redsleeve.patch
 
@@ -46,7 +46,7 @@ index 0000000..f2314dd
 + /* Names of the architecture-specific auditing callback functions.  */
 + #define ARCH_LA_PLTENTER arm_gnu_pltenter
 diff --git a/SPECS/glibc.spec b/SPECS/glibc.spec
-index 7c19175..8f91c9e 100644
+index 7803f02..53e5eb4 100644
 --- a/SPECS/glibc.spec
 +++ b/SPECS/glibc.spec
 @@ -125,7 +125,7 @@
@@ -58,7 +58,7 @@ index 7c19175..8f91c9e 100644
  # GPLv2+ is used in a bunch of programs, LGPLv2+ is used for libraries.
  # Things that are linked directly into dynamically linked programs
  # and shared libraries (e.g. crt files, lib*_nonshared.a) have an additional
-@@ -1560,6 +1560,9 @@ Patch2114: glibc-rh1471405.patch
+@@ -1565,6 +1565,9 @@ Patch2114: glibc-rh1471405.patch
  # End of glibc patches.
  ##############################################################################
  
@@ -68,9 +68,9 @@ index 7c19175..8f91c9e 100644
  ##############################################################################
  # Continued list of core "glibc" package information:
  ##############################################################################
-@@ -2827,6 +2830,9 @@ package or when debugging this package.
- %patch2755 -p1
- %patch2756 -p1
+@@ -2838,6 +2841,9 @@ package or when debugging this package.
+ %patch9999 -p1
+ %endif
  
 +%patch3000 -p1
 +%patch3001 -p1
@@ -78,17 +78,6 @@ index 7c19175..8f91c9e 100644
  ##############################################################################
  # %%prep - Additional prep required...
  ##############################################################################
-@@ -3989,6 +3995,10 @@ rm -f *.filelist*
- %endif
- 
- %changelog
-+* Tue Apr 09 2019 Jacco Ligthart <jacco@redsleeve.org> 2.17-260.4.redsleeve
-+- enhanced the patch for rh1256317 to build on arm
-+- enhanced the patch for rh1505492 to build on arm
-+
- * Mon Apr  1 2019 Florian Weimer <fweimer@redhat.com> - 2.17-260.4
- - ja_JP: Add new Japanese Era name (#1693152)
- 
 -- 
 1.8.3.1
 
