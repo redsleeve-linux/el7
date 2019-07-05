@@ -1,0 +1,194 @@
+From 8d537fb77d744265a23b0eda33da269ed672e549 Mon Sep 17 00:00:00 2001
+From: Tarun Gupta <tgupta@redhat.com>
+Date: Wed, 20 Jun 2018 18:54:19 +0200
+Subject: [PATCH 11/17] console: minimal hotplug suport
+
+RH-Author: Tarun Gupta <tgupta@redhat.com>
+Message-id: <1529520865-18127-6-git-send-email-tgupta@redhat.com>
+Patchwork-id: 80914
+O-Subject: [RHEL7.6 qemu-kvm PATCH v3 05/11] console: minimal hotplug suport
+Bugzilla: 1555246
+RH-Acked-by: Alex Williamson <alex.williamson@redhat.com>
+RH-Acked-by: Gerd Hoffmann <kraxel@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+This patch allows to unbind devices from QemuConsoles, using the new
+graphic_console_close() function.  The QemuConsole will show a static
+display then, saying the device was unplugged.  When re-plugging a
+display later on the QemuConsole will be reused.
+
+Eventually we will allocate and release QemuConsoles dynamically at some
+point in the future, that'll need more infrastructure though to notify
+user interfaces (gtk, sdl, spice, ...) about QemuConsoles coming and
+going.
+
+Signed-off-by: Gerd Hoffmann <kraxel@redhat.com>
+Signed-off-by: Alex Williamson <alex.williamson@redhat.com>
+
+(cherry picked from 9588d67e72f853349dbb318503368ad01b12feb6)
+
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+Conflicts:
+    qemu-kvm does not have ui/trace-events, so adding traces in
+    trace_events.
+
+    qemu-kvm does not have graphic_console_set_hwops() function,
+    so manually setting the ops.
+---
+ include/ui/console.h |  3 ++-
+ trace-events         |  2 ++
+ ui/console.c         | 75 ++++++++++++++++++++++++++++++++++++++++++++++++----
+ 3 files changed, 74 insertions(+), 6 deletions(-)
+
+diff --git a/include/ui/console.h b/include/ui/console.h
+index 7f5fa66..e23f809 100644
+--- a/include/ui/console.h
++++ b/include/ui/console.h
+@@ -275,13 +275,14 @@ typedef struct GraphicHwOps {
+ QemuConsole *graphic_console_init(DeviceState *dev,
+                                   const GraphicHwOps *ops,
+                                   void *opaque);
+-
++void graphic_console_close(QemuConsole *con);
+ void graphic_hw_update(QemuConsole *con);
+ void graphic_hw_invalidate(QemuConsole *con);
+ void graphic_hw_text_update(QemuConsole *con, console_ch_t *chardata);
+ 
+ QemuConsole *qemu_console_lookup_by_index(unsigned int index);
+ QemuConsole *qemu_console_lookup_by_device(DeviceState *dev);
++QemuConsole *qemu_console_lookup_unused(void);
+ bool qemu_console_is_visible(QemuConsole *con);
+ bool qemu_console_is_graphic(QemuConsole *con);
+ bool qemu_console_is_fixedsize(QemuConsole *con);
+diff --git a/trace-events b/trace-events
+index 8c3ce0c..7b7aad1 100644
+--- a/trace-events
++++ b/trace-events
+@@ -994,6 +994,8 @@ dma_map_wait(void *dbs) "dbs=%p"
+ 
+ # ui/console.c
+ console_gfx_new(void) ""
++console_gfx_reuse(int index) "%d"
++console_gfx_close(int index) "%d"
+ console_txt_new(int w, int h) "%dx%d"
+ console_select(int nr) "%d"
+ console_refresh(int interval) "interval %d ms"
+diff --git a/ui/console.c b/ui/console.c
+index c14a0bc..cc319a9 100644
+--- a/ui/console.c
++++ b/ui/console.c
+@@ -1246,11 +1246,16 @@ static QemuConsole *new_console(DisplayState *ds, console_type_t console_type)
+     }
+     s->ds = ds;
+     s->console_type = console_type;
+-    if (console_type != GRAPHIC_CONSOLE) {
++    if (console_type != GRAPHIC_CONSOLE || qdev_hotplug) {
+         s->index = nb_consoles;
+         consoles[nb_consoles++] = s;
+     } else {
+-        /* HACK: Put graphical consoles before text consoles.  */
++        /*
++         * HACK: Put graphical consoles before text consoles.
++         *
++         * Only do that for coldplugged devices.  After initial device
++         * initialization we will not renumber the consoles any more.
++         */
+         for (i = nb_consoles; i > 0; i--) {
+             if (consoles[i - 1]->console_type == GRAPHIC_CONSOLE)
+                 break;
+@@ -1610,21 +1615,59 @@ QemuConsole *graphic_console_init(DeviceState *dev,
+     int height = 480;
+     QemuConsole *s;
+     DisplayState *ds;
++    DisplaySurface *surface;
+ 
+     ds = get_alloc_displaystate();
+-    trace_console_gfx_new();
+-    s = new_console(ds, GRAPHIC_CONSOLE);
++    s = qemu_console_lookup_unused();
++    if (s) {
++        trace_console_gfx_reuse(s->index);
++        if (s->surface) {
++            width = surface_width(s->surface);
++            height = surface_height(s->surface);
++        }
++    } else {
++        trace_console_gfx_new();
++        s = new_console(ds, GRAPHIC_CONSOLE);
++    }
++
+     s->hw_ops = hw_ops;
+     s->hw = opaque;
++
+     if (dev) {
+         object_property_set_link(OBJECT(s), OBJECT(dev),
+                                  "device", &local_err);
+     }
+ 
+-    s->surface = qemu_create_message_surface(width, height, noinit);
++    surface = qemu_create_message_surface(width, height, noinit);
++    dpy_gfx_replace_surface(s, surface);
+     return s;
+ }
+ 
++static const GraphicHwOps unused_ops = {
++    /* no callbacks */
++};
++
++void graphic_console_close(QemuConsole *con)
++{
++    DisplaySurface *surface;
++    int width = 640;
++    int height = 480;
++
++    if (con->surface) {
++        width = surface_width(con->surface);
++        height = surface_height(con->surface);
++    }
++
++    trace_console_gfx_close(con->index);
++    object_property_set_link(OBJECT(con), NULL, "device", &error_abort);
++
++    con->hw_ops = &unused_ops;
++    con->hw = NULL;
++
++    surface = qemu_create_displaysurface(width, height);
++    dpy_gfx_replace_surface(con, surface);
++}
++
+ QemuConsole *qemu_console_lookup_by_index(unsigned int index)
+ {
+     if (index >= MAX_CONSOLES) {
+@@ -1652,6 +1695,28 @@ QemuConsole *qemu_console_lookup_by_device(DeviceState *dev)
+     return NULL;
+ }
+ 
++QemuConsole *qemu_console_lookup_unused(void)
++{
++    Object *obj;
++    int i;
++
++    for (i = 0; i < nb_consoles; i++) {
++        if (!consoles[i]) {
++            continue;
++        }
++        if (consoles[i]->hw_ops != &unused_ops) {
++            continue;
++        }
++        obj = object_property_get_link(OBJECT(consoles[i]),
++                                       "device", &error_abort);
++        if (obj != NULL) {
++            continue;
++        }
++        return consoles[i];
++    }
++    return NULL;
++}
++
+ bool qemu_console_is_visible(QemuConsole *con)
+ {
+     return (con == active_console) || (con->dcls > 0);
+-- 
+1.8.3.1
+

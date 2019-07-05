@@ -1,0 +1,46 @@
+From b79ac72e8192d3f1036a7027ffed668399183be5 Mon Sep 17 00:00:00 2001
+From: Tarun Gupta <tgupta@redhat.com>
+Date: Wed, 20 Jun 2018 18:54:20 +0200
+Subject: [PATCH 12/17] vfio/common: cleanup in vfio_region_finalize
+
+RH-Author: Tarun Gupta <tgupta@redhat.com>
+Message-id: <1529520865-18127-7-git-send-email-tgupta@redhat.com>
+Patchwork-id: 80910
+O-Subject: [RHEL7.6 qemu-kvm PATCH v3 06/11] vfio/common: cleanup in vfio_region_finalize
+Bugzilla: 1555246
+RH-Acked-by: Alex Williamson <alex.williamson@redhat.com>
+RH-Acked-by: Gerd Hoffmann <kraxel@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+Signed-off-by: Gerd Hoffmann <kraxel@redhat.com>
+Reviewed by: Kirti Wankhede <kwankhede@nvidia.com>
+Signed-off-by: Alex Williamson <alex.williamson@redhat.com>
+
+(cherry picked from 92f86bff088dc6f0c0ed93b8e82d4d2459c35145)
+
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/misc/vfio.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/hw/misc/vfio.c b/hw/misc/vfio.c
+index 68ff949..414b689 100644
+--- a/hw/misc/vfio.c
++++ b/hw/misc/vfio.c
+@@ -2798,6 +2798,13 @@ static void vfio_region_finalize(VFIORegion *region)
+     g_free(region->mmaps);
+ 
+     trace_vfio_region_finalize(region->vbasedev->name, region->nr);
++
++    region->mem = NULL;
++    region->mmaps = NULL;
++    region->nr_mmaps = 0;
++    region->size = 0;
++    region->flags = 0;
++    region->nr = 0;
+ }
+ 
+ static void vfio_region_mmaps_set_enabled(VFIORegion *region, bool enabled)
+-- 
+1.8.3.1
+

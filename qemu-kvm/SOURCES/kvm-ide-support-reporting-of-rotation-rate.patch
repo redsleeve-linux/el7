@@ -1,0 +1,89 @@
+From f4030862f7ac7e6217415e3ca6be6a4151fa8208 Mon Sep 17 00:00:00 2001
+From: John Snow <jsnow@redhat.com>
+Date: Thu, 2 Aug 2018 15:53:35 +0200
+Subject: [PATCH 2/4] ide: support reporting of rotation rate
+
+RH-Author: John Snow <jsnow@redhat.com>
+Message-id: <20180802155336.10347-3-jsnow@redhat.com>
+Patchwork-id: 81614
+O-Subject: [RHEL-7.6 qemu-kvm PATCH 2/3] ide: support reporting of rotation rate
+Bugzilla: 1583807
+RH-Acked-by: Daniel P. Berrange <berrange@redhat.com>
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+
+From: "Daniel P. Berrange" <berrange@redhat.com>
+
+The Linux kernel will query the ATA IDENTITY DEVICE data, word 217
+to determine the rotations per minute of the disk. If this has
+the value 1, it is taken to be an SSD and so Linux sets the
+'rotational' flag to 0 for the I/O queue and will stop using that
+disk as a source of random entropy. Other operating systems may
+also take into account rotation rate when setting up default
+behaviour.
+
+Mgmt apps should be able to set the rotation rate for virtualized
+block devices, based on characteristics of the host storage in use,
+so that the guest OS gets sensible behaviour out of the box. This
+patch thus adds a 'rotation-rate' parameter for 'ide-hd' device
+types.
+
+Signed-off-by: Daniel P. Berrange <berrange@redhat.com>
+Message-Id: <20171004114008.14849-3-berrange@redhat.com>
+Reviewed-by: John Snow <jsnow@redhat.com>
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit 3b19f4506901ecce25ff36cf62353a2b4bfe4f2b)
+Signed-off-by: John Snow <jsnow@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/ide/core.c     | 1 +
+ hw/ide/internal.h | 8 ++++++++
+ hw/ide/qdev.c     | 1 +
+ 3 files changed, 10 insertions(+)
+
+diff --git a/hw/ide/core.c b/hw/ide/core.c
+index 5c33735..aea2ff9 100644
+--- a/hw/ide/core.c
++++ b/hw/ide/core.c
+@@ -179,6 +179,7 @@ static void ide_identify(IDEState *s)
+     if (dev && dev->conf.discard_granularity) {
+         put_le16(p + 169, 1); /* TRIM support */
+     }
++    put_le16(p + 217, dev->rotation_rate); /* Nominal media rotation rate */
+ 
+     memcpy(s->identify_data, p, sizeof(s->identify_data));
+     s->identify_set = 1;
+diff --git a/hw/ide/internal.h b/hw/ide/internal.h
+index f8fb564..1062f85 100644
+--- a/hw/ide/internal.h
++++ b/hw/ide/internal.h
+@@ -484,6 +484,14 @@ struct IDEDevice {
+     char *serial;
+     char *model;
+     uint64_t wwn;
++    /*
++     * 0x0000        - rotation rate not reported
++     * 0x0001        - non-rotating medium (SSD)
++     * 0x0002-0x0400 - reserved
++     * 0x0401-0xffe  - rotations per minute
++     * 0xffff        - reserved
++     */
++    uint16_t rotation_rate;
+ };
+ 
+ #define BM_STATUS_DMAING 0x01
+diff --git a/hw/ide/qdev.c b/hw/ide/qdev.c
+index 44f36c3..4ba2c63 100644
+--- a/hw/ide/qdev.c
++++ b/hw/ide/qdev.c
+@@ -219,6 +219,7 @@ static Property ide_hd_properties[] = {
+     DEFINE_BLOCK_CHS_PROPERTIES(IDEDrive, dev.conf),
+     DEFINE_PROP_BIOS_CHS_TRANS("bios-chs-trans",
+                 IDEDrive, dev.chs_trans, BIOS_ATA_TRANSLATION_AUTO),
++    DEFINE_PROP_UINT16("rotation_rate", IDEDrive, dev.rotation_rate, 0),
+     DEFINE_PROP_END_OF_LIST(),
+ };
+ 
+-- 
+1.8.3.1
+

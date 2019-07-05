@@ -1,0 +1,102 @@
+From 74c36c49f488579f224013cddfc753c21ce4829e Mon Sep 17 00:00:00 2001
+From: Tarun Gupta <tgupta@redhat.com>
+Date: Wed, 20 Jun 2018 18:54:22 +0200
+Subject: [PATCH 14/17] qdev: New DEFINE_PROP_ON_OFF_AUTO
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: Tarun Gupta <tgupta@redhat.com>
+Message-id: <1529520865-18127-9-git-send-email-tgupta@redhat.com>
+Patchwork-id: 80916
+O-Subject: [RHEL7.6 qemu-kvm PATCH v3 08/11] qdev: New DEFINE_PROP_ON_OFF_AUTO
+Bugzilla: 1555246
+RH-Acked-by: Alex Williamson <alex.williamson@redhat.com>
+RH-Acked-by: Gerd Hoffmann <kraxel@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+Signed-off-by: Markus Armbruster <armbru@redhat.com>
+Reviewed-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+
+(cherry picked from 55e8a154359be12ca4c9730c562d1e3d4b1bd2a1)
+
+Conflict: qemu-kvm does not have the json based framework to define
+properties, so using the exting enum based framework here.
+
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/core/qdev-properties.c    | 17 +++++++++++++++++
+ include/hw/qdev-properties.h |  3 +++
+ include/qemu-common.h        |  7 +++++++
+ 3 files changed, 27 insertions(+)
+
+diff --git a/hw/core/qdev-properties.c b/hw/core/qdev-properties.c
+index a61250e..71ba10e 100644
+--- a/hw/core/qdev-properties.c
++++ b/hw/core/qdev-properties.c
+@@ -568,6 +568,23 @@ PropertyInfo qdev_prop_macaddr = {
+     .set   = set_mac,
+ };
+ 
++/* --- on/off/auto --- */
++static const char *on_off_auto_table[ON_OFF_AUTO_MAX+1] = {
++    [ON_OFF_AUTO_AUTO] = "auto",
++    [ON_OFF_AUTO_ON] = "on",
++    [ON_OFF_AUTO_OFF] = "off",
++    [ON_OFF_AUTO_MAX] = NULL,
++};
++
++PropertyInfo qdev_prop_on_off_auto = {
++    .name = "OnOffAuto",
++    .enum_table = on_off_auto_table,
++    .get = get_enum,
++    .set = set_enum,
++};
++
++QEMU_BUILD_BUG_ON(sizeof(OnOffAuto) != sizeof(int));
++
+ /* --- lost tick policy --- */
+ 
+ static const char *lost_tick_policy_table[LOST_TICK_MAX+1] = {
+diff --git a/include/hw/qdev-properties.h b/include/hw/qdev-properties.h
+index 77c6f7c..90eaf8f 100644
+--- a/include/hw/qdev-properties.h
++++ b/include/hw/qdev-properties.h
+@@ -20,6 +20,7 @@ extern PropertyInfo qdev_prop_string;
+ extern PropertyInfo qdev_prop_chr;
+ extern PropertyInfo qdev_prop_ptr;
+ extern PropertyInfo qdev_prop_macaddr;
++extern PropertyInfo qdev_prop_on_off_auto;
+ extern PropertyInfo qdev_prop_losttickpolicy;
+ extern PropertyInfo qdev_prop_bios_chs_trans;
+ extern PropertyInfo qdev_prop_drive;
+@@ -153,6 +154,8 @@ extern PropertyInfo qdev_prop_arraylen;
+     DEFINE_PROP(_n, _s, _f, qdev_prop_drive, BlockDriverState *)
+ #define DEFINE_PROP_MACADDR(_n, _s, _f)         \
+     DEFINE_PROP(_n, _s, _f, qdev_prop_macaddr, MACAddr)
++#define DEFINE_PROP_ON_OFF_AUTO(_n, _s, _f, _d) \
++    DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_on_off_auto, OnOffAuto)
+ #define DEFINE_PROP_LOSTTICKPOLICY(_n, _s, _f, _d) \
+     DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_losttickpolicy, \
+                         LostTickPolicy)
+diff --git a/include/qemu-common.h b/include/qemu-common.h
+index 4569d52..d0c74e3 100644
+--- a/include/qemu-common.h
++++ b/include/qemu-common.h
+@@ -258,6 +258,13 @@ typedef int (*DMA_transfer_handler) (void *opaque, int nchan, int pos, int size)
+ 
+ typedef uint64_t pcibus_t;
+ 
++typedef enum OnOffAuto {
++    ON_OFF_AUTO_AUTO,
++    ON_OFF_AUTO_ON,
++    ON_OFF_AUTO_OFF,
++    ON_OFF_AUTO_MAX,
++} OnOffAuto;
++
+ typedef enum LostTickPolicy {
+     LOST_TICK_DISCARD,
+     LOST_TICK_DELAY,
+-- 
+1.8.3.1
+

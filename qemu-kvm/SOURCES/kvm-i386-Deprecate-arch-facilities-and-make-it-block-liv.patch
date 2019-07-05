@@ -1,0 +1,114 @@
+From 8cafea931977e494797584610664279ea21ef427 Mon Sep 17 00:00:00 2001
+From: Eduardo Habkost <ehabkost@redhat.com>
+Date: Fri, 21 Dec 2018 00:31:11 +0100
+Subject: [PATCH] i386: Deprecate arch-facilities and make it block live
+ migration
+
+RH-Author: Eduardo Habkost <ehabkost@redhat.com>
+Message-id: <20181221003111.32374-1-ehabkost@redhat.com>
+Patchwork-id: 83733
+O-Subject: [RHEL-7.7 qemu-kvm PATCH] i386: Deprecate arch-facilities and make it block live migration
+Bugzilla: 1664792
+RH-Acked-by: Bandan Das <bsd@redhat.com>
+RH-Acked-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+RH-Acked-by: Jiri Denemark <jdenemar@redhat.com>
+
+The arch-facilities feature flag is being deprecated because it
+was never supported upstream.  The upstream property is
+called "arch-capabilities", but it was not backported to
+RHEL7/qemu-kvm.
+
+Note that arch-capabilities is not required for mitigation of
+CVE-2017-5715.
+
+In addition to being deprecated, arch-facilities will now block
+live migration because the value of MSR_IA32_ARCH_CAPABILITIES is
+host-dependent and not migration-safe.
+
+Note that the "arch-facilities" option didn't work in RHEL-7.5.
+It only started working (by accident) on RHEL-7.6, after the KVM
+kernel module code was updated to report the feature flag on
+GET_SUPPORTED_CPUID.
+
+Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ target-i386/cpu.c | 35 +++++++++++++++++++++++++++++++++++
+ target-i386/cpu.h |  1 +
+ 2 files changed, 36 insertions(+)
+
+diff --git a/target-i386/cpu.c b/target-i386/cpu.c
+index 4b3a238e8d..a36483eca9 100644
+--- a/target-i386/cpu.c
++++ b/target-i386/cpu.c
+@@ -34,6 +34,7 @@
+ #include "qapi-visit.h"
+ #include "qapi/visitor.h"
+ #include "sysemu/arch_init.h"
++#include "migration/migration.h"
+ 
+ #include "hw/hw.h"
+ #if defined(CONFIG_KVM)
+@@ -1742,6 +1743,14 @@ static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
+                                          wi->cpuid_reg);
+     }
+ 
++    /*
++     * Features that won't be enabled automatically by "-cpu host" even if
++     * reported by GET_SUPPORTED_CPUID:
++     */
++
++    /* arch-facilities: deprecated (see comment on x86_cpu_realizefn()) */
++    x86_cpu_def->features[FEAT_7_0_EDX] &= ~CPUID_7_0_EDX_ARCH_CAPABILITIES;
++
+ #endif /* CONFIG_KVM */
+ }
+ 
+@@ -3089,6 +3098,32 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
+ #endif
+     }
+ 
++    /*
++     * RHEL-only:
++     *
++     * The arch-facilities feature flag is deprecated because it was never
++     * supported upstream.  The upstream property is "arch-capabilities",
++     * but it was not backported to this QEMU version.  Note that
++     * arch-capabilities is not required for mitigation of CVE-2017-5715.
++     *
++     * In addition to being deprecated, arch-facilities blocks live migration
++     * because the value of MSR_IA32_ARCH_CAPABILITIES is host-dependent and
++     * not migration-safe.
++     */
++    if (cpu->env.features[FEAT_7_0_EDX] & CPUID_7_0_EDX_ARCH_CAPABILITIES) {
++        static bool warned = false;
++        static Error *arch_facilities_blocker;
++        if (!warned) {
++            error_setg(&arch_facilities_blocker,
++                       "The arch-facilities CPU feature is deprecated and "
++                       "does not support live migration");
++            migrate_add_blocker(arch_facilities_blocker);
++            error_report("WARNING: the arch-facilities CPU feature is "
++                         "deprecated and does not support live migration");
++            warned = true;
++        }
++    }
++
+ #ifndef CONFIG_USER_ONLY
+     qemu_register_reset(x86_cpu_machine_reset_cb, cpu);
+ 
+diff --git a/target-i386/cpu.h b/target-i386/cpu.h
+index debb0e5bf4..73437f16c5 100644
+--- a/target-i386/cpu.h
++++ b/target-i386/cpu.h
+@@ -597,6 +597,7 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
+ #define CPUID_7_0_EDX_AVX512_4VNNIW (1U << 2) /* AVX512 Neural Network Instructions */
+ #define CPUID_7_0_EDX_AVX512_4FMAPS (1U << 3) /* AVX512 Multiply Accumulation Single Precision */
+ #define CPUID_7_0_EDX_SPEC_CTRL     (1U << 26) /* Indirect Branch - Restrict Speculation */
++#define CPUID_7_0_EDX_ARCH_CAPABILITIES (1U << 29)  /*Arch Capabilities*/
+ #define CPUID_7_0_EDX_SPEC_CTRL_SSBD  (1U << 31) /* Speculative Store Bypass Disable */
+ 
+ #define CPUID_8000_0008_EBX_IBPB    (1U << 12) /* Indirect Branch Prediction Barrier */
+-- 
+2.19.1
+

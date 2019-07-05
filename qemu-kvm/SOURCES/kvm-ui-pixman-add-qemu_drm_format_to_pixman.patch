@@ -1,0 +1,91 @@
+From df989559119707094b17269d025bcdf83df765f1 Mon Sep 17 00:00:00 2001
+From: Tarun Gupta <tgupta@redhat.com>
+Date: Wed, 20 Jun 2018 18:54:17 +0200
+Subject: [PATCH 09/17] ui/pixman: add qemu_drm_format_to_pixman()
+
+RH-Author: Tarun Gupta <tgupta@redhat.com>
+Message-id: <1529520865-18127-4-git-send-email-tgupta@redhat.com>
+Patchwork-id: 80911
+O-Subject: [RHEL7.6 qemu-kvm PATCH v3 03/11] ui/pixman: add qemu_drm_format_to_pixman()
+Bugzilla: 1555246
+RH-Acked-by: Alex Williamson <alex.williamson@redhat.com>
+RH-Acked-by: Gerd Hoffmann <kraxel@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+Map drm fourcc codes to pixman formats.
+
+Signed-off-by: Gerd Hoffmann <kraxel@redhat.com>
+Reviewed by: Kirti Wankhede <kwankhede@nvidia.com>
+Signed-off-by: Alex Williamson <alex.williamson@redhat.com>
+
+(cherry picked from a5127bd73f77b90b50d63014be10cef467c1c3f9)
+
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ include/ui/qemu-pixman.h |  6 ++++++
+ ui/qemu-pixman.c         | 22 ++++++++++++++++++++++
+ 2 files changed, 28 insertions(+)
+
+diff --git a/include/ui/qemu-pixman.h b/include/ui/qemu-pixman.h
+index 500725c..8deb008 100644
+--- a/include/ui/qemu-pixman.h
++++ b/include/ui/qemu-pixman.h
+@@ -27,9 +27,13 @@
+ 
+ #ifdef HOST_WORDS_BIGENDIAN
+ # define PIXMAN_BE_r8g8b8     PIXMAN_r8g8b8
++# define PIXMAN_LE_r8g8b8     PIXMAN_b8g8r8
++# define PIXMAN_LE_a8r8g8b8   PIXMAN_b8g8r8a8
+ # define PIXMAN_LE_x8r8g8b8   PIXMAN_b8g8r8x8
+ #else
+ # define PIXMAN_BE_r8g8b8     PIXMAN_b8g8r8
++# define PIXMAN_LE_r8g8b8     PIXMAN_r8g8b8
++# define PIXMAN_LE_a8r8g8b8   PIXMAN_a8r8g8b8
+ # define PIXMAN_LE_x8r8g8b8   PIXMAN_x8r8g8b8
+ #endif
+ 
+@@ -46,6 +50,8 @@ pixman_image_t *qemu_pixman_mirror_create(pixman_format_code_t format,
+                                           pixman_image_t *image);
+ void qemu_pixman_image_unref(pixman_image_t *image);
+ 
++pixman_format_code_t qemu_drm_format_to_pixman(uint32_t drm_format);
++
+ pixman_color_t qemu_pixman_color(PixelFormat *pf, uint32_t color);
+ pixman_image_t *qemu_pixman_glyph_from_vgafont(int height, const uint8_t *font,
+                                                unsigned int ch);
+diff --git a/ui/qemu-pixman.c b/ui/qemu-pixman.c
+index 254bd8c..4be422c 100644
+--- a/ui/qemu-pixman.c
++++ b/ui/qemu-pixman.c
+@@ -5,6 +5,28 @@
+ 
+ #include "qemu-common.h"
+ #include "ui/console.h"
++#include "drm_fourcc.h"
++
++/* Note: drm is little endian, pixman is native endian */
++pixman_format_code_t qemu_drm_format_to_pixman(uint32_t drm_format)
++{
++    static const struct {
++        uint32_t drm_format;
++        pixman_format_code_t pixman;
++    } map[] = {
++        { DRM_FORMAT_RGB888,   PIXMAN_LE_r8g8b8   },
++        { DRM_FORMAT_ARGB8888, PIXMAN_LE_a8r8g8b8 },
++        { DRM_FORMAT_XRGB8888, PIXMAN_LE_x8r8g8b8 }
++    };
++    int i;
++
++    for (i = 0; i < ARRAY_SIZE(map); i++) {
++        if (drm_format == map[i].drm_format) {
++            return map[i].pixman;
++        }
++    }
++    return 0;
++}
+ 
+ int qemu_pixman_get_type(int rshift, int gshift, int bshift)
+ {
+-- 
+1.8.3.1
+

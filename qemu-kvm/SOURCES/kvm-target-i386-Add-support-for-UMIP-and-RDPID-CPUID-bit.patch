@@ -1,0 +1,82 @@
+From 9349e4be5ecf8b70dfc36f6cad56297cd7aa5fc9 Mon Sep 17 00:00:00 2001
+From: "plai@redhat.com" <plai@redhat.com>
+Date: Wed, 27 Jun 2018 07:53:07 +0200
+Subject: [PATCH 02/17] target-i386: Add support for UMIP and RDPID CPUID bits
+
+RH-Author: plai@redhat.com
+Message-id: <1526495303-9837-1-git-send-email-plai@redhat.com>
+Patchwork-id: 80372
+O-Subject: [RHEL7.6 PATCH BZ 1526638] target-i386: Add support for UMIP and RDPID CPUID bits
+Bugzilla: 1526638
+RH-Acked-by: Eduardo Habkost <ehabkost@redhat.com>
+RH-Acked-by: Igor Mammedov <imammedo@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+From: Paolo Bonzini <pbonzini@redhat.com>
+
+Tested by Intel OTC QA on icelake client hw.
+Tested by Intel OTC Virtualization QA. Test Result:
+   XEN_UMIP_ENABLE : Check if UMIP has been enabled on the feature supported machine / PASS
+   XEN_UMIP_DISABLE: Verify if the UMIP can be turned off by boot. / PASS
+   XEN_UMIP_TEST : Check if the protection effect on the instructions of sgdt/sidt/sldt/smsw/str / PASS
+   XEN_UMIP_EX_TEST :Check if the protection effects on instruction of str, sldtand smsw for register and memory operands. /PASS
+   XEN_UMIP_TEST: Check if the protection effect on the instructions of sgdt/sidt/sldt/smsw/str / PASS
+   XEN_UMIP_EX_TEST: Check if the protection effects on instruction of str, sldtand smsw for register and memory operands / PASS
+   XEN_UMIP_LDT: Verify all the possible 32-bit address encodings / PASS
+
+These are both stored in CPUID[EAX=7,EBX=0].ECX.  KVM is going to
+be able to emulate both (albeit with a performance loss in the case
+of RDPID, which therefore will be in KVM_GET_EMULATED_CPUID rather
+than KVM_GET_SUPPORTED_CPUID).
+
+It's also possible to implement both in TCG, but this is for 2.8.
+
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
+(cherry picked from commit c2f193b538032accb9db504998bf2ea7c0ef65af)
+Signed-off-by: Paul Lai <plai@redhat.com>
+
+Resolved Conflicts:
+	target-i386/cpu.c
+---
+ target-i386/cpu.c | 4 ++--
+ target-i386/cpu.h | 2 ++
+ 2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/target-i386/cpu.c b/target-i386/cpu.c
+index 48a5507..0254747 100644
+--- a/target-i386/cpu.c
++++ b/target-i386/cpu.c
+@@ -155,12 +155,12 @@ static const char *cpuid_7_0_ebx_feature_name[] = {
+ };
+ 
+ static const char *cpuid_7_0_ecx_feature_name[] = {
+-    NULL, "avx512vbmi", NULL, "pku",
++    NULL, "avx512vbmi", "umip", "pku",
+     "ospke", NULL, "avx512vbmi2", NULL,
+     "gfni", "vaes", "vpclmulqdq", "avx512vnni",
+     "avx512bitalg", NULL, "avx512-vpopcntdq", NULL,
+     NULL, NULL, NULL, NULL,
+-    NULL, NULL, NULL, NULL,
++    NULL, NULL, "rdpid", NULL,
+     NULL, NULL, NULL, NULL,
+     NULL, NULL, NULL, NULL,
+ };
+diff --git a/target-i386/cpu.h b/target-i386/cpu.h
+index a781639..c72b545 100644
+--- a/target-i386/cpu.h
++++ b/target-i386/cpu.h
+@@ -600,8 +600,10 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
+ 
+ #define CPUID_8000_0008_EBX_IBPB    (1U << 12) /* Indirect Branch Prediction Barrier */
+ 
++#define CPUID_7_0_ECX_UMIP     (1U << 2)
+ #define CPUID_7_0_ECX_PKU      (1U << 3)
+ #define CPUID_7_0_ECX_OSPKE    (1U << 4)
++#define CPUID_7_0_ECX_RDPID    (1U << 22)
+ 
+ #define CPUID_XSAVE_XSAVEOPT   (1U << 0)
+ #define CPUID_XSAVE_XSAVEC     (1U << 1)
+-- 
+1.8.3.1
+

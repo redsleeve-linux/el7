@@ -1,0 +1,49 @@
+From a967318ce21d68d30afbb02bcd8b43dd7157916d Mon Sep 17 00:00:00 2001
+From: John Snow <jsnow@redhat.com>
+Date: Thu, 2 Aug 2018 15:53:36 +0200
+Subject: [PATCH 3/4] ide: avoid referencing NULL dev in rotational rate
+ setting
+
+RH-Author: John Snow <jsnow@redhat.com>
+Message-id: <20180802155336.10347-4-jsnow@redhat.com>
+Patchwork-id: 81611
+O-Subject: [RHEL-7.6 qemu-kvm PATCH 3/3] ide: avoid referencing NULL dev in rotational rate setting
+Bugzilla: 1583807
+RH-Acked-by: Daniel P. Berrange <berrange@redhat.com>
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+
+From: "Daniel P. Berrange" <berrange@redhat.com>
+
+The 'dev' variable can be NULL when the guest OS calls identify on an IDE
+unit that does not have a drive attached to it.
+
+Signed-off-by: Daniel P. Berrange <berrange@redhat.com>
+Reviewed-by: Stefan Hajnoczi <stefanha@redhat.com>
+Message-id: 20171020091403.1479-1-berrange@redhat.com
+Signed-off-by: John Snow <jsnow@redhat.com>
+(cherry picked from commit 96f43c2b0a663f4789b51ed97297163321e7ba5e)
+Signed-off-by: John Snow <jsnow@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/ide/core.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/hw/ide/core.c b/hw/ide/core.c
+index aea2ff9..be6e0c9 100644
+--- a/hw/ide/core.c
++++ b/hw/ide/core.c
+@@ -179,7 +179,9 @@ static void ide_identify(IDEState *s)
+     if (dev && dev->conf.discard_granularity) {
+         put_le16(p + 169, 1); /* TRIM support */
+     }
+-    put_le16(p + 217, dev->rotation_rate); /* Nominal media rotation rate */
++    if (dev) {
++        put_le16(p + 217, dev->rotation_rate); /* Nominal media rotation rate */
++    }
+ 
+     memcpy(s->identify_data, p, sizeof(s->identify_data));
+     s->identify_set = 1;
+-- 
+1.8.3.1
+

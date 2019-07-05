@@ -1,0 +1,88 @@
+From 1d9d6bd6721a92ae161bd7a4e9de202691b90da0 Mon Sep 17 00:00:00 2001
+From: "plai@redhat.com" <plai@redhat.com>
+Date: Tue, 8 May 2018 17:40:48 +0200
+Subject: [PATCH 01/17] x86/cpu: Enable new SSE/AVX/AVX512 cpu features
+
+RH-Author: plai@redhat.com
+Message-id: <1525801248-24104-1-git-send-email-plai@redhat.com>
+Patchwork-id: 80114
+O-Subject: [RHEL7.6 PATCH BZ 1513686] x86/cpu: Enable new SSE/AVX/AVX512 cpu features
+Bugzilla: 1513686
+RH-Acked-by: Eduardo Habkost <ehabkost@redhat.com>
+RH-Acked-by: Igor Mammedov <imammedo@redhat.com>
+RH-Acked-by: Radim Krcmar <rkrcmar@redhat.com>
+
+From: Yang Zhong <yang.zhong@intel.com>
+
+Intel OTC Virt tested.
+
+Intel IceLake cpu has added new cpu features,AVX512_VBMI2/GFNI/
+VAES/VPCLMULQDQ/AVX512_VNNI/AVX512_BITALG. Those new cpu features
+need expose to guest VM.
+
+The bit definition:
+CPUID.(EAX=7,ECX=0):ECX[bit 06] AVX512_VBMI2
+CPUID.(EAX=7,ECX=0):ECX[bit 08] GFNI
+CPUID.(EAX=7,ECX=0):ECX[bit 09] VAES
+CPUID.(EAX=7,ECX=0):ECX[bit 10] VPCLMULQDQ
+CPUID.(EAX=7,ECX=0):ECX[bit 11] AVX512_VNNI
+CPUID.(EAX=7,ECX=0):ECX[bit 12] AVX512_BITALG
+
+The release document ref below link:
+https://software.intel.com/sites/default/files/managed/c5/15/\
+architecture-instruction-set-extensions-programming-reference.pdf
+
+Signed-off-by: Yang Zhong <yang.zhong@intel.com>
+Message-Id: <1511335676-20797-1-git-send-email-yang.zhong@intel.com>
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit aff9e6e46a343e1404498be4edd03db1112f0950)
+Signed-off-by: Paul Lai <plai@redhat.com>
+
+Resolved Conflicts:
+        target/i386/cpu.c
+        target/i386/cpu.h
+                changes applied to target-i386/cpu.{c,h}
+
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ target-i386/cpu.c | 6 +++---
+ target-i386/cpu.h | 6 ++++++
+ 2 files changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/target-i386/cpu.c b/target-i386/cpu.c
+index 539c202..48a5507 100644
+--- a/target-i386/cpu.c
++++ b/target-i386/cpu.c
+@@ -156,9 +156,9 @@ static const char *cpuid_7_0_ebx_feature_name[] = {
+ 
+ static const char *cpuid_7_0_ecx_feature_name[] = {
+     NULL, "avx512vbmi", NULL, "pku",
+-    "ospke", NULL, NULL, NULL,
+-    NULL, NULL, NULL, NULL,
+-    NULL, NULL, "avx512-vpopcntdq", NULL,
++    "ospke", NULL, "avx512vbmi2", NULL,
++    "gfni", "vaes", "vpclmulqdq", "avx512vnni",
++    "avx512bitalg", NULL, "avx512-vpopcntdq", NULL,
+     NULL, NULL, NULL, NULL,
+     NULL, NULL, NULL, NULL,
+     NULL, NULL, NULL, NULL,
+diff --git a/target-i386/cpu.h b/target-i386/cpu.h
+index da84443..a781639 100644
+--- a/target-i386/cpu.h
++++ b/target-i386/cpu.h
+@@ -584,6 +584,12 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
+ #define CPUID_7_0_ECX_UMIP     (1U << 2)
+ #define CPUID_7_0_ECX_PKU      (1U << 3)
+ #define CPUID_7_0_ECX_OSPKE    (1U << 4)
++#define CPUID_7_0_ECX_VBMI2    (1U << 6) /* Additional VBMI Instrs */
++#define CPUID_7_0_ECX_GFNI     (1U << 8)
++#define CPUID_7_0_ECX_VAES     (1U << 9)
++#define CPUID_7_0_ECX_VPCLMULQDQ (1U << 10)
++#define CPUID_7_0_ECX_AVX512VNNI (1U << 11)
++#define CPUID_7_0_ECX_AVX512BITALG (1U << 12)
+ #define CPUID_7_0_ECX_AVX512_VPOPCNTDQ (1U << 14) /* POPCNT for vectors of DW/QW */
+ #define CPUID_7_0_ECX_RDPID    (1U << 22)
+ 
+-- 
+1.8.3.1
+

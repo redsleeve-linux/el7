@@ -1,0 +1,60 @@
+From b01048102e5cc91d484d23531799a130a49d723a Mon Sep 17 00:00:00 2001
+From: Tarun Gupta <tgupta@redhat.com>
+Date: Wed, 20 Jun 2018 18:54:16 +0200
+Subject: [PATCH 08/17] spice: fix simple display on bigendian hosts
+
+RH-Author: Tarun Gupta <tgupta@redhat.com>
+Message-id: <1529520865-18127-3-git-send-email-tgupta@redhat.com>
+Patchwork-id: 80907
+O-Subject: [RHEL7.6 qemu-kvm PATCH v3 02/11] spice: fix simple display on bigendian hosts
+Bugzilla: 1555246
+RH-Acked-by: Alex Williamson <alex.williamson@redhat.com>
+RH-Acked-by: Gerd Hoffmann <kraxel@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+Denis Kirjanov is busy getting spice run on ppc64 and trapped into this
+one.  Spice wire format is little endian, so we have to explicitly say
+we want little endian when letting pixman convert the data for us.
+
+Reported-by: Denis Kirjanov <kirjanov@gmail.com>
+Signed-off-by: Gerd Hoffmann <kraxel@redhat.com>
+
+(cherry picked from c1d37cd353be3ea4c5773fc227ba8459c1f20470)
+
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ include/ui/qemu-pixman.h | 2 ++
+ ui/spice-display.c       | 2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/include/ui/qemu-pixman.h b/include/ui/qemu-pixman.h
+index ba970f8..500725c 100644
+--- a/include/ui/qemu-pixman.h
++++ b/include/ui/qemu-pixman.h
+@@ -27,8 +27,10 @@
+ 
+ #ifdef HOST_WORDS_BIGENDIAN
+ # define PIXMAN_BE_r8g8b8     PIXMAN_r8g8b8
++# define PIXMAN_LE_x8r8g8b8   PIXMAN_b8g8r8x8
+ #else
+ # define PIXMAN_BE_r8g8b8     PIXMAN_b8g8r8
++# define PIXMAN_LE_x8r8g8b8   PIXMAN_x8r8g8b8
+ #endif
+ 
+ /* -------------------------------------------------------------------- */
+diff --git a/ui/spice-display.c b/ui/spice-display.c
+index e2c24a9..8b73e5a 100644
+--- a/ui/spice-display.c
++++ b/ui/spice-display.c
+@@ -178,7 +178,7 @@ static void qemu_spice_create_one_update(SimpleSpiceDisplay *ssd,
+     image->bitmap.palette = 0;
+     image->bitmap.format = SPICE_BITMAP_FMT_32BIT;
+ 
+-    dest = pixman_image_create_bits(PIXMAN_x8r8g8b8, bw, bh,
++    dest = pixman_image_create_bits(PIXMAN_LE_x8r8g8b8, bw, bh,
+                                     (void *)update->bitmap, bw * 4);
+     pixman_image_composite(PIXMAN_OP_SRC, ssd->surface, NULL, ssd->mirror,
+                            rect->left, rect->top, 0, 0,
+-- 
+1.8.3.1
+

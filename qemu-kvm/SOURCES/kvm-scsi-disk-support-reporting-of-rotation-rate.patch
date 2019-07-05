@@ -1,0 +1,103 @@
+From 04ab93423b97ab5bc175032e0e4e1da288840805 Mon Sep 17 00:00:00 2001
+From: John Snow <jsnow@redhat.com>
+Date: Thu, 2 Aug 2018 15:53:34 +0200
+Subject: [PATCH 1/4] scsi-disk: support reporting of rotation rate
+
+RH-Author: John Snow <jsnow@redhat.com>
+Message-id: <20180802155336.10347-2-jsnow@redhat.com>
+Patchwork-id: 81613
+O-Subject: [RHEL-7.6 qemu-kvm PATCH 1/3] scsi-disk: support reporting of rotation rate
+Bugzilla: 1583807
+RH-Acked-by: Daniel P. Berrange <berrange@redhat.com>
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+
+From: "Daniel P. Berrange" <berrange@redhat.com>
+
+The Linux kernel will query the SCSI "Block device characteristics"
+VPD to determine the rotations per minute of the disk. If this has
+the value 1, it is taken to be an SSD and so Linux sets the
+'rotational' flag to 0 for the I/O queue and will stop using that
+disk as a source of random entropy. Other operating systems may
+also take into account rotation rate when setting up default
+behaviour.
+
+Mgmt apps should be able to set the rotation rate for virtualized
+block devices, based on characteristics of the host storage in use,
+so that the guest OS gets sensible behaviour out of the box. This
+patch thus adds a 'rotation-rate' parameter for 'scsi-hd' and
+'scsi-block' device types. For the latter, this parameter will be
+ignored unless the host device has TYPE_DISK.
+
+Signed-off-by: Daniel P. Berrange <berrange@redhat.com>
+Message-Id: <20171004114008.14849-2-berrange@redhat.com>
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit 070f80095ad5b1143b50d2faffd2b1a84292e00d)
+Signed-off-by: John Snow <jsnow@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/scsi/scsi-disk.c | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)
+
+diff --git a/hw/scsi/scsi-disk.c b/hw/scsi/scsi-disk.c
+index 8a8b0ab..911c7b7 100644
+--- a/hw/scsi/scsi-disk.c
++++ b/hw/scsi/scsi-disk.c
+@@ -83,6 +83,14 @@ struct SCSIDiskState
+     char *product;
+     bool tray_open;
+     bool tray_locked;
++    /*
++     * 0x0000        - rotation rate not reported
++     * 0x0001        - non-rotating medium (SSD)
++     * 0x0002-0x0400 - reserved
++     * 0x0401-0xffe  - rotations per minute
++     * 0xffff        - reserved
++     */
++    uint16_t rotation_rate;
+ };
+ 
+ static int scsi_handle_rw_error(SCSIDiskReq *r, int error);
+@@ -565,6 +573,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
+             outbuf[buflen++] = 0x83; // device identification
+             if (s->qdev.type == TYPE_DISK) {
+                 outbuf[buflen++] = 0xb0; // block limits
++                outbuf[buflen++] = 0xb1; /* block device characteristics */
+                 outbuf[buflen++] = 0xb2; // thin provisioning
+             }
+             break;
+@@ -670,6 +679,15 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
+             outbuf[31] = unmap_sectors & 0xff;
+             break;
+         }
++        case 0xb1: /* block device characteristics */
++        {
++            buflen = 8;
++            outbuf[4] = (s->rotation_rate >> 8) & 0xff;
++            outbuf[5] = s->rotation_rate & 0xff;
++            outbuf[6] = 0;
++            outbuf[7] = 0;
++            break;
++        }
+         case 0xb2: /* thin provisioning */
+         {
+             buflen = 8;
+@@ -2543,6 +2561,7 @@ static Property scsi_hd_properties[] = {
+     DEFINE_PROP_HEX64("wwn", SCSIDiskState, wwn, 0),
+     DEFINE_PROP_UINT64("max_unmap_size", SCSIDiskState, max_unmap_size,
+                        DEFAULT_MAX_UNMAP_SIZE),
++    DEFINE_PROP_UINT16("rotation_rate", SCSIDiskState, rotation_rate, 0),
+     DEFINE_BLOCK_CHS_PROPERTIES(SCSIDiskState, qdev.conf),
+     DEFINE_PROP_END_OF_LIST(),
+ };
+@@ -2619,6 +2638,7 @@ static const TypeInfo scsi_cd_info = {
+ static Property scsi_block_properties[] = {
+     DEFINE_PROP_DRIVE("drive", SCSIDiskState, qdev.conf.bs),
+     DEFINE_PROP_INT32("bootindex", SCSIDiskState, qdev.conf.bootindex, -1),
++    DEFINE_PROP_UINT16("rotation_rate", SCSIDiskState, rotation_rate, 0),
+     DEFINE_PROP_END_OF_LIST(),
+ };
+ 
+-- 
+1.8.3.1
+
