@@ -53,7 +53,7 @@
 %global ppc64le         ppc64le
 %global ppc64be         ppc64 ppc64p7
 %global multilib_arches %{power64} sparc64 x86_64
-%global jit_arches      %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64} s390x
+%global jit_arches      %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64} %{arm} s390x
 %global aot_arches      x86_64 %{aarch64}
 
 # By default, we build a debug build during main build on JIT architectures
@@ -85,6 +85,7 @@
 %endif
 
 # if you disable both builds, then the build fails
+# Note that the debug build requires the normal build for docs
 %global build_loop  %{build_loop1} %{build_loop2}
 # note: that order: normal_suffix debug_suffix, in case of both enabled
 # is expected in one single case at the end of the build
@@ -97,10 +98,12 @@
 %endif
 
 %if %{bootstrap_build}
-%global targets bootcycle-images all docs
+%global release_targets bootcycle-images docs-zip
 %else
-%global targets all docs
+%global release_targets images docs-zip
 %endif
+# No docs nor bootcycle for debug builds
+%global debug_targets images
 
 
 # Filter out flags from the optflags macro that cause problems with the OpenJDK build
@@ -189,7 +192,7 @@
 
 # New Version-String scheme-style defines
 %global majorver 11
-%global securityver 3
+%global securityver 4
 # buildjdkver is usually same as %%{majorver},
 # but in time of bootstrap of next jdk, it is majorver-1, 
 # and this it is better to change it here, on single place
@@ -211,7 +214,8 @@
 %global origin_nice     OpenJDK
 %global top_level_dir_name   %{origin}
 %global minorver        0
-%global buildver        7
+%global buildver        11
+%global rpmrelease      0
 #%%global tagsuffix      %{nil}
 # priority must be 7 digits in total
 # setting to 1, so debug ones can have 0
@@ -219,6 +223,23 @@
 %global newjavaver      %{majorver}.%{minorver}.%{securityver}
 
 %global javaver         %{majorver}
+
+# Define milestone (EA for pre-releases, GA for releases)
+# Release will be (where N is usually a number starting at 1):
+# - 0.N%%{?extraver}%%{?dist} for EA releases,
+# - N%%{?extraver}{?dist} for GA releases
+%global is_ga           1
+%if %{is_ga}
+%global ea_designator ""
+%global ea_designator_zip ""
+%global extraver %{nil}
+%global eaprefix %{nil}
+%else
+%global ea_designator ea
+%global ea_designator_zip -%{ea_designator}
+%global extraver .%{ea_designator}
+%global eaprefix 0.
+%endif
 
 # parametrized macros are order-sensitive
 %global compatiblename  java-%{majorver}-%{origin}
@@ -522,6 +543,7 @@ exit 0
 %{_jvmdir}/%{sdkdir %%1}/lib/classlist
 %endif
 %{_jvmdir}/%{sdkdir %%1}/lib/jexec
+%{_jvmdir}/%{sdkdir %%1}/lib/jspawnhelper
 %{_jvmdir}/%{sdkdir %%1}/lib/jrt-fs.jar
 %{_jvmdir}/%{sdkdir %%1}/lib/modules
 %{_jvmdir}/%{sdkdir %%1}/lib/psfont.properties.ja
@@ -850,7 +872,7 @@ Provides: java-%{javaver}-%{origin}-src%1 = %{epoch}:%{version}-%{release}
 
 Name:    java-%{javaver}-%{origin}
 Version: %{newjavaver}.%{buildver}
-Release: 0%{?dist}.redsleeve
+Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
 # and this change was brought into RHEL-4. java-1.5.0-ibm packages
 # also included the epoch in their virtual provides. This created a
@@ -1150,14 +1172,14 @@ The %{origin_nice} %{majorver} API documentation.
 
 %if %{include_normal_build}
 %package javadoc-zip
-Summary: %{origin_nice} %{majorver} API documentation compressed in single archive
+Summary: %{origin_nice} %{majorver} API documentation compressed in a single archive
 Group:   Documentation
 Requires: javapackages-tools
 
 %{java_javadoc_rpo %{nil}}
 
 %description javadoc-zip
-The %{origin_nice} %{majorver} API documentation compressed in single archive.
+The %{origin_nice} %{majorver} API documentation compressed in a single archive.
 %endif
 
 %if %{include_debug_build}
@@ -1174,16 +1196,15 @@ The %{origin_nice} %{majorver} API documentation %{for_debug}.
 
 %if %{include_debug_build}
 %package javadoc-zip-debug
-Summary: %{origin_nice} %{majorver} API documentation compressed in single archive %{for_debug}
+Summary: %{origin_nice} %{majorver} API documentation compressed in a single archive %{for_debug}
 Group:   Documentation
 Requires: javapackages-tools
 
 %{java_javadoc_rpo -- %{debug_suffix_unquoted}}
 
 %description javadoc-zip-debug
-The %{origin_nice} %{majorver} API documentation compressed in single archive %{for_debug}.
+The %{origin_nice} %{majorver} API documentation compressed in a single archive %{for_debug}.
 %endif
-
 
 %prep
 if [ %{include_normal_build} -eq 0 -o  %{include_normal_build} -eq 1 ] ; then
@@ -1201,6 +1222,10 @@ fi
 if [ %{include_debug_build} -eq 0 -a  %{include_normal_build} -eq 0 ] ; then
   echo "You have disabled both include_debug_build and include_normal_build. That is a no go."
   exit 13
+fi
+if [ %{include_normal_build} -eq 0 ] ; then
+  echo "You have disabled the normal build, but this is required to provide docs for the debug build."
+  exit 14
 fi
 %setup -q -c -n %{uniquesuffix ""} -T -a 0
 # https://bugzilla.redhat.com/show_bug.cgi?id=1189084
@@ -1330,7 +1355,7 @@ bash ../configure \
     --with-jobs=1 \
 %endif
     --with-version-build=%{buildver} \
-    --with-version-pre="" \
+    --with-version-pre="%{ea_designator}" \
     --with-version-opt=%{lts_designator} \
     --with-vendor-version-string="%{vendor_version_string}" \
     --with-boot-jdk=/usr/lib/jvm/java-11-openjdk \
@@ -1354,14 +1379,18 @@ bash ../configure \
 %endif
     --disable-warnings-as-errors
 
+# Debug builds don't need same targets as release for
+# build speed-up
+maketargets="%{release_targets}"
+if echo $debugbuild | grep -q "debug" ; then
+  maketargets="%{debug_targets}"
+fi
 make \
     JAVAC_FLAGS=-g \
     LOG=trace \
     WARNINGS_ARE_ERRORS="-Wno-error" \
     CFLAGS_WARNINGS_ARE_ERRORS="-Wno-error" \
-    %{targets} || ( pwd; find $top_dir_abs_path -name "hs_err_pid*.log" | xargs cat && false )
-
-make docs-zip
+    $maketargets || ( pwd; find $top_dir_abs_path -name "hs_err_pid*.log" | xargs cat && false )
 
 # the build (erroneously) removes read permissions from some jars
 # this is a regression in OpenJDK 7 (our compiler):
@@ -1395,7 +1424,7 @@ for suffix in %{rev_build_loop} ; do
 
 export JAVA_HOME=$(pwd)/%{buildoutputdir $suffix}/images/%{jdkimage}
 
-#check sheandoah is enabled
+#check Shenandoah is enabled
 %if %{use_shenandoah_hotspot}
 $JAVA_HOME//bin/java -XX:+UseShenandoahGC -version
 %endif
@@ -1459,7 +1488,7 @@ done
 # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
 # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
 # Temporarily disabled on s390x as it sporadically crashes with SIGFPE, Arithmetic exception.
-%ifnarch s390x %{arm}
+%ifnarch s390x
 gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
 handle SIGSEGV pass nostop noprint
 handle SIGILL pass nostop noprint
@@ -1552,9 +1581,10 @@ popd
 
 
 # Install Javadoc documentation
+# Always take docs from normal build to avoid building them twice
 install -d -m 755 $RPM_BUILD_ROOT%{_javadocdir}
-cp -a %{buildoutputdir $suffix}/images/docs $RPM_BUILD_ROOT%{_javadocdir}/%{uniquejavadocdir $suffix}
-cp -a %{buildoutputdir $suffix}/bundles/jdk-%{newjavaver}+%{buildver}%{lts_designator_zip}-docs.zip  $RPM_BUILD_ROOT%{_javadocdir}/%{uniquejavadocdir $suffix}.zip
+cp -a %{buildoutputdir $normal_suffix}/images/docs $RPM_BUILD_ROOT%{_javadocdir}/%{uniquejavadocdir $suffix}
+cp -a %{buildoutputdir $normal_suffix}/bundles/jdk-%{newjavaver}%{ea_designator_zip}+%{buildver}%{lts_designator_zip}-docs.zip $RPM_BUILD_ROOT%{_javadocdir}/%{uniquejavadocdir -- $suffix}.zip
 
 # Install icons and menu entries
 for s in 16 24 32 48 ; do
@@ -1702,6 +1732,7 @@ require "copy_jdk_configs.lua"
 
 %postun javadoc-zip-debug
 %{postun_javadoc_zip -- %{debug_suffix_unquoted}}
+
 %endif
 
 %if %{include_normal_build}
@@ -1767,16 +1798,79 @@ require "copy_jdk_configs.lua"
 
 %files javadoc-zip-debug
 %{files_javadoc_zip -- %{debug_suffix_unquoted}}
+
 %endif
 
-
 %changelog
-* Tue Apr 23 2019 Jacco Ligthart <jacco@redsleeve.org> - 1:11.0.3.7-0.redsleeve
-- removed arm from jit_arches
-- removed the gdb section of the SPEC file
+* Tue Jul 23 2019 Johnny Hughes <johnny@centos.org>
+- Manual CentOS Debranding
 
-* Wed Apr 17 2019 Johnny Hughes <johnny@centos.org> - 1:11.0.3.7-0
-- Mnaual CentOS debranding
+* Tue Jul 09 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.11-0
+- Update to shenandoah-jdk-11.0.4+11 (GA)
+- Switch to GA mode for final release.
+- Resolves: rhbz#1724452
+
+* Mon Jul 08 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.10-0.0.ea
+- Update to shenandoah-jdk-11.0.4+10 (EA)
+- Resolves: rhbz#1724452
+
+* Mon Jul 08 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.9-0.0.ea
+- Update to shenandoah-jdk-11.0.4+9 (EA)
+- Resolves: rhbz#1724452
+
+* Mon Jul 08 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.8-0.0.ea
+- Update to shenandoah-jdk-11.0.4+8 (EA)
+- Resolves: rhbz#1724452
+
+* Sun Jul 07 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.7-0.0.ea
+- Update to shenandoah-jdk-11.0.4+7 (EA)
+- Resolves: rhbz#1724452
+
+* Wed Jul 03 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.6-0.0.ea
+- Provide Javadoc debug subpackages for now, but populate them from the normal build.
+- Resolves: rhbz#1724452
+
+* Wed Jul 03 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.6-0.0.ea
+- Update to shenandoah-jdk-11.0.4+6 (EA)
+- Resolves: rhbz#1724452
+
+* Wed Jul 03 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.5-0.0.ea
+- Update to shenandoah-jdk-11.0.4+5 (EA)
+- Resolves: rhbz#1724452
+
+* Tue Jul 02 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.4-0.0.ea
+- Update to shenandoah-jdk-11.0.4+4 (EA)
+- Resolves: rhbz#1724452
+
+* Mon Jul 01 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.3-0.0.ea
+- Update to shenandoah-jdk-11.0.4+3 (EA)
+- Resolves: rhbz#1724452
+
+* Sun Jun 30 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.2-0.0.ea
+- Use RHEL 7 format for jspawnhelper addition.
+- Resolves: rhbz#1724452
+
+* Sun Jun 30 2019 Andrew John Hughes <gnu.andrew@redhat.com> - 1:11.0.4.2-0.0.ea
+- Update to shenandoah-jdk-11.0.4+2 (EA)
+- Resolves: rhbz#1724452
+
+* Fri Jun 21 2019 Severin Gehwolf <sgehwolf@redhat.com> - 1:11.0.4.2-0.1.ea
+- Package jspawnhelper (see JDK-8220360).
+- Resolves: rhbz#1724452
+
+* Fri Jun 21 2019 Severin Gehwolf <sgehwolf@redhat.com> - 1:11.0.3.7-2
+- Include 'ea' designator in Release when appropriate.
+- Resolves: rhbz#1724452
+
+* Wed May 22 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.3.7-2
+- Handle milestone as variables so we can alter it easily and set the docs zip filename appropriately.
+- Resolves: rhbz#1724452
+
+* Thu Apr 25 2019 Severin Gehwolf <sgehwolf@redhat.com> - 1:11.0.3.7-1
+- Don't build the test images needlessly.
+- Don't produce javadoc/javadoc-zip sub packages for the debug variant build.
+- Don't perform a bootcycle build for the debug variant build.
+- Resolves: rhbz#1724452
 
 * Mon Apr 08 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.3.7-0
 - Add -mstackrealign workaround to build flags to avoid SSE issues on x86
