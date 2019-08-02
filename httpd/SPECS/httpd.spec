@@ -15,10 +15,10 @@
 Summary: Apache HTTP Server
 Name: httpd
 Version: 2.4.6
-Release: 89%{?dist}.redsleeve
+Release: 89%{?dist}.1
 URL: http://httpd.apache.org/
 Source0: http://www.apache.org/dist/httpd/httpd-%{version}.tar.bz2
-Source1: index.html
+Source1: centos-noindex.tar.gz
 Source2: httpd.logrotate
 Source3: httpd.sysconf
 Source4: httpd-ssl-pass-dialog
@@ -214,6 +214,7 @@ Patch217: httpd-2.4.6-CVE-2017-7668.patch
 Patch218: httpd-2.4.6-CVE-2017-7679.patch
 Patch219: httpd-2.4.6-CVE-2017-9788.patch
 Patch220: httpd-2.4.6-CVE-2017-9798.patch
+Patch221: httpd-2.4.6-CVE-2018-1312.patch
 
 License: ASL 2.0
 Group: System Environment/Daemons
@@ -458,6 +459,7 @@ rm modules/ssl/ssl_engine_dh.c
 %patch218 -p1 -b .cve7679
 %patch219 -p1 -b .cve9788
 %patch220 -p1 -b .cve9798
+%patch221 -p1 -b .cve1312
 
 # Patch in the vendor string and the release string
 sed -i '/^#define PLATFORM/s/Unix/%{vstring}/' os/unix/os.h
@@ -611,8 +613,9 @@ EOF
 
 # Handle contentdir
 mkdir $RPM_BUILD_ROOT%{contentdir}/noindex
-install -m 644 -p $RPM_SOURCE_DIR/index.html \
-        $RPM_BUILD_ROOT%{contentdir}/noindex/index.html
+tar xzf $RPM_SOURCE_DIR/centos-noindex.tar.gz \
+        -C $RPM_BUILD_ROOT%{contentdir}/noindex/ \
+        --strip-components=1
 
 rm -rf %{contentdir}/htdocs
 
@@ -636,7 +639,7 @@ rm -v $RPM_BUILD_ROOT%{docroot}/html/*.html \
       $RPM_BUILD_ROOT%{docroot}/cgi-bin/*
 
 # Symlink for the powered-by-$DISTRO image:
-ln -s ../../pixmaps/poweredby.png \
+ln -s ../noindex/images/poweredby.png \
         $RPM_BUILD_ROOT%{contentdir}/icons/poweredby.png
 
 # symlinks for /etc/httpd
@@ -822,7 +825,7 @@ rm -rf $RPM_BUILD_ROOT
 %{contentdir}/error/README
 %{contentdir}/error/*.var
 %{contentdir}/error/include/*.html
-%{contentdir}/noindex/index.html
+%{contentdir}/noindex/*
 
 %dir %{docroot}
 %dir %{docroot}/cgi-bin
@@ -888,14 +891,15 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/rpm/macros.httpd
 
 %changelog
-* Tue Apr 30 2019 Jacco Ligthart <jacco@redsleeve.org> - 2.4.6-89.el7.redsleeve
-- roll in redsleeve branding, based on RHEL
-
-* Wed Apr 24 2019 CentOS Sources <bugs@centos.org> - 2.4.6-89.el7.centos
+* Mon Jul 29 2019 CentOS Sources <bugs@centos.org> - 2.4.6-89.el7.centos.1
 - Remove index.html, add centos-noindex.tar.gz
 - change vstring
 - change symlink for poweredby.png
 - update welcome.conf with proper aliases
+
+* Tue Jun 25 2019 Lubos Uhliarik <luhliari@redhat.com> - 2.4.6-89.1
+- Resolves: #1719722 - CVE-2018-1312 httpd: Weak Digest auth nonce generation
+  in mod_auth_digest
 
 * Fri Mar 15 2019 Joe Orton <jorton@redhat.com> - 2.4.6-89
 - fix per-request leak of bucket brigade structure (#1583218)
