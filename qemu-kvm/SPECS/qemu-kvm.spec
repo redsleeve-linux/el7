@@ -14,7 +14,7 @@
     %global have_usbredir 0
 %endif
 
-%ifnarch s390 s390x %{arm}
+%ifnarch s390 s390x
     %global have_librdma 1
     %global have_tcmalloc 1
 %endif
@@ -41,10 +41,6 @@
 %ifarch aarch64
     %global kvm_target    aarch64
 %endif
-%ifarch %{arm}
-    %global kvm_target    arm
-%endif
-
 
 #Versions of various parts:
 
@@ -80,14 +76,13 @@ Obsoletes: %1 < %{obsoletes_version}                                      \
 Summary: QEMU is a machine emulator and virtualizer
 Name: %{pkgname}%{?pkgsuffix}
 Version: 1.5.3
-Release: 160%{?dist}.2.redsleeve
-
+Release: 160%{?dist}.3
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 Epoch: 10
 License: GPLv2 and GPLv2+ and CC-BY
 Group: Development/Tools
 URL: http://www.qemu.org/
-ExclusiveArch: x86_64 %{arm}
+ExclusiveArch: x86_64
 Requires: seabios-bin >= 1.7.2.2-5
 Requires: sgabios-bin
 Requires: seavgabios-bin
@@ -3948,6 +3943,14 @@ Patch1942: kvm-slirp-Correct-size-check-in-m_inc.patch
 Patch1943: kvm-i386-Deprecate-arch-facilities-and-make-it-block-liv.patch
 # For bz#1693216 - qemu-kvm: hardware: Microarchitectural Store Buffer Data Sampling [rhel-7.6.z]
 Patch1944: kvm-target-i386-define-md-clear-bit-rhel.patch
+# For bz#1669067 - CVE-2019-6778 qemu-kvm: QEMU: slirp: heap buffer overflow in tcp_emu() [rhel-7.6.z]
+Patch1945: kvm-slirp-check-sscanf-result-when-emulating-ident.patch
+# For bz#1669067 - CVE-2019-6778 qemu-kvm: QEMU: slirp: heap buffer overflow in tcp_emu() [rhel-7.6.z]
+Patch1946: kvm-slirp-fix-big-little-endian-conversion-in-ident-prot.patch
+# For bz#1669067 - CVE-2019-6778 qemu-kvm: QEMU: slirp: heap buffer overflow in tcp_emu() [rhel-7.6.z]
+Patch1947: kvm-slirp-ensure-there-is-enough-space-in-mbuf-to-null-t.patch
+# For bz#1669067 - CVE-2019-6778 qemu-kvm: QEMU: slirp: heap buffer overflow in tcp_emu() [rhel-7.6.z]
+Patch1948: kvm-slirp-don-t-manipulate-so_rcv-in-tcp_emu.patch
 
 
 BuildRequires: zlib-devel
@@ -6070,6 +6073,10 @@ tar -xf %{SOURCE21}
 %patch1942 -p1
 %patch1943 -p1
 %patch1944 -p1
+%patch1945 -p1
+%patch1946 -p1
+%patch1947 -p1
+%patch1948 -p1
 
 %build
 buildarch="%{kvm_target}-softmmu"
@@ -6515,9 +6522,13 @@ sh %{_sysconfdir}/sysconfig/modules/kvm.modules &> /dev/null || :
 %{_mandir}/man8/qemu-nbd.8*
 
 %changelog
-* Fri Jul 05 2019 Jacco Ligthart <jacco@redsleeve.org> - 1.5.3-160.el7.2.redsleeve
-- added kvm_target arm
-- do not use rdma-core
+* Tue May 28 2019 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-160.el7_6.3
+- kvm-slirp-check-sscanf-result-when-emulating-ident.patch [bz#1669067]
+- kvm-slirp-fix-big-little-endian-conversion-in-ident-prot.patch [bz#1669067]
+- kvm-slirp-ensure-there-is-enough-space-in-mbuf-to-null-t.patch [bz#1669067]
+- kvm-slirp-don-t-manipulate-so_rcv-in-tcp_emu.patch [bz#1669067]
+- Resolves: bz#1669067
+  (CVE-2019-6778 qemu-kvm: QEMU: slirp: heap buffer overflow in tcp_emu() [rhel-7.6.z])
 
 * Wed Apr 10 2019 Danilo C. L. de Paula <ddepaula@redhat.com> - 1.5.3-160.el7_6.2
 - kvm-target-i386-define-md-clear-bit-rhel.patch

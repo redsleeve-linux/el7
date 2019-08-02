@@ -1,0 +1,52 @@
+From 6e4dad9d915f8de71e1695720398160c97e8ebd0 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
+Date: Mon, 20 May 2019 17:00:53 +0200
+Subject: [PATCH 2/4] slirp: fix big/little endian conversion in ident protocol
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: Marc-André Lureau <marcandre.lureau@redhat.com>
+Message-id: <20190520170055.15404-3-marcandre.lureau@redhat.com>
+Patchwork-id: 88100
+O-Subject: [RHEL-7.6.z qemu-kvm PATCH 2/4] slirp: fix big/little endian conversion in ident protocol
+Bugzilla: 1669067
+RH-Acked-by: Philippe Mathieu-Daudé <philmd@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+
+From: Samuel Thibault <samuel.thibault@ens-lyon.org>
+
+Signed-off-by: Samuel Thibault <samuel.thibault@ens-lyon.org>
+Reviewed-by: Philippe Mathieu-Daudé <philmd@redhat.com>
+
+[ MA - backported to ease backport of CVE-2019-6778 ]
+
+(cherry picked from commit 1fd71067dae501f1c78618e9583c6cc72db0cfa6)
+Signed-off-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ slirp/tcp_subr.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/slirp/tcp_subr.c b/slirp/tcp_subr.c
+index 0b7138b..80538a9 100644
+--- a/slirp/tcp_subr.c
++++ b/slirp/tcp_subr.c
+@@ -601,10 +601,12 @@ tcp_emu(struct socket *so, struct mbuf *m)
+ 						    tmpso->so_fport == n1) {
+ 							if (getsockname(tmpso->s,
+ 								(struct sockaddr *)&addr, &addrlen) == 0)
+-							   n2 = ntohs(addr.sin_port);
++							   n2 = addr.sin_port;
+ 							break;
+ 						}
+ 					}
++					NTOHS(n1);
++					NTOHS(n2);
+ 					so_rcv->sb_cc = snprintf(so_rcv->sb_data,
+ 								 so_rcv->sb_datalen,
+ 								 "%d,%d\r\n", n1, n2);
+-- 
+1.8.3.1
+
