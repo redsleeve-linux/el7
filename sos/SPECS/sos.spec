@@ -2,7 +2,7 @@
 Summary: A set of tools to gather troubleshooting information from a system
 Name: sos
 Version: 3.6
-Release: 17%{?dist}.redsleeve
+Release: 19%{?dist}
 Group: Applications/System
 Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
 License: GPLv2+
@@ -38,7 +38,8 @@ Patch17: sos-bz1658571-postgresql-collect-full-dump.patch
 Patch18: sos-bz1669045-rhcos-policy-and-plugins.patch
 Patch19: sos-bz1679238-crio-plugin.patch
 Patch20: sos-bz1690999-docker-skip-system-df.patch
-Patch21: sos-3.6-redsleeve-branding.patch
+Patch21: sos-bz1715470-rhv-postgres-from-scl.patch
+Patch22: sos-3.6-centos-branding.patch
 
 %description
 Sos is a set of tools that gathers information about system
@@ -70,6 +71,7 @@ support technicians and developers.
 %patch19 -p1
 %patch20 -p1
 %patch21 -p1
+%patch22 -p1
 
 %build
 make
@@ -93,11 +95,12 @@ rm -rf ${RPM_BUILD_ROOT}
 %config(noreplace) %{_sysconfdir}/sos.conf
 
 %changelog
-* Tue Apr 30 2019 Jacco Ligthart <jacco@redsleeve.org> - 3.6-17.el7.redsleeve
-- Roll in RedSleeve Branding
-
-* Tue Apr 23 2019 CentOS Sources <bugs@centos.org> - 3.6-17.el7.centos
+* Mon Jul 29 2019 CentOS Sources <bugs@centos.org> - 3.6-19.el7.centos
 - Roll in CentOS Branding
+
+* Thu May 30 2019 Pavel Moravec <pmoravec@redhat.com> = 3.6-19
+- [postgresql] Use postgres 10 scl if installed
+  Resolves: bz1715470
 
 * Wed Mar 20 2019 Pavel Moravec <pmoravec@redhat.com> = 3.6-17
 - [docker] do not collect 'system df' by default
