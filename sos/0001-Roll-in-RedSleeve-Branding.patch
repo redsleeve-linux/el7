@@ -1,6 +1,6 @@
-From 57afad2bb6935a40ae48a8fda51a87e59ca46957 Mon Sep 17 00:00:00 2001
+From 282bf9463013bdec354e9fc4d00a4383f060ac12 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Tue, 30 Apr 2019 23:12:53 +0200
+Date: Sat, 3 Aug 2019 00:41:57 +0200
 Subject: [PATCH] Roll in RedSleeve Branding
 
 ---
@@ -121,35 +121,35 @@ index 0000000..8761274
 + This command will collect diagnostic and configuration \
 + information from this %(distro)s system.
 diff --git a/SPECS/sos.spec b/SPECS/sos.spec
-index 5e2f5c8..ef5b055 100644
+index 327e908..c66253e 100644
 --- a/SPECS/sos.spec
 +++ b/SPECS/sos.spec
 @@ -2,7 +2,7 @@
  Summary: A set of tools to gather troubleshooting information from a system
  Name: sos
  Version: 3.6
--Release: 17%{?dist}
-+Release: 17%{?dist}.redsleeve
+-Release: 19%{?dist}
++Release: 19%{?dist}.redsleeve
  Group: Applications/System
  Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
  License: GPLv2+
-@@ -38,7 +38,7 @@ Patch17: sos-bz1658571-postgresql-collect-full-dump.patch
- Patch18: sos-bz1669045-rhcos-policy-and-plugins.patch
+@@ -39,7 +39,7 @@ Patch18: sos-bz1669045-rhcos-policy-and-plugins.patch
  Patch19: sos-bz1679238-crio-plugin.patch
  Patch20: sos-bz1690999-docker-skip-system-df.patch
--Patch21: sos-3.6-centos-branding.patch
-+Patch21: sos-3.6-redsleeve-branding.patch
+ Patch21: sos-bz1715470-rhv-postgres-from-scl.patch
+-Patch22: sos-3.6-centos-branding.patch
++Patch22: sos-3.6-redsleeve-branding.patch
  
  %description
  Sos is a set of tools that gathers information about system
-@@ -93,6 +93,9 @@ rm -rf ${RPM_BUILD_ROOT}
+@@ -95,6 +95,9 @@ rm -rf ${RPM_BUILD_ROOT}
  %config(noreplace) %{_sysconfdir}/sos.conf
  
  %changelog
-+* Tue Apr 30 2019 Jacco Ligthart <jacco@redsleeve.org> - 3.6-17.el7.redsleeve
++* Fri Aug 02 2019 Jacco Ligthart <jacco@redsleeve.org> - 3.6-19.el7.redsleeve
 +- Roll in RedSleeve Branding
 +
- * Tue Apr 23 2019 CentOS Sources <bugs@centos.org> - 3.6-17.el7.centos
+ * Mon Jul 29 2019 CentOS Sources <bugs@centos.org> - 3.6-19.el7.centos
  - Roll in CentOS Branding
  
 -- 
