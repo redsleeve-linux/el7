@@ -1,7 +1,7 @@
 Summary: CentOS specific rpm configuration files
 Name: redhat-rpm-config
 Version: 9.1.0
-Release: 87%{?dist}.redsleeve
+Release: 88%{?dist}
 # No version specified.
 License: GPL+
 Group: Development/System
@@ -122,13 +122,14 @@ Patch100: redhat-rpm-config-9.1.0-centos.dist.patch
 BuildArch: noarch
 Requires: coreutils
 Requires: perl-srpm-macros
+Requires: python-srpm-macros
 Requires: rpm >= 4.9.0
 Requires: dwz >= 0.4
 Requires: zip
 Provides: system-rpm-config = %{version}-%{release}
 
 %description
-RedSleeve specific rpm configuration files.
+CentOS specific rpm configuration files.
 
 %prep
 %setup -q
@@ -211,11 +212,11 @@ rm -rf ${RPM_BUILD_ROOT}
 %{_sysconfdir}/rpm/*
 
 %changelog
-* Wed Oct 31 2018 Jacco Ligthart <jacco@redsleeve.org> - 9.1.0-87.el7.redsleeve
-- rebrand SPEC file
-
-* Tue Oct 30 2018 CentOS Sources <bugs@centos.org> - 9.1.0-87.el7.centos
+* Tue Aug 06 2019 CentOS Sources <bugs@centos.org> - 9.1.0-88.el7.centos
 - update check_rhl function in dist.sh
+
+* Wed Feb 20 2019 Tomas Orsava <torsava@redhat.com> -  9.1.0-88
+- Add dependency on python-srpm-macros (#1679229)
 
 * Fri Sep 14 2018 Eugene Syromiatnikov <esyr@redhat.com> - 9.1.0-87
 - Revert to usage of join instead of comm in find-requires.ksym:mod_requires()
