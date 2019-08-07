@@ -1,6 +1,6 @@
-From 66bbfd5e047da19956f224279583a524840175dd Mon Sep 17 00:00:00 2001
+From 17cb4a0c05f12ec2d3c6576469c171245eb2da8e Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Wed, 10 Apr 2019 00:46:22 +0200
+Date: Sat, 3 Aug 2019 00:20:46 +0200
 Subject: [PATCH] disabled tcmalloc for arm
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] disabled tcmalloc for arm
  1 file changed, 5 insertions(+), 2 deletions(-)
 
 diff --git a/SPECS/389-ds-base.spec b/SPECS/389-ds-base.spec
-index 6c2b417..61f03d8 100644
+index 162cab2..c33d2a5 100644
 --- a/SPECS/389-ds-base.spec
 +++ b/SPECS/389-ds-base.spec
 @@ -19,7 +19,7 @@
@@ -24,21 +24,21 @@ index 6c2b417..61f03d8 100644
  Summary:          389 Directory Server (%{variant})
  Name:             389-ds-base
  Version:          1.3.8.4
--Release:          %{?relprefix}23%{?prerel}%{?dist}
-+Release:          %{?relprefix}23%{?prerel}%{?dist}.redsleeve
+-Release:          %{?relprefix}25%{?prerel}.1%{?dist}
++Release:          %{?relprefix}25%{?prerel}.1%{?dist}.redsleeve
  License:          GPLv3+
  URL:              https://www.port389.org/
  Group:            System Environment/Daemons
-@@ -517,6 +517,9 @@ fi
+@@ -523,6 +523,9 @@ fi
  %{_sysconfdir}/%{pkgname}/dirsrvtests
  
  %changelog
-+* Thu Mar 14 2019 Jacco Ligthart <jacco@redsleeve.org> - 1.3.8.4-23.redsleeve
++* Fri Aug 02 2019 Jacco Ligthart <jacco@redsleeve.org> - 1.3.8.4-25.1.redsleeve
 +- disabled tcmalloc for arm
 +
- * Wed Feb 6 2019 Mark Reynolds <mreynolds@redhat.com> - 1.3.8.4-23
- - Bump version to 1.3.8.4-23
- - Resolves: Bug 1672173 - import task should not be deleted after import finishes to be able to query the status
+ * Wed Jul 3 2019 Mark Reynolds <mreynolds@redhat.com> - 1.3.8.4-25.1
+ - Bump version to 1.3.8.4-25.1
+ - Resolves: Bug 1718689 - dse.ldif strip-off string after 1023 character (missing patch file)
 -- 
 1.8.3.1
 
