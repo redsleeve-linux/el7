@@ -1,0 +1,79 @@
+From 56e7f4a46b448ec40f72272658296df226ff0b5a Mon Sep 17 00:00:00 2001
+From: Alex Williamson <alex.williamson@redhat.com>
+Date: Thu, 13 Dec 2018 21:55:20 +0100
+Subject: [PATCH 4/5] kvm: Use inhibit to prevent ballooning without
+ synchronous mmu
+
+RH-Author: Alex Williamson <alex.williamson@redhat.com>
+Message-id: <154473812068.22725.2716400707312373292.stgit@gimli.home>
+Patchwork-id: 83496
+O-Subject: [RHEL-7.7 qemu-kvm PATCH 4/5] kvm: Use inhibit to prevent ballooning without synchronous mmu
+Bugzilla: 1659229
+RH-Acked-by: Peter Xu <peterx@redhat.com>
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: Auger Eric <eric.auger@redhat.com>
+
+Bugzilla: 1659229
+
+Remove KVM specific tests in balloon_page(), instead marking
+ballooning as inhibited without KVM_CAP_SYNC_MMU support.
+
+Reviewed-by: David Hildenbrand <david@redhat.com>
+Reviewed-by: Peter Xu <peterx@redhat.com>
+Reviewed-by: Cornelia Huck <cohuck@redhat.com>
+Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+Signed-off-by: Alex Williamson <alex.williamson@redhat.com>
+(cherry picked from commit f59489423ab79852e98d9b3025b7d99ba8da584f)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/virtio/virtio-balloon.c | 4 +---
+ kvm-all.c                  | 4 ++++
+ 2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/hw/virtio/virtio-balloon.c b/hw/virtio/virtio-balloon.c
+index c9562ef..d8add23 100644
+--- a/hw/virtio/virtio-balloon.c
++++ b/hw/virtio/virtio-balloon.c
+@@ -21,7 +21,6 @@
+ #include "cpu.h"
+ #include "sysemu/balloon.h"
+ #include "hw/virtio/virtio-balloon.h"
+-#include "sysemu/kvm.h"
+ #include "exec/address-spaces.h"
+ #include "qapi/visitor.h"
+ 
+@@ -34,8 +33,7 @@
+ static void balloon_page(void *addr, int deflate)
+ {
+ #if defined(__linux__)
+-    if (!qemu_balloon_is_inhibited() && (!kvm_enabled() ||
+-                                         kvm_has_sync_mmu())) {
++    if (!qemu_balloon_is_inhibited()) {
+         qemu_madvise(addr, TARGET_PAGE_SIZE,
+                 deflate ? QEMU_MADV_WILLNEED : QEMU_MADV_DONTNEED);
+     }
+diff --git a/kvm-all.c b/kvm-all.c
+index f5b7958..572275e 100644
+--- a/kvm-all.c
++++ b/kvm-all.c
+@@ -17,6 +17,7 @@
+ #include <sys/ioctl.h>
+ #include <sys/mman.h>
+ #include <stdarg.h>
++#include "sysemu/balloon.h"
+ 
+ #include <linux/kvm.h>
+ 
+@@ -1481,6 +1482,9 @@ int kvm_init(void)
+     cpu_interrupt_handler = kvm_handle_interrupt;
+ 
+     s->sync_mmu = !!kvm_check_extension(kvm_state, KVM_CAP_SYNC_MMU);
++    if (!s->sync_mmu) {
++        qemu_balloon_inhibit(true);
++    }
+ 
+     return 0;
+ 
+-- 
+1.8.3.1
+

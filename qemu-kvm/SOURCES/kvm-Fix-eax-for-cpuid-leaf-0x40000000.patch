@@ -1,0 +1,51 @@
+From 9903f2031b13dfeff37514197cdd56cbcb3431f4 Mon Sep 17 00:00:00 2001
+From: Eduardo Habkost <ehabkost@redhat.com>
+Date: Wed, 15 May 2019 15:53:55 +0200
+Subject: [PATCH 1/4] kvm: Fix eax for cpuid leaf 0x40000000
+
+RH-Author: Eduardo Habkost <ehabkost@redhat.com>
+Message-id: <20190515155355.22182-2-ehabkost@redhat.com>
+Patchwork-id: 87888
+O-Subject: [RHEL-7.7 qemu-kvm PATCH 1/1] kvm: Fix eax for cpuid leaf 0x40000000
+Bugzilla: 1709495
+RH-Acked-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Sergio Lopez Pascual <slp@redhat.com>
+
+From: Jidong Xiao <jidong.xiao@gmail.com>
+
+Since Linux kernel 3.5, KVM has documented eax for leaf 0x40000000
+to be KVM_CPUID_FEATURES:
+
+https://github.com/torvalds/linux/commit/57c22e5f35aa4b9b2fe11f73f3e62bbf9ef36190
+
+But qemu still tries to set it to 0. It would be better to make qemu
+and kvm consistent. This patch just fixes this issue.
+
+Signed-off-by: Jidong Xiao <jidong.xiao@gmail.com>
+[Include kvm_base in the value. - Paolo]
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit 79b6f2f651d64a122dd647c1456635d5a6a176ac)
+Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
+
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ target-i386/kvm.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/target-i386/kvm.c b/target-i386/kvm.c
+index 35a9cf4..d5f6deb 100644
+--- a/target-i386/kvm.c
++++ b/target-i386/kvm.c
+@@ -532,7 +532,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
+     memcpy(signature, "KVMKVMKVM\0\0\0", 12);
+     c = &cpuid_data.entries[cpuid_i++];
+     c->function = KVM_CPUID_SIGNATURE | kvm_base;
+-    c->eax = 0;
++    c->eax = KVM_CPUID_FEATURES | kvm_base;
+     c->ebx = signature[0];
+     c->ecx = signature[1];
+     c->edx = signature[2];
+-- 
+1.8.3.1
+

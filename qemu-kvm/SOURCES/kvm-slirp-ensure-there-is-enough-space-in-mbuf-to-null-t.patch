@@ -1,6 +1,6 @@
-From 16725ff1e92b21449017a6e3aa9b1621d06c84a4 Mon Sep 17 00:00:00 2001
+From e80c12dfdbde349dcd225771a4801b47be0b3b5f Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
-Date: Mon, 20 May 2019 17:00:54 +0200
+Date: Mon, 20 May 2019 16:43:14 +0200
 Subject: [PATCH 3/4] slirp: ensure there is enough space in mbuf to
  null-terminate
 MIME-Version: 1.0
@@ -8,10 +8,10 @@ Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 
 RH-Author: Marc-André Lureau <marcandre.lureau@redhat.com>
-Message-id: <20190520170055.15404-4-marcandre.lureau@redhat.com>
-Patchwork-id: 88099
-O-Subject: [RHEL-7.6.z qemu-kvm PATCH 3/4] slirp: ensure there is enough space in mbuf to null-terminate
-Bugzilla: 1669067
+Message-id: <20190520164315.22140-3-marcandre.lureau@redhat.com>
+Patchwork-id: 88094
+O-Subject: [RHEL-7.7 qemu-kvm PATCH 2/3] slirp: ensure there is enough space in mbuf to null-terminate
+Bugzilla: 1669068
 RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
 RH-Acked-by: Philippe Mathieu-Daudé <philmd@redhat.com>
 RH-Acked-by: Thomas Huth <thuth@redhat.com>

@@ -1,16 +1,16 @@
-From dae1fad6e93e6bdff0d5366fdb269904cd00c83c Mon Sep 17 00:00:00 2001
+From 5e805decf566e71cd315243de9a037d99becb074 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
-Date: Mon, 20 May 2019 17:00:55 +0200
+Date: Mon, 20 May 2019 16:43:15 +0200
 Subject: [PATCH 4/4] slirp: don't manipulate so_rcv in tcp_emu()
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 
 RH-Author: Marc-André Lureau <marcandre.lureau@redhat.com>
-Message-id: <20190520170055.15404-5-marcandre.lureau@redhat.com>
-Patchwork-id: 88097
-O-Subject: [RHEL-7.6.z qemu-kvm PATCH 4/4] slirp: don't manipulate so_rcv in tcp_emu()
-Bugzilla: 1669067
+Message-id: <20190520164315.22140-4-marcandre.lureau@redhat.com>
+Patchwork-id: 88095
+O-Subject: [RHEL-7.7 qemu-kvm PATCH 3/3] slirp: don't manipulate so_rcv in tcp_emu()
+Bugzilla: 1669068
 RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
 RH-Acked-by: Philippe Mathieu-Daudé <philmd@redhat.com>
 RH-Acked-by: Thomas Huth <thuth@redhat.com>

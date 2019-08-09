@@ -1,0 +1,116 @@
+From 53c0d0dcad838ef8b9b0faf0c8066d47380f2cf1 Mon Sep 17 00:00:00 2001
+From: Alex Williamson <alex.williamson@redhat.com>
+Date: Thu, 13 Dec 2018 21:55:04 +0100
+Subject: [PATCH 3/5] kvm: check KVM_CAP_SYNC_MMU with kvm_vm_check_extension()
+
+RH-Author: Alex Williamson <alex.williamson@redhat.com>
+Message-id: <154473810399.22725.17809569801460658619.stgit@gimli.home>
+Patchwork-id: 83495
+O-Subject: [RHEL-7.7 qemu-kvm PATCH 3/5] kvm: check KVM_CAP_SYNC_MMU with kvm_vm_check_extension()
+Bugzilla: 1659229
+RH-Acked-by: Peter Xu <peterx@redhat.com>
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: Auger Eric <eric.auger@redhat.com>
+
+From: Greg Kurz <groug@kaod.org>
+
+Bugzilla: 1659229
+Notes: We don't have kvm_vm_check_extension() but we can still
+       cache the result, which gives us the same hook to trigger
+       the balloon inhibitor here.
+
+On a server-class ppc host, this capability depends on the KVM type,
+ie, HV or PR. If both KVM are present in the kernel, we will always
+get the HV specific value, even if we explicitely requested PR on
+the command line.
+
+This can have an impact if we're using hugepages or a balloon device.
+
+Since we've already created the VM at the time any user calls
+kvm_has_sync_mmu(), switching to kvm_vm_check_extension() is
+enough to fix any potential issue.
+
+It is okay for the other archs that also implement KVM_CAP_SYNC_MMU,
+ie, mips, s390, x86 and arm, because they don't depend on the VM being
+created or not.
+
+While here, let's cache the state of this extension in a bool variable,
+since it has several users in the code, as suggested by Thomas Huth.
+
+Signed-off-by: Greg Kurz <groug@kaod.org>
+Message-Id: <150600965332.30533.14702405809647835716.stgit@bahia.lan>
+Reviewed-by: David Gibson <david@gibson.dropbear.id.au>
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit 62dd4edaaf859b60f74a51f2a526d4d3d85d0248)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ include/sysemu/kvm.h | 2 +-
+ kvm-all.c            | 7 +++++--
+ kvm-stub.c           | 4 ++--
+ 3 files changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/include/sysemu/kvm.h b/include/sysemu/kvm.h
+index 49cfc42..e4403be 100644
+--- a/include/sysemu/kvm.h
++++ b/include/sysemu/kvm.h
+@@ -135,7 +135,7 @@ extern KVMState *kvm_state;
+ 
+ int kvm_init(void);
+ 
+-int kvm_has_sync_mmu(void);
++bool kvm_has_sync_mmu(void);
+ int kvm_has_vcpu_events(void);
+ int kvm_has_robust_singlestep(void);
+ int kvm_has_debugregs(void);
+diff --git a/kvm-all.c b/kvm-all.c
+index 9486b9a..f5b7958 100644
+--- a/kvm-all.c
++++ b/kvm-all.c
+@@ -92,6 +92,7 @@ struct KVMState
+     int xsave, xcrs;
+     int many_ioeventfds;
+     int intx_set_mask;
++    bool sync_mmu;
+     /* The man page (and posix) say ioctl numbers are signed int, but
+      * they're not.  Linux, glibc and *BSD all treat ioctl numbers as
+      * unsigned, and treating them as signed here can break things */
+@@ -1479,6 +1480,8 @@ int kvm_init(void)
+ 
+     cpu_interrupt_handler = kvm_handle_interrupt;
+ 
++    s->sync_mmu = !!kvm_check_extension(kvm_state, KVM_CAP_SYNC_MMU);
++
+     return 0;
+ 
+ err:
+@@ -1775,9 +1778,9 @@ int kvm_vcpu_ioctl(CPUState *cpu, int type, ...)
+     return ret;
+ }
+ 
+-int kvm_has_sync_mmu(void)
++bool kvm_has_sync_mmu(void)
+ {
+-    return kvm_check_extension(kvm_state, KVM_CAP_SYNC_MMU);
++    return kvm_state->sync_mmu;
+ }
+ 
+ int kvm_has_vcpu_events(void)
+diff --git a/kvm-stub.c b/kvm-stub.c
+index 22eaff0..ca6ddd7 100644
+--- a/kvm-stub.c
++++ b/kvm-stub.c
+@@ -59,9 +59,9 @@ int kvm_cpu_exec(CPUArchState *env)
+     abort ();
+ }
+ 
+-int kvm_has_sync_mmu(void)
++bool kvm_has_sync_mmu(void)
+ {
+-    return 0;
++    return false;
+ }
+ 
+ int kvm_has_many_ioeventfds(void)
+-- 
+1.8.3.1
+

@@ -76,7 +76,7 @@ Obsoletes: %1 < %{obsoletes_version}                                      \
 Summary: QEMU is a machine emulator and virtualizer
 Name: %{pkgname}%{?pkgsuffix}
 Version: 1.5.3
-Release: 160%{?dist}.3
+Release: 167%{?dist}
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 Epoch: 10
 License: GPLv2 and GPLv2+ and CC-BY
@@ -3939,18 +3939,36 @@ Patch1940: kvm-ide-support-reporting-of-rotation-rate.patch
 Patch1941: kvm-ide-avoid-referencing-NULL-dev-in-rotational-rate-se.patch
 # For bz#1586253 - CVE-2018-11806 qemu-kvm: QEMU: slirp: heap buffer overflow while reassembling fragmented datagrams [rhel-7.6]
 Patch1942: kvm-slirp-Correct-size-check-in-m_inc.patch
-# For bz#1664792 - mode="host-model" VMs include broken "arch-facilities" flag name [qemu-kvm] [rhel-7.6.z]
-Patch1943: kvm-i386-Deprecate-arch-facilities-and-make-it-block-liv.patch
-# For bz#1693216 - qemu-kvm: hardware: Microarchitectural Store Buffer Data Sampling [rhel-7.6.z]
-Patch1944: kvm-target-i386-define-md-clear-bit-rhel.patch
-# For bz#1669067 - CVE-2019-6778 qemu-kvm: QEMU: slirp: heap buffer overflow in tcp_emu() [rhel-7.6.z]
-Patch1945: kvm-slirp-check-sscanf-result-when-emulating-ident.patch
-# For bz#1669067 - CVE-2019-6778 qemu-kvm: QEMU: slirp: heap buffer overflow in tcp_emu() [rhel-7.6.z]
-Patch1946: kvm-slirp-fix-big-little-endian-conversion-in-ident-prot.patch
-# For bz#1669067 - CVE-2019-6778 qemu-kvm: QEMU: slirp: heap buffer overflow in tcp_emu() [rhel-7.6.z]
-Patch1947: kvm-slirp-ensure-there-is-enough-space-in-mbuf-to-null-t.patch
-# For bz#1669067 - CVE-2019-6778 qemu-kvm: QEMU: slirp: heap buffer overflow in tcp_emu() [rhel-7.6.z]
-Patch1948: kvm-slirp-don-t-manipulate-so_rcv-in-tcp_emu.patch
+# For bz#1659229 - Ballooning is incompatible with vfio assigned devices, but not prevented
+Patch1943: kvm-Inhibit-ballooning-during-postcopy.patch
+# For bz#1659229 - Ballooning is incompatible with vfio assigned devices, but not prevented
+Patch1944: kvm-balloon-Allow-multiple-inhibit-users.patch
+# For bz#1659229 - Ballooning is incompatible with vfio assigned devices, but not prevented
+Patch1945: kvm-check-KVM_CAP_SYNC_MMU-with-kvm_vm_check_extensi.patch
+# For bz#1659229 - Ballooning is incompatible with vfio assigned devices, but not prevented
+Patch1946: kvm-Use-inhibit-to-prevent-ballooning-without-synchr.patch
+# For bz#1659229 - Ballooning is incompatible with vfio assigned devices, but not prevented
+Patch1947: kvm-vfio-Inhibit-ballooning-based-on-group-attachment-to.patch
+# For bz#1658407 - mode="host-model" VMs include broken "arch-facilities" flag name [qemu-kvm]
+Patch1948: kvm-i386-Deprecate-arch-facilities-and-make-it-block-liv.patch
+# For bz#1654627 - Qemu: hw: bt: keep bt/* objects from building [rhel-7.7]
+Patch1949: kvm-Do-not-build-bluetooth-support.patch
+# For bz#1537773 - [Intel 7.7 Feat] KVM Enabling SnowRidge new NIs - qemu-kvm
+Patch1950: kvm-x86-cpu-Enable-CLDEMOTE-Demote-Cache-Line-cpu-featur.patch
+# For bz#1459077 - [Intel 7.7 Bug] QEMU version in RHEL7.4 beta does not support KVM passthrough with WFR card
+Patch1951: kvm-vfio-pci-Lazy-PBA-emulation.patch
+# For bz#1689791 - CVE-2019-9824 qemu-kvm: QEMU: Slirp: information leakage in tcp_emu() due to uninitialized stack variables [rhel-7]
+Patch1952: kvm-slirp-check-sscanf-result-when-emulating-ident.patch
+# For bz#1693217 - CVE-2018-12126 qemu-kvm: hardware: Microarchitectural Store Buffer Data Sampling [rhel-7.7]
+Patch1953: kvm-target-i386-define-md-clear-bit-rhel.patch
+# For bz#1709495 - Change CPUID[0x40000000].EAX from 0 to KVM_CPUID_FE...ATURES (0x40000001)
+Patch1954: kvm-Fix-eax-for-cpuid-leaf-0x40000000.patch
+# For bz#1669068 - CVE-2019-6778 qemu-kvm: QEMU: slirp: heap buffer overflow in tcp_emu() [rhel-7.7]
+Patch1955: kvm-slirp-fix-big-little-endian-conversion-in-ident-prot.patch
+# For bz#1669068 - CVE-2019-6778 qemu-kvm: QEMU: slirp: heap buffer overflow in tcp_emu() [rhel-7.7]
+Patch1956: kvm-slirp-ensure-there-is-enough-space-in-mbuf-to-null-t.patch
+# For bz#1669068 - CVE-2019-6778 qemu-kvm: QEMU: slirp: heap buffer overflow in tcp_emu() [rhel-7.7]
+Patch1957: kvm-slirp-don-t-manipulate-so_rcv-in-tcp_emu.patch
 
 
 BuildRequires: zlib-devel
@@ -6077,6 +6095,15 @@ tar -xf %{SOURCE21}
 %patch1946 -p1
 %patch1947 -p1
 %patch1948 -p1
+%patch1949 -p1
+%patch1950 -p1
+%patch1951 -p1
+%patch1952 -p1
+%patch1953 -p1
+%patch1954 -p1
+%patch1955 -p1
+%patch1956 -p1
+%patch1957 -p1
 
 %build
 buildarch="%{kvm_target}-softmmu"
@@ -6522,23 +6549,58 @@ sh %{_sysconfdir}/sysconfig/modules/kvm.modules &> /dev/null || :
 %{_mandir}/man8/qemu-nbd.8*
 
 %changelog
-* Tue May 28 2019 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-160.el7_6.3
-- kvm-slirp-check-sscanf-result-when-emulating-ident.patch [bz#1669067]
-- kvm-slirp-fix-big-little-endian-conversion-in-ident-prot.patch [bz#1669067]
-- kvm-slirp-ensure-there-is-enough-space-in-mbuf-to-null-t.patch [bz#1669067]
-- kvm-slirp-don-t-manipulate-so_rcv-in-tcp_emu.patch [bz#1669067]
-- Resolves: bz#1669067
-  (CVE-2019-6778 qemu-kvm: QEMU: slirp: heap buffer overflow in tcp_emu() [rhel-7.6.z])
+* Wed Jun 12 2019 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-167.el7
+- Reverting kvm-seccomp-set-the-seccomp-filter-to-all-threads.patch [bz#1618503]
+- Resolves: bz#1618503
+  (qemu-kvm: Qemu: seccomp: blacklist is not applied to all threads [rhel-7])
 
-* Wed Apr 10 2019 Danilo C. L. de Paula <ddepaula@redhat.com> - 1.5.3-160.el7_6.2
-- kvm-target-i386-define-md-clear-bit-rhel.patch
-- Resolves: bz#1693216
-  (qemu-kvm: hardware: Microarchitectural Store Buffer Data Sampling)
+* Wed Jun 05 2019 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-166.el7
+- kvm-seccomp-set-the-seccomp-filter-to-all-threads.patch [bz#1618503]
+- Resolves: bz#1618503
+  (qemu-kvm: Qemu: seccomp: blacklist is not applied to all threads [rhel-7])
 
-* Mon Jan 14 2019 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-160.el7_6.1
-- kvm-i386-Deprecate-arch-facilities-and-make-it-block-liv.patch [bz#1664792]
-- Resolves: bz#1664792
-  (mode="host-model" VMs include broken "arch-facilities" flag name [qemu-kvm] [rhel-7.6.z])
+* Tue May 28 2019 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-165.el7
+- kvm-Fix-eax-for-cpuid-leaf-0x40000000.patch [bz#1709495]
+- kvm-slirp-fix-big-little-endian-conversion-in-ident-prot.patch [bz#1669068]
+- kvm-slirp-ensure-there-is-enough-space-in-mbuf-to-null-t.patch [bz#1669068]
+- kvm-slirp-don-t-manipulate-so_rcv-in-tcp_emu.patch [bz#1669068]
+- Resolves: bz#1669068
+  (CVE-2019-6778 qemu-kvm: QEMU: slirp: heap buffer overflow in tcp_emu() [rhel-7.7])
+- Resolves: bz#1709495
+  (Change CPUID[0x40000000].EAX from 0 to KVM_CPUID_FE...ATURES (0x40000001))
+
+* Wed Apr 10 2019 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-164.el7
+- kvm-target-i386-define-md-clear-bit-rhel.patch [bz#1693217]
+- Resolves: bz#1693217
+  (CVE-2018-12126 qemu-kvm: hardware: Microarchitectural Store Buffer Data Sampling [rhel-7.7] )
+
+* Wed Apr 03 2019 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-163.el7
+- kvm-x86-cpu-Enable-CLDEMOTE-Demote-Cache-Line-cpu-featur.patch [bz#1537773]
+- kvm-vfio-pci-Lazy-PBA-emulation.patch [bz#1459077]
+- kvm-slirp-check-sscanf-result-when-emulating-ident.patch [bz#1689791]
+- Resolves: bz#1459077
+  ([Intel 7.7 Bug] QEMU version in RHEL7.4 beta does not support KVM passthrough with WFR card)
+- Resolves: bz#1537773
+  ([Intel 7.7 Feat] KVM Enabling SnowRidge new NIs - qemu-kvm)
+- Resolves: bz#1689791
+  (CVE-2019-9824 qemu-kvm: QEMU: Slirp: information leakage in tcp_emu() due to uninitialized stack variables [rhel-7])
+
+* Mon Jan 14 2019 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-162.el7
+- kvm-i386-Deprecate-arch-facilities-and-make-it-block-liv.patch [bz#1658407]
+- kvm-Do-not-build-bluetooth-support.patch [bz#1654627]
+- Resolves: bz#1654627
+  (Qemu: hw: bt: keep bt/* objects from building [rhel-7.7])
+- Resolves: bz#1658407
+  (mode="host-model" VMs include broken "arch-facilities" flag name [qemu-kvm])
+
+* Wed Jan 02 2019 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-161.el7
+- kvm-Inhibit-ballooning-during-postcopy.patch [bz#1659229]
+- kvm-balloon-Allow-multiple-inhibit-users.patch [bz#1659229]
+- kvm-check-KVM_CAP_SYNC_MMU-with-kvm_vm_check_extensi.patch [bz#1659229]
+- kvm-Use-inhibit-to-prevent-ballooning-without-synchr.patch [bz#1659229]
+- kvm-vfio-Inhibit-ballooning-based-on-group-attachment-to.patch [bz#1659229]
+- Resolves: bz#1659229
+  (Ballooning is incompatible with vfio assigned devices, but not prevented)
 
 * Mon Aug 20 2018 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-160.el7
 - kvm-scsi-disk-support-reporting-of-rotation-rate.patch [bz#1583807]

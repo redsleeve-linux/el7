@@ -1,16 +1,16 @@
-From 6e4dad9d915f8de71e1695720398160c97e8ebd0 Mon Sep 17 00:00:00 2001
+From 91ca04a8a1df19f73e50733190175e137eeba933 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
-Date: Mon, 20 May 2019 17:00:53 +0200
+Date: Mon, 20 May 2019 16:43:13 +0200
 Subject: [PATCH 2/4] slirp: fix big/little endian conversion in ident protocol
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 
 RH-Author: Marc-André Lureau <marcandre.lureau@redhat.com>
-Message-id: <20190520170055.15404-3-marcandre.lureau@redhat.com>
-Patchwork-id: 88100
-O-Subject: [RHEL-7.6.z qemu-kvm PATCH 2/4] slirp: fix big/little endian conversion in ident protocol
-Bugzilla: 1669067
+Message-id: <20190520164315.22140-2-marcandre.lureau@redhat.com>
+Patchwork-id: 88093
+O-Subject: [RHEL-7.7 qemu-kvm PATCH 1/3] slirp: fix big/little endian conversion in ident protocol
+Bugzilla: 1669068
 RH-Acked-by: Philippe Mathieu-Daudé <philmd@redhat.com>
 RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
 RH-Acked-by: Thomas Huth <thuth@redhat.com>
@@ -20,10 +20,12 @@ From: Samuel Thibault <samuel.thibault@ens-lyon.org>
 Signed-off-by: Samuel Thibault <samuel.thibault@ens-lyon.org>
 Reviewed-by: Philippe Mathieu-Daudé <philmd@redhat.com>
 
-[ MA - backported to ease backport of CVE-2019-6778 ]
+[ MA - backported to ease backport of
+  https://bugzilla.redhat.com/show_bug.cgi?id=1669068 ]
 
-(cherry picked from commit 1fd71067dae501f1c78618e9583c6cc72db0cfa6)
+(cherry picked from 1fd71067dae501f1c78618e9583c6cc72db0cfa6)
 Signed-off-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+
 Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
 ---
  slirp/tcp_subr.c | 4 +++-

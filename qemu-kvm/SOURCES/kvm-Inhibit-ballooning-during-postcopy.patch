@@ -1,0 +1,110 @@
+From cc224bcb3c12238466f8a6a366d3f813fb866a16 Mon Sep 17 00:00:00 2001
+From: Alex Williamson <alex.williamson@redhat.com>
+Date: Thu, 13 Dec 2018 21:54:28 +0100
+Subject: [PATCH 1/5] Inhibit ballooning during postcopy
+
+RH-Author: Alex Williamson <alex.williamson@redhat.com>
+Message-id: <154473806860.22725.2305869657628116679.stgit@gimli.home>
+Patchwork-id: 83493
+O-Subject: [RHEL-7.7 qemu-kvm PATCH 1/5] Inhibit ballooning during postcopy
+Bugzilla: 1659229
+RH-Acked-by: Peter Xu <peterx@redhat.com>
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: Auger Eric <eric.auger@redhat.com>
+
+From: Dr. David Alan Gilbert <dgilbert@redhat.com>
+
+Bugzilla: 1659229
+Notes: Dropped all but balloon inhibitor infrastructure
+
+Postcopy detects accesses to pages that haven't been transferred yet
+using userfaultfd, and it causes exceptions on pages that are 'not
+present'.
+Ballooning also causes pages to be marked as 'not present' when the
+guest inflates the balloon.
+Potentially a balloon could be inflated to discard pages that are
+currently inflight during postcopy and that may be arriving at about
+the same time.
+
+To avoid this confusion, disable ballooning during postcopy.
+
+When disabled we drop balloon requests from the guest.  Since ballooning
+is generally initiated by the host, the management system should avoid
+initiating any balloon instructions to the guest during migration,
+although it's not possible to know how long it would take a guest to
+process a request made prior to the start of migration.
+Guest initiated ballooning will not know if it's really freed a page
+of host memory or not.
+
+Queueing the requests until after migration would be nice, but is
+non-trivial, since the set of inflate/deflate requests have to
+be compared with the state of the page to know what the final
+outcome is allowed to be.
+
+Signed-off-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+Reviewed-by: Juan Quintela <quintela@redhat.com>
+Reviewed-by: Amit Shah <amit.shah@redhat.com>
+Signed-off-by: Juan Quintela <quintela@redhat.com>
+(cherry picked from commit 371ff5a3f04cd7d05bab49ac6e80da319026d95b)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ balloon.c                  | 11 +++++++++++
+ hw/virtio/virtio-balloon.c |  4 +++-
+ include/sysemu/balloon.h   |  2 ++
+ 3 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/balloon.c b/balloon.c
+index e321f2c..c7a0cf1 100644
+--- a/balloon.c
++++ b/balloon.c
+@@ -35,6 +35,17 @@
+ static QEMUBalloonEvent *balloon_event_fn;
+ static QEMUBalloonStatus *balloon_stat_fn;
+ static void *balloon_opaque;
++static bool balloon_inhibited;
++
++bool qemu_balloon_is_inhibited(void)
++{
++    return balloon_inhibited;
++}
++
++void qemu_balloon_inhibit(bool state)
++{
++    balloon_inhibited = state;
++}
+ 
+ int qemu_add_balloon_handler(QEMUBalloonEvent *event_func,
+                              QEMUBalloonStatus *stat_func, void *opaque)
+diff --git a/hw/virtio/virtio-balloon.c b/hw/virtio/virtio-balloon.c
+index 1a60d3c..c9562ef 100644
+--- a/hw/virtio/virtio-balloon.c
++++ b/hw/virtio/virtio-balloon.c
+@@ -34,9 +34,11 @@
+ static void balloon_page(void *addr, int deflate)
+ {
+ #if defined(__linux__)
+-    if (!kvm_enabled() || kvm_has_sync_mmu())
++    if (!qemu_balloon_is_inhibited() && (!kvm_enabled() ||
++                                         kvm_has_sync_mmu())) {
+         qemu_madvise(addr, TARGET_PAGE_SIZE,
+                 deflate ? QEMU_MADV_WILLNEED : QEMU_MADV_DONTNEED);
++    }
+ #endif
+ }
+ 
+diff --git a/include/sysemu/balloon.h b/include/sysemu/balloon.h
+index bd9d395..eb5af19 100644
+--- a/include/sysemu/balloon.h
++++ b/include/sysemu/balloon.h
+@@ -23,6 +23,8 @@ typedef void (QEMUBalloonStatus)(void *opaque, BalloonInfo *info);
+ int qemu_add_balloon_handler(QEMUBalloonEvent *event_func,
+ 			     QEMUBalloonStatus *stat_func, void *opaque);
+ void qemu_remove_balloon_handler(void *opaque);
++bool qemu_balloon_is_inhibited(void);
++void qemu_balloon_inhibit(bool state);
+ 
+ void qemu_balloon_changed(int64_t actual);
+ 
+-- 
+1.8.3.1
+

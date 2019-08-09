@@ -1,0 +1,169 @@
+From e9148733cef44bebb0d74a731a70b3304e720634 Mon Sep 17 00:00:00 2001
+From: Alex Williamson <alex.williamson@redhat.com>
+Date: Thu, 13 Dec 2018 21:55:26 +0100
+Subject: [PATCH 5/5] vfio: Inhibit ballooning based on group attachment to a
+ container
+
+RH-Author: Alex Williamson <alex.williamson@redhat.com>
+Message-id: <154473812659.22725.6814768117383324849.stgit@gimli.home>
+Patchwork-id: 83497
+O-Subject: [RHEL-7.7 qemu-kvm PATCH 5/5] vfio: Inhibit ballooning based on group attachment to a container
+Bugzilla: 1659229
+RH-Acked-by: Peter Xu <peterx@redhat.com>
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+RH-Acked-by: Auger Eric <eric.auger@redhat.com>
+
+Bugzilla: 1659229
+Notes: Error path has more exit paths versus upstream
+
+We use a VFIOContainer to associate an AddressSpace to one or more
+VFIOGroups.  The VFIOContainer represents the DMA context for that
+AdressSpace for those VFIOGroups and is synchronized to changes in
+that AddressSpace via a MemoryListener.  For IOMMU backed devices,
+maintaining the DMA context for a VFIOGroup generally involves
+pinning a host virtual address in order to create a stable host
+physical address and then mapping a translation from the associated
+guest physical address to that host physical address into the IOMMU.
+
+While the above maintains the VFIOContainer synchronized to the QEMU
+memory API of the VM, memory ballooning occurs outside of that API.
+Inflating the memory balloon (ie. cooperatively capturing pages from
+the guest for use by the host) simply uses MADV_DONTNEED to "zap"
+pages from QEMU's host virtual address space.  The page pinning and
+IOMMU mapping above remains in place, negating the host's ability to
+reuse the page, but the host virtual to host physical mapping of the
+page is invalidated outside of QEMU's memory API.
+
+When the balloon is later deflated, attempting to cooperatively
+return pages to the guest, the page is simply freed by the guest
+balloon driver, allowing it to be used in the guest and incurring a
+page fault when that occurs.  The page fault maps a new host physical
+page backing the existing host virtual address, meanwhile the
+VFIOContainer still maintains the translation to the original host
+physical address.  At this point the guest vCPU and any assigned
+devices will map different host physical addresses to the same guest
+physical address.  Badness.
+
+The IOMMU typically does not have page level granularity with which
+it can track this mapping without also incurring inefficiencies in
+using page size mappings throughout.  MMU notifiers in the host
+kernel also provide indicators for invalidating the mapping on
+balloon inflation, not for updating the mapping when the balloon is
+deflated.  For these reasons we assume a default behavior that the
+mapping of each VFIOGroup into the VFIOContainer is incompatible
+with memory ballooning and increment the balloon inhibitor to match
+the attached VFIOGroups.
+
+Reviewed-by: Peter Xu <peterx@redhat.com>
+Signed-off-by: Alex Williamson <alex.williamson@redhat.com>
+(cherry picked from commit c65ee433153b5925e183a00ebf568e160077c694)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/misc/vfio.c | 35 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 35 insertions(+)
+
+diff --git a/hw/misc/vfio.c b/hw/misc/vfio.c
+index f91eecb..f7360bf 100644
+--- a/hw/misc/vfio.c
++++ b/hw/misc/vfio.c
+@@ -37,6 +37,7 @@
+ #include "qemu/event_notifier.h"
+ #include "qemu/queue.h"
+ #include "qemu/range.h"
++#include "sysemu/balloon.h"
+ #include "sysemu/kvm.h"
+ #include "sysemu/sysemu.h"
+ #include "trace.h"
+@@ -3667,6 +3668,33 @@ static int vfio_connect_container(VFIOGroup *group)
+         return 0;
+     }
+ 
++    /*
++     * VFIO is currently incompatible with memory ballooning insofar as the
++     * madvise to purge (zap) the page from QEMU's address space does not
++     * interact with the memory API and therefore leaves stale virtual to
++     * physical mappings in the IOMMU if the page was previously pinned.  We
++     * therefore add a balloon inhibit for each group added to a container,
++     * whether the container is used individually or shared.  This provides
++     * us with options to allow devices within a group to opt-in and allow
++     * ballooning, so long as it is done consistently for a group (for instance
++     * if the device is an mdev device where it is known that the host vendor
++     * driver will never pin pages outside of the working set of the guest
++     * driver, which would thus not be ballooning candidates).
++     *
++     * The first opportunity to induce pinning occurs here where we attempt to
++     * attach the group to existing containers within the AddressSpace.  If any
++     * pages are already zapped from the virtual address space, such as from a
++     * previous ballooning opt-in, new pinning will cause valid mappings to be
++     * re-established.  Likewise, when the overall MemoryListener for a new
++     * container is registered, a replay of mappings within the AddressSpace
++     * will occur, re-establishing any previously zapped pages as well.
++     *
++     * NB. Balloon inhibiting does not currently block operation of the
++     * balloon driver or revoke previously pinned pages, it only prevents
++     * calling madvise to modify the virtual mapping of ballooned pages.
++     */
++    qemu_balloon_inhibit(true);
++
+     QLIST_FOREACH(container, &container_list, next) {
+         if (!ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &container->fd)) {
+             group->container = container;
+@@ -3678,6 +3706,7 @@ static int vfio_connect_container(VFIOGroup *group)
+     fd = qemu_open("/dev/vfio/vfio", O_RDWR);
+     if (fd < 0) {
+         error_report("vfio: failed to open /dev/vfio/vfio: %m");
++        qemu_balloon_inhibit(false);
+         return -errno;
+     }
+ 
+@@ -3686,6 +3715,7 @@ static int vfio_connect_container(VFIOGroup *group)
+         error_report("vfio: supported vfio version: %d, "
+                      "reported version: %d", VFIO_API_VERSION, ret);
+         close(fd);
++        qemu_balloon_inhibit(false);
+         return -EINVAL;
+     }
+ 
+@@ -3701,6 +3731,7 @@ static int vfio_connect_container(VFIOGroup *group)
+             error_report("vfio: failed to set group container: %m");
+             g_free(container);
+             close(fd);
++            qemu_balloon_inhibit(false);
+             return -errno;
+         }
+ 
+@@ -3710,6 +3741,7 @@ static int vfio_connect_container(VFIOGroup *group)
+             error_report("vfio: failed to set iommu for container: %m");
+             g_free(container);
+             close(fd);
++            qemu_balloon_inhibit(false);
+             return -errno;
+         }
+ 
+@@ -3724,6 +3756,7 @@ static int vfio_connect_container(VFIOGroup *group)
+             vfio_listener_release(container);
+             g_free(container);
+             close(fd);
++            qemu_balloon_inhibit(false);
+             error_report("vfio: memory listener initialization failed for container\n");
+             return ret;
+         }
+@@ -3734,6 +3767,7 @@ static int vfio_connect_container(VFIOGroup *group)
+         error_report("vfio: No available IOMMU models");
+         g_free(container);
+         close(fd);
++        qemu_balloon_inhibit(false);
+         return -EINVAL;
+     }
+ 
+@@ -3834,6 +3868,7 @@ static void vfio_put_group(VFIOGroup *group)
+         return;
+     }
+ 
++    qemu_balloon_inhibit(false);
+     vfio_kvm_device_del_group(group);
+     vfio_disconnect_container(group);
+     QLIST_REMOVE(group, next);
+-- 
+1.8.3.1
+

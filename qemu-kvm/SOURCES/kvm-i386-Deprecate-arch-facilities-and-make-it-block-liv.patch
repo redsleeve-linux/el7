@@ -1,14 +1,14 @@
-From 8cafea931977e494797584610664279ea21ef427 Mon Sep 17 00:00:00 2001
+From 59c1aecdd92dc66e92f8ffe8a2a5e121031a2ae7 Mon Sep 17 00:00:00 2001
 From: Eduardo Habkost <ehabkost@redhat.com>
 Date: Fri, 21 Dec 2018 00:31:11 +0100
-Subject: [PATCH] i386: Deprecate arch-facilities and make it block live
+Subject: [PATCH 1/2] i386: Deprecate arch-facilities and make it block live
  migration
 
 RH-Author: Eduardo Habkost <ehabkost@redhat.com>
 Message-id: <20181221003111.32374-1-ehabkost@redhat.com>
 Patchwork-id: 83733
 O-Subject: [RHEL-7.7 qemu-kvm PATCH] i386: Deprecate arch-facilities and make it block live migration
-Bugzilla: 1664792
+Bugzilla: 1658407
 RH-Acked-by: Bandan Das <bsd@redhat.com>
 RH-Acked-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
 RH-Acked-by: Jiri Denemark <jdenemar@redhat.com>

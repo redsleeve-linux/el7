@@ -1,0 +1,163 @@
+From 1cdac7e143db48d28605da1feb85a229197d9692 Mon Sep 17 00:00:00 2001
+From: Alex Williamson <alex.williamson@redhat.com>
+Date: Mon, 18 Mar 2019 19:41:40 +0100
+Subject: [PATCH 2/3] vfio/pci: Lazy PBA emulation
+
+RH-Author: Alex Williamson <alex.williamson@redhat.com>
+Message-id: <155293738623.17152.7817154338901863813.stgit@gimli.home>
+Patchwork-id: 84905
+O-Subject: [RHEL7.7 qemu-kvm PATCH] vfio/pci: Lazy PBA emulation
+Bugzilla: 1459077
+RH-Acked-by: Auger Eric <eric.auger@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Cornelia Huck <cohuck@redhat.com>
+
+Bugzilla: 1459077
+Brew: https://brewweb.engineering.redhat.com/brew/taskinfo?taskID=20652144
+
+Notes: Intel's Omnipath card seems to depend on direct access to the
+       MSI-X PBA, when it's emulated the driver in the guest will
+       report:
+
+         hfi1_0: Interrupt registers not properly mapped by VMM
+
+       The patch here disables the PBA memory region except when
+       vectors are masked, which is essentially never, and therefore
+       provides that direct access.  Tested against an "Omni-Path
+       HFI Silicon 100 Series" card as well as regression tested
+       against a Intel 82576 PF and VF, both of which also use MSI-X.
+
+The PCI spec recommends devices use additional alignment for MSI-X
+data structures to allow software to map them to separate processor
+pages.  One advantage of doing this is that we can emulate those data
+structures without a significant performance impact to the operation
+of the device.  Some devices fail to implement that suggestion and
+assigned device performance suffers.
+
+One such case of this is a Mellanox MT27500 series, ConnectX-3 VF,
+where the MSI-X vector table and PBA are aligned on separate 4K
+pages.  If PBA emulation is enabled, performance suffers.  It's not
+clear how much value we get from PBA emulation, but the solution here
+is to only lazily enable the emulated PBA when a masked MSI-X vector
+fires.  We then attempt to more aggresively disable the PBA memory
+region any time a vector is unmasked.  The expectation is then that
+a typical VM will run entirely with PBA emulation disabled, and only
+when used is that emulation re-enabled.
+
+Reported-by: Shyam Kaushik <shyam.kaushik@gmail.com>
+Tested-by: Shyam Kaushik <shyam.kaushik@gmail.com>
+Signed-off-by: Alex Williamson <alex.williamson@redhat.com>
+(cherry picked from 95239e162518dc6577164be3d9a789aba7f591a3)
+
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/misc/vfio.c | 40 ++++++++++++++++++++++++++++++++++++++++
+ trace-events   |  2 ++
+ 2 files changed, 42 insertions(+)
+
+diff --git a/hw/misc/vfio.c b/hw/misc/vfio.c
+index f7360bf..781acd9 100644
+--- a/hw/misc/vfio.c
++++ b/hw/misc/vfio.c
+@@ -190,6 +190,7 @@ typedef struct VFIOMSIXInfo {
+     uint32_t pba_offset;
+     MemoryRegion mmap_mem;
+     void *mmap;
++    unsigned long *pending;
+ } VFIOMSIXInfo;
+ 
+ typedef struct VFIODeviceOps VFIODeviceOps;
+@@ -691,6 +692,13 @@ static void vfio_msi_interrupt(void *opaque)
+ #endif
+ 
+     if (vdev->interrupt == VFIO_INT_MSIX) {
++        /* A masked vector firing needs to use the PBA, enable it */
++        if (msix_is_masked(&vdev->pdev, nr)) {
++            set_bit(nr, vdev->msix->pending);
++            memory_region_set_enabled(&vdev->pdev.msix_pba_mmio, true);
++            trace_vfio_msix_pba_enable(vdev->vbasedev.name);
++        }
++
+         msix_notify(&vdev->pdev, nr);
+     } else if (vdev->interrupt == VFIO_INT_MSI) {
+         msi_notify(&vdev->pdev, nr);
+@@ -866,6 +874,14 @@ static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
+         }
+     }
+ 
++    /* Disable PBA emulation when nothing more is pending. */
++    clear_bit(nr, vdev->msix->pending);
++    if (find_first_bit(vdev->msix->pending,
++                       vdev->nr_vectors) == vdev->nr_vectors) {
++        memory_region_set_enabled(&vdev->pdev.msix_pba_mmio, false);
++        trace_vfio_msix_pba_disable(vdev->vbasedev.name);
++    }
++
+     return 0;
+ }
+ 
+@@ -1070,6 +1086,9 @@ static void vfio_disable_msix(VFIOPCIDevice *vdev)
+ 
+     vfio_disable_msi_common(vdev);
+ 
++    memset(vdev->msix->pending, 0,
++           BITS_TO_LONGS(vdev->msix->entries) * sizeof(unsigned long));
++
+     DPRINTF("%s(%s)\n", __func__, vdev->vbasedev.name);
+ }
+ 
+@@ -2561,6 +2580,8 @@ static int vfio_setup_msix(VFIOPCIDevice *vdev, int pos)
+ {
+     int ret;
+ 
++    vdev->msix->pending = g_malloc0(BITS_TO_LONGS(vdev->msix->entries) *
++                                    sizeof(unsigned long));
+     ret = msix_init(&vdev->pdev, vdev->msix->entries,
+                     vdev->bars[vdev->msix->table_bar].region.mem,
+                     vdev->msix->table_bar, vdev->msix->table_offset,
+@@ -2574,6 +2595,24 @@ static int vfio_setup_msix(VFIOPCIDevice *vdev, int pos)
+         return ret;
+     }
+ 
++    /*
++     * The PCI spec suggests that devices provide additional alignment for
++     * MSI-X structures and avoid overlapping non-MSI-X related registers.
++     * For an assigned device, this hopefully means that emulation of MSI-X
++     * structures does not affect the performance of the device.  If devices
++     * fail to provide that alignment, a significant performance penalty may
++     * result, for instance Mellanox MT27500 VFs:
++     * http://www.spinics.net/lists/kvm/msg125881.html
++     *
++     * The PBA is simply not that important for such a serious regression and
++     * most drivers do not appear to look at it.  The solution for this is to
++     * disable the PBA MemoryRegion unless it's being used.  We disable it
++     * here and only enable it if a masked vector fires through QEMU.  As the
++     * vector-use notifier is called, which occurs on unmask, we test whether
++     * PBA emulation is needed and again disable if not.
++     */
++    memory_region_set_enabled(&vdev->pdev.msix_pba_mmio, false);
++
+     return 0;
+ }
+ 
+@@ -2585,6 +2624,7 @@ static void vfio_teardown_msi(VFIOPCIDevice *vdev)
+         msix_uninit(&vdev->pdev,
+                     vdev->bars[vdev->msix->table_bar].region.mem,
+                     vdev->bars[vdev->msix->pba_bar].region.mem);
++	g_free(vdev->msix->pending);
+     }
+ }
+ 
+diff --git a/trace-events b/trace-events
+index 7b7aad1..0fb2745 100644
+--- a/trace-events
++++ b/trace-events
+@@ -1166,3 +1166,5 @@ vfio_region_finalize(const char *name, int index) "Device %s, region %d"
+ vfio_region_mmaps_set_enabled(const char *name, bool enabled) "Region %s mmaps enabled: %d"
+ vfio_region_sparse_mmap_header(const char *name, int index, int nr_areas) "Device %s region %d: %d sparse mmap entries"
+ vfio_region_sparse_mmap_entry(int i, unsigned long start, unsigned long end) "sparse entry %d [0x%lx - 0x%lx]"
++vfio_msix_pba_disable(const char *name) " (%s)"
++vfio_msix_pba_enable(const char *name) " (%s)"
+-- 
+1.8.3.1
+
