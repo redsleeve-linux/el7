@@ -1,0 +1,151 @@
+From 67a5f203179a6ed491b127a851fdbd6bc3ac5a0c Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
+Date: Fri, 23 Nov 2018 15:16:54 +0100
+Subject: [PATCH 4/5] qga: linux: report disk serial number
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: Marc-André Lureau <marcandre.lureau@redhat.com>
+Message-id: <20181123151655.23498-4-marcandre.lureau@redhat.com>
+Patchwork-id: 83151
+O-Subject: [RHEL-7.7 qemu-guest-agent PATCH 3/4] qga: linux: report disk serial number
+Bugzilla: 1635571
+RH-Acked-by: Markus Armbruster <armbru@redhat.com>
+RH-Acked-by: Philippe Mathieu-Daudé <philmd@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+
+From: Tomáš Golembiovský <tgolembi@redhat.com>
+
+Add reporting of disk serial number on Linux guests. The feature depends
+on libudev.
+
+Example:
+
+    {
+      "name": "dm-2",
+      "mountpoint": "/",
+      ...
+      "disk": [
+        {
+          "serial": "SAMSUNG_MZ7LN512HCHP-000L1_S1ZKNXAG822493",
+          ...
+        }
+      ],
+    }
+
+Signed-off-by: Tomáš Golembiovský <tgolembi@redhat.com>
+Signed-off-by: Michael Roth <mdroth@linux.vnet.ibm.com>
+
+(cherry picked from commit b616105a904bc350a409e12c39af0ae210900124)
+Signed-off-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ qga/Makefile.objs    |  1 +
+ qga/commands-posix.c | 32 ++++++++++++++++++++++++++++++--
+ qga/qapi-schema.json |  4 +++-
+ 3 files changed, 34 insertions(+), 3 deletions(-)
+
+diff --git a/qga/Makefile.objs b/qga/Makefile.objs
+index ed08c59..80e6bb3 100644
+--- a/qga/Makefile.objs
++++ b/qga/Makefile.objs
+@@ -1,3 +1,4 @@
++commands-posix.o-libs := $(LIBUDEV_LIBS)
+ qga-obj-y = commands.o guest-agent-command-state.o main.o
+ qga-obj-$(CONFIG_POSIX) += commands-posix.o channel-posix.o
+ qga-obj-$(CONFIG_WIN32) += commands-win32.o channel-win32.o service-win32.o
+diff --git a/qga/commands-posix.c b/qga/commands-posix.c
+index f4d9380..c0430e6 100644
+--- a/qga/commands-posix.c
++++ b/qga/commands-posix.c
+@@ -47,6 +47,10 @@ extern char **environ;
+ #include <sys/socket.h>
+ #include <net/if.h>
+ 
++#ifdef CONFIG_LIBUDEV
++#include <libudev.h>
++#endif
++
+ #ifdef FIFREEZE
+ #define CONFIG_FSFREEZE
+ #endif
+@@ -871,6 +875,10 @@ static void build_guest_fsinfo_for_real_device(char const *syspath,
+     GuestDiskAddressList *list = NULL;
+     bool has_ata = false, has_host = false, has_tgt = false;
+     char *p, *q, *driver = NULL;
++#ifdef CONFIG_LIBUDEV
++    struct udev *udev = NULL;
++    struct udev_device *udevice = NULL;
++#endif
+ 
+     p = strstr(syspath, "/devices/pci");
+     if (!p || sscanf(p + 12, "%*x:%*x/%x:%x:%x.%x%n",
+@@ -935,6 +943,21 @@ static void build_guest_fsinfo_for_real_device(char const *syspath,
+     list = g_malloc0(sizeof(*list));
+     list->value = disk;
+ 
++#ifdef CONFIG_LIBUDEV
++    udev = udev_new();
++    udevice = udev_device_new_from_syspath(udev, syspath);
++    if (udev == NULL || udevice == NULL) {
++        g_debug("failed to query udev");
++    } else {
++        const char *serial;
++        serial = udev_device_get_property_value(udevice, "ID_SERIAL");
++        if (serial != NULL && *serial != 0) {
++            disk->serial = g_strdup(serial);
++            disk->has_serial = true;
++        }
++    }
++#endif
++
+     if (strcmp(driver, "ata_piix") == 0) {
+         /* a host per ide bus, target*:0:<unit>:0 */
+         if (!has_host || !has_tgt) {
+@@ -994,14 +1017,19 @@ static void build_guest_fsinfo_for_real_device(char const *syspath,
+ 
+     list->next = fs->disk;
+     fs->disk = list;
+-    g_free(driver);
+-    return;
++    goto out;
+ 
+ cleanup:
+     if (list) {
+         qapi_free_GuestDiskAddressList(list);
+     }
++out:
+     g_free(driver);
++#ifdef CONFIG_LIBUDEV
++    udev_unref(udev);
++    udev_device_unref(udevice);
++#endif
++    return;
+ }
+ 
+ static void build_guest_fsinfo_for_device(char const *devpath,
+diff --git a/qga/qapi-schema.json b/qga/qapi-schema.json
+index 17884c7..426528c 100644
+--- a/qga/qapi-schema.json
++++ b/qga/qapi-schema.json
+@@ -832,13 +832,15 @@
+ # @bus: bus id
+ # @target: target id
+ # @unit: unit id
++# @serial: serial number (since: 3.1)
+ #
+ # Since: 2.2
+ ##
+ { 'struct': 'GuestDiskAddress',
+   'data': {'pci-controller': 'GuestPCIAddress',
+            'bus-type': 'GuestDiskBusType',
+-           'bus': 'int', 'target': 'int', 'unit': 'int'} }
++           'bus': 'int', 'target': 'int', 'unit': 'int',
++           '*serial': 'str'} }
+ 
+ ##
+ # @GuestFilesystemInfo:
+-- 
+1.8.3.1
+

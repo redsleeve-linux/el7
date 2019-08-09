@@ -15,7 +15,7 @@
     %global have_usbredir 0
 %endif
 
-%ifarch s390 s390x
+%ifarch s390 s390x %{arm}
     %global have_librdma 0
     %global have_numa 0
     %global have_tcmalloc 0
@@ -48,6 +48,10 @@
     %global kvm_target    aarch64
     %global have_fdt     1
 %endif
+%ifarch %{arm}
+    %global kvm_target    arm
+    %global have_fdt     1
+%endif
 
 #Versions of various parts:
 
@@ -56,7 +60,7 @@
 Summary: QEMU guest agent
 Name: qemu-guest-agent
 Version: 2.12.0
-Release: 2%{?dist}
+Release: 3%{?dist}
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 Epoch: 10
 License: GPLv2
@@ -82,10 +86,19 @@ Source4: build_configure.sh
 Patch1: qemuga-qemu-ga-make-get-fsinfo-work-over-pci-bridges.patch
 # For bz#1567041 - qemu-guest-agent does not parse PCI bridge links in "build_guest_fsinfo_for_real_device" (q35)
 Patch2: qemuga-qga-fix-driver-leak-in-guest-get-fsinfo.patch
+# For bz#1611062 - "virsh vcpucount --guest" fails after hotunplug a vcpu with intermediate order by "setvcpu"
+Patch3: qemuga-qga-ignore-non-present-cpus-when-handling-qmp_guest_.patch
+# For bz#1635571 - [RFE] Report disk device name and serial number (qemu-guest-agent on Linux)
+Patch5: qemuga-configure-add-test-for-libudev.patch
+# For bz#1635571 - [RFE] Report disk device name and serial number (qemu-guest-agent on Linux)
+Patch6: qemuga-qga-linux-report-disk-serial-number.patch
+# For bz#1635571 - [RFE] Report disk device name and serial number (qemu-guest-agent on Linux)
+Patch7: qemuga-qga-linux-return-disk-device-in-guest-get-fsinfo.patch
 
 BuildRequires: zlib-devel
 BuildRequires: glib2-devel
 BuildRequires: systemd
+BuildRequires: systemd-devel
 BuildRequires: python
 BuildRequires: systemtap-sdt-devel
 BuildRequires: perl-podlators
@@ -118,6 +131,10 @@ This package does not need to be installed on the host OS.
 %setup -q -n qemu-%{version}
 %patch1 -p1
 %patch2 -p1
+%patch3 -p1
+%patch5 -p1
+%patch6 -p1
+%patch7 -p1
 
 # if patch fuzzy patch applying will be forbidden
 %define with_fuzzy_patches 0
@@ -259,6 +276,17 @@ install -m 0644  qemu-ga.8 ${RPM_BUILD_ROOT}%{_mandir}/man8/
 
 
 %changelog
+* Wed Dec 12 2018 Miroslav Rezanina <mrezanin@redhat.com> - 2.12.0-3.el7
+- qemuga-qga-ignore-non-present-cpus-when-handling-qmp_guest_.patch [bz#1611062]
+- qemuga-qemu-guest-agent.spec-add-systemd-devel-dependency.patch [bz#1635571]
+- qemuga-configure-add-test-for-libudev.patch [bz#1635571]
+- qemuga-qga-linux-report-disk-serial-number.patch [bz#1635571]
+- qemuga-qga-linux-return-disk-device-in-guest-get-fsinfo.patch [bz#1635571]
+- Resolves: bz#1611062
+  ("virsh vcpucount --guest" fails after hotunplug a vcpu with intermediate order by "setvcpu")
+- Resolves: bz#1635571
+  ([RFE] Report disk device name and serial number (qemu-guest-agent on Linux))
+
 * Tue Jul 24 2018 Miroslav Rezanina <mrezanin@redhat.com> - 2.12.0-2.el7
 - qemuga-qemu-ga-make-get-fsinfo-work-over-pci-bridges.patch [bz#1567041]
 - qemuga-qga-fix-driver-leak-in-guest-get-fsinfo.patch [bz#1567041]

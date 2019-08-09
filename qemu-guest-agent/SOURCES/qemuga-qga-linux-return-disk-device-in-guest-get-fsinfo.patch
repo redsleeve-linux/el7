@@ -1,0 +1,75 @@
+From 00665748e4495bcb0b45dd5e15a7a9cc8331c77f Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
+Date: Fri, 23 Nov 2018 15:16:55 +0100
+Subject: [PATCH 5/5] qga: linux: return disk device in guest-get-fsinfo
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: Marc-André Lureau <marcandre.lureau@redhat.com>
+Message-id: <20181123151655.23498-5-marcandre.lureau@redhat.com>
+Patchwork-id: 83153
+O-Subject: [RHEL-7.7 qemu-guest-agent PATCH 4/4] qga: linux: return disk device in guest-get-fsinfo
+Bugzilla: 1635571
+RH-Acked-by: Markus Armbruster <armbru@redhat.com>
+RH-Acked-by: Philippe Mathieu-Daudé <philmd@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+
+From: Tomáš Golembiovský <tgolembi@redhat.com>
+
+Report device node of the disk on Linux (e.g. "/dev/sda2").
+Requirs libudev.
+
+Signed-off-by: Tomáš Golembiovský <tgolembi@redhat.com>
+Signed-off-by: Michael Roth <mdroth@linux.vnet.ibm.com>
+
+(cherry picked from commit 6589ce35734e7e71463485650e5fb6e4bbe64729)
+Signed-off-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ qga/commands-posix.c | 7 ++++++-
+ qga/qapi-schema.json | 3 ++-
+ 2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/qga/commands-posix.c b/qga/commands-posix.c
+index c0430e6..09884d7 100644
+--- a/qga/commands-posix.c
++++ b/qga/commands-posix.c
+@@ -949,7 +949,12 @@ static void build_guest_fsinfo_for_real_device(char const *syspath,
+     if (udev == NULL || udevice == NULL) {
+         g_debug("failed to query udev");
+     } else {
+-        const char *serial;
++        const char *devnode, *serial;
++        devnode = udev_device_get_devnode(udevice);
++        if (devnode != NULL) {
++            disk->dev = g_strdup(devnode);
++            disk->has_dev = true;
++        }
+         serial = udev_device_get_property_value(udevice, "ID_SERIAL");
+         if (serial != NULL && *serial != 0) {
+             disk->serial = g_strdup(serial);
+diff --git a/qga/qapi-schema.json b/qga/qapi-schema.json
+index 426528c..ca022ad 100644
+--- a/qga/qapi-schema.json
++++ b/qga/qapi-schema.json
+@@ -833,6 +833,7 @@
+ # @target: target id
+ # @unit: unit id
+ # @serial: serial number (since: 3.1)
++# @dev: device node (POSIX) or device UNC (Windows) (since: 3.1)
+ #
+ # Since: 2.2
+ ##
+@@ -840,7 +841,7 @@
+   'data': {'pci-controller': 'GuestPCIAddress',
+            'bus-type': 'GuestDiskBusType',
+            'bus': 'int', 'target': 'int', 'unit': 'int',
+-           '*serial': 'str'} }
++           '*serial': 'str', '*dev': 'str'} }
+ 
+ ##
+ # @GuestFilesystemInfo:
+-- 
+1.8.3.1
+
