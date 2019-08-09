@@ -1,0 +1,36 @@
+From 0707807bad2106598d5a73e0adec7ae3c3de284f Mon Sep 17 00:00:00 2001
+From: Pingfan Liu <piliu@redhat.com>
+Date: Tue, 21 May 2019 14:13:28 +0800
+Subject: [PATCH] numastat: when reading no-exist pid, return EXIT_FAILURE
+
+This ease the result query by $?
+
+Signed-off-by: Pingfan Liu <piliu@redhat.com>
+---
+ numastat.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/numastat.c b/numastat.c
+index 263bddf..f1a3cc1 100644
+--- a/numastat.c
++++ b/numastat.c
+@@ -956,6 +956,8 @@ void show_process_info() {
+ 		if (!fs) {
+ 			sprintf(buf, "Can't read /proc/%d/numa_maps", pid);
+ 			perror(buf);
++			if (num_pids == 1)
++				exit(EXIT_FAILURE);
+ 			continue;
+ 		}
+ 		// Add up sub-category memory used from each node.  Must go line by line
+@@ -1023,6 +1025,7 @@ void show_process_info() {
+ 		if (ferror(fs)) {
+ 			sprintf(buf, "Can't read /proc/%d/numa_maps", pid);
+ 			perror(buf);
++			exit(EXIT_FAILURE);
+ 		}
+ 		fclose(fs);
+ 		// If showing individual tables, or we just added the last total line,
+-- 
+2.7.5
+
