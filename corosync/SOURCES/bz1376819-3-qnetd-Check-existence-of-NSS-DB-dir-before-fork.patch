@@ -1,0 +1,141 @@
+From eac28dffdf7f060f41f2b2e95bb0f4c6c033425d Mon Sep 17 00:00:00 2001
+From: Jan Friesse <jfriesse@redhat.com>
+Date: Tue, 19 Mar 2019 14:40:12 +0100
+Subject: [PATCH] qnetd: Check existence of NSS DB dir before fork
+
+Previously, when user tried start corosync-qnetd without
+initialized NSS database then generic (not very helpful
+and misleading) NSS error was logged
+"NSS error (-8015): The certificate/key database is in an old,
+unsupported format.".
+
+Solution is to check if it's possible to open NSS DB directory and
+display (usually much more informative) result of strerror function.
+
+Such check is called before fork, so init system can return error code
+during start.
+
+To make error reporting work with systemd it's also needed to change
+unit type from simple to forking.
+
+Signed-off-by: Jan Friesse <jfriesse@redhat.com>
+Reviewed-by: Christine Caulfield <ccaulfie@redhat.com>
+---
+ init/corosync-qnetd.service.in |  4 ++--
+ qdevices/corosync-qnetd.c      | 12 +++++++++++-
+ qdevices/nss-sock.c            | 23 ++++++++++++++++++++++-
+ qdevices/nss-sock.h            |  4 +++-
+ 4 files changed, 38 insertions(+), 5 deletions(-)
+
+diff --git a/init/corosync-qnetd.service.in b/init/corosync-qnetd.service.in
+index 54b9849..8cff766 100644
+--- a/init/corosync-qnetd.service.in
++++ b/init/corosync-qnetd.service.in
+@@ -7,8 +7,8 @@ After=network-online.target
+ 
+ [Service]
+ EnvironmentFile=-@INITCONFIGDIR@/corosync-qnetd
+-ExecStart=@BINDIR@/corosync-qnetd -f $COROSYNC_QNETD_OPTIONS
+-Type=simple
++ExecStart=@BINDIR@/corosync-qnetd $COROSYNC_QNETD_OPTIONS
++Type=forking
+ Restart=on-abnormal
+ # Uncomment and set user who should be used for executing qnetd
+ #User=coroqnetd
+diff --git a/qdevices/corosync-qnetd.c b/qdevices/corosync-qnetd.c
+index 9af94b7..938e4ce 100644
+--- a/qdevices/corosync-qnetd.c
++++ b/qdevices/corosync-qnetd.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (c) 2015-2016 Red Hat, Inc.
++ * Copyright (c) 2015-2019 Red Hat, Inc.
+  *
+  * All rights reserved.
+  *
+@@ -543,6 +543,16 @@ main(int argc, char * const argv[])
+ 	qnetd_log_set_priority_bump(bump_log_priority);
+ 
+ 	/*
++	 * Check that it's possible to open NSS dir if needed
++	 */
++	if (nss_sock_check_db_dir((tls_supported != TLV_TLS_UNSUPPORTED ?
++	    advanced_settings.nss_db_dir : NULL)) != 0) {
++		qnetd_log_err(LOG_ERR, "Can't open NSS DB directory");
++
++		exit (1);
++	}
++
++	/*
+ 	 * Daemonize
+ 	 */
+ 	if (!foreground) {
+diff --git a/qdevices/nss-sock.c b/qdevices/nss-sock.c
+index 3c63927..483d417 100644
+--- a/qdevices/nss-sock.c
++++ b/qdevices/nss-sock.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (c) 2015-2016 Red Hat, Inc.
++ * Copyright (c) 2015-2019 Red Hat, Inc.
+  *
+  * All rights reserved.
+  *
+@@ -32,6 +32,9 @@
+  * THE POSSIBILITY OF SUCH DAMAGE.
+  */
+ 
++#include <sys/types.h>
++
++#include <dirent.h>
+ #include <limits.h>
+ 
+ #include "nss-sock.h"
+@@ -56,6 +59,24 @@ nss_sock_init_nss(char *config_dir)
+ 	return (0);
+ }
+ 
++int
++nss_sock_check_db_dir(const char *config_dir)
++{
++	DIR *dirp;
++
++	if (config_dir == NULL) {
++		return (0);
++	}
++
++	if ((dirp = opendir(config_dir)) == NULL) {
++		return (-1);
++	}
++
++	(void)closedir(dirp);
++
++	return (0);
++}
++
+ /*
+  * Set NSS socket non-blocking
+  */
+diff --git a/qdevices/nss-sock.h b/qdevices/nss-sock.h
+index cc16d96..4f82e0a 100644
+--- a/qdevices/nss-sock.h
++++ b/qdevices/nss-sock.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (c) 2015-2016 Red Hat, Inc.
++ * Copyright (c) 2015-2019 Red Hat, Inc.
+  *
+  * All rights reserved.
+  *
+@@ -56,6 +56,8 @@ struct nss_sock_non_blocking_client {
+ 
+ extern int		nss_sock_init_nss(char *config_dir);
+ 
++extern int		nss_sock_check_db_dir(const char *config_dir);
++
+ extern PRFileDesc	*nss_sock_create_listen_socket(const char *hostname, uint16_t port,
+     PRIntn af);
+ 
+-- 
+1.8.3.1
+

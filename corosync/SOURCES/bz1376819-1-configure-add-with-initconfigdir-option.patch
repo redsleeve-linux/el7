@@ -1,0 +1,277 @@
+From c0d8af0c7b247df16a90850b0edab4f978cb8192 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Ferenc=20W=C3=A1gner?= <wferi@debian.org>
+Date: Thu, 24 Nov 2016 12:06:37 +0100
+Subject: [PATCH] configure: add --with-initconfigdir option
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Default value is /etc/sysconfig and resulting
+INITCONFIGDIR is used to reduce duplication in init system
+integration code.
+
+Signed-off-by: Ferenc Wágner <wferi@debian.org>
+Reviewed-by: Jan Friesse <jfriesse@redhat.com>
+(cherry picked from commit d7208e88370d2bce40b45224a3971eeb68c22d3c)
+---
+ configure.ac                     |  8 ++++++++
+ init/Makefile.am                 |  1 +
+ init/corosync-notifyd.conf.in    | 12 ++++--------
+ init/corosync-notifyd.in         |  4 ++--
+ init/corosync-notifyd.service.in |  2 +-
+ init/corosync-qdevice.in         |  4 ++--
+ init/corosync-qnetd.in           |  4 ++--
+ init/corosync-qnetd.service.in   |  2 +-
+ init/corosync.conf.in            | 15 +++++----------
+ init/corosync.in                 |  4 ++--
+ 10 files changed, 28 insertions(+), 28 deletions(-)
+
+diff --git a/configure.ac b/configure.ac
+index e60bf1b..01f7aa5 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -364,6 +364,13 @@ AC_ARG_ENABLE([upstart],
+ 	[ enable_upstart="no" ])
+ AM_CONDITIONAL(INSTALL_UPSTART, test x$enable_upstart = xyes)
+ 
++AC_ARG_WITH([initconfigdir],
++	[AS_HELP_STRING([--with-initconfigdir=DIR],
++		[configuration directory @<:@SYSCONFDIR/sysconfig@:>@])],
++	[INITCONFIGDIR="$withval"],
++	[INITCONFIGDIR='${sysconfdir}/sysconfig'])
++AC_SUBST([INITCONFIGDIR])
++
+ AC_ARG_WITH([initddir],
+ 	[  --with-initddir=DIR     : path to init script directory. ],
+ 	[ INITDDIR="$withval" ],
+@@ -771,6 +778,7 @@ AC_MSG_RESULT([  System tmpfiles.d        = ${TMPFILESDIR}])
+ AC_MSG_RESULT([  Log directory            = ${LOGDIR}])
+ AC_MSG_RESULT([  Log rotate directory     = ${LOGROTATEDIR}])
+ AC_MSG_RESULT([  corosync config dir      = ${COROSYSCONFDIR}])
++AC_MSG_RESULT([  init config directory    = ${INITCONFIGDIR}])
+ AC_MSG_RESULT([  Features                 =${PACKAGE_FEATURES}])
+ AC_MSG_RESULT([])
+ AC_MSG_RESULT([$PACKAGE build info:])
+diff --git a/init/Makefile.am b/init/Makefile.am
+index 379249f..3161979 100644
+--- a/init/Makefile.am
++++ b/init/Makefile.am
+@@ -76,6 +76,7 @@ endif
+ 		-e 's#@''SBINDIR@#$(sbindir)#g' \
+ 		-e 's#@''BINDIR@#$(bindir)#g' \
+ 		-e 's#@''SYSCONFDIR@#$(sysconfdir)#g' \
++		-e 's#@''INITCONFIGDIR@#$(INITCONFIGDIR)#g' \
+ 		-e 's#@''INITDDIR@#$(INITDDIR)#g' \
+ 		-e 's#@''INITWRAPPERSDIR@#$(INITWRAPPERSDIR)#g' \
+ 		-e 's#@''LOCALSTATEDIR@#$(localstatedir)#g' \
+diff --git a/init/corosync-notifyd.conf.in b/init/corosync-notifyd.conf.in
+index b1ac70c..168a781 100644
+--- a/init/corosync-notifyd.conf.in
++++ b/init/corosync-notifyd.conf.in
+@@ -6,14 +6,12 @@ expect fork
+ respawn
+ 
+ env prog=corosync-notifyd
+-env rpm_sysconf=@SYSCONFDIR@/sysconfig/corosync-notifyd
++env initconf=@INITCONFIGDIR@/corosync-notifyd
+ env rpm_lockfile=@LOCALSTATEDIR@/lock/subsys/corosync-notifyd
+-env deb_sysconf=@SYSCONFDIR@/default/corosync-notifyd
+ env deb_lockfile=@LOCALSTATEDIR@/lock/corosync-notifyd
+ 
+ script
+-    [ -f "$rpm_sysconf" ] && . $rpm_sysconf
+-    [ -f "$deb_sysconf" ] && . $deb_sysconf
++    [ -f "$initconf" ] && . $initconf
+     exec $prog $OPTIONS
+ end script
+ 
+@@ -22,16 +20,14 @@ pre-start script
+ end script
+ 
+ post-start script
+-    [ -f "$rpm_sysconf" ] && . $rpm_sysconf
+-    [ -f "$deb_sysconf" ] && . $deb_sysconf
++    [ -f "$initconf" ] && . $initconf
+     [ -z "$LOCK_FILE" -a -d @SYSCONFDIR@/sysconfig ] && LOCK_FILE="$rpm_lockfile"
+     [ -z "$LOCK_FILE" -a -d @SYSCONFDIR@/default ] && LOCK_FILE="$deb_lockfile"
+     touch $LOCK_FILE
+ end script
+ 
+ post-stop script
+-    [ -f "$rpm_sysconf" ] && . $rpm_sysconf
+-    [ -f "$deb_sysconf" ] && . $deb_sysconf
++    [ -f "$initconf" ] && . $initconf
+     [ -z "$LOCK_FILE" -a -d @SYSCONFDIR@/sysconfig ] && LOCK_FILE="$rpm_lockfile"
+     [ -z "$LOCK_FILE" -a -d @SYSCONFDIR@/default ] && LOCK_FILE="$deb_lockfile"
+     rm -f $LOCK_FILE
+diff --git a/init/corosync-notifyd.in b/init/corosync-notifyd.in
+index 3711821..cc7fa78 100755
+--- a/init/corosync-notifyd.in
++++ b/init/corosync-notifyd.in
+@@ -47,16 +47,16 @@ status()
+ 	return $rtrn
+ }
+ 
++[ -f @INITCONFIGDIR@/$prog ] && . @INITCONFIGDIR@/$prog
++
+ # rpm based distros
+ if [ -d @SYSCONFDIR@/sysconfig ]; then
+ 	[ -f @INITDDIR@/functions ] && . @INITDDIR@/functions
+-	[ -f @SYSCONFDIR@/sysconfig/$prog ] && . @SYSCONFDIR@/sysconfig/$prog
+ 	[ -z "$LOCK_FILE" ] && LOCK_FILE="@LOCALSTATEDIR@/lock/subsys/$prog"
+ fi
+ 
+ # deb based distros
+ if [ -d @SYSCONFDIR@/default ]; then
+-	[ -f @SYSCONFDIR@/default/$prog ] && . @SYSCONFDIR@/default/$prog
+ 	[ -z "$LOCK_FILE" ] && LOCK_FILE="@LOCALSTATEDIR@/lock/$prog"
+ fi
+ 
+diff --git a/init/corosync-notifyd.service.in b/init/corosync-notifyd.service.in
+index 689ab8e..f74ca33 100644
+--- a/init/corosync-notifyd.service.in
++++ b/init/corosync-notifyd.service.in
+@@ -5,7 +5,7 @@ Wants=corosync.service
+ After=corosync.service
+ 
+ [Service]
+-EnvironmentFile=@SYSCONFDIR@/sysconfig/corosync-notifyd
++EnvironmentFile=-@INITCONFIGDIR@/corosync-notifyd
+ ExecStart=@SBINDIR@/corosync-notifyd -f $OPTIONS
+ Type=simple
+ Restart=on-failure
+diff --git a/init/corosync-qdevice.in b/init/corosync-qdevice.in
+index 913e033..864cdfa 100755
+--- a/init/corosync-qdevice.in
++++ b/init/corosync-qdevice.in
+@@ -47,16 +47,16 @@ status()
+ 	return $res
+ }
+ 
++[ -f @INITCONFIGDIR@/$prog ] && . @INITCONFIGDIR@/$prog
++
+ # rpm based distros
+ if [ -d @SYSCONFDIR@/sysconfig ]; then
+ 	[ -f @INITDDIR@/functions ] && . @INITDDIR@/functions
+-	[ -f @SYSCONFDIR@/sysconfig/$prog ] && . @SYSCONFDIR@/sysconfig/$prog
+ 	[ -z "$LOCK_FILE" ] && LOCK_FILE="@LOCALSTATEDIR@/lock/subsys/$prog"
+ fi
+ 
+ # deb based distros
+ if [ -d @SYSCONFDIR@/default ]; then
+-	[ -f @SYSCONFDIR@/default/$prog ] && . @SYSCONFDIR@/default/$prog
+ 	[ -z "$LOCK_FILE" ] && LOCK_FILE="@LOCALSTATEDIR@/lock/$prog"
+ fi
+ 
+diff --git a/init/corosync-qnetd.in b/init/corosync-qnetd.in
+index 15d30ea..beee03a 100755
+--- a/init/corosync-qnetd.in
++++ b/init/corosync-qnetd.in
+@@ -47,16 +47,16 @@ status()
+ 	return $res
+ }
+ 
++[ -f @INITCONFIGDIR@/$prog ] && . @INITCONFIGDIR@/$prog
++
+ # rpm based distros
+ if [ -d @SYSCONFDIR@/sysconfig ]; then
+ 	[ -f @INITDDIR@/functions ] && . @INITDDIR@/functions
+-	[ -f @SYSCONFDIR@/sysconfig/$prog ] && . @SYSCONFDIR@/sysconfig/$prog
+ 	[ -z "$LOCK_FILE" ] && LOCK_FILE="@LOCALSTATEDIR@/lock/subsys/$prog"
+ fi
+ 
+ # deb based distros
+ if [ -d @SYSCONFDIR@/default ]; then
+-	[ -f @SYSCONFDIR@/default/$prog ] && . @SYSCONFDIR@/default/$prog
+ 	[ -z "$LOCK_FILE" ] && LOCK_FILE="@LOCALSTATEDIR@/lock/$prog"
+ fi
+ 
+diff --git a/init/corosync-qnetd.service.in b/init/corosync-qnetd.service.in
+index c6cf8c9..cae98fe 100644
+--- a/init/corosync-qnetd.service.in
++++ b/init/corosync-qnetd.service.in
+@@ -6,7 +6,7 @@ Requires=network-online.target
+ After=network-online.target
+ 
+ [Service]
+-EnvironmentFile=@SYSCONFDIR@/sysconfig/corosync-qnetd
++EnvironmentFile=-@INITCONFIGDIR@/corosync-qnetd
+ ExecStart=@BINDIR@/corosync-qnetd -f $COROSYNC_QNETD_OPTIONS
+ Type=simple
+ Restart=on-abnormal
+diff --git a/init/corosync.conf.in b/init/corosync.conf.in
+index 373565a..0352d2b 100644
+--- a/init/corosync.conf.in
++++ b/init/corosync.conf.in
+@@ -5,14 +5,12 @@
+ expect fork
+ 
+ env prog=corosync
+-env rpm_sysconf=@SYSCONFDIR@/sysconfig/corosync
++env initconf=@INITCONFIGDIR@/corosync
+ env rpm_lockfile=@LOCALSTATEDIR@/lock/subsys/corosync
+-env deb_sysconf=@SYSCONFDIR@/default/corosync
+ env deb_lockfile=@LOCALSTATEDIR@/lock/corosync
+ 
+ script
+-    [ -f "$rpm_sysconf" ] && . $rpm_sysconf
+-    [ -f "$deb_sysconf" ] && . $deb_sysconf
++    [ -f "$initconf" ] && . $initconf
+     exec $prog $COROSYNC_OPTIONS
+ end script
+ 
+@@ -25,8 +23,7 @@ end script
+ post-start script
+ wait_for_ipc()
+ {
+-    [ -f "$rpm_sysconf" ] && . $rpm_sysconf
+-    [ -f "$deb_sysconf" ] && . $deb_sysconf
++    [ -f "$initconf" ] && . $initconf
+     try=0
+     max_try=$((COROSYNC_INIT_TIMEOUT*2-1))
+     [ "$max_try" -le "0" ] && max_try=120
+@@ -43,16 +40,14 @@ wait_for_ipc()
+ }
+     wait_for_ipc || { stop; exit 1; }
+ 
+-    [ -f "$rpm_sysconf" ] && . $rpm_sysconf
+-    [ -f "$deb_sysconf" ] && . $deb_sysconf
++    [ -f "$initconf" ] && . $initconf
+     [ -z "$LOCK_FILE" -a -d @SYSCONFDIR@/sysconfig ] && LOCK_FILE="$rpm_lockfile"
+     [ -z "$LOCK_FILE" -a -d @SYSCONFDIR@/default ] && LOCK_FILE="$deb_lockfile"
+     touch $LOCK_FILE
+ end script
+ 
+ post-stop script
+-    [ -f "$rpm_sysconf" ] && . $rpm_sysconf
+-    [ -f "$deb_sysconf" ] && . $deb_sysconf
++    [ -f "$initconf" ] && . $initconf
+     [ -z "$LOCK_FILE" -a -d @SYSCONFDIR@/sysconfig ] && LOCK_FILE="$rpm_lockfile"
+     [ -z "$LOCK_FILE" -a -d @SYSCONFDIR@/default ] && LOCK_FILE="$deb_lockfile"
+     rm -f $LOCK_FILE
+diff --git a/init/corosync.in b/init/corosync.in
+index c93f971..a258c36 100755
+--- a/init/corosync.in
++++ b/init/corosync.in
+@@ -48,16 +48,16 @@ status()
+ 	return $res
+ }
+ 
++[ -f @INITCONFIGDIR@/$prog ] && . @INITCONFIGDIR@/$prog
++
+ # rpm based distros
+ if [ -d @SYSCONFDIR@/sysconfig ]; then
+ 	[ -f @INITDDIR@/functions ] && . @INITDDIR@/functions
+-	[ -f @SYSCONFDIR@/sysconfig/$prog ] && . @SYSCONFDIR@/sysconfig/$prog
+ 	[ -z "$LOCK_FILE" ] && LOCK_FILE="@LOCALSTATEDIR@/lock/subsys/$prog"
+ fi
+ 
+ # deb based distros
+ if [ -d @SYSCONFDIR@/default ]; then
+-	[ -f @SYSCONFDIR@/default/$prog ] && . @SYSCONFDIR@/default/$prog
+ 	[ -z "$LOCK_FILE" ] && LOCK_FILE="@LOCALSTATEDIR@/lock/$prog"
+ fi
+ 
+-- 
+1.8.3.1
+

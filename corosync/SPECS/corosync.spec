@@ -17,25 +17,41 @@
 %bcond_without qdevices
 %bcond_without qnetd
 %bcond_without libcgroup
+%bcond_without spausedd
 
 %global gitver %{?numcomm:.%{numcomm}}%{?alphatag:.%{alphatag}}%{?dirty:.%{dirty}}
 %global gittarver %{?numcomm:.%{numcomm}}%{?alphatag:-%{alphatag}}%{?dirty:-%{dirty}}
 
+%if %{with spausedd}
+%global spausedd_version 20190320
+%endif
+
 Name: corosync
 Summary: The Corosync Cluster Engine and Application Programming Interfaces
 Version: 2.4.3
-Release: 4%{?gitver}%{?dist}
+Release: 6%{?gitver}%{?dist}
 License: BSD
 Group: System Environment/Base
 URL: http://corosync.github.io/corosync/
 Source0: http://build.clusterlabs.org/corosync/releases/%{name}-%{version}%{?gittarver}.tar.gz
+%if %{with spausedd}
+Source1: https://github.com/jfriesse/spausedd/releases/download/%{spausedd_version}/spausedd-%{spausedd_version}.tar.gz
+# VMGuestLib exists only for x86_64 architecture
+%ifarch x86_64
+%global use_vmguestlib 1
+%endif
+%endif
 
 Patch0: bz1536219-1-logging-Make-blackbox-configurable.patch
 Patch1: bz1536219-2-logging-Close-before-and-open-blackbox-after-fork.patch
 Patch2: bz1560468-1-totemcrypto-Check-length-of-the-packet.patch
+Patch3: bz1376819-1-configure-add-with-initconfigdir-option.patch
+Patch4: bz1376819-2-Use-RuntimeDirectory-instead-of-tmpfiles.d.patch
+Patch5: bz1634710-1-totemcrypto-Fix-importing-of-the-private-key.patch
+Patch6: bz1376819-3-qnetd-Check-existence-of-NSS-DB-dir-before-fork.patch
 
 %if 0%{?rhel}
-ExclusiveArch: i686 x86_64 s390x ppc64le aarch64
+ExclusiveArch: i686 x86_64 s390x ppc64le aarch64 %{arm}
 %endif
 
 # Runtime bits
@@ -85,14 +101,26 @@ BuildRequires: sed
 %if %{with libcgroup}
 BuildRequires: libcgroup-devel
 %endif
+%if %{defined use_vmguestlib}
+BuildRequires: pkgconfig(vmguestlib)
+%endif
 
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 %prep
+%if %{with spausedd}
+%setup -q -a 1 -n %{name}-%{version}%{?gittarver}
+%else
 %setup -q -n %{name}-%{version}%{?gittarver}
+%endif
+
 %patch0 -p1 -b .bz1536219-1
 %patch1 -p1 -b .bz1536219-2
 %patch2 -p1 -b .bz1560468-1
+%patch3 -p1 -b .bz1376819-1
+%patch4 -p1 -b .bz1376819-2
+%patch5 -p1 -b .bz1634710-1
+%patch6 -p1 -b .bz1376819-3
 
 %build
 %if %{with runautogen}
@@ -144,10 +172,20 @@ export rdmacm_LIBS=-lrdmacm \
 %endif
 	--with-initddir=%{_initrddir} \
 	--with-systemddir=%{_unitdir} \
-	--with-upstartdir=%{_sysconfdir}/init \
-	--with-tmpfilesdir=%{_tmpfilesdir}
+	--with-upstartdir=%{_sysconfdir}/init
 
 make %{_smp_mflags}
+
+%if %{with spausedd}
+cd spausedd-%{spausedd_version}
+make \
+%if %{defined use_vmguestlib}
+    WITH_VMGUESTLIB=1 \
+%else
+    WITH_VMGUESTLIB=0 \
+%endif
+    %{?_smp_mflags} CFLAGS="%{optflags}"
+%endif
 
 %install
 rm -rf %{buildroot}
@@ -186,12 +224,25 @@ install -m 644 init/corosync-qnetd.sysconfig.example \
 %if %{with systemd}
 sed -i -e 's/^#User=/User=/' \
    %{buildroot}%{_unitdir}/corosync-qnetd.service
-sed -i -e 's/root/coroqnetd/g' \
-   %{buildroot}%{_tmpfilesdir}/corosync-qnetd.conf
 %else
 sed -i -e 's/^COROSYNC_QNETD_RUNAS=""$/COROSYNC_QNETD_RUNAS="coroqnetd"/' \
    %{buildroot}%{_sysconfdir}/sysconfig/corosync-qnetd
 %endif
+%endif
+
+%if %{with spausedd}
+cd spausedd-%{spausedd_version}
+make DESTDIR="%{buildroot}" PREFIX="%{_prefix}" install
+
+%if %{with systemd}
+mkdir -p %{buildroot}/%{_unitdir}
+install -m 755 -p init/spausedd.service %{buildroot}/%{_unitdir}
+%else
+mkdir -p %{buildroot}/%{_initrddir}
+install -m 755 -p init/spausedd %{buildroot}/%{_initrddir}
+%endif
+
+cd ..
 %endif
 
 %clean
@@ -514,7 +565,6 @@ fi
 %{_unitdir}/corosync-qnetd.service
 %dir %{_datadir}/corosync
 %{_datadir}/corosync/corosync-qnetd
-%{_tmpfilesdir}/corosync-qnetd.conf
 %else
 %{_initrddir}/corosync-qnetd
 %endif
@@ -523,7 +573,78 @@ fi
 %{_mandir}/man8/corosync-qnetd.8*
 %endif
 
+# optional spausedd
+%if %{with spausedd}
+
+%package -n spausedd
+Summary: Utility to detect and log scheduler pause
+URL: https://github.com/jfriesse/spausedd
+
+%if %{with systemd}
+%{?systemd_requires}
+%else
+Requires(post): /sbin/chkconfig
+Requires(preun): /sbin/chkconfig
+%endif
+
+%description -n spausedd
+Utility to detect and log scheduler pause
+
+%files -n spausedd
+%doc spausedd-%{spausedd_version}/AUTHORS spausedd-%{spausedd_version}/COPYING
+%{_bindir}/spausedd
+%{_mandir}/man8/spausedd*
+%if %{with systemd}
+%{_unitdir}/spausedd.service
+%else
+%{_initrddir}/spausedd
+%endif
+
+%post -n spausedd
+%if %{with systemd} && 0%{?systemd_post:1}
+%systemd_post spausedd.service
+%else
+if [ $1 -eq 1 ]; then
+    /sbin/chkconfig --add spausedd || :
+fi
+%endif
+
+%preun -n spausedd
+%if %{with systemd} && 0%{?systemd_preun:1}
+%systemd_preun spausedd.service
+%else
+if [ $1 -eq 0 ]; then
+    /sbin/service spausedd stop &>/dev/null || :
+    /sbin/chkconfig --del spausedd || :
+fi
+%endif
+
+%postun -n spausedd
+%if %{with systemd} && 0%{?systemd_postun:1}
+    %systemd_postun spausedd.service
+%endif
+
+%endif
+
 %changelog
+* Thu Mar 21 2019 Jan Friesse <jfriesse@redhat.com> 2.4.3-6
+- Resolves: rhbz#1542703
+
+- Add spausedd subpackage
+
+* Thu Mar 21 2019 Jan Friesse <jfriesse@redhat.com> 2.4.3-5
+- Resolves: rhbz#1376819
+- Resolves: rhbz#1634710
+
+- configure: add --with-initconfigdir option (rhbz#1376819)
+- merge upstream commit c0d8af0c7b247df16a90850b0edab4f978cb8192 (rhbz#1376819)
+- Use RuntimeDirectory instead of tmpfiles.d (rhbz#1376819)
+- merge upstream commit fde7fa0c6408709ccdd090aa9064e6a78232498a (rhbz#1376819)
+- totemcrypto: Fix importing of the private key (rhbz#1634710)
+- merge upstream commit 3f3e6b62719a263cb221c19a06d9a2c570234caa (rhbz#1634710)
+- qnetd: Check existence of NSS DB dir before fork (rhbz#1376819)
+- merge upstream commit eac28dffdf7f060f41f2b2e95bb0f4c6c033425d (rhbz#1376819)
+
 * Tue Apr 17 2018 Jan Friesse <jfriesse@redhat.com> 2.4.3-4
 - Resolves: rhbz#1422598
 

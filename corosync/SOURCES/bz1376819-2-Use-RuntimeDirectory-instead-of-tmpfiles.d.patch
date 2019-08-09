@@ -1,0 +1,194 @@
+From fde7fa0c6408709ccdd090aa9064e6a78232498a Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Ferenc=20W=C3=A1gner?= <wferi@debian.org>
+Date: Mon, 28 Nov 2016 14:47:05 +0100
+Subject: [PATCH] Use RuntimeDirectory instead of tmpfiles.d
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+This reverts part of commit 32123f6bb2ebc4f9ac7865945cc85a9c9b903dc6.
+
+A simple directive is a much lighter solution to the same problem, and
+automatically follows the specified User.  I copied the 0770 modes from
+the corresponding init scripts; they could use a little documentation.
+
+Signed-off-by: Ferenc Wágner <wferi@debian.org>
+Reviewed-by: Jan Friesse <jfriesse@redhat.com>
+(cherry picked from commit c733e9417ef1d2f31268e9b6f99a8fc7712fcea7)
+---
+ conf/Makefile.am                    |  2 +-
+ conf/tmpfiles.d/Makefile.am         | 40 -------------------------------------
+ conf/tmpfiles.d/corosync-qnetd.conf |  1 -
+ configure.ac                        | 10 +---------
+ corosync.spec.in                    |  6 +-----
+ init/corosync-qdevice.service.in    |  2 ++
+ init/corosync-qnetd.service.in      |  2 ++
+ 7 files changed, 7 insertions(+), 56 deletions(-)
+ delete mode 100644 conf/tmpfiles.d/Makefile.am
+ delete mode 100644 conf/tmpfiles.d/corosync-qnetd.conf
+
+diff --git a/conf/Makefile.am b/conf/Makefile.am
+index 6382386..807b6cc 100644
+--- a/conf/Makefile.am
++++ b/conf/Makefile.am
+@@ -70,4 +70,4 @@ dbusdir			= $(sysconfdir)/dbus-1/system.d
+ dbus_DATA		= corosync-signals.conf
+ endif
+ 
+-SUBDIRS = logrotate tmpfiles.d
++SUBDIRS = logrotate
+diff --git a/conf/tmpfiles.d/Makefile.am b/conf/tmpfiles.d/Makefile.am
+deleted file mode 100644
+index 653129a..0000000
+--- a/conf/tmpfiles.d/Makefile.am
++++ /dev/null
+@@ -1,40 +0,0 @@
+-# Copyright (c) 2016 Red Hat, Inc.
+-#
+-# Authors:Jan Friesse (jfriesse@redhat.com)
+-#
+-# This software licensed under BSD license, the text of which follows:
+-#
+-# Redistribution and use in source and binary forms, with or without
+-# modification, are permitted provided that the following conditions are met:
+-#
+-# - Redistributions of source code must retain the above copyright notice,
+-#   this list of conditions and the following disclaimer.
+-# - Redistributions in binary form must reproduce the above copyright notice,
+-#   this list of conditions and the following disclaimer in the documentation
+-#   and/or other materials provided with the distribution.
+-# - Neither the name of the MontaVista Software, Inc. nor the names of its
+-#   contributors may be used to endorse or promote products derived from this
+-#   software without specific prior written permission.
+-#
+-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+-# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+-# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+-# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+-# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+-# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+-# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+-# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+-# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+-# THE POSSIBILITY OF SUCH DAMAGE.
+-
+-MAINTAINERCLEANFILES    = Makefile.in
+-
+-EXTRA_DIST		= corosync-qnetd.conf
+-
+-if BUILD_QNETD
+-if INSTALL_SYSTEMD
+-tmpfilesdirdir		= ${TMPFILESDIR}
+-tmpfilesdir_DATA	= corosync-qnetd.conf
+-endif
+-endif
+diff --git a/conf/tmpfiles.d/corosync-qnetd.conf b/conf/tmpfiles.d/corosync-qnetd.conf
+deleted file mode 100644
+index f4cbd03..0000000
+--- a/conf/tmpfiles.d/corosync-qnetd.conf
++++ /dev/null
+@@ -1 +0,0 @@
+-d /var/run/corosync-qnetd 0770 root root -
+diff --git a/configure.ac b/configure.ac
+index 01f7aa5..342da77 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -204,8 +204,7 @@ AC_CONFIG_FILES([Makefile
+ 		 conf/Makefile
+ 		 qdevices/Makefile
+ 		 Doxyfile
+-		 conf/logrotate/Makefile
+-		 conf/tmpfiles.d/Makefile])
++		 conf/logrotate/Makefile])
+ 
+ ### Local business
+ 
+@@ -401,11 +400,6 @@ AC_ARG_WITH([logrotatedir],
+ 	[ LOGROTATEDIR="$withval" ],
+ 	[ LOGROTATEDIR="$sysconfdir/logrotate.d" ])
+ 
+-AC_ARG_WITH([tmpfilesdir],
+-	[  --with-tmpfilesdir=DIR   : path to tmpfiles.d configuration files directory. ],
+-	[ TMPFILESDIR="$withval" ],
+-	[ TMPFILESDIR="/lib/tmpfiles.d" ])
+-
+ AC_ARG_ENABLE([snmp],
+ 	[  --enable-snmp                   : SNMP protocol support ],
+ 	[ default="no" ])
+@@ -731,7 +725,6 @@ INITWRAPPERSDIR=$(eval echo ${INITWRAPPERSDIR})
+ AC_SUBST([INITWRAPPERSDIR])
+ AC_SUBST([LOGDIR])
+ AC_SUBST([LOGROTATEDIR])
+-AC_SUBST([TMPFILESDIR])
+ 
+ AC_SUBST([SOMAJOR])
+ AC_SUBST([SOMINOR])
+@@ -774,7 +767,6 @@ AC_MSG_RESULT([  System init.d directory  = ${INITDDIR}])
+ AC_MSG_RESULT([  System systemd directory = ${SYSTEMDDIR}])
+ AC_MSG_RESULT([  System upstart directory = ${UPSTARTDIR}])
+ AC_MSG_RESULT([  System init wraps dir    = ${INITWRAPPERSDIR}])
+-AC_MSG_RESULT([  System tmpfiles.d        = ${TMPFILESDIR}])
+ AC_MSG_RESULT([  Log directory            = ${LOGDIR}])
+ AC_MSG_RESULT([  Log rotate directory     = ${LOGROTATEDIR}])
+ AC_MSG_RESULT([  corosync config dir      = ${COROSYSCONFDIR}])
+diff --git a/corosync.spec.in b/corosync.spec.in
+index d101189..6e57c97 100644
+--- a/corosync.spec.in
++++ b/corosync.spec.in
+@@ -134,8 +134,7 @@ export rdmacm_LIBS=-lrdmacm \
+ %endif
+ 	--with-initddir=%{_initrddir} \
+ 	--with-systemddir=%{_unitdir} \
+-	--with-upstartdir=%{_sysconfdir}/init \
+-	--with-tmpfilesdir=%{_tmpfilesdir}
++	--with-upstartdir=%{_sysconfdir}/init
+ 
+ make %{_smp_mflags}
+ 
+@@ -176,8 +175,6 @@ install -m 644 init/corosync-qnetd.sysconfig.example \
+ %if %{with systemd}
+ sed -i -e 's/^#User=/User=/' \
+    %{buildroot}%{_unitdir}/corosync-qnetd.service
+-sed -i -e 's/root/coroqnetd/g' \
+-   %{buildroot}%{_tmpfilesdir}/corosync-qnetd.conf
+ %else
+ sed -i -e 's/^COROSYNC_QNETD_RUNAS=""$/COROSYNC_QNETD_RUNAS="coroqnetd"/' \
+    %{buildroot}%{_sysconfdir}/sysconfig/corosync-qnetd
+@@ -503,7 +500,6 @@ fi
+ %{_unitdir}/corosync-qnetd.service
+ %dir %{_datadir}/corosync
+ %{_datadir}/corosync/corosync-qnetd
+-%{_tmpfilesdir}/corosync-qnetd.conf
+ %else
+ %{_initrddir}/corosync-qnetd
+ %endif
+diff --git a/init/corosync-qdevice.service.in b/init/corosync-qdevice.service.in
+index 8de4e5b..33746a0 100644
+--- a/init/corosync-qdevice.service.in
++++ b/init/corosync-qdevice.service.in
+@@ -9,6 +9,8 @@ After=corosync.service
+ ExecStart=@INITWRAPPERSDIR@/corosync-qdevice start
+ ExecStop=@INITWRAPPERSDIR@/corosync-qdevice stop
+ Type=forking
++RuntimeDirectory=corosync-qdevice
++RuntimeDirectoryMode=0770
+ 
+ [Install]
+ WantedBy=multi-user.target
+diff --git a/init/corosync-qnetd.service.in b/init/corosync-qnetd.service.in
+index cae98fe..54b9849 100644
+--- a/init/corosync-qnetd.service.in
++++ b/init/corosync-qnetd.service.in
+@@ -12,6 +12,8 @@ Type=simple
+ Restart=on-abnormal
+ # Uncomment and set user who should be used for executing qnetd
+ #User=coroqnetd
++RuntimeDirectory=corosync-qnetd
++RuntimeDirectoryMode=0770
+ 
+ [Install]
+ WantedBy=multi-user.target
+-- 
+1.8.3.1
+
