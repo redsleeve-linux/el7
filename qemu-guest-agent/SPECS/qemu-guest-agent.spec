@@ -48,10 +48,6 @@
     %global kvm_target    aarch64
     %global have_fdt     1
 %endif
-%ifarch %{arm}
-    %global kvm_target    arm
-    %global have_fdt     1
-%endif
 
 #Versions of various parts:
 
@@ -60,7 +56,7 @@
 Summary: QEMU guest agent
 Name: qemu-guest-agent
 Version: 2.12.0
-Release: 2%{?dist}.redsleeve
+Release: 2%{?dist}
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 Epoch: 10
 License: GPLv2
@@ -263,9 +259,6 @@ install -m 0644  qemu-ga.8 ${RPM_BUILD_ROOT}%{_mandir}/man8/
 
 
 %changelog
-* Wed Oct 31 2018 Jacco Ligthart <jacco@redsleeve.org> - 2.12.0-2.el7.redsleeve
-- added kvm_target arm
-
 * Tue Jul 24 2018 Miroslav Rezanina <mrezanin@redhat.com> - 2.12.0-2.el7
 - qemuga-qemu-ga-make-get-fsinfo-work-over-pci-bridges.patch [bz#1567041]
 - qemuga-qga-fix-driver-leak-in-guest-get-fsinfo.patch [bz#1567041]
