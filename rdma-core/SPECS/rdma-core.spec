@@ -1,5 +1,5 @@
 Name: rdma-core
-Version: 17.2
+Version: 22.1
 Release: 3%{?dist}
 Summary: RDMA core userspace libraries and daemons
 
@@ -10,6 +10,9 @@ Summary: RDMA core userspace libraries and daemons
 License: GPLv2 or BSD
 Url: https://github.com/linux-rdma/rdma-core
 Source: https://github.com/linux-rdma/rdma-core/releases/download/v%{version}/%{name}-%{version}.tar.gz
+# Diff between v22.1 and head of stable-v22 branch
+Patch0: 0000-rdma-core-v22.1-to-stable-v22-update.patch
+# Red Hat patches
 Patch1: 0001-redhat-kernel-init-ocrdma-is-tech-preview-too.patch
 Patch2: 0002-redhat-kernel-init-libi40iw-no-longer-tech-preview.patch
 Patch3: 0003-rdma-hw-modules.rules-i40iw-autoload-breaks-suspend.patch
@@ -17,6 +20,12 @@ Patch4: 0004-Revert-redhat-remove-files-that-we-no-longer-use.patch
 Patch5: 0005-fix_mtu_limiting_for_ipoib.patch
 Patch6: 0006-srp_daemon-Remove-unsupported-systemd-configurations.patch
 Patch7: 0007-srp_daemon-srp_daemon.service-should-be-started-afte.patch
+# Additional upstream patches from master branch
+Patch101: 0101-Update-kernel-headers.patch
+Patch102: 0102-bnxt_re-lib-Enable-Broadcom-s-57500-RoCE-adapter.patch
+Patch103: 0103-mlx5-Add-new-device-IDs.patch
+# Do not build static libs by default.
+%define with_static %{?_with_static: 1} %{?!_with_static: 0}
 
 BuildRequires: binutils
 BuildRequires: cmake >= 2.8.11
@@ -258,6 +267,7 @@ discover and use SCSI devices via the SCSI RDMA Protocol over InfiniBand.
 
 %prep
 %setup
+%patch0 -p1
 %patch1 -p1
 %patch2 -p1
 %patch3 -p1
@@ -265,6 +275,9 @@ discover and use SCSI devices via the SCSI RDMA Protocol over InfiniBand.
 %patch5 -p1
 %patch6 -p1
 %patch7 -p1
+%patch101 -p1
+%patch102 -p1
+%patch103 -p1
 
 %build
 
@@ -273,6 +286,8 @@ discover and use SCSI devices via the SCSI RDMA Protocol over InfiniBand.
 %else
 %define _rundir /var/run
 %endif
+
+%{!?EXTRA_CMAKE_FLAGS: %define EXTRA_CMAKE_FLAGS %{nil}}
 
 # Pass all of the rpm paths directly to GNUInstallDirs and our other defines.
 %cmake %{CMAKE_FLAGS} \
@@ -291,7 +306,11 @@ discover and use SCSI devices via the SCSI RDMA Protocol over InfiniBand.
          -DCMAKE_INSTALL_INITDDIR:PATH=%{_initrddir} \
          -DCMAKE_INSTALL_RUNDIR:PATH=%{_rundir} \
          -DCMAKE_INSTALL_DOCDIR:PATH=%{_docdir}/%{name}-%{version} \
-         -DCMAKE_INSTALL_UDEV_RULESDIR:PATH=%{_udevrulesdir}
+         -DCMAKE_INSTALL_UDEV_RULESDIR:PATH=%{_udevrulesdir} \
+%if %{with_static}
+         -DENABLE_STATIC=1 \
+%endif
+         %{EXTRA_CMAKE_FLAGS}
 %make_jobs
 
 %install
@@ -394,7 +413,11 @@ rm -rf %{buildroot}/%{_initrddir}/
 %dir %{_includedir}/rdma
 %{_includedir}/infiniband/*
 %{_includedir}/rdma/*
+%if %{with_static}
+%{_libdir}/lib*.a
+%endif
 %{_libdir}/lib*.so
+%{_libdir}/pkgconfig/*.pc
 %{_mandir}/man3/ibv_*
 %{_mandir}/man3/rdma*
 %{_mandir}/man3/umad*
@@ -402,6 +425,7 @@ rm -rf %{buildroot}/%{_initrddir}/
 %ifnarch s390
 %{_mandir}/man3/mlx4dv*
 %{_mandir}/man3/mlx5dv*
+%{_mandir}/man7/mlx5dv*
 %endif
 %{_mandir}/man7/rdma_cm.*
 
@@ -505,6 +529,36 @@ rm -rf %{buildroot}/%{_initrddir}/
 %doc %{_docdir}/%{name}-%{version}/ibsrpdm.md
 
 %changelog
+* Thu May 30 2019 Jarod Wilson <jarod@redhat.com> 22.1-3
+- Actually apply ConnectX-6 DX device ID patch
+- Related: rhbz#1687426
+
+* Thu May 02 2019 Jarod Wilson <jarod@redhat.com> 22.1-2
+- Refresh stable-v22 branch fixes
+- Add ConnectX-6 DX device IDs
+- Resolves: rhbz#1687426
+
+* Wed Mar 27 2019 Jarod Wilson <jarod@redhat.com> 22.1-1
+- Update to upstream v22.1 release with stable-v22 branch fixes
+- Add support for Broadcom 57500 RoCE adapter
+- Resolves: rhbz#1678274
+
+* Wed Jan 23 2019 Jarod Wilson <jarod@redhat.com> 22-1
+- Rebase to upstream rdma-core v22
+- Resolves: rhbz#1641921
+- Add mlx5 IB Device Memory support (MEMIC)
+- Resolves: rhbz#1644697
+- Add mlx5 Tunnel protocol RX decap/encap offload
+- Resolves: rhbz#1644709
+- Add mlx5 Tunnel protocol TX decap/encap offload
+- Resolves: rhbz#1644778
+- Add support for mlx5 infiniband flow counters
+- Resolves: rhbz#1644714
+- Add mlx5 DEVX interface
+- Resolves: rhbz#1644722
+- Add libbnxt_re support for SRQ
+- Resolves: rhbz#1570393
+
 * Tue Jun 26 2018 Jarod Wilson <jarod@redhat.com> 17.2-3
 - Restore RHEL7 systemd compat patches for srp_daemon
 - Resolves: rhbz#1595019

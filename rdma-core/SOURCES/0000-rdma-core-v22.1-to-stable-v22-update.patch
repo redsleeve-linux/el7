@@ -1,0 +1,928 @@
+commit 098d4238d9b9e584aaf4b9adb533defa6d310481
+Author: Mark Haywood <mark.haywood@oracle.com>
+Date:   Fri Apr 26 17:56:19 2019 +0200
+
+    ibacm: fix double hint.ai_family assignment in ib_acm_connect_open()
+    
+    [ Upstream commit 08843dc99669ae50c5ba204db644d5423fe8e910 ]
+    
+    It appears that a previous fix accidentally introduced a double
+    assignment to hint.ai_family and, in the process, accidentally removed
+    the assignment to hint.ai_protocol. This patch will fix both
+    assignments.
+    
+    Fixes: 579b6bf8 ("ibacm: Adding new configuration option 'server_mode'")
+    
+    Signed-off-by: Mark Haywood <mark.haywood@oracle.com>
+    Signed-off-by: Nicolas Morey-Chaisemartin <nmoreychaisemartin@suse.com>
+
+commit 6c7d8a5152fccc0d17e7470318f925faed322b57
+Author: Mark Haywood <mark.haywood@oracle.com>
+Date:   Fri Apr 26 17:09:28 2019 +0200
+
+    ibacm: acme does not work if server_mode != unix
+    
+    [ Upstream commit 75ce9310735f7bcfc93e2bf442f0e5d268e0c5ab ]
+    
+    Running the ibacm server in mode loopback or open and then trying to run
+    ib_acme against it, fails:
+    
+    $ ib_acme -S 127.0.0.1 -v -f i -s 10.196.100.60 -d 10.196.1.60
+    *** Error in `ib_acme': double free or corruption (fasttop): 0x000000000177c380 ***
+    ======= Backtrace: =========
+    /lib64/libc.so.6(+0x7c619)[0x7f540121d619]
+    /lib64/libc.so.6(freeaddrinfo+0x28)[0x7f5401282fe8]
+    ib_acme[0x4049eb]
+    ib_acme[0x401841]
+    /lib64/libc.so.6(__libc_start_main+0xf5)[0x7f54011c2c05]
+    ib_acme[0x40315b]
+    
+    In ib_acm_connect_open(), there is a double freeaddrinfo() that needs
+    to be fixed. And the socket close() should only be called if connect()
+    fails.
+    
+    Afterwards:
+    
+    $ ib_acme -S 127.0.0.1 -v -f i -s 10.196.100.60 -d 10.196.1.60
+    Service: 127.0.0.1
+    Destination: 10.196.1.60
+    Source: 10.196.100.60
+    Path information
+      dgid: fe80::10:e000:128:d021
+      sgid: fe80::10:e000:128:d021
+      dlid: 19
+      slid: 19
+      flow label: 0x0
+      hop limit: 0
+      tclass: 0
+      reversible: 1
+      pkey: 0xffff
+      sl: 0
+      mtu: 4
+      rate: 7
+      packet lifetime: 0
+    SA verification: success
+    
+    return status 0x0
+    
+    Fixes: 579b6bf8 ("ibacm: Adding new configuration option 'server_mode'")
+    
+    Signed-off-by: Mark Haywood <mark.haywood@oracle.com>
+    Signed-off-by: Nicolas Morey-Chaisemartin <nmoreychaisemartin@suse.com>
+
+commit d26a969c00c7743c25e0d3083aa3c1b926bd05cb
+Author: Mark Haywood <mark.haywood@oracle.com>
+Date:   Fri Apr 26 16:40:14 2019 +0200
+
+    ibacm: ib_acm_connect() is doing too much
+    
+    [ Upstream commit c58daf0f1e6c71945907339afec17a350c0d49a6 ]
+    
+    The ib_acm_connect() function is performing multiple functions. It
+    handles setting up the connections for the three server modes, "unix",
+    "open" and "loop". The "open" and "loop" mode logic should share one
+    function. The "linux" mode logic should have its own function.
+    And ib_acm_connect() can call the appropriate helper function.
+    
+    Signed-off-by: Mark Haywood <mark.haywood@oracle.com>
+    Signed-off-by: Nicolas Morey-Chaisemartin <nmoreychaisemartin@suse.com>
+
+commit aaba94df0afb6b3cf61f23a030410395f137c974
+Author: Mark Haywood <mark.haywood@oracle.com>
+Date:   Mon Apr 15 22:43:01 2019 +0200
+
+    verbs: The ibv_xsrq_pingpong "-c" option is broken
+    
+    [ Upstream commit 2bdfa37f61bb3899e0afcee497432e0b34c14a35 ]
+    
+    $ ibv_xsrq_pingpong -c 2
+    Segmentation fault
+    
+    The getopt_long() optstring was modifed by 257470c2 to remove ':' from
+    the string leaving an optstring of "p:d:i:s:m:q:r:n:l:eg:c". The
+    explanation for this change in 257470c2 is:
+    
+    "Also, The buffer validation option doesn't require an extra parameter,
+    remove the extra ':' from all ibv_*_pingpong examples."
+    
+    In other ibv_*_pingpong examples, the "-c" option refers to the chk
+    (buffer validation) option. So, it made sense to make the change in
+    those example programs, but not in ibv_xsrq_pingpong.
+    
+    Fixes: 257470c2 ("verbs: Fix pingpong buffer validation")
+    
+    Signed-off-by: Mark Haywood <mark.haywood@oracle.com>
+    Signed-off-by: Nicolas Morey-Chaisemartin <nmoreychaisemartin@suse.com>
+
+commit 17cb113341bd4933ea785c5aac0197b0fa836a1e
+Author: Michael Guralnik <michaelgur@mellanox.com>
+Date:   Mon Apr 15 17:08:42 2019 +0300
+
+    mlx5: Fix masking service level in mlx5_create_ah
+    
+    [ Upstream commit 30978598c761a3f5b0e0cc4337107d91e897cf2e ]
+    
+    Fix masking of service level when creating AH to 4 bits in case of IB
+    link layer to match PRM definition.
+    
+    Fixes: 4e0c23429839 ("mlx5: Fix SL to Ethernet priority conversion")
+    Signed-off-by: Michael Guralnik <michaelgur@mellanox.com>
+    Signed-off-by: Yishai Hadas <yishaih@mellanox.com>
+    Signed-off-by: Nicolas Morey-Chaisemartin <nmoreychaisemartin@suse.com>
+
+commit 4ef38020957e478f8b5d1df0dea7fd60a25c7a9e
+Author: Leon Romanovsky <leonro@mellanox.com>
+Date:   Wed Apr 17 16:46:36 2019 +0300
+
+    cmake: Explicitly convert build type to be STRING
+    
+    [ Upstream commit 10998b0068bd1503ed1c3c213c5450faf194e5cf ]
+    
+    The build type was declared As "String" instead of "STRING" and it
+    produced the following warning while rdma-core was built.
+    
+    CMake Warning (dev) at buildlib/RDMA_BuildType.cmake:11 (set):
+      implicitly converting 'String' to 'STRING' type.
+    Call Stack (most recent call first):
+      CMakeLists.txt:170 (RDMA_BuildType)
+    This warning is for project developers.  Use -Wno-dev to suppress it.
+    
+    Fixes: 7cb1daa8d9e6 ("Be consistent about defining NDEBUG")
+    Signed-off-by: Leon Romanovsky <leonro@mellanox.com>
+    Signed-off-by: Nicolas Morey-Chaisemartin <nmoreychaisemartin@suse.com>
+
+commit d05900db873f1a4ab6af1159ee87e50a15296352
+Author: Lijun Ou <oulijun@huawei.com>
+Date:   Sat Mar 23 10:05:09 2019 +0800
+
+    libhns: Bugfix for filtering zero length sge
+    
+    [ Upstream commit 1c2def4817f31c15342669144ef6bb894bd9616d ]
+    
+    When user posts a wqe with n sges, the driver needs to
+    determine to if each sge is valid and filter the invalid
+    sge, fill the number of valid sges into sq wqe. Hip08
+    hardware allocates the correct memory location for each
+    valid sge based on the number of valid sge. For exmaple,
+    when posts a wqe with 3 sges. if 3 sge is valid, the first
+    and second sges will be filled into the wqe and the last
+    sge will fill the indpendent memory location which the
+    hardware allocated additionally. However, it will happen
+    error if the first and the second sges is invalid.
+    Because the driver will filter the first two sge and fill
+    the last sge into hardware. But the valid sge will be
+    stored in the extended memory and the correct way
+    should be stored in wqe.
+    
+    The other situation example as follows:
+    Posting five sge and have two invalid sge.
+     ________________________________________
+    |___0____|__1____|___0____|__1___|___1__|
+    
+    the 0 express the sge is invalid, the 1 express the sge is valid.
+    Based on the above situation. the hardware will store the second
+    and the fourth sge into sq wqe. The last sge will be stored in
+    the extend memory location. the number of valid sge is 3.
+    
+    Fixes: 29ef2625c4e1 ("libhns: Filter for zero length of sge in hip08 userspace")
+    Signed-off-by: Lijun Ou <oulijun@huawei.com>
+    Signed-off-by: Nicolas Morey-Chaisemartin <nmoreychaisemartin@suse.com>
+
+commit f3bb8968d3c1b622d586b51b6782ea26d4362489
+Author: Guy Levi <guyle@mellanox.com>
+Date:   Tue Mar 19 12:45:00 2019 +0200
+
+    buildlib: Ensure stanza is properly sorted
+    
+    [ Upstream commit 7d9a24f18372587608bcbfc42c3251d7697ea6ef ]
+    
+    A sanity check which verifies that the stanza version is the newest,
+    triggers a false alarm due to wrong sorting method. For example, a new
+    version tagged by 1.10 was sorted as older than 1.2 tag. Replacing the
+    sort method by LooseVersion from distutils fixes the issue.
+    
+    Fixes: 7cff8245374c ("Have travis check shared library filenames")
+    Signed-off-by: Guy Levi <guyle@mellanox.com>
+    Reviewed-by: Leon Romanovsky <leonro@mellanox.com>
+    Signed-off-by: Yishai Hadas <yishaih@mellanox.com>
+    Signed-off-by: Nicolas Morey-Chaisemartin <nmoreychaisemartin@suse.com>
+
+commit e02238eae4901cb2f0570b887c88f05824d76d47
+Author: Tzafrir Cohen <tzafrirc@mellanox.com>
+Date:   Wed Mar 13 21:46:52 2019 +0200
+
+    debian: Create empty pyverbs package for builds without pyverbs
+    
+    [ Upstream commit ae52ee74cefcff13ebc6786a28740a881c38b2f0 ]
+    
+    Other parts of the standard Debian build toolchain (specifically:
+    dpkg-genchangelog, but possibly others) expect a package to exist.
+    
+    dpkg-genchanges: error: cannot fstat file
+    ../python3-pyverbs_23.0~201903120844+git272bb55~ubuntu16.04.1_amd64.deb: No such file or directory
+    dpkg-buildpackage: error: dpkg-genchanges gave error exit status 2
+    
+    Link: https://launchpadlibrarian.net/414799420/buildlog_ubuntu-xenial-amd64.rdma-core_23.0~201903120844+git272bb55~ubuntu16.04.1_BUILDING.txt.gz
+    Fixes: 841c9f041f0af ("debian: Add pyverbs to Debian package")
+    Signed-off-by: Tzafrir Cohen <tzafrirc@mellanox.com>
+    Signed-off-by: Leon Romanovsky <leonro@mellanox.com>
+    Signed-off-by: Nicolas Morey-Chaisemartin <nmoreychaisemartin@suse.com>
+
+commit 90886054afbb91fdeb7df3fc7e6424eaec72fdea
+Author: Artemy Kovalyov <artemyko@mellanox.com>
+Date:   Sat Feb 23 16:40:17 2019 +0200
+
+    verbs: Fix attribute returning
+    
+    [ Upstream commit 888c598db4df509dfb2d44a151df7490450a118e ]
+    
+    Fix copying of returned attributes to chained buffers.
+    
+    Fixes: 776003b23f51 ("verbs: Allow all commands to be invoked by ioctl")
+    Fixes: a93098a32fdf ("verbs: Fix attribute preparation")
+    Signed-off-by: Artemy Kovalyov <artemyko@mellanox.com>
+    Reviewed-by: Jason Gunthorpe <jgg@mellanox.com>
+    Signed-off-by: Yishai Hadas <yishaih@mellanox.com>
+    Signed-off-by: Nicolas Morey-Chaisemartin <nmoreychaisemartin@suse.com>
+
+commit c7c842a3cc4e0e7cca10613dc7e74e73fbbdf6f1
+Author: Tzafrir Cohen <tzafrirc@mellanox.com>
+Date:   Thu Feb 28 15:19:06 2019 +0200
+
+    build: Fix pyverbs build issues on Debian
+    
+    [ Upstream commit ea5d6a50e76f3f6c88ac2db0b7143496d827100f ]
+    
+    Cython is used to build pyverbs, which is only supported in Python3.
+    Don't try to look for Cython if we don't have Python3.
+    Also update debian/rules file:
+    - configure: Check if Python3 is supported instead of relying on
+      EXTRA_CMAKE_FLAGS which is not set at this point.
+    - install: Add pyverbs to ignored missing packages if it wasn't built
+      (this decision will be taken by cmake at this point).
+    - build: Ignore pyverbs if it wasn't built.
+    
+    Fixes: 1ce4a3e8 ('pyverbs: Update cmake to include pyverbs package')
+    Signed-off-by: Tzafrir Cohen <tzafrirc@mellanox.com>
+    Signed-off-by: Noa Osherovich <noaos@mellanox.com>
+    Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
+    Signed-off-by: Leon Romanovsky <leonro@mellanox.com>
+    Signed-off-by: Nicolas Morey-Chaisemartin <nmoreychaisemartin@suse.com>
+
+commit 8043035f921f79ee723b764947f99398e580bc86
+Author: Leon Romanovsky <leonro@mellanox.com>
+Date:   Thu Mar 7 20:22:06 2019 +0200
+
+    travis: Change SuSE package target due to Travis CI failures
+    
+    [ Upstream commit b65dbb91bd80119065eaefb8c9bee773b8f347ec ]
+    
+    Change SuSE package target to leap due to random sigfaults while
+    running zypper command in tumbleweed under Travis CI environment.
+    
+    Signed-off-by: Leon Romanovsky <leonro@mellanox.com>
+    Signed-off-by: Nicolas Morey-Chaisemartin <nmoreychaisemartin@suse.com>
+
+commit a4bbfc338f631648c65e02149f91da9939c21e2f
+Author: Ariel Levkovich <lariel@mellanox.com>
+Date:   Mon Jan 21 22:09:00 2019 +0200
+
+    verbs: Avoid inline send when using device memory in rc_pingpong
+    
+    [ Upstream commit 9548325b725e1eb37b8f3553d54d27fac6cf1a92 ]
+    
+    Fix rc_pingpong example to avoid setting the inline send flag when using
+    device memory.
+    
+    When using device memory, posting send with inline data is not supported
+    since the device memory address is zero based and accessing it to copy
+    data will cause segmentation fault.
+    
+    Fixes: f06164d5ea8d ("verbs: Add device memory support in rc_pingpong example")
+    Signed-off-by: Ariel Levkovich <lariel@mellanox.com>
+    Signed-off-by: Yishai Hadas <yishaih@mellanox.com>
+    Signed-off-by: Nicolas Morey-Chaisemartin <nmoreychaisemartin@suse.com>
+
+commit 4b38d3cdfb939800976ad63fedaf8971439b6fa3
+Author: Ariel Levkovich <lariel@mellanox.com>
+Date:   Wed Feb 6 00:48:38 2019 +0200
+
+    mlx5: Use copy loop to read from device memory
+    
+    [ Upstream commit e84d7117aa0cbf47695dd0a663f6f1cb1d273e28 ]
+    
+    Revise the flow of copying data from device memory buffer to use a 4
+    byte load loop since memcpy may use SSE instructions while the device
+    memory is an uncachable, IO mapped memory.
+    
+    Fixes: 9bb70e385874 ("mlx5: Device memory support")
+    Signed-off-by: Ariel Levkovich <lariel@mellanox.com>
+    Signed-off-by: Yishai Hadas <yishaih@mellanox.com>
+    Signed-off-by: Nicolas Morey-Chaisemartin <nmoreychaisemartin@suse.com>
+
+commit d38817ea554a9fd140e56414a7c74e7eef444c50
+Author: Mark Bloch <markb@mellanox.com>
+Date:   Wed Feb 20 20:00:45 2019 +0000
+
+    verbs: clear cmd buffer when creating indirection table
+    
+    [ Upstream commit 34225464c1d165f63ffd462364810cc9f374109d ]
+    
+    Make sure we clear the cmd buffer, not doing so will make the kernel to
+    fail the command.
+    
+    Fixes: 75c65bbcadcd ("verbs: Consolidate duplicate code in create_rwq_ind_table")
+    Signed-off-by: Mark Bloch <markb@mellanox.com>
+    Signed-off-by: Yishai Hadas <yishaih@mellanox.com>
+    Signed-off-by: Nicolas Morey-Chaisemartin <nmoreychaisemartin@suse.com>
+
+commit 9dcfa6cd2e0b84fcf74218198e98e18c04ec374f
+Author: Lijun Ou <oulijun@huawei.com>
+Date:   Thu Feb 21 10:40:43 2019 +0800
+
+    libhns: Bugfix for using buffer length
+    
+    [ Upstream commit e25684538c95e0286de7bfd96a643c7b2d34deda ]
+    
+    We should use the length of buffer after aligned according the
+    input size for ibv_dontfork_range function.
+    
+    Fixes: c24583975044 ("libhns: Add verbs of qp support")
+    Signed-off-by: Lijun Ou <oulijun@huawei.com>
+    Signed-off-by: Nicolas Morey-Chaisemartin <nmoreychaisemartin@suse.com>
+
+commit 23e3a5dac44f9ec81ee5402c5e45009715aee241
+Author: Bodong Wang <bodong@mellanox.com>
+Date:   Thu Sep 27 15:32:27 2018 -0500
+
+    mlx5: Fix incorrect error handling when SQ wqe count is 0
+    
+    [ Upstream commit 37bd67876947fb600f4d1691391796778af89843 ]
+    
+    Driver allocates memory based on wqe count and checks whether the memory
+    allocation succeeded. However, this memory check should not be performed
+    when wqe count is 0.
+    
+    Fixes: 8c4791ae2395 ("libmlx5: First version of libmlx5")
+    Signed-off-by: Bodong Wang <bodong@mellanox.com>
+    Signed-off-by: Yishai Hadas <yishaih@mellanox.com>
+    Signed-off-by: Nicolas Morey-Chaisemartin <nmoreychaisemartin@suse.com>
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 8310ec6c..0a8ad522 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -360,23 +360,23 @@ else()
+   set(HAVE_FULL_SYMBOL_VERSIONS 1)
+ endif()
+ 
+-if (${NO_PYVERBS})
+-  set(CYTHON_EXECUTABLE "")
+-else ()
+-  # Look for Python. We prefer some variant of python 3 if the system has it.
+-  FIND_PACKAGE(PythonInterp 3 QUIET)
+-  if (NOT ${PythonInterp_FOUND})
+-    FIND_PACKAGE(PythonInterp REQUIRED)
+-  endif()
+-  FIND_PACKAGE(cython)
+-endif()
+-
+ # Look for Python. We prefer some variant of python 3 if the system has it.
+ FIND_PACKAGE(PythonInterp 3 QUIET)
+-if (NOT ${PythonInterp_FOUND})
++if (PythonInterp_FOUND)
++  # pyverbs can only use python3:
++  if (NO_PYVERBS)
++    set(CYTHON_EXECUTABLE "")
++  else()
++    FIND_PACKAGE(cython)
++  endif()
++else()
++  # But we still must have python (be it 2) for the build process:
+   FIND_PACKAGE(PythonInterp REQUIRED)
++  set(CYTHON_EXECUTABLE "")
+ endif()
++
+ # A cython & python-devel installation that matches our selected interpreter.
++
+ if (CYTHON_EXECUTABLE)
+  # cmake has really bad logic here, if PythonIterp has been run it tries to
+  # find a matching -devel installation but will happily return a non-matching
+diff --git a/buildlib/RDMA_BuildType.cmake b/buildlib/RDMA_BuildType.cmake
+index 0951edad..17206f51 100644
+--- a/buildlib/RDMA_BuildType.cmake
++++ b/buildlib/RDMA_BuildType.cmake
+@@ -8,7 +8,7 @@ function(RDMA_BuildType)
+   # in performance contexts it doesn't make much sense to have the default build
+   # turn off the optimizer.
+   if(NOT CMAKE_BUILD_TYPE)
+-    set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE String
++	  set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING
+       "Options are ${build_types}"
+       FORCE
+       )
+diff --git a/buildlib/cbuild b/buildlib/cbuild
+index 9ced0de6..15095d0c 100755
+--- a/buildlib/cbuild
++++ b/buildlib/cbuild
+@@ -641,10 +641,6 @@ def run_deb_build(args,env):
+             "-e","DEB_BUILD_OPTIONS=parallel=%u"%(multiprocessing.cpu_count()),
+         ];
+ 
+-        if not env.build_pyverbs:
+-            opts.append("-e");
+-            opts.append("EXTRA_CMAKE_FLAGS=%s"%(' '.join(["-DNO_PYVERBS=1"])));
+-
+         # Create a go.py that will let us run the compilation as the user and
+         # then switch to root only for the packaging step.
+         with open(os.path.join(tmpdir,"go.py"),"w") as F:
+diff --git a/buildlib/check-build b/buildlib/check-build
+index 5ae0cc1c..348b0590 100755
+--- a/buildlib/check-build
++++ b/buildlib/check-build
+@@ -14,6 +14,7 @@ import copy
+ import shlex
+ import pipes
+ from contextlib import contextmanager;
++from distutils.version import LooseVersion;
+ 
+ def get_src_dir():
+     """Get the source directory using git"""
+@@ -106,7 +107,7 @@ def check_lib_symver(args,fn):
+                 private,args.PACKAGE_VERSION));
+ 
+     syms = list(syms - private);
+-    syms.sort(key=lambda x:re.split('[._]',x));
++    syms.sort(key=LooseVersion)
+     if newest_symver != syms[-1]:
+         raise ValueError("Symbol version %r implied by filename %r not the newest in ELF (%r)"%(
+             newest_symver,fn,syms));
+diff --git a/buildlib/package-build-test b/buildlib/package-build-test
+index 46a1cf6f..29c17838 100755
+--- a/buildlib/package-build-test
++++ b/buildlib/package-build-test
+@@ -11,7 +11,7 @@ if [ -e "/.dockerenv" ] || (grep -q docker /proc/self/cgroup &>/dev/null); then
+        exit 0
+ fi
+ 
+-for OS in centos7 tumbleweed
++for OS in centos7 leap
+ do
+ 	echo
+ 	echo "Checking package build for ${OS} ...."
+diff --git a/debian/rules b/debian/rules
+index dceb6352..2d5b2670 100755
+--- a/debian/rules
++++ b/debian/rules
+@@ -37,14 +37,15 @@ DH_AUTO_CONFIGURE := "--" \
+ 		     $(EXTRA_CMAKE_FLAGS)
+ 
+ override_dh_auto_configure:
+-ifeq ($(EXTRA_CMAKE_FLAGS), -DNO_PYVERBS=1)
+-	dh_auto_configure $(DH_AUTO_CONFIGURE)
+-else
+-	dh_auto_configure $(DH_AUTO_CONFIGURE) \
+-		        -DNO_PYVERBS=0 \
+-			-DPYTHON_EXECUTABLE:PATH=/usr/bin/python3 \
+-			-DCMAKE_INSTALL_PYTHON_ARCH_LIB:PATH=/usr/lib/python3/dist-packages
+-endif
++	if [ -e /usr/bin/python3 ]; then \
++		dh_auto_configure $(DH_AUTO_CONFIGURE) \
++				-DPYTHON_EXECUTABLE:PATH=/usr/bin/python3 \
++				-DCMAKE_INSTALL_PYTHON_ARCH_LIB:PATH=/usr/lib/python3/dist-packages; \
++	else \
++		dh_auto_configure $(DH_AUTO_CONFIGURE) \
++			        -DNO_PYVERBS=1; \
++	fi
++
+ 
+ override_dh_auto_build:
+ 	ninja -C build-deb -v
+@@ -72,7 +73,11 @@ ifeq ($(EXTRA_CMAKE_FLAGS), -DNO_PYVERBS=1)
+ endif
+ INST_EXCLUDE := $(addprefix -X,$(INST_EXCLUDE))
+ override_dh_install:
+-	dh_install --fail-missing $(INST_EXCLUDE)
++	if [ -e build-deb/python/pyverbs/__init__.py ]; then \
++		dh_install --fail-missing $(INST_EXCLUDE); \
++	else \
++		dh_install -Npython3-pyverbs --fail-missing $(INST_EXCLUDE) --remaining-packages; \
++	fi
+ 
+ # cmake installs the correct init scripts in the correct place, just setup the
+ # pre-postrms
+@@ -99,13 +104,6 @@ override_dh_strip:
+ 	dh_strip -plibrdmacm1 --dbg-package=librdmacm1-dbg
+ 	dh_strip --remaining-packages
+ 
+-override_dh_builddeb:
+-ifeq ($(EXTRA_CMAKE_FLAGS), -DNO_PYVERBS=1)
+-	dh_builddeb -Npython3-pyverbs --remaining-packages
+-else
+-	dh_builddeb --remaining-package
+-endif
+-
+ # Upstream encourages the use of 'build' as the developer build output
+ # directory, allow that directory to be present and still allow dh to work.
+ .PHONY: build
+diff --git a/ibacm/src/libacm.c b/ibacm/src/libacm.c
+index 1d9d7145..e50fbf43 100644
+--- a/ibacm/src/libacm.c
++++ b/ibacm/src/libacm.c
+@@ -56,7 +56,7 @@ static void acm_set_server_port(void)
+ 	}
+ }
+ 
+-int ib_acm_connect(char *dest)
++static int ib_acm_connect_open(char *dest)
+ {
+ 	struct addrinfo hint, *res;
+ 	int ret;
+@@ -64,67 +64,72 @@ int ib_acm_connect(char *dest)
+ 	acm_set_server_port();
+ 	memset(&hint, 0, sizeof hint);
+ 
+-	if (dest && *dest != '/') {
+-		hint.ai_family = AF_INET;
+-		hint.ai_family = AF_UNSPEC;
+-
+-		ret = getaddrinfo(dest, NULL, &hint, &res);
+-		if (ret)
+-			return ret;
+-
+-		sock = socket(res->ai_family, res->ai_socktype,
+-			      res->ai_protocol);
+-		if (sock == -1) {
+-			ret = errno;
+-			goto err1;
+-		}
++	hint.ai_family = AF_UNSPEC;
++	hint.ai_protocol = IPPROTO_TCP;
+ 
+-		((struct sockaddr_in *) res->ai_addr)->sin_port =
+-			htobe16(server_port);
+-		ret = connect(sock, res->ai_addr, res->ai_addrlen);
+-		if (ret)
+-			goto err2;
++	ret = getaddrinfo(dest, NULL, &hint, &res);
++	if (ret)
++		return ret;
+ 
+-		freeaddrinfo(res);
++	sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
++	if (sock == -1) {
++		ret = errno;
++		goto freeaddr;
++	}
+ 
+-err2:
++	((struct sockaddr_in *) res->ai_addr)->sin_port = htobe16(server_port);
++	ret = connect(sock, res->ai_addr, res->ai_addrlen);
++	if (ret) {
+ 		close(sock);
+ 		sock = -1;
+-err1:
+-		freeaddrinfo(res);
+-	} else {
+-		struct sockaddr_un addr;
+-
+-		addr.sun_family = AF_UNIX;
+-		if (dest) {
+-			if (snprintf(addr.sun_path, sizeof(addr.sun_path),
+-				     "%s", dest) >= sizeof(addr.sun_path)) {
+-				errno = ENAMETOOLONG;
+-				return errno;
+-			}
+-		} else {
+-			BUILD_ASSERT(sizeof(IBACM_IBACME_SERVER_PATH) <=
+-				     sizeof(addr.sun_path));
+-			strcpy(addr.sun_path, IBACM_IBACME_SERVER_PATH);
+-		}
++	}
+ 
+-		sock = socket(AF_UNIX, SOCK_STREAM, 0);
+-		if (sock < 0)
+-			return errno;
++freeaddr:
++	freeaddrinfo(res);
++	return ret;
++}
+ 
+-		if (connect(sock,
+-			    (struct sockaddr *)&addr, sizeof(addr)) != 0) {
+-			ret = errno;
+-			close(sock);
+-			sock = -1;
+-			errno = ret;
+-			return ret;
++static int ib_acm_connect_unix(char *dest)
++{
++	struct sockaddr_un addr;
++	int ret;
++
++	addr.sun_family = AF_UNIX;
++	if (dest) {
++		if (snprintf(addr.sun_path, sizeof(addr.sun_path),
++			     "%s", dest) >= sizeof(addr.sun_path)) {
++			errno = ENAMETOOLONG;
++			return errno;
+ 		}
++	} else {
++		BUILD_ASSERT(sizeof(IBACM_IBACME_SERVER_PATH) <=
++			     sizeof(addr.sun_path));
++		strcpy(addr.sun_path, IBACM_IBACME_SERVER_PATH);
++	}
++
++	sock = socket(AF_UNIX, SOCK_STREAM, 0);
++	if (sock < 0)
++		return errno;
++
++	if (connect(sock, (struct sockaddr *)&addr, sizeof(addr)) != 0) {
++		ret = errno;
++		close(sock);
++		sock = -1;
++		errno = ret;
++		return ret;
+ 	}
+ 
+ 	return 0;
+ }
+ 
++int ib_acm_connect(char *dest)
++{
++	if (dest && *dest == '/')
++		return ib_acm_connect_unix(dest);
++
++	return ib_acm_connect_open(dest);
++}
++
+ void ib_acm_disconnect(void)
+ {
+ 	if (sock != -1) {
+diff --git a/libibverbs/cmd.c b/libibverbs/cmd.c
+index 34c71e56..5817c598 100644
+--- a/libibverbs/cmd.c
++++ b/libibverbs/cmd.c
+@@ -1854,6 +1854,7 @@ int ibv_cmd_create_rwq_ind_table(struct ibv_context *context,
+ 	cmd_size = sizeof(*cmd) + num_tbl_entries * sizeof(cmd->wq_handles[0]);
+ 	cmd_size = (cmd_size + 7) / 8 * 8;
+ 	cmd = alloca(cmd_size);
++	memset(cmd, 0, cmd_size);
+ 
+ 	for (i = 0; i < num_tbl_entries; i++)
+ 		cmd->wq_handles[i] = init_attr->ind_tbl[i]->handle;
+diff --git a/libibverbs/cmd_ioctl.c b/libibverbs/cmd_ioctl.c
+index 82ef2cd7..2a46c49c 100644
+--- a/libibverbs/cmd_ioctl.c
++++ b/libibverbs/cmd_ioctl.c
+@@ -79,7 +79,6 @@ static void prepare_attrs(struct ibv_command_buffer *cmd)
+ 	}
+ 
+ 	cmd->hdr.num_attrs = end - cmd->hdr.attrs;
+-	cmd->last_attr = end;
+ 
+ 	/*
+ 	 * We keep the in UHW uninlined until directly before sending to
+@@ -113,7 +112,7 @@ static void finalize_attrs(struct ibv_command_buffer *cmd)
+ 	struct ibv_command_buffer *link;
+ 	struct ib_uverbs_attr *end;
+ 
+-	for (end = cmd->hdr.attrs; end != cmd->last_attr; end++)
++	for (end = cmd->hdr.attrs; end != cmd->next_attr; end++)
+ 		finalize_attr(end);
+ 
+ 	for (link = cmd->next; link; link = link->next) {
+diff --git a/libibverbs/examples/rc_pingpong.c b/libibverbs/examples/rc_pingpong.c
+index 8b2253d5..0f37f5df 100644
+--- a/libibverbs/examples/rc_pingpong.c
++++ b/libibverbs/examples/rc_pingpong.c
+@@ -488,9 +488,8 @@ static struct pingpong_context *pp_init_ctx(struct ibv_device *ib_dev, int size,
+ 		}
+ 
+ 		ibv_query_qp(ctx->qp, &attr, IBV_QP_CAP, &init_attr);
+-		if (init_attr.cap.max_inline_data >= size) {
++		if (init_attr.cap.max_inline_data >= size && !use_dm)
+ 			ctx->send_flags |= IBV_SEND_INLINE;
+-		}
+ 	}
+ 
+ 	{
+diff --git a/libibverbs/examples/xsrq_pingpong.c b/libibverbs/examples/xsrq_pingpong.c
+index 4c0d825f..cfd3c34a 100644
+--- a/libibverbs/examples/xsrq_pingpong.c
++++ b/libibverbs/examples/xsrq_pingpong.c
+@@ -876,7 +876,7 @@ int main(int argc, char *argv[])
+ 			{}
+ 		};
+ 
+-		c = getopt_long(argc, argv, "p:d:i:s:m:n:l:eg:c", long_options,
++		c = getopt_long(argc, argv, "p:d:i:s:m:n:l:eg:c:", long_options,
+ 				NULL);
+ 		if (c == -1)
+ 			break;
+diff --git a/providers/hns/hns_roce_u_buf.c b/providers/hns/hns_roce_u_buf.c
+index f92ea651..27ed90c2 100644
+--- a/providers/hns/hns_roce_u_buf.c
++++ b/providers/hns/hns_roce_u_buf.c
+@@ -46,7 +46,7 @@ int hns_roce_alloc_buf(struct hns_roce_buf *buf, unsigned int size,
+ 	if (buf->buf == MAP_FAILED)
+ 		return errno;
+ 
+-	ret = ibv_dontfork_range(buf->buf, size);
++	ret = ibv_dontfork_range(buf->buf, buf->length);
+ 	if (ret)
+ 		munmap(buf->buf, buf->length);
+ 
+diff --git a/providers/hns/hns_roce_u_hw_v2.c b/providers/hns/hns_roce_u_hw_v2.c
+index af3bab1f..dd71fb14 100644
+--- a/providers/hns/hns_roce_u_hw_v2.c
++++ b/providers/hns/hns_roce_u_hw_v2.c
+@@ -555,7 +555,6 @@ int hns_roce_u_v2_post_send(struct ibv_qp *ibvqp, struct ibv_send_wr *wr,
+ 	unsigned int ind_sge;
+ 	unsigned int ind;
+ 	int nreq;
+-	int i;
+ 	void *wqe;
+ 	int ret = 0;
+ 	struct hns_roce_qp *qp = to_hr_qp(ibvqp);
+@@ -563,7 +562,10 @@ int hns_roce_u_v2_post_send(struct ibv_qp *ibvqp, struct ibv_send_wr *wr,
+ 	struct hns_roce_rc_sq_wqe *rc_sq_wqe;
+ 	struct hns_roce_v2_wqe_data_seg *dseg;
+ 	struct ibv_qp_attr attr;
++	int valid_num_sge;
+ 	int attr_mask;
++	int j;
++	int i;
+ 
+ 	pthread_spin_lock(&qp->sq.lock);
+ 
+@@ -598,17 +600,25 @@ int hns_roce_u_v2_post_send(struct ibv_qp *ibvqp, struct ibv_send_wr *wr,
+ 		memset(rc_sq_wqe, 0, sizeof(struct hns_roce_rc_sq_wqe));
+ 
+ 		qp->sq.wrid[ind & (qp->sq.wqe_cnt - 1)] = wr->wr_id;
+-		for (i = 0; i < wr->num_sge; i++)
++
++		valid_num_sge = wr->num_sge;
++		j = 0;
++
++		for (i = 0; i < wr->num_sge; i++) {
++			if (unlikely(!wr->sg_list[i].length))
++				valid_num_sge--;
++
+ 			rc_sq_wqe->msg_len =
+ 					htole32(le32toh(rc_sq_wqe->msg_len) +
+ 							wr->sg_list[i].length);
++		}
+ 
+ 		if (wr->opcode == IBV_WR_SEND_WITH_IMM ||
+ 		    wr->opcode == IBV_WR_RDMA_WRITE_WITH_IMM)
+ 			rc_sq_wqe->immtdata = htole32(be32toh(wr->imm_data));
+ 
+ 		roce_set_field(rc_sq_wqe->byte_16, RC_SQ_WQE_BYTE_16_SGE_NUM_M,
+-			       RC_SQ_WQE_BYTE_16_SGE_NUM_S, wr->num_sge);
++			       RC_SQ_WQE_BYTE_16_SGE_NUM_S, valid_num_sge);
+ 
+ 		roce_set_field(rc_sq_wqe->byte_20,
+ 			       RC_SQ_WQE_BYTE_20_MSG_START_SGE_IDX_S,
+@@ -774,7 +784,7 @@ int hns_roce_u_v2_post_send(struct ibv_qp *ibvqp, struct ibv_send_wr *wr,
+ 			set_data_seg_v2(dseg, wr->sg_list);
+ 			wqe += sizeof(struct hns_roce_v2_wqe_data_seg);
+ 			set_atomic_seg(wqe, wr);
+-		} else if (wr->send_flags & IBV_SEND_INLINE && wr->num_sge) {
++		} else if (wr->send_flags & IBV_SEND_INLINE && valid_num_sge) {
+ 			if (le32toh(rc_sq_wqe->msg_len) > qp->max_inline_data) {
+ 				ret = EINVAL;
+ 				*bad_wr = wr;
+@@ -801,7 +811,7 @@ int hns_roce_u_v2_post_send(struct ibv_qp *ibvqp, struct ibv_send_wr *wr,
+ 				     RC_SQ_WQE_BYTE_4_INLINE_S, 1);
+ 		} else {
+ 			/* set sge */
+-			if (wr->num_sge <= 2) {
++			if (valid_num_sge <= 2) {
+ 				for (i = 0; i < wr->num_sge; i++)
+ 					if (likely(wr->sg_list[i].length)) {
+ 						set_data_seg_v2(dseg,
+@@ -814,7 +824,7 @@ int hns_roce_u_v2_post_send(struct ibv_qp *ibvqp, struct ibv_send_wr *wr,
+ 					RC_SQ_WQE_BYTE_20_MSG_START_SGE_IDX_S,
+ 					ind_sge & (qp->sge.sge_cnt - 1));
+ 
+-				for (i = 0; i < 2; i++)
++				for (i = 0; i < wr->num_sge && j < 2; i++)
+ 					if (likely(wr->sg_list[i].length)) {
+ 						set_data_seg_v2(dseg,
+ 							       wr->sg_list + i);
+@@ -824,10 +834,10 @@ int hns_roce_u_v2_post_send(struct ibv_qp *ibvqp, struct ibv_send_wr *wr,
+ 				dseg = get_send_sge_ex(qp, ind_sge &
+ 						    (qp->sge.sge_cnt - 1));
+ 
+-				for (i = 0; i < wr->num_sge - 2; i++) {
+-					if (likely(wr->sg_list[i + 2].length)) {
++				for (; i < wr->num_sge; i++) {
++					if (likely(wr->sg_list[i].length)) {
+ 						set_data_seg_v2(dseg,
+-							   wr->sg_list + 2 + i);
++							   wr->sg_list + i);
+ 						dseg++;
+ 						ind_sge++;
+ 					}
+diff --git a/providers/mlx5/verbs.c b/providers/mlx5/verbs.c
+index bab675f6..890ed980 100644
+--- a/providers/mlx5/verbs.c
++++ b/providers/mlx5/verbs.c
+@@ -1452,13 +1452,13 @@ static int mlx5_alloc_qp_buf(struct ibv_context *context,
+ 			err = -1;
+ 			goto ex_wrid;
+ 		}
+-	}
+ 
+-	qp->sq.wqe_head = malloc(qp->sq.wqe_cnt * sizeof(*qp->sq.wqe_head));
+-	if (!qp->sq.wqe_head) {
+-		errno = ENOMEM;
+-		err = -1;
++		qp->sq.wqe_head = malloc(qp->sq.wqe_cnt * sizeof(*qp->sq.wqe_head));
++		if (!qp->sq.wqe_head) {
++			errno = ENOMEM;
++			err = -1;
+ 			goto ex_wrid;
++		}
+ 	}
+ 
+ 	if (qp->rq.wqe_cnt) {
+@@ -2432,7 +2432,7 @@ struct ibv_ah *mlx5_create_ah(struct ibv_pd *pd, struct ibv_ah_attr *attr)
+ 		ah->av.fl_mlid = attr->src_path_bits & 0x7f;
+ 		ah->av.rlid = htobe16(attr->dlid);
+ 		grh = 1;
+-		ah->av.stat_rate_sl = (static_rate << 4) | (attr->sl & 0x7);
++		ah->av.stat_rate_sl = (static_rate << 4) | (attr->sl & 0xf);
+ 	}
+ 	if (attr->is_global) {
+ 		ah->av.tclass = attr->grh.traffic_class;
+@@ -3494,13 +3494,14 @@ int mlx5_destroy_flow_action(struct ibv_flow_action *action)
+ 	return ret;
+ }
+ 
+-static inline int mlx5_memcpy_to_dm(struct ibv_dm *ibdm, uint64_t dm_offset,
+-				    const void *host_addr, size_t length)
++static inline int mlx5_access_dm(struct ibv_dm *ibdm, uint64_t dm_offset,
++				 void *host_addr, size_t length,
++				 uint32_t read)
+ {
+ 	struct mlx5_dm *dm = to_mdm(ibdm);
+ 	atomic_uint32_t *dm_ptr =
+ 		(atomic_uint32_t *)dm->start_va + dm_offset / 4;
+-	const uint32_t *host_ptr = host_addr;
++	uint32_t *host_ptr = host_addr;
+ 	const uint32_t *host_end = host_ptr + length / 4;
+ 
+ 	if (dm_offset + length > dm->length)
+@@ -3515,31 +3516,34 @@ static inline int mlx5_memcpy_to_dm(struct ibv_dm *ibdm, uint64_t dm_offset,
+ 	/* Copy granularity should be 4 Bytes since we enforce copy size to be
+ 	 * a multiple of 4 bytes.
+ 	 */
+-	while (host_ptr != host_end) {
+-		atomic_store_explicit(dm_ptr, *host_ptr, memory_order_relaxed);
+-		host_ptr++;
+-		dm_ptr++;
++	if (read) {
++		while (host_ptr != host_end) {
++			*host_ptr = atomic_load_explicit(dm_ptr,
++							 memory_order_relaxed);
++			host_ptr++;
++			dm_ptr++;
++		}
++	} else {
++		while (host_ptr != host_end) {
++			atomic_store_explicit(dm_ptr, *host_ptr,
++					      memory_order_relaxed);
++			host_ptr++;
++			dm_ptr++;
++		}
+ 	}
+ 
+ 	return 0;
+ }
++static inline int mlx5_memcpy_to_dm(struct ibv_dm *ibdm, uint64_t dm_offset,
++				    const void *host_addr, size_t length)
++{
++	return mlx5_access_dm(ibdm, dm_offset, (void *)host_addr, length, 0);
++}
+ 
+ static inline int mlx5_memcpy_from_dm(void *host_addr, struct ibv_dm *ibdm,
+ 				      uint64_t dm_offset, size_t length)
+ {
+-	struct mlx5_dm *dm = to_mdm(ibdm);
+-	void *dm_va = dm->start_va + dm_offset;
+-
+-	if (dm_offset + length > dm->length)
+-		return EFAULT;
+-
+-	/* DM access address must be aligned to 4 bytes */
+-	if (dm_offset & 3)
+-		return EINVAL;
+-
+-	memcpy(host_addr, dm_va, length);
+-
+-	return 0;
++	return mlx5_access_dm(ibdm, dm_offset, host_addr, length, 1);
+ }
+ 
+ struct ibv_dm *mlx5_alloc_dm(struct ibv_context *context,
