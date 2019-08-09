@@ -1,8 +1,8 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 Summary: A set of tools to gather troubleshooting information from a system
 Name: sos
-Version: 3.6
-Release: 19%{?dist}
+Version: 3.7
+Release: 5%{?dist}
 Group: Applications/System
 Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
 License: GPLv2+
@@ -17,29 +17,18 @@ Requires: bzip2
 Requires: xz
 Requires: python2-futures
 Obsoletes: sos-plugins-openstack
+Conflicts: vdsm <= 4.30.17
 Patch0: skip-generating-doc.patch
-Patch1: sos-bz1474976-regexp-sub.patch
-Patch2: sos-bz1594327-archive-encryption.patch
-Patch3: sos-bz1597532-stat-isblk.patch
-Patch4: sos-bz1596494-cds-on-rhui3.patch
-Patch5: sos-bz1609135-ceph-dont-collect-tmp-mnt.patch
-Patch6: sos-bz1608384-archive-name-sanitize.patch
-Patch7: sos-bz1613806-rhosp-lsof-optional.patch
-Patch8: sos-bz1600158-rhv-log-collector-analyzer.patch
-Patch9: sos-bz1616030-etcd-kube-osp-3-10.patch
-Patch10: sos-bz1624043-symlinks-not-copied.patch
-Patch11: sos-bz1626159-atomic-attribute-error.patch
-Patch12: sos-bz1623070-pipe-returncode.patch
-Patch13: sos-bz1636093-openstack-relax-enabling-plugins.patch
-Patch14: sos-bz1637632-kernel-dont-collect-tracing-instance.patch
-Patch15: sos-bz1656732-ovirt_node-plugin.patch
-Patch16: sos-bz1658570-docker-podman-containers.patch
-Patch17: sos-bz1658571-postgresql-collect-full-dump.patch
-Patch18: sos-bz1669045-rhcos-policy-and-plugins.patch
-Patch19: sos-bz1679238-crio-plugin.patch
-Patch20: sos-bz1690999-docker-skip-system-df.patch
-Patch21: sos-bz1715470-rhv-postgres-from-scl.patch
-Patch22: sos-3.6-centos-branding.patch
+Patch1: sos-bz1656812-bump-release.patch
+Patch2: sos-bz1639166-pcp-pmlogger-no-limit.patch
+Patch3: sos-bz1697854-plugopts-default-datatypes.patch
+Patch4: sos-bz1697813-plugin-vs-command-timeouts.patch
+Patch5: sos-bz1311129-sos-conf-disabled-plugins-manpages.patch
+Patch6: sos-bz1702802-openstack_instack-ansible-log.patch
+Patch7: sos-bz1706060-vdsm-plugin.patch
+Patch8: sos-bz1711305-katello-qpid-certificate.patch
+Patch9: sos-3.7-centos-branding.patch
+
 
 %description
 Sos is a set of tools that gathers information about system
@@ -59,19 +48,6 @@ support technicians and developers.
 %patch7 -p1
 %patch8 -p1
 %patch9 -p1
-%patch10 -p1
-%patch11 -p1
-%patch12 -p1
-%patch13 -p1
-%patch14 -p1
-%patch15 -p1
-%patch16 -p1
-%patch17 -p1
-%patch18 -p1
-%patch19 -p1
-%patch20 -p1
-%patch21 -p1
-%patch22 -p1
 
 %build
 make
@@ -95,44 +71,67 @@ rm -rf ${RPM_BUILD_ROOT}
 %config(noreplace) %{_sysconfdir}/sos.conf
 
 %changelog
-* Mon Jul 29 2019 CentOS Sources <bugs@centos.org> - 3.6-19.el7.centos
+* Tue Aug 06 2019 CentOS Sources <bugs@centos.org> - 3.7-5.el7.centos
 - Roll in CentOS Branding
 
-* Thu May 30 2019 Pavel Moravec <pmoravec@redhat.com> = 3.6-19
-- [postgresql] Use postgres 10 scl if installed
-  Resolves: bz1715470
+* Tue Jun 25 2019 Pavel Moravec <pmoravec@redhat.com> = 3.7-5
+- Updates to vdsm plugin
+  Resolves: bz1706060
 
-* Wed Mar 20 2019 Pavel Moravec <pmoravec@redhat.com> = 3.6-17
+* Thu May 30 2019 Pavel Moravec <pmoravec@redhat.com> = 3.7-4
+- Add conflict to old vdsm package versions
+  Resolves: bz1706060
+
+* Tue May 21 2019 Pavel Moravec <pmoravec@redhat.com> = 3.7-3
+- [katello] support both locations of qpid SSL certs
+  Resolves: bz1711305
+- [plugins] add vdsm plugin
+  Resolves: bz1706060
+
+* Tue Apr 30 2019 Pavel Moravec <pmoravec@redhat.com> = 3.7-2
+- [sos] bump release
+  Resolves: bz1656812
+- [pcp] collect pmlogger without a sizelimit
+  Resolves: bz1639166
+- [maas,mysql,npm,pacemaker,postgresql] fix plugopts data types
+  Resolves: bz1697854
+- [foreman,satellite] increase plugin default timeouts
+  Resolves: bz1697813
+- [sosreport] update sos.conf manpages
+  Resolves: bz1311129
+- [openstack_instack] add ansible.log
+  Resolves: bz1702802
+
+* Wed Mar 27 2019 Pavel Moravec <pmoravec@redhat.com> = 3.7-1
+- New upstream release sos-3.7
+
+* Wed Mar 20 2019 Pavel Moravec <pmoravec@redhat.com> = 3.6-15
 - [docker] do not collect 'system df' by default
-  Resolves: bz1690999
+  Resolves: bz1690273
 
-* Mon Feb 25 2019 Pavel Moravec <pmoravec@redhat.com> = 3.6-16
-- [crio] Add tagging classes
-  Resolves: bz1679238
-
-* Wed Feb 20 2019 Pavel Moravec <pmoravec@redhat.com> = 3.6-15
+* Tue Feb 19 2019 Pavel Moravec <pmoravec@redhat.com> = 3.6-14
 - [crio] Add new plugin
-  Resolves: bz1679238
+  Resolves: bz1666321
 
-* Thu Jan 24 2019 Pavel Moravec <pmoravec@redhat.com> = 3.6-14
-- [rhcos,rpmostree] Add RHCOS policy and 2 plugins
-  Resolves: bz1669045
+* Sun Jan 20 2019 Pavel Moravec <pmoravec@redhat.com> = 3.6-13
+- [policies] Add RHCOS policy and plugins
+  Resolves: bz1667217
 
-* Wed Dec 12 2018 Pavel Moravec <pmoravec@redhat.com> = 3.6-13
+* Wed Dec 12 2018 Pavel Moravec <pmoravec@redhat.com> = 3.6-12
 - [ovirt_node] New plugin for oVirt Node
-  Resolves: bz1656732
+  Resolves: bz1591433
 - [podman] Add support for gathering information on podman
-  Resolves: bz1658570
+  Resolves: bz1646698
 - [postgresql] Do not limit dump size
-  Resolves: bz1658571
+  Resolves: bz1656278
 
 * Tue Oct 09 2018 Pavel Moravec <pmoravec@redhat.com> = 3.6-11
 - [kernel] dont collect some tracing instance files
-  Resolves: bz1637632
+  Resolves: bz1636333
 
 * Thu Oct 04 2018 Pavel Moravec <pmoravec@redhat.com> = 3.6-10
 - [openstack_*] relax enabling of OSP RedHat plugins
-  Resolves: bz1636093
+  Resolves: bz1592909
 
 * Fri Sep 14 2018 Pavel Moravec <pmoravec@redhat.com> = 3.6-9
 - [archive] recursive symlink fix and simplify directory destination

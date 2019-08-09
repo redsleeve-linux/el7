@@ -1,0 +1,122 @@
+From c71b41547442d23daf5c3bf88450151d13903214 Mon Sep 17 00:00:00 2001
+From: Pavel Moravec <pmoravec@redhat.com>
+Date: Thu, 4 Apr 2019 13:54:18 +0200
+Subject: [PATCH] [maas,mysql,npm,pacemaker,postgresql] fix plugopts data types
+
+With new enforcement of implicit data type for plugin options, the
+plugopts must have proper data types of default values and plugins must work
+with them accordingly (in tests or so).
+
+Resolves: #1635
+
+Signed-off-by: Pavel Moravec <pmoravec@redhat.com>
+---
+ sos/plugins/maas.py       | 6 +++---
+ sos/plugins/mysql.py      | 2 +-
+ sos/plugins/npm.py        | 4 ++--
+ sos/plugins/pacemaker.py  | 4 ++--
+ sos/plugins/postgresql.py | 6 +++---
+ 5 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/sos/plugins/maas.py b/sos/plugins/maas.py
+index f8305406..ea038e86 100644
+--- a/sos/plugins/maas.py
++++ b/sos/plugins/maas.py
+@@ -21,10 +21,10 @@ class Maas(Plugin, UbuntuPlugin):
+ 
+     option_list = [
+         ('profile-name',
+-         'The name with which you will later refer to this remote', '', False),
+-        ('url', 'The URL of the remote API', '', False),
++         'The name with which you will later refer to this remote', '', ''),
++        ('url', 'The URL of the remote API', '', ''),
+         ('credentials',
+-         'The credentials, also known as the API key', '', False)
++         'The credentials, also known as the API key', '', '')
+     ]
+ 
+     def _has_login_options(self):
+diff --git a/sos/plugins/mysql.py b/sos/plugins/mysql.py
+index 49bc4168..411d90b8 100644
+--- a/sos/plugins/mysql.py
++++ b/sos/plugins/mysql.py
+@@ -22,7 +22,7 @@ class Mysql(Plugin):
+ 
+     option_list = [
+         ("dbuser", "username for database dumps", "", "mysql"),
+-        ("dbpass", "password for database dumps" + pw_warn_text, "", False),
++        ("dbpass", "password for database dumps" + pw_warn_text, "", ""),
+         ("dbdump", "collect a database dump", "", False)
+     ]
+ 
+diff --git a/sos/plugins/npm.py b/sos/plugins/npm.py
+index 0fc95801..ca00d0c0 100644
+--- a/sos/plugins/npm.py
++++ b/sos/plugins/npm.py
+@@ -25,7 +25,7 @@ class Npm(Plugin, RedHatPlugin, DebianPlugin, UbuntuPlugin, SuSEPlugin):
+     option_list = [("project_path",
+                     'List npm modules of a project specified by path',
+                     'fast',
+-                    0)]
++                    '')]
+ 
+     # in Fedora, Debian, Ubuntu and Suse the package is called npm
+     packages = ('npm',)
+@@ -79,7 +79,7 @@ class Npm(Plugin, RedHatPlugin, DebianPlugin, UbuntuPlugin, SuSEPlugin):
+         self.add_string_as_file(json.dumps(output), outfn)
+ 
+     def setup(self):
+-        if self.get_option("project_path") != 0:
++        if self.get_option("project_path"):
+             project_path = os.path.abspath(os.path.expanduser(
+                 self.get_option("project_path")))
+             self._get_npm_output("npm ls --json", "npm_ls_project",
+diff --git a/sos/plugins/pacemaker.py b/sos/plugins/pacemaker.py
+index a1b64ea5..940389ee 100644
+--- a/sos/plugins/pacemaker.py
++++ b/sos/plugins/pacemaker.py
+@@ -25,7 +25,7 @@ class Pacemaker(Plugin):
+     )
+ 
+     option_list = [
+-        ("crm_from", "specify the start time for crm_report", "fast", False),
++        ("crm_from", "specify the start time for crm_report", "fast", ''),
+         ("crm_scrub", "enable password scrubbing for crm_report", "", True),
+     ]
+ 
+@@ -87,7 +87,7 @@ class Pacemaker(Plugin):
+         # time in order to collect data.
+         crm_from = (datetime.today() -
+                     timedelta(hours=72)).strftime("%Y-%m-%d %H:%m:%S")
+-        if self.get_option("crm_from") is not False:
++        if self.get_option("crm_from"):
+             if re.match(r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}',
+                         str(self.get_option("crm_from"))):
+                 crm_from = self.get_option("crm_from")
+diff --git a/sos/plugins/postgresql.py b/sos/plugins/postgresql.py
+index 1698b62f..a04dca8f 100644
+--- a/sos/plugins/postgresql.py
++++ b/sos/plugins/postgresql.py
+@@ -31,7 +31,7 @@ class PostgreSQL(Plugin):
+     option_list = [
+         ('pghome', 'PostgreSQL server home directory.', '', '/var/lib/pgsql'),
+         ('username', 'username for pg_dump', '', 'postgres'),
+-        ('password', 'password for pg_dump' + password_warn_text, '', False),
++        ('password', 'password for pg_dump' + password_warn_text, '', ''),
+         ('dbname', 'database name to dump for pg_dump', '', ''),
+         ('dbhost', 'database hostname/IP (do not use unix socket)', '', ''),
+         ('dbport', 'database server port number', '', '5432')
+@@ -43,8 +43,8 @@ class PostgreSQL(Plugin):
+                 # We're only modifying this for ourself and our children so
+                 # there is no need to save and restore environment variables if
+                 # the user decided to pass the password on the command line.
+-                if self.get_option("password") is not False:
+-                    os.environ["PGPASSWORD"] = str(self.get_option("password"))
++                if self.get_option("password"):
++                    os.environ["PGPASSWORD"] = self.get_option("password")
+ 
+                 if self.get_option("dbhost"):
+                     cmd = "pg_dump -U %s -h %s -p %s -w -F t %s" % (
+-- 
+2.17.2
+

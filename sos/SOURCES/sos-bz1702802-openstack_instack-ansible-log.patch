@@ -1,0 +1,43 @@
+From 1b9c2032149488a2372d188a8ed3251e364f41cf Mon Sep 17 00:00:00 2001
+From: Emilien Macchi <emilien@redhat.com>
+Date: Wed, 24 Apr 2019 20:54:05 -0400
+Subject: [PATCH] [openstack_instack] add ansible.log
+
+Collect /var/lib/mistral/config-download-latest/ansible.log which is an
+important log to be able to debug issues with Ansible playbooks.
+
+/var/lib/mistral/config-download-latest is a directory that exists
+anyway on the undercloud and is the place where the ansible logs is
+stored.
+
+Note: we don't want to collect the whole /var/lib/mistral because it
+contains sensitive informations like username/passwords/endpoints.
+
+rhbz#1702806
+rhbz#1702802
+
+Resolves: #1661
+
+Signed-off-by: Emilien Macchi <emilien@redhat.com>
+Signed-off-by: Bryn M. Reeves <bmr@redhat.com>
+---
+ sos/plugins/openstack_instack.py | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/sos/plugins/openstack_instack.py b/sos/plugins/openstack_instack.py
+index e3470f5a..15e6c384 100644
+--- a/sos/plugins/openstack_instack.py
++++ b/sos/plugins/openstack_instack.py
+@@ -22,7 +22,8 @@ NON_CONTAINERIZED_DEPLOY = [
+ CONTAINERIZED_DEPLOY = [
+         '/var/log/heat-launcher/',
+         '/home/stack/install-undercloud.log',
+-        '/home/stack/undercloud-install-*.tar.bzip2'
++        '/home/stack/undercloud-install-*.tar.bzip2',
++        '/var/lib/mistral/config-download-latest/ansible.log'
+ ]
+ 
+ 
+-- 
+2.17.2
+
