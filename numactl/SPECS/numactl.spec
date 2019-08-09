@@ -1,7 +1,7 @@
 Name:		numactl
 Summary:	Library for tuning for Non Uniform Memory Access machines
 Version:	2.0.9
-Release:	7%{?dist}.redsleeve
+Release:	7%{?dist}
 # libnuma is LGPLv2 and GPLv2
 # numactl binaries are GPLv2 only
 License:	GPLv2
@@ -10,7 +10,7 @@ URL:		ftp://oss.sgi.com/www/projects/libnuma/download
 Source0:	ftp://oss.sgi.com/www/projects/libnuma/download/numactl-%{version}.tar.gz
 Buildroot:	%{_tmppath}/%{name}-buildroot
 
-ExcludeArch: s390 s390x
+ExcludeArch: s390 s390x %{arm}
 
 Patch1: numactl-2.0.8-localalloc-man.patch
 Patch2: numactl-2.0.9-hw-detect-segfault.patch
@@ -18,7 +18,6 @@ Patch3: numactl-2.0.9-mpol-bind-preferred.patch
 Patch4: numactl-2.0.10-numa_node_to_cpu_skip_over_nonexisting.patch
 Patch5: numactl-2.0.11-libnuma-supress-warnings-for-non-existing-node.patch
 Patch6: numactl-2.0.11-Segment-fault-when-numa-nodes-not-sequential-or-cont.patch
-Patch10001: numactl-2.0.9-arm_migrate_pages.patch
 
 %description
 Simple NUMA policy support. It consists of a numactl program to run
@@ -51,7 +50,6 @@ Provides development headers for numa library calls
 %patch4 -p1
 %patch5 -p1
 %patch6 -p1
-%patch10001 -p1
 
 %build
 make clean
@@ -100,11 +98,6 @@ rm -rf $RPM_BUILD_ROOT
 %{_mandir}/man3/*.3*
 
 %changelog
-* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.org> - 2.0.9-7.redsleeve
-- Don't exclude arm architectures
-- add patch for __NR_migrate_pages on arm, see:
-- https://wiki.linaro.org/LEG/Engineering/Kernel/NUMA
-
 * Tue Aug 8 2017 Petr Oros <poros@redhat.com> - 2.0.9-7
 - Segment fault when numa nodes not sequential or contiguous
 - Resolves: #1219445
