@@ -18,7 +18,7 @@
 Summary:  Dynamic host configuration protocol software
 Name:     dhcp
 Version:  4.2.5
-Release:  68%{?dist}.1
+Release:  77%{?dist}
 # NEVER CHANGE THE EPOCH on this package.  The previous maintainer (prior to
 # dcantrell maintaining the package) made incorrect use of the epoch and
 # that's why it is at 12 now.  It should have never been used, but it was.
@@ -108,7 +108,16 @@ Patch68:  dhcp-4.2.5-reap_orphan_sockets.patch
 Patch69:  dhcp-4.2.5-options_overflow.patch
 # CVE-2018-5733
 Patch70:  dhcp-4.2.5-reference_count_overflow.patch
-Patch71:  dhcp-4.2.5-centos-branding.patch
+Patch71:  dhcp-replay_file_limit.patch
+Patch72:  dhcp-4.2.5-expiry_before_renewal_v2.patch
+Patch73:  dhcp-4.2.5-bind-config.patch
+Patch74:  dhcp-dhclient_ipv6_prefix.patch
+# Support build with bind 9.11.3+
+Patch75:  dhcp-4.2.5-isc-util.patch
+
+Patch76:  dhcp-isc_heap_delete.patch
+Patch77:  dhcp-handle_ctx_signals.patch
+Patch78:  dhcp-4.2.5-centos-branding.patch
 
 
 BuildRequires: autoconf
@@ -116,7 +125,8 @@ BuildRequires: automake
 BuildRequires: libtool
 BuildRequires: openldap-devel
 BuildRequires: libcap-ng-devel
-BuildRequires: bind-lite-devel
+# https://fedorahosted.org/fpc/ticket/502#comment:3
+BuildRequires: bind-export-devel
 BuildRequires: systemd systemd-devel
 %if %sdt
 BuildRequires: systemtap-sdt-devel
@@ -360,7 +370,6 @@ rm -rf includes/isc-dhcp
 # multiple key statements in zone definition causes inappropriate error (#873794)
 # (Submitted to dhcp-bugs@isc.org - [ISC-Bugs #31892])
 %patch46 -p1 -b .dupl-key
-
 # Make sure range6 is correct for subnet6 where it's declared (#902966)
 # (Submitted to dhcp-bugs@isc.org - [ISC-Bugs #32453])
 %patch47 -p1 -b .range6
@@ -437,7 +446,22 @@ rm -rf includes/isc-dhcp
 
 %patch69 -p1 -b .options_overflow
 %patch70 -p1 -b .reference_overflow
-%patch71 -p1
+%patch71 -p1 -b .load_leases
+
+# https://bugzilla.redhat.com/show_bug.cgi?id=1647784
+%patch72 -p1 -b .t2-expirity
+%patch74 -p1 -b .ipv6-prefix
+
+# Support for BIND 9.11
+%patch73 -p1 -b .bind-config
+# include isc/util.h explicitly, is it no longer contained in used headers
+%patch75 -p1 -b .isc-util
+
+# fixed bug in isc_heap_delete function triggered dhcpd(6) crash
+%patch76 -p1 -b .heap-delete
+
+%patch77 -p1 -b .sig-handlers
+%patch78 -p1
 
 # Update paths in all man pages
 for page in client/dhclient.conf.5 client/dhclient.leases.5 \
@@ -470,9 +494,9 @@ CFLAGS="%{optflags} -fno-strict-aliasing" \
     --with-cli-pid-file=%{_localstatedir}/run/dhclient.pid \
     --with-cli6-pid-file=%{_localstatedir}/run/dhclient6.pid \
     --with-relay-pid-file=%{_localstatedir}/run/dhcrelay.pid \
+    --with-libbind=/usr/bin/isc-export-config.sh \
     --with-ldap \
     --with-ldapcrypto \
-    --with-libbind=%{_includedir} --with-libbind-libs=%{_libdir} \
     --disable-static \
 %if %sdt
     --enable-systemtap \
@@ -510,7 +534,7 @@ CFLAGS="%{optflags} -fno-strict-aliasing" \
 # NetworkManager dispatcher script
 %{__mkdir} -p %{buildroot}%{_sysconfdir}/NetworkManager/dispatcher.d
 %{__install} -p -m 0755 %{SOURCE3} %{buildroot}%{_sysconfdir}/NetworkManager/dispatcher.d
-%{__install} -p -m 0755 %{SOURCE4} %{buildroot}%{_sysconfdir}/NetworkManager/dispatcher.d
+%{__install} -p -m 0644 %{SOURCE4} %{buildroot}%{_sysconfdir}/NetworkManager/dispatcher.d
 
 # pm-utils script to handle suspend/resume and dhclient leases
 %{__mkdir} -p %{buildroot}%{_libdir}/pm-utils/sleep.d
@@ -719,11 +743,40 @@ done
 
 
 %changelog
-* Tue May 15 2018 CentOS Sources <bugs@centos.org> - 4.2.5-68.el7.centos.1
+* Tue Aug 06 2019 CentOS Sources <bugs@centos.org> - 4.2.5-77.el7.centos
 - Roll in CentOS Branding
 
-* Tue Apr 24 2018 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-68.1
-- Resolves: #1570898 - Fix CVE-2018-1111: Do not parse backslash as escape character
+* Tue May 21 2019 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-77
+- Resolves: #1712414 - Reset signal handlers set by isclib
+
+* Thu May  2 2019 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-76
+- Resolves: #1704675 - Fix crash of dhcpd(6) triggered by bind rebase
+
+* Mon Mar  4 2019 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-75
+- Resolves: #1672308 - Do not restart dhcp on NetworkManagers up events
+
+* Thu Feb 14 2019 Petr Menšík <pemensik@redhat.com> - 12:4.2.5-74
+- Use bind-export-libs package instead of bind99
+- Use isc-config.sh to configure bind libs
+- Change requirement to bind-export-devel
+- Compile with recent bind includes, that does not include isc/util.h
+
+* Tue Feb 12 2019 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-73
+- Resolves: #1635181
+- Change default ipv6 prefix to /128.
+- Allow its customization via cl option
+
+* Mon Dec 17 2018 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-72
+- Resolves: #1647784 - Update renew time if it is greater than expiry
+
+* Mon Dec 17 2018 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-71
+- Resolves: #1623792 - Load leases file in tracing mode only
+
+* Mon May  7 2018 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-70
+- Resolves: #1574292 - Fix options conflict for ddns update
+
+* Tue Apr 24 2018 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-69
+- Resolves: #1570895 - Fix command execution vulnerability (CVE-2018-1111)
 
 * Wed Feb 28 2018 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-68
 - Resolves: #1549999 - CVE-2018-5733  Avoid buffer overflow reference counter

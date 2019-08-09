@@ -9,7 +9,7 @@ index a29757a..c66a912 100644
 +.B -i
 +]
 +[
-+.B -I
++.B -C
 +]
 +[
  .B -D
@@ -27,7 +27,7 @@ index a29757a..c66a912 100644
 +setting a client id in the configuration file.  Overridding the
 +client id in this fashion is discouraged.
 +.TP
-+.BI \-I
++.BI \-C
 +Use the standard DDNS scheme from RFCs 4701 & 4702.  
 +.TP
  .BI \--version
@@ -82,7 +82,7 @@ index 0db4703..6403754 100644
 +		} else if (!strcmp(argv[i], "-i")) {
 +			/* enable DUID support for DHCPv4 clients */
 +			duid_v4 = 1;
-+		} else if (!strcmp(argv[i], "-I")) {
++		} else if (!strcmp(argv[i], "-C")) {
 +			/* enable standard DHCID support for DDNS updates */
 +			std_dhcid = 1;
  		} else if (!strcmp(argv[i], "-v")) {
@@ -125,10 +125,10 @@ index 0db4703..6403754 100644
  	log_fatal("Usage: dhclient "
  #ifdef DHCPv6
 -		  "[-4|-6] [-SNTP1dvrx] [-nw] [-p <port>] [-D LL|LLT]\n"
-+		  "[-4|-6] [-SNTPI1dvrxi] [-nw] [-p <port>] [-D LL|LLT] \n"
++		  "[-4|-6] [-SNTPI1dvrxc] [-nw] [-p <port>] [-D LL|LLT] \n"
  #else /* DHCPv6 */
 -		  "[-1dvrx] [-nw] [-p <port>]\n"
-+		  "[-I1dvrxi] [-nw] [-p <port>] [-D LL|LLT] \n"
++		  "[-C1dvrxc] [-nw] [-p <port>] [-D LL|LLT] \n"
  #endif /* DHCPv6 */
  		  "                [-s server-addr] [-cf config-file] "
  		  "[-lf lease-file]\n"
@@ -295,7 +295,7 @@ index 0db4703..6403754 100644
 +        /*
 +	 * Construct the DHCID value for use in the DDNS update process
 +	 * We have the newer standard version and the older interim version
-+	 * chosen by the '-I' option.  The interim version is left as is
++	 * chosen by the '-C' option.  The interim version is left as is
 +	 * for backwards compatibility.  The standard version is based on
 +	 * RFC 4701 section 3.3
  	 */

@@ -1,0 +1,74 @@
+diff --git a/client/dhc6.c b/client/dhc6.c
+index 47bf0a2..6f12a86 100644
+--- a/client/dhc6.c
++++ b/client/dhc6.c
+@@ -120,6 +120,7 @@ static int check_timing6(struct client_state *client, u_int8_t msg_type,
+ 
+ extern int onetry;
+ extern int stateless;
++extern int address_prefix_len;
+ 
+ /*
+  * The "best" default DUID, since we cannot predict any information
+@@ -3968,7 +3969,7 @@ dhc6_marshall_values(const char *prefix, struct client_state *client,
+ 			 * some suspect this may not be permanent.
+ 			 */
+ 			client_envadd(client, prefix, "ip6_prefixlen",
+-				      "%d", 64);
++				      "%d", address_prefix_len);
+ 			client_envadd(client, prefix, "ip6_address",
+ 				      "%s", piaddr(addr->address));
+ 		}
+diff --git a/client/dhclient.c b/client/dhclient.c
+index f9d0493..d1ab473 100644
+--- a/client/dhclient.c
++++ b/client/dhclient.c
+@@ -106,6 +106,7 @@ int wanted_ia_na = -1;		/* the absolute value is the real one. */
+ int wanted_ia_ta = 0;
+ int wanted_ia_pd = 0;
+ char *mockup_relay = NULL;
++int address_prefix_len = DHCLIENT_DEFAULT_PREFIX_LEN;
+ int bootp_broadcast_always = 0;
+ 
+ extern struct option *default_requested_options[];
+@@ -288,6 +289,15 @@ main(int argc, char **argv) {
+ 			tmp->next = client_env;
+ 			client_env = tmp;
+ 			client_env_count++;
++		} else if (!strcmp(argv[i], "--address-prefix-len")) {
++			if (++i == argc) {
++				usage();
++			}
++			errno = 0;
++			address_prefix_len = (int)strtol(argv[i], &s, 10);
++			if (errno || (*s != '\0') ||
++			    (address_prefix_len < 0)) {
++				usage();			}
+ #ifdef DHCPv6
+ 		} else if (!strcmp(argv[i], "-S")) {
+ 			if (local_family_set && (local_family == AF_INET)) {
+@@ -1127,6 +1137,7 @@ static void usage()
+ 		  "[-4|-6] [-SNTPI1dvrxc] [-nw] [-p <port>] [-D LL|LLT] \n"
+ #else /* DHCPv6 */
+ 		  "[-C1dvrxc] [-nw] [-p <port>] [-D LL|LLT] \n"
++                  "                [--address-prefix-len length]\n"
+ #endif /* DHCPv6 */
+ 		  "                [-s server-addr] [-cf config-file] "
+ 		  "[-lf lease-file]\n"
+diff --git a/includes/site.h b/includes/site.h
+index 1c7ec96..c87cfe9 100644
+--- a/includes/site.h
++++ b/includes/site.h
+@@ -295,3 +295,12 @@
+    up. */
+ #define DDNS_UPDATE_SLOW_TRANSITION
+    
++/* Define the default prefix length passed from the client to
++   the script when modifying an IPv6 IA_NA or IA_TA address.
++   The two most useful values are 128 which is what the current
++   specifications call for or 64 which is what has been used in
++   the past.  For most OSes 128 will indicate that the address
++   is a host address and doesn't include any on-link information.
++   64 indicates that the first 64 bits are the subnet or on-link
++   prefix. */
++#define DHCLIENT_DEFAULT_PREFIX_LEN 128
