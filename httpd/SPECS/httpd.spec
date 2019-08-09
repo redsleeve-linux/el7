@@ -15,7 +15,7 @@
 Summary: Apache HTTP Server
 Name: httpd
 Version: 2.4.6
-Release: 89%{?dist}.1
+Release: 90%{?dist}
 URL: http://httpd.apache.org/
 Source0: http://www.apache.org/dist/httpd/httpd-%{version}.tar.bz2
 Source1: centos-noindex.tar.gz
@@ -215,6 +215,8 @@ Patch218: httpd-2.4.6-CVE-2017-7679.patch
 Patch219: httpd-2.4.6-CVE-2017-9788.patch
 Patch220: httpd-2.4.6-CVE-2017-9798.patch
 Patch221: httpd-2.4.6-CVE-2018-1312.patch
+Patch222: httpd-2.4.6-CVE-2019-0217.patch
+Patch223: httpd-2.4.6-CVE-2019-0220.patch
 
 License: ASL 2.0
 Group: System Environment/Daemons
@@ -460,6 +462,8 @@ rm modules/ssl/ssl_engine_dh.c
 %patch219 -p1 -b .cve9788
 %patch220 -p1 -b .cve9798
 %patch221 -p1 -b .cve1312
+%patch222 -p1 -b .cve0217
+%patch223 -p1 -b .cve0220
 
 # Patch in the vendor string and the release string
 sed -i '/^#define PLATFORM/s/Unix/%{vstring}/' os/unix/os.h
@@ -891,15 +895,18 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/rpm/macros.httpd
 
 %changelog
-* Mon Jul 29 2019 CentOS Sources <bugs@centos.org> - 2.4.6-89.el7.centos.1
+* Tue Aug 06 2019 CentOS Sources <bugs@centos.org> - 2.4.6-90.el7.centos
 - Remove index.html, add centos-noindex.tar.gz
 - change vstring
 - change symlink for poweredby.png
 - update welcome.conf with proper aliases
 
-* Tue Jun 25 2019 Lubos Uhliarik <luhliari@redhat.com> - 2.4.6-89.1
-- Resolves: #1719722 - CVE-2018-1312 httpd: Weak Digest auth nonce generation
+* Sat Jun 08 2019 Lubos Uhliarik <luhliari@redhat.com>
+- Resolves: #1566317 - CVE-2018-1312 httpd: Weak Digest auth nonce generation
   in mod_auth_digest
+- Resolves: #1696141 - CVE-2019-0217 httpd: mod_auth_digest: access control
+  bypass due to race condition
+- Resolves: #1696096 - CVE-2019-0220 httpd: URL normalization inconsistency
 
 * Fri Mar 15 2019 Joe Orton <jorton@redhat.com> - 2.4.6-89
 - fix per-request leak of bucket brigade structure (#1583218)
