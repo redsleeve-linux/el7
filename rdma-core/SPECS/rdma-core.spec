@@ -1,6 +1,6 @@
 Name: rdma-core
 Version: 17.2
-Release: 3%{?dist}.redsleeve
+Release: 3%{?dist}
 Summary: RDMA core userspace libraries and daemons
 
 # Almost everything is licensed under the OFA dual GPLv2, 2 Clause BSD license
@@ -49,7 +49,7 @@ Obsoletes: libibcm < %{version}-%{release}
 Conflicts: infiniband-diags <= 1.6.5
 Requires: pciutils
 # 32-bit arm is missing required arch-specific memory barriers,
-#ExcludeArch: %{arm}
+ExcludeArch: %{arm}
 
 # Since we recommend developers use Ninja, so should packagers, for consistency.
 %define CMAKE_FLAGS %{nil}
@@ -100,12 +100,10 @@ Provides: libhfi1-static = %{version}-%{release}
 Obsoletes: libhfi1-static < %{version}-%{release}
 Provides: libipathverbs-static = %{version}-%{release}
 Obsoletes: libipathverbs-static < %{version}-%{release}
-%ifnarch %{arm}
 Provides: libmlx4-static = %{version}-%{release}
 Obsoletes: libmlx4-static < %{version}-%{release}
 Provides: libmlx5-static = %{version}-%{release}
 Obsoletes: libmlx5-static < %{version}-%{release}
-%endif
 Provides: libnes-static = %{version}-%{release}
 Obsoletes: libnes-static < %{version}-%{release}
 Provides: libocrdma-static = %{version}-%{release}
@@ -135,13 +133,11 @@ Provides: libi40iw = %{version}-%{release}
 Obsoletes: libi40iw < %{version}-%{release}
 Provides: libipathverbs = %{version}-%{release}
 Obsoletes: libipathverbs < %{version}-%{release}
-%ifnarch %{arm}
 Provides: libmlx4 = %{version}-%{release}
 Obsoletes: libmlx4 < %{version}-%{release}
 %ifnarch s390
 Provides: libmlx5 = %{version}-%{release}
 Obsoletes: libmlx5 < %{version}-%{release}
-%endif
 %endif
 Provides: libmthca = %{version}-%{release}
 Obsoletes: libmthca < %{version}-%{release}
@@ -371,7 +367,7 @@ rm -rf %{buildroot}/%{_initrddir}/
 %doc %{_docdir}/%{name}-%{version}/udev.md
 %config(noreplace) %{_sysconfdir}/rdma/*
 %config(noreplace) %{_sysconfdir}/udev/rules.d/*
-%ifnarch s390 %{arm}
+%ifnarch s390
 %config(noreplace) %{_sysconfdir}/modprobe.d/mlx4.conf
 %endif
 %config(noreplace) %{_sysconfdir}/modprobe.d/truescale.conf
@@ -403,7 +399,7 @@ rm -rf %{buildroot}/%{_initrddir}/
 %{_mandir}/man3/rdma*
 %{_mandir}/man3/umad*
 %{_mandir}/man3/*_to_ibv_rate.*
-%ifnarch s390 %{arm}
+%ifnarch s390
 %{_mandir}/man3/mlx4dv*
 %{_mandir}/man3/mlx5dv*
 %endif
@@ -414,7 +410,7 @@ rm -rf %{buildroot}/%{_initrddir}/
 %dir %{_libdir}/libibverbs
 %{_libdir}/libibverbs*.so.*
 %{_libdir}/libibverbs/*.so
-%ifnarch s390 %{arm}
+%ifnarch s390
 %{_libdir}/libmlx4.so.*
 %{_libdir}/libmlx5.so.*
 %endif
@@ -424,7 +420,7 @@ rm -rf %{buildroot}/%{_initrddir}/
 %doc %{_docdir}/%{name}-%{version}/tag_matching.md
 %{_bindir}/rxe_cfg
 %{_mandir}/man7/rxe*
-%ifnarch s390 %{arm}
+%ifnarch s390
 %{_mandir}/man7/mlx4dv*
 %{_mandir}/man7/mlx5dv*
 %endif
@@ -509,9 +505,6 @@ rm -rf %{buildroot}/%{_initrddir}/
 %doc %{_docdir}/%{name}-%{version}/ibsrpdm.md
 
 %changelog
-* Wed Oct 31 2018 Jacco Ligthart <jacco@redsleeve.org> 17.2-3.redsleeve
-- undo ExcludeArch
-
 * Tue Jun 26 2018 Jarod Wilson <jarod@redhat.com> 17.2-3
 - Restore RHEL7 systemd compat patches for srp_daemon
 - Resolves: rhbz#1595019
