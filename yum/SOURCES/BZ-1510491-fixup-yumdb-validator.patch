@@ -1,0 +1,34 @@
+commit 61cacc3c79c356a3c3a910b0c5ddd12cfaaa20e5
+Author: Michal Domonkos <mdomonko@redhat.com>
+Date:   Mon Nov 6 11:07:38 2017 +0100
+
+    BZ 1510491
+    
+    Fix from_repo yumdb validator for local pkgs
+
+diff --git a/yum/rpmsack.py b/yum/rpmsack.py
+index e810e2f9..19b9ab35 100644
+--- a/yum/rpmsack.py
++++ b/yum/rpmsack.py
+@@ -1731,6 +1731,12 @@ class RPMDBAdditionalData(object):
+ 
+         pass
+ 
++def _validate_from_repo(value):
++    if value and value[0] == '/':
++        # Local package; chop the slash as it's not a valid repoid char
++        value = value[1:]
++    return misc.validate_repoid(value) is None
++
+ class RPMDBAdditionalDataPackage(object):
+ 
+     # We do auto hardlink on these attributes
+@@ -1744,7 +1750,7 @@ class RPMDBAdditionalDataPackage(object):
+     # Validate these attributes when they are read from a file
+     _validators = {
+         # Fixes BZ 1234967
+-        'from_repo': lambda repoid: misc.validate_repoid(repoid) is None,
++        'from_repo': _validate_from_repo,
+     }
+ 
+     def __init__(self, conf, pkgdir, yumdb_cache=None):

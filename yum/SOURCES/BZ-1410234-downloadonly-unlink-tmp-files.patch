@@ -1,0 +1,78 @@
+diff -up yum-3.4.3/yum/drpm.py.orig yum-3.4.3/yum/drpm.py
+--- yum-3.4.3/yum/drpm.py.orig	2019-03-27 16:55:57.846748074 +0100
++++ yum-3.4.3/yum/drpm.py	2019-03-27 16:56:28.012138396 +0100
+@@ -270,7 +270,11 @@ class DeltaInfo:
+                 # done with drpm file, unlink when local
+                 if po.localpath.startswith(po.repo.pkgdir):
+                     os.unlink(po.localpath)
+-                po.localpath = po.rpm.localpath # for --downloadonly
++                # rename the rpm if --downloadonly
++                if po.rpm.localpath.endswith('.tmp'):
++                    rpmfile = po.rpm.localpath.rsplit('.', 2)[0]
++                    os.rename(po.rpm.localpath, rpmfile)
++                    po.rpm.localpath = rpmfile
+             num += 1
+ 
+             # when blocking, one is enough
+diff -up yum-3.4.3/yum/__init__.py.orig yum-3.4.3/yum/__init__.py
+--- yum-3.4.3/yum/__init__.py.orig	2019-03-27 16:55:58.035750519 +0100
++++ yum-3.4.3/yum/__init__.py	2019-03-27 16:56:28.012138396 +0100
+@@ -2435,6 +2435,8 @@ much more problems).
+         errors = {}
+         def adderror(po, msg):
+             errors.setdefault(po, []).append(msg)
++            if po.localpath.endswith('.tmp'):
++                misc.unlink_f(po.localpath) # won't resume this..
+ 
+         #  We close the history DB here because some plugins (presto) use
+         # threads. And sqlite really doesn't like threads. And while I don't
+@@ -2546,6 +2548,10 @@ much more problems).
+ 
+                 def checkfunc(obj, po=po):
+                     self.verifyPkg(obj, po, 1)
++                    if po.localpath.endswith('.tmp'):
++                        rpmfile = po.localpath.rsplit('.', 2)[0]
++                        os.rename(po.localpath, rpmfile)
++                        po.localpath = rpmfile
+                     local_size[0] += po.size
+                     if hasattr(urlgrabber.progress, 'text_meter_total_size'):
+                         urlgrabber.progress.text_meter_total_size(remote_size,
+@@ -2584,29 +2590,21 @@ much more problems).
+                 except Errors.RepoError, e:
+                     adderror(po, exception2msg(e))
+             if async:
+-                urlgrabber.grabber.parallel_wait()
++                try:
++                    urlgrabber.grabber.parallel_wait()
++                except KeyboardInterrupt:
++                    for po in remote_pkgs:
++                        if po.localpath.endswith('.tmp'):
++                            misc.unlink_f(po.localpath)
++                        elif isinstance(po, DeltaPackage) and po.rpm.localpath.endswith('.tmp'):
++                            misc.unlink_f(po.rpm.localpath)
++                    raise
+             presto.dequeue_all()
+             presto.wait()
+ 
+             if hasattr(urlgrabber.progress, 'text_meter_total_size'):
+                 urlgrabber.progress.text_meter_total_size(0)
+ 
+-            if downloadonly:
+-                for po in remote_pkgs:
+-                    if not po.localpath.endswith('.tmp'):
+-                        # file:// repos don't "download"
+-                        continue
+-                    if po in errors:
+-                        # we may throw away partial file here- but we don't lock,
+-                        # so can't rename tempfile to rpmfile safely
+-                        misc.unlink_f(po.localpath)
+-                    else:
+-                        # verifyPkg() didn't complain, so (potentially)
+-                        # overwriting another copy should not be a problem
+-                        rpmfile = po.localpath.rsplit('.', 2)[0]
+-                        os.rename(po.localpath, rpmfile)
+-                        po.localpath = rpmfile
+-                    
+             fatal = False
+             for po in errors:
+                 if not isinstance(po, DeltaPackage):

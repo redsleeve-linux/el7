@@ -1,0 +1,144 @@
+diff -up yum-3.4.3/cli.py.orig yum-3.4.3/cli.py
+--- yum-3.4.3/cli.py.orig	2019-03-27 16:55:58.034750506 +0100
++++ yum-3.4.3/cli.py	2019-03-27 16:57:54.515257711 +0100
+@@ -1740,6 +1740,7 @@ class YumBaseCli(yum.YumBase, output.Yum
+             paths = glob.glob(cacheglob + '/*')
+             table = ([], [], [], [])  # (enabled, disabled, untracked, other)
+             repos = self.repos.repos
++            empty = True
+             for path in paths:
+                 base = os.path.basename(path)
+                 if os.path.isdir(path):
+@@ -1750,18 +1751,29 @@ class YumBaseCli(yum.YumBase, output.Yum
+                         col = 0
+                     else:
+                         col = 1
+-                    # Recursively gather all files in this repodir
+-                    files = yum.misc.getFileList(path, '', [])
+                 else:
+                     # Ordinary file (such as timedhosts)
+                     col = 3
+-                    files = [path]
+-                usage = sum(map(os.path.getsize, files))
+-                if usage > 0:
+-                    table[col].append((usage, path))
++                usage = yum.misc.disk_usage(path)
++                if not usage:
++                    continue
++                table[col].append((usage, path))
++                # Detect any uncleaned data.
++                #
++                # We never remove directories or any unrecognized repodata
++                # files, so there always will be a few kilobytes left behind.
++                # To avoid a constant false alarm, let's ignore such files if
++                # they are really tiny (such as "productid").  The easiest way
++                # is to look at "usage" as it covers both directories and
++                # files.  Given that a typical cleaned repodir (4K) consists of
++                # the gen/ (4K) and packages/ (4K) subdirs and possibly the
++                # productid file (8K), let's "round" it up to 64K and use that
++                # as our threshold.
++                if col < 3 and usage > 64*1024:
++                    empty = False
+ 
+             # Print the table (verbose mode only)
+-            lines = [_('Disk usage of %s after cleanup:') % cacheglob]
++            lines = [_('Disk usage under %s after cleanup:') % cacheglob]
+             headers = ('enabled repos', 'disabled repos', 'untracked repos',
+                        'other data')
+             totals = [0, 0, 0, 0]
+@@ -1783,12 +1795,11 @@ class YumBaseCli(yum.YumBase, output.Yum
+             msg = '\n'.join(lines)
+             self.verbose_logger.log(yum.logginglevels.DEBUG_3, msg)
+ 
+-            # Print a short hint for leftover repos specifically (non-verbose
+-            # mode only)
+-            total = sum(totals[:3])
+-            if self.conf.debuglevel == 6 or not total:
++            # Print a short hint if leftover repos are found (non-verbose mode
++            # only).
++            if empty or self.conf.debuglevel == 6:
+                 return code, []
+-            total = self.format_number(total)
++            total = self.format_number(sum(totals[:3]))
+             if total[-1] == ' ':
+                 total = total[:-1] + 'bytes'
+             msg = (_('Other repos take up %s of disk space '
+diff -up yum-3.4.3/docs/yum.8.orig yum-3.4.3/docs/yum.8
+--- yum-3.4.3/docs/yum.8.orig	2019-03-27 16:55:58.034750506 +0100
++++ yum-3.4.3/docs/yum.8	2019-03-27 16:57:54.515257711 +0100
+@@ -1032,35 +1032,13 @@ Or:          \fByum list available 'foo*
+ .SH "CLEAN OPTIONS"
+ The following are the ways which you can invoke \fByum\fP in clean mode.
+ 
+-Note that these commands only operate on files in currently enabled
+-repositories.
+-If you use substitution variables (such as $releasever) in your \fBcachedir\fP
+-configuration, the operation is further restricted to the current values of
+-those variables.
+-
+-For fine-grained control over what is being cleaned, you can use
+-\fB\-\-enablerepo\fP, \fB\-\-disablerepo\fP and \fB\-\-releasever\fP as
+-desired.
+-Note, however, that you cannot use \fB\-\-releasever='*'\fP to do the cleaning
+-for all values previously used.
+-Also note that untracked (no longer configured) repositories will not be
+-automatically cleaned.
+-
+-To purge the entire cache in one go, the easiest way is to delete the files
+-manually.
+-Depending on your \fBcachedir\fP configuration, this usually means treating any
+-variables as shell wildcards and recursively removing matching directories.
+-For example, if your \fBcachedir\fP is /var/cache/yum/$basearch/$releasever,
+-then the whole /var/cache/yum directory has to be removed.
+-If you do this, \fByum\fP will rebuild the cache as required the next time it
+-is run (this may take a while).
+-
+-As a convenience, when you run \fByum clean all\fP, a recursive lookup will be
+-done to detect any repositories not cleaned due to the above restrictions.
+-If some are found, a message will be printed stating how much disk space they
+-occupy and thus how much you can reclaim by cleaning them.
+-If you also supply \fB\-\-verbose\fP, a more detailed breakdown will be
+-printed.
++Note that these commands only operate on the currently enabled repositories
++within the current \fBcachedir\fR (that is, with any substitution variables
++such as $releasever expanded to their runtime values).
++To clean specific repositories, use \fB\-\-enablerepo\fP, \fB\-\-disablerepo\fP
++or \fB\-\-releasever\fP accordingly.
++Note, however, that untracked (no longer configured) repositories cannot be
++cleaned this way; they have to be removed manually.
+ 
+ .IP "\fByum clean expire-cache\fP"
+ Eliminate the local data saying when the metadata and mirrorlists were downloaded for each repo. This means yum will revalidate the cache for each repo. next time it is used. However if the cache is still valid, nothing significant was deleted.
+@@ -1090,6 +1068,13 @@ Tell any enabled plugins to eliminate th
+ 
+ .IP "\fByum clean all\fP"
+ Does all of the above.
++As a convenience, if this command does not result in a completely empty cache
++due to the restrictions outlined at the beginning of this section, a message
++will be printed, saying how much disk space can be reclaimed by cleaning the
++remaining repos manually.
++For this purpose, a repo is considered clean when its disk usage doesn't exceed
++64KB (that is to account for directory entries and tiny metadata files such as
++"productid" that are never cleaned).
+ 
+ .SH "EXAMPLES"
+ .PP
+diff -up yum-3.4.3/yum/misc.py.orig yum-3.4.3/yum/misc.py
+--- yum-3.4.3/yum/misc.py.orig	2019-03-27 16:55:58.010750196 +0100
++++ yum-3.4.3/yum/misc.py	2019-03-27 16:57:54.515257711 +0100
+@@ -1252,3 +1252,15 @@ def validate_repoid(repoid):
+             return char
+     else:
+         return None
++
++def disk_usage(path):
++    """Return disk usage of the given filename, recursively for dirs."""
++    def usage(path):
++        return os.stat(path).st_blocks * 512
++    total = usage(path)
++    if not os.path.isdir(path):
++        return total
++    for root, dirs, files in os.walk(path):
++        paths = (os.path.join(root, entry) for entry in dirs + files)
++        total += sum(usage(path) for path in paths)
++    return total

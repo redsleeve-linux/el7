@@ -1,0 +1,109 @@
+diff -up yum-3.4.3/yum/__init__.py.orig yum-3.4.3/yum/__init__.py
+--- yum-3.4.3/yum/__init__.py.orig	2019-03-27 16:56:28.012138396 +0100
++++ yum-3.4.3/yum/__init__.py	2019-03-27 16:58:37.176809731 +0100
+@@ -6890,24 +6890,24 @@ much more problems).
+         
+         self._ts_save_file = filename
+         
+-        msg = "%s\n" % self.rpmdb.simpleVersion(main_only=True)[0]
+-        msg += "%s\n" % self.ts.getTsFlags()
++        msg = ["%s\n" % self.rpmdb.simpleVersion(main_only=True)[0],
++               "%s\n" % self.ts.getTsFlags()]
+ 
+         if self.tsInfo._pkgSack is None: # Transactions have pkgSack?
+-            msg += "1\n"
++            msg += ["1\n"]
+         else:
+-            msg += "%s\n" % (len(self.repos.listEnabled()) + 1)
++            msg += ["%s\n" % (len(self.repos.listEnabled()) + 1)]
+             for r in self.repos.listEnabled():
+-                msg += "%s:%s:%s\n" % (r.id, len(r.sack), r.repoXML.revision)
++                msg += ["%s:%s:%s\n" % (r.id, len(r.sack), r.repoXML.revision)]
+ 
+         # Save what we think the future rpmdbv will be.
+-        msg += "%s:%s\n" % ('installed', self.tsInfo.futureRpmDBVersion())
++        msg += ["%s:%s\n" % ('installed', self.tsInfo.futureRpmDBVersion())]
+ 
+-        msg += "%s\n" % len(self.tsInfo.getMembers())
++        msg += ["%s\n" % len(self.tsInfo.getMembers())]
+         for txmbr in self.tsInfo.getMembers():
+-            msg += txmbr._dump()
++            msg += [txmbr._dump()]
+         try:
+-            f.write(msg)
++            f.write(''.join(msg))
+             f.close()
+         except (IOError, OSError), e:
+             self._ts_save_file = None
+diff -up yum-3.4.3/yum/transactioninfo.py.orig yum-3.4.3/yum/transactioninfo.py
+--- yum-3.4.3/yum/transactioninfo.py.orig	2019-03-27 16:55:57.905748837 +0100
++++ yum-3.4.3/yum/transactioninfo.py	2019-03-27 16:58:37.178809757 +0100
+@@ -873,44 +873,47 @@ class TransactionMember:
+         return "<%s : %s (%s)>" % (self.__class__.__name__, str(self),hex(id(self))) 
+     
+     def _dump(self):
+-        msg = "mbr: %s,%s,%s,%s,%s %s\n" % (self.name, self.arch, self.epoch, 
+-                     self.version, self.release, self.current_state)
+-        msg += "  repo: %s\n" % self.po.repo.id
+-        msg += "  ts_state: %s\n" % self.ts_state
+-        msg += "  output_state: %s\n" %  self.output_state
+-        msg += "  isDep: %s\n" %  bool(self.isDep)
+-        msg += "  reason: %s\n" % self.reason
+-        #msg += "  process: %s\n" % self.process
+-        msg += "  reinstall: %s\n" % bool(self.reinstall)
++        msg = ["mbr: %s,%s,%s,%s,%s %s\n" %
++               (self.name, self.arch, self.epoch, self.version, self.release,
++                self.current_state),
++               "  repo: %s\n" % self.po.repo.id,
++               "  ts_state: %s\n" % self.ts_state,
++               "  output_state: %s\n" %  self.output_state,
++               "  isDep: %s\n" %  bool(self.isDep),
++               "  reason: %s\n" % self.reason,
++        #       "  process: %s\n" % self.process,
++               "  reinstall: %s\n" % bool(self.reinstall)]
+         
+         if self.relatedto:
+-            msg += "  relatedto:"
++            msg += ["  relatedto:"]
+             for (po, rel) in self.relatedto:
+                 pkgorigin = 'a'
+                 if isinstance(po, YumInstalledPackage):
+                     pkgorigin = 'i'
+-                msg += " %s,%s,%s,%s,%s@%s:%s" % (po.name, po.arch, po.epoch, 
+-                      po.version, po.release, pkgorigin, rel)
+-            msg += "\n"
++                msg += [" %s,%s,%s,%s,%s@%s:%s" %
++                        (po.name, po.arch, po.epoch, po.version, po.release,
++                         pkgorigin, rel)]
++            msg += ["\n"]
+             
+         for lst in ['depends_on', 'obsoletes', 'obsoleted_by', 'downgrades',
+                     'downgraded_by', 'updates', 'updated_by']:
+             thislist = getattr(self, lst)
+             if thislist:
+-                msg += "  %s:" % lst
++                msg += ["  %s:" % lst]
+                 for po in thislist:
+                     pkgorigin = 'a'
+                     if isinstance(po, YumInstalledPackage):
+                         pkgorigin = 'i'
+-                    msg += " %s,%s,%s,%s,%s@%s" % (po.name, po.arch, po.epoch, 
+-                        po.version, po.release, pkgorigin)
+-                msg += "\n"
++                    msg += [" %s,%s,%s,%s,%s@%s" %
++                            (po.name, po.arch, po.epoch, po.version,
++                             po.release, pkgorigin)]
++                msg += ["\n"]
+                 
+         if self.groups:
+-            msg += "  groups: %s\n" % ' '.join(self.groups)
++            msg += ["  groups: %s\n" % ' '.join(self.groups)]
+         if self.environments:
+-            msg += "  environments: %s\n" % ' '.join(self.environments)
++            msg += ["  environments: %s\n" % ' '.join(self.environments)]
+         if self.repopkg:
+-            msg += "  repopkg: %s\n" % self.repopkg
++            msg += ["  repopkg: %s\n" % self.repopkg]
+ 
+-        return msg
++        return ''.join(msg)

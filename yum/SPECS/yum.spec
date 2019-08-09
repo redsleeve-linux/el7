@@ -32,7 +32,7 @@
 Summary: RPM package installer/updater/manager
 Name: yum
 Version: 3.4.3
-Release: 161%{?dist}
+Release: 163%{?dist}
 License: GPLv2+
 Group: System Environment/Base
 Source0: http://yum.baseurl.org/download/3.4/%{name}-%{version}.tar.gz
@@ -168,7 +168,12 @@ Patch314: BZ-1481220-print-disk-usage-on-yum-clean-all.patch
 Patch315: BZ-1480065-depsolve-filter-conflicting-provider.patch
 Patch316: BZ-1506890-logrotate-change-size-to-maxsize.patch
 
-#CentOS Branding
+# rhel-7.7
+Patch340: BZ-1410234-downloadonly-unlink-tmp-files.patch
+Patch341: BZ-1645173-clean-all-disk-usage-fixes.patch
+Patch342: BZ-1600383-save-ts-no-str-concat.patch
+Patch343: BZ-1510491-fixup-yumdb-validator.patch
+
 Patch1000: centos-branding-yum.patch
 
 URL: http://yum.baseurl.org/
@@ -422,6 +427,12 @@ Install this package if you want auto yum updates nightly via cron.
 %patch315 -p1
 %patch316 -p1
 
+# rhel-7.7
+%patch340 -p1
+%patch341 -p1
+%patch342 -p1
+%patch343 -p1
+
 %patch1000 -p1
 
 # Do distro config. changes after everything else.
@@ -654,13 +665,24 @@ exit 0
 %endif
 
 %changelog
-* Tue Oct 30 2018 CentOS Sources <bugs@centos.org> - 3.4.3-161.el7.centos
+* Tue Aug 06 2019 CentOS Sources <bugs@centos.org> - 3.4.3-163.el7.centos
 - CentOS yum config
 -  use the CentOS bug tracker url
 -  retain installonly limit of 5
 -  ensure distrover is always from centos-release
 - Make yum require yum-plugin-fastestmirror
-- add centos-branding-yum.patch
+
+* Wed May 17 2019 Michal Domonkos <mdomonko@redhat.com> - 3.4.3-163
+- Fix from_repo yumdb validator for local pkgs
+- Resolves: bug#1510491
+
+* Wed Mar 27 2019 Michal Domonkos <mdomonko@redhat.com> - 3.4.3-162
+- downloadonly: unlink .tmp files on ctrl-c
+- Resolves: bug#1410234
+- Fix calculation of uncleaned disk space after "yum clean all"
+- Resolves: bug#1645173
+- Speed up depsolving in Anaconda for large transactions
+- Resolves: bug#1600383
 
 * Wed Aug 15 2018 Michal Domonkos <mdomonko@redhat.com> - 3.4.3-161
 - Improve retry logic for gpg keys
