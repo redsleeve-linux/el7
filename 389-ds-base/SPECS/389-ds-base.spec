@@ -19,7 +19,7 @@
 %global use_tcmalloc 0
 %global variant base-asan
 %else
-%ifnarch s390 s390x %{arm}
+%if %{_arch} != "s390x" && %{_arch} != "s390"
 %global use_tcmalloc 1
 %else
 %global use_tcmalloc 0
@@ -39,7 +39,7 @@
 Summary:          389 Directory Server (%{variant})
 Name:             389-ds-base
 Version:          1.3.8.4
-Release:          %{?relprefix}25%{?prerel}.1%{?dist}.redsleeve
+Release:          %{?relprefix}25%{?prerel}.1%{?dist}
 License:          GPLv3+
 URL:              https://www.port389.org/
 Group:            System Environment/Daemons
@@ -523,9 +523,6 @@ fi
 %{_sysconfdir}/%{pkgname}/dirsrvtests
 
 %changelog
-* Fri Aug 02 2019 Jacco Ligthart <jacco@redsleeve.org> - 1.3.8.4-25.1.redsleeve
-- disabled tcmalloc for arm
-
 * Wed Jul 3 2019 Mark Reynolds <mreynolds@redhat.com> - 1.3.8.4-25.1
 - Bump version to 1.3.8.4-25.1
 - Resolves: Bug 1718689 - dse.ldif strip-off string after 1023 character (missing patch file)
