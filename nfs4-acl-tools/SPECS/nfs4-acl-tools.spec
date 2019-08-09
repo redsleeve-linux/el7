@@ -1,6 +1,6 @@
 Name:           nfs4-acl-tools
 Version:        0.3.3
-Release:        19%{?dist}
+Release:        20%{?dist}
 Summary:        The nfs4 ACL tools
 Group:          Applications/System
 License:        BSD
@@ -30,6 +30,10 @@ Patch007: nfs4-acl-tools-0.3.3-manpage-acls.patch
 #
 Patch008: nfs4-acl-tools-0.3.3-more-paths.patch
 Patch009: nfs4-acl-tools-0.3.3-R-flag.patch
+#
+# RHEL 7.7
+#
+Patch010: nfs4-acl-tools-0.3.3-skip-comment-field.patch
 
 Patch100: nfs4acl-0.2.0-compile.patch
 
@@ -55,6 +59,8 @@ NFSv4 client.
 %patch008 -p1
 # 1416685 - nfs4_setfacl -R should not bail out on error 
 %patch009 -p1
+# 1666850 - nfs4_setfacl error applying nfs4_getfacl output 
+%patch010 -p1
 
 %patch100 -p1
 
@@ -91,10 +97,13 @@ rm -rf %{buildroot}
 %{_mandir}/man5/*
 
 %changelog
-* Mon Jul  9 2018 Steve Dickson <steved@redhat.com> 0.3.3-18
+* Wed Apr 10 2019 Steve Dickson <steved@redhat.com> 0.3.3-20
+- nfs4_setfacl: Skip comment field while reading ACE(s) (bz 1666850)
+
+* Mon Jul  9 2018 Steve Dickson <steved@redhat.com> 0.3.3-19
 - Add support for recursive nfs4_getfacl option (bz 1416685)
 
-* Tue Jun 26 2018 Steve Dickson <steved@redhat.com> 0.3.3-17
+* Tue Jun 26 2018 Steve Dickson <steved@redhat.com> 0.3.3-18
 -  nfs4_getfacl: Add support to accept more paths (bz 1412181)
 
 * Tue Dec 12 2016 Steve Dickson <steved@redhat.com> 0.3.3-17

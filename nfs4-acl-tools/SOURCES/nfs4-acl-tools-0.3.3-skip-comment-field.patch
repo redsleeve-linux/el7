@@ -1,0 +1,40 @@
+commit 5236e718f0d5dfb9008d3afed64aa642ea38d32e
+Author: Kenneth D'souza <kdsouza@redhat.com>
+Date:   Tue Mar 26 19:41:09 2019 +0530
+
+    nfs4_setfacl: Skip comment field while reading ACE(s).
+    
+    With commit 6630629bb661a7f48fb9856f7fd9616ce1499efa an additional field for filename
+    was added due to which nfs4_setfacl failed to handle comments while reading ACE(s)
+    from nfs4_getfacl output.
+    This patch resolves the issue by skipping comment header.
+    
+     With fix:
+    
+     $ nfs4_setfacl --test -s "$(nfs4_getfacl  file1)" file2
+     ## Test mode only - the resulting ACL for "/test/file2":
+     A::OWNER@:rwatTcCy
+     A:g:GROUP@:rtcy
+     A::EVERYONE@:rtcy
+    
+     Without fix:
+    
+     $ nfs4_setfacl --test -s "$(nfs4_getfacl  file1)" file2
+     Failed while inserting ACE(s).
+    
+    Signed-off-by: Kenneth D'souza <kdsouza@redhat.com>
+    Signed-off-by: J. Bruce Fields <bfields@redhat.com>
+
+diff --git a/libnfs4acl/nfs4_insert_string_aces.c b/libnfs4acl/nfs4_insert_string_aces.c
+index 5a482d5..f93c3e9 100644
+--- a/libnfs4acl/nfs4_insert_string_aces.c
++++ b/libnfs4acl/nfs4_insert_string_aces.c
+@@ -48,6 +48,8 @@ int nfs4_insert_string_aces(struct nfs4_acl *acl, const char *acl_spec, unsigned
+ 	while ((ssp = strsep(&sp, ",\t\n\r")) != NULL) {
+ 		if (!strlen(ssp))
+ 			continue;
++		if (*ssp == '#')
++			continue;
+ 
+ 		if ((ace = nfs4_ace_from_string(ssp, acl->is_directory)) == NULL)
+ 			goto out_failed;
