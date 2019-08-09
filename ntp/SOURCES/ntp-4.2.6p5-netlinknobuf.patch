@@ -1,0 +1,28 @@
+Author:  <stenn@psp-at1.ntp.org>
+Date:   Fri Jul 31 07:58:11 2015 +0000
+
+    [Bug 2890] Ignore ENOBUFS on routing netlink socket.  Konstantin Khlebnikov.
+
+diff -up ntp-4.2.6p5/ntpd/ntp_io.c.netlinknobuf ntp-4.2.6p5/ntpd/ntp_io.c
+--- ntp-4.2.6p5/ntpd/ntp_io.c.netlinknobuf	2019-01-11 12:34:09.115195268 +0100
++++ ntp-4.2.6p5/ntpd/ntp_io.c	2019-01-11 12:34:21.356195246 +0100
+@@ -4480,10 +4480,15 @@ process_routing_msgs(struct asyncio_read
+ 	cnt = read(reader->fd, buffer, sizeof(buffer));
+ 	
+ 	if (cnt < 0) {
+-		msyslog(LOG_ERR,
+-			"i/o error on routing socket %m - disabling");
+-		remove_asyncio_reader(reader);
+-		delete_asyncio_reader(reader);
++		if (errno == ENOBUFS) {
++			msyslog(LOG_ERR,
++				"routing socket reports: %m");
++		} else {
++			msyslog(LOG_ERR,
++				"routing socket reports: %m - disabling");
++			remove_asyncio_reader(reader);
++			delete_asyncio_reader(reader);
++		}
+ 		return;
+ 	}
+ 

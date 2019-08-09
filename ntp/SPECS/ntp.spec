@@ -1,7 +1,7 @@
 Summary: The NTP daemon and utilities
 Name: ntp
 Version: 4.2.6p5
-Release: 28%{?dist}
+Release: 29%{?dist}
 # primary license (COPYRIGHT) : MIT
 # ElectricFence/ (not used) : GPLv2
 # kernel/sys/ppsclock.h (not used) : BSD with advertising
@@ -34,8 +34,7 @@ Source0: http://www.eecis.udel.edu/~ntp/ntp_spool/ntp4/ntp-4.2/ntp-%{version}.ta
 Source1: ntp.conf
 Source2: ntp.keys
 Source4: ntpd.sysconfig
-# http://people.redhat.com/rkeech/#ntpstat
-Source5: ntpstat-0.2.tgz
+Source5: https://github.com/mlichvar/ntpstat/archive/0.5/ntpstat-0.5.tar.gz
 Source6: ntp.step-tickers
 Source7: ntpdate.wrapper
 Source8: ntp.cryptopw
@@ -193,19 +192,17 @@ Patch72: ntp-4.2.6p5-tsyncdriver.patch
 Patch73: ntp-4.2.6p5-staunsync.patch
 # use SHA1 request key by default (#1442083)
 Patch74: ntp-4.2.6p5-defreqkey.patch
+# ntpbz #3505
+Patch75: ntp-4.2.6p5-cve-2018-12327.patch
+# ntpbz #2922
+Patch76: ntp-4.2.6p5-decodenetnum.patch
+# ntpbz #2224
+Patch77: ntp-4.2.6p5-netlinkdrop.patch
+# ntpbz #2890
+Patch78: ntp-4.2.6p5-netlinknobuf.patch
 
-# handle unknown clock types
-Patch100: ntpstat-0.2-clksrc.patch
-# process first packet in multipacket response
-Patch101: ntpstat-0.2-multipacket.patch
-# use current system variable names
-Patch102: ntpstat-0.2-sysvars.patch
-# print synchronization distance instead of dispersion
-Patch103: ntpstat-0.2-maxerror.patch
-# fix error bit checking
-Patch104: ntpstat-0.2-errorbit.patch
-# improve man page
-Patch105: ntpstat-0.2-manual.patch
+# add bugs for compatibility with original EL7 ntpstat
+Patch100: ntpstat-compat.patch
 
 URL: http://www.ntp.org
 Requires(post): systemd-units
@@ -357,14 +354,12 @@ This package contains NTP documentation in HTML format.
 %patch72 -p1 -b .tsyncdriver
 %patch73 -p1 -b .staunsync
 %patch74 -p1 -b .defreqkey
+%patch75 -p1 -b .cve-2018-12327
+%patch76 -p1 -b .decodenetnum
+%patch77 -p1 -b .netlinkdrop
+%patch78 -p1 -b .netlinknobuf
 
-# ntpstat patches
-%patch100 -p1 -b .clksrc
-%patch101 -p1 -b .multipacket
-%patch102 -p1 -b .sysvars
-%patch103 -p1 -b .maxerror
-%patch104 -p1 -b .errorbit
-%patch105 -p1 -b .manual
+%patch100 -p1 -b .compat
 
 # set default path to sntp KoD database
 sed -i 's|/var/db/ntp-kod|%{_localstatedir}/lib/sntp/kod|' sntp/{sntp.1,main.c}
@@ -385,6 +380,10 @@ touch ntpd/ntpd.1 util/ntp-keygen.1
 # make the build fail if the parsers are not regenerated
 rm ntpd/ntp_parser.{c,h}
 echo > ntpd/ntp_keyword.h
+
+# hardcode paths in ntpstat
+sed -i '/^CHRONYC=/s|chronyc|%{_bindir}/chronyc|' ntpstat-*/ntpstat
+sed -i '/^NTPQ=/s|ntpq|%{_sbindir}/ntpq|' ntpstat-*/ntpstat
 
 %build
 sed -i 's|$CFLAGS -Wstrict-overflow|$CFLAGS|' configure sntp/configure
@@ -412,8 +411,6 @@ pushd html
 sed -i 's/^[\t\ ]*$//;/./,/^$/!d' man/man*/*.[58]
 popd 
 
-make -C ntpstat-0.2 CFLAGS="$CFLAGS"
-
 %install
 make DESTDIR=$RPM_BUILD_ROOT bindir=%{_sbindir} install
 
@@ -422,11 +419,7 @@ sed -i 's/sntp\.1/sntp\.8/' $RPM_BUILD_ROOT%{_mandir}/man1/sntp.1
 mv $RPM_BUILD_ROOT%{_mandir}/man{1/sntp.1,8/sntp.8}
 rm -rf $RPM_BUILD_ROOT%{_mandir}/man1
 
-pushd ntpstat-0.2
-mkdir -p $RPM_BUILD_ROOT%{_bindir}
-install -m 755 ntpstat $RPM_BUILD_ROOT%{_bindir}
-install -m 644 ntpstat.1 $RPM_BUILD_ROOT%{_mandir}/man8/ntpstat.8
-popd
+%makeinstall -C ntpstat-*
 
 # fix section numbers
 sed -i 's/\(\.TH[a-zA-Z ]*\)[1-9]\(.*\)/\18\2/' $RPM_BUILD_ROOT%{_mandir}/man8/*.8
@@ -533,12 +526,12 @@ popd
 %ghost %attr(644,ntp,ntp) %{_localstatedir}/lib/ntp/drift
 %dir %attr(-,ntp,ntp) %{_localstatedir}/log/ntpstats
 %{_bindir}/ntpstat
+%{_mandir}/man1/ntpstat.1*
 %{_mandir}/man5/*.5*
 %{_mandir}/man8/ntp-keygen.8*
 %{_mandir}/man8/ntpd.8*
 %{_mandir}/man8/ntpdc.8*
 %{_mandir}/man8/ntpq.8*
-%{_mandir}/man8/ntpstat.8*
 %{_mandir}/man8/ntptime.8*
 %{_mandir}/man8/tickadj.8*
 %{_prefix}/lib/systemd/ntp-units.d/*.list
@@ -575,8 +568,16 @@ popd
 %{ntpdocdir}/html
 
 %changelog
-* Tue Apr 10 2018 CentOS Sources <bugs@centos.org> - 4.2.6p5-28.el7.centos
+* Tue Aug 06 2019 CentOS Sources <bugs@centos.org> - 4.2.6p5-29.el7.centos
 - rebrand vendorzone
+
+* Fri Jan 11 2019 Miroslav Lichvar <mlichvar@redhat.com> 4.2.6p5-29
+- fix CVE-2016-7429 patch to restore default ttl configuration (#1550637)
+- fix buffer overflow in parsing of address in ntpq and ntpdc (CVE-2018-12327)
+- fix crash in parsing of received address in ntpq (#1616250)
+- avoid reading freed memory after disabling netlink socket (#1555401)
+- don't disable netlink socket on ENOBUFS error (#1555413)
+- replace ntpstat with shell script using ntpq and supporting chrony (#1592871)
 
 * Mon Oct 09 2017 Miroslav Lichvar <mlichvar@redhat.com> 4.2.6p5-28
 - fix buffer overflow in datum refclock driver (CVE-2017-6462)

@@ -1,0 +1,34 @@
+Author:  <davehart@dlh-7551.ad.hartbrothers.com>
+Date:   Mon Jun 11 17:22:29 2012 +0000
+
+    [Bug 2224] Use-after-free in routing socket code after dropping root.
+
+diff -up ntp-4.2.6p5/ntpd/ntp_io.c.netlinkdrop ntp-4.2.6p5/ntpd/ntp_io.c
+--- ntp-4.2.6p5/ntpd/ntp_io.c.netlinkdrop	2019-01-11 12:34:21.356195246 +0100
++++ ntp-4.2.6p5/ntpd/ntp_io.c	2019-01-11 12:37:55.719194867 +0100
+@@ -3584,7 +3584,8 @@ input_handler(
+ 	int select_count = 0;
+ 	endpt *ep;
+ #if defined(HAS_ROUTING_SOCKET)
+-	struct asyncio_reader *asyncio_reader;
++	struct asyncio_reader * asyncio_reader;
++	struct asyncio_reader *	next_asyncio_reader;
+ #endif
+ 
+ 	handler_calls++;
+@@ -3687,11 +3688,13 @@ input_handler(
+ 	asyncio_reader = asyncio_reader_list;
+ 
+ 	while (asyncio_reader != NULL) {
++		/* callback may unlink and free asyncio_reader */
++		next_asyncio_reader = asyncio_reader->link;
+ 		if (FD_ISSET(asyncio_reader->fd, &fds)) {
+ 			++select_count;
+-			(asyncio_reader->receiver)(asyncio_reader);
++			(*asyncio_reader->receiver)(asyncio_reader);
+ 		}
+-		asyncio_reader = asyncio_reader->link;
++		asyncio_reader = next_asyncio_reader;
+ 	}
+ #endif /* HAS_ROUTING_SOCKET */
+ 	

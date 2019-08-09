@@ -1,0 +1,21 @@
+Author:  <stenn@psp-deb1.ntp.org>
+Date:   Tue Oct 6 08:51:27 2015 +0000
+
+    [Sec 2922] decodenetnum() will ASSERT botch instead of returning FAIL on some bogus values.  Harlan Stenn.
+
+diff --git a/libntp/decodenetnum.c b/libntp/decodenetnum.c
+index ebcb2da69..35b908f39 100644
+--- a/libntp/decodenetnum.c
++++ b/libntp/decodenetnum.c
+@@ -36,7 +36,10 @@ decodenetnum(
+ 	char name[80];
+ 
+ 	NTP_REQUIRE(num != NULL);
+-	NTP_REQUIRE(strlen(num) < sizeof(name));
++
++	if (strlen(num) >= sizeof(name)) {
++		return 0;
++	}
+ 
+ 	port_str = NULL;
+ 	if ('[' != num[0]) {

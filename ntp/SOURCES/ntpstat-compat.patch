@@ -1,0 +1,41 @@
+diff -up ntp-4.2.6p5/ntpstat-0.5/ntpstat.compat ntp-4.2.6p5/ntpstat-0.5/ntpstat
+--- ntp-4.2.6p5/ntpstat-0.5/ntpstat.compat	2018-03-20 16:02:33.000000000 +0100
++++ ntp-4.2.6p5/ntpstat-0.5/ntpstat	2019-01-11 16:52:04.003167878 +0100
+@@ -116,6 +116,7 @@ get_ntpd_state() {
+     disp=$(parse_rv_field "$output" "rootdisp")
+     distance=$(echo "$delay $disp" | awk '{ printf "%.3f", $1 / 2.0 + $2 }')
+ 
++    : <<'EOF'
+     syspeer_id=$("${NTPQ[@]}" -c associations 2> /dev/null |\
+         grep 'sys\.peer' | awk '{ print $2 }') || return 4
+     output=$("${NTPQ[@]}" -c "rv $syspeer_id" 2> /dev/null) || return 5
+@@ -124,6 +125,19 @@ get_ntpd_state() {
+         address=$(parse_rv_field "$output" "srcadr")
+     fi
+     poll=$(parse_rv_field "$output" "hpoll")
++EOF
++
++    # bug compatibility with original EL7 ntpstat
++    # - refid interpretted as IP address
++    # - tc interpretted as poll
++    # - code 1 (no drift file in NTPv4) printed as server restart in NTPv3
++    address=$(parse_rv_field "$output" "refid")
++    poll=$(parse_rv_field "$output" "tc")
++    local code=$(parse_rv_field "$output" "status" | \
++        awk '{ print and(strtonum($1), 0xf) }')
++    if [ "$leap" -eq 3 ] && [ "$code" -eq 1 ]; then
++        leap=4
++    fi
+ 
+     echo "$leap,$source,$address,$stratum,$distance,$poll"
+ }
+@@ -176,6 +190,9 @@ if [ "$leap" -ge 0 -a "$leap" -le 2 ]; t
+     fi
+ else
+     printf "unsynchronised\n"
++    if [ "$leap" -eq 4 ]; then
++        printf "  time server re-starting\n"
++    fi
+     status=1
+ fi
+ 
