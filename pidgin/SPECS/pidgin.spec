@@ -110,7 +110,7 @@
 
 Name:           pidgin
 Version:        2.10.11
-Release:        7%{?dist}
+Release:        8%{?dist}
 License:        GPLv2+ and GPLv2 and MIT
 # GPLv2+ - libpurple, gnt, finch, pidgin, most prpls
 # GPLv2 - novell prpls
@@ -168,6 +168,12 @@ Patch102:       pidgin-2.10.11-jabber-Avoid-a-use-after-free-in-an-error-path.pa
 
 # https://bugzilla.redhat.com/show_bug.cgi?id=1446368
 Patch103:       pidgin-2.10.11-Try-to-fix-a-signed-unsigned-warning.patch
+
+# https://bugzilla.redhat.com/show_bug.cgi?id=1440215
+Patch104:       pidgin-2.10.11-IRC-Skip-EXTERNAL-SASL-auth-mechanism.patch
+
+# https://bugzilla.redhat.com/show_bug.cgi?id=1433761
+Patch105:       pidgin-2.10.11-Rework-tray-icon-blinking.patch
 
 BuildRoot:      %{_tmppath}/%{name}-%{version}-root
 Summary:        A Gtk+ based multiprotocol instant messaging client
@@ -468,6 +474,8 @@ echo "FEDORA=%{fedora} RHEL=%{rhel}"
 %patch101 -p0 -R -b .ftcrash
 %patch102 -p1 -b .jabber-use-after-free
 %patch103 -p1 -b .Wsign-compare
+%patch104 -p1 -b .IRC-skip-EXTERNAL
+%patch105 -p1 -b .rework-tray-icon-blinking
 
 # Our preferences
 cp %{SOURCE1} prefs.xml
@@ -763,6 +771,11 @@ rm -rf $RPM_BUILD_ROOT
 %endif
 
 %changelog
+* Tue Oct 09 2018 Debarshi Ray <rishi@fedoraproject.org> - 2.10.11-8
+- Rework tray icon blinking
+- Unbreak connections to Freenode
+  Resolves: #1433761, #1440215
+
 * Thu Oct 12 2017 Debarshi Ray <rishi@fedoraproject.org> - 2.10.11-7
 - Drop AIM in RHEL
   Resolves: #1500403

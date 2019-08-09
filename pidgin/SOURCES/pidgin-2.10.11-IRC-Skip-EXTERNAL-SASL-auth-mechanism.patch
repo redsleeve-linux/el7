@@ -1,0 +1,51 @@
+From 943ec853fab1432e0f05d4f1b8fd4605765b5692 Mon Sep 17 00:00:00 2001
+From: Kernc <kerncece@gmail.com>
+Date: Thu, 22 Sep 2016 01:24:53 +0200
+Subject: [PATCH] IRC: Skip EXTERNAL SASL auth mechanism
+
+Makes Freenode and other servers that prefer SASL EXTERNAL
+fingerprint authentication work again.
+
+Ref:
+  "Cannot connect to IRC (Freenode)"
+  https://pidgin.im/pipermail/support/2016-September/029627.html
+
+--HG--
+branch : release-2.x.y
+extra : source : 610656636af6d1d6fdd6723d5ef311c903b6a804
+---
+ libpurple/protocols/irc/msgs.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/libpurple/protocols/irc/msgs.c b/libpurple/protocols/irc/msgs.c
+index c44ff387686e..99baf4ca2e18 100644
+--- a/libpurple/protocols/irc/msgs.c
++++ b/libpurple/protocols/irc/msgs.c
+@@ -1574,6 +1574,8 @@ irc_msg_cap(struct irc_conn *irc, const char *name, const char *from, char **arg
+ 	int id = 0;
+ 	PurpleConnection *gc = purple_account_get_connection(irc->account);
+ 	const char *mech_list = NULL;
++	char *pos;
++	size_t index;
+ 
+ 	if (strncmp(args[2], "sasl ", 6))
+ 		return;
+@@ -1637,6 +1639,15 @@ irc_msg_cap(struct irc_conn *irc, const char *name, const char *from, char **arg
+ 	}
+ 
+ 	irc->sasl_mechs = g_string_new(mech_list);
++	/* Drop EXTERNAL mechanism since we don't support it */
++	if ((pos = strstr(irc->sasl_mechs->str, "EXTERNAL"))) {
++		index = pos - irc->sasl_mechs->str;
++		g_string_erase(irc->sasl_mechs, index, strlen("EXTERNAL"));
++		/* Remove space which separated this mech from the next */
++		if ((irc->sasl_mechs->str)[index] == ' ') {
++			g_string_erase(irc->sasl_mechs, index, 1);
++		}
++	}
+ 
+ 	irc_auth_start_cyrus(irc);
+ }
+-- 
+2.14.4
+
