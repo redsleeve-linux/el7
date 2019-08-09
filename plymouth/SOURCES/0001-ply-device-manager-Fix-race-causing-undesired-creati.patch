@@ -1,0 +1,246 @@
+From f76757f9dd63407686b24c98e5c2290502bcbb93 Mon Sep 17 00:00:00 2001
+From: Hans de Goede <hdegoede@redhat.com>
+Date: Tue, 26 Mar 2019 15:10:28 -0400
+Subject: [PATCH] ply-device-manager: Fix race causing undesired creation of
+ non-gfx devs
+
+On systems with working drm/kms devices we still sometimes see:
+"Creating non-graphical devices, since there's no suitable graphics hardware"
+in the logs (and actually create non-gfx devices).
+
+This is caused by a race where the create_devices_from_udev timeout handler
+runs just after the pivot-root, just at the time when the "udev trigger"
+from the real root is done.
+
+This causes create_devices_for_subsystem() to hit the "it's not initialized"
+code-path for all drm and fb devices, even though before (from the initrd)
+drm-devices where already setup successfully.
+
+One way of solving this would be to stop the timer as soon as we successfully
+enumerate the first drm device. But we need the timer to enumerate fb devices
+so on machines where some outputs only have a fbdev driver (corner case) this
+would break support for those outputs.
+
+Instead this commit moves the found_drm_device and found_fb_device to the
+global manager state and sets them from create_devices_for_udev_device().
+This way they will be set when we check them from the create_devices_from_udev
+timeout handler even if create_devices_for_subsystem skips over the devices
+because of the udev trigger race.
+
+Signed-off-by: Hans de Goede <hdegoede@redhat.com>
+---
+ src/libply-splash-core/ply-device-manager.c |  19 +-
+ 1 files changed, 63 insertions(+), 60 deletions(-)
+
+diff --git a/src/libply-splash-core/ply-device-manager.c b/src/libply-splash-core/ply-device-manager.c
+index 3a2db06..b6437c5 100644
+--- a/src/libply-splash-core/ply-device-manager.c
++++ b/src/libply-splash-core/ply-device-manager.c
+@@ -47,60 +47,63 @@ static bool create_devices_for_terminal_and_renderer_type (ply_device_manager_t
+                                                            ply_renderer_type_t   renderer_type);
+ struct _ply_device_manager
+ {
+   ply_device_manager_flags_t  flags;
+   ply_event_loop_t           *loop;
+   ply_hashtable_t            *terminals;
+   ply_hashtable_t            *renderers;
+   ply_terminal_t             *local_console_terminal;
+   ply_list_t                 *keyboards;
+   ply_list_t                 *text_displays;
+   ply_list_t                 *pixel_displays;
+   struct udev                *udev_context;
+   struct udev_queue          *udev_queue;
+   int                         udev_queue_fd;
+   ply_fd_watch_t             *udev_queue_fd_watch;
+   struct udev_monitor        *udev_monitor;
+ 
+   ply_keyboard_added_handler_t         keyboard_added_handler;
+   ply_keyboard_removed_handler_t       keyboard_removed_handler;
+   ply_pixel_display_added_handler_t    pixel_display_added_handler;
+   ply_pixel_display_removed_handler_t  pixel_display_removed_handler;
+   ply_text_display_added_handler_t     text_display_added_handler;
+   ply_text_display_removed_handler_t   text_display_removed_handler;
+   void                                *event_handler_data;
+ 
+   uint32_t                    local_console_managed : 1;
+   uint32_t                    local_console_is_text : 1;
+   uint32_t                    serial_consoles_detected : 1;
+   uint32_t                    renderers_activated : 1;
+   uint32_t                    keyboards_activated : 1;
++
++  uint32_t                    found_drm_device : 1;
++  uint32_t                    found_fb_device : 1;
+ };
+ 
+ static void
+ detach_from_event_loop (ply_device_manager_t *manager)
+ {
+   assert (manager != NULL);
+ 
+   manager->loop = NULL;
+ }
+ 
+ static void
+ attach_to_event_loop (ply_device_manager_t *manager,
+                       ply_event_loop_t     *loop)
+ {
+   assert (manager != NULL);
+   assert (loop != NULL);
+   assert (manager->loop == NULL);
+ 
+   manager->loop = loop;
+ 
+   ply_event_loop_watch_for_exit (loop, (ply_event_loop_exit_handler_t)
+                                  detach_from_event_loop,
+                                  manager);
+ }
+ 
+ static bool
+ drm_device_in_use (ply_device_manager_t *manager,
+                    const char           *device_path)
+ {
+   ply_renderer_t *renderer;
+@@ -183,60 +186,68 @@ create_devices_for_udev_device (ply_device_manager_t *manager,
+         {
+           ply_trace ("found DRM device %s", device_path);
+           renderer_type = PLY_RENDERER_TYPE_DRM;
+         }
+       else if (strcmp (subsystem, SUBSYSTEM_FRAME_BUFFER) == 0)
+         {
+           ply_trace ("found frame buffer device %s", device_path);
+           if (!fb_device_has_drm_device (manager, device))
+             {
+               renderer_type = PLY_RENDERER_TYPE_FRAME_BUFFER;
+             }
+           else
+             {
+               ply_trace ("ignoring, since there's a DRM device associated with it");
+             }
+         }
+ 
+       if (renderer_type != PLY_RENDERER_TYPE_NONE)
+         {
+           ply_terminal_t *terminal = NULL;
+ 
+           if (!manager->local_console_managed)
+             {
+               terminal = manager->local_console_terminal;
+             }
+ 
+           created = create_devices_for_terminal_and_renderer_type (manager,
+                                                                    device_path,
+                                                                    terminal,
+                                                                    renderer_type);
++
++          if (created)
++            {
++              if (renderer_type == PLY_RENDERER_TYPE_DRM)
++                manager->found_drm_device = 1;
++              if (renderer_type == PLY_RENDERER_TYPE_FRAME_BUFFER)
++                manager->found_fb_device = 1;
++            }
+        }
+     }
+     return created;
+ }
+ 
+ static void
+ free_displays_for_renderer (ply_device_manager_t *manager,
+                             ply_renderer_t       *renderer)
+ {
+   ply_list_node_t *node;
+ 
+   node = ply_list_get_first_node (manager->pixel_displays);
+   while (node != NULL)
+     {
+       ply_list_node_t *next_node;
+       ply_pixel_display_t *display;
+       ply_renderer_t *display_renderer;
+ 
+       display = ply_list_node_get_data (node);
+       next_node = ply_list_get_next_node (manager->pixel_displays, node);
+       display_renderer = ply_pixel_display_get_renderer (display);
+ 
+       if (display_renderer == renderer)
+         {
+           if (manager->pixel_display_removed_handler != NULL)
+             manager->pixel_display_removed_handler (manager->event_handler_data, display);
+ 
+           ply_pixel_display_free (display);
+           ply_list_remove_node (manager->pixel_displays, node);
+         }
+@@ -782,68 +793,66 @@ create_devices_from_terminals (ply_device_manager_t *manager)
+   ply_trace ("checking for consoles");
+ 
+   if (manager->flags & PLY_DEVICE_MANAGER_FLAGS_IGNORE_SERIAL_CONSOLES)
+     {
+       has_serial_consoles = false;
+       ply_trace ("ignoring all consoles but default console because explicitly told to.");
+     }
+   else
+     {
+       has_serial_consoles = add_consoles_from_file (manager, "/sys/class/tty/console/active");
+     }
+ 
+   if (has_serial_consoles)
+     {
+       ply_trace ("serial consoles detected, managing them with details forced");
+       manager->serial_consoles_detected = true;
+ 
+       ply_hashtable_foreach (manager->terminals,
+                              (ply_hashtable_foreach_func_t *)
+                              create_devices_for_terminal,
+                              manager);
+       return true;
+     }
+ 
+   return false;
+ }
+ 
+ static void
+ create_devices_from_udev (ply_device_manager_t *manager)
+ {
+-  bool found_drm_device, found_fb_device;
+-
+   ply_trace ("Looking for devices from udev");
+ 
+-  found_drm_device = create_devices_for_subsystem (manager, SUBSYSTEM_DRM);
+-  found_fb_device = create_devices_for_subsystem (manager, SUBSYSTEM_FRAME_BUFFER);
++  create_devices_for_subsystem (manager, SUBSYSTEM_DRM);
++  create_devices_for_subsystem (manager, SUBSYSTEM_FRAME_BUFFER);
+ 
+-  if (found_drm_device || found_fb_device)
++  if (manager->found_drm_device || manager->found_fb_device)
+     return;
+ 
+   ply_trace ("Creating non-graphical devices, since there's no suitable graphics hardware");
+   create_devices_for_terminal_and_renderer_type (manager,
+                                                  ply_terminal_get_name (manager->local_console_terminal),
+                                                  manager->local_console_terminal,
+                                                  PLY_RENDERER_TYPE_NONE);
+ }
+ 
+ static void
+ create_fallback_devices (ply_device_manager_t *manager)
+ {
+   create_devices_for_terminal_and_renderer_type (manager,
+                                                  ply_terminal_get_name (manager->local_console_terminal),
+                                                  manager->local_console_terminal,
+                                                  PLY_RENDERER_TYPE_AUTO);
+ }
+ 
+ static void
+ on_udev_queue_changed (ply_device_manager_t *manager)
+ {
+ 
+   if (!udev_queue_get_queue_is_empty (manager->udev_queue))
+     return;
+ 
+   ply_trace ("udev coldplug complete");
+   ply_event_loop_stop_watching_fd (manager->loop, manager->udev_queue_fd_watch);
+   manager->udev_queue_fd_watch = NULL;
+   udev_queue_unref (manager->udev_queue);
+ 
+-- 
+2.20.1
+

@@ -7,7 +7,7 @@
 Summary: Graphical Boot Animation and Logger
 Name: plymouth
 Version: 0.8.9
-Release: 0.31.20140113%{?dist}
+Release: 0.32.20140113%{?dist}
 License: GPLv2+
 Group: System Environment/Base
 Source0: http://freedesktop.org/software/plymouth/releases/%{name}-%{version}.tar.bz2
@@ -60,6 +60,8 @@ Patch17: fix-escape-key-for-media-check.patch
 Patch18: 0001-Revert-Recreate-boot-log-at-each-boot-instead-of-app.patch
 Patch19: 0001-Revert-Make-boot.log-world-readable-by-default.patch
 Patch20: 0001-device-manager-fall-back-to-text-mode-if-graphical-d.patch
+Patch21: 0001-ply-device-manager-Fix-race-causing-undesired-creati.patch
+
 Patch99: colors.patch
 
 %description
@@ -498,8 +500,12 @@ fi
 %defattr(-, root, root)
 
 %changelog
-* Tue Apr 10 2018 CentOS Sources <bugs@centos.org> - 0.8.9-0.31.20140113.el7.centos
+* Tue Aug 06 2019 CentOS Sources <bugs@centos.org> - 0.8.9-0.32.20140113.el7.centos
 - Roll in Branding Change in the SPEC
+
+* Tue Mar 26 2019 Ray Strode <rstrode@redhat.com> - 0.8.9-0.32.20140113
+- Fix race leading to duplicate output on some systems
+  Resolves: #1690023
 
 * Mon Jan 08 2018 Ray Strode <rstrode@redhat.com> - 0.8.9-0.31.20140113
 - Change how we do scripts one more time
