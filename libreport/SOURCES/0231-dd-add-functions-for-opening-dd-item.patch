@@ -1,0 +1,466 @@
+From 12f813825e09e16f0c9b4f7ef4fe89ca73baf886 Mon Sep 17 00:00:00 2001
+From: Martin Kutlak <mkutlak@redhat.com>
+Date: Wed, 26 Sep 2018 14:45:57 +0200
+Subject: [PATCH] dd: add functions for opening dd item
+
+In cases where libreport users don't want to build contents of a dump
+dir element in memory and save to disk using dd_save_* functions, they
+had to guess file name and take care of file attributes. Forcing users
+to take of this is a security risk.
+
+This commit introduces new functions that will create a file inside of
+a dump directory with correct name and file attributes.
+
+For simplicity, only read only mode and read-write mode are allowed.
+
+The read-write mode cause removal of the original item element as we
+must never use truncate mode because of hard link threat (libreport
+code runs under privileged user, so libreport must avoid rewriting
+files - the correct approach is to remove the old one and create the new
+one).
+
+Sometimes we need to be able write some data and immediately read them.
+This can be done by opening the file, writing the contents, closing the
+file and re-opening it for reading. However, if we need to split the
+work into chunks, than this approach becomes quite expensive.
+
+Signed-off-by: Martin Kutlak <mkutlak@redhat.com>
+---
+ src/include/dump_dir.h |  44 +++++++++
+ src/lib/dump_dir.c     |  86 +++++++++++++----
+ tests/dump_dir.at      | 205 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 318 insertions(+), 17 deletions(-)
+
+diff --git a/src/include/dump_dir.h b/src/include/dump_dir.h
+index 690695a0..badef179 100644
+--- a/src/include/dump_dir.h
++++ b/src/include/dump_dir.h
+@@ -24,6 +24,9 @@
+ /* For const_string_vector_const_ptr_t */
+ #include "libreport_types.h"
+ 
++#include <stdint.h>
++#include <stdio.h>
++
+ /* For DIR */
+ #include <sys/types.h>
+ #include <dirent.h>
+@@ -75,10 +78,24 @@ void dd_close(struct dump_dir *dd);
+ /* Opens the given path and returns the resulting file descriptor.
+  */
+ int dd_openfd(const char *dir);
++/* Opens the given path
++ */
+ struct dump_dir *dd_opendir(const char *dir, int flags);
++
++/* Re-opens a dump_dir opened with DD_OPEN_FD_ONLY.
++ *
++ * The passed dump_dir must not be used any more and the return value must be
++ * used instead.
++ *
++ * The passed flags must not contain DD_OPEN_FD_ONLY.
++ *
++ * The passed dump_dir must not be already locked.
++ */
++
+ /* Skips dd_openfd(dir) and uses the given file descriptor instead
+  */
+ struct dump_dir *dd_fdopendir(int dir_fd, const char *dir, int flags);
++
+ struct dump_dir *dd_create_skeleton(const char *dir, uid_t uid, mode_t mode, int flags);
+ int dd_reset_ownership(struct dump_dir *dd);
+ /* Pass uid = (uid_t)-1L to disable chown'ing of newly created files
+@@ -108,6 +125,33 @@ long dd_get_item_size(struct dump_dir *dd, const char *name);
+  * For more about errno see unlink documentation
+  */
+ int dd_delete_item(struct dump_dir *dd, const char *name);
++
++/* Returns a file descriptor for the given name. The function is limited to open
++ * an element read only, write only or create new.
++ *
++ * O_RDONLY - opens an existing item for reading
++ * O_RDWR - removes an item, creates its file and opens the file for reading and writing
++ *
++ * @param dd Dump directory
++ * @param name The name of the item
++ * @param flags One of these : O_RDONLY, O_RDWR
++ * @return Negative number on error
++ */
++int dd_open_item(struct dump_dir *dd, const char *name, int flags);
++
++/* Returns a FILE for the given name. The function is limited to open
++ * an element read only, write only or create new.
++ *
++ * O_RDONLY - opens an existing file for reading
++ * O_RDWR - removes an item, creates its file and opens the file for reading and writing
++ *
++ * @param dd Dump directory
++ * @param name The name of the item
++ * @param flags One of these : O_RDONLY, O_RDWR
++ * @return NULL on error
++ */
++FILE *dd_open_item_file(struct dump_dir *dd, const char *name, int flags);
++
+ /* Returns 0 if directory is deleted or not found */
+ int dd_delete(struct dump_dir *dd);
+ int dd_rename(struct dump_dir *dd, const char *new_path);
+diff --git a/src/lib/dump_dir.c b/src/lib/dump_dir.c
+index c0117380..7e8ee017 100644
+--- a/src/lib/dump_dir.c
++++ b/src/lib/dump_dir.c
+@@ -84,6 +84,12 @@
+ #define RMDIR_FAIL_USLEEP              (10*1000)
+ #define RMDIR_FAIL_COUNT                     50
+ 
++// A sub-directory of a dump directory where the meta-data such as owner are
++// stored. The meta-data directory must have same owner, group and mode as its
++// parent dump directory. It is not a fatal error, if the meta-data directory
++// does not exist (backward compatibility).
++#define META_DATA_DIR_NAME             ".libreport"
++#define META_DATA_FILE_OWNER           "owner"
+ 
+ static char *load_text_file(const char *path, unsigned flags);
+ static char *load_text_file_at(int dir_fd, const char *name, unsigned flags);
+@@ -113,6 +119,12 @@ static bool exist_file_dir_at(int dir_fd, const char *name)
+     return false;
+ }
+ 
++/* A valid dump dir element name is correct filename and is not a name of any
++ * internal file or directory.
++ */
++#define dd_validate_element_name(name) \
++    (str_is_correct_filename(name) && (strcmp(META_DATA_DIR_NAME, name) != 0))
++
+ /* Opens the file in the three following steps:
+  * 1. open the file with O_PATH (get a file descriptor for operations with
+  *    inode) and O_NOFOLLOW (do not dereference symbolick links)
+@@ -1126,30 +1138,28 @@ static void copy_file_from_chroot(struct dump_dir* dd, const char *name, const c
+     }
+ }
+ 
+-static bool save_binary_file_at(int dir_fd, const char *name, const char* data, unsigned size, uid_t uid, gid_t gid, mode_t mode)
++static int create_new_file_at(int dir_fd, int omode, const char *name, uid_t uid, gid_t gid, mode_t mode)
+ {
+     assert(name[0] != '/');
++    assert(omode == O_WRONLY || omode == O_RDWR);
+ 
+     /* the mode is set by the caller, see dd_create() for security analysis */
+     unlinkat(dir_fd, name, /*remove only files*/0);
+-    int fd = openat(dir_fd, name, O_WRONLY | O_EXCL | O_CREAT | O_NOFOLLOW, mode);
++    int fd = openat(dir_fd, name, omode | O_EXCL | O_CREAT | O_NOFOLLOW, mode);
+     if (fd < 0)
+     {
+         perror_msg("Can't open file '%s'", name);
+-        return false;
++        return -1;
+     }
+ 
+-    if (uid != (uid_t)-1L)
++    if ((uid != (uid_t)-1L) && (fchown(fd, uid, gid) == -1))
+     {
+-        if (fchown(fd, uid, gid) == -1)
+-        {
+-            perror_msg("Can't change '%s' ownership to %lu:%lu", name, (long)uid, (long)gid);
+-            close(fd);
+-            return false;
+-        }
++        perror_msg("Can't change '%s' ownership to %lu:%lu", name, (long)uid, (long)gid);
++        close(fd);
++        return -1;
+     }
+ 
+-    /* O_CREATE in the open() call above causes that the permissions of the
++    /* O_CREAT in the open() call above causes that the permissions of the
+      * created file are (mode & ~umask)
+      *
+      * This is true only if we did create file. We are not sure we created it
+@@ -1159,18 +1169,28 @@ static bool save_binary_file_at(int dir_fd, const char *name, const char* data,
+     {
+         perror_msg("Can't change mode of '%s'", name);
+         close(fd);
+-        return false;
++        return -1;
+     }
+ 
+-    unsigned r = full_write(fd, data, size);
++    return fd;
++}
++
++static bool save_binary_file_at(int dir_fd, const char *name, const char* data, unsigned size, uid_t uid, gid_t gid, mode_t mode)
++{
++    const int fd = create_new_file_at(dir_fd, O_WRONLY, name, uid, gid, mode);
++    if (fd < 0)
++        goto fail;
++
++    const unsigned r = full_write(fd, data, size);
+     close(fd);
+     if (r != size)
+-    {
+-        error_msg("Can't save file '%s'", name);
+-        return false;
+-    }
++        goto fail;
+ 
+     return true;
++
++fail:
++    error_msg("Can't save file '%s'", name);
++    return false;
+ }
+ 
+ char* dd_load_text_ext(const struct dump_dir *dd, const char *name, unsigned flags)
+@@ -1264,6 +1284,38 @@ int dd_delete_item(struct dump_dir *dd, const char *name)
+     return res;
+ }
+ 
++int dd_open_item(struct dump_dir *dd, const char *name, int flag)
++{
++    if (!dd_validate_element_name(name))
++    {
++        error_msg("Cannot open item as FD. '%s' is not a valid file name", name);
++        return -EINVAL;
++    }
++
++    if (flag == O_RDONLY)
++        return openat(dd->dd_fd, name, O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
++
++    if (!dd->locked)
++        error_msg_and_die("dump_dir is not locked"); /* bug */
++
++    if (flag == O_RDWR)
++        return create_new_file_at(dd->dd_fd, O_RDWR, name, dd->dd_uid, dd->dd_gid, dd->mode);
++
++    error_msg("invalid open item flag");
++    return -ENOTSUP;
++}
++
++FILE *dd_open_item_file(struct dump_dir *dd, const char *name, int flag)
++{
++    const int item_fd = dd_open_item(dd, name, flag);
++    if (item_fd < 0)
++        return NULL;
++
++    const char *mode = flag == O_RDONLY ? "r" : "w+";
++
++    return fdopen(item_fd, mode);
++}
++
+ DIR *dd_init_next_file(struct dump_dir *dd)
+ {
+ //    if (!dd->locked)
+diff --git a/tests/dump_dir.at b/tests/dump_dir.at
+index 70a97e6e..78ea60d1 100644
+--- a/tests/dump_dir.at
++++ b/tests/dump_dir.at
+@@ -355,3 +355,208 @@ int main(void)
+     return 0;
+ }
+ ]])
++
++
++## ------------ ##
++## dd_open_item ##
++## ------------ ##
++
++AT_TESTFUN([dd_open_item], [[
++#include "testsuite.h"
++#include "testsuite_tools.h"
++
++TS_MAIN
++{
++    struct dump_dir *dd = testsuite_dump_dir_create(-1, -1, 0);
++    dd->dd_time = (time_t)1234567;
++    dd_create_basic_files(dd, geteuid(), NULL);
++
++    TS_ASSERT_SIGNED_EQ(dd_open_item(dd, "", O_RDWR), -EINVAL);
++    TS_ASSERT_SIGNED_EQ(dd_open_item(dd, "/", O_RDWR), -EINVAL);
++    TS_ASSERT_SIGNED_EQ(dd_open_item(dd, "//", O_RDWR), -EINVAL);
++    TS_ASSERT_SIGNED_EQ(dd_open_item(dd, "/a", O_RDWR), -EINVAL);
++    TS_ASSERT_SIGNED_EQ(dd_open_item(dd, "a/", O_RDWR), -EINVAL);
++    TS_ASSERT_SIGNED_EQ(dd_open_item(dd, ".", O_RDWR), -EINVAL);
++    TS_ASSERT_SIGNED_EQ(dd_open_item(dd, "..", O_RDWR), -EINVAL);
++    TS_ASSERT_SIGNED_EQ(dd_open_item(dd, "/.", O_RDWR), -EINVAL);
++    TS_ASSERT_SIGNED_EQ(dd_open_item(dd, "//.", O_RDWR), -EINVAL);
++    TS_ASSERT_SIGNED_EQ(dd_open_item(dd, "./", O_RDWR), -EINVAL);
++    TS_ASSERT_SIGNED_EQ(dd_open_item(dd, ".//", O_RDWR), -EINVAL);
++    TS_ASSERT_SIGNED_EQ(dd_open_item(dd, "/./", O_RDWR), -EINVAL);
++    TS_ASSERT_SIGNED_EQ(dd_open_item(dd, "/..", O_RDWR), -EINVAL);
++    TS_ASSERT_SIGNED_EQ(dd_open_item(dd, "//..", O_RDWR), -EINVAL);
++    TS_ASSERT_SIGNED_EQ(dd_open_item(dd, "../", O_RDWR), -EINVAL);
++    TS_ASSERT_SIGNED_EQ(dd_open_item(dd, "..//", O_RDWR), -EINVAL);
++    TS_ASSERT_SIGNED_EQ(dd_open_item(dd, "/../", O_RDWR), -EINVAL);
++    TS_ASSERT_SIGNED_EQ(dd_open_item(dd, "/.././", O_RDWR), -EINVAL);
++    TS_ASSERT_SIGNED_EQ(dd_open_item(dd, "looks-good-but-evil/", O_RDWR), -EINVAL);
++    TS_ASSERT_SIGNED_EQ(dd_open_item(dd, "looks-good-but-evil/../../", O_RDWR), -EINVAL);
++    TS_ASSERT_SIGNED_EQ(dd_open_item(dd, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890+-=", O_RDWR), -EINVAL);
++
++    const int fd_rdonly_noent = dd_open_item(dd, "nofile", O_RDONLY);
++    TS_ASSERT_SIGNED_LT(fd_rdonly_noent, 0);
++
++    const int fd_wronly_noent = dd_open_item(dd, "nofile", O_RDWR);
++    TS_ASSERT_SIGNED_GE(fd_wronly_noent, 0);
++    if (g_testsuite_last_ok) {
++        full_write_str(fd_wronly_noent, "fd_wronly_noent");
++        close(fd_wronly_noent);
++
++        char *const noent_contents = dd_load_text(dd, "nofile");
++        TS_ASSERT_STRING_EQ(noent_contents, "fd_wronly_noent", "Successfully wrote data");
++        free(noent_contents);
++    }
++
++    TS_ASSERT_SIGNED_EQ(dd_open_item(dd, "time", O_RDONLY | O_EXCL), -ENOTSUP);
++
++    const int fd_rdonly_time = dd_open_item(dd, "time", O_RDONLY);
++    TS_ASSERT_SIGNED_GE(fd_rdonly_time, 0);
++    if (g_testsuite_last_ok) {
++        char *time = dd_load_text(dd, "time");
++        TS_ASSERT_PTR_IS_NOT_NULL(time);
++
++        char rdonly_time_contents[16];
++        int bytes_rdonly_time = full_read(fd_rdonly_time, rdonly_time_contents, sizeof(rdonly_time_contents));
++        TS_ASSERT_SIGNED_GT(bytes_rdonly_time, 0);
++        if (bytes_rdonly_time > 0) {
++            rdonly_time_contents[bytes_rdonly_time] = '\0';
++            TS_ASSERT_STRING_EQ(rdonly_time_contents, time, "Read only time");
++        }
++        else {
++            TS_PRINTF("FD %d read error: %s\n", fd_rdonly_time, strerror(errno));
++        }
++        free(time);
++        close(fd_rdonly_time);
++    }
++
++    TS_ASSERT_SIGNED_EQ(dd_open_item(dd, "time", O_RDWR | O_EXCL), -ENOTSUP);
++
++    const int fd_rdwr_time = dd_open_item(dd, "time", O_RDWR);
++    TS_ASSERT_SIGNED_GE(fd_rdwr_time, 0);
++    if (g_testsuite_last_ok) {
++        full_write_str(fd_rdwr_time, "7654321");
++
++        TS_ASSERT_FUNCTION(lseek(fd_rdwr_time, 0, SEEK_SET));
++
++        char rdwr_time_contents[16];
++        int bytes_rdwr_time = full_read(fd_rdwr_time, rdwr_time_contents, sizeof(rdwr_time_contents));
++        close(fd_rdwr_time);
++
++        TS_ASSERT_SIGNED_GT(bytes_rdwr_time, 0);
++        if (g_testsuite_last_ok) {
++            rdwr_time_contents[bytes_rdwr_time] = '\0';
++
++            char *const time_contents = dd_load_text(dd, "time");
++            TS_ASSERT_STRING_EQ(rdwr_time_contents, "7654321", "Successfully wrote time data");
++            TS_ASSERT_STRING_EQ(time_contents, "7654321", "Successfully wrote time data");
++            TS_ASSERT_STRING_EQ(rdwr_time_contents, time_contents, "Read only time");
++            free(time_contents);
++
++        }
++        else {
++            TS_PRINTF("FD %d read error: %s\n", fd_rdwr_time, strerror(errno));
++        }
++    }
++
++    testsuite_dump_dir_delete(dd);
++}
++TS_RETURN_MAIN
++]])
++
++
++## ----------------- ##
++## dd_open_item_file ##
++## ----------------- ##
++
++AT_TESTFUN([dd_open_item_file], [[
++#include "testsuite.h"
++#include "testsuite_tools.h"
++
++TS_MAIN
++{
++    struct dump_dir *dd = testsuite_dump_dir_create(-1, -1, 0);
++    dd->dd_time = (time_t)1234567;
++    dd_create_basic_files(dd, geteuid(), NULL);
++
++    TS_ASSERT_PTR_IS_NULL(dd_open_item_file(dd, "", O_RDWR));
++    TS_ASSERT_PTR_IS_NULL(dd_open_item_file(dd, "/", O_RDWR));
++    TS_ASSERT_PTR_IS_NULL(dd_open_item_file(dd, "//", O_RDWR));
++    TS_ASSERT_PTR_IS_NULL(dd_open_item_file(dd, "/a", O_RDWR));
++    TS_ASSERT_PTR_IS_NULL(dd_open_item_file(dd, "a/", O_RDWR));
++    TS_ASSERT_PTR_IS_NULL(dd_open_item_file(dd, ".", O_RDWR));
++    TS_ASSERT_PTR_IS_NULL(dd_open_item_file(dd, "..", O_RDWR));
++    TS_ASSERT_PTR_IS_NULL(dd_open_item_file(dd, "/.", O_RDWR));
++    TS_ASSERT_PTR_IS_NULL(dd_open_item_file(dd, "//.", O_RDWR));
++    TS_ASSERT_PTR_IS_NULL(dd_open_item_file(dd, "./", O_RDWR));
++    TS_ASSERT_PTR_IS_NULL(dd_open_item_file(dd, ".//", O_RDWR));
++    TS_ASSERT_PTR_IS_NULL(dd_open_item_file(dd, "/./", O_RDWR));
++    TS_ASSERT_PTR_IS_NULL(dd_open_item_file(dd, "/..", O_RDWR));
++    TS_ASSERT_PTR_IS_NULL(dd_open_item_file(dd, "//..", O_RDWR));
++    TS_ASSERT_PTR_IS_NULL(dd_open_item_file(dd, "../", O_RDWR));
++    TS_ASSERT_PTR_IS_NULL(dd_open_item_file(dd, "..//", O_RDWR));
++    TS_ASSERT_PTR_IS_NULL(dd_open_item_file(dd, "/../", O_RDWR));
++    TS_ASSERT_PTR_IS_NULL(dd_open_item_file(dd, "/.././", O_RDWR));
++    TS_ASSERT_PTR_IS_NULL(dd_open_item_file(dd, "looks-good-but-evil/", O_RDWR));
++    TS_ASSERT_PTR_IS_NULL(dd_open_item_file(dd, "looks-good-but-evil/../../", O_RDWR));
++    TS_ASSERT_PTR_IS_NULL(dd_open_item_file(dd, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890+-=", O_RDWR));
++
++    TS_ASSERT_PTR_IS_NULL(dd_open_item_file(dd, "nofile", O_RDONLY));
++
++    FILE *const f_rdwr_noent = dd_open_item_file(dd, "nofile", O_RDWR);
++    TS_ASSERT_PTR_IS_NOT_NULL(f_rdwr_noent);
++    if (g_testsuite_last_ok) {
++        fprintf(f_rdwr_noent, "%s", "f_rdwr_noent");
++        rewind(f_rdwr_noent);
++
++        char rdwr_contents[256];
++        TS_ASSERT_PTR_IS_NOT_NULL(fgets(rdwr_contents, sizeof(rdwr_contents), f_rdwr_noent));
++        TS_ASSERT_STRING_EQ(rdwr_contents, "f_rdwr_noent", "Successfully read data");
++        fclose(f_rdwr_noent);
++
++        char *const noent_contents = dd_load_text(dd, "nofile");
++        TS_ASSERT_STRING_EQ(noent_contents, "f_rdwr_noent", "Successfully wrote data");
++        free(noent_contents);
++    }
++
++    TS_ASSERT_PTR_IS_NULL(dd_open_item_file(dd, "time", O_RDONLY | O_EXCL));
++
++    FILE *const f_rdonly_time = dd_open_item_file(dd, "time", O_RDONLY);
++    TS_ASSERT_PTR_IS_NOT_NULL(f_rdonly_time);
++    if (g_testsuite_last_ok) {
++        char *time = dd_load_text(dd, "time");
++        TS_ASSERT_PTR_IS_NOT_NULL(time);
++
++        char rdonly_time_contents[16];
++        char *const res = fgets(rdonly_time_contents, sizeof(rdonly_time_contents), f_rdonly_time);
++        TS_ASSERT_PTR_EQ(rdonly_time_contents, res);
++        if (g_testsuite_last_ok) {
++            TS_ASSERT_STRING_EQ(rdonly_time_contents, time, "Read only time");
++        }
++        else {
++            TS_PRINTF("File 'time' read error: %s\n", strerror(errno));
++        }
++        fclose(f_rdonly_time);
++    }
++
++    TS_ASSERT_PTR_IS_NULL(dd_open_item_file(dd, "time", O_RDWR | O_EXCL));
++
++    FILE *const f_rdwr_time = dd_open_item_file(dd, "time", O_RDWR);
++    TS_ASSERT_PTR_IS_NOT_NULL(f_rdwr_time);
++    if (g_testsuite_last_ok) {
++        fprintf(f_rdwr_time, "7654321");
++        rewind(f_rdwr_noent);
++
++        char rdwr_contents[256];
++        TS_ASSERT_PTR_IS_NOT_NULL(fgets(rdwr_contents, sizeof(rdwr_contents), f_rdwr_noent));
++        TS_ASSERT_STRING_EQ(rdwr_contents, "7654321", "Successfully read time data");
++        fclose(f_rdwr_time);
++
++        char *const time_contents = dd_load_text(dd, "time");
++        TS_ASSERT_STRING_EQ(time_contents, "7654321", "Successfully wrote time data");
++        free(time_contents);
++    }
++
++    testsuite_dump_dir_delete(dd);
++}
++TS_RETURN_MAIN
++]])
+-- 
+2.17.2
+

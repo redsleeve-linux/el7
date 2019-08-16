@@ -1,0 +1,73 @@
+From 23b5331ef181f0ab81c5fd30ec3aae3d2f86c69d Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Fri, 21 Sep 2018 15:39:21 +0200
+Subject: [PATCH] dd: extend the scope of DD_DONT_WAIT_FOR_LOCK
+
+The current implementation uses the flag only to ignore *unlocked or
+broken* problems that misses some of the required files. If the dump
+directory is locked by an existing process, dd_lock() waits until
+the
+process unlocks it and that causes problems in UI.
+
+Example:
+1. abrt-hook-ccpp creates a new dump directory and goes to generate
+core_backtrace, which blocks it for several seconds.
+2. An user wants to get list of all problems from abrt-dbus.
+3. abrt-dbus got stucked on the new problem locked by
+abrt-hook-ccpp.
+4. D-Bus connection time-outs, abrt-dbus becomes unreachable.
+
+This patch adds a new condition which breaks the loop wait for lock
+if
+the problem directory is locked by existing process. All other cases
+are already handled and dd_lock() either returns an error or steals
+the
+lock file if the locking process seems to not exist. Transitional
+states
+like when the locking process just unlocked the directory are
+handled too.
+
+errno is set to EAGAIN that is used by standard functions when an
+operation failed but it is possible that a next call can be
+successful.
+It should inform the calling function that the failure is not fatal
+and
+the function can silently continue.
+
+Related: rhbz#1588272
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/lib/dump_dir.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/src/lib/dump_dir.c b/src/lib/dump_dir.c
+index d7ddec7a..acc5e561 100644
+--- a/src/lib/dump_dir.c
++++ b/src/lib/dump_dir.c
+@@ -341,6 +341,11 @@ static int dd_lock(struct dump_dir *dd, unsigned sleep_usec, int flags)
+             return r; /* error */
+         if (r > 0)
+             break; /* locked successfully */
++        if (flags & DD_DONT_WAIT_FOR_LOCK)
++        {
++            errno = EAGAIN;
++            return -1;
++        }
+         /* Other process has the lock, wait for it to go away */
+         usleep(sleep_usec);
+     }
+@@ -473,6 +478,10 @@ static struct dump_dir *dd_do_open(struct dump_dir *dd, int flags)
+              */
+             error_msg("'%s' is not a problem directory", dd->dd_dirname);
+         }
++        else if (errno == EAGAIN && (flags & DD_DONT_WAIT_FOR_LOCK))
++        {
++            log_debug("Can't access locked directory '%s'", dd->dd_dirname);
++        }
+         else
+         {
+  cant_access:
+-- 
+2.17.2
+

@@ -1,0 +1,93 @@
+From 4553ec1bed2a65dbeb5f2f93f23d5332e6750522 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Thu, 13 Sep 2018 16:25:42 +0200
+Subject: [PATCH] dd: log lock warning only once not x times per sec
+
+Related to #1588272
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+
+Conflicts:
+	src/lib/dump_dir.c
+---
+ src/include/dump_dir.h |  3 ++-
+ src/lib/dump_dir.c     | 19 ++++++++++++++-----
+ 2 files changed, 16 insertions(+), 6 deletions(-)
+
+diff --git a/src/include/dump_dir.h b/src/include/dump_dir.h
+index 84cabbf8..690695a0 100644
+--- a/src/include/dump_dir.h
++++ b/src/include/dump_dir.h
+@@ -37,7 +37,8 @@ extern "C" {
+ 
+ /* Utility function */
+ int create_symlink_lockfile(const char *filename, const char *pid_str);
+-int create_symlink_lockfile_at(int dir_fd, const char *filename, const char *pid_str);
++int create_symlink_lockfile_at(int dir_fd, const char *filename,
++                               const char *pid_str, bool log_all_warnings);
+ 
+ /* Opens filename for reading relatively to a directory represented by dir_fd.
+  * The function fails if the file is symbolic link, directory or hard link.
+diff --git a/src/lib/dump_dir.c b/src/lib/dump_dir.c
+index acc5e561..c0117380 100644
+--- a/src/lib/dump_dir.c
++++ b/src/lib/dump_dir.c
+@@ -231,7 +231,8 @@ static time_t parse_time_file_at(int dir_fd, const char *filename)
+  *  0: failed to lock (someone else has it locked)
+  *  1: success
+  */
+-int create_symlink_lockfile_at(int dir_fd, const char* lock_file, const char* pid)
++int create_symlink_lockfile_at(int dir_fd, const char* lock_file,
++                               const char* pid, bool log_all_warnings)
+ {
+     while (symlinkat(pid, dir_fd, lock_file) != 0)
+     {
+@@ -272,7 +273,8 @@ int create_symlink_lockfile_at(int dir_fd, const char* lock_file, const char* pi
+             snprintf(pid_str, sizeof(pid_str), "/proc/%s", pid_buf);
+             if (access(pid_str, F_OK) == 0)
+             {
+-                log("Lock file '%s' is locked by process %s", lock_file, pid_buf);
++                if (log_all_warnings)
++                    log_warning("Lock file '%s' is locked by process %s. Waiting...", lock_file, pid_buf);
+                 return 0;
+             }
+             log("Lock file '%s' was locked by process %s, but it crashed?", lock_file, pid_buf);
+@@ -292,7 +294,7 @@ int create_symlink_lockfile_at(int dir_fd, const char* lock_file, const char* pi
+ 
+ int create_symlink_lockfile(const char *filename, const char *pid_str)
+ {
+-    return create_symlink_lockfile_at(AT_FDCWD, filename, pid_str);
++    return create_symlink_lockfile_at(AT_FDCWD, filename, pid_str, true);
+ }
+ 
+ static const char *dd_check(struct dump_dir *dd)
+@@ -333,10 +335,16 @@ static int dd_lock(struct dump_dir *dd, unsigned sleep_usec, int flags)
+ 
+     unsigned count = NO_TIME_FILE_COUNT;
+ 
+- retry:
++ retry: ;
++    /* If the file is locked by another process, warning "Lock file '.lock' is
++     * locked by process $PID" is logged every $sleep_usec usec and fill up log
++     * file.
++     * rhbz#1588272
++     */
++    bool log_all_warnings = true;
+     while (1)
+     {
+-        int r = create_symlink_lockfile_at(dd->dd_fd, ".lock", pid_buf);
++        int r = create_symlink_lockfile_at(dd->dd_fd, ".lock", pid_buf, log_all_warnings);
+         if (r < 0)
+             return r; /* error */
+         if (r > 0)
+@@ -348,6 +356,7 @@ static int dd_lock(struct dump_dir *dd, unsigned sleep_usec, int flags)
+         }
+         /* Other process has the lock, wait for it to go away */
+         usleep(sleep_usec);
++        log_all_warnings = false;
+     }
+ 
+     /* Are we called by dd_opendir (as opposed to dd_create)? */
+-- 
+2.17.2
+

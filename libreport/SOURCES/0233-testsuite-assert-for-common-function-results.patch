@@ -1,0 +1,51 @@
+From 6e854f3c2c159ccb25f76bed3dbcecafbee8fb34 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Fri, 8 Apr 2016 08:47:05 +0200
+Subject: [PATCH] testsuite: assert for common function results
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ tests/helpers/testsuite.h | 22 +++++++++++++++++++++-
+ 1 file changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/tests/helpers/testsuite.h b/tests/helpers/testsuite.h
+index bc7abf1d..809edbc6 100644
+--- a/tests/helpers/testsuite.h
++++ b/tests/helpers/testsuite.h
+@@ -217,7 +217,7 @@ FILE *g_testsuite_output_stream = 0;
+         const char *l_ts_lhs = (actual); \
+         const char *l_ts_rhs = (expected); \
+         if (l_ts_lhs == NULL && l_ts_rhs != NULL) { \
+-            TS_FAILURE("%s ("#actual" == "#expected")\n\tActual  : NULL\n\tExpected: %p\n", message ? message : "Assert", l_ts_rhs); \
++            TS_FAILURE("%s ("#actual" == "#expected")\n\tActual  : NULL\n\tExpected: %s\n", message ? message : "Assert", l_ts_rhs); \
+         } \
+         else if (l_ts_lhs != NULL && l_ts_rhs == NULL) { \
+             TS_FAILURE("%s ("#actual" == "#expected")\n\tActual  : %s\n\tExpected: NULL\n", message ? message : "Assert", l_ts_lhs); \
+@@ -307,4 +307,24 @@ FILE *g_testsuite_output_stream = 0;
+     TS_ASSERT_PTR_OP_MESSAGE(actual, ==, expected, NULL);
+ 
+ 
++
++/*
++ * Standard functions returning non-0 on errors
++ */
++
++#define TS_ASSERT_FUNCTION_MESSAGE(call, message) \
++    do { \
++        const int l_ts_lhs = call; \
++        if (l_ts_lhs == 0) { \
++            TS_SUCCESS("%s ('"#call"')\n", message ? message : "Function SUCCEEDED"); \
++        } \
++        else { \
++            TS_FAILURE("%s ('"#call"')\n\tCode  : %d\n", message ? message : "Function FAILED", l_ts_lhs); \
++        } \
++    } while(0)
++
++
++#define TS_ASSERT_FUNCTION(call) \
++    TS_ASSERT_FUNCTION_MESSAGE(call, NULL)
++
+ #endif/*LIBREPORT_TESTSUITE_H*/
+-- 
+2.17.2
+

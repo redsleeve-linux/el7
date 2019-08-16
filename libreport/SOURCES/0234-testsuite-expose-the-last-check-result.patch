@@ -1,0 +1,48 @@
+From 38f9a368ef56a9e85413f287e2c2e8d466bfe182 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Wed, 5 Oct 2016 09:21:52 +0200
+Subject: [PATCH] testsuite: expose the last check result
+
+Get rid of the need to repeat the last check. There are certain cases
+where you don't want to perform next check if the previous one has
+failed (e.g. if a program failed to read from FD, you don't want to
+test read data).
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ tests/helpers/testsuite.h | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/tests/helpers/testsuite.h b/tests/helpers/testsuite.h
+index 809edbc6..e5c97c8f 100644
+--- a/tests/helpers/testsuite.h
++++ b/tests/helpers/testsuite.h
+@@ -72,6 +72,9 @@ long g_testsuite_fails = 0;
+ /* Number of successful asserts. For debugging purpose. */
+ long g_testsuite_ok = 0;
+ 
++/* 1 if the last check succeeded, 0 of the last check failed */
++int g_testsuite_last_ok = 0;
++
+ /* Enables additional log messages. */
+ int g_testsuite_debug = 0;
+ 
+@@ -111,6 +114,7 @@ FILE *g_testsuite_output_stream = 0;
+         TS_DEBUG_PRINTF("[   OK   ] %d: ", __LINE__); \
+         TS_DEBUG_PRINTF(format, __VA_ARGS__); \
+         ++g_testsuite_ok; \
++        g_testsuite_last_ok = 1; \
+     } while (0)
+ 
+ #define TS_FAILURE(format, ...) \
+@@ -118,6 +122,7 @@ FILE *g_testsuite_output_stream = 0;
+         TS_PRINTF("[ FAILED ] %d: ", __LINE__); \
+         TS_PRINTF(format, __VA_ARGS__); \
+         ++g_testsuite_fails; \
++        g_testsuite_last_ok = 0; \
+     } while (0)
+ 
+ 
+-- 
+2.17.2
+
