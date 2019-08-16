@@ -1,0 +1,26 @@
+From 6e712cc037ae689e3ad418a1730b84433b24a337 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Mon, 26 Sep 2016 16:03:27 +0200
+Subject: [PATCH] Resolves bz1647841
+
+vmcore: /var/tmp/abrt is no longer a dump location
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+(cherry picked from commit 62704f1809720a4e00b1a71f1bd383887aec5b8f)
+Signed-off-by: Raghavendra Rao <ragrao@redhat.com>
+---
+ src/hooks/vmcore.conf | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/hooks/vmcore.conf b/src/hooks/vmcore.conf
+index cff35d831..0fb9c3edc 100644
+--- a/src/hooks/vmcore.conf
++++ b/src/hooks/vmcore.conf
+@@ -1,3 +1,3 @@
+-# Do you want vmcore to be copied, or moved from /var/crash to /var/tmp/abrt?
++# Do you want vmcore to be copied, or moved from /var/crash to /var/spool/abrt?
+ # (default is to copy, but it may duplicate way too much data)
+ CopyVMcore = yes
+-- 
+2.17.2
+

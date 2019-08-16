@@ -1,0 +1,39 @@
+From 9a5e0f22341e7461f5ec956291ff37dbc0d1f402 Mon Sep 17 00:00:00 2001
+From: Ernestas Kulik <ekulik@redhat.com>
+Date: Fri, 15 Feb 2019 09:48:52 +0100
+Subject: [PATCH] hooks: ccpp: Honor CreateCoreBacktrace
+
+Starting with 4f1770991a3b5da7dadd4c4e9b1a48c7d96f6808,
+the CreateCoreBacktrace setting is no longer honored, as the setting
+variable is assigned a value from an unrelated setting due to a thinko.
+
+Fixes BZ#1677476
+
+Signed-off-by: Ernestas Kulik <ekulik@redhat.com>
+---
+ src/hooks/abrt-hook-ccpp.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/hooks/abrt-hook-ccpp.c b/src/hooks/abrt-hook-ccpp.c
+index ca4b61bf..60722ff8 100644
+--- a/src/hooks/abrt-hook-ccpp.c
++++ b/src/hooks/abrt-hook-ccpp.c
+@@ -867,6 +867,7 @@ int main(int argc, char** argv)
+         value = get_map_string_item_or_NULL(settings, "SaveFullCore");
+         setting_SaveFullCore = value ? string_to_bool(value) : true;
+         value = get_map_string_item_or_NULL(settings, "CreateCoreBacktrace");
++        setting_CreateCoreBacktrace = value ? string_to_bool(value) : true;
+         value = get_map_string_item_or_NULL(settings, "IgnoredPaths");
+         if (value)
+             setting_ignored_paths = parse_list(value);
+@@ -890,7 +891,6 @@ int main(int argc, char** argv)
+                 setting_MaxCoreFileSize = ul;
+         }
+ 
+-        setting_CreateCoreBacktrace = value ? string_to_bool(value) : true;
+         value = get_map_string_item_or_NULL(settings, "VerboseLog");
+         if (value)
+             g_verbose = xatoi_positive(value);
+-- 
+2.21.0
+

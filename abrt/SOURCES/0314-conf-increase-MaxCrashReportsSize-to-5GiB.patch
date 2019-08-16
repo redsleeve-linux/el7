@@ -1,0 +1,30 @@
+From 0c4b1da592933c05f08319ce88a708a23cde2ff3 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Sun, 16 Oct 2016 15:56:50 +0200
+Subject: [PATCH] conf: increase MaxCrashReportsSize to 5GiB
+
+Since we limit core files size by the value of this option we need to
+increase its value to be able to write full core files of application
+such as gnome-shell.
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/daemon/abrt.conf | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/daemon/abrt.conf b/src/daemon/abrt.conf
+index 24df20b63..43c7fe059 100644
+--- a/src/daemon/abrt.conf
++++ b/src/daemon/abrt.conf
+@@ -7,7 +7,7 @@
+ 
+ # Max size for crash storage [MiB] or 0 for unlimited
+ #
+-MaxCrashReportsSize = 1000
++MaxCrashReportsSize = 5000
+ 
+ # Specify where you want to store coredumps and all files which are needed for
+ # reporting. (default:/var/spool/abrt)
+-- 
+2.17.2
+

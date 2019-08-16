@@ -1,0 +1,432 @@
+From 9fdd19c8ce013fa32d2ab62e4363d6890132dbb3 Mon Sep 17 00:00:00 2001
+From: clime <clime@redhat.com>
+Date: Thu, 22 Nov 2018 13:45:38 +0100
+Subject: [PATCH] koops: Filter kernel oopses based on logged hostname
+
+syslog message parser that looks for kernel oopses did not look
+at hostname in each message before. If logs from multiple machines
+are collected into a single system log on one central machine, abrt
+can trigger on events that come from those other machines, whereas it
+should trigger only on events coming from the machine itself. This
+commit fixes the behavior by checking the hostname in each event.
+
+rsyslogd needs to be configured to include the hostname (short or full)
+in the syslog messages, otherwise all kernel oopses will be filtered out.
+By default system configuration, the short hostname is included.
+
+* also adds fixes for tests because host name in test input files now matters
+
+Related: bz#1613182
+---
+ src/lib/kernel.c                              |  43 ++++
+ tests/Makefile.am                             |  12 +-
+ tests/examples/koops-tainted-g                |  61 -----
+ tests/examples/koops-tainted-g.template       |  59 +++++
+ tests/examples/koops-tainted-insane           |   6 -
+ tests/examples/koops-tainted-insane.template  |   6 +
+ tests/examples/nmi_oops.test                  |  32 ---
+ tests/examples/nmi_oops.test.template         |  32 +++
+ tests/examples/not_oops_foreign_hostname.test |   1 +
+ tests/examples/oops_full_hostname.test        |   1 +
+ tests/examples/oops_full_hostname.test.template |   1 +
+ tests/examples/prepare-data                   |  10 +
+ 12 files changed, 161 insertions(+), 103 deletions(-)
+ delete mode 100644 tests/examples/koops-tainted-g
+ create mode 100644 tests/examples/koops-tainted-g.template
+ delete mode 100644 tests/examples/koops-tainted-insane
+ create mode 100644 tests/examples/koops-tainted-insane.template
+ delete mode 100644 tests/examples/nmi_oops.test
+ create mode 100644 tests/examples/nmi_oops.test.template
+ create mode 100644 tests/examples/not_oops_foreign_hostname.test
+ create mode 100644 tests/examples/oops_full_hostname.test
+ create mode 100644 tests/examples/oops_full_hostname.test.template
+ create mode 100755 tests/examples/prepare-data
+
+diff --git a/src/lib/kernel.c b/src/lib/kernel.c
+index 346b0a662..0a8488e25 100644
+--- a/src/lib/kernel.c
++++ b/src/lib/kernel.c
+@@ -20,6 +20,7 @@
+ #include <satyr/thread.h>
+ 
+ #include <regex.h>
++#include <string.h>
+ 
+ #define _GNU_SOURCE 1 /* for strcasestr */
+ #include "libabrt.h"
+@@ -234,6 +235,38 @@ void koops_extract_oopses(GList **oops_list, char *buffer, size_t buflen)
+     int lines_info_size = 0;
+     struct line_info *lines_info = NULL;
+ 
++    /* prepare hostname search string (needle) */
++    unsigned hsz = 256;
++    char *hostname = xmalloc(hsz);
++    char *short_needle = xmalloc(hsz+10);
++    char *long_needle = xmalloc(hsz+10);
++    if (gethostname(hostname, hsz) != 0)
++    {
++        hostname[0] = '\0';
++    }
++    else
++    {
++        char *dot_str = strchr(hostname, '.');
++        unsigned dot_pos;
++        if (dot_str != NULL)
++        {
++            dot_pos = dot_str - hostname;
++        }
++        else
++        {
++            hostname[hsz-1] = '\0';
++            dot_pos = strlen(hostname);
++        }
++        short_needle[0] = ' ';
++        short_needle[1] = '\0';
++        strncat(short_needle, hostname, dot_pos);
++        strncat(short_needle, " kernel: ", 10);
++        long_needle[0] = ' ';
++        long_needle[1] = '\0';
++        strncat(long_needle, hostname, hsz-1);
++        strncat(long_needle, " kernel: ", 10);
++    }
++
+     /* Split buffer into lines */
+ 
+     if (buflen != 0)
+@@ -289,6 +322,13 @@ void koops_extract_oopses(GList **oops_list, char *buffer, size_t buflen)
+                 }
+                 goto next_line;
+             }
++
++            /* check if the machine hostname is contained in the message hostname */
++            if (hostname[0] != '\0' && !strstr(c, short_needle) && !strstr(c, long_needle))
++            {
++                goto next_line;
++            }
++
+             c = kernel_str + sizeof("kernel: ")-1;
+         }
+ 
+@@ -499,6 +539,9 @@ next_line:
+     }
+ 
+     free(lines_info);
++    free(hostname);
++    free(short_needle);
++    free(long_needle);
+ }
+ 
+ int koops_hash_str(char result[SHA1_RESULT_LEN*2 + 1], const char *oops_buf)
+diff --git a/tests/Makefile.am b/tests/Makefile.am
+index 1e1b63376..dc96e5d7e 100644
+--- a/tests/Makefile.am
++++ b/tests/Makefile.am
+@@ -25,8 +25,8 @@ EXTRA_DIST = package.m4 ignored_problems_data
+ ## ------------ ##
+ 
+ TESTSUITE_FILES =
+-TESTSUITE_FILES += examples/koops-tainted-g
+-TESTSUITE_FILES += examples/koops-tainted-insane
++TESTSUITE_FILES += examples/koops-tainted-g.template
++TESTSUITE_FILES += examples/koops-tainted-insane.template
+ TESTSUITE_FILES += examples/koops-tainted-spaces
+ TESTSUITE_FILES += examples/cut_here.right
+ TESTSUITE_FILES += examples/oops-kernel-3.x.x
+@@ -42,7 +42,7 @@ TESTSUITE_FILES += examples/oops-with-jiffies.test
+ TESTSUITE_FILES += examples/oops-with-jiffies.right
+ TESTSUITE_FILES += examples/oops_recursive_locking1.test
+ TESTSUITE_FILES += examples/oops_recursive_locking1.right
+-TESTSUITE_FILES += examples/nmi_oops.test
++TESTSUITE_FILES += examples/nmi_oops.test.template
+ TESTSUITE_FILES += examples/nmi_oops.right
+ TESTSUITE_FILES += examples/nmi_oops_hash.test
+ TESTSUITE_FILES += examples/nmi_oops_hash.right
+@@ -66,11 +66,15 @@ TESTSUITE_AT = \
+ EXTRA_DIST += $(TESTSUITE_AT) $(TESTSUITE_FILES)
+ TESTSUITE = $(srcdir)/testsuite
+ MAINTAINERCLEANFILES = Makefile.in $(TESTSUITE)
+-check_DATA = atconfig atlocal $(TESTSUITE)
++check_DATA = atconfig atlocal prepare-data $(TESTSUITE)
+ DISTCLEANFILES = atconfig
+ EXTRA_DIST += atlocal.in
+ EXTRA_DIST += koops-test.h
+ EXTRA_DIST += GList_append.supp
++EXTRA_DIST += examples/prepare-data
++
++prepare-data:
++	${top_builddir}/tests/examples/prepare-data
+ 
+ atconfig: $(top_builddir)/config.status
+ 	(cd ${top_builddir} && ./config.status ${subdir}/atconfig)
+diff --git a/tests/examples/koops-tainted-g b/tests/examples/koops-tainted-g
+deleted file mode 100644
+index f59c7400e..000000000
+--- a/tests/examples/koops-tainted-g
++++ /dev/null
+@@ -1,61 +0,0 @@
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564718] ------------[ cut here]------------
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564721] WARNING: atarch/x86/xen/mmu.c:475 xen_make_pte+0x32/0x8e()
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564723] Hardware name: OptiPlex 755                 
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564725] Modules linked in: nfs
+-fscache auth_rpcgss nfs_acl tcp_lp ppdev parport_pc lp parport ebtable_nat
+-ebtables ipt_MASQUERADE iptable_nat nf_nat xt_CHECKSUM iptable_mangle tun
+-bridge stp llc lockd drbd lru_cache ip6t_REJECT nf_conntrack_ipv6
+-nf_defrag_ipv6 nf_conntrack_ipv4 nf_defrag_ipv4 xt_state nf_conntrack
+-ip6table_filter ip6_tables snd_hda_codec_analog dcdbas snd_hda_intel
+-snd_hda_codec snd_hwdep snd_seq snd_seq_device 3c59x mii snd_pcm i2c_i801
+-serio_raw iTCO_wdt iTCO_vendor_support snd_timer snd soundcore snd_page_alloc
+-e1000e xen_netback xen_blkback xen_gntdev xen_evtchn sunrpc uinput xenfs
+-pata_acpi usb_storage ata_generic radeon ttm drm_kms_helper drm i2c_algo_bit
+-i2c_core [last unloaded: scsi_wait_scan]
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564791] Pid: 912, comm: X Tainted: G            3.1.0-0.rc9.git0.0.fc16.x86_64 #1
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564793] Call Trace:
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564797]  [<ffffffff81057a56>] warn_slowpath_common+0x83/0x9b
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564800]  [<ffffffff81057a88>] warn_slowpath_null+0x1a/0x1c
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564803]  [<ffffffff8100527e>] xen_make_pte+0x32/0x8e
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564807]  [<ffffffff810045f1>] __raw_callee_save_xen_make_pte+0x11/0x1e
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564810]  [<ffffffff81032b0a>] ? pfn_pte+0x26/0x29
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564814]  [<ffffffff81032f75>] __change_page_attr_set_clr+0x130/0x749
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564817]  [<ffffffff8100782a>] ? get_phys_to_machine+0x1f/0x62
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564821]  [<ffffffff81005318>] ? mfn_to_pfn.part.3+0x3e/0x88
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564824]  [<ffffffff8100539d>] ? pte_mfn_to_pfn+0x3b/0x4d
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564827]  [<ffffffff81005c03>] ? __xen_set_pte+0x1b/0x5b
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564831]  [<ffffffff81033543>] __change_page_attr_set_clr+0x6fe/0x749
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564834]  [<ffffffff811063e7>] ? __purge_vmap_area_lazy+0x7c/0x17d
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564838]  [<ffffffff810336da>] change_page_attr_set_clr+0x14c/0x305
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564842]  [<ffffffff81033aa7>] _set_pages_array+0xa3/0xf1
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564845]  [<ffffffff81033b08>] set_pages_array_wc+0x13/0x15
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564852]  [<ffffffffa0065a2d>] ttm_set_pages_caching+0x39/0x5b [ttm]
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564858]  [<ffffffffa0065b22>] ttm_alloc_new_pages+0xd3/0x15b [ttm]
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564864]  [<ffffffffa0065e09>] ttm_get_pages+0x137/0x361 [ttm]
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564870]  [<ffffffffa005fdba>] __ttm_tt_get_page+0x54/0xb0 [ttm]
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564876]  [<ffffffffa0060099>] ttm_tt_populate+0x3d/0x7c [ttm]
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564881]  [<ffffffffa006010a>] ttm_tt_bind+0x32/0x66 [ttm]
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564887]  [<ffffffffa006178a>] ttm_bo_handle_move_mem+0x114/0x2a1 [ttm]
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564893]  [<ffffffffa0061bb6>] ttm_bo_evict+0x29f/0x2e8 [ttm]
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564899]  [<ffffffffa0061d51>] ttm_mem_evict_first+0x152/0x180 [ttm]
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564906]  [<ffffffffa00623c6>] ttm_bo_mem_space+0x29b/0x2ea [ttm]
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564912]  [<ffffffffa00624cb>] ttm_bo_move_buffer+0xb6/0x10c [ttm]
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564922]  [<ffffffffa001ec90>] ? drm_mm_insert_helper+0xd3/0xec [drm]
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564928]  [<ffffffffa00625d7>] ttm_bo_validate+0xb6/0xf4 [ttm]
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564934]  [<ffffffffa0062915>] ttm_bo_init+0x300/0x339 [ttm]
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564949]  [<ffffffffa009a442>] radeon_bo_create+0x1bf/0x248 [radeon]
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564965]  [<ffffffffa009a194>] ? radeon_bo_clear_surface_reg+0x50/0x50 [radeon]
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564983]  [<ffffffffa00a9f7a>] radeon_gem_object_create+0x53/0xd8 [radeon]
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.565001]  [<ffffffffa00aa232>] radeon_gem_create_ioctl+0x4b/0x81 [radeon]
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.565005]  [<ffffffff8104402b>] ? should_resched+0xe/0x2d
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.565013]  [<ffffffffa0015784>] drm_ioctl+0x29e/0x37b [drm]
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.565031]  [<ffffffffa00aa1e7>] ? radeon_gem_pwrite_ioctl+0x28/0x28 [radeon]
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.565034]  [<ffffffff811de8d4>] ? inode_has_perm+0x32/0x34
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.565038]  [<ffffffff811de97d>] ? file_has_perm+0xa7/0xc9
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.565041]  [<ffffffff81136f33>] do_vfs_ioctl+0x452/0x493
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.565045]  [<ffffffff81136fca>] sys_ioctl+0x56/0x7c
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.565048]  [<ffffffff811291aa>] ? sys_read+0x61/0x6e
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.565059]  [<ffffffff814bc0c2>] system_call_fastpath+0x16/0x1b
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.565062] ---[ end trace e17fa7b6cce3a141 ]---
+-
+-
+diff --git a/tests/examples/koops-tainted-g.template b/tests/examples/koops-tainted-g.template
+new file mode 100644
+index 000000000..104d6bf16
+--- /dev/null
++++ b/tests/examples/koops-tainted-g.template
+@@ -0,0 +1,59 @@
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564718] ------------[ cut here]------------
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564721] WARNING: atarch/x86/xen/mmu.c:475 xen_make_pte+0x32/0x8e()
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564723] Hardware name: OptiPlex 755                 
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564725] Modules linked in: nfs
++fscache auth_rpcgss nfs_acl tcp_lp ppdev parport_pc lp parport ebtable_nat
++ebtables ipt_MASQUERADE iptable_nat nf_nat xt_CHECKSUM iptable_mangle tun
++bridge stp llc lockd drbd lru_cache ip6t_REJECT nf_conntrack_ipv6
++nf_defrag_ipv6 nf_conntrack_ipv4 nf_defrag_ipv4 xt_state nf_conntrack
++ip6table_filter ip6_tables snd_hda_codec_analog dcdbas snd_hda_intel
++snd_hda_codec snd_hwdep snd_seq snd_seq_device 3c59x mii snd_pcm i2c_i801
++serio_raw iTCO_wdt iTCO_vendor_support snd_timer snd soundcore snd_page_alloc
++e1000e xen_netback xen_blkback xen_gntdev xen_evtchn sunrpc uinput xenfs
++pata_acpi usb_storage ata_generic radeon ttm drm_kms_helper drm i2c_algo_bit
++i2c_core [last unloaded: scsi_wait_scan]
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564791] Pid: 912, comm: X Tainted: G            3.1.0-0.rc9.git0.0.fc16.x86_64 #1
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564793] Call Trace:
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564797]  [<ffffffff81057a56>] warn_slowpath_common+0x83/0x9b
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564800]  [<ffffffff81057a88>] warn_slowpath_null+0x1a/0x1c
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564803]  [<ffffffff8100527e>] xen_make_pte+0x32/0x8e
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564807]  [<ffffffff810045f1>] __raw_callee_save_xen_make_pte+0x11/0x1e
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564810]  [<ffffffff81032b0a>] ? pfn_pte+0x26/0x29
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564814]  [<ffffffff81032f75>] __change_page_attr_set_clr+0x130/0x749
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564817]  [<ffffffff8100782a>] ? get_phys_to_machine+0x1f/0x62
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564821]  [<ffffffff81005318>] ? mfn_to_pfn.part.3+0x3e/0x88
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564824]  [<ffffffff8100539d>] ? pte_mfn_to_pfn+0x3b/0x4d
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564827]  [<ffffffff81005c03>] ? __xen_set_pte+0x1b/0x5b
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564831]  [<ffffffff81033543>] __change_page_attr_set_clr+0x6fe/0x749
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564834]  [<ffffffff811063e7>] ? __purge_vmap_area_lazy+0x7c/0x17d
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564838]  [<ffffffff810336da>] change_page_attr_set_clr+0x14c/0x305
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564842]  [<ffffffff81033aa7>] _set_pages_array+0xa3/0xf1
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564845]  [<ffffffff81033b08>] set_pages_array_wc+0x13/0x15
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564852]  [<ffffffffa0065a2d>] ttm_set_pages_caching+0x39/0x5b [ttm]
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564858]  [<ffffffffa0065b22>] ttm_alloc_new_pages+0xd3/0x15b [ttm]
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564864]  [<ffffffffa0065e09>] ttm_get_pages+0x137/0x361 [ttm]
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564870]  [<ffffffffa005fdba>] __ttm_tt_get_page+0x54/0xb0 [ttm]
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564876]  [<ffffffffa0060099>] ttm_tt_populate+0x3d/0x7c [ttm]
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564881]  [<ffffffffa006010a>] ttm_tt_bind+0x32/0x66 [ttm]
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564887]  [<ffffffffa006178a>] ttm_bo_handle_move_mem+0x114/0x2a1 [ttm]
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564893]  [<ffffffffa0061bb6>] ttm_bo_evict+0x29f/0x2e8 [ttm]
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564899]  [<ffffffffa0061d51>] ttm_mem_evict_first+0x152/0x180 [ttm]
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564906]  [<ffffffffa00623c6>] ttm_bo_mem_space+0x29b/0x2ea [ttm]
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564912]  [<ffffffffa00624cb>] ttm_bo_move_buffer+0xb6/0x10c [ttm]
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564922]  [<ffffffffa001ec90>] ? drm_mm_insert_helper+0xd3/0xec [drm]
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564928]  [<ffffffffa00625d7>] ttm_bo_validate+0xb6/0xf4 [ttm]
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564934]  [<ffffffffa0062915>] ttm_bo_init+0x300/0x339 [ttm]
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564949]  [<ffffffffa009a442>] radeon_bo_create+0x1bf/0x248 [radeon]
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564965]  [<ffffffffa009a194>] ? radeon_bo_clear_surface_reg+0x50/0x50 [radeon]
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564983]  [<ffffffffa00a9f7a>] radeon_gem_object_create+0x53/0xd8 [radeon]
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.565001]  [<ffffffffa00aa232>] radeon_gem_create_ioctl+0x4b/0x81 [radeon]
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.565005]  [<ffffffff8104402b>] ? should_resched+0xe/0x2d
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.565013]  [<ffffffffa0015784>] drm_ioctl+0x29e/0x37b [drm]
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.565031]  [<ffffffffa00aa1e7>] ? radeon_gem_pwrite_ioctl+0x28/0x28 [radeon]
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.565034]  [<ffffffff811de8d4>] ? inode_has_perm+0x32/0x34
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.565038]  [<ffffffff811de97d>] ? file_has_perm+0xa7/0xc9
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.565041]  [<ffffffff81136f33>] do_vfs_ioctl+0x452/0x493
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.565045]  [<ffffffff81136fca>] sys_ioctl+0x56/0x7c
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.565048]  [<ffffffff811291aa>] ? sys_read+0x61/0x6e
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.565059]  [<ffffffff814bc0c2>] system_call_fastpath+0x16/0x1b
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.565062] ---[ end trace e17fa7b6cce3a141 ]---
+diff --git a/tests/examples/koops-tainted-insane b/tests/examples/koops-tainted-insane
+deleted file mode 100644
+index 1d3eee631..000000000
+--- a/tests/examples/koops-tainted-insane
++++ /dev/null
+@@ -1,6 +0,0 @@
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564718] ------------[ cut here]------------
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564721] WARNING: atarch/x86/xen/mmu.c:475 xen_make_pte+0x32/0x8e()
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564791] Pid: 912, comm: X Tainted: ABCDEFGHIJKLMNOPQRSTUVWXYZ 3.1.0-0.rc9.git0.0.fc16.x86_64 #1
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564793] Call Trace:
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.564797]  [<ffffffff81057a56>] warn_slowpath_common+0x83/0x9b
+-Oct 11 10:57:36 jerry-opti755 kernel: [ 4552.565062] ---[ end trace e17fa7b6cce3a141 ]---
+diff --git a/tests/examples/koops-tainted-insane.template b/tests/examples/koops-tainted-insane.template
+new file mode 100644
+index 000000000..6b24f709b
+--- /dev/null
++++ b/tests/examples/koops-tainted-insane.template
+@@ -0,0 +1,6 @@
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564718] ------------[ cut here]------------
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564721] WARNING: atarch/x86/xen/mmu.c:475 xen_make_pte+0x32/0x8e()
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564791] Pid: 912, comm: X Tainted: ABCDEFGHIJKLMNOPQRSTUVWXYZ 3.1.0-0.rc9.git0.0.fc16.x86_64 #1
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564793] Call Trace:
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.564797]  [<ffffffff81057a56>] warn_slowpath_common+0x83/0x9b
++Oct 11 10:57:36 :HOSTNAME: kernel: [ 4552.565062] ---[ end trace e17fa7b6cce3a141 ]---
+diff --git a/tests/examples/nmi_oops.test b/tests/examples/nmi_oops.test
+deleted file mode 100644
+index 978281f74..000000000
+--- a/tests/examples/nmi_oops.test
++++ /dev/null
+@@ -1,32 +0,0 @@
+-Jan 11 22:31:37 kids1 kernel: ------------[ cut here ]------------
+-Jan 11 22:31:38 kids1 kernel: WARNING: at kernel/watchdog.c:245 watchdog_overflow_callback+0x9c/0xd0()
+-Jan 11 22:31:38 kids1 kernel: Hardware name: Bochs
+-Jan 11 22:31:38 kids1 kernel: Watchdog detected hard LOCKUP on cpu 0
+-Jan 11 22:31:38 kids1 kernel: Modules linked in: tcp_lp fuse ebtable_nat xt_CHECKSUM bridge stp llc nf_conntrack_netbios_ns nf_conntrack_broadcast ipt_MASQUERADE ip6table_nat nf_nat_ipv6 ip6table_mangle ip6t_REJECT nf_conntrack_ipv6 nf_defrag_ipv6 iptable_nat nf_nat_ipv4 nf_nat iptable_mangle nf_conntrack_ipv4 nf_defrag_ipv4 xt_conntrack bnep nf_conntrack bluetooth rfkill ebtable_filter ebtables ip6table_filter ip6_tables joydev snd_intel8x0 snd_ac97_codec crc32_pclmul ac97_bus crc32c_intel snd_seq snd_seq_device ghash_clmulni_intel snd_pcm snd_page_alloc snd_timer snd microcode virtio_balloon 8139too i2c_piix4 soundcore 8139cp mii binfmt_misc qxl drm_kms_helper ttm drm i2c_core uinput
+-Jan 12 14:32:19 kids1 kernel: Pid: 0, comm: swapper/0 Not tainted 3.8.9-200.fc18.x86_64 #1
+-Jan 12 14:32:21 kids1 kernel: Call Trace:
+-Jan 12 14:32:21 kids1 kernel:   <NMI>  [<ffffffff810eb800>] ? watchdog_overflow_callback+0x60/0xd0
+-Jan 12 14:32:21 kids1 kernel:   [<ffffffff8105cd86>] warn_slowpath_common+0x66/0x80
+-Jan 12 14:32:21 kids1 kernel:   [<ffffffff8105cdec>] warn_slowpath_fmt+0x4c/0x50
+-Jan 12 16:12:16 kids1 kernel:   [<ffffffff810eb7a0>] ? watchdog_enable+0x1e0/0x1e0
+-Jan 12 19:08:41 kids1 kernel:   [<ffffffff810eb83c>] watchdog_overflow_callback+0x9c/0xd0
+-Jan 12 19:08:41 kids1 kernel:   [<ffffffff811261ce>] __perf_event_overflow+0x8e/0x220
+-Jan 12 19:08:41 kids1 kernel:   [<ffffffff81125059>] ? perf_event_update_userpage+0x19/0x100
+-Jan 12 19:08:41 kids1 kernel:   [<ffffffff81126da4>] perf_event_overflow+0x14/0x20
+-Jan 12 19:08:41 kids1 kernel:   [<ffffffff81028b02>] intel_pmu_handle_irq+0x1b2/0x370
+-Jan 12 19:08:41 kids1 kernel:   [<ffffffff81646e1d>] perf_event_nmi_handler+0x1d/0x20
+-Jan 12 19:08:41 kids1 kernel:   [<ffffffff816465e9>] nmi_handle.isra.0+0x59/0x90
+-Jan 12 19:08:41 kids1 kernel:   [<ffffffff816466f0>] do_nmi+0xd0/0x310
+-Jan 12 19:08:41 kids1 kernel:   [<ffffffff81645c41>] end_repeat_nmi+0x1e/0x2e
+-Jan 12 19:08:41 kids1 kernel:   [<ffffffff81093e44>] ? irqtime_account_process_tick.isra.2+0x94/0x3c0
+-Jan 12 19:08:41 kids1 kernel:   [<ffffffff81093e44>] ? irqtime_account_process_tick.isra.2+0x94/0x3c0
+-Jan 12 19:08:41 kids1 kernel:   [<ffffffff81093e44>] ? irqtime_account_process_tick.isra.2+0x94/0x3c0
+-Jan 12 19:08:41 kids1 kernel:   <<EOE>>  [<ffffffff810944f0>] account_idle_ticks+0x90/0xa0
+-Jan 12 19:08:41 kids1 kernel:   [<ffffffff810b6ae5>] tick_nohz_idle_exit+0x165/0x1a0
+-Jan 12 19:08:41 kids1 kernel:   [<ffffffff8101c06b>] cpu_idle+0x11b/0x140
+-Jan 12 19:08:41 kids1 kernel:   [<ffffffff81629902>] rest_init+0x72/0x80
+-Jan 12 19:08:41 kids1 kernel:   [<ffffffff81d04eca>] start_kernel+0x3f2/0x3fe
+-Jan 12 19:08:41 kids1 kernel:   [<ffffffff81d048e1>] ? repair_env_string+0x5c/0x5c
+-Jan 12 19:08:41 kids1 kernel:   [<ffffffff81d04120>] ? early_idt_handlers+0x120/0x120
+-Jan 12 19:08:41 kids1 kernel:   [<ffffffff81d045e0>] x86_64_start_reservations+0x2a/0x2c
+-Jan 12 19:08:41 kids1 kernel:   [<ffffffff81d046d5>] x86_64_start_kernel+0xf3/0x100
+diff --git a/tests/examples/nmi_oops.test.template b/tests/examples/nmi_oops.test.template
+new file mode 100644
+index 000000000..058d55916
+--- /dev/null
++++ b/tests/examples/nmi_oops.test.template
+@@ -0,0 +1,32 @@
++Jan 11 22:31:37 :HOSTNAME: kernel: ------------[ cut here ]------------
++Jan 11 22:31:38 :HOSTNAME: kernel: WARNING: at kernel/watchdog.c:245 watchdog_overflow_callback+0x9c/0xd0()
++Jan 11 22:31:38 :HOSTNAME: kernel: Hardware name: Bochs
++Jan 11 22:31:38 :HOSTNAME: kernel: Watchdog detected hard LOCKUP on cpu 0
++Jan 11 22:31:38 :HOSTNAME: kernel: Modules linked in: tcp_lp fuse ebtable_nat xt_CHECKSUM bridge stp llc nf_conntrack_netbios_ns nf_conntrack_broadcast ipt_MASQUERADE ip6table_nat nf_nat_ipv6 ip6table_mangle ip6t_REJECT nf_conntrack_ipv6 nf_defrag_ipv6 iptable_nat nf_nat_ipv4 nf_nat iptable_mangle nf_conntrack_ipv4 nf_defrag_ipv4 xt_conntrack bnep nf_conntrack bluetooth rfkill ebtable_filter ebtables ip6table_filter ip6_tables joydev snd_intel8x0 snd_ac97_codec crc32_pclmul ac97_bus crc32c_intel snd_seq snd_seq_device ghash_clmulni_intel snd_pcm snd_page_alloc snd_timer snd microcode virtio_balloon 8139too i2c_piix4 soundcore 8139cp mii binfmt_misc qxl drm_kms_helper ttm drm i2c_core uinput
++Jan 12 14:32:19 :HOSTNAME: kernel: Pid: 0, comm: swapper/0 Not tainted 3.8.9-200.fc18.x86_64 #1
++Jan 12 14:32:21 :HOSTNAME: kernel: Call Trace:
++Jan 12 14:32:21 :HOSTNAME: kernel:   <NMI>  [<ffffffff810eb800>] ? watchdog_overflow_callback+0x60/0xd0
++Jan 12 14:32:21 :HOSTNAME: kernel:   [<ffffffff8105cd86>] warn_slowpath_common+0x66/0x80
++Jan 12 14:32:21 :HOSTNAME: kernel:   [<ffffffff8105cdec>] warn_slowpath_fmt+0x4c/0x50
++Jan 12 16:12:16 :HOSTNAME: kernel:   [<ffffffff810eb7a0>] ? watchdog_enable+0x1e0/0x1e0
++Jan 12 19:08:41 :HOSTNAME: kernel:   [<ffffffff810eb83c>] watchdog_overflow_callback+0x9c/0xd0
++Jan 12 19:08:41 :HOSTNAME: kernel:   [<ffffffff811261ce>] __perf_event_overflow+0x8e/0x220
++Jan 12 19:08:41 :HOSTNAME: kernel:   [<ffffffff81125059>] ? perf_event_update_userpage+0x19/0x100
++Jan 12 19:08:41 :HOSTNAME: kernel:   [<ffffffff81126da4>] perf_event_overflow+0x14/0x20
++Jan 12 19:08:41 :HOSTNAME: kernel:   [<ffffffff81028b02>] intel_pmu_handle_irq+0x1b2/0x370
++Jan 12 19:08:41 :HOSTNAME: kernel:   [<ffffffff81646e1d>] perf_event_nmi_handler+0x1d/0x20
++Jan 12 19:08:41 :HOSTNAME: kernel:   [<ffffffff816465e9>] nmi_handle.isra.0+0x59/0x90
++Jan 12 19:08:41 :HOSTNAME: kernel:   [<ffffffff816466f0>] do_nmi+0xd0/0x310
++Jan 12 19:08:41 :HOSTNAME: kernel:   [<ffffffff81645c41>] end_repeat_nmi+0x1e/0x2e
++Jan 12 19:08:41 :HOSTNAME: kernel:   [<ffffffff81093e44>] ? irqtime_account_process_tick.isra.2+0x94/0x3c0
++Jan 12 19:08:41 :HOSTNAME: kernel:   [<ffffffff81093e44>] ? irqtime_account_process_tick.isra.2+0x94/0x3c0
++Jan 12 19:08:41 :HOSTNAME: kernel:   [<ffffffff81093e44>] ? irqtime_account_process_tick.isra.2+0x94/0x3c0
++Jan 12 19:08:41 :HOSTNAME: kernel:   <<EOE>>  [<ffffffff810944f0>] account_idle_ticks+0x90/0xa0
++Jan 12 19:08:41 :HOSTNAME: kernel:   [<ffffffff810b6ae5>] tick_nohz_idle_exit+0x165/0x1a0
++Jan 12 19:08:41 :HOSTNAME: kernel:   [<ffffffff8101c06b>] cpu_idle+0x11b/0x140
++Jan 12 19:08:41 :HOSTNAME: kernel:   [<ffffffff81629902>] rest_init+0x72/0x80
++Jan 12 19:08:41 :HOSTNAME: kernel:   [<ffffffff81d04eca>] start_kernel+0x3f2/0x3fe
++Jan 12 19:08:41 :HOSTNAME: kernel:   [<ffffffff81d048e1>] ? repair_env_string+0x5c/0x5c
++Jan 12 19:08:41 :HOSTNAME: kernel:   [<ffffffff81d04120>] ? early_idt_handlers+0x120/0x120
++Jan 12 19:08:41 :HOSTNAME: kernel:   [<ffffffff81d045e0>] x86_64_start_reservations+0x2a/0x2c
++Jan 12 19:08:41 :HOSTNAME: kernel:   [<ffffffff81d046d5>] x86_64_start_kernel+0xf3/0x100
+diff --git a/tests/examples/not_oops_foreign_hostname.test b/tests/examples/not_oops_foreign_hostname.test
+new file mode 100644
+index 000000000..b74169988
+--- /dev/null
++++ b/tests/examples/not_oops_foreign_hostname.test
+@@ -0,0 +1 @@
++Oct 12 23:25:16 some-totally-nonexistent-hostname-that-no-machine-can-have-right-thats-it kernel: mce: [Hardware Error]: Machine check events logged
+diff --git a/tests/examples/oops_full_hostname.test b/tests/examples/oops_full_hostname.test
+new file mode 100644
+index 000000000..3d8a11649
+--- /dev/null
++++ b/tests/examples/oops_full_hostname.test
+@@ -0,0 +1 @@
++ Oct 12 23:25:16 coprbox.den kernel: mce: [Hardware Error]: Machine check events logged
+diff --git a/tests/examples/oops_full_hostname.test.template b/tests/examples/oops_full_hostname.test.template
+new file mode 100644
+index 000000000..3a5c44001
+--- /dev/null
++++ b/tests/examples/oops_full_hostname.test.template
+@@ -0,0 +1 @@
++Oct 12 23:25:16 :FULL_HOSTNAME: kernel: mce: [Hardware Error]: Machine check events logged
+diff --git a/tests/examples/prepare-data b/tests/examples/prepare-data
+new file mode 100755
+index 000000000..6645003e3
+--- /dev/null
++++ b/tests/examples/prepare-data
+@@ -0,0 +1,10 @@
++#!/bin/bash
++
++export scriptdir="$(builtin cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
++
++hostname="$(hostname -s)"
++full_hostname="$(hostname)"
++
++for f in "$scriptdir"/*.template; do
++    cat "$f" | sed -e "s/:HOSTNAME:/${hostname}/" -e "s/:FULL_HOSTNAME:/${full_hostname}/" > "${f%%.template}"
++done
+-- 
+2.17.2
+

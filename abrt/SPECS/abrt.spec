@@ -27,13 +27,13 @@
 %define desktopvendor fedora
 %endif
 
-%define libreport_ver 2.1.11-42
+%define libreport_ver 2.1.11-43
 %define satyr_ver 0.13-10
 
 Summary: Automatic bug detection and reporting tool
 Name: abrt
 Version: 2.1.11
-Release: 52%{?dist}.redsleeve
+Release: 55%{?dist}
 License: GPLv2+
 Group: Applications/System
 URL: https://abrt.readthedocs.org/
@@ -384,14 +384,28 @@ Patch308: 0308-plugins-a-a-g-machine-id-use-dmidecode-command.patch
 Patch310: 0310-a-a-s-p-data-fix-segfault-if-GPGKeysDir-isn-t-config.patch
 # git format-patch 2.1.11-51.el7 -N --start-number 311 --topo-order
 Patch311: 0311-plugin-general-from-sos-has-been-split-into-two-new-.patch
+# git format-patch 2.1.11-52.el7 -N --start-number 312 --topo-order
+Patch312: 0312-cli-load-config-file-at-the-beginning.patch
+Patch313: 0313-ccpp-fast-dumping-and-abrt-core-limit.patch
+Patch314: 0314-conf-increase-MaxCrashReportsSize-to-5GiB.patch
+#Patch315: 0315-testsuite-abrt-core-dump-file-size-limits.patch
+#Patch316: 0316-testsuite-the-prepare-fn-resets-socket-problem-timeo.patch
+Patch317: 0317-Resolves-bz1647841.patch
+Patch318: 0318-testsuite-move-examples-to-tests.patch
+Patch319: 0319-koops-Filter-kernel-oopses-based-on-logged-hostname.patch
+#Patch320: 0320-spec-add-hostname-BR-for-tests.patch
+Patch321: 0321-daemon-Fix-double-closed-fd-race-condition.patch
+Patch322: 0322-hooks-ccpp-Honor-CreateCoreBacktrace.patch
+# git format-patch 2.1.11-53.el7 -N --start-number 323 --topo-order
 
+
+# autogen.sh is need to regenerate all the Makefile files
+Patch1006: 1000-Add-autogen.sh.patch
 Patch1000: 1000-event-don-t-run-the-reporter-bugzilla-h-on-RHEL-and-.patch
-#Patch1001: 1001-spec-added-dependency-to-libreport-centos.patch
-#Patch1002: 1002-plugin-set-URL-to-retrace-server.patch
-#Patch1003: 1003-spec-add-dependenci-on-abrt-retrace-client.patch
+Patch1002: 1002-plugin-set-URL-to-retrace-server.patch
 Patch1004: 1004-turn-sosreport-off.patch
 Patch1005: 1005-cli-list-revert-patch-7966e5737e8d3af43b1ecdd6a82323.patch
-#Patch1006: 1006-spec-disable-authenticated-autoreporting.patch
+
 
 # git is need for '%%autosetup -S git' which automatically applies all the
 # patches above. Please, be aware that the patches must be generated
@@ -399,7 +413,7 @@ Patch1005: 1005-cli-list-revert-patch-7966e5737e8d3af43b1ecdd6a82323.patch
 BuildRequires: git
 
 BuildRequires: dbus-devel
-BuildRequires: dbus-glib-devel
+BuildRequires: hostname
 BuildRequires: gtk3-devel
 BuildRequires: rpm-devel >= 4.6
 BuildRequires: desktop-file-utils
@@ -438,9 +452,9 @@ Requires: python-dbus
 Requires: dmidecode
 %endif
 Requires: libreport-plugin-ureport >= %{libreport_ver}
-#%if 0%{?rhel}
-#Requires: libreport-plugin-rhtsupport
-#%endif
+%if 0%{?rhel}
+Requires: libreport-plugin-rhtsupport
+%endif
 
 # we used to have abrt-plugin-bodhi, but we have removed it
 # and we want allow users to update abrt without necessity to
@@ -623,14 +637,14 @@ Requires: abrt-addon-ccpp
 Requires: abrt-addon-python
 Requires: abrt-addon-xorg
 %if 0%{?rhel}
-#%if 0%{?centos_ver}
-#Requires: libreport-centos >= %{libreport_ver}
-#Requires: libreport-plugin-mantisbt >= %{libreport_ver}
-#%else
-#Requires: libreport-rhel >= %{libreport_ver}
-#Requires: libreport-plugin-rhtsupport >= %{libreport_ver}
-#%endif
-#%else
+%if 0%{?centos_ver}
+Requires: libreport-centos >= %{libreport_ver}
+Requires: libreport-plugin-mantisbt >= %{libreport_ver}
+%else
+Requires: libreport-rhel >= %{libreport_ver}
+Requires: libreport-plugin-rhtsupport >= %{libreport_ver}
+%endif
+%else
 Requires: abrt-retrace-client
 Requires: libreport-plugin-bugzilla >= %{libreport_ver}
 Requires: libreport-plugin-logger >= %{libreport_ver}
@@ -662,19 +676,19 @@ Requires: elfutils
 Requires: abrt-gui
 Requires: gnome-abrt
 %if 0%{?rhel}
-#%if 0%{?centos_ver}
-#Requires: libreport-centos >= %{libreport_ver}
-#Requires: libreport-plugin-mantisbt >= %{libreport_ver}
-#%else
-#Requires: libreport-rhel >= %{libreport_ver}
-#Requires: libreport-plugin-rhtsupport >= %{libreport_ver}
-#%endif
-#%else
+%if 0%{?centos_ver}
+Requires: libreport-centos >= %{libreport_ver}
+Requires: libreport-plugin-mantisbt >= %{libreport_ver}
+%else
+Requires: libreport-rhel >= %{libreport_ver}
+Requires: libreport-plugin-rhtsupport >= %{libreport_ver}
+%endif
+%else
 Requires: abrt-retrace-client
 Requires: libreport-plugin-bugzilla >= %{libreport_ver}
 Requires: libreport-plugin-logger >= %{libreport_ver}
 Requires: libreport-plugin-ureport >= %{libreport_ver}
-#Requires: libreport-fedora >= %{libreport_ver}
+Requires: libreport-fedora >= %{libreport_ver}
 %endif
 #Requires: abrt-plugin-firefox
 Provides: bug-buddy = 2.28.0
@@ -741,6 +755,7 @@ to the shell
 %autosetup -S git
 
 %build
+./autogen.sh
 autoconf
 # -Wno-error=deprecated-declarations because there are some warning about
 # deprecated gtk3 functions because of gtk3 rebase
@@ -1227,10 +1242,7 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 %config(noreplace) %{_sysconfdir}/profile.d/abrt-console-notification.sh
 
 %changelog
-* Fri Nov 23 2018 Jacco Ligthart <jacco@redsleeve.org> - 2.1.11-52.el7.redsleeve
-- removed requirements to proprietary CentOS end RHEL libreport packages
-
-* Tue Oct 30 2018 CentOS Sources <bugs@centos.org> - 2.1.11-52.el7.centos
+* Tue Aug 06 2019 CentOS Sources <bugs@centos.org> - 2.1.11-55.el7.centos
 - Drop RHTS hint
 -  Change by David Mansfield <david@orthanc.cobite.com>
 -  Per http://bugs.centos.org/view.php?id=7192
@@ -1238,6 +1250,23 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 - set URL to retrace server
 - update to not run sosreport
 -  Per http://bugs.centos.org/view.php?id=7913
+
+* Wed Mar 20 2019 Ernestas Kulik <ekulik@redhat.com> - 2.1.11-55
+- Add patch for #1677476
+
+* Thu Jan 3 2019 Martin Kutlak <mkutlak@redhat.com> - 2.1.11-54
+- testsuite: move examples to 'tests'
+- testsuite: Fix failing tests
+- Add autogen.sh
+
+* Tue Dec 18 2018 Martin Kutlak <mkutlak@redhat.com> - 2.1.11-53
+- cli: load config file at the beginning
+- ccpp: fast dumping and abrt core limit
+- conf: increase MaxCrashReportsSize to 5GiB
+- vmcore: /var/tmp/abrt is no longer a dump location
+- koops: Filter kernel oopses based on logged hostname
+- daemon: Fix double closed fd race condition
+- Related: #1618818, #1647841, #1613236, #1613182, #1655241
 
 * Mon Aug 20 2018 Matej Habrnal <mhabrnal@redhat.com> - 2.1.11-52
 - plugin "general" from sos has been split into two new plugins

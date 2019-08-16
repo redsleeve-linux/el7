@@ -1,0 +1,53 @@
+From 079ca6cf8774ce4b510daa9423a3785007c6c1d7 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Mon, 17 Sep 2018 16:16:23 +0200
+Subject: [PATCH] cli: load config file at the beginning
+
+Resolves: #1618818
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/cli/abrt-cli.c | 1 +
+ src/cli/list.c     | 1 -
+ src/cli/report.c   | 1 -
+ 3 files changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cli/abrt-cli.c b/src/cli/abrt-cli.c
+index 360e4757e..6660923d4 100644
+--- a/src/cli/abrt-cli.c
++++ b/src/cli/abrt-cli.c
+@@ -122,6 +122,7 @@ int main(int argc, const char **argv)
+ #endif
+ 
+     abrt_init((char **)argv);
++    load_abrt_conf();
+ 
+     argv++;
+     argc--;
+diff --git a/src/cli/list.c b/src/cli/list.c
+index e688d2f49..5af42fb01 100644
+--- a/src/cli/list.c
++++ b/src/cli/list.c
+@@ -206,7 +206,6 @@ int cmd_list(int argc, const char **argv)
+     free_vector_of_problem_data(ci);
+ 
+ #if SUGGEST_AUTOREPORTING != 0
+-    load_abrt_conf();
+     if (!g_settings_autoreporting)
+     {
+         if (output)
+diff --git a/src/cli/report.c b/src/cli/report.c
+index a76923f22..c98d8cbf8 100644
+--- a/src/cli/report.c
++++ b/src/cli/report.c
+@@ -116,7 +116,6 @@ int cmd_report(int argc, const char **argv)
+ 
+     export_abrt_envvars(/*prog_prefix:*/ 0);
+ 
+-    load_abrt_conf();
+     free_abrt_conf_data();
+ 
+     int report_flags = 0;
+-- 
+2.17.2
+

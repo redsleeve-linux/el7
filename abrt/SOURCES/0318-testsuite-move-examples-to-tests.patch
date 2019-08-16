@@ -1,0 +1,264 @@
+From 4e4a590283c0a69b46ca6c106fa25ab424be246c Mon Sep 17 00:00:00 2001
+From: Martin Kutlak <mkutlak@redhat.com>
+Date: Thu, 22 Nov 2018 13:27:06 +0100
+Subject: [PATCH] testsuite: move examples to 'tests'
+
+Signed-off-by: Martin Kutlak <mkutlak@redhat.com>
+---
+ Makefile.am                                   | 29 +----------------------------
+ tests/Makefile.am                             | 29 ++++++++++++++++++++++++++++-
+ {examples => tests/examples}/cut_here.right   |  0
+ .../examples}/hash-gen-oops6.right            |  0
+ .../examples}/hash-gen-same-as-oops6.right    |  0
+ .../examples}/hash-gen-short-oops.right       |  0
+ .../examples}/koops-tainted-bg1               |  0
+ {examples => tests/examples}/koops-tainted-g  |  0
+ .../examples}/koops-tainted-insane            |  0
+ .../examples}/koops-tainted-spaces            |  0
+ {examples => tests/examples}/nmi_oops.right   |  0
+ {examples => tests/examples}/nmi_oops.test    |  0
+ .../examples}/nmi_oops_hash.right             |  0
+ .../examples}/nmi_oops_hash.test              |  0
+ .../examples}/oops-kernel-3.x.x               |  0
+ .../examples}/oops-same-as-oops4.right        |  0
+ .../examples}/oops-with-jiffies.right         |  0
+ .../examples}/oops-with-jiffies.test          |  0
+ {examples => tests/examples}/oops1.right      |  0
+ .../examples}/oops10_s390x.right              |  0
+ .../examples}/oops10_s390x.test               |  0
+ {examples => tests/examples}/oops4.right      |  0
+ .../examples}/oops_broken_bios.test           |  0
+ .../examples}/oops_recursive_locking1.right   |  0
+ .../examples}/oops_recursive_locking1.test    |  0
+ .../examples}/oops_unsupported_hw.test        |  0
+ tests/koops-test.h                            |  2 +-
+ 27 files changed, 30 insertions(+), 30 deletions(-)
+ rename {examples => tests/examples}/cut_here.right (100%)
+ rename {examples => tests/examples}/hash-gen-oops6.right (100%)
+ rename {examples => tests/examples}/hash-gen-same-as-oops6.right (100%)
+ rename {examples => tests/examples}/hash-gen-short-oops.right (100%)
+ rename {examples => tests/examples}/koops-tainted-bg1 (100%)
+ rename {examples => tests/examples}/koops-tainted-g (100%)
+ rename {examples => tests/examples}/koops-tainted-insane (100%)
+ rename {examples => tests/examples}/koops-tainted-spaces (100%)
+ rename {examples => tests/examples}/nmi_oops.right (100%)
+ rename {examples => tests/examples}/nmi_oops.test (100%)
+ rename {examples => tests/examples}/nmi_oops_hash.right (100%)
+ rename {examples => tests/examples}/nmi_oops_hash.test (100%)
+ rename {examples => tests/examples}/oops-kernel-3.x.x (100%)
+ rename {examples => tests/examples}/oops-same-as-oops4.right (100%)
+ rename {examples => tests/examples}/oops-with-jiffies.right (100%)
+ rename {examples => tests/examples}/oops-with-jiffies.test (100%)
+ rename {examples => tests/examples}/oops1.right (100%)
+ rename {examples => tests/examples}/oops10_s390x.right (100%)
+ rename {examples => tests/examples}/oops10_s390x.test (100%)
+ rename {examples => tests/examples}/oops4.right (100%)
+ rename {examples => tests/examples}/oops_broken_bios.test (100%)
+ rename {examples => tests/examples}/oops_recursive_locking1.right (100%)
+ rename {examples => tests/examples}/oops_recursive_locking1.test (100%)
+ rename {examples => tests/examples}/oops_unsupported_hw.test (100%)
+ rename {examples => tests/examples}/taint/.gitignore (100%)
+ rename {examples => tests/examples}/taint/Makefile (100%)
+ rename {examples => tests/examples}/taint/taint.c (100%)
+
+diff --git a/Makefile.am b/Makefile.am
+index b5430d133..1a9c3e4b2 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -4,36 +4,9 @@ SUBDIRS = src doc po icons tests apidoc
+ DISTCHECK_CONFIGURE_FLAGS = \
+         --with-systemdsystemunitdir=$$dc_install_base/$(systemdsystemunitdir)
+ 
+-TESTSUITE_FILES =
+-TESTSUITE_FILES += examples/koops-tainted-g
+-TESTSUITE_FILES += examples/koops-tainted-insane
+-TESTSUITE_FILES += examples/koops-tainted-spaces
+-TESTSUITE_FILES += examples/cut_here.right
+-TESTSUITE_FILES += examples/oops-kernel-3.x.x
+-TESTSUITE_FILES += examples/oops1.right
+-TESTSUITE_FILES += examples/koops-tainted-bg1
+-TESTSUITE_FILES += examples/oops-same-as-oops4.right
+-TESTSUITE_FILES += examples/oops4.right
+-TESTSUITE_FILES += examples/oops-same-as-oops4.right
+-TESTSUITE_FILES += examples/hash-gen-oops6.right
+-TESTSUITE_FILES += examples/hash-gen-short-oops.right
+-TESTSUITE_FILES += examples/hash-gen-same-as-oops6.right
+-TESTSUITE_FILES += examples/oops-with-jiffies.test
+-TESTSUITE_FILES += examples/oops-with-jiffies.right
+-TESTSUITE_FILES += examples/oops_recursive_locking1.test
+-TESTSUITE_FILES += examples/oops_recursive_locking1.right
+-TESTSUITE_FILES += examples/nmi_oops.test
+-TESTSUITE_FILES += examples/nmi_oops.right
+-TESTSUITE_FILES += examples/nmi_oops_hash.test
+-TESTSUITE_FILES += examples/nmi_oops_hash.right
+-TESTSUITE_FILES += examples/oops10_s390x.test
+-TESTSUITE_FILES += examples/oops10_s390x.right
+-TESTSUITE_FILES += examples/oops_unsupported_hw.test
+-TESTSUITE_FILES += examples/oops_broken_bios.test
+-
+ 
+ EXTRA_DIST = doc/coding-style abrt.spec.in abrt.pc.in \
+-	abrt-version asciidoc.conf init-scripts/* $(TESTSUITE_FILES) \
++	abrt-version asciidoc.conf init-scripts/* \
+ 	augeas/test_abrt.aug
+ 
+ pkgconfigdir = $(libdir)/pkgconfig
+diff --git a/tests/Makefile.am b/tests/Makefile.am
+index 416f579b7..1e1b63376 100644
+--- a/tests/Makefile.am
++++ b/tests/Makefile.am
+@@ -24,6 +24,33 @@ EXTRA_DIST = package.m4 ignored_problems_data
+ ## Test suite.  ##
+ ## ------------ ##
+ 
++TESTSUITE_FILES =
++TESTSUITE_FILES += examples/koops-tainted-g
++TESTSUITE_FILES += examples/koops-tainted-insane
++TESTSUITE_FILES += examples/koops-tainted-spaces
++TESTSUITE_FILES += examples/cut_here.right
++TESTSUITE_FILES += examples/oops-kernel-3.x.x
++TESTSUITE_FILES += examples/oops1.right
++TESTSUITE_FILES += examples/koops-tainted-bg1
++TESTSUITE_FILES += examples/oops-same-as-oops4.right
++TESTSUITE_FILES += examples/oops4.right
++TESTSUITE_FILES += examples/oops-same-as-oops4.right
++TESTSUITE_FILES += examples/hash-gen-oops6.right
++TESTSUITE_FILES += examples/hash-gen-short-oops.right
++TESTSUITE_FILES += examples/hash-gen-same-as-oops6.right
++TESTSUITE_FILES += examples/oops-with-jiffies.test
++TESTSUITE_FILES += examples/oops-with-jiffies.right
++TESTSUITE_FILES += examples/oops_recursive_locking1.test
++TESTSUITE_FILES += examples/oops_recursive_locking1.right
++TESTSUITE_FILES += examples/nmi_oops.test
++TESTSUITE_FILES += examples/nmi_oops.right
++TESTSUITE_FILES += examples/nmi_oops_hash.test
++TESTSUITE_FILES += examples/nmi_oops_hash.right
++TESTSUITE_FILES += examples/oops10_s390x.test
++TESTSUITE_FILES += examples/oops10_s390x.right
++TESTSUITE_FILES += examples/oops_unsupported_hw.test
++TESTSUITE_FILES += examples/oops_broken_bios.test
++
+ TESTSUITE_AT = \
+   local.at \
+   testsuite.at \
+@@ -32,7 +59,7 @@ TESTSUITE_AT = \
+   ignored_problems.at \
+   hooklib.at
+ 
+-EXTRA_DIST += $(TESTSUITE_AT)
++EXTRA_DIST += $(TESTSUITE_AT) $(TESTSUITE_FILES)
+ TESTSUITE = $(srcdir)/testsuite
+ MAINTAINERCLEANFILES = Makefile.in $(TESTSUITE)
+ check_DATA = atconfig atlocal $(TESTSUITE)
+diff --git a/examples/cut_here.right b/tests/examples/cut_here.right
+similarity index 100%
+rename from examples/cut_here.right
+rename to tests/examples/cut_here.right
+diff --git a/examples/hash-gen-oops6.right b/tests/examples/hash-gen-oops6.right
+similarity index 100%
+rename from examples/hash-gen-oops6.right
+rename to tests/examples/hash-gen-oops6.right
+diff --git a/examples/hash-gen-same-as-oops6.right b/tests/examples/hash-gen-same-as-oops6.right
+similarity index 100%
+rename from examples/hash-gen-same-as-oops6.right
+rename to tests/examples/hash-gen-same-as-oops6.right
+diff --git a/examples/hash-gen-short-oops.right b/tests/examples/hash-gen-short-oops.right
+similarity index 100%
+rename from examples/hash-gen-short-oops.right
+rename to tests/examples/hash-gen-short-oops.right
+diff --git a/examples/koops-tainted-bg1 b/tests/examples/koops-tainted-bg1
+similarity index 100%
+rename from examples/koops-tainted-bg1
+rename to tests/examples/koops-tainted-bg1
+diff --git a/examples/koops-tainted-g b/tests/examples/koops-tainted-g
+similarity index 100%
+rename from examples/koops-tainted-g
+rename to tests/examples/koops-tainted-g
+diff --git a/examples/koops-tainted-insane b/tests/examples/koops-tainted-insane
+similarity index 100%
+rename from examples/koops-tainted-insane
+rename to tests/examples/koops-tainted-insane
+diff --git a/examples/koops-tainted-spaces b/tests/examples/koops-tainted-spaces
+similarity index 100%
+rename from examples/koops-tainted-spaces
+rename to tests/examples/koops-tainted-spaces
+diff --git a/examples/nmi_oops.right b/tests/examples/nmi_oops.right
+similarity index 100%
+rename from examples/nmi_oops.right
+rename to tests/examples/nmi_oops.right
+diff --git a/examples/nmi_oops.test b/tests/examples/nmi_oops.test
+similarity index 100%
+rename from examples/nmi_oops.test
+rename to tests/examples/nmi_oops.test
+diff --git a/examples/nmi_oops_hash.right b/tests/examples/nmi_oops_hash.right
+similarity index 100%
+rename from examples/nmi_oops_hash.right
+rename to tests/examples/nmi_oops_hash.right
+diff --git a/examples/nmi_oops_hash.test b/tests/examples/nmi_oops_hash.test
+similarity index 100%
+rename from examples/nmi_oops_hash.test
+rename to tests/examples/nmi_oops_hash.test
+diff --git a/examples/oops-kernel-3.x.x b/tests/examples/oops-kernel-3.x.x
+similarity index 100%
+rename from examples/oops-kernel-3.x.x
+rename to tests/examples/oops-kernel-3.x.x
+diff --git a/examples/oops-same-as-oops4.right b/tests/examples/oops-same-as-oops4.right
+similarity index 100%
+rename from examples/oops-same-as-oops4.right
+rename to tests/examples/oops-same-as-oops4.right
+diff --git a/examples/oops-with-jiffies.right b/tests/examples/oops-with-jiffies.right
+similarity index 100%
+rename from examples/oops-with-jiffies.right
+rename to tests/examples/oops-with-jiffies.right
+diff --git a/examples/oops-with-jiffies.test b/tests/examples/oops-with-jiffies.test
+similarity index 100%
+rename from examples/oops-with-jiffies.test
+rename to tests/examples/oops-with-jiffies.test
+diff --git a/examples/oops1.right b/tests/examples/oops1.right
+similarity index 100%
+rename from examples/oops1.right
+rename to tests/examples/oops1.right
+diff --git a/examples/oops10_s390x.right b/tests/examples/oops10_s390x.right
+similarity index 100%
+rename from examples/oops10_s390x.right
+rename to tests/examples/oops10_s390x.right
+diff --git a/examples/oops10_s390x.test b/tests/examples/oops10_s390x.test
+similarity index 100%
+rename from examples/oops10_s390x.test
+rename to tests/examples/oops10_s390x.test
+diff --git a/examples/oops4.right b/tests/examples/oops4.right
+similarity index 100%
+rename from examples/oops4.right
+rename to tests/examples/oops4.right
+diff --git a/examples/oops_broken_bios.test b/tests/examples/oops_broken_bios.test
+similarity index 100%
+rename from examples/oops_broken_bios.test
+rename to tests/examples/oops_broken_bios.test
+diff --git a/examples/oops_recursive_locking1.right b/tests/examples/oops_recursive_locking1.right
+similarity index 100%
+rename from examples/oops_recursive_locking1.right
+rename to tests/examples/oops_recursive_locking1.right
+diff --git a/examples/oops_recursive_locking1.test b/tests/examples/oops_recursive_locking1.test
+similarity index 100%
+rename from examples/oops_recursive_locking1.test
+rename to tests/examples/oops_recursive_locking1.test
+diff --git a/examples/oops_unsupported_hw.test b/tests/examples/oops_unsupported_hw.test
+similarity index 100%
+rename from examples/oops_unsupported_hw.test
+rename to tests/examples/oops_unsupported_hw.test
+diff --git a/tests/koops-test.h b/tests/koops-test.h
+index 53787aa62..58f4ede01 100644
+--- a/tests/koops-test.h
++++ b/tests/koops-test.h
+@@ -18,7 +18,7 @@
+     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ */
+ 
+-#define EXAMPLE_PFX "../../../examples"
++#define EXAMPLE_PFX "../../examples"
+ 
+ struct test_struct {
+         const char *filename;
+-- 
+2.17.2
+

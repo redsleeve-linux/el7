@@ -1,0 +1,90 @@
+From 608a4c07f4e3a0410f4cf9d5463ac5156bdc2745 Mon Sep 17 00:00:00 2001
+From: Martin Kutlak <mkutlak@redhat.com>
+Date: Thu, 3 Jan 2019 13:08:22 +0100
+Subject: [PATCH] Add autogen.sh
+
+Signed-off-by: Martin Kutlak <mkutlak@redhat.com>
+---
+ autogen.sh | 70 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 70 insertions(+)
+ create mode 100755 autogen.sh
+
+diff --git a/autogen.sh b/autogen.sh
+new file mode 100755
+index 000000000..80a431b1f
+--- /dev/null
++++ b/autogen.sh
+@@ -0,0 +1,70 @@
++#!/bin/sh
++
++print_help()
++{
++cat << EOH
++Prepares the source tree for configuration
++
++Usage:
++  autogen.sh [sydeps [--install]]
++
++Options:
++
++  sysdeps          prints out all dependencies
++    --install      install all dependencies ('sudo yum install \$DEPS')
++
++EOH
++}
++
++build_depslist()
++{
++    DEPS_LIST=`grep "^\(Build\)\?Requires:" *.spec.in | grep -v "%{name}" | tr -s " " | tr "," "\n" | cut -f2 -d " " | grep -v "^abrt" | sort -u | while read br; do if [ "%" = ${br:0:1} ]; then grep "%define $(echo $br | sed -e 's/%{\(.*\)}/\1/')" *.spec.in | tr -s " " | cut -f4 -d" "; else echo $br ;fi ; done | tr "\n" " "`
++}
++
++case "$1" in
++    "--help"|"-h")
++            print_help
++            exit 0
++        ;;
++    "sysdeps")
++            build_depslist
++
++            if [ "$2" == "--install" ]; then
++                set -x verbose
++                sudo yum install $DEPS_LIST
++                set +x verbose
++            else
++                echo $DEPS_LIST
++            fi
++            exit 0
++        ;;
++    *)
++            echo "Running gen-version"
++            ./gen-version
++
++            mkdir -p m4
++            echo "Creating m4/aclocal.m4 ..."
++            test -r m4/aclocal.m4 || touch m4/aclocal.m4
++
++            echo "Running autopoint"
++            autopoint --force || exit 1
++
++            echo "Running intltoolize..."
++            intltoolize --force --copy --automake || exit 1
++
++            echo "Running aclocal..."
++            aclocal || exit 1
++
++            echo "Running libtoolize..."
++            libtoolize || exit 1
++
++            echo "Running autoheader..."
++            autoheader || return 1
++
++            echo "Running autoconf..."
++            autoconf --force || exit 1
++
++            echo "Running automake..."
++            automake --add-missing --force --copy || exit 1
++        ;;
++esac
+-- 
+2.17.2
+
