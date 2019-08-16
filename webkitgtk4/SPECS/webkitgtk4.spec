@@ -23,11 +23,11 @@
 %global _dwz_max_die_limit_x86_64 250000000
 
 # As we are using the DTS we have to build this package as:
-# rhpkg build --target rhel-7.6-devtoolset-7-candidate
+# rhpkg build --target rhel-7.7-devtoolset-7-candidate
 
 Name:           webkitgtk4
-Version:        2.20.5
-Release:        1%{?dist}.redsleeve
+Version:        2.22.7
+Release:        2%{?dist}
 Summary:        GTK+ Web content engine library
 
 License:        LGPLv2
@@ -61,28 +61,14 @@ Patch6:         webkit-lower_libgcrypt_version.patch
 # animated WebP images - revert the change that introduced it.
 Patch7:         webkit-no_webp_demux.patch
 Patch8:         webkit-memset_zero_length.patch
-Patch9:         webkit-covscan_already_fixed.patch
 Patch10:        webkit-covscan_uninit_ctor.patch
 Patch11:        webkit-covscan_uninit.patch
-# https://bugs.webkit.org/show_bug.cgi?id=186756
-Patch12:        webkit-covscan_1.patch
-# https://bugs.webkit.org/show_bug.cgi?id=186757
-Patch13:        webkit-covscan_2.patch
-Patch14:        webkit-covscan_3.patch
-# https://bugs.webkit.org/show_bug.cgi?id=186758
-Patch15:        webkit-covscan_va_close.patch
-# https://bugs.webkit.org/show_bug.cgi?id=186763
-Patch16:        webkit-covscan_bmalloc.patch
-# https://bugs.webkit.org/show_bug.cgi?id=186800
-Patch17:        webkit-covscan_wtf.patch
-# https://bugs.webkit.org/show_bug.cgi?id=187087
-Patch18:        webkit-covscan_gstreamer.patch
-# For QA tests
-Patch19:        webkit-minibrowser-labels.patch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1591638
 Patch20:        webkit-atk_crash.patch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1503624
 Patch21:        webkit-atk_continuation_crash.patch
+# https://bugs.webkit.org/show_bug.cgi?id=196350
+Patch22:        webkit-initialize-tracktypeasstring.patch
 
 
 %if 0%{?bundle_icu}
@@ -98,8 +84,6 @@ Patch58: icu-dont_use_clang_even_if_installed.patch
 # CVE-2017-7867 CVE-2017-7868
 Patch59: icu-rhbz1444101-icu-changeset-39671.patch
 %endif
-
-Patch1000: webkitgtk4_always_inc_atomic.patch
 
 BuildRequires:  at-spi2-core-devel
 BuildRequires:  bison
@@ -255,24 +239,14 @@ Support for the GTK+ 2 based NPAPI plugins (such as Adobe Flash) for %{name}.
 %patch6 -p1 -b .lower_libgcrypt_version
 %patch7 -p1 -b .no_webp_demux
 %patch8 -p1 -b .memset_zero_length
-%patch9 -p1 -b .covscan_already_fixed
 %patch10 -p1 -b .covscan_uninit_ctor
 %patch11 -p1 -b .covscan_uninit
-%patch12 -p1 -b .covscan_1
-%patch13 -p1 -b .covscan_2
-%patch14 -p1 -b .covscan_3
-%patch15 -p1 -b .covscan_va_close
-%patch16 -p1 -b .covscan_bmalloc
-%patch17 -p1 -b .covscan_wtf
-%patch18 -p1 -b .covscan_gstreamer
-%patch19 -p1 -b .minibrowser_labels
 %patch20 -p1 -b .atk_crash
 %patch21 -p1 -b .atk_continuation_crash
+%patch22 -p1 -b .initialize-tracktypeasstring
 %else
 %autosetup -p1 -n webkitgtk-%{version}
 %endif
-
-%patch1000 -p1
 
 # Remove bundled libraries
 rm -rf Source/ThirdParty/gtest/
@@ -367,10 +341,11 @@ pushd %{_target_platform}
   -DENABLE_GTKDOC=ON \
   -DENABLE_MINIBROWSER=ON \
   -DENABLE_SUBTLE_CRYPTO=OFF \
-%ifarch s390 aarch64 %{arm}
+  -DENABLE_MEDIA_SOURCE=OFF \
+%ifarch s390 aarch64
   -DUSE_LD_GOLD=OFF \
 %endif
-%ifarch s390 s390x ppc %{power64} aarch64 %{mips} %{arm}
+%ifarch s390 s390x ppc %{power64} aarch64 %{mips}
   -DENABLE_JIT=OFF \
   -DUSE_SYSTEM_MALLOC=ON \
 %endif
@@ -380,7 +355,7 @@ popd
 # Remove the static amount of jobs once
 # https://projects.engineering.redhat.com/browse/BREW-2146 is resolved
 # make %{?_smp_mflags} -C %{_target_platform}
-make -j2 -C %{_target_platform}
+make -j4 -C %{_target_platform}
 
 %install
 %if 0%{?bundle_icu}
@@ -479,15 +454,19 @@ chmod 644 $RPM_BUILD_ROOT%{_libdir}/webkit2gtk-4.0/libicuuc.so.57.1
 %files doc
 %dir %{_datadir}/gtk-doc
 %dir %{_datadir}/gtk-doc/html
+%{_datadir}/gtk-doc/html/jsc-glib-4.0/
 %{_datadir}/gtk-doc/html/webkit2gtk-4.0/
 %{_datadir}/gtk-doc/html/webkitdomgtk-4.0/
 
 %changelog
-* Sat Nov 24 2018 Jacco Ligthart <jacco@redsleeve.com> - 2.20.5-1.redsleeve
-- disabled LD_GOLD4, JIT for arm
-- use system malloc for arm
-- added a patch to always link against atomic
-- only use 2 cpus for building, better for not swapping
+* Thu Apr 04 2019 Eike Rathke <erack@redhat.com> - 2.22.7-2
+- Related: rhbz#1669482 covscan fixes
+
+* Mon Mar 25 2019 Eike Rathke <erack@redhat.com> - 2.22.7-1
+- Related: rhbz#1669482 Update to 2.22.7
+
+* Tue Feb 12 2019 Eike Rathke <erack@redhat.com> - 2.22.6-1
+- Resolves: rhbz#1669482 Rebase to 2.22.6
 
 * Tue Aug 14 2018 Tomas Popela <tpopela@redhat.com> - 2.20.5-1
 - Update to 2.20.5 - technically it was not necessary as the only difference
