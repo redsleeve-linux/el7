@@ -46,6 +46,7 @@
 %endif
 
 # if you disable both builds, then the build fails
+# Note that the debug build requires the normal build for docs
 %global build_loop  %{build_loop1} %{build_loop2}
 # note: that order: normal_suffix debug_suffix, in case of both enabled
 # is expected in one single case at the end of the build
@@ -58,11 +59,12 @@
 %endif
 
 %if %{bootstrap_build}
-%global targets bootcycle-images docs
+%global release_targets bootcycle-images zip-docs
 %else
-%global targets all
+%global release_targets images zip-docs
 %endif
-
+# No docs nor bootcycle for debug builds
+%global debug_targets images
 
 # Filter out flags from the optflags macro that cause problems with the OpenJDK build
 # We filter out -Wall which will otherwise cause HotSpot to produce hundreds of thousands of warnings (100+mb logs)
@@ -179,7 +181,7 @@
 # note, following three variables are sedded from update_sources if used correctly. Hardcode them rather there.
 %global shenandoah_project	aarch64-port
 %global shenandoah_repo		jdk8u-shenandoah
-%global shenandoah_revision    	aarch64-shenandoah-jdk8u222-b03
+%global shenandoah_revision    	aarch64-shenandoah-jdk8u222-b10
 # Define old aarch64/jdk8u tree variables for compatibility
 %global project         %{shenandoah_project}
 %global repo            %{shenandoah_repo}
@@ -193,14 +195,22 @@
 %global updatever       %(VERSION=%{whole_update}; echo ${VERSION##*u})
 # eg jdk8u60-b27 -> b27
 %global buildver        %(VERSION=%{revision}; echo ${VERSION##*-})
+%global rpmrelease      1
 # Define milestone (EA for pre-releases, GA ("fcs") for releases)
-%global is_ga           0
+# Release will be (where N is usually a number starting at 1):
+# - 0.N%%{?extraver}%%{?dist} for EA releases,
+# - N%%{?extraver}{?dist} for GA releases
+%global is_ga           1
 %if %{is_ga}
 %global milestone          fcs
 %global milestone_version  %{nil}
+%global extraver %{nil}
+%global eaprefix %{nil}
 %else
 %global milestone          ea
 %global milestone_version  "-ea"
+%global extraver .%{milestone}
+%global eaprefix 0.
 %endif
 # priority must be 7 digits in total. The expression is workarounding tip
 %global priority        %(TIP=1800%{updatever};  echo ${TIP/tip/999})
@@ -823,7 +833,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
 
 Name:    java-%{javaver}-%{origin}
 Version: %{javaver}.%{updatever}.%{buildver}
-Release: 1%{?dist}
+Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
 # and this change was brought into RHEL-4. java-1.5.0-ibm packages
 # also included the epoch in their virtual provides. This created a
@@ -993,9 +1003,6 @@ Patch202: jdk8035341-allow_using_system_installed_libpng.patch
 Patch203: jdk8042159-allow_using_system_installed_lcms2.patch
 # 8210761: libjsig is being compiled without optimization
 Patch620: jdk8210761-rh1632174-libjsig_is_being_compiled_without_optimization.patch
-# 8210425: [x86] sharedRuntimeTrig/sharedRuntimeTrans compiled without optimization
-#          Aarch64-port 8u local part
-Patch624: jdk8210425-rh1632174-02-compile_with_o2_and_ffp_contract_off_as_for_fdlibm_aarch64.patch
 
 #############################################
 #
@@ -1224,7 +1231,7 @@ The %{origin_nice} %{majorver} API documentation.
 
 %if %{include_normal_build}
 %package javadoc-zip
-Summary: %{origin_nice} %{majorver} API documentation compressed in single archive
+Summary: %{origin_nice} %{majorver} API documentation compressed in a single archive
 Group:   Documentation
 Requires: javapackages-tools
 BuildArch: noarch
@@ -1232,7 +1239,7 @@ BuildArch: noarch
 %{java_javadoc_rpo %{nil}}
 
 %description javadoc-zip
-The %{origin_nice} %{majorver} API documentation compressed in single archive.
+The %{origin_nice} %{majorver} API documentation compressed in a single archive.
 %endif
 
 %if %{include_debug_build}
@@ -1250,7 +1257,7 @@ The %{origin_nice} %{majorver} API documentation %{for_debug}.
 
 %if %{include_debug_build}
 %package javadoc-zip-debug
-Summary: %{origin_nice} %{majorver} API documentation compressed in single archive %{for_debug}
+Summary: %{origin_nice} %{majorver} API documentation compressed in a single archive %{for_debug}
 Group:   Documentation
 Requires: javapackages-tools
 BuildArch: noarch
@@ -1258,9 +1265,8 @@ BuildArch: noarch
 %{java_javadoc_rpo -- %{debug_suffix_unquoted}}
 
 %description javadoc-zip-debug
-The %{origin_nice} %{majorver} API documentation compressed in single archive %{for_debug}.
+The %{origin_nice} %{majorver} API documentation compressed in a single archive %{for_debug}.
 %endif
-
 
 %if %{include_normal_build}
 %package accessibility
@@ -1305,6 +1311,10 @@ fi
 if [ %{include_debug_build} -eq 0 -a  %{include_normal_build} -eq 0 ] ; then
   echo "You have disabled both include_debug_build and include_normal_build. That is a no go."
   exit 13
+fi
+if [ %{include_normal_build} -eq 0 ] ; then
+  echo "You have disabled the normal build, but this is required to provide docs for the debug build."
+  exit 14
 fi
 
 echo "Update version: %{updatever}"
@@ -1370,7 +1380,6 @@ sh %{SOURCE12}
 %patch575
 %patch577
 %patch620
-%patch624
 %patch541
 
 # RPM-only fixes
@@ -1507,12 +1516,16 @@ bash ../../configure \
 cat spec.gmk
 cat hotspot-spec.gmk
 
+# Debug builds don't need same targets as release for
+# build speed-up
+maketargets="%{release_targets}"
+if echo $debugbuild | grep -q "debug" ; then
+  maketargets="%{debug_targets}"
+fi
 make \
     JAVAC_FLAGS=-g \
     LOG=trace \
-    %{targets} || ( pwd; find $top_dir_abs_path -name "hs_err_pid*.log" | xargs cat && false )
-
-make zip-docs
+    $maketargets || ( pwd; find $top_dir_abs_path -name "hs_err_pid*.log" | xargs cat && false )
 
 # the build (erroneously) removes read permissions from some jars
 # this is a regression in OpenJDK 7 (our compiler):
@@ -1743,12 +1756,12 @@ mkdir -p $RPM_BUILD_ROOT%{_jvmdir}/%{jredir $suffix}/lib/%{archinstall}/client/
   cp -a sample $RPM_BUILD_ROOT%{_jvmdir}/%{sdkdir $suffix}
 
 popd
-
-
+ 
 # Install Javadoc documentation
+# Always take docs from normal build to avoid building them twice
 install -d -m 755 $RPM_BUILD_ROOT%{_javadocdir}
-cp -a %{buildoutputdir $suffix}/docs $RPM_BUILD_ROOT%{_javadocdir}/%{uniquejavadocdir $suffix}
-cp -a %{buildoutputdir $suffix}/bundles/jdk-%{javaver}_%{updatever}%{milestone_version}$suffix-%{buildver}-docs.zip  $RPM_BUILD_ROOT%{_javadocdir}/%{uniquejavadocdir $suffix}.zip
+cp -a %{buildoutputdir $normal_suffix}/docs $RPM_BUILD_ROOT%{_javadocdir}/%{uniquejavadocdir $suffix}
+cp -a %{buildoutputdir $normal_suffix}/bundles/jdk-%{javaver}_%{updatever}%{milestone_version}${normal_suffix}-%{buildver}-docs.zip  $RPM_BUILD_ROOT%{_javadocdir}/%{uniquejavadocdir $suffix}.zip
 
 # Install icons and menu entries
 for s in 16 24 32 48 ; do
@@ -1975,6 +1988,7 @@ require "copy_jdk_configs.lua"
 
 %postun javadoc-zip-debug
 %{postun_javadoc_zip -- %{debug_suffix_unquoted}}
+
 %endif
 
 %if %{include_normal_build}
@@ -2043,6 +2057,54 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
+* Thu Jul 11 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.222.b10-1
+- Update to aarch64-shenandoah-jdk8u222-b10.
+- Resolves: rhbz#1724452
+
+* Mon Jul 08 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.222.b09-2
+- Use normal_suffix for Javadoc zip filename to copy, as there is is no debug version.
+- Resolves: rhbz#1724452
+
+* Mon Jul 08 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.222.b09-2
+- Provide Javadoc debug subpackages for now, but populate them from the normal build.
+- Resolves: rhbz#1724452
+
+* Mon Jul 08 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.222.b09-1
+- Update to aarch64-shenandoah-jdk8u222-b09.
+- Switch to GA mode for final release.
+- Resolves: rhbz#1724452
+
+* Tue Jul 02 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.222.b08-0.1.ea
+- Update to aarch64-shenandoah-jdk8u222-b08.
+- Adjust PR3083/RH134640 to apply after JDK-8182999
+- Resolves: rhbz#1724452
+
+* Tue Jul 02 2019 Severin Gehwolf <sgehwolf@redhat.com> - 1:1.8.0.222.b07-0.3.ea
+- Include 'ea' designator in Release when appropriate.
+- Resolves: rhbz#1724452
+
+* Wed Jun 26 2019 Severin Gehwolf <sgehwolf@redhat.com> - 1:1.8.0.222.b07-2
+- Don't produce javadoc/javadoc-zip sub packages for the debug variant build.
+- Don't perform a bootcycle build for the debug variant build.
+- Resolves: rhbz#1724452
+
+* Tue Jun 25 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.222.b07-1
+- Update to aarch64-shenandoah-jdk8u222-b07 and Shenandoah merge 2019-06-13.
+- Resolves: rhbz#1724452
+
+* Fri Jun 14 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.222.b06-1
+- Update to aarch64-shenandoah-jdk8u222-b06.
+- Resolves: rhbz#1724452
+
+* Thu Jun 06 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.222.b05-1
+- Update to aarch64-shenandoah-jdk8u222-b05.
+- Resolves: rhbz#1724452
+
+* Sat May 25 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.222.b04-1
+- Update to aarch64-shenandoah-jdk8u222-b04.
+- Drop remaining JDK-8210425/RH1632174 patch now AArch64 part is upstream.
+- Resolves: rhbz#1705328
+
 * Wed May 22 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.222.b03-1
 - Handle milestone as variables so we can alter it easily and set the docs zip filename appropriately.
 - Drop unused use_shenandoah_hotspot variable.
