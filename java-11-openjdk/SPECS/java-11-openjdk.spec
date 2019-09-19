@@ -21,6 +21,11 @@
 # Enable release builds by default on relevant arches.
 %bcond_without release
 
+# The -g flag says to use strip -g instead of full strip on DSOs or EXEs.
+# This fixes detailed NMT and other tools which need minimal debug info.
+# See: https://bugzilla.redhat.com/show_bug.cgi?id=1520879
+%global _find_debuginfo_opts -g
+
 # note: parametrized macros are order-sensitive (unlike not-parametrized) even with normal macros
 # also necessary when passing it as parameter to other macros. If not macro, then it is considered a switch
 # see the difference between global and define:
@@ -53,7 +58,7 @@
 %global ppc64le         ppc64le
 %global ppc64be         ppc64 ppc64p7
 %global multilib_arches %{power64} sparc64 x86_64
-%global jit_arches      %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64} s390x
+%global jit_arches      %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64} %{arm} s390x
 %global aot_arches      x86_64 %{aarch64}
 
 # By default, we build a debug build during main build on JIT architectures
@@ -120,15 +125,6 @@
 # looks like openjdk RPM specific bug
 # Always set this so the nss.cfg file is not broken
 %global NSS_LIBDIR %(pkg-config --variable=libdir nss)
-%global NSS_LIBS %(pkg-config --libs nss)
-%global NSS_CFLAGS %(pkg-config --cflags nss-softokn)
-# see https://bugzilla.redhat.com/show_bug.cgi?id=1332456
-%global NSSSOFTOKN_BUILDTIME_NUMBER %(pkg-config --modversion nss-softokn || : )
-%global NSS_BUILDTIME_NUMBER %(pkg-config --modversion nss || : )
-# this is workaround for processing of requires during srpm creation
-%global NSSSOFTOKN_BUILDTIME_VERSION %(if [ "x%{NSSSOFTOKN_BUILDTIME_NUMBER}" == "x" ] ; then echo "" ;else echo ">= %{NSSSOFTOKN_BUILDTIME_NUMBER}" ;fi)
-%global NSS_BUILDTIME_VERSION %(if [ "x%{NSS_BUILDTIME_NUMBER}" == "x" ] ; then echo "" ;else echo ">= %{NSS_BUILDTIME_NUMBER}" ;fi)
-
 
 # fix for https://bugzilla.redhat.com/show_bug.cgi?id=1111349
 %global _privatelibs libsplashscreen[.]so.*|libawt_xawt[.]so.*|libjli[.]so.*|libattach[.]so.*|libawt[.]so.*|libextnet[.]so.*|libawt_headless[.]so.*|libdt_socket[.]so.*|libfontmanager[.]so.*|libinstrument[.]so.*|libj2gss[.]so.*|libj2pcsc[.]so.*|libj2pkcs11[.]so.*|libjaas[.]so.*|libjavajpeg[.]so.*|libjdwp[.]so.*|libjimage[.]so.*|libjsound[.]so.*|liblcms[.]so.*|libmanagement[.]so.*|libmanagement_agent[.]so.*|libmanagement_ext[.]so.*|libmlib_image[.]so.*|libnet[.]so.*|libnio[.]so.*|libprefs[.]so.*|librmi[.]so.*|libsaproc[.]so.*|libsctp[.]so.*|libsunec[.]so.*|libunpack[.]so.*|libzip[.]so.*
@@ -215,7 +211,7 @@
 %global top_level_dir_name   %{origin}
 %global minorver        0
 %global buildver        11
-%global rpmrelease      0
+%global rpmrelease      1
 #%%global tagsuffix      %{nil}
 # priority must be 7 digits in total
 # setting to 1, so debug ones can have 0
@@ -757,16 +753,20 @@ Requires: ca-certificates
 Requires: javapackages-tools
 # Require zone-info data provided by tzdata-java sub-package
 Requires: tzdata-java >= 2015d
+# for support of kernel stream control
 # libsctp.so.1 is being `dlopen`ed on demand
 Requires: lksctp-tools%{?_isa}
-# there is a need to depend on the exact version of NSS
-Requires: nss%{?_isa} %{NSS_BUILDTIME_VERSION}
-Requires: nss-softokn%{?_isa} %{NSSSOFTOKN_BUILDTIME_VERSION}
+# For smartcard support
+# libpcsclite.so & libpcsclite.so.1 are both tried for dlopen
+# and this package provides the latter (see RH910107)
+Requires: pcsc-lite-libs%{?_isa}
 # tool to copy jdk's configs - should be Recommends only, but then only dnf/yum enforce it,
 # not rpm transaction and so no configs are persisted when pure rpm -u is run. It may be
 # considered as regression
 Requires: copy-jdk-configs >= 3.3
 OrderWithRequires: copy-jdk-configs
+# for printing support
+Requires: cups-libs%{?_isa}
 # Post requires alternatives to install tool alternatives
 Requires(post):   %{_sbindir}/alternatives
 # in version 1.7 and higher for --family switch
@@ -775,9 +775,8 @@ Requires(post):   chkconfig >= 1.7
 Requires(postun): %{_sbindir}/alternatives
 # in version 1.7 and higher for --family switch
 Requires(postun):   chkconfig >= 1.7
-# for optional support of kernel stream control, card reader and printing bindings
-#Suggests: lksctp-tools%{?_isa}, pcsc-lite-devel%{?_isa}, cups
-# rhel7 do not have week depndencies
+
+# rhel7 do not have weak depndencies
 
 # Standard JPackage base provides
 #Provides: jre-headless%1 = %{epoch}:%{javaver}
@@ -872,7 +871,7 @@ Provides: java-%{javaver}-%{origin}-src%1 = %{epoch}:%{version}-%{release}
 
 Name:    java-%{javaver}-%{origin}
 Version: %{newjavaver}.%{buildver}
-Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}.redsleeve
+Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
 # and this change was brought into RHEL-4. java-1.5.0-ibm packages
 # also included the epoch in their virtual provides. This created a
@@ -946,8 +945,6 @@ Patch525: rh1022017-reduce_ssl_curves.patch
 Patch3:    rh649512-remove_uses_of_far_in_jpeg_libjpeg_turbo_1_4_compat_for_jdk10_and_up.patch
 # Follow system wide crypto policy RHBZ#1249083
 Patch4:    pr3183-rh1340845-support_fedora_rhel_system_crypto_policy.patch
-# System NSS via SunEC Provider
-Patch5:    pr1983-rh1565658-support_using_the_system_installation_of_nss_with_the_sunec_provider_jdk11.patch
 
 #############################################
 #
@@ -963,6 +960,8 @@ Patch5:    pr1983-rh1565658-support_using_the_system_installation_of_nss_with_th
 
 # RH1566890: CVE-2018-3639
 Patch6:    rh1566890-CVE_2018_3639-speculative_store_bypass.patch
+# JDK-8009550, RH910107: Search for libpcsclite.so.1 if libpcsclite.so fails
+Patch7: jdk8009550-rh910107-search_for_versioned_libpcsclite.patch
 # S390 ambiguous log2_intptr call
 Patch8: s390-8214206_fix.patch
 
@@ -1009,7 +1008,7 @@ BuildRequires: pkgconfig
 BuildRequires: xorg-x11-proto-devel
 BuildRequires: zip
 BuildRequires: javapackages-tools
-BuildRequires: java-11-openjdk-devel
+BuildRequires: java-%{buildjdkver}-openjdk-devel
 # Zero-assembler build requirement
 %ifnarch %{jit_arches}
 BuildRequires: libffi-devel
@@ -1017,8 +1016,6 @@ BuildRequires: libffi-devel
 BuildRequires: tzdata-java >= 2015d
 # Earlier versions have a bug in tree vectorization on PPC
 BuildRequires: gcc >= 4.8.3-8
-# Build requirements for SunEC system NSS support
-BuildRequires: nss-softokn-freebl-devel >= 3.16.1
 
 %if %{with_systemtap}
 BuildRequires: systemtap-sdt-devel
@@ -1244,8 +1241,8 @@ pushd %{top_level_dir_name}
 %patch2 -p1
 %patch3 -p1
 %patch4 -p1
-%patch5 -p1
 %patch6 -p1
+%patch7 -p1
 %patch8 -p1
 %patch525 -p1
 popd # openjdk
@@ -1358,11 +1355,10 @@ bash ../configure \
     --with-version-pre="%{ea_designator}" \
     --with-version-opt=%{lts_designator} \
     --with-vendor-version-string="%{vendor_version_string}" \
-    --with-boot-jdk=/usr/lib/jvm/java-11-openjdk \
+    --with-boot-jdk=/usr/lib/jvm/java-%{buildjdkver}-openjdk \
     --with-debug-level=$debugbuild \
     --with-native-debug-symbols=internal \
     --enable-unlimited-crypto \
-    --enable-system-nss \
     --with-zlib=system \
     --with-libjpeg=system \
     --with-giflib=system \
@@ -1488,7 +1484,7 @@ done
 # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
 # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
 # Temporarily disabled on s390x as it sporadically crashes with SIGFPE, Arithmetic exception.
-%ifnarch s390x %{arm}
+%ifnarch s390x
 gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
 handle SIGSEGV pass nostop noprint
 handle SIGILL pass nostop noprint
@@ -1802,59 +1798,52 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
-* Fri Aug 02 2019 Jacco Ligthart <jacco@redsleeve.org> - 1:11.0.4.11-0.redsleeve
-- removed arm from jit_arches
-- removed the gdb section of the SPEC file
-
-* Tue Jul 23 2019 Johnny Hughes <johnny@centos.org>
-- Manual CentOS Debranding
-
-* Tue Jul 09 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.11-0
+* Tue Jul 09 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.11-1
 - Update to shenandoah-jdk-11.0.4+11 (GA)
 - Switch to GA mode for final release.
 - Resolves: rhbz#1724452
 
-* Mon Jul 08 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.10-0.0.ea
+* Mon Jul 08 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.10-0.1.ea
 - Update to shenandoah-jdk-11.0.4+10 (EA)
 - Resolves: rhbz#1724452
 
-* Mon Jul 08 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.9-0.0.ea
+* Mon Jul 08 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.9-0.1.ea
 - Update to shenandoah-jdk-11.0.4+9 (EA)
 - Resolves: rhbz#1724452
 
-* Mon Jul 08 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.8-0.0.ea
+* Mon Jul 08 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.8-0.1.ea
 - Update to shenandoah-jdk-11.0.4+8 (EA)
 - Resolves: rhbz#1724452
 
-* Sun Jul 07 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.7-0.0.ea
+* Sun Jul 07 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.7-0.1.ea
 - Update to shenandoah-jdk-11.0.4+7 (EA)
 - Resolves: rhbz#1724452
 
-* Wed Jul 03 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.6-0.0.ea
+* Wed Jul 03 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.6-0.1.ea
 - Provide Javadoc debug subpackages for now, but populate them from the normal build.
 - Resolves: rhbz#1724452
 
-* Wed Jul 03 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.6-0.0.ea
+* Wed Jul 03 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.6-0.1.ea
 - Update to shenandoah-jdk-11.0.4+6 (EA)
 - Resolves: rhbz#1724452
 
-* Wed Jul 03 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.5-0.0.ea
+* Wed Jul 03 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.5-0.1.ea
 - Update to shenandoah-jdk-11.0.4+5 (EA)
 - Resolves: rhbz#1724452
 
-* Tue Jul 02 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.4-0.0.ea
+* Tue Jul 02 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.4-0.1.ea
 - Update to shenandoah-jdk-11.0.4+4 (EA)
 - Resolves: rhbz#1724452
 
-* Mon Jul 01 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.3-0.0.ea
+* Mon Jul 01 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.3-0.1.ea
 - Update to shenandoah-jdk-11.0.4+3 (EA)
 - Resolves: rhbz#1724452
 
-* Sun Jun 30 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.2-0.0.ea
+* Sun Jun 30 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.2-0.1.ea
 - Use RHEL 7 format for jspawnhelper addition.
 - Resolves: rhbz#1724452
 
-* Sun Jun 30 2019 Andrew John Hughes <gnu.andrew@redhat.com> - 1:11.0.4.2-0.0.ea
+* Sun Jun 30 2019 Andrew John Hughes <gnu.andrew@redhat.com> - 1:11.0.4.2-0.1.ea
 - Update to shenandoah-jdk-11.0.4+2 (EA)
 - Resolves: rhbz#1724452
 
@@ -1862,47 +1851,65 @@ require "copy_jdk_configs.lua"
 - Package jspawnhelper (see JDK-8220360).
 - Resolves: rhbz#1724452
 
-* Fri Jun 21 2019 Severin Gehwolf <sgehwolf@redhat.com> - 1:11.0.3.7-2
+* Fri Jun 21 2019 Severin Gehwolf <sgehwolf@redhat.com> - 1:11.0.3.7-3
 - Include 'ea' designator in Release when appropriate.
 - Resolves: rhbz#1724452
 
-* Wed May 22 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.3.7-2
+* Wed May 22 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.3.7-3
 - Handle milestone as variables so we can alter it easily and set the docs zip filename appropriately.
 - Resolves: rhbz#1724452
 
-* Thu Apr 25 2019 Severin Gehwolf <sgehwolf@redhat.com> - 1:11.0.3.7-1
+* Thu Apr 25 2019 Severin Gehwolf <sgehwolf@redhat.com> - 1:11.0.3.7-2
 - Don't build the test images needlessly.
 - Don't produce javadoc/javadoc-zip sub packages for the debug variant build.
 - Don't perform a bootcycle build for the debug variant build.
 - Resolves: rhbz#1724452
 
-* Mon Apr 08 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.3.7-0
-- Add -mstackrealign workaround to build flags to avoid SSE issues on x86
-- Resolves: rhbz#1693468
-
-* Mon Apr 08 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.3.7-0
+* Thu Apr 04 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.3.7-1
 - Update to shenandoah-jdk-11.0.3+7 (April 2019 GA)
 - Resolves: rhbz#1693468
 
-* Sat Apr 06 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.3.6-0
+* Thu Apr 04 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.3.6-1
+- Add -mstackrealign workaround to build flags to avoid SSE issues on x86
+- Resolves: rhbz#1677516
+
+* Thu Apr 04 2019 Severin Gehwolf <sgehwolf@redhat.com> - 1:11.0.3.6-1
+- Fix macro which doesn't expand.
+- Related: rhbz#1684617
+
+* Thu Apr 04 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.3.6-1
+- Add cast to resolve s390 ambiguity in call to log2_intptr
+- Resolves: rhbz#1677516
+
+* Thu Apr 04 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.3.6-1
 - Update to shenandoah-jdk-11.0.3+6 (April 2019 EA)
 - Drop JDK-8210416/RH1632174 applied upstream.
 - Drop JDK-8210425/RH1632174 applied upstream.
 - Drop JDK-8210647/RH1632174 applied upstream.
 - Drop JDK-8210761/RH1632174 applied upstream.
 - Drop JDK-8210703/RH1632174 applied upstream.
-- Add cast to resolve s390 ambiguity in call to log2_intptr
-- Resolves: rhbz#1693468
+- Resolves: rhbz#1677516
 
-* Wed Apr 03 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.2.7-1
+* Wed Apr 03 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.2.7-4
+- Replace pcsc-lite-devel with pcsc-lite-libs so deps can be resolved without optional repository
+- Add JDK-8009550/RH910107 patch so OpenJDK checks for libpcsclite.so.1 (in pcsc-lite-libs)
+- Add missing ISA to cups-libs requirement
+- Remove duplicate lksctp-tools requirement
+- Resolves: rhbz#1684617
+
+* Wed Apr 03 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.2.7-4
 - Disable gdb check on s390 as it sporadically fails with SIGFPE
 - Resolves: rhbz#1693468
 
-* Thu Mar 21 2019 Severin Gehwolf <sgehwolf@redhat.com> - 1:11.0.2.7-1
+* Tue Apr 02 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.2.7-3
+- Drop NSS runtime dependencies and patches to link against it.
+- Resolves: rhbz#1656677
+
+* Thu Mar 21 2019 Severin Gehwolf <sgehwolf@redhat.com> - 1:11.0.2.7-2
 - Add patch for RH1566890
 - Resolves: rhbz#1693468
 
-* Tue Jan 15 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.2.7-0
+* Tue Jan 15 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.2.7-1
 - Update to shenandoah-jdk-11.0.2+7 (January 2019 CPU)
 - Make tagsuffix optional and comment it out while unused.
 - Drop JDK-8211105/RH1628612/RH1630996 applied upstream.
@@ -1910,14 +1917,29 @@ require "copy_jdk_configs.lua"
 - Re-generate JDK-8210416/RH1632174 following JDK-8209786
 - Resolves: rhbz#1661577
 
-* Mon Jan 14 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.1.13-4
+* Mon Jan 14 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.1.13-8
+- Fix remove-intree-libraries.sh to not exit early and skip SunEC handling.
+- Fix PR1983 SunEC patch so that ecc_impl.h is patched rather than added
+- Resolves: rhbz#1661577
+
+* Fri Jan 11 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.1.13-8
 - Update to shenandoah-jdk-11.0.1+13-20190101
 - Update tarball generation script in preparation for PR3681/RH1656677 SunEC changes.
 - Use remove-intree-libraries.sh to remove the remaining SunEC code for now.
-- Fix remove-intree-libraries.sh to not exit early and skip SunEC handling.
-- Fix PR1983 SunEC patch so that ecc_impl.h is patched rather than added
 - Add missing RH1022017 patch to reduce curves reported by SSL to those we support.
+- Drop upstream Shenandoah patch RH1648995.
 - Resolves: rhbz#1661577
+
+* Fri Dec 07 2018 Severin Gehwolf <sgehwolf@redhat.com> - 1:11.0.1.13-7
+- Added %%global _find_debuginfo_opts -g
+- Resolves: rhbz#1656997
+
+* Mon Nov 12 2018 Jiri Vanek <jvanek@redhat.com> - 1:11.0.1.13-6
+- fixed tck failures of arraycopy and process exec with shenandoah on
+- added patch585 rh1648995-shenandoah_array_copy_broken_by_not_always_copy_forward_for_disjoint_arrays.patch
+
+* Wed Nov 07 2018 Jiri Vanek <jvanek@redhat.com> - 1:11.0.1.13-5
+- headless' suggests of cups, replaced by Requires of cups-libs
 
 * Thu Nov 01 2018 Jiri Vanek <jvanek@redhat.com> - 1:11.0.1.13-3
 - added Patch584 jdk8209639-rh1640127-02-coalesce_attempted_spill_non_spillable.patch
