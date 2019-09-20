@@ -2,7 +2,7 @@
 Summary: A set of tools to gather troubleshooting information from a system
 Name: sos
 Version: 3.7
-Release: 5%{?dist}
+Release: 6%{?dist}
 Group: Applications/System
 Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
 License: GPLv2+
@@ -27,7 +27,9 @@ Patch5: sos-bz1311129-sos-conf-disabled-plugins-manpages.patch
 Patch6: sos-bz1702802-openstack_instack-ansible-log.patch
 Patch7: sos-bz1706060-vdsm-plugin.patch
 Patch8: sos-bz1711305-katello-qpid-certificate.patch
-Patch9: sos-3.7-centos-branding.patch
+Patch9: sos-bz1736424-timeouted-plugin-stop-further-collection.patch
+Patch10: sos-bz1736422-cmd-poll-performance.patch
+Patch11: sos-3.7-centos-branding.patch
 
 
 %description
@@ -48,6 +50,8 @@ support technicians and developers.
 %patch7 -p1
 %patch8 -p1
 %patch9 -p1
+%patch10 -p1
+%patch11 -p1
 
 %build
 make
@@ -71,8 +75,14 @@ rm -rf ${RPM_BUILD_ROOT}
 %config(noreplace) %{_sysconfdir}/sos.conf
 
 %changelog
-* Tue Aug 06 2019 CentOS Sources <bugs@centos.org> - 3.7-5.el7.centos
+* Tue Sep 03 2019 CentOS Sources <bugs@centos.org> - 3.7-6.el7.centos
 - Roll in CentOS Branding
+
+* Thu Aug 01 2019 Pavel Moravec <pmoravec@redhat.com> = 3.7-6
+- [utilities] Fix high CPU usage and slow command collection
+  Resolves: bz1736422
+- [sosreport,plugins] Stop plugin execution after timeout hit
+  Resolves: bz1736424
 
 * Tue Jun 25 2019 Pavel Moravec <pmoravec@redhat.com> = 3.7-5
 - Updates to vdsm plugin
