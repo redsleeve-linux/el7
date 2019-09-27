@@ -1,6 +1,6 @@
-From 6f9e11e32f6fde049e8e6c12e8cf813e02b7ba00 Mon Sep 17 00:00:00 2001
+From 9d2fa33a8dbeb3255aa4cdd686e97a6055a48b4e Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Thu, 8 Nov 2018 22:34:20 +0100
+Date: Sat, 10 Aug 2019 10:53:04 +0200
 Subject: [PATCH] RedSleeve rebranding
 
 ---
@@ -78,15 +78,15 @@ index 0000000..89e64d7
 +# PUT YOUR REPOS HERE OR IN separate files named file.repo
 +# in /etc/yum.repos.d
 diff --git a/SPECS/yum.spec b/SPECS/yum.spec
-index 819642a..11250a6 100644
+index e50b653..d083409 100644
 --- a/SPECS/yum.spec
 +++ b/SPECS/yum.spec
 @@ -32,11 +32,11 @@
  Summary: RPM package installer/updater/manager
  Name: yum
  Version: 3.4.3
--Release: 161%{?dist}
-+Release: 161%{?dist}.redsleeve
+-Release: 163%{?dist}
++Release: 163%{?dist}.redsleeve
  License: GPLv2+
  Group: System Environment/Base
  Source0: http://yum.baseurl.org/download/3.4/%{name}-%{version}.tar.gz
@@ -95,23 +95,23 @@ index 819642a..11250a6 100644
  Source2: yum-updatesd.conf.fedora
  Patch1: yum-distro-configs.patch
  Patch5: geode-arch.patch
-@@ -169,7 +169,7 @@ Patch315: BZ-1480065-depsolve-filter-conflicting-provider.patch
- Patch316: BZ-1506890-logrotate-change-size-to-maxsize.patch
+@@ -174,7 +174,7 @@ Patch341: BZ-1645173-clean-all-disk-usage-fixes.patch
+ Patch342: BZ-1600383-save-ts-no-str-concat.patch
+ Patch343: BZ-1510491-fixup-yumdb-validator.patch
  
- #CentOS Branding
 -Patch1000: centos-branding-yum.patch
 +Patch1000: redsleeve-branding-yum.patch
  
  URL: http://yum.baseurl.org/
  BuildArchitectures: noarch
-@@ -654,6 +654,9 @@ exit 0
+@@ -665,6 +665,9 @@ exit 0
  %endif
  
  %changelog
-+* Thu Nov 08 2018 Jacco Ligthart <jacco@redsleeve.org> - 3.4.3-161.el7.redsleeve
++* Sat Aug 10 2019 Jacco Ligthart <jacco@redsleeve.org> - 3.4.3-163.el7.redsleeve
 +- RedSleeve rebranding
 +
- * Tue Oct 30 2018 CentOS Sources <bugs@centos.org> - 3.4.3-161.el7.centos
+ * Tue Aug 06 2019 CentOS Sources <bugs@centos.org> - 3.4.3-163.el7.centos
  - CentOS yum config
  -  use the CentOS bug tracker url
 -- 
