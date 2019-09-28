@@ -1,6 +1,6 @@
-From 49f10c2927e51fd8642c745ed292e912f610ce69 Mon Sep 17 00:00:00 2001
+From ba820bf6af151fb86ca11b6ffca9208e628d0313 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Wed, 16 May 2018 23:25:48 +0200
+Date: Sat, 10 Aug 2019 00:53:02 +0200
 Subject: [PATCH] Roll in RedSleeve Branding
 
 ---
@@ -30,35 +30,35 @@ index 0000000..cc034f5
 +   log_error ("exiting.");
 + #endif
 diff --git a/SPECS/dhcp.spec b/SPECS/dhcp.spec
-index 14da097..81c4a35 100644
+index e6fba20..974c1a1 100644
 --- a/SPECS/dhcp.spec
 +++ b/SPECS/dhcp.spec
 @@ -18,7 +18,7 @@
  Summary:  Dynamic host configuration protocol software
  Name:     dhcp
  Version:  4.2.5
--Release:  68%{?dist}.1
-+Release:  68%{?dist}.1.redsleeve
+-Release:  77%{?dist}
++Release:  77%{?dist}.redsleeve
  # NEVER CHANGE THE EPOCH on this package.  The previous maintainer (prior to
  # dcantrell maintaining the package) made incorrect use of the epoch and
  # that's why it is at 12 now.  It should have never been used, but it was.
-@@ -108,7 +108,7 @@ Patch68:  dhcp-4.2.5-reap_orphan_sockets.patch
- Patch69:  dhcp-4.2.5-options_overflow.patch
- # CVE-2018-5733
- Patch70:  dhcp-4.2.5-reference_count_overflow.patch
--Patch71:  dhcp-4.2.5-centos-branding.patch
-+Patch71:  dhcp-4.2.5-redsleeve-branding.patch
+@@ -117,7 +117,7 @@ Patch75:  dhcp-4.2.5-isc-util.patch
+ 
+ Patch76:  dhcp-isc_heap_delete.patch
+ Patch77:  dhcp-handle_ctx_signals.patch
+-Patch78:  dhcp-4.2.5-centos-branding.patch
++Patch78:  dhcp-4.2.5-redsleeve-branding.patch
  
  
  BuildRequires: autoconf
-@@ -719,6 +719,9 @@ done
+@@ -743,6 +743,9 @@ done
  
  
  %changelog
-+* Wed May 16 2018 Jacco Ligthart <jacco@redsleeve.org> - 4.2.5-68.el7.1.redsleeve
++* Fri Aug 09 2019 Jacco Ligthart <jacco@redsleeve.org> - 4.2.5-77.el7.redsleeve
 +- Roll in RedSleeve Branding
 +
- * Tue May 15 2018 CentOS Sources <bugs@centos.org> - 4.2.5-68.el7.centos.1
+ * Tue Aug 06 2019 CentOS Sources <bugs@centos.org> - 4.2.5-77.el7.centos
  - Roll in CentOS Branding
  
 -- 

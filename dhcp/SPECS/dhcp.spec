@@ -18,7 +18,7 @@
 Summary:  Dynamic host configuration protocol software
 Name:     dhcp
 Version:  4.2.5
-Release:  77%{?dist}
+Release:  77%{?dist}.redsleeve
 # NEVER CHANGE THE EPOCH on this package.  The previous maintainer (prior to
 # dcantrell maintaining the package) made incorrect use of the epoch and
 # that's why it is at 12 now.  It should have never been used, but it was.
@@ -117,7 +117,7 @@ Patch75:  dhcp-4.2.5-isc-util.patch
 
 Patch76:  dhcp-isc_heap_delete.patch
 Patch77:  dhcp-handle_ctx_signals.patch
-Patch78:  dhcp-4.2.5-centos-branding.patch
+Patch78:  dhcp-4.2.5-redsleeve-branding.patch
 
 
 BuildRequires: autoconf
@@ -743,6 +743,9 @@ done
 
 
 %changelog
+* Fri Aug 09 2019 Jacco Ligthart <jacco@redsleeve.org> - 4.2.5-77.el7.redsleeve
+- Roll in RedSleeve Branding
+
 * Tue Aug 06 2019 CentOS Sources <bugs@centos.org> - 4.2.5-77.el7.centos
 - Roll in CentOS Branding
 
