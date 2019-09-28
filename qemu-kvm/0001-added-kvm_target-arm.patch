@@ -1,6 +1,6 @@
-From fae5041e519c113db31cb0d49933e257e6330d5f Mon Sep 17 00:00:00 2001
+From 425fb2bb9f9608206007286b13ad55b0015e3de9 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sat, 3 Aug 2019 00:39:05 +0200
+Date: Sat, 10 Aug 2019 10:45:14 +0200
 Subject: [PATCH] added kvm_target arm
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] added kvm_target arm
  1 file changed, 11 insertions(+), 3 deletions(-)
 
 diff --git a/SPECS/qemu-kvm.spec b/SPECS/qemu-kvm.spec
-index b7e76d5..073e7b9 100644
+index 77a527c..9a351c6 100644
 --- a/SPECS/qemu-kvm.spec
 +++ b/SPECS/qemu-kvm.spec
 @@ -14,7 +14,7 @@
@@ -35,8 +35,8 @@ index b7e76d5..073e7b9 100644
  Summary: QEMU is a machine emulator and virtualizer
  Name: %{pkgname}%{?pkgsuffix}
  Version: 1.5.3
--Release: 160%{?dist}.3
-+Release: 160%{?dist}.3.redsleeve
+-Release: 167%{?dist}
++Release: 167%{?dist}.redsleeve
  # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
  Epoch: 10
  License: GPLv2 and GPLv2+ and CC-BY
@@ -47,17 +47,17 @@ index b7e76d5..073e7b9 100644
  Requires: seabios-bin >= 1.7.2.2-5
  Requires: sgabios-bin
  Requires: seavgabios-bin
-@@ -6522,6 +6526,10 @@ sh %{_sysconfdir}/sysconfig/modules/kvm.modules &> /dev/null || :
+@@ -6549,6 +6553,10 @@ sh %{_sysconfdir}/sysconfig/modules/kvm.modules &> /dev/null || :
  %{_mandir}/man8/qemu-nbd.8*
  
  %changelog
-+* Fri Aug 02 2019 Jacco Ligthart <jacco@redsleeve.org> - 1.5.3-160.el7.3.redsleeve
++* Sat Aug 10 2019 Jacco Ligthart <jacco@redsleeve.org> - 1.5.3-167.el7.redsleeve
 +- added kvm_target arm
 +- do not use rdma-core
 +
- * Tue May 28 2019 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-160.el7_6.3
- - kvm-slirp-check-sscanf-result-when-emulating-ident.patch [bz#1669067]
- - kvm-slirp-fix-big-little-endian-conversion-in-ident-prot.patch [bz#1669067]
+ * Wed Jun 12 2019 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-167.el7
+ - Reverting kvm-seccomp-set-the-seccomp-filter-to-all-threads.patch [bz#1618503]
+ - Resolves: bz#1618503
 -- 
 1.8.3.1
 
