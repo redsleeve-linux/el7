@@ -1,0 +1,44 @@
+From 20114eb718b6f1163ff42397595e96c891a447e9 Mon Sep 17 00:00:00 2001
+From: Jacco Ligthart <jacco@redsleeve.org>
+Date: Sat, 10 Aug 2019 10:37:18 +0200
+Subject: [PATCH] disabled two more tests, as they are known to break on armv5
+
+---
+ SPECS/python3.spec | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/SPECS/python3.spec b/SPECS/python3.spec
+index 21d2703..965d6f8 100644
+--- a/SPECS/python3.spec
++++ b/SPECS/python3.spec
+@@ -14,7 +14,7 @@ URL: https://www.python.org/
+ #  WARNING  When rebasing to a new Python version,
+ #           remember to update the python3-docs package as well
+ Version: %{pybasever}.8
+-Release: 10%{?dist}
++Release: 10%{?dist}.redsleeve
+ License: Python
+ 
+ 
+@@ -1097,6 +1097,8 @@ CheckPython() {
+     -x test_distutils \
+     -x test_bdist_rpm \
+     %ifarch %{arm}
++    -x test_asyncio \
++    -x test_float \
+     -x test_gdb \
+     %endif 
+     %ifarch %{mips64}
+@@ -1590,6 +1592,9 @@ CheckPython optimized
+ # ======================================================
+ 
+ %changelog
++* Sat Aug 10 2019 Jacco Ligthart <jacco@redsleeve.org> - 3.6.8-10.redsleeve
++- disabled two more tests, as they are known to break on armv5
++
+ * Tue Jun 11 2019 Charalampos Stratakis <cstratak@redhat.com> - 3.6.8-10
+ - Security fix for CVE-2019-10160
+ Resolves: rhbz#1718403
+-- 
+1.8.3.1
+

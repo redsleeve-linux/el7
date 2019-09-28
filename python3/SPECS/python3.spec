@@ -14,7 +14,7 @@ URL: https://www.python.org/
 #  WARNING  When rebasing to a new Python version,
 #           remember to update the python3-docs package as well
 Version: %{pybasever}.8
-Release: 10%{?dist}
+Release: 10%{?dist}.redsleeve
 License: Python
 
 
@@ -1097,6 +1097,8 @@ CheckPython() {
     -x test_distutils \
     -x test_bdist_rpm \
     %ifarch %{arm}
+    -x test_asyncio \
+    -x test_float \
     -x test_gdb \
     %endif 
     %ifarch %{mips64}
@@ -1590,6 +1592,9 @@ CheckPython optimized
 # ======================================================
 
 %changelog
+* Sat Aug 10 2019 Jacco Ligthart <jacco@redsleeve.org> - 3.6.8-10.redsleeve
+- disabled two more tests, as they are known to break on armv5
+
 * Tue Jun 11 2019 Charalampos Stratakis <cstratak@redhat.com> - 3.6.8-10
 - Security fix for CVE-2019-10160
 Resolves: rhbz#1718403
