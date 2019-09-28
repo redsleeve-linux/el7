@@ -19,7 +19,7 @@
 %global use_tcmalloc 0
 %global variant base-asan
 %else
-%if %{_arch} != "s390x" && %{_arch} != "s390"
+%ifnarch s390 s390x %{arm}
 %global use_tcmalloc 1
 %else
 %global use_tcmalloc 0
@@ -39,7 +39,7 @@
 Summary:          389 Directory Server (%{variant})
 Name:             389-ds-base
 Version:          1.3.9.1
-Release:          %{?relprefix}10%{?prerel}%{?dist}
+Release:          %{?relprefix}10%{?prerel}%{?dist}.redsleeve
 License:          GPLv3+
 URL:              https://www.port389.org/
 Group:            System Environment/Daemons
@@ -531,6 +531,9 @@ fi
 %{_sysconfdir}/%{pkgname}/dirsrvtests
 
 %changelog
+* Fri Aug 09 2019 Jacco Ligthart <jacco@redsleeve.org> - 1.3.9.1-10.redsleeve
+- disabled tcmalloc for arm
+
 * Thu Jun 13 2019 Mark Reynolds <mreynolds@redhat.com> - 1.3.9.1-10
 - Bump version to 1.3.9.1-10
 - Resolves: Bug 1668457 - CVE-2019-3883 389-ds-base: DoS via hanging secured connections
