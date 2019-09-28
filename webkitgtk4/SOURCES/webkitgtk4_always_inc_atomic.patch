@@ -1,0 +1,31 @@
+diff -ruN a/Source/JavaScriptCore/CMakeLists.txt b/Source/JavaScriptCore/CMakeLists.txt
+--- a/Source/JavaScriptCore/CMakeLists.txt	2019-02-28 11:08:17.000000000 +0100
++++ b/Source/JavaScriptCore/CMakeLists.txt	2019-08-16 16:49:38.776587763 +0200
+@@ -124,9 +124,9 @@
+     list(APPEND JavaScriptCore_LIBRARIES capstone)
+ endif ()
+ 
+-if (ATOMIC_INT64_REQUIRES_LIBATOMIC)
++#if (ATOMIC_INT64_REQUIRES_LIBATOMIC)
+     list(APPEND JavaScriptCore_LIBRARIES atomic)
+-endif ()
++#endif ()
+ 
+ set(JavaScriptCore_SCRIPTS_SOURCES_DIR "${JAVASCRIPTCORE_DIR}/Scripts")
+ 
+diff -ruN a/Source/WebKit/CMakeLists.txt b/Source/WebKit/CMakeLists.txt
+--- a/Source/WebKit/CMakeLists.txt	2019-02-28 11:08:21.000000000 +0100
++++ b/Source/WebKit/CMakeLists.txt	2019-08-16 16:50:33.396579676 +0200
+@@ -288,9 +288,9 @@
+     set(JavaScriptCore_SCRIPTS_DIR "${FORWARDING_HEADERS_DIR}/JavaScriptCore/Scripts")
+ endif ()
+ 
+-if (ATOMIC_INT64_REQUIRES_LIBATOMIC)
+-    list(APPEND WebKit_LIBRARIES PRIVATE atomic)
+-endif ()
++#if (ATOMIC_INT64_REQUIRES_LIBATOMIC)
++#    list(APPEND WebKit_LIBRARIES PRIVATE atomic)
++#endif ()
+ 
+ if (UNIX)
+     check_function_exists(shm_open SHM_OPEN_EXISTS)

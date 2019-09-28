@@ -27,7 +27,7 @@
 
 Name:           webkitgtk4
 Version:        2.22.7
-Release:        2%{?dist}
+Release:        2%{?dist}.redsleeve
 Summary:        GTK+ Web content engine library
 
 License:        LGPLv2
@@ -84,6 +84,8 @@ Patch58: icu-dont_use_clang_even_if_installed.patch
 # CVE-2017-7867 CVE-2017-7868
 Patch59: icu-rhbz1444101-icu-changeset-39671.patch
 %endif
+
+Patch1000: webkitgtk4_always_inc_atomic.patch
 
 BuildRequires:  at-spi2-core-devel
 BuildRequires:  bison
@@ -248,6 +250,8 @@ Support for the GTK+ 2 based NPAPI plugins (such as Adobe Flash) for %{name}.
 %autosetup -p1 -n webkitgtk-%{version}
 %endif
 
+%patch1000 -p1
+
 # Remove bundled libraries
 rm -rf Source/ThirdParty/gtest/
 rm -rf Source/ThirdParty/qunit/
@@ -342,10 +346,10 @@ pushd %{_target_platform}
   -DENABLE_MINIBROWSER=ON \
   -DENABLE_SUBTLE_CRYPTO=OFF \
   -DENABLE_MEDIA_SOURCE=OFF \
-%ifarch s390 aarch64
+%ifarch s390 aarch64 %{arm}
   -DUSE_LD_GOLD=OFF \
 %endif
-%ifarch s390 s390x ppc %{power64} aarch64 %{mips}
+%ifarch s390 s390x ppc %{power64} aarch64 %{mips} %{arm}
   -DENABLE_JIT=OFF \
   -DUSE_SYSTEM_MALLOC=ON \
 %endif
@@ -355,7 +359,7 @@ popd
 # Remove the static amount of jobs once
 # https://projects.engineering.redhat.com/browse/BREW-2146 is resolved
 # make %{?_smp_mflags} -C %{_target_platform}
-make -j4 -C %{_target_platform}
+make -j2 -C %{_target_platform}
 
 %install
 %if 0%{?bundle_icu}
@@ -459,6 +463,12 @@ chmod 644 $RPM_BUILD_ROOT%{_libdir}/webkit2gtk-4.0/libicuuc.so.57.1
 %{_datadir}/gtk-doc/html/webkitdomgtk-4.0/
 
 %changelog
+* Fri Aug 16 2019 Jacco Ligthart <jacco@redsleeve.com> - 2.22.7-2.redsleeve
+- disabled LD_GOLD4, JIT for arm
+- use system malloc for arm
+- added a patch to always link against atomic
+- only use 2 cpus for building, better for not swapping
+
 * Thu Apr 04 2019 Eike Rathke <erack@redhat.com> - 2.22.7-2
 - Related: rhbz#1669482 covscan fixes
 

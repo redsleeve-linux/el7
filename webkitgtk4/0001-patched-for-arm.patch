@@ -1,6 +1,6 @@
-From 92fb51e5cfd9a56970d973b95b41b83284a67026 Mon Sep 17 00:00:00 2001
+From 590cdf6edae4f9178cd88c5c6226845dd5f6305f Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Tue, 18 Dec 2018 23:55:35 +0100
+Date: Sat, 28 Sep 2019 08:25:09 +0200
 Subject: [PATCH] patched for arm
 
 ---
@@ -11,16 +11,16 @@ Subject: [PATCH] patched for arm
 
 diff --git a/SOURCES/webkitgtk4_always_inc_atomic.patch b/SOURCES/webkitgtk4_always_inc_atomic.patch
 new file mode 100644
-index 0000000..a3dd583
+index 0000000..6c912bc
 --- /dev/null
 +++ b/SOURCES/webkitgtk4_always_inc_atomic.patch
 @@ -0,0 +1,31 @@
 +diff -ruN a/Source/JavaScriptCore/CMakeLists.txt b/Source/JavaScriptCore/CMakeLists.txt
-+--- a/Source/JavaScriptCore/CMakeLists.txt	2018-07-31 07:57:41.000000000 +0200
-++++ b/Source/JavaScriptCore/CMakeLists.txt	2018-11-24 08:57:28.944383874 +0100
-+@@ -116,9 +116,9 @@
-+     ${LLVM_LIBRARIES}
-+ )
++--- a/Source/JavaScriptCore/CMakeLists.txt	2019-02-28 11:08:17.000000000 +0100
+++++ b/Source/JavaScriptCore/CMakeLists.txt	2019-08-16 16:49:38.776587763 +0200
++@@ -124,9 +124,9 @@
++     list(APPEND JavaScriptCore_LIBRARIES capstone)
++ endif ()
 + 
 +-if (ATOMIC_INT64_REQUIRES_LIBATOMIC)
 ++#if (ATOMIC_INT64_REQUIRES_LIBATOMIC)
@@ -31,35 +31,35 @@ index 0000000..a3dd583
 + set(JavaScriptCore_SCRIPTS_SOURCES_DIR "${JAVASCRIPTCORE_DIR}/Scripts")
 + 
 +diff -ruN a/Source/WebKit/CMakeLists.txt b/Source/WebKit/CMakeLists.txt
-+--- a/Source/WebKit/CMakeLists.txt	2018-06-11 11:28:11.000000000 +0200
-++++ b/Source/WebKit/CMakeLists.txt	2018-11-24 08:56:41.194424930 +0100
-+@@ -778,9 +778,9 @@
++--- a/Source/WebKit/CMakeLists.txt	2019-02-28 11:08:21.000000000 +0100
+++++ b/Source/WebKit/CMakeLists.txt	2019-08-16 16:50:33.396579676 +0200
++@@ -288,9 +288,9 @@
 +     set(JavaScriptCore_SCRIPTS_DIR "${FORWARDING_HEADERS_DIR}/JavaScriptCore/Scripts")
 + endif ()
 + 
 +-if (ATOMIC_INT64_REQUIRES_LIBATOMIC)
-+-    list(APPEND WebKit_LIBRARIES atomic)
++-    list(APPEND WebKit_LIBRARIES PRIVATE atomic)
 +-endif ()
 ++#if (ATOMIC_INT64_REQUIRES_LIBATOMIC)
-++#    list(APPEND WebKit_LIBRARIES atomic)
+++#    list(APPEND WebKit_LIBRARIES PRIVATE atomic)
 ++#endif ()
 + 
 + if (UNIX)
 +     check_function_exists(shm_open SHM_OPEN_EXISTS)
 diff --git a/SPECS/webkitgtk4.spec b/SPECS/webkitgtk4.spec
-index 0f5bc31..236be45 100644
+index 8ffec69..73028cc 100644
 --- a/SPECS/webkitgtk4.spec
 +++ b/SPECS/webkitgtk4.spec
 @@ -27,7 +27,7 @@
  
  Name:           webkitgtk4
- Version:        2.20.5
--Release:        1%{?dist}
-+Release:        1%{?dist}.redsleeve
+ Version:        2.22.7
+-Release:        2%{?dist}
++Release:        2%{?dist}.redsleeve
  Summary:        GTK+ Web content engine library
  
  License:        LGPLv2
-@@ -99,6 +99,8 @@ Patch58: icu-dont_use_clang_even_if_installed.patch
+@@ -85,6 +85,8 @@ Patch58: icu-dont_use_clang_even_if_installed.patch
  Patch59: icu-rhbz1444101-icu-changeset-39671.patch
  %endif
  
@@ -68,7 +68,7 @@ index 0f5bc31..236be45 100644
  BuildRequires:  at-spi2-core-devel
  BuildRequires:  bison
  BuildRequires:  cairo-devel
-@@ -270,6 +272,8 @@ Support for the GTK+ 2 based NPAPI plugins (such as Adobe Flash) for %{name}.
+@@ -248,6 +250,8 @@ Support for the GTK+ 2 based NPAPI plugins (such as Adobe Flash) for %{name}.
  %autosetup -p1 -n webkitgtk-%{version}
  %endif
  
@@ -77,10 +77,10 @@ index 0f5bc31..236be45 100644
  # Remove bundled libraries
  rm -rf Source/ThirdParty/gtest/
  rm -rf Source/ThirdParty/qunit/
-@@ -363,10 +367,10 @@ pushd %{_target_platform}
-   -DENABLE_GTKDOC=ON \
+@@ -342,10 +346,10 @@ pushd %{_target_platform}
    -DENABLE_MINIBROWSER=ON \
    -DENABLE_SUBTLE_CRYPTO=OFF \
+   -DENABLE_MEDIA_SOURCE=OFF \
 -%ifarch s390 aarch64
 +%ifarch s390 aarch64 %{arm}
    -DUSE_LD_GOLD=OFF \
@@ -90,7 +90,7 @@ index 0f5bc31..236be45 100644
    -DENABLE_JIT=OFF \
    -DUSE_SYSTEM_MALLOC=ON \
  %endif
-@@ -376,7 +380,7 @@ popd
+@@ -355,7 +359,7 @@ popd
  # Remove the static amount of jobs once
  # https://projects.engineering.redhat.com/browse/BREW-2146 is resolved
  # make %{?_smp_mflags} -C %{_target_platform}
@@ -99,19 +99,19 @@ index 0f5bc31..236be45 100644
  
  %install
  %if 0%{?bundle_icu}
-@@ -479,6 +483,12 @@ chmod 644 $RPM_BUILD_ROOT%{_libdir}/webkit2gtk-4.0/libicuuc.so.57.1
+@@ -459,6 +463,12 @@ chmod 644 $RPM_BUILD_ROOT%{_libdir}/webkit2gtk-4.0/libicuuc.so.57.1
  %{_datadir}/gtk-doc/html/webkitdomgtk-4.0/
  
  %changelog
-+* Sat Nov 24 2018 Jacco Ligthart <jacco@redsleeve.com> - 2.20.5-1.redsleeve
++* Fri Aug 16 2019 Jacco Ligthart <jacco@redsleeve.com> - 2.22.7-2.redsleeve
 +- disabled LD_GOLD4, JIT for arm
 +- use system malloc for arm
 +- added a patch to always link against atomic
 +- only use 2 cpus for building, better for not swapping
 +
- * Tue Aug 14 2018 Tomas Popela <tpopela@redhat.com> - 2.20.5-1
- - Update to 2.20.5 - technically it was not necessary as the only difference
-   between 2.20.4 and .5 was the revert of one change, that we already reverted
+ * Thu Apr 04 2019 Eike Rathke <erack@redhat.com> - 2.22.7-2
+ - Related: rhbz#1669482 covscan fixes
+ 
 -- 
 1.8.3.1
 
