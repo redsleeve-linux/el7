@@ -1,6 +1,6 @@
-From c1d43ba1ac70fc51e40133b5436204a81b8ecb4c Mon Sep 17 00:00:00 2001
+From f16e201111f1c213ea87df7b714f905fda0f13b8 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sat, 3 Aug 2019 00:34:37 +0200
+Date: Fri, 20 Sep 2019 01:27:53 +0200
 Subject: [PATCH] removed the gdb section of the SPEC file
 
 ---
@@ -8,10 +8,10 @@ Subject: [PATCH] removed the gdb section of the SPEC file
  1 file changed, 16 insertions(+), 13 deletions(-)
 
 diff --git a/SPECS/java-1.8.0-openjdk.spec b/SPECS/java-1.8.0-openjdk.spec
-index baa5731..7776c1e 100644
+index f442d97..da95dc4 100644
 --- a/SPECS/java-1.8.0-openjdk.spec
 +++ b/SPECS/java-1.8.0-openjdk.spec
-@@ -829,7 +829,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
+@@ -833,7 +833,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
  
  Name:    java-%{javaver}-%{origin}
  Version: %{javaver}.%{updatever}.%{buildver}
@@ -20,7 +20,7 @@ index baa5731..7776c1e 100644
  # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
  # and this change was brought into RHEL-4. java-1.5.0-ibm packages
  # also included the epoch in their virtual provides. This created a
-@@ -1641,18 +1641,18 @@ done
+@@ -1622,18 +1622,18 @@ done
  # Using line number 1 might cause build problems. See:
  # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
  # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
@@ -51,16 +51,16 @@ index baa5731..7776c1e 100644
  
  # Check src.zip has all sources. See RHBZ#1130490
  jar -tf $JAVA_HOME/src.zip | grep 'sun.misc.Unsafe'
-@@ -2077,6 +2077,9 @@ require "copy_jdk_configs.lua"
+@@ -2057,6 +2057,9 @@ require "copy_jdk_configs.lua"
  %endif
  
  %changelog
-+* Fri Aug 02 2019 Jacco Ligthart <jacco@redsleeve.org> 1:1.8.0.222.b10-0.redsleeve
++* Fri Sep 20 2019 Jacco Ligthart <jacco@redsleeve.org> 1:1.8.0.222.b10-1.redsleeve
 +- removed the gdb section of the SPEC file
 +
- * Tue Jul 23 2019 Johnny Hughes <johnny@centos.org>
- - Manual CentOS Debranding
- 
+ * Thu Jul 11 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.222.b10-1
+ - Update to aarch64-shenandoah-jdk8u222-b10.
+ - Resolves: rhbz#1724452
 -- 
 1.8.3.1
 
