@@ -1,83 +1,44 @@
-From ff30fdfe8512e9e442c14f724a32566dea495719 Mon Sep 17 00:00:00 2001
+From dfa5b78f064574eebcbac64e6a71d4c6f89e57db Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sun, 15 Apr 2018 14:46:55 +0200
+Date: Sat, 10 Aug 2019 06:50:11 +0200
 Subject: [PATCH] patched to build on arm
 
 ---
- SOURCES/numactl-2.0.9-arm_migrate_pages.patch | 13 +++++++++++++
- SPECS/numactl.spec                            | 11 +++++++++--
- 2 files changed, 22 insertions(+), 2 deletions(-)
- create mode 100644 SOURCES/numactl-2.0.9-arm_migrate_pages.patch
+ SPECS/numactl.spec | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
 
-diff --git a/SOURCES/numactl-2.0.9-arm_migrate_pages.patch b/SOURCES/numactl-2.0.9-arm_migrate_pages.patch
-new file mode 100644
-index 0000000..fad7371
---- /dev/null
-+++ b/SOURCES/numactl-2.0.9-arm_migrate_pages.patch
-@@ -0,0 +1,13 @@
-+diff -ruN numactl-2.0.9-orig/syscall.c numactl-2.0.9/syscall.c
-+--- numactl-2.0.9-orig/syscall.c	2013-10-08 23:34:58.000000000 +0200
-++++ numactl-2.0.9/syscall.c	2014-12-25 15:56:29.028437246 +0100
-+@@ -109,6 +109,9 @@
-+ 
-+ #define __NR_migrate_pages	272
-+ 
-++#elif defined (__arm__)
-++#define __NR_migrate_pages     380
-++
-+ #elif !defined(DEPS_RUN)
-+ #error "Add syscalls for your architecture or update kernel headers"
-+ #endif
 diff --git a/SPECS/numactl.spec b/SPECS/numactl.spec
-index 9164123..02d712b 100644
+index db0d7f5..53c79f0 100644
 --- a/SPECS/numactl.spec
 +++ b/SPECS/numactl.spec
 @@ -1,7 +1,7 @@
  Name:		numactl
  Summary:	Library for tuning for Non Uniform Memory Access machines
- Version:	2.0.9
--Release:	7%{?dist}
-+Release:	7%{?dist}.redsleeve
+ Version:	2.0.12
+-Release:	3%{?dist}
++Release:	3%{?dist}.redsleeve
  # libnuma is LGPLv2 and GPLv2
  # numactl binaries are GPLv2 only
  License:	GPLv2
-@@ -10,7 +10,7 @@ URL:		ftp://oss.sgi.com/www/projects/libnuma/download
- Source0:	ftp://oss.sgi.com/www/projects/libnuma/download/numactl-%{version}.tar.gz
+@@ -11,7 +11,7 @@ Source0:        https://github.com/numactl/numactl/releases/download/%{version}/
  Buildroot:	%{_tmppath}/%{name}-buildroot
+ BuildRequires:  libtool automake autoconf
  
 -ExcludeArch: s390 s390x %{arm}
 +ExcludeArch: s390 s390x
  
- Patch1: numactl-2.0.8-localalloc-man.patch
- Patch2: numactl-2.0.9-hw-detect-segfault.patch
-@@ -18,6 +18,7 @@ Patch3: numactl-2.0.9-mpol-bind-preferred.patch
- Patch4: numactl-2.0.10-numa_node_to_cpu_skip_over_nonexisting.patch
- Patch5: numactl-2.0.11-libnuma-supress-warnings-for-non-existing-node.patch
- Patch6: numactl-2.0.11-Segment-fault-when-numa-nodes-not-sequential-or-cont.patch
-+Patch10001: numactl-2.0.9-arm_migrate_pages.patch
+ Patch1: numactl-2.0.12-numastat-when-reading-no-exist-pid-return-EXIT_FAILU.patch
  
- %description
- Simple NUMA policy support. It consists of a numactl program to run
-@@ -50,6 +51,7 @@ Provides development headers for numa library calls
- %patch4 -p1
- %patch5 -p1
- %patch6 -p1
-+%patch10001 -p1
- 
- %build
- make clean
-@@ -98,6 +100,11 @@ rm -rf $RPM_BUILD_ROOT
+@@ -84,6 +84,9 @@ make DESTDIR=$RPM_BUILD_ROOT install
  %{_mandir}/man3/*.3*
  
  %changelog
-+* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.org> - 2.0.9-7.redsleeve
++* Sat Aug 10 2019 Jacco Ligthart <jacco@redsleeve.org> - 2.0.12-3.redsleeve
 +- Don't exclude arm architectures
-+- add patch for __NR_migrate_pages on arm, see:
-+- https://wiki.linaro.org/LEG/Engineering/Kernel/NUMA
 +
- * Tue Aug 8 2017 Petr Oros <poros@redhat.com> - 2.0.9-7
- - Segment fault when numa nodes not sequential or contiguous
- - Resolves: #1219445
+ * Sat Jun  1 2019 Pingfan Liu <piliu@redhat.com> - 2.0.12-3
+ - numastat: bail out if reading no-exist pid
+ 
 -- 
 1.8.3.1
 

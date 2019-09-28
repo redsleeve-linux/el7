@@ -1,7 +1,7 @@
 Name:		numactl
 Summary:	Library for tuning for Non Uniform Memory Access machines
 Version:	2.0.12
-Release:	3%{?dist}
+Release:	3%{?dist}.redsleeve
 # libnuma is LGPLv2 and GPLv2
 # numactl binaries are GPLv2 only
 License:	GPLv2
@@ -11,7 +11,7 @@ Source0:        https://github.com/numactl/numactl/releases/download/%{version}/
 Buildroot:	%{_tmppath}/%{name}-buildroot
 BuildRequires:  libtool automake autoconf
 
-ExcludeArch: s390 s390x %{arm}
+ExcludeArch: s390 s390x
 
 Patch1: numactl-2.0.12-numastat-when-reading-no-exist-pid-return-EXIT_FAILU.patch
 
@@ -84,6 +84,9 @@ make DESTDIR=$RPM_BUILD_ROOT install
 %{_mandir}/man3/*.3*
 
 %changelog
+* Sat Aug 10 2019 Jacco Ligthart <jacco@redsleeve.org> - 2.0.12-3.redsleeve
+- Don't exclude arm architectures
+
 * Sat Jun  1 2019 Pingfan Liu <piliu@redhat.com> - 2.0.12-3
 - numastat: bail out if reading no-exist pid
 
