@@ -1,6 +1,6 @@
-From a5e82ccb366a0d9fd6fb7a2df66ffe4d9aa17936 Mon Sep 17 00:00:00 2001
+From efa7a144ca2611743be38b4beb80d6c57fafae00 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sun, 15 Apr 2018 14:50:20 +0200
+Date: Sat, 10 Aug 2019 10:19:08 +0200
 Subject: [PATCH] added "--tag=CC" to the make command due to libtool errors
 
 ---
@@ -8,19 +8,19 @@ Subject: [PATCH] added "--tag=CC" to the make command due to libtool errors
  1 file changed, 7 insertions(+), 4 deletions(-)
 
 diff --git a/SPECS/pidgin.spec b/SPECS/pidgin.spec
-index 6b82d11..01abaf3 100644
+index e854332..54f6b8b 100644
 --- a/SPECS/pidgin.spec
 +++ b/SPECS/pidgin.spec
 @@ -110,7 +110,7 @@
  
  Name:           pidgin
  Version:        2.10.11
--Release:        7%{?dist}
-+Release:        7%{?dist}.redsleeve
+-Release:        8%{?dist}
++Release:        8%{?dist}.redsleeve
  License:        GPLv2+ and GPLv2 and MIT
  # GPLv2+ - libpurple, gnt, finch, pidgin, most prpls
  # GPLv2 - novell prpls
-@@ -545,11 +545,11 @@ autoreconf --force --install
+@@ -553,11 +553,11 @@ autoreconf --force --install
             --enable-tcl --enable-tk \
             --disable-schemas-install $SWITCHES
  
@@ -34,7 +34,7 @@ index 6b82d11..01abaf3 100644
  cd -
  
  %if %{api_docs}
-@@ -559,7 +559,7 @@ find doc/html -empty -delete
+@@ -567,7 +567,7 @@ find doc/html -empty -delete
  
  %install
  rm -rf $RPM_BUILD_ROOT
@@ -43,16 +43,16 @@ index 6b82d11..01abaf3 100644
  
  install -m 0755 libpurple/plugins/one_time_password.so $RPM_BUILD_ROOT%{_libdir}/purple-2/
  
-@@ -763,6 +763,9 @@ rm -rf $RPM_BUILD_ROOT
+@@ -771,6 +771,9 @@ rm -rf $RPM_BUILD_ROOT
  %endif
  
  %changelog
-+* Sun Apr 15 2018 Jacco Ligthart <jacco@redsleeve.org> 2.10.11-7.el7.redsleeve
++* Sat Aug 10 2019 Jacco Ligthart <jacco@redsleeve.org> 2.10.11-8.el7.redsleeve
 +- added "--tag=CC" to the make command due to libtool errors
 +
- * Thu Oct 12 2017 Debarshi Ray <rishi@fedoraproject.org> - 2.10.11-7
- - Drop AIM in RHEL
-   Resolves: #1500403
+ * Tue Oct 09 2018 Debarshi Ray <rishi@fedoraproject.org> - 2.10.11-8
+ - Rework tray icon blinking
+ - Unbreak connections to Freenode
 -- 
 1.8.3.1
 
