@@ -1,28 +1,28 @@
-From 26fcb73b3045f9358ee8845b9b0310ab1bae2e22 Mon Sep 17 00:00:00 2001
+From fc3f809c14083b3420e98548e89e7865291c73f3 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Fri, 23 Nov 2018 09:38:45 +0100
+Date: Fri, 16 Aug 2019 15:29:49 +0200
 Subject: [PATCH] undo most of the CentOS work to get an unbranded version.
 
 ---
- SPECS/libreport.spec | 122 ++++++++++++++++++++++++++-------------------------
- 1 file changed, 63 insertions(+), 59 deletions(-)
+ SPECS/libreport.spec | 123 ++++++++++++++++++++++++++-------------------------
+ 1 file changed, 63 insertions(+), 60 deletions(-)
 
 diff --git a/SPECS/libreport.spec b/SPECS/libreport.spec
-index 03477ba..c79509b 100644
+index fb4b58a..e18c775 100644
 --- a/SPECS/libreport.spec
 +++ b/SPECS/libreport.spec
 @@ -7,7 +7,7 @@
  Summary: Generic library for reporting various problems
  Name: libreport
  Version: 2.1.11
--Release: 42%{?dist}
-+Release: 42%{?dist}.redsleeve
+-Release: 43%{?dist}
++Release: 43%{?dist}.redsleeve
  License: GPLv2+
  Group: System Environment/Libraries
  URL: https://fedorahosted.org/abrt/
-@@ -257,21 +257,21 @@ Patch226: 0226-reporter-rhtsupport-remove-dependency-of-redhat-acce.patch
- Patch227: 0227-potfiles-fix-issue-in-POTFILES.in.patch
- Patch228: 0228-Translation-updates.patch
+@@ -268,21 +268,21 @@ Patch236: 0236-tests-include-testsuite.h-in-the-dist-archive.patch
+ #Patch237: 0237-spec-include-testsuite-headers-in-the-devel-package.patch
+ # git format-patch 2.1.11-43.el7 -N --start-number 231 --topo-order
  
 -Patch1000: 1000-bugzilla-port-to-Problem-Format-API.patch
 -Patch1001: 1001-lib-created-a-new-lib-file-for-reporters.patch
@@ -52,7 +52,7 @@ index 03477ba..c79509b 100644
  
  # git is need for '%%autosetup -S git' which automatically applies all the
  # patches above. Please, be aware that the patches must be generated
-@@ -461,24 +461,24 @@ Uploads micro-report to abrt server
+@@ -472,24 +472,24 @@ Uploads micro-report to abrt server
  %description plugin-bugzilla
  Plugin to report bugs into the bugzilla.
  
@@ -92,15 +92,16 @@ index 03477ba..c79509b 100644
  
  %package plugin-rhtsupport
  Summary: %{name}'s RHTSupport plugin
-@@ -725,6 +725,7 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
+@@ -736,7 +736,7 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
  %{_includedir}/libreport/dump_dir.h
  %{_includedir}/libreport/event_config.h
  %{_includedir}/libreport/problem_data.h
+-#%{_includedir}/libreport/problem_report.h
 +%{_includedir}/libreport/problem_report.h
  %{_includedir}/libreport/report.h
  %{_includedir}/libreport/run_event.h
  %{_includedir}/libreport/file_obj.h
-@@ -732,7 +733,7 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
+@@ -744,7 +744,7 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
  %{_includedir}/libreport/workflow.h
  %{_includedir}/libreport/ureport.h
  %{_includedir}/libreport/global_configuration.h
@@ -109,7 +110,7 @@ index 03477ba..c79509b 100644
  # Private api headers:
  %{_includedir}/libreport/internal_abrt_dbus.h
  %{_includedir}/libreport/internal_libreport.h
-@@ -852,39 +853,39 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
+@@ -865,39 +865,39 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
  %{_mandir}/man5/bugzilla_format_kernel.conf.5.*
  %{_bindir}/reporter-bugzilla
  
@@ -181,16 +182,16 @@ index 03477ba..c79509b 100644
  
  %files plugin-rhtsupport
  %defattr(-,root,root,-)
-@@ -997,6 +998,9 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
+@@ -1010,6 +1010,9 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
  
  
  %changelog
-+* Fri Nov 23 2018 Jacco Ligthart <jacco@redsleeve.org> = 2.1.11-42.redsleeve
++* Fri Aug 16 2019 Jacco Ligthart <jacco@redsleeve.org> = 2.1.11-43.redsleeve
 +- undo most of the CentOS work to get an unbranded version.
 +
- * Wed Aug 08 2018 Matej Habrnal <mhabrnal@redhat.com> - 2.1.11-42
- - Translation updates
- - Related: #1549672
+ * Tue Nov 20 2018 Martin Kutlak <mkutlak@redhat.com> - 2.1.11-43
+ - dd: extend the scope of DD_DONT_WAIT_FOR_LOCK
+ - dd: log lock warning only once not x times per sec
 -- 
 1.8.3.1
 
