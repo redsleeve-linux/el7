@@ -2,7 +2,7 @@
 Summary: A set of tools to gather troubleshooting information from a system
 Name: sos
 Version: 3.7
-Release: 6%{?dist}
+Release: 6%{?dist}.redsleeve
 Group: Applications/System
 Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
 License: GPLv2+
@@ -29,7 +29,7 @@ Patch7: sos-bz1706060-vdsm-plugin.patch
 Patch8: sos-bz1711305-katello-qpid-certificate.patch
 Patch9: sos-bz1736424-timeouted-plugin-stop-further-collection.patch
 Patch10: sos-bz1736422-cmd-poll-performance.patch
-Patch11: sos-3.7-centos-branding.patch
+Patch11: sos-3.7-redsleeve-branding.patch
 
 
 %description
@@ -75,6 +75,9 @@ rm -rf ${RPM_BUILD_ROOT}
 %config(noreplace) %{_sysconfdir}/sos.conf
 
 %changelog
+* Fri Sep 20 2019 Jacco Ligthart <jacco@redsleeve.org> - 3.7-6.el7.redsleeve
+- Roll in RedSleeve Branding
+
 * Tue Sep 03 2019 CentOS Sources <bugs@centos.org> - 3.7-6.el7.centos
 - Roll in CentOS Branding
 

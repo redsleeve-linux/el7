@@ -1,20 +1,20 @@
-From 282bf9463013bdec354e9fc4d00a4383f060ac12 Mon Sep 17 00:00:00 2001
+From 4725cd29a4f3767be4f995f601bcff4c3208f8bf Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sat, 3 Aug 2019 00:41:57 +0200
+Date: Fri, 20 Sep 2019 02:56:02 +0200
 Subject: [PATCH] Roll in RedSleeve Branding
 
 ---
- SOURCES/sos-3.6-redsleeve-branding.patch | 105 +++++++++++++++++++++++++++++++
- SPECS/sos.spec                           |   7 ++-
- 2 files changed, 110 insertions(+), 2 deletions(-)
- create mode 100644 SOURCES/sos-3.6-redsleeve-branding.patch
+ SOURCES/sos-3.7-redsleeve-branding.patch | 106 +++++++++++++++++++++++++++++++
+ SPECS/sos.spec                           |   7 +-
+ 2 files changed, 111 insertions(+), 2 deletions(-)
+ create mode 100644 SOURCES/sos-3.7-redsleeve-branding.patch
 
-diff --git a/SOURCES/sos-3.6-redsleeve-branding.patch b/SOURCES/sos-3.6-redsleeve-branding.patch
+diff --git a/SOURCES/sos-3.7-redsleeve-branding.patch b/SOURCES/sos-3.7-redsleeve-branding.patch
 new file mode 100644
-index 0000000..8761274
+index 0000000..649934d
 --- /dev/null
-+++ b/SOURCES/sos-3.6-redsleeve-branding.patch
-@@ -0,0 +1,105 @@
++++ b/SOURCES/sos-3.7-redsleeve-branding.patch
+@@ -0,0 +1,106 @@
 +diff -uNrp sos-3.6.orig/sos/policies/redhat.py sos-3.6/sos/policies/redhat.py
 +--- sos-3.6.orig/sos/policies/redhat.py	2018-11-04 17:44:59.513116585 +0000
 ++++ sos-3.6/sos/policies/redhat.py	2018-11-04 17:53:28.333731059 +0000
@@ -39,7 +39,7 @@ index 0000000..8761274
 ++        """This method checks to see if we are running on RedSleeve. It must be
 +         overriden by concrete subclasses to return True when running on a
 +-        Fedora, RHEL or other Red Hat distribution or False otherwise."""
-++        Fedora, RHEL ,CentOS or RedSleeve distribution or False otherwise."""
+++        Fedora, RHEL, CentOS or RedSleeve distribution or False otherwise."""
 +         return False
 + 
 +     def check_usrmove(self, pkgs):
@@ -52,34 +52,6 @@ index 0000000..8761274
 + ENV_CONTAINER = 'container'
 + ENV_HOST_SYSROOT = 'HOST'
 + 
-+@@ -195,22 +195,22 @@ _opts_all_logs_verify = SoSOptions(all_l
-+ _opts_all_logs_no_lsof = SoSOptions(all_logs=True,
-+                                     plugopts=['process.lsof=off'])
-+ 
-+-RHEL_RELEASE_STR = "Red Hat Enterprise Linux"
-++RHEL_RELEASE_STR = "RedSleeve Linux"
-+ 
-+ RHV = "rhv"
-+-RHV_DESC = "Red Hat Virtualization"
-++RHV_DESC = "RedSleeve Virtualization"
-+ 
-+ RHEL = "rhel"
-+ RHEL_DESC = RHEL_RELEASE_STR
-+ 
-+ RHOSP = "rhosp"
-+-RHOSP_DESC = "Red Hat OpenStack Platform"
-++RHOSP_DESC = "RDO"
-+ 
-+ RHOCP = "ocp"
-+-RHOCP_DESC = "OpenShift Container Platform by Red Hat"
-++RHOCP_DESC = "OpenShift"
-+ 
-+ RH_SATELLITE = "satellite"
-+-RH_SATELLITE_DESC = "Red Hat Satellite"
-++RH_SATELLITE_DESC = "Satellite"
-+ 
-+ NOTE_SIZE = "This preset may increase report size"
-+ NOTE_TIME = "This preset may increase report run time"
 +@@ -230,9 +230,9 @@ rhel_presets = {
 + 
 + 
@@ -89,7 +61,7 @@ index 0000000..8761274
 +-    vendor_url = "https://access.redhat.com/support/"
 ++    distro = "RedSleeve Linux"
 ++    vendor = "RedSleeve"
-++    vendor_url = "https://github.com/redsleeve-linux/"
+++    vendor_url = "https://www.redsleeve.org/"
 +     msg = _("""\
 + This command will collect diagnostic and configuration \
 + information from this %(distro)s system and installed \
@@ -120,36 +92,65 @@ index 0000000..8761274
 +     msg = _("""\
 + This command will collect diagnostic and configuration \
 + information from this %(distro)s system.
++diff -uNrp sos-3.7.orig/sos/policies/redhat.py sos-3.7/sos/policies/redhat.py
++--- sos-3.7.orig/sos/policies/redhat.py	2019-08-07 15:24:23.198233507 +0000
+++++ sos-3.7/sos/policies/redhat.py	2019-08-07 15:29:08.324131718 +0000
++@@ -198,7 +198,7 @@ _cb_plugs = ['abrt', 'block', 'boot', 'd
++              'hardware', 'host', 'kernel', 'logs', 'lvm2', 'memory', 'rpm',
++              'process', 'systemd', 'yum', 'xfs']
++ 
++-RHEL_RELEASE_STR = "Red Hat Enterprise Linux"
+++RHEL_RELEASE_STR = "RedSleeve Linux"
++ 
++ RHV = "rhv"
++ RHV_DESC = "Red Hat Virtualization"
++@@ -207,13 +207,13 @@ RHEL = "rhel"
++ RHEL_DESC = RHEL_RELEASE_STR
++ 
++ RHOSP = "rhosp"
++-RHOSP_DESC = "Red Hat OpenStack Platform"
+++RHOSP_DESC = "RDO"
++ 
++ RHOCP = "ocp"
++-RHOCP_DESC = "OpenShift Container Platform by Red Hat"
+++RHOCP_DESC = "OpenShift"
++ 
++ RH_SATELLITE = "satellite"
++-RH_SATELLITE_DESC = "Red Hat Satellite"
+++RH_SATELLITE_DESC = "Satellite"
++ SAT_OPTS = SoSOptions(verify=True, plugopts=['apache.log=on'])
++ 
++ CB = "cantboot"
 diff --git a/SPECS/sos.spec b/SPECS/sos.spec
-index 327e908..c66253e 100644
+index 7fb5ab0..3873536 100644
 --- a/SPECS/sos.spec
 +++ b/SPECS/sos.spec
 @@ -2,7 +2,7 @@
  Summary: A set of tools to gather troubleshooting information from a system
  Name: sos
- Version: 3.6
--Release: 19%{?dist}
-+Release: 19%{?dist}.redsleeve
+ Version: 3.7
+-Release: 6%{?dist}
++Release: 6%{?dist}.redsleeve
  Group: Applications/System
  Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
  License: GPLv2+
-@@ -39,7 +39,7 @@ Patch18: sos-bz1669045-rhcos-policy-and-plugins.patch
- Patch19: sos-bz1679238-crio-plugin.patch
- Patch20: sos-bz1690999-docker-skip-system-df.patch
- Patch21: sos-bz1715470-rhv-postgres-from-scl.patch
--Patch22: sos-3.6-centos-branding.patch
-+Patch22: sos-3.6-redsleeve-branding.patch
+@@ -29,7 +29,7 @@ Patch7: sos-bz1706060-vdsm-plugin.patch
+ Patch8: sos-bz1711305-katello-qpid-certificate.patch
+ Patch9: sos-bz1736424-timeouted-plugin-stop-further-collection.patch
+ Patch10: sos-bz1736422-cmd-poll-performance.patch
+-Patch11: sos-3.7-centos-branding.patch
++Patch11: sos-3.7-redsleeve-branding.patch
+ 
  
  %description
- Sos is a set of tools that gathers information about system
-@@ -95,6 +95,9 @@ rm -rf ${RPM_BUILD_ROOT}
+@@ -75,6 +75,9 @@ rm -rf ${RPM_BUILD_ROOT}
  %config(noreplace) %{_sysconfdir}/sos.conf
  
  %changelog
-+* Fri Aug 02 2019 Jacco Ligthart <jacco@redsleeve.org> - 3.6-19.el7.redsleeve
++* Fri Sep 20 2019 Jacco Ligthart <jacco@redsleeve.org> - 3.7-6.el7.redsleeve
 +- Roll in RedSleeve Branding
 +
- * Mon Jul 29 2019 CentOS Sources <bugs@centos.org> - 3.6-19.el7.centos
+ * Tue Sep 03 2019 CentOS Sources <bugs@centos.org> - 3.7-6.el7.centos
  - Roll in CentOS Branding
  
 -- 
