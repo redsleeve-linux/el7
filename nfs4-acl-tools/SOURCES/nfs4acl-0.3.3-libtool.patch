@@ -1,0 +1,12 @@
+diff -ruN nfs4-acl-tools-0.3.3-orig/include/builddefs.in nfs4-acl-tools-0.3.3/include/builddefs.in
+--- nfs4-acl-tools-0.3.3-orig/include/builddefs.in	2008-12-03 23:18:24.000000000 +0100
++++ nfs4-acl-tools-0.3.3/include/builddefs.in	2015-01-25 09:33:08.402197396 +0100
+@@ -72,7 +72,7 @@
+ ECHO		= @echo@
+ SORT		= @sort@
+ LN_S		= @LN_S@
+-LIBTOOL		= @LIBTOOL@
++LIBTOOL		= @LIBTOOL@ --tag=CC
+ MAKEDEPEND	= @makedepend@
+ 
+ ENABLE_SHARED = @enable_shared@

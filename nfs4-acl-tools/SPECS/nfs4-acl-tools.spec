@@ -1,6 +1,6 @@
 Name:           nfs4-acl-tools
 Version:        0.3.3
-Release:        20%{?dist}
+Release:        20%{?dist}.redsleeve
 Summary:        The nfs4 ACL tools
 Group:          Applications/System
 License:        BSD
@@ -37,6 +37,8 @@ Patch010: nfs4-acl-tools-0.3.3-skip-comment-field.patch
 
 Patch100: nfs4acl-0.2.0-compile.patch
 
+Patch10001: ../SOURCES/nfs4acl-0.3.3-libtool.patch
+
 %description
 This package contains commandline and GUI ACL utilities for the Linux
 NFSv4 client.
@@ -63,6 +65,8 @@ NFSv4 client.
 %patch010 -p1
 
 %patch100 -p1
+
+%patch10001 -p1
 
 %build
 %ifarch s390 s390x sparc
@@ -97,6 +101,9 @@ rm -rf %{buildroot}
 %{_mandir}/man5/*
 
 %changelog
+* Sat Aug 10 2019 Jacco Ligthart <jacco@redsleeve.org> - 0.3.3-20.redsleeve
+- added "--tag=CC" to the make command due to libtool errors
+
 * Wed Apr 10 2019 Steve Dickson <steved@redhat.com> 0.3.3-20
 - nfs4_setfacl: Skip comment field while reading ACE(s) (bz 1666850)
 
