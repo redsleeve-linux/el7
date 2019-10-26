@@ -173,7 +173,6 @@
 %global script 'use File::Spec; print File::Spec->abs2rel($ARGV[0], $ARGV[1])'
 %global abs2rel %{__perl} -e %{script}
 
-
 # Standard JPackage naming and versioning defines.
 %global origin          openjdk
 %global origin_nice     OpenJDK
@@ -181,7 +180,7 @@
 # note, following three variables are sedded from update_sources if used correctly. Hardcode them rather there.
 %global shenandoah_project	aarch64-port
 %global shenandoah_repo		jdk8u-shenandoah
-%global shenandoah_revision    	aarch64-shenandoah-jdk8u222-b10
+%global shenandoah_revision    	aarch64-shenandoah-jdk8u232-b09
 # Define old aarch64/jdk8u tree variables for compatibility
 %global project         %{shenandoah_project}
 %global repo            %{shenandoah_repo}
@@ -189,13 +188,15 @@
 # Define IcedTea version used for SystemTap tapsets and desktop files
 %global icedteaver      3.11.0
 
+# e.g. aarch64-shenandoah-jdk8u212-b04-shenandoah-merge-2019-04-30 -> aarch64-shenandoah-jdk8u212-b04
+%global version_tag     %(VERSION=%{revision}; echo ${VERSION%%-shenandoah-merge*})
 # eg # jdk8u60-b27 -> jdk8u60 or # aarch64-jdk8u60-b27 -> aarch64-jdk8u60  (dont forget spec escape % by %%)
-%global whole_update    %(VERSION=%{revision}; echo ${VERSION%%-*})
+%global whole_update    %(VERSION=%{version_tag}; echo ${VERSION%%-*})
 # eg  jdk8u60 -> 60 or aarch64-jdk8u60 -> 60
 %global updatever       %(VERSION=%{whole_update}; echo ${VERSION##*u})
 # eg jdk8u60-b27 -> b27
-%global buildver        %(VERSION=%{revision}; echo ${VERSION##*-})
-%global rpmrelease      1
+%global buildver        %(VERSION=%{version_tag}; echo ${VERSION##*-})
+%global rpmrelease      0
 # Define milestone (EA for pre-releases, GA ("fcs") for releases)
 # Release will be (where N is usually a number starting at 1):
 # - 0.N%%{?extraver}%%{?dist} for EA releases,
@@ -833,7 +834,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
 
 Name:    java-%{javaver}-%{origin}
 Version: %{javaver}.%{updatever}.%{buildver}
-Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}.redsleeve
+Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
 # and this change was brought into RHEL-4. java-1.5.0-ibm packages
 # also included the epoch in their virtual provides. This created a
@@ -916,10 +917,6 @@ Source101: config.sub
 Patch1:   rh1648242-accessible_toolkit_crash_do_not_break_jvm.patch
 # Restrict access to java-atk-wrapper classes
 Patch3:   rh1648644-java_access_bridge_privileged_security.patch
-# PR1834, RH1022017: Reduce curves reported by SSL to those in NSS
-# Not currently suitable to go upstream as it disables curves
-# for all providers unconditionally
-Patch525: pr1834-rh1022017-reduce_ellipticcurvesextension_to_provide_only_three_nss_supported_nist_curves_23_24_25.patch
 # Turn on AssumeMP by default on RHEL systems
 Patch534: rh1648246-always_instruct_vm_to_assume_multiple_processors_are_available.patch
 
@@ -987,8 +984,6 @@ Patch502: pr2462-resolve_disabled_warnings_for_libunpack_and_the_unpack200_binar
 Patch400: jdk8154313-generated_javadoc_scattered_all_over_the_place.patch
 # PR3591: Fix for bug 3533 doesn't add -mstackrealign to JDK code
 Patch571: jdk8199936-pr3591-enable_mstackrealign_on_x86_linux_as_well_as_x86_mac_os_x_jdk.patch
-# 8141570, PR3548: Fix Zero interpreter build for --disable-precompiled-headers
-Patch573: jdk8141570-pr3548-fix_zero_interpreter_build_for_disable_precompiled_headers.patch
 # 8143245, PR3548: Zero build requires disabled warnings
 Patch574: jdk8143245-pr3548-zero_build_requires_disabled_warnings.patch
 # 8197981, PR3548: Missing return statement in __sync_val_compare_and_swap_8
@@ -1001,8 +996,6 @@ Patch102: jdk8203030-zero_s390_31_bit_size_t_type_conflicts_in_shared_code.patch
 Patch202: jdk8035341-allow_using_system_installed_libpng.patch
 # 8042159: Allow using a system-installed lcms2
 Patch203: jdk8042159-allow_using_system_installed_lcms2.patch
-# 8210761: libjsig is being compiled without optimization
-Patch620: jdk8210761-rh1632174-libjsig_is_being_compiled_without_optimization.patch
 
 #############################################
 #
@@ -1375,15 +1368,12 @@ sh %{SOURCE12}
 %patch531
 %patch530
 %patch571
-%patch573
 %patch574
 %patch575
 %patch577
-%patch620
 %patch541
 
 # RPM-only fixes
-%patch525
 %patch539
 
 # RHEL-only patches
@@ -1622,18 +1612,18 @@ done
 # Using line number 1 might cause build problems. See:
 # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
 # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
-#gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
-#handle SIGSEGV pass nostop noprint
-#handle SIGILL pass nostop noprint
-#set breakpoint pending on
-#break javaCalls.cpp:1
-#commands 1
-#backtrace
-#quit
-#end
-#run -version
-#EOF
-#grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
+gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
+handle SIGSEGV pass nostop noprint
+handle SIGILL pass nostop noprint
+set breakpoint pending on
+break javaCalls.cpp:1
+commands 1
+backtrace
+quit
+end
+run -version
+EOF
+grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
 
 # Check src.zip has all sources. See RHBZ#1130490
 jar -tf $JAVA_HOME/src.zip | grep 'sun.misc.Unsafe'
@@ -2057,8 +2047,32 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
-* Fri Sep 20 2019 Jacco Ligthart <jacco@redsleeve.org> 1:1.8.0.222.b10-1.redsleeve
-- removed the gdb section of the SPEC file
+* Fri Oct 11 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.232.b09-0
+- Update to aarch64-shenandoah-jdk8u232-b09.
+- Switch to GA mode for final release.
+- Remove PR1834/RH1022017 which is now handled by JDK-8228825 upstream.
+- Resolves: rhbz#1753423
+
+* Tue Oct 01 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.232.b08-0.0.ea
+- Update to aarch64-shenandoah-jdk8u232-b08.
+- Resolves: rhbz#1753423
+
+* Tue Sep 17 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.232.b05-0.1.ea
+- Update to aarch64-shenandoah-jdk8u232-b05-shenandoah-merge-2019-09-09.
+- Update version logic to handle -shenandoah* tag suffix.
+- Resolves: rhbz#1753423
+
+* Thu Sep 05 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.232.b05-0.0.ea
+- Update to aarch64-shenandoah-jdk8u232-b05.
+- Drop upstreamed patch JDK-8141570/PR3548.
+- Adjust context of JDK-8143245/PR3548 to apply against upstream JDK-8141570.
+- Resolves: rhbz#1753423
+
+* Fri Jul 26 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.232.b01-0.0.ea
+- Update to aarch64-shenandoah-jdk8u232-b01.
+- Switch to EA mode.
+- Drop JDK-8210761/RH1632174 as now upstream.
+- Resolves: rhbz#1753423
 
 * Thu Jul 11 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.222.b10-1
 - Update to aarch64-shenandoah-jdk8u222-b10.
