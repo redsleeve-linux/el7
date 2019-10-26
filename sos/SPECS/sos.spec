@@ -2,7 +2,7 @@
 Summary: A set of tools to gather troubleshooting information from a system
 Name: sos
 Version: 3.7
-Release: 6%{?dist}.redsleeve
+Release: 7%{?dist}
 Group: Applications/System
 Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
 License: GPLv2+
@@ -29,7 +29,10 @@ Patch7: sos-bz1706060-vdsm-plugin.patch
 Patch8: sos-bz1711305-katello-qpid-certificate.patch
 Patch9: sos-bz1736424-timeouted-plugin-stop-further-collection.patch
 Patch10: sos-bz1736422-cmd-poll-performance.patch
-Patch11: sos-3.7-redsleeve-branding.patch
+Patch11: sos-bz1751576-gluster-deployment-cleanup-logs.patch
+Patch12: sos-bz1751577-vdsm-fix-shell-commands.patch
+Patch13: sos-bz1751578-ovn-plugins-containerized.patch
+Patch14: sos-3.7-centos-branding.patch
 
 
 %description
@@ -52,6 +55,9 @@ support technicians and developers.
 %patch9 -p1
 %patch10 -p1
 %patch11 -p1
+%patch12 -p1
+%patch13 -p1
+%patch14 -p1
 
 %build
 make
@@ -75,11 +81,16 @@ rm -rf ${RPM_BUILD_ROOT}
 %config(noreplace) %{_sysconfdir}/sos.conf
 
 %changelog
-* Fri Sep 20 2019 Jacco Ligthart <jacco@redsleeve.org> - 3.7-6.el7.redsleeve
-- Roll in RedSleeve Branding
-
-* Tue Sep 03 2019 CentOS Sources <bugs@centos.org> - 3.7-6.el7.centos
+* Tue Oct 15 2019 CentOS Sources <bugs@centos.org> - 3.7-7.el7.centos
 - Roll in CentOS Branding
+
+* Thu Sep 12 2019 Pavel Moravec <pmoravec@redhat.com> = 3.7-7
+- [ovirt_hosted_engine] Add gluster deployment and cleanup log
+  Resolves: bz1751576
+- [vdsm]: Fix executing shell commands
+  Resolves: bz1751577
+- [ovn_*] Add support to containerized setups, add commands
+  Resolves: bz1751578
 
 * Thu Aug 01 2019 Pavel Moravec <pmoravec@redhat.com> = 3.7-6
 - [utilities] Fix high CPU usage and slow command collection

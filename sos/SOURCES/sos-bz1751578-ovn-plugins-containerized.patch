@@ -1,0 +1,264 @@
+From cc6374914a47eb3777c5b8306506df43522a31e0 Mon Sep 17 00:00:00 2001
+From: Daniel Alvarez <dalvarez@redhat.com>
+Date: Thu, 18 Jul 2019 14:08:27 +0200
+Subject: [PATCH 1/4] [ovn_central] add additional show commands
+
+This patch is adding 'show' commands for both OVN
+NorthBound and SouthBound databases.
+
+Signed-off-by: Daniel Alvarez <dalvarez@redhat.com>
+Signed-off-by: Bryn M. Reeves <bmr@redhat.com>
+---
+ sos/plugins/ovn_central.py | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/sos/plugins/ovn_central.py b/sos/plugins/ovn_central.py
+index e0585687..2d252625 100644
+--- a/sos/plugins/ovn_central.py
++++ b/sos/plugins/ovn_central.py
+@@ -57,6 +57,8 @@ class OVNCentral(Plugin):
+ 
+         # Some user-friendly versions of DB output
+         cmds = [
++            'ovn-nbctl show',
++            'ovn-sbctl show',
+             'ovn-sbctl lflow-list',
+             'ovn-nbctl get-ssl',
+             'ovn-nbctl get-connection',
+-- 
+2.21.0
+
+
+From 5fd4e850ad9a6636d0fb206954e8ab016584974d Mon Sep 17 00:00:00 2001
+From: Daniel Alvarez <dalvarez@redhat.com>
+Date: Wed, 11 Sep 2019 16:19:15 +0100
+Subject: [PATCH 2/4] [ovn_host] fix Open_vSwitch table name
+
+Signed-off-by: Daniel Alvarez <dalvarez@redhat.com>
+Signed-off-by: Bryn M. Reeves <bmr@redhat.com>
+---
+ sos/plugins/ovn_host.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sos/plugins/ovn_host.py b/sos/plugins/ovn_host.py
+index 54251627..ba35d87e 100644
+--- a/sos/plugins/ovn_host.py
++++ b/sos/plugins/ovn_host.py
+@@ -35,7 +35,7 @@ class OVNHost(Plugin):
+         self.add_cmd_output([
+             'ovs-ofctl -O OpenFlow13 dump-flows br-int',
+             'ovs-vsctl list-br',
+-            'ovs-vsctl list OpenVswitch',
++            'ovs-vsctl list Open_vSwitch',
+         ])
+ 
+         self.add_journal(units="ovn-controller")
+-- 
+2.21.0
+
+
+From 3c842046e9c4c5b371566347f51e5e242daf4f8d Mon Sep 17 00:00:00 2001
+From: Daniel Alvarez <dalvarez@redhat.com>
+Date: Tue, 23 Jul 2019 12:44:07 +0200
+Subject: [PATCH 3/4] [ovn_central] Add support to containerized setups
+
+This patch is adding support in ovn_central plugin to containerized
+setups.
+
+Now it's detecting if the OVN central services are running in
+container and execute the relevant commands inside it. The support
+covers both podman and docker runtimes.
+
+Signed-off-by: Daniel Alvarez <dalvarez@redhat.com>
+---
+ sos/plugins/ovn_central.py | 94 ++++++++++++++++++++++++++++----------
+ 1 file changed, 69 insertions(+), 25 deletions(-)
+
+diff --git a/sos/plugins/ovn_central.py b/sos/plugins/ovn_central.py
+index 2d252625..a9fcdf33 100644
+--- a/sos/plugins/ovn_central.py
++++ b/sos/plugins/ovn_central.py
+@@ -19,30 +19,64 @@ class OVNCentral(Plugin):
+     """
+     plugin_name = "ovn_central"
+     profiles = ('network', 'virt')
+-
+-    def add_database_output(self, filename, cmds, ovn_cmd, skip=[]):
++    _container_runtime = None
++    _container_name = None
++
++    def get_tables_from_schema(self, filename, skip=[]):
++        if self._container_name:
++            cmd = "%s exec %s cat %s" % (
++                self._container_runtime, self._container_name, filename)
++            res = self.get_command_output(cmd)
++            if res['status'] != 0:
++                self._log_error("Could not retrieve DB schema file from "
++                                "container %s" % self._container_name)
++                return
++            try:
++                db = json.loads(res['output'])
++            except Exception:
++                self._log_error("Cannot parse JSON file %s" % filename)
++                return
++        else:
++            try:
++                with open(filename, 'r') as f:
++                    try:
++                        db = json.load(f)
++                    except Exception:
++                        self._log_error(
++                            "Cannot parse JSON file %s" % filename)
++                        return
++            except IOError as ex:
++                self._log_error(
++                    "Could not open DB schema file %s: %s" % (filename, ex))
++                return
+         try:
+-            with open(filename, 'r') as f:
+-                try:
+-                    db = json.load(f)
+-                except Exception:
+-                    # If json can't be parsed, then exit early
+-                    self._log_error("Cannot parse JSON file %s" % filename)
+-                    return
+-                try:
+-                    for table in six.iterkeys(db['tables']):
+-                        if table not in skip:
+-                            cmds.append('%s list %s' % (ovn_cmd, table))
+-                except AttributeError:
+-                    self._log_error("DB schema %s has no 'tables' key" %
+-                                    filename)
+-                    return
+-        except IOError as ex:
+-            self._log_error("Could not open DB schema file %s: %s" % (filename,
+-                                                                      ex))
+-            return
++            return [table for table in six.iterkeys(
++                db['tables']) if table not in skip]
++        except AttributeError:
++            self._log_error("DB schema %s has no 'tables' key" % filename)
++
++    def add_database_output(self, tables, cmds, ovn_cmd):
++        for table in tables:
++            cmds.append('%s list %s' % (ovn_cmd, table))
++
++    def running_in_container(self):
++        for runtime in ["podman", "docker"]:
++            container_status = self.get_command_output(runtime + " ps")
++            if container_status['status'] == 0:
++                for line in container_status['output'].splitlines():
++                    if "ovn-dbs-bundle" in line:
++                        self._container_name = line.split()[-1]
++                        self._container_runtime = runtime
++                        return True
++        return False
++
++    def check_enabled(self):
++        return (self.running_in_container() or
++                super(OVNCentral, self).check_enabled())
+ 
+     def setup(self):
++        containerized = self.running_in_container()
++
+         ovs_rundir = os.environ.get('OVS_RUNDIR')
+         for pidfile in ['ovnnb_db.pid', 'ovnsb_db.pid', 'ovn-northd.pid']:
+             self.add_copy_spec([
+@@ -68,10 +102,20 @@ class OVNCentral(Plugin):
+ 
+         schema_dir = '/usr/share/openvswitch'
+ 
+-        self.add_database_output(os.path.join(schema_dir, 'ovn-nb.ovsschema'),
+-                                 cmds, 'ovn-nbctl')
+-        self.add_database_output(os.path.join(schema_dir, 'ovn-sb.ovsschema'),
+-                                 cmds, 'ovn-sbctl', ['Logical_Flow'])
++        nb_tables = self.get_tables_from_schema(os.path.join(
++            schema_dir, 'ovn-nb.ovsschema'))
++        sb_tables = self.get_tables_from_schema(os.path.join(
++            schema_dir, 'ovn-sb.ovsschema'), ['Logical_Flow'])
++
++        self.add_database_output(nb_tables, cmds, 'ovn-nbctl')
++        self.add_database_output(sb_tables, cmds, 'ovn-sbctl')
++
++        # If OVN is containerized, we need to run the above commands inside
++        # the container.
++        if containerized:
++            cmds = ['%s exec %s %s' % (self._container_runtime,
++                                       self._container_name,
++                                       cmd) for cmd in cmds]
+ 
+         self.add_cmd_output(cmds)
+ 
+-- 
+2.21.0
+
+
+From a895bf4096f1dbd71c9dbd4defb47783f4ef9840 Mon Sep 17 00:00:00 2001
+From: Daniel Alvarez <dalvarez@redhat.com>
+Date: Thu, 25 Jul 2019 11:42:16 +0200
+Subject: [PATCH 4/4] [ovn_host] Add support for containerized setups
+
+Prior to this patch, ovn_host was disabled on containerized
+setups due to the fact that ovn-controller package is not
+installed in the host.
+
+This patch fixes it by checking if the ovn-controller process
+is running.
+
+Resolves: #1767
+
+Signed-off-by: Daniel Alvarez <dalvarez@redhat.com>
+Signed-off-by: Bryn M. Reeves <bmr@redhat.com>
+---
+ sos/plugins/ovn_host.py | 21 ++++++++++++++-------
+ 1 file changed, 14 insertions(+), 7 deletions(-)
+
+diff --git a/sos/plugins/ovn_host.py b/sos/plugins/ovn_host.py
+index ba35d87e..5225f010 100644
+--- a/sos/plugins/ovn_host.py
++++ b/sos/plugins/ovn_host.py
+@@ -12,6 +12,15 @@ import os
+ from sos.plugins import Plugin, RedHatPlugin, DebianPlugin, UbuntuPlugin
+ 
+ 
++pidfile = 'ovn-controller.pid'
++pid_paths = [
++        '/var/lib/openvswitch/ovn',
++        '/usr/local/var/run/openvswitch',
++        '/var/run/openvswitch',
++        '/run/openvswitch'
++]
++
++
+ class OVNHost(Plugin):
+     """ OVN Controller
+     """
+@@ -19,13 +28,6 @@ class OVNHost(Plugin):
+     profiles = ('network', 'virt')
+ 
+     def setup(self):
+-        pidfile = 'ovn-controller.pid'
+-        pid_paths = [
+-                '/var/lib/openvswitch/ovn',
+-                '/usr/local/var/run/openvswitch',
+-                '/var/run/openvswitch',
+-                '/run/openvswitch'
+-        ]
+         if os.environ.get('OVS_RUNDIR'):
+             pid_paths.append(os.environ.get('OVS_RUNDIR'))
+         self.add_copy_spec([os.path.join(pp, pidfile) for pp in pid_paths])
+@@ -40,6 +42,11 @@ class OVNHost(Plugin):
+ 
+         self.add_journal(units="ovn-controller")
+ 
++    def check_enabled(self):
++        return (any([os.path.isfile(
++            os.path.join(pp, pidfile)) for pp in pid_paths]) or
++            super(OVNHost, self).check_enabled())
++
+ 
+ class RedHatOVNHost(OVNHost, RedHatPlugin):
+ 
+-- 
+2.21.0
+
