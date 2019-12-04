@@ -1,0 +1,81 @@
+From 55949fb88c492eec542c69157a8763ddb3555345 Mon Sep 17 00:00:00 2001
+From: MIZUTA Takeshi <mizuta.takeshi@fujitsu.com>
+Date: Thu, 6 Jun 2019 18:42:40 +0900
+Subject: [PATCH] [plugins] Change forbidden_path from partial-match to
+ exact-match
+
+forbidden_path is evaluated on partial-match.
+However, it will be correct to evaluate on exact-match.
+
+Closes: #1692
+Resolves: #1695
+
+Signed-off-by: MIZUTA Takeshi <mizuta.takeshi@fujitsu.com>
+Signed-off-by: Bryn M. Reeves <bmr@redhat.com>
+---
+ sos/plugins/__init__.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sos/plugins/__init__.py b/sos/plugins/__init__.py
+index 56af847a..41f4f58c 100644
+--- a/sos/plugins/__init__.py
++++ b/sos/plugins/__init__.py
+@@ -64,7 +64,7 @@ def _mangle_command(command, name_max):
+ 
+ 
+ def _path_in_path_list(path, path_list):
+-    return any(p in path for p in path_list)
++    return any(p == path for p in path_list)
+ 
+ 
+ def _node_type(st):
+-- 
+2.21.0
+
+From d2d5b9da6d4af7ead8a47468db0bbfcc8fb2b5bf Mon Sep 17 00:00:00 2001
+From: Pavel Moravec <pmoravec@redhat.com>
+Date: Thu, 26 Sep 2019 10:50:18 +0200
+Subject: [PATCH] [kernel] Don't collect trace file by default
+
+Updates the plugin to don't collect trace file by default. Collecting
+trace file may take a lot of time, so trace file is not collected
+by default, and use the new plug-in option when collecting.
+
+Original author: MIZUTA Takeshi <mizuta.takeshi@fujitsu.com>
+
+Closes: #1688
+Resolves: #1800
+
+Signed-off-by: Pavel Moravec <pmoravec@redhat.com>
+Signed-off-by: Bryn M. Reeves <bmr@redhat.com>
+---
+ sos/plugins/kernel.py | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/sos/plugins/kernel.py b/sos/plugins/kernel.py
+index bf3c3dea..b498f55e 100644
+--- a/sos/plugins/kernel.py
++++ b/sos/plugins/kernel.py
+@@ -23,7 +23,8 @@ class Kernel(Plugin, RedHatPlugin, DebianPlugin, UbuntuPlugin):
+     sys_module = '/sys/module'
+ 
+     option_list = [
+-        ("with-timer", "gather /proc/timer* statistics", "slow", False)
++        ("with-timer", "gather /proc/timer* statistics", "slow", False),
++        ("trace", "gather /sys/kernel/debug/tracing/trace file", "slow", False)
+     ]
+ 
+     def get_bpftool_prog_ids(self, prog_file):
+@@ -139,6 +139,9 @@ class Kernel(Plugin, RedHatPlugin, Debia
+             # and may also cause softlockups
+             self.add_copy_spec("/proc/timer*")
+ 
++        if not self.get_option("trace"):
++            self.add_forbidden_path("/sys/kernel/debug/tracing/trace")
++
+         # collect list of eBPF programs and maps and their dumps
+         prog_file = self.get_cmd_output_now("bpftool -j prog list")
+         for prog_id in self.get_bpftool_prog_ids(prog_file):
+-- 
+2.21.0
+

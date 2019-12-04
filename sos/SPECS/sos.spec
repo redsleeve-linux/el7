@@ -2,7 +2,7 @@
 Summary: A set of tools to gather troubleshooting information from a system
 Name: sos
 Version: 3.7
-Release: 7%{?dist}.redsleeve
+Release: 10%{?dist}
 Group: Applications/System
 Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
 License: GPLv2+
@@ -32,7 +32,9 @@ Patch10: sos-bz1736422-cmd-poll-performance.patch
 Patch11: sos-bz1751576-gluster-deployment-cleanup-logs.patch
 Patch12: sos-bz1751577-vdsm-fix-shell-commands.patch
 Patch13: sos-bz1751578-ovn-plugins-containerized.patch
-Patch14: sos-3.7-redsleeve-branding.patch
+Patch14: sos-bz1760737-kernel-trace-disabled.patch
+Patch15: sos-bz1769259-interim-sysroot-forbidden-paths.patch
+Patch16: sos-3.7-centos-branding.patch
 
 
 %description
@@ -58,6 +60,8 @@ support technicians and developers.
 %patch12 -p1
 %patch13 -p1
 %patch14 -p1
+%patch15 -p1
+%patch16 -p1
 
 %build
 make
@@ -81,11 +85,20 @@ rm -rf ${RPM_BUILD_ROOT}
 %config(noreplace) %{_sysconfdir}/sos.conf
 
 %changelog
-* Sat Oct 26 2019 Jacco Ligthart <jacco@redsleeve.org> - 3.7-7.el7.redsleeve
-- Roll in RedSleeve Branding
-
-* Tue Oct 15 2019 CentOS Sources <bugs@centos.org> - 3.7-7.el7.centos
+* Tue Nov 26 2019 CentOS Sources <bugs@centos.org> - 3.7-10.el7.centos
 - Roll in CentOS Branding
+
+* Tue Nov 12 2019 Pavel Moravec <pmoravec@redhat.com> = 3.7-10
+- [archive] Handle checking sysroot in _make_leading_paths
+  Resolves: bz1769259
+
+* Wed Nov 06 2019 Pavel Moravec <pmoravec@redhat.com> = 3.7-9
+- [Plugin, kernel] interim sysroot fixes
+  Resolves: bz1769259
+
+* Fri Oct 11 2019 Pavel Moravec <pmoravec@redhat.com> = 3.7-8
+- [kernel] Don't collect trace file by default
+  Resolves: bz1760737
 
 * Thu Sep 12 2019 Pavel Moravec <pmoravec@redhat.com> = 3.7-7
 - [ovirt_hosted_engine] Add gluster deployment and cleanup log
