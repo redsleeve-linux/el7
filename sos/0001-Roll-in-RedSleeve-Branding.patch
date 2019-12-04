@@ -1,6 +1,6 @@
-From 4725cd29a4f3767be4f995f601bcff4c3208f8bf Mon Sep 17 00:00:00 2001
+From 21bca3877a746bfb3805cc2e39f406f3e2ab9c6e Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Fri, 20 Sep 2019 02:56:02 +0200
+Date: Sat, 26 Oct 2019 10:41:43 +0200
 Subject: [PATCH] Roll in RedSleeve Branding
 
 ---
@@ -122,35 +122,35 @@ index 0000000..649934d
 + 
 + CB = "cantboot"
 diff --git a/SPECS/sos.spec b/SPECS/sos.spec
-index 7fb5ab0..3873536 100644
+index bba18b5..d159df5 100644
 --- a/SPECS/sos.spec
 +++ b/SPECS/sos.spec
 @@ -2,7 +2,7 @@
  Summary: A set of tools to gather troubleshooting information from a system
  Name: sos
  Version: 3.7
--Release: 6%{?dist}
-+Release: 6%{?dist}.redsleeve
+-Release: 7%{?dist}
++Release: 7%{?dist}.redsleeve
  Group: Applications/System
  Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
  License: GPLv2+
-@@ -29,7 +29,7 @@ Patch7: sos-bz1706060-vdsm-plugin.patch
- Patch8: sos-bz1711305-katello-qpid-certificate.patch
- Patch9: sos-bz1736424-timeouted-plugin-stop-further-collection.patch
- Patch10: sos-bz1736422-cmd-poll-performance.patch
--Patch11: sos-3.7-centos-branding.patch
-+Patch11: sos-3.7-redsleeve-branding.patch
+@@ -32,7 +32,7 @@ Patch10: sos-bz1736422-cmd-poll-performance.patch
+ Patch11: sos-bz1751576-gluster-deployment-cleanup-logs.patch
+ Patch12: sos-bz1751577-vdsm-fix-shell-commands.patch
+ Patch13: sos-bz1751578-ovn-plugins-containerized.patch
+-Patch14: sos-3.7-centos-branding.patch
++Patch14: sos-3.7-redsleeve-branding.patch
  
  
  %description
-@@ -75,6 +75,9 @@ rm -rf ${RPM_BUILD_ROOT}
+@@ -81,6 +81,9 @@ rm -rf ${RPM_BUILD_ROOT}
  %config(noreplace) %{_sysconfdir}/sos.conf
  
  %changelog
-+* Fri Sep 20 2019 Jacco Ligthart <jacco@redsleeve.org> - 3.7-6.el7.redsleeve
++* Sat Oct 26 2019 Jacco Ligthart <jacco@redsleeve.org> - 3.7-7.el7.redsleeve
 +- Roll in RedSleeve Branding
 +
- * Tue Sep 03 2019 CentOS Sources <bugs@centos.org> - 3.7-6.el7.centos
+ * Tue Oct 15 2019 CentOS Sources <bugs@centos.org> - 3.7-7.el7.centos
  - Roll in CentOS Branding
  
 -- 
