@@ -1,6 +1,6 @@
-From f16e201111f1c213ea87df7b714f905fda0f13b8 Mon Sep 17 00:00:00 2001
+From 7fed5b0e4c9fce83dd17315f3672001e2e27a7b3 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Fri, 20 Sep 2019 01:27:53 +0200
+Date: Sat, 26 Oct 2019 19:50:50 +0200
 Subject: [PATCH] removed the gdb section of the SPEC file
 
 ---
@@ -8,10 +8,10 @@ Subject: [PATCH] removed the gdb section of the SPEC file
  1 file changed, 16 insertions(+), 13 deletions(-)
 
 diff --git a/SPECS/java-1.8.0-openjdk.spec b/SPECS/java-1.8.0-openjdk.spec
-index f442d97..da95dc4 100644
+index a8c4520..bcc9c33 100644
 --- a/SPECS/java-1.8.0-openjdk.spec
 +++ b/SPECS/java-1.8.0-openjdk.spec
-@@ -833,7 +833,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
+@@ -834,7 +834,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
  
  Name:    java-%{javaver}-%{origin}
  Version: %{javaver}.%{updatever}.%{buildver}
@@ -20,7 +20,7 @@ index f442d97..da95dc4 100644
  # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
  # and this change was brought into RHEL-4. java-1.5.0-ibm packages
  # also included the epoch in their virtual provides. This created a
-@@ -1622,18 +1622,18 @@ done
+@@ -1612,18 +1612,18 @@ done
  # Using line number 1 might cause build problems. See:
  # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
  # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
@@ -51,16 +51,16 @@ index f442d97..da95dc4 100644
  
  # Check src.zip has all sources. See RHBZ#1130490
  jar -tf $JAVA_HOME/src.zip | grep 'sun.misc.Unsafe'
-@@ -2057,6 +2057,9 @@ require "copy_jdk_configs.lua"
+@@ -2047,6 +2047,9 @@ require "copy_jdk_configs.lua"
  %endif
  
  %changelog
-+* Fri Sep 20 2019 Jacco Ligthart <jacco@redsleeve.org> 1:1.8.0.222.b10-1.redsleeve
++* Sat Oct 26 2019 Jacco Ligthart <jacco@redsleeve.org> 1:1.8.0.232.b09-0.redsleeve
 +- removed the gdb section of the SPEC file
 +
- * Thu Jul 11 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.222.b10-1
- - Update to aarch64-shenandoah-jdk8u222-b10.
- - Resolves: rhbz#1724452
+ * Fri Oct 11 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.232.b09-0
+ - Update to aarch64-shenandoah-jdk8u232-b09.
+ - Switch to GA mode for final release.
 -- 
 1.8.3.1
 
