@@ -1,6 +1,6 @@
-From 2f5a7313fb78b88906073e43f6702b8b5091a098 Mon Sep 17 00:00:00 2001
+From 1b82257ca5fdb37a44bcf73a2f2457ac0c7708fc Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Fri, 20 Sep 2019 02:26:31 +0200
+Date: Sat, 26 Oct 2019 19:38:57 +0200
 Subject: [PATCH] removed arm from jit_arches
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] removed arm from jit_arches
  1 file changed, 7 insertions(+), 3 deletions(-)
 
 diff --git a/SPECS/java-11-openjdk.spec b/SPECS/java-11-openjdk.spec
-index a331a45..e52fb52 100644
+index 1f92524..4838650 100644
 --- a/SPECS/java-11-openjdk.spec
 +++ b/SPECS/java-11-openjdk.spec
 @@ -58,7 +58,7 @@
@@ -29,7 +29,7 @@ index a331a45..e52fb52 100644
  # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
  # and this change was brought into RHEL-4. java-1.5.0-ibm packages
  # also included the epoch in their virtual provides. This created a
-@@ -1484,7 +1484,7 @@ done
+@@ -1479,7 +1479,7 @@ done
  # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
  # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
  # Temporarily disabled on s390x as it sporadically crashes with SIGFPE, Arithmetic exception.
@@ -38,16 +38,16 @@ index a331a45..e52fb52 100644
  gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
  handle SIGSEGV pass nostop noprint
  handle SIGILL pass nostop noprint
-@@ -1798,6 +1798,10 @@ require "copy_jdk_configs.lua"
+@@ -1793,6 +1793,10 @@ require "copy_jdk_configs.lua"
  %endif
  
  %changelog
-+* Fri Sep 20 2019 Jacco Ligthart <jacco@redsleeve.org> - 1:11.0.4.11-1.redsleeve
++* Sat Oct 26 2019 Jacco Ligthart <jacco@redsleeve.org> - 1:11.0.5.10-0.redsleeve
 +- removed arm from jit_arches
 +- removed the gdb section of the SPEC file
 +
- * Tue Jul 09 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.11-1
- - Update to shenandoah-jdk-11.0.4+11 (GA)
+ * Wed Oct 09 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.5.10-0
+ - Update to shenandoah-jdk-11.0.5+10 (GA)
  - Switch to GA mode for final release.
 -- 
 1.8.3.1
