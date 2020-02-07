@@ -188,7 +188,7 @@
 
 # New Version-String scheme-style defines
 %global majorver 11
-%global securityver 5
+%global securityver 6
 # buildjdkver is usually same as %%{majorver},
 # but in time of bootstrap of next jdk, it is majorver-1, 
 # and this it is better to change it here, on single place
@@ -211,7 +211,7 @@
 %global top_level_dir_name   %{origin}
 %global minorver        0
 %global buildver        10
-%global rpmrelease      0
+%global rpmrelease      1
 #%%global tagsuffix      %{nil}
 # priority must be 7 digits in total
 # setting to 1, so debug ones can have 0
@@ -395,6 +395,7 @@ alternatives \\
   --slave %{_bindir}/jdb jdb %{sdkbindir %%1}/jdb \\
   --slave %{_bindir}/jdeps jdeps %{sdkbindir %%1}/jdeps \\
   --slave %{_bindir}/jdeprscan jdeprscan %{sdkbindir %%1}/jdeprscan \\
+  --slave %{_bindir}/jfr jfr %{sdkbindir %%1}/jfr \\
   --slave %{_bindir}/jimage jimage %{sdkbindir %%1}/jimage \\
   --slave %{_bindir}/jinfo jinfo %{sdkbindir %%1}/jinfo \\
   --slave %{_bindir}/jmap jmap %{sdkbindir %%1}/jmap \\
@@ -644,6 +645,7 @@ exit 0
 %{_jvmdir}/%{sdkdir %%1}/bin/jdb
 %{_jvmdir}/%{sdkdir %%1}/bin/jdeps
 %{_jvmdir}/%{sdkdir %%1}/bin/jdeprscan
+%{_jvmdir}/%{sdkdir %%1}/bin/jfr
 %{_jvmdir}/%{sdkdir %%1}/bin/jimage
 # Zero and S390x don't have SA
 %ifarch %{jit_arches}
@@ -960,6 +962,8 @@ Patch6:    rh1566890-CVE_2018_3639-speculative_store_bypass.patch
 Patch7: jdk8009550-rh910107-search_for_versioned_libpcsclite.patch
 # S390 ambiguous log2_intptr call
 Patch8: s390-8214206_fix.patch
+# JDK-8236039: JSSE Client does not accept status_request extension in CertificateRequest messages for TLS 1.3
+Patch9: jdk8236039-status_request_extension.patch
 
 #############################################
 #
@@ -1240,6 +1244,7 @@ pushd %{top_level_dir_name}
 %patch6 -p1
 %patch7 -p1
 %patch8 -p1
+%patch9 -p1
 popd # openjdk
 
 %patch1000
@@ -1793,6 +1798,21 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
+* Sat Jan 11 2020 Andrew John Hughes <gnu.andrew@redhat.com> - 1:11.0.6.10-1
+- Add JDK-8236039 backport to resolve OpenShift blocker
+- Resolves: rhbz#1785753
+
+* Thu Jan 09 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.6.10-0
+- Update to shenandoah-jdk-11.0.6+10 (GA)
+- Switch to GA mode for final release.
+- Resolves: rhbz#1785753
+
+* Thu Dec 19 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.6.1-0.1.ea
+- Update to shenandoah-jdk-11.0.6+1 (EA)
+- Switch to EA mode for 11.0.6 pre-release builds.
+- Add support for jfr binary.
+- Resolves: rhbz#1785753
+
 * Wed Oct 09 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.5.10-0
 - Update to shenandoah-jdk-11.0.5+10 (GA)
 - Switch to GA mode for final release.
