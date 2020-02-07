@@ -1,6 +1,6 @@
-From dfa5b78f064574eebcbac64e6a71d4c6f89e57db Mon Sep 17 00:00:00 2001
+From 96990fa44b2e458459fd62a78a77e74ba07c3d63 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sat, 10 Aug 2019 06:50:11 +0200
+Date: Wed, 4 Dec 2019 22:35:52 +0100
 Subject: [PATCH] patched to build on arm
 
 ---
@@ -8,15 +8,15 @@ Subject: [PATCH] patched to build on arm
  1 file changed, 5 insertions(+), 2 deletions(-)
 
 diff --git a/SPECS/numactl.spec b/SPECS/numactl.spec
-index db0d7f5..53c79f0 100644
+index 59325ce..623932b 100644
 --- a/SPECS/numactl.spec
 +++ b/SPECS/numactl.spec
 @@ -1,7 +1,7 @@
  Name:		numactl
  Summary:	Library for tuning for Non Uniform Memory Access machines
  Version:	2.0.12
--Release:	3%{?dist}
-+Release:	3%{?dist}.redsleeve
+-Release:	3%{?dist}.1
++Release:	3%{?dist}.1.redsleeve
  # libnuma is LGPLv2 and GPLv2
  # numactl binaries are GPLv2 only
  License:	GPLv2
@@ -28,16 +28,16 @@ index db0d7f5..53c79f0 100644
 +ExcludeArch: s390 s390x
  
  Patch1: numactl-2.0.12-numastat-when-reading-no-exist-pid-return-EXIT_FAILU.patch
- 
-@@ -84,6 +84,9 @@ make DESTDIR=$RPM_BUILD_ROOT install
+ Patch2: numactl-2.0.12-Fix-crashes-when-using-the-touch-option.patch
+@@ -86,6 +86,9 @@ make DESTDIR=$RPM_BUILD_ROOT install
  %{_mandir}/man3/*.3*
  
  %changelog
-+* Sat Aug 10 2019 Jacco Ligthart <jacco@redsleeve.org> - 2.0.12-3.redsleeve
++* Wed Dec 04 2019 Jacco Ligthart <jacco@redsleeve.org> - 2.0.12-3.1.redsleeve
 +- Don't exclude arm architectures
 +
- * Sat Jun  1 2019 Pingfan Liu <piliu@redhat.com> - 2.0.12-3
- - numastat: bail out if reading no-exist pid
+ * Thu Oct 17 2019 Pingfan Liu <piliu@redhat.com> - 2.0.12-3.1
+ - Fix crashes when using the "--touch" option
  
 -- 
 1.8.3.1
