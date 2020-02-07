@@ -1,6 +1,6 @@
-From 21bca3877a746bfb3805cc2e39f406f3e2ab9c6e Mon Sep 17 00:00:00 2001
+From a555715321c0745c450bbdfb314a04f411215bd8 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sat, 26 Oct 2019 10:41:43 +0200
+Date: Wed, 4 Dec 2019 22:38:37 +0100
 Subject: [PATCH] Roll in RedSleeve Branding
 
 ---
@@ -122,35 +122,35 @@ index 0000000..649934d
 + 
 + CB = "cantboot"
 diff --git a/SPECS/sos.spec b/SPECS/sos.spec
-index bba18b5..d159df5 100644
+index 45969cf..1698b48 100644
 --- a/SPECS/sos.spec
 +++ b/SPECS/sos.spec
 @@ -2,7 +2,7 @@
  Summary: A set of tools to gather troubleshooting information from a system
  Name: sos
  Version: 3.7
--Release: 7%{?dist}
-+Release: 7%{?dist}.redsleeve
+-Release: 10%{?dist}
++Release: 10%{?dist}.redsleeve
  Group: Applications/System
  Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
  License: GPLv2+
-@@ -32,7 +32,7 @@ Patch10: sos-bz1736422-cmd-poll-performance.patch
- Patch11: sos-bz1751576-gluster-deployment-cleanup-logs.patch
- Patch12: sos-bz1751577-vdsm-fix-shell-commands.patch
+@@ -34,7 +34,7 @@ Patch12: sos-bz1751577-vdsm-fix-shell-commands.patch
  Patch13: sos-bz1751578-ovn-plugins-containerized.patch
--Patch14: sos-3.7-centos-branding.patch
-+Patch14: sos-3.7-redsleeve-branding.patch
+ Patch14: sos-bz1760737-kernel-trace-disabled.patch
+ Patch15: sos-bz1769259-interim-sysroot-forbidden-paths.patch
+-Patch16: sos-3.7-centos-branding.patch
++Patch16: sos-3.7-redsleeve-branding.patch
  
  
  %description
-@@ -81,6 +81,9 @@ rm -rf ${RPM_BUILD_ROOT}
+@@ -85,6 +85,9 @@ rm -rf ${RPM_BUILD_ROOT}
  %config(noreplace) %{_sysconfdir}/sos.conf
  
  %changelog
-+* Sat Oct 26 2019 Jacco Ligthart <jacco@redsleeve.org> - 3.7-7.el7.redsleeve
++* Wed Dec 04 2019 Jacco Ligthart <jacco@redsleeve.org> - 3.7-10.el7.redsleeve
 +- Roll in RedSleeve Branding
 +
- * Tue Oct 15 2019 CentOS Sources <bugs@centos.org> - 3.7-7.el7.centos
+ * Tue Nov 26 2019 CentOS Sources <bugs@centos.org> - 3.7-10.el7.centos
  - Roll in CentOS Branding
  
 -- 
