@@ -61,7 +61,7 @@
 Summary: Mesa graphics libraries
 Name: mesa
 Version: 18.3.4
-Release: 5%{?dist}
+Release: 6%{?dist}
 License: MIT
 Group: System Environment/Libraries
 URL: http://www.mesa3d.org
@@ -91,6 +91,9 @@ Patch12: mesa-8.0.1-fix-16bpp.patch
 Patch15: mesa-9.2-hardware-float.patch
 Patch20: mesa-10.2-evergreen-big-endian.patch
 Patch21: 0001-pkgconfig-Fix-gl.pc-when-glvnd-is-enabled.patch
+
+Patch31: 0001-llvmpipe-use-ppc64le-ppc64-Large-code-model-for-JIT-.patch
+
 
 BuildRequires: pkgconfig autoconf automake libtool
 %if %{with_hardware}
@@ -348,6 +351,7 @@ grep -q ^/ src/gallium/auxiliary/vl/vl_decoder.c && exit 1
 %patch15 -p1 -b .hwfloat
 #patch20 -p1 -b .egbe
 #%patch21 -p1 -b .glpc
+%patch31 -p1 -b .codemodel
 
 %if 0%{with_private_llvm}
 sed -i 's/\[llvm-config\]/\[llvm-private-config-%{__isa_bits}\]/g' configure.ac
@@ -664,6 +668,9 @@ rm -rf $RPM_BUILD_ROOT
 %endif
 
 %changelog
+* Mon Jan 06 2020 Ben Crocker <bcrocker@redhat.com> - 18.3.4-6
+- Patch to require Large CodeModel for llvmpipe on ppc64/ppc64le (#1543572)
+
 * Thu Apr 04 2019 Dave Airlie <airlied@redhat.com> - 18.3.4-5
 - fix remote shm patch
 
