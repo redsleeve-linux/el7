@@ -1,0 +1,56 @@
+From 2724e62241909754ecf48bb64b417842e954a8d1 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Philippe=20Mathieu-Daud=C3=A9?= <philmd@redhat.com>
+Date: Wed, 31 Jul 2019 21:39:33 +0200
+Subject: [PATCH 2/2] Fix heap overflow in ip_reass on big packet input
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: Philippe Mathieu-Daudé <philmd@redhat.com>
+Message-id: <20190731213933.16245-2-philmd@redhat.com>
+Patchwork-id: 89844
+O-Subject: [RHEL-7.7 qemu-kvm PATCH 1/1] Fix heap overflow in ip_reass on big packet input
+Bugzilla: 1734748
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+
+From: Samuel Thibault <samuel.thibault@ens-lyon.org>
+
+When the first fragment does not fit in the preallocated buffer, q will
+already be pointing to the ext buffer, so we mustn't try to update it.
+
+Signed-off-by: Samuel Thibault <samuel.thibault@ens-lyon.org>
+(cherry picked from libslirp commit 126c04acbabd7ad32c2b018fe10dfac2a3bc1210)
+Signed-off-by: Philippe Mathieu-Daudé <philmd@redhat.com>
+
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ slirp/ip_input.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/slirp/ip_input.c b/slirp/ip_input.c
+index 880bdfd..5226224 100644
+--- a/slirp/ip_input.c
++++ b/slirp/ip_input.c
+@@ -330,6 +330,8 @@ insert:
+     q = fp->frag_link.next;
+ 	m = dtom(slirp, q);
+ 
++	int was_ext = m->m_flags & M_EXT;
++
+ 	q = (struct ipasfrag *) q->ipf_next;
+ 	while (q != (struct ipasfrag*)&fp->frag_link) {
+ 	  struct mbuf *t = dtom(slirp, q);
+@@ -352,7 +354,7 @@ insert:
+ 	 * the old buffer (in the mbuf), so we must point ip
+ 	 * into the new buffer.
+ 	 */
+-	if (m->m_flags & M_EXT) {
++	if (!was_ext && m->m_flags & M_EXT) {
+ 	  int delta = (char *)q - m->m_dat;
+ 	  q = (struct ipasfrag *)(m->m_ext + delta);
+ 	}
+-- 
+1.8.3.1
+

@@ -1,0 +1,50 @@
+From c0da3c7b7bafe378a953f139397cadc26c3d054b Mon Sep 17 00:00:00 2001
+From: Eduardo Habkost <ehabkost@redhat.com>
+Date: Wed, 9 Oct 2019 17:51:42 +0200
+Subject: [PATCH 04/10] i386: Add CPUID bit and feature words for
+ IA32_ARCH_CAPABILITIES MSR
+
+RH-Author: Eduardo Habkost <ehabkost@redhat.com>
+Message-id: <20191009175148.1361-5-ehabkost@redhat.com>
+Patchwork-id: 91360
+O-Subject: [RHEL-7.7.z qemu-kvm PATCH 04/10] i386: Add CPUID bit and feature words for IA32_ARCH_CAPABILITIES MSR
+Bugzilla: 1730606
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Acked-by: Bandan Das <bsd@redhat.com>
+RH-Acked-by: Igor Mammedov <imammedo@redhat.com>
+
+From: Robert Hoo <robert.hu@linux.intel.com>
+
+Support of IA32_PRED_CMD MSR already be enumerated by same CPUID bit as
+SPEC_CTRL.
+
+At present, mark CPUID_7_0_EDX_ARCH_CAPABILITIES unmigratable, per Paolo's
+comment.
+
+Signed-off-by: Robert Hoo <robert.hu@linux.intel.com>
+Message-Id: <1530781798-183214-3-git-send-email-robert.hu@linux.intel.com>
+Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
+(cherry picked from commit 3fc7c73139d2d38ae80c3b0bc963b1ac1555924c)
+Signed-off-by: Paul Lai <plai@redhat.com>
+Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ target-i386/cpu.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/target-i386/cpu.c b/target-i386/cpu.c
+index 5cfed19..ba2ce8e 100644
+--- a/target-i386/cpu.c
++++ b/target-i386/cpu.c
+@@ -174,7 +174,7 @@ static const char *cpuid_7_0_edx_feature_name[] = {
+     NULL, NULL, NULL, NULL,
+     NULL, NULL, NULL, NULL,
+     NULL, NULL, "spec-ctrl", "stibp",
+-    NULL, "arch-facilities", NULL, "ssbd",
++    NULL, "arch-facilities|arch-capabilities", NULL, "ssbd",
+ };
+ 
+ static const char *cpuid_80000008_ebx_feature_name[] = {
+-- 
+1.8.3.1
+

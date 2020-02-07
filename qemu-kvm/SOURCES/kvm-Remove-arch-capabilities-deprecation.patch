@@ -1,0 +1,60 @@
+From deb80e0563048d3bb02d4c975929ddc8502172d4 Mon Sep 17 00:00:00 2001
+From: Eduardo Habkost <ehabkost@redhat.com>
+Date: Wed, 9 Oct 2019 17:51:48 +0200
+Subject: [PATCH 10/10] Remove arch-capabilities deprecation
+
+RH-Author: Eduardo Habkost <ehabkost@redhat.com>
+Message-id: <20191009175148.1361-11-ehabkost@redhat.com>
+Patchwork-id: 91366
+O-Subject: [RHEL-7.7.z qemu-kvm PATCH 10/10] Remove arch-capabilities deprecation
+Bugzilla: 1730606
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Acked-by: Bandan Das <bsd@redhat.com>
+RH-Acked-by: Igor Mammedov <imammedo@redhat.com>
+
+From: Paul Lai <plai@redhat.com>
+
+[RHEL INTERNAL] Logic to support arch-capabilities now exists.
+Deprecation of arch-facilities is no longer needed.
+
+fixes: arch-facilities deprecation introduced by
+  59c1aecdd i386: Deprecate arch-facilities and make it block live migration
+
+7.7.z backport notes (ehabkost):
+* Cherry pick from 7.8 tree with no conflicts
+
+Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ target-i386/cpu.c | 8 --------
+ 1 file changed, 8 deletions(-)
+
+diff --git a/target-i386/cpu.c b/target-i386/cpu.c
+index 35381f0..5aa45ba 100644
+--- a/target-i386/cpu.c
++++ b/target-i386/cpu.c
+@@ -34,7 +34,6 @@
+ #include "qapi-visit.h"
+ #include "qapi/visitor.h"
+ #include "sysemu/arch_init.h"
+-#include "migration/migration.h"
+ 
+ #include "hw/hw.h"
+ #if defined(CONFIG_KVM)
+@@ -1802,13 +1801,6 @@ static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
+         x86_cpu_def->features[w] = x86_cpu_get_supported_feature_word(w);
+     }
+ 
+-    /*
+-     * Features that won't be enabled automatically by "-cpu host" even if
+-     * reported by GET_SUPPORTED_CPUID:
+-     */
+-
+-    /* arch-facilities: deprecated (see comment on x86_cpu_realizefn()) */
+-    x86_cpu_def->features[FEAT_7_0_EDX] &= ~CPUID_7_0_EDX_ARCH_CAPABILITIES;
+ 
+ #endif /* CONFIG_KVM */
+ }
+-- 
+1.8.3.1
+

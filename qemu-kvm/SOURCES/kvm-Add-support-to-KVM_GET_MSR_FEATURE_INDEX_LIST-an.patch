@@ -1,0 +1,189 @@
+From cd4088d607d604085015b0e405b2340420de5d5a Mon Sep 17 00:00:00 2001
+From: Eduardo Habkost <ehabkost@redhat.com>
+Date: Wed, 9 Oct 2019 17:51:43 +0200
+Subject: [PATCH 05/10] kvm: Add support to KVM_GET_MSR_FEATURE_INDEX_LIST and
+ KVM_GET_MSRS system ioctl
+
+RH-Author: Eduardo Habkost <ehabkost@redhat.com>
+Message-id: <20191009175148.1361-6-ehabkost@redhat.com>
+Patchwork-id: 91361
+O-Subject: [RHEL-7.7.z qemu-kvm PATCH 05/10] kvm: Add support to KVM_GET_MSR_FEATURE_INDEX_LIST and KVM_GET_MSRS system ioctl
+Bugzilla: 1730606
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Acked-by: Bandan Das <bsd@redhat.com>
+RH-Acked-by: Igor Mammedov <imammedo@redhat.com>
+
+From: Robert Hoo <robert.hu@linux.intel.com>
+
+Add kvm_get_supported_feature_msrs() to get supported MSR feature index list.
+Add kvm_arch_get_supported_msr_feature() to get each MSR features value.
+
+7.7.z backport notes:
+* No conflicts, but `#include "qemu/error-report.h"` lines was added
+
+Signed-off-by: Robert Hoo <robert.hu@linux.intel.com>
+Message-Id: <1539578845-37944-2-git-send-email-robert.hu@linux.intel.com>
+Reviewed-by: Eduardo Habkost <ehabkost@redhat.com>
+Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
+(cherry picked from commit f57bceb6ab5163ddd6c41ff4344ab8cf28a9c63d)
+Signed-off-by: Paul Lai <plai@redhat.com>
+Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ include/sysemu/kvm.h      |  1 +
+ linux-headers/linux/kvm.h |  2 ++
+ target-i386/kvm.c         | 80 +++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 83 insertions(+)
+
+diff --git a/include/sysemu/kvm.h b/include/sysemu/kvm.h
+index e4403be..281fe26 100644
+--- a/include/sysemu/kvm.h
++++ b/include/sysemu/kvm.h
+@@ -253,6 +253,7 @@ int kvm_check_extension(KVMState *s, unsigned int extension);
+ 
+ uint32_t kvm_arch_get_supported_cpuid(KVMState *env, uint32_t function,
+                                       uint32_t index, int reg);
++uint32_t kvm_arch_get_supported_msr_feature(KVMState *s, uint32_t index);
+ void kvm_cpu_synchronize_state(CPUArchState *env);
+ 
+ /* generic hooks - to be moved/refactored once there are more users */
+diff --git a/linux-headers/linux/kvm.h b/linux-headers/linux/kvm.h
+index 4b93099..bfeafff 100644
+--- a/linux-headers/linux/kvm.h
++++ b/linux-headers/linux/kvm.h
+@@ -541,6 +541,7 @@ struct kvm_ppc_smmu_info {
+ #define KVM_TRACE_ENABLE          __KVM_DEPRECATED_MAIN_W_0x06
+ #define KVM_TRACE_PAUSE           __KVM_DEPRECATED_MAIN_0x07
+ #define KVM_TRACE_DISABLE         __KVM_DEPRECATED_MAIN_0x08
++#define KVM_GET_MSR_FEATURE_INDEX_LIST    _IOWR(KVMIO, 0x0a, struct kvm_msr_list)
+ 
+ /*
+  * Extension capability list.
+@@ -667,6 +668,7 @@ struct kvm_ppc_smmu_info {
+ #define KVM_CAP_PPC_RTAS 91
+ #define KVM_CAP_IRQ_XICS 92
+ #define KVM_CAP_HYPERV_TIME 96
++#define KVM_CAP_GET_MSR_FEATURES 153
+ 
+ #ifdef KVM_CAP_IRQ_ROUTING
+ 
+diff --git a/target-i386/kvm.c b/target-i386/kvm.c
+index d5f6deb..2b1d7da 100644
+--- a/target-i386/kvm.c
++++ b/target-i386/kvm.c
+@@ -33,6 +33,7 @@
+ #include "exec/ioport.h"
+ #include <asm/hyperv.h>
+ #include "hw/pci/pci.h"
++#include "qemu/error-report.h"
+ 
+ //#define DEBUG_KVM
+ 
+@@ -82,6 +83,7 @@ static bool has_msr_virt_ssbd;
+ 
+ static bool has_msr_architectural_pmu;
+ static uint32_t num_architectural_pmu_counters;
++static struct kvm_msr_list *kvm_feature_msrs;
+ 
+ bool kvm_allows_irq0_override(void)
+ {
+@@ -249,11 +251,87 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
+     return ret;
+ }
+ 
++uint32_t kvm_arch_get_supported_msr_feature(KVMState *s, uint32_t index)
++{
++    struct {
++        struct kvm_msrs info;
++        struct kvm_msr_entry entries[1];
++    } msr_data;
++    uint32_t ret;
++
++    if (kvm_feature_msrs == NULL) { /* Host doesn't support feature MSRs */
++        return 0;
++    }
++
++    /* Check if requested MSR is supported feature MSR */
++    int i;
++    for (i = 0; i < kvm_feature_msrs->nmsrs; i++)
++        if (kvm_feature_msrs->indices[i] == index) {
++            break;
++        }
++    if (i == kvm_feature_msrs->nmsrs) {
++        return 0; /* if the feature MSR is not supported, simply return 0 */
++    }
++
++    msr_data.info.nmsrs = 1;
++    msr_data.entries[0].index = index;
++
++    ret = kvm_ioctl(s, KVM_GET_MSRS, &msr_data);
++    if (ret != 1) {
++        error_report("KVM get MSR (index=0x%x) feature failed, %s",
++            index, strerror(-ret));
++        exit(1);
++    }
++
++    return msr_data.entries[0].data;
++}
++
+ typedef struct HWPoisonPage {
+     ram_addr_t ram_addr;
+     QLIST_ENTRY(HWPoisonPage) list;
+ } HWPoisonPage;
+ 
++static int kvm_get_supported_feature_msrs(KVMState *s)
++{
++    int ret = 0;
++
++    if (kvm_feature_msrs != NULL) {
++        return 0;
++    }
++
++    if (!kvm_check_extension(s, KVM_CAP_GET_MSR_FEATURES)) {
++        return 0;
++    }
++
++    struct kvm_msr_list msr_list;
++
++    msr_list.nmsrs = 0;
++    ret = kvm_ioctl(s, KVM_GET_MSR_FEATURE_INDEX_LIST, &msr_list);
++    if (ret < 0 && ret != -E2BIG) {
++        error_report("Fetch KVM feature MSR list failed: %s",
++            strerror(-ret));
++        return ret;
++    }
++
++    assert(msr_list.nmsrs > 0);
++    kvm_feature_msrs = (struct kvm_msr_list *) \
++        g_malloc0(sizeof(msr_list) +
++                 msr_list.nmsrs * sizeof(msr_list.indices[0]));
++
++    kvm_feature_msrs->nmsrs = msr_list.nmsrs;
++    ret = kvm_ioctl(s, KVM_GET_MSR_FEATURE_INDEX_LIST, kvm_feature_msrs);
++
++    if (ret < 0) {
++        error_report("Fetch KVM feature MSR list failed: %s",
++            strerror(-ret));
++        g_free(kvm_feature_msrs);
++        kvm_feature_msrs = NULL;
++        return ret;
++    }
++
++    return 0;
++}
++
+ static QLIST_HEAD(, HWPoisonPage) hwpoison_page_list =
+     QLIST_HEAD_INITIALIZER(hwpoison_page_list);
+ 
+@@ -831,6 +909,8 @@ int kvm_arch_init(KVMState *s)
+         return ret;
+     }
+ 
++    kvm_get_supported_feature_msrs(s);
++
+     uname(&utsname);
+     lm_capable_kernel = strcmp(utsname.machine, "x86_64") == 0;
+ 
+-- 
+1.8.3.1
+

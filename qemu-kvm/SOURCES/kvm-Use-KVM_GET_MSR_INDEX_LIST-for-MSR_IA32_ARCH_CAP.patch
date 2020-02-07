@@ -1,0 +1,107 @@
+From dd8556fe139be9237694229e55ac3762ec71eca5 Mon Sep 17 00:00:00 2001
+From: Eduardo Habkost <ehabkost@redhat.com>
+Date: Wed, 9 Oct 2019 17:51:46 +0200
+Subject: [PATCH 08/10] kvm: Use KVM_GET_MSR_INDEX_LIST for
+ MSR_IA32_ARCH_CAPABILITIES support
+
+RH-Author: Eduardo Habkost <ehabkost@redhat.com>
+Message-id: <20191009175148.1361-9-ehabkost@redhat.com>
+Patchwork-id: 91363
+O-Subject: [RHEL-7.7.z qemu-kvm PATCH 08/10] kvm: Use KVM_GET_MSR_INDEX_LIST for MSR_IA32_ARCH_CAPABILITIES support
+Bugzilla: 1730606
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Acked-by: Bandan Das <bsd@redhat.com>
+RH-Acked-by: Igor Mammedov <imammedo@redhat.com>
+
+From: Bandan Das <bsd@redhat.com>
+
+When writing to guest's MSR_IA32_ARCH_CAPABILITIES, check whether it's
+supported in the guest using the KVM_GET_MSR_INDEX_LIST ioctl.
+
+7.8 backport conflicts (plai):
+	target/i386/kvm.c changes to target-i386/kvm.c
+
+7.7.z backport notes (ehabkost):
+* Cherry pick from 7.8 tree with no conflicts
+
+Fixes: d86f963694df27f11b3681ffd225c9362de1b634
+Suggested-by: Eduardo Habkost <ehabkost@redhat.com>
+Tested-by: balducci@units.it
+Signed-off-by: Bandan Das <bsd@redhat.com>
+Message-Id: <jpg4lc4iiav.fsf_-_@linux.bootlegged.copy>
+Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
+(cherry picked from commit aec5e9c3a94cf8b7920f59bef69a6f426092c4a0)
+Signed-off-by: Paul Lai <plai@redhat.com>
+Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ target-i386/cpu.h |  1 +
+ target-i386/kvm.c | 19 +++++++++++--------
+ 2 files changed, 12 insertions(+), 8 deletions(-)
+
+diff --git a/target-i386/cpu.h b/target-i386/cpu.h
+index 1c62e63..d855ae3 100644
+--- a/target-i386/cpu.h
++++ b/target-i386/cpu.h
+@@ -1066,6 +1066,7 @@ typedef struct CPUX86State {
+ 
+     uint64_t spec_ctrl;
+     uint64_t virt_ssbd;
++    uint64_t virt_arch_capabs;
+ 
+     TPRAccess tpr_access_type;
+ } CPUX86State;
+diff --git a/target-i386/kvm.c b/target-i386/kvm.c
+index 180ae56..bc3a514 100644
+--- a/target-i386/kvm.c
++++ b/target-i386/kvm.c
+@@ -80,6 +80,7 @@ static bool has_msr_mtrr;
+ static bool has_msr_xss;
+ static bool has_msr_spec_ctrl;
+ static bool has_msr_virt_ssbd;
++static bool has_msr_arch_capabs;
+ 
+ static bool has_msr_architectural_pmu;
+ static uint32_t num_architectural_pmu_counters;
+@@ -888,6 +889,10 @@ static int kvm_get_supported_msrs(KVMState *s)
+                     has_msr_virt_ssbd = true;
+                     continue;
+                 }
++                if (kvm_msr_list->indices[i] == MSR_IA32_ARCH_CAPABILITIES) {
++                    has_msr_arch_capabs = true;
++                    continue;
++                }
+             }
+         }
+ 
+@@ -1326,14 +1331,9 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
+         }
+     }
+     /* If host supports feature MSR, write down. */
+-    if (kvm_feature_msrs) {
+-        int i;
+-        for (i = 0; i < kvm_feature_msrs->nmsrs; i++)
+-            if (kvm_feature_msrs->indices[i] == MSR_IA32_ARCH_CAPABILITIES) {
+-                kvm_msr_entry_set(&msrs[n++], MSR_IA32_ARCH_CAPABILITIES,
+-                              env->features[FEAT_ARCH_CAPABILITIES]);
+-                break;
+-            }
++    if (has_msr_arch_capabs) {
++        kvm_msr_entry_set(&msrs[n++], MSR_IA32_ARCH_CAPABILITIES,
++                          env->features[FEAT_ARCH_CAPABILITIES]);
+     }
+     /*
+      * The following MSRs have side effects on the guest or are too heavy
+@@ -1925,6 +1925,9 @@ static int kvm_get_msrs(X86CPU *cpu)
+         case MSR_VIRT_SSBD:
+             env->virt_ssbd = msrs[i].data;
+             break;
++        case MSR_IA32_ARCH_CAPABILITIES:
++            env->features[FEAT_ARCH_CAPABILITIES] = msrs[i].data;
++            break;
+         }
+     }
+ 
+-- 
+1.8.3.1
+

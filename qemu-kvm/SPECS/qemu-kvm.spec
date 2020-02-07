@@ -14,7 +14,7 @@
     %global have_usbredir 0
 %endif
 
-%ifnarch s390 s390x
+%ifnarch s390 s390x %{arm}
     %global have_librdma 1
     %global have_tcmalloc 1
 %endif
@@ -40,6 +40,9 @@
 %endif
 %ifarch aarch64
     %global kvm_target    aarch64
+%endif
+%ifarch %{arm}
+    %global kvm_target    arm
 %endif
 
 #Versions of various parts:
@@ -76,13 +79,13 @@ Obsoletes: %1 < %{obsoletes_version}                                      \
 Summary: QEMU is a machine emulator and virtualizer
 Name: %{pkgname}%{?pkgsuffix}
 Version: 1.5.3
-Release: 167%{?dist}
+Release: 167%{?dist}.4
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 Epoch: 10
 License: GPLv2 and GPLv2+ and CC-BY
 Group: Development/Tools
 URL: http://www.qemu.org/
-ExclusiveArch: x86_64
+ExclusiveArch: x86_64 %{arm}
 Requires: seabios-bin >= 1.7.2.2-5
 Requires: sgabios-bin
 Requires: seavgabios-bin
@@ -3969,6 +3972,36 @@ Patch1955: kvm-slirp-fix-big-little-endian-conversion-in-ident-prot.patch
 Patch1956: kvm-slirp-ensure-there-is-enough-space-in-mbuf-to-null-t.patch
 # For bz#1669068 - CVE-2019-6778 qemu-kvm: QEMU: slirp: heap buffer overflow in tcp_emu() [rhel-7.7]
 Patch1957: kvm-slirp-don-t-manipulate-so_rcv-in-tcp_emu.patch
+# For bz#1732337 - CVE-2019-12155 qemu-kvm: QEMU: qxl: null pointer dereference while releasing spice resources [rhel-7] [rhel-7.7.z]
+Patch1958: kvm-qxl-check-release-info-object.patch
+# For bz#1734748 - CVE-2019-14378 qemu-kvm: QEMU: slirp: heap buffer overflow during packet reassembly [rhel-7.7.z]
+Patch1959: kvm-Fix-heap-overflow-in-ip_reass-on-big-packet-input.patch
+# For bz#1730606 - [Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm [rhel-7.7.z]
+Patch1960: kvm-target-i386-Merge-feature-filtering-checking-functio.patch
+# For bz#1730606 - [Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm [rhel-7.7.z]
+Patch1961: kvm-target-i386-Isolate-KVM-specific-code-on-CPU-feature.patch
+# For bz#1730606 - [Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm [rhel-7.7.z]
+Patch1962: kvm-i386-Add-new-MSR-indices-for-IA32_PRED_CMD-and-IA32_.patch
+# For bz#1730606 - [Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm [rhel-7.7.z]
+Patch1963: kvm-i386-Add-CPUID-bit-and-feature-words-for-IA32_ARCH_C.patch
+# For bz#1730606 - [Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm [rhel-7.7.z]
+Patch1964: kvm-Add-support-to-KVM_GET_MSR_FEATURE_INDEX_LIST-an.patch
+# For bz#1730606 - [Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm [rhel-7.7.z]
+Patch1965: kvm-x86-Data-structure-changes-to-support-MSR-based-feat.patch
+# For bz#1730606 - [Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm [rhel-7.7.z]
+Patch1966: kvm-x86-define-a-new-MSR-based-feature-word-FEATURE_WORD.patch
+# For bz#1730606 - [Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm [rhel-7.7.z]
+Patch1967: kvm-Use-KVM_GET_MSR_INDEX_LIST-for-MSR_IA32_ARCH_CAP.patch
+# For bz#1730606 - [Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm [rhel-7.7.z]
+Patch1968: kvm-i386-kvm-Disable-arch_capabilities-if-MSR-can-t-be-s.patch
+# For bz#1730606 - [Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm [rhel-7.7.z]
+Patch1969: kvm-Remove-arch-capabilities-deprecation.patch
+# For bz#1771960 - CVE-2019-11135 qemu-kvm: hw: TSX Transaction Asynchronous Abort (TAA) [rhel-7.7.z]
+Patch1970: kvm-target-i386-Export-TAA_NO-bit-to-guests.patch
+# For bz#1771960 - CVE-2019-11135 qemu-kvm: hw: TSX Transaction Asynchronous Abort (TAA) [rhel-7.7.z]
+Patch1971: kvm-target-i386-add-support-for-MSR_IA32_TSX_CTRL.patch
+# For bz#1755333 - [Intel 7.8 FEAT] MDS_NO exposure to guest - qemu-kvm [rhel-7.7.z]
+Patch1972: kvm-target-i386-add-MDS-NO-feature.patch
 
 
 BuildRequires: zlib-devel
@@ -6104,6 +6137,21 @@ tar -xf %{SOURCE21}
 %patch1955 -p1
 %patch1956 -p1
 %patch1957 -p1
+%patch1958 -p1
+%patch1959 -p1
+%patch1960 -p1
+%patch1961 -p1
+%patch1962 -p1
+%patch1963 -p1
+%patch1964 -p1
+%patch1965 -p1
+%patch1966 -p1
+%patch1967 -p1
+%patch1968 -p1
+%patch1969 -p1
+%patch1970 -p1
+%patch1971 -p1
+%patch1972 -p1
 
 %build
 buildarch="%{kvm_target}-softmmu"
@@ -6549,6 +6597,39 @@ sh %{_sysconfdir}/sysconfig/modules/kvm.modules &> /dev/null || :
 %{_mandir}/man8/qemu-nbd.8*
 
 %changelog
+* Mon Jan 06 2020 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-167.el7_7.4
+- kvm-target-i386-add-MDS-NO-feature.patch [bz#1755333]
+- Resolves: bz#1755333
+  ([Intel 7.8 FEAT] MDS_NO exposure to guest - qemu-kvm [rhel-7.7.z])
+
+* Tue Dec 10 2019 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-167.el7_7.3
+- kvm-target-i386-Export-TAA_NO-bit-to-guests.patch [bz#1771960]
+- kvm-target-i386-add-support-for-MSR_IA32_TSX_CTRL.patch [bz#1771960]
+- Resolves: bz#1771960
+  (CVE-2019-11135 qemu-kvm: hw: TSX Transaction Asynchronous Abort (TAA) [rhel-7.7.z])
+
+* Thu Oct 24 2019 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-167.el7_7.2
+- kvm-target-i386-Merge-feature-filtering-checking-functio.patch [bz#1730606]
+- kvm-target-i386-Isolate-KVM-specific-code-on-CPU-feature.patch [bz#1730606]
+- kvm-i386-Add-new-MSR-indices-for-IA32_PRED_CMD-and-IA32_.patch [bz#1730606]
+- kvm-i386-Add-CPUID-bit-and-feature-words-for-IA32_ARCH_C.patch [bz#1730606]
+- kvm-Add-support-to-KVM_GET_MSR_FEATURE_INDEX_LIST-an.patch [bz#1730606]
+- kvm-x86-Data-structure-changes-to-support-MSR-based-feat.patch [bz#1730606]
+- kvm-x86-define-a-new-MSR-based-feature-word-FEATURE_WORD.patch [bz#1730606]
+- kvm-Use-KVM_GET_MSR_INDEX_LIST-for-MSR_IA32_ARCH_CAP.patch [bz#1730606]
+- kvm-i386-kvm-Disable-arch_capabilities-if-MSR-can-t-be-s.patch [bz#1730606]
+- kvm-Remove-arch-capabilities-deprecation.patch [bz#1730606]
+- Resolves: bz#1730606
+  ([Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm [rhel-7.7.z])
+
+* Mon Aug 12 2019 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-167.el7_7.1
+- kvm-qxl-check-release-info-object.patch [bz#1732337]
+- kvm-Fix-heap-overflow-in-ip_reass-on-big-packet-input.patch [bz#1734748]
+- Resolves: bz#1732337
+  (CVE-2019-12155 qemu-kvm: QEMU: qxl: null pointer dereference while releasing spice resources [rhel-7] [rhel-7.7.z])
+- Resolves: bz#1734748
+  (CVE-2019-14378 qemu-kvm: QEMU: slirp: heap buffer overflow during packet reassembly [rhel-7.7.z])
+
 * Wed Jun 12 2019 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-167.el7
 - Reverting kvm-seccomp-set-the-seccomp-filter-to-all-threads.patch [bz#1618503]
 - Resolves: bz#1618503
