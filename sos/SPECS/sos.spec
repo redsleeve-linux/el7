@@ -2,7 +2,7 @@
 Summary: A set of tools to gather troubleshooting information from a system
 Name: sos
 Version: 3.7
-Release: 10%{?dist}.redsleeve
+Release: 11%{?dist}
 Group: Applications/System
 Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
 License: GPLv2+
@@ -34,8 +34,8 @@ Patch12: sos-bz1751577-vdsm-fix-shell-commands.patch
 Patch13: sos-bz1751578-ovn-plugins-containerized.patch
 Patch14: sos-bz1760737-kernel-trace-disabled.patch
 Patch15: sos-bz1769259-interim-sysroot-forbidden-paths.patch
-Patch16: sos-3.7-redsleeve-branding.patch
-
+Patch16: sos-bz1683904-option_to_limit_namespaces.patch
+Patch17: sos-3.7-centos-branding.patch
 
 %description
 Sos is a set of tools that gathers information about system
@@ -62,6 +62,7 @@ support technicians and developers.
 %patch14 -p1
 %patch15 -p1
 %patch16 -p1
+%patch17 -p1
 
 %build
 make
@@ -85,11 +86,12 @@ rm -rf ${RPM_BUILD_ROOT}
 %config(noreplace) %{_sysconfdir}/sos.conf
 
 %changelog
-* Wed Dec 04 2019 Jacco Ligthart <jacco@redsleeve.org> - 3.7-10.el7.redsleeve
-- Roll in RedSleeve Branding
-
-* Tue Nov 26 2019 CentOS Sources <bugs@centos.org> - 3.7-10.el7.centos
+* Tue Mar 17 2020 CentOS Sources <bugs@centos.org> - 3.7-11.el7.centos
 - Roll in CentOS Branding
+
+* Wed Feb 19 2020 Jan Jansky <jjansky@redhat.com> = 3.7-11
+- [networking] options to limit namespaces
+  Resolves: bz1683904
 
 * Tue Nov 12 2019 Pavel Moravec <pmoravec@redhat.com> = 3.7-10
 - [archive] Handle checking sysroot in _make_leading_paths
