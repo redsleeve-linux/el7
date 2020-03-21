@@ -2,7 +2,7 @@
 Summary: A set of tools to gather troubleshooting information from a system
 Name: sos
 Version: 3.7
-Release: 11%{?dist}
+Release: 11%{?dist}.redsleeve
 Group: Applications/System
 Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
 License: GPLv2+
@@ -35,7 +35,7 @@ Patch13: sos-bz1751578-ovn-plugins-containerized.patch
 Patch14: sos-bz1760737-kernel-trace-disabled.patch
 Patch15: sos-bz1769259-interim-sysroot-forbidden-paths.patch
 Patch16: sos-bz1683904-option_to_limit_namespaces.patch
-Patch17: sos-3.7-centos-branding.patch
+Patch17: sos-3.7-redsleeve-branding.patch
 
 %description
 Sos is a set of tools that gathers information about system
@@ -86,6 +86,9 @@ rm -rf ${RPM_BUILD_ROOT}
 %config(noreplace) %{_sysconfdir}/sos.conf
 
 %changelog
+* Sat Mar 21 2020 Jacco Ligthart <jacco@redsleeve.org> - 3.7-11.el7.redsleeve
+- Roll in RedSleeve Branding
+
 * Tue Mar 17 2020 CentOS Sources <bugs@centos.org> - 3.7-11.el7.centos
 - Roll in CentOS Branding
 
