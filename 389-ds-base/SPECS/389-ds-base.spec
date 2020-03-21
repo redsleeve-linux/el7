@@ -19,7 +19,7 @@
 %global use_tcmalloc 0
 %global variant base-asan
 %else
-%if %{_arch} != "s390x" && %{_arch} != "s390"
+%ifnarch s390 s390x %{arm}
 %global use_tcmalloc 1
 %else
 %global use_tcmalloc 0
@@ -39,7 +39,7 @@
 Summary:          389 Directory Server (%{variant})
 Name:             389-ds-base
 Version:          1.3.9.1
-Release:          %{?relprefix}13%{?prerel}%{?dist}
+Release:          %{?relprefix}13%{?prerel}%{?dist}.redsleeve
 License:          GPLv3+
 URL:              https://www.port389.org/
 Group:            System Environment/Daemons
@@ -546,6 +546,9 @@ fi
 %{_sysconfdir}/%{pkgname}/dirsrvtests
 
 %changelog
+* Sat Mar 21 2020 Jacco Ligthart <jacco@redsleeve.org> - 1.3.9.1-13.redsleeve
+- disabled tcmalloc for arm
+
 * Wed Feb 12 2020 Mark Reynolds <mreynolds@redhat.com> - 1.3.9.1-13
 - Bump version to 1.3.9.1-13
 - Resolves: Bug 1801693 - ns-slapd is crashing while restarting ipactl
