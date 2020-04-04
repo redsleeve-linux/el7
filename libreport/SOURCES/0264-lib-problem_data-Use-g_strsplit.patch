@@ -1,0 +1,78 @@
+From 99d045d33f9805d7f81012d2bf7f01edcddb97f2 Mon Sep 17 00:00:00 2001
+From: Ernestas Kulik <ekulik@redhat.com>
+Date: Tue, 4 Jun 2019 15:46:20 +0200
+Subject: [PATCH] lib: problem_data: Use g_strsplit()
+
+Our own implementation is rather opaque and is causing Coverity to yell.
+
+Signed-off-by: Ernestas Kulik <ekulik@redhat.com>
+---
+ src/lib/problem_data.c | 44 ++----------------------------------------
+ 1 file changed, 2 insertions(+), 42 deletions(-)
+
+diff --git a/src/lib/problem_data.c b/src/lib/problem_data.c
+index 2f66fb3..fdecc83 100644
+--- a/src/lib/problem_data.c
++++ b/src/lib/problem_data.c
+@@ -519,56 +519,16 @@ problem_data_t *create_problem_data_from_dump_dir(struct dump_dir *dd)
+     return problem_data;
+ }
+ 
+-/*
+- * Returns NULL-terminated char *vector[]. Result itself must be freed,
+- * but do no free list elements. IOW: do free(result), but never free(result[i])!
+- * If comma_separated_list is NULL or "", returns NULL.
+- */
+-static char **build_exclude_vector(const char *comma_separated_list)
+-{
+-    char **exclude_items = NULL;
+-    if (comma_separated_list && comma_separated_list[0])
+-    {
+-        /* even w/o commas, we'll need two elements:
+-         * exclude_items[0] = "name"
+-         * exclude_items[1] = NULL
+-         */
+-        unsigned cnt = 2;
+-
+-        const char *cp = comma_separated_list;
+-        while (*cp)
+-            if (*cp++ == ',')
+-                cnt++;
+-
+-        /* We place the string directly after the char *vector[cnt]: */
+-        exclude_items = xzalloc(cnt * sizeof(exclude_items[0]) + (cp - comma_separated_list) + 1);
+-        char *p = strcpy((char*)&exclude_items[cnt], comma_separated_list);
+-
+-        char **pp = exclude_items;
+-        *pp++ = p;
+-        while (*p)
+-        {
+-            if (*p++ == ',')
+-            {
+-                p[-1] = '\0';
+-                *pp++ = p;
+-            }
+-        }
+-    }
+-
+-    return exclude_items;
+-}
+-
+ problem_data_t *create_problem_data_for_reporting(const char *dump_dir_name)
+ {
+     struct dump_dir *dd = dd_opendir(dump_dir_name, /*flags:*/ 0);
+     if (!dd)
+         return NULL; /* dd_opendir already emitted error msg */
+-    char **exclude_items = build_exclude_vector(getenv("EXCLUDE_FROM_REPORT"));
++    char **exclude_items = g_strsplit(getenv("EXCLUDE_FROM_REPORT"), ",", -1);
+     problem_data_t *problem_data = problem_data_new();
+     problem_data_load_from_dump_dir(problem_data, dd, exclude_items);
+     dd_close(dd);
+-    free(exclude_items);
++    g_strfreev(exclude_items);
+     return problem_data;
+ }
+ 
+-- 
+2.21.0
+

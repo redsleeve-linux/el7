@@ -1,0 +1,30 @@
+From c281744edac0b6167ffced1c6d32b662fdbcac00 Mon Sep 17 00:00:00 2001
+From: Ernestas Kulik <ekulik@redhat.com>
+Date: Wed, 14 Aug 2019 09:20:09 +0200
+Subject: [PATCH] lib: dump_dir: Restore log level
+
+d4b89774005c569d7fd576d0d0efa6b3dc877a4f changed the log level of one
+message from NOTICE to WARNING, which ends up being rather spammy and
+making meaningful-logs fail.
+
+Signed-off-by: Ernestas Kulik <ekulik@redhat.com>
+---
+ src/lib/dump_dir.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib/dump_dir.c b/src/lib/dump_dir.c
+index 0da96cd..4bdfa5d 100644
+--- a/src/lib/dump_dir.c
++++ b/src/lib/dump_dir.c
+@@ -392,7 +392,7 @@ static int dd_lock(struct dump_dir *dd, unsigned sleep_usec, int flags)
+             if (dd->owns_lock)
+                 xunlinkat(dd->dd_fd, ".lock", /*only files*/0);
+ 
+-            log_warning("Unlocked '%s/.lock' (no or corrupted '%s' file)", dd->dd_dirname, missing_file);
++            log_notice("Unlocked '%s/.lock' (no or corrupted '%s' file)", dd->dd_dirname, missing_file);
+             if (--count == 0 || flags & DD_DONT_WAIT_FOR_LOCK)
+             {
+                 errno = EISDIR; /* "this is an ordinary dir, not dump dir" */
+-- 
+2.21.0
+

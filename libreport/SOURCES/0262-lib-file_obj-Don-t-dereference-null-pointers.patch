@@ -1,0 +1,50 @@
+From 34b7778028ab60dd3079a2ad3e1df23e87c8708f Mon Sep 17 00:00:00 2001
+From: Ernestas Kulik <ekulik@redhat.com>
+Date: Wed, 29 May 2019 09:17:02 +0200
+Subject: [PATCH] =?UTF-8?q?lib:=20file=5Fobj:=20Don=E2=80=99t=20dereferenc?=
+ =?UTF-8?q?e=20null=20pointers?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+And, amazingly, someone forgot a semicolon after a return statement in
+such a fix.
+
+Signed-off-by: Ernestas Kulik <ekulik@redhat.com>
+---
+ src/lib/file_obj.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib/file_obj.c b/src/lib/file_obj.c
+index bbb5b9f..aa973b1 100644
+--- a/src/lib/file_obj.c
++++ b/src/lib/file_obj.c
+@@ -30,7 +30,7 @@ file_obj_t *new_file_obj(const char* fullpath, const char* filename)
+ void free_file_obj(file_obj_t *f)
+ {
+     if (f == NULL)
+-        return
++        return;
+ 
+     free(f->fullpath);
+     free(f->filename);
+@@ -39,10 +39,14 @@ void free_file_obj(file_obj_t *f)
+ 
+ const char *fo_get_fullpath(file_obj_t *fo)
+ {
++    g_return_val_if_fail(NULL != fo, NULL);
++
+     return fo->fullpath;
+ }
+ 
+ const char *fo_get_filename(file_obj_t *fo)
+ {
++    g_return_val_if_fail(NULL != fo, NULL);
++
+     return fo->filename;
+-}
+\ No newline at end of file
++}
+-- 
+2.21.0
+

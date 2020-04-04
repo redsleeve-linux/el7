@@ -1,0 +1,32 @@
+From ba9cd5fe311ae3b89770050f846d2d6b246a49fe Mon Sep 17 00:00:00 2001
+From: Martin Kutlak <mkutlak@redhat.com>
+Date: Mon, 20 Aug 2018 14:52:13 +0000
+Subject: [PATCH] coverity: Remove check for null pointer with no effect #def33
+
+post_state->errmsg is defined as a char array, NULL is a pointer - these
+are incompatible types. Comparing them always evaluates as False.
+
+Signed-off-by: Martin Kutlak <mkutlak@redhat.com>
+
+
+(cherry picked from commit 7cbf5a9b3613985358aad07b6365f6c5cf06a4cf)
+---
+ src/lib/ureport.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib/ureport.c b/src/lib/ureport.c
+index 490b75c..af41c1c 100644
+--- a/src/lib/ureport.c
++++ b/src/lib/ureport.c
+@@ -566,7 +566,7 @@ ureport_server_response_from_reply(post_state_t *post_state,
+      */
+     if (post_state->curl_result != CURLE_OK)
+     {
+-        if (post_state->errmsg != NULL && strcmp( post_state->errmsg, "") != 0)
++        if (strcmp(post_state->errmsg, "") != 0)
+             error_msg(_("Failed to upload uReport to the server '%s' with curl: %s"),
+                                                                     config->ur_url,
+                                                                     post_state->errmsg);
+-- 
+2.21.0
+

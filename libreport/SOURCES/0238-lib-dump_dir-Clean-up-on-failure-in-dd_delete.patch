@@ -1,0 +1,67 @@
+From e70412faf236002abc42739eef30aaaf9019e702 Mon Sep 17 00:00:00 2001
+From: Ernestas Kulik <ekulik@redhat.com>
+Date: Mon, 18 Mar 2019 10:22:08 +0100
+Subject: [PATCH] lib: dump_dir: Clean up on failure in dd_delete()
+
+All callers assume that dd_delete() will succeed and the dump directory
+struct will be freed, but in some cases that does not happen and leaks
+occur.
+
+Signed-off-by: Ernestas Kulik <ekulik@redhat.com>
+---
+ src/lib/dump_dir.c | 20 ++++++++++++++++----
+ 1 file changed, 16 insertions(+), 4 deletions(-)
+
+diff --git a/src/lib/dump_dir.c b/src/lib/dump_dir.c
+index 7e8ee01..eb0c176 100644
+--- a/src/lib/dump_dir.c
++++ b/src/lib/dump_dir.c
+@@ -963,16 +963,26 @@ static int delete_file_dir(int dir_fd, bool skip_lock_file)
+ 
+ int dd_delete(struct dump_dir *dd)
+ {
++    int retval;
++
++    retval = 0;
++
+     if (!dd->locked)
+     {
+         error_msg("unlocked problem directory %s cannot be deleted", dd->dd_dirname);
+-        return -1;
++
++        retval = -1;
++
++        goto close;
+     }
+ 
+     if (delete_file_dir(dd->dd_fd, /*skip_lock_file:*/ true) != 0)
+     {
+         perror_msg("Can't remove contents of directory '%s'", dd->dd_dirname);
+-        return -2;
++
++        retval = -2;
++
++        goto close;
+     }
+ 
+     unsigned cnt = RMDIR_FAIL_COUNT;
+@@ -991,12 +1001,14 @@ int dd_delete(struct dump_dir *dd)
+     if (cnt == 0)
+     {
+         perror_msg("Can't remove directory '%s'", dd->dd_dirname);
+-        return -3;
++
++        retval = -3;
+     }
+ 
+     dd->locked = 0; /* delete_file_dir already removed .lock */
++close:
+     dd_close(dd);
+-    return 0;
++    return retval;
+ }
+ 
+ int dd_chown(struct dump_dir *dd, uid_t new_uid)
+-- 
+2.21.0
+

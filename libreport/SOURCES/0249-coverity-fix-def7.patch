@@ -1,0 +1,35 @@
+From 11878b5cc127126c8671199d9dae580149703439 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Wed, 18 Jul 2018 15:10:17 +0000
+Subject: [PATCH] coverity fix [#def7]
+
+libreport-2.9.5/src/gui-wizard-gtk/wizard.c:1028: dereference: Dereferencing a
+null pointer "event_name_end".
+
+https://cov01.lab.eng.brq.redhat.com/el8-results/el8/libreport-2.9.5-2.el8+7/scan-results.html#def7
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+
+
+(cherry picked from commit 6ef9f702af8df7acc69887656752a24cfd5a64c8)
+---
+ src/gui-wizard-gtk/wizard.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/gui-wizard-gtk/wizard.c b/src/gui-wizard-gtk/wizard.c
+index b4b2c3d..eb0dee7 100644
+--- a/src/gui-wizard-gtk/wizard.c
++++ b/src/gui-wizard-gtk/wizard.c
+@@ -1079,6 +1079,9 @@ static event_gui_data_t *add_event_buttons(GtkBox *box,
+             break;
+ 
+         char *event_name_end = strchr(event_name, '\n');
++        if (event_name_end == NULL)
++            break;
++
+         *event_name_end = '\0';
+ 
+         event_config_t *cfg = get_event_config(event_name);
+-- 
+2.21.0
+

@@ -1,0 +1,48 @@
+From eba5c78b217d29f8e5ad7238b3b3b16d2e3edaaf Mon Sep 17 00:00:00 2001
+From: Ernestas Kulik <ekulik@redhat.com>
+Date: Wed, 29 May 2019 09:12:01 +0200
+Subject: [PATCH] lib: xatonum: Bail out with null strings
+
+Signed-off-by: Ernestas Kulik <ekulik@redhat.com>
+---
+ src/lib/xatonum.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/src/lib/xatonum.c b/src/lib/xatonum.c
+index 71b0247..c00b601 100644
+--- a/src/lib/xatonum.c
++++ b/src/lib/xatonum.c
+@@ -28,6 +28,9 @@ unsigned xatou(const char *numstr)
+     int old_errno;
+     char *e;
+ 
++    if (NULL == numstr)
++        error_msg_and_die("converting null string to integer");
++
+     if (*numstr < '0' || *numstr > '9')
+         goto inval;
+ 
+@@ -46,6 +49,10 @@ inval:
+ int xatoi_positive(const char *numstr)
+ {
+     unsigned r = xatou(numstr);
++
++    if (NULL == numstr)
++        error_msg_and_die("converting null string to integer");
++
+     if (r > (unsigned)INT_MAX)
+         error_msg_and_die("invalid number '%s'", numstr);
+     return r;
+@@ -55,6 +62,9 @@ int xatoi(const char *numstr)
+ {
+     unsigned r;
+ 
++    if (NULL == numstr)
++        error_msg_and_die("converting null string to integer");
++
+     if (*numstr != '-')
+         return xatoi_positive(numstr);
+ 
+-- 
+2.21.0
+

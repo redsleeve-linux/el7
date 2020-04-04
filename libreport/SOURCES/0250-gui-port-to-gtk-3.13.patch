@@ -1,0 +1,383 @@
+From 9e5eec5e69f320361f0f5230bf9159b34c91ee80 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Tue, 29 Jul 2014 18:59:31 +0200
+Subject: [PATCH] gui: port to gtk-3.13
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/gtk-helpers/config_dialog.c          |  7 +++-
+ src/gtk-helpers/event_config_dialog.c    | 24 +++++++++++-
+ src/gtk-helpers/workflow_config_dialog.c |  7 +++-
+ src/gui-wizard-gtk/wizard.c              | 47 ++++++++++++++++++++----
+ src/gui-wizard-gtk/wizard.glade          | 40 ++++++++++----------
+ 5 files changed, 94 insertions(+), 31 deletions(-)
+
+diff --git a/src/gtk-helpers/config_dialog.c b/src/gtk-helpers/config_dialog.c
+index b5835de..834ad95 100644
+--- a/src/gtk-helpers/config_dialog.c
++++ b/src/gtk-helpers/config_dialog.c
+@@ -357,7 +357,7 @@ GtkWindow *create_config_list_window(GHashTable *configs, GtkWindow *parent)
+     //buttons
+     GtkWidget *btn_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL,5);
+     GtkWidget *configure_btn = gtk_button_new_with_mnemonic(_("C_onfigure"));
+-    GtkWidget *align = gtk_alignment_new(0, 0, 0, 0);
++
+     GtkWidget *close_btn = gtk_button_new_with_mnemonic(_("_Close"));
+     GtkSizeGroup *sg = gtk_size_group_new(GTK_SIZE_GROUP_BOTH);
+     //force apply and close to have the same size
+@@ -368,8 +368,13 @@ GtkWindow *create_config_list_window(GHashTable *configs, GtkWindow *parent)
+     g_signal_connect(close_btn, "clicked", (GCallback)on_close_cb, window);
+ 
+     gtk_box_pack_start(GTK_BOX(btn_box), close_btn, 0, 0, 5);
++#if ((GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION < 13) || (GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION == 13 && GTK_MICRO_VERSION < 5))
++    GtkWidget *align = gtk_alignment_new(0, 0, 0, 0);
+     gtk_box_pack_start(GTK_BOX(btn_box), align, true, true, 5);
+     gtk_box_pack_start(GTK_BOX(btn_box), configure_btn, 0, 0, 5);
++#else
++    gtk_box_pack_end(GTK_BOX(btn_box), configure_btn, 0, 0, 5);
++#endif
+ 
+ 
+     gtk_box_pack_start(GTK_BOX(main_vbox), btn_box, 0, 0, 0);
+diff --git a/src/gtk-helpers/event_config_dialog.c b/src/gtk-helpers/event_config_dialog.c
+index 402f6f2..590a2ed 100644
+--- a/src/gtk-helpers/event_config_dialog.c
++++ b/src/gtk-helpers/event_config_dialog.c
+@@ -35,9 +35,16 @@ static GtkWidget *gtk_label_new_justify_left(const gchar *label_str)
+ {
+     GtkWidget *label = gtk_label_new(label_str);
+     gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_LEFT);
++#if ((GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION < 13) || (GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION == 13 && GTK_MICRO_VERSION < 5))
+     gtk_misc_set_alignment(GTK_MISC(label), /*xalign:*/ 0, /*yalign:*/ 0.5);
+     /* Make some space between label and input field to the right of it: */
+     gtk_misc_set_padding(GTK_MISC(label), /*xpad:*/ 5, /*ypad:*/ 0);
++#else
++    gtk_widget_set_halign (label, GTK_ALIGN_START);
++    /* Make some space between label and input field to the right of it: */
++    gtk_widget_set_margin_start(label, 5);
++    gtk_widget_set_margin_end(label, 5);
++#endif
+     return label;
+ }
+ 
+@@ -146,7 +153,12 @@ static void add_option_to_table(gpointer data, gpointer user_data)
+         case OPTION_TYPE_HINT_HTML:
+             label = gtk_label_new(option_label);
+             gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
++#if ((GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION < 13) || (GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION == 13 && GTK_MICRO_VERSION < 5))
+             gtk_misc_set_alignment(GTK_MISC(label), /*x,yalign:*/ 0.0, 0.0);
++#else
++            gtk_widget_set_halign(label, GTK_ALIGN_START);
++            gtk_widget_set_valign(label, GTK_ALIGN_START);
++#endif
+             make_label_autowrap_on_resize(GTK_LABEL(label));
+ 
+             last_row = add_one_row_to_grid(option_table);
+@@ -178,7 +190,12 @@ static void add_option_to_table(gpointer data, gpointer user_data)
+     {
+         label = gtk_label_new(option->eo_note_html);
+         gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
++#if ((GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION < 13) || (GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION == 13 && GTK_MICRO_VERSION < 5))
+         gtk_misc_set_alignment(GTK_MISC(label), /*x,yalign:*/ 0.0, 0.0);
++#else
++        gtk_widget_set_halign(label, GTK_ALIGN_START);
++        gtk_widget_set_valign(label, GTK_ALIGN_START);
++#endif
+         make_label_autowrap_on_resize(GTK_LABEL(label));
+ 
+         last_row = add_one_row_to_grid(option_table);
+@@ -194,9 +211,14 @@ static GtkWidget *create_event_config_grid()
+ {
+     GtkWidget *option_table = gtk_grid_new();
+ 
++#if ((GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION < 11) || (GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION == 11 && GTK_MICRO_VERSION < 2))
+     gtk_widget_set_margin_left(option_table, 5);
+-    gtk_widget_set_margin_top(option_table, 5);
+     gtk_widget_set_margin_right(option_table, 5);
++#else
++    gtk_widget_set_margin_start(option_table, 5);
++    gtk_widget_set_margin_end(option_table, 5);
++#endif
++    gtk_widget_set_margin_top(option_table, 5);
+     gtk_widget_set_margin_bottom(option_table, 5);
+ 
+     gtk_grid_set_row_homogeneous(GTK_GRID(option_table), FALSE);
+diff --git a/src/gtk-helpers/workflow_config_dialog.c b/src/gtk-helpers/workflow_config_dialog.c
+index 7b7fe32..3280875 100644
+--- a/src/gtk-helpers/workflow_config_dialog.c
++++ b/src/gtk-helpers/workflow_config_dialog.c
+@@ -37,9 +37,14 @@ static void create_event_config_dialog_content_cb(event_config_t *ec, gpointer n
+     GtkWidget *ev_lbl = gtk_label_new(ec_get_screen_name(ec));
+ 
+     GtkWidget *content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
++#if ((GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION < 11) || (GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION == 11 && GTK_MICRO_VERSION < 2))
+     gtk_widget_set_margin_left(content, 10);
+-    gtk_widget_set_margin_top(content, 5);
+     gtk_widget_set_margin_right(content, 10);
++#else
++    gtk_widget_set_margin_start(content, 10);
++    gtk_widget_set_margin_end(content, 10);
++#endif
++    gtk_widget_set_margin_top(content, 5);
+     gtk_widget_set_margin_bottom(content, 10);
+ 
+     config_dialog_t *cdialog = create_event_config_dialog_content(ec, (GtkWidget *)content);
+diff --git a/src/gui-wizard-gtk/wizard.c b/src/gui-wizard-gtk/wizard.c
+index eb0dee7..8df71c9 100644
+--- a/src/gui-wizard-gtk/wizard.c
++++ b/src/gui-wizard-gtk/wizard.c
+@@ -326,12 +326,19 @@ static void wrap_fixer(GtkWidget *widget, gpointer data_unused)
+     {
+         GtkLabel *label = (GtkLabel*)widget;
+         //const char *txt = gtk_label_get_label(label);
++#if ((GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION < 13) || (GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION == 13 && GTK_MICRO_VERSION < 5))
+         GtkMisc *misc = (GtkMisc*)widget;
+         gfloat yalign; // = 111;
+         gint ypad; // = 111;
+         if (gtk_label_get_line_wrap(label)
+          && (gtk_misc_get_alignment(misc, NULL, &yalign), yalign == 0)
+          && (gtk_misc_get_padding(misc, NULL, &ypad), ypad == 0)
++#else
++        if (gtk_label_get_line_wrap(label)
++         && (gtk_widget_get_halign(widget) == GTK_ALIGN_START)
++         && (gtk_widget_get_margin_top(widget) == 0)
++         && (gtk_widget_get_margin_bottom(widget) == 0)
++#endif
+         ) {
+             //log("label '%s' set to autowrap", txt);
+             make_label_autowrap_on_resize(label);
+@@ -1065,7 +1072,12 @@ static event_gui_data_t *add_event_buttons(GtkBox *box,
+     if (!event_name || !event_name[0])
+     {
+         GtkWidget *lbl = gtk_label_new(_("No reporting targets are defined for this problem. Check configuration in /etc/libreport/*"));
++#if ((GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION < 13) || (GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION == 13 && GTK_MICRO_VERSION < 5))
+         gtk_misc_set_alignment(GTK_MISC(lbl), /*x*/ 0.0, /*y*/ 0.0);
++#else
++        gtk_widget_set_halign (lbl, GTK_ALIGN_START);
++        gtk_widget_set_valign (lbl, GTK_ALIGN_END);
++#endif
+         make_label_autowrap_on_resize(GTK_LABEL(lbl));
+         gtk_box_pack_start(box, lbl, /*expand*/ true, /*fill*/ false, /*padding*/ 0);
+         return NULL;
+@@ -1720,12 +1732,13 @@ static void hide_next_step_button()
+     /* 1. hide next button */
+     gtk_widget_hide(g_btn_next);
+     /* 2. move close button to the last position */
+-    gtk_box_reorder_child(g_box_buttons, g_btn_close, 4);
++    gtk_box_set_child_packing(g_box_buttons, g_btn_close, false, false, 5, GTK_PACK_END);
+ }
+ 
+ static void show_next_step_button()
+ {
+-    gtk_box_reorder_child(g_box_buttons, g_btn_close, 0);
++    gtk_box_set_child_packing(g_box_buttons, g_btn_close, false, false, 5, GTK_PACK_START);
++
+     gtk_widget_show(g_btn_next);
+ }
+ 
+@@ -2253,7 +2266,12 @@ static void add_warning(const char *warning)
+     /* should be safe to free it, gtk calls strdup() to copy it */
+     free(label_str);
+ 
++#if ((GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION < 13) || (GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION == 13 && GTK_MICRO_VERSION < 5))
+     gtk_misc_set_alignment(GTK_MISC(warning_lbl), 0.0, 0.0);
++#else
++    gtk_widget_set_halign (warning_lbl, GTK_ALIGN_START);
++    gtk_widget_set_valign (warning_lbl, GTK_ALIGN_END);
++#endif
+     gtk_label_set_justify(GTK_LABEL(warning_lbl), GTK_JUSTIFY_LEFT);
+     gtk_label_set_line_wrap(GTK_LABEL(warning_lbl), TRUE);
+ 
+@@ -3748,17 +3766,16 @@ void create_assistant(GtkApplication *app, bool expert_mode)
+     gtk_box_pack_start(g_box_buttons, g_btn_onfail, false, false, 5);
+     gtk_box_pack_start(g_box_buttons, g_btn_repeat, false, false, 5);
+     /* Btns above are to the left, the rest are to the right: */
++#if ((GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION < 13) || (GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION == 13 && GTK_MICRO_VERSION < 5))
+     GtkWidget *w = gtk_alignment_new(0.0, 0.0, 1.0, 1.0);
+     gtk_box_pack_start(g_box_buttons, w, true, true, 5);
+     gtk_box_pack_start(g_box_buttons, g_btn_next, false, false, 5);
++#else
++    gtk_widget_set_valign(GTK_WIDGET(g_btn_next), GTK_ALIGN_END);
++    gtk_box_pack_end(g_box_buttons, g_btn_next, false, false, 5);
++#endif
+ 
+     {   /* Warnings area widget definition start */
+-        GtkWidget *alignment_left = gtk_alignment_new(0.5,0.5,1,1);
+-        gtk_widget_set_visible(alignment_left, TRUE);
+-
+-        GtkWidget *alignment_right = gtk_alignment_new(0.5,0.5,1,1);
+-        gtk_widget_set_visible(alignment_right, TRUE);
+-
+         g_box_warning_labels = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 0));
+         gtk_widget_set_visible(GTK_WIDGET(g_box_warning_labels), TRUE);
+ 
+@@ -3772,10 +3789,24 @@ void create_assistant(GtkApplication *app, bool expert_mode)
+         g_widget_warnings_area = GTK_WIDGET(gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0));
+         gtk_widget_set_visible(g_widget_warnings_area, FALSE);
+         gtk_widget_set_no_show_all(g_widget_warnings_area, TRUE);
++
++#if ((GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION < 13) || (GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION == 13 && GTK_MICRO_VERSION < 5))
++        GtkWidget *alignment_left = gtk_alignment_new(0.5,0.5,1,1);
++        gtk_widget_set_visible(alignment_left, TRUE);
+         gtk_box_pack_start(GTK_BOX(g_widget_warnings_area), alignment_left, true, false, 0);
++#else
++        gtk_widget_set_valign(GTK_WIDGET(image), GTK_ALIGN_CENTER);
++        gtk_widget_set_valign(GTK_WIDGET(vbox), GTK_ALIGN_CENTER);
++#endif
++
+         gtk_box_pack_start(GTK_BOX(g_widget_warnings_area), image, false, false, 5);
+         gtk_box_pack_start(GTK_BOX(g_widget_warnings_area), GTK_WIDGET(vbox), false, false, 0);
++
++#if ((GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION < 13) || (GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION == 13 && GTK_MICRO_VERSION < 5))
+         gtk_box_pack_start(GTK_BOX(g_widget_warnings_area), alignment_right, true, false, 0);
++        GtkWidget *alignment_right = gtk_alignment_new(0.5,0.5,1,1);
++        gtk_widget_set_visible(alignment_right, TRUE);
++#endif
+     }   /* Warnings area widget definition end */
+ 
+     g_box_assistant = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 0));
+diff --git a/src/gui-wizard-gtk/wizard.glade b/src/gui-wizard-gtk/wizard.glade
+index b691e4d..dc67ae0 100644
+--- a/src/gui-wizard-gtk/wizard.glade
++++ b/src/gui-wizard-gtk/wizard.glade
+@@ -28,8 +28,8 @@
+           <object class="GtkLabel" id="lbl_cd_reason">
+             <property name="visible">True</property>
+             <property name="can_focus">False</property>
+-            <property name="xalign">0</property>
+-            <property name="yalign">0</property>
++            <property name="halign">start</property>
++            <property name="valign">start</property>
+             <property name="wrap">True</property>
+             <attributes>
+               <attribute name="style" value="normal"/>
+@@ -47,8 +47,8 @@
+           <object class="GtkLabel" id="label7">
+             <property name="visible">True</property>
+             <property name="can_focus">False</property>
+-            <property name="xalign">0</property>
+-            <property name="yalign">0</property>
++            <property name="halign">start</property>
++            <property name="valign">start</property>
+             <property name="label" translatable="yes">On the following screens, you will be asked to describe how the problem occurred, to choose how to analyze the problem (if needed), to review collected data, and to choose where the problem should be reported. Click 'Forward' to proceed.</property>
+             <property name="wrap">True</property>
+           </object>
+@@ -107,8 +107,8 @@
+           <object class="GtkLabel" id="label1">
+             <property name="visible">True</property>
+             <property name="can_focus">False</property>
+-            <property name="xalign">0</property>
+-            <property name="yalign">0</property>
++            <property name="halign">start</property>
++            <property name="valign">start</property>
+             <property name="label" translatable="yes">How did this problem happen (step-by-step)? How can it be reproduced? Any additional comments useful for diagnosing the problem? Please use English if possible.</property>
+             <property name="wrap">True</property>
+             <property name="xalign">0</property>
+@@ -306,7 +306,7 @@
+               <object class="GtkLabel" id="label9">
+                 <property name="visible">True</property>
+                 <property name="can_focus">False</property>
+-                <property name="xalign">1</property>
++                <property name="xalign">end</property>
+                 <property name="label" translatable="yes">If you don't know how to describe it, you can</property>
+               </object>
+               <packing>
+@@ -323,7 +323,7 @@
+                 <property name="receives_default">True</property>
+                 <property name="has_tooltip">True</property>
+                 <property name="relief">none</property>
+-                <property name="xalign">0</property>
++                <property name="halign">start</property>
+               </object>
+               <packing>
+                 <property name="expand">False</property>
+@@ -436,8 +436,8 @@
+           <object class="GtkLabel" id="label8">
+             <property name="visible">True</property>
+             <property name="can_focus">False</property>
+-            <property name="xalign">0</property>
+-            <property name="yalign">0</property>
++            <property name="halign">start</property>
++            <property name="valign">start</property>
+             <property name="label" translatable="yes">Please review the data before it gets reported. Depending on reporter chosen, it may end up publicly visible.</property>
+             <property name="wrap">True</property>
+           </object>
+@@ -503,7 +503,7 @@
+                             <property name="visible">True</property>
+                             <property name="can_focus">True</property>
+                             <property name="receives_default">False</property>
+-                            <property name="xalign">0</property>
++                            <property name="halign">start</property>
+                             <property name="active">True</property>
+                             <property name="draw_indicator">True</property>
+                           </object>
+@@ -519,7 +519,7 @@
+                             <property name="visible">True</property>
+                             <property name="can_focus">True</property>
+                             <property name="receives_default">False</property>
+-                            <property name="xalign">0</property>
++                            <property name="halign">start</property>
+                             <property name="draw_indicator">True</property>
+                             <property name="group">rb_forbidden_words</property>
+                           </object>
+@@ -650,7 +650,7 @@
+               <object class="GtkLabel" id="label4">
+                 <property name="visible">True</property>
+                 <property name="can_focus">False</property>
+-                <property name="xalign">0</property>
++                <property name="halign">start</property>
+                 <property name="label" translatable="yes">Size:</property>
+                 <property name="justify">right</property>
+                 <attributes>
+@@ -666,7 +666,7 @@
+               <object class="GtkLabel" id="lbl_size">
+                 <property name="visible">True</property>
+                 <property name="can_focus">False</property>
+-                <property name="xalign">0</property>
++                <property name="halign">start</property>
+               </object>
+               <packing>
+                 <property name="left_attach">1</property>
+@@ -731,7 +731,7 @@
+             <property name="receives_default">False</property>
+             <property name="tooltip_text" translatable="yes">If you are reporting to a remote server, make sure you removed all private data (such as usernames and passwords). Backtrace, command line, environment variables are the typical items in need of examining.</property>
+             <property name="use_underline">True</property>
+-            <property name="xalign">0</property>
++            <property name="halign">start</property>
+             <property name="draw_indicator">True</property>
+           </object>
+           <packing>
+@@ -785,7 +785,7 @@
+               <object class="GtkLabel" id="lbl_event_log">
+                 <property name="visible">True</property>
+                 <property name="can_focus">False</property>
+-                <property name="xalign">0</property>
++                <property name="halign">start</property>
+                 <property name="label" translatable="yes">Processing did not start yet</property>
+                 <property name="use_markup">True</property>
+                 <property name="justify">fill</property>
+@@ -854,8 +854,8 @@
+           <object class="GtkLabel" id="label2">
+             <property name="visible">True</property>
+             <property name="can_focus">False</property>
+-            <property name="xalign">0</property>
+-            <property name="yalign">0</property>
++            <property name="halign">start</property>
++            <property name="valign">start</property>
+             <property name="label" translatable="yes">Reporting has finished. You can close this window now.</property>
+             <property name="wrap">True</property>
+           </object>
+@@ -869,8 +869,8 @@
+           <object class="GtkLabel" id="label6">
+             <property name="visible">True</property>
+             <property name="can_focus">False</property>
+-            <property name="xalign">0</property>
+-            <property name="yalign">0</property>
++            <property name="halign">start</property>
++            <property name="valign">start</property>
+             <property name="label" translatable="yes">If you want to report the problem to a different destination, collect additional information, or provide a better problem description and repeat reporting process, press 'Forward'.</property>
+             <property name="wrap">True</property>
+           </object>
+-- 
+2.21.0
+

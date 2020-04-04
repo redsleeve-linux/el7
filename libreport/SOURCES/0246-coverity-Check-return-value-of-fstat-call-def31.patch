@@ -1,0 +1,31 @@
+From 29f2027d3ac1cc26d1e21fb91bcc0714d1bec12a Mon Sep 17 00:00:00 2001
+From: Martin Kutlak <mkutlak@redhat.com>
+Date: Mon, 20 Aug 2018 15:08:33 +0000
+Subject: [PATCH] coverity: Check return value of fstat call #def31
+
+Signed-off-by: Martin Kutlak <mkutlak@redhat.com>
+
+
+(cherry picked from commit 78e0ba4ce8d2e31c67e026f32279ad9f46a387f5)
+---
+ src/lib/read_write.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib/read_write.c b/src/lib/read_write.c
+index 7ce2097..bd8bbe8 100644
+--- a/src/lib/read_write.c
++++ b/src/lib/read_write.c
+@@ -133,8 +133,8 @@ void* xmalloc_read(int fd, size_t *maxsz_p)
+     /* Estimate file size */
+     {
+         struct stat st;
+-        st.st_size = 0; /* in case fstat fails, assume 0 */
+-        fstat(fd, &st);
++        if (fstat(fd, &st) != 0)
++            st.st_size = 0; /* in case fstat fails, assume 0 */
+         /* /proc/N/stat files report st_size 0 */
+         /* In order to make such files readable, we add small const (4k) */
+         size = (st.st_size | 0xfff) + 1;
+-- 
+2.21.0
+

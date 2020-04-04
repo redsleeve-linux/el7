@@ -1,0 +1,73 @@
+diff --git a/client/dhclient.c b/client/dhclient.c
+index 1992467..364fd08 100644
+--- a/client/dhclient.c
++++ b/client/dhclient.c
+@@ -4463,6 +4463,10 @@ isc_result_t dhcp_set_control_state (control_object_state_t oldstate,
+ 		  case server_awaken:
+ 		    state_reboot (client);
+ 		    break;
++                  case server_time_changed:
++                    if (client->active)
++                      state_reboot (client);
++                    break;
+ 		}
+ 	    }
+ 	}
+diff --git a/common/dispatch.c b/common/dispatch.c
+index af8a5b5..c1d558f 100644
+--- a/common/dispatch.c
++++ b/common/dispatch.c
+@@ -110,10 +110,20 @@ dispatch(void)
+ {
+ 	isc_result_t status;
+ 
+-	status = isc_app_ctxrun(dhcp_gbl_ctx.actx);
+-
+-	log_fatal ("Dispatch routine failed: %s -- exiting",
+-		   isc_result_totext (status));
++        do{
++          status = isc_app_ctxrun(dhcp_gbl_ctx.actx);
++
++          if (status == ISC_R_TIMESHIFTED){
++            status = dhcp_set_control_state(server_time_changed,
++                                            server_time_changed);
++            status = ISC_R_RELOAD;
++            log_info ("System time has been changed. Unable to use existing leases. Restarting");
++            // do nothing, restart context
++          };
++        } while (status == ISC_R_RELOAD);
++        
++        log_fatal ("Dispatch routine failed: %s -- exiting",
++                   isc_result_totext (status));
+ }
+ 
+ void
+diff --git a/includes/dhcpd.h b/includes/dhcpd.h
+index deea2a7..d60a03c 100644
+--- a/includes/dhcpd.h
++++ b/includes/dhcpd.h
+@@ -479,7 +479,8 @@ typedef enum {
+ 	server_running = 1,
+ 	server_shutdown = 2,
+ 	server_hibernate = 3,
+-	server_awaken = 4
++	server_awaken = 4,
++        server_time_changed = 5
+ } control_object_state_t;
+ 
+ typedef struct {
+diff --git a/server/dhcpd.c b/server/dhcpd.c
+index 9617d75..9add7e4 100644
+--- a/server/dhcpd.c
++++ b/server/dhcpd.c
+@@ -1392,6 +1392,10 @@ static isc_result_t dhcp_io_shutdown_countdown (void *vlp)
+ isc_result_t dhcp_set_control_state (control_object_state_t oldstate,
+ 				     control_object_state_t newstate)
+ {
++        if (newstate == server_time_changed){
++          log_error ("System time has been changed. Leases information unreliable!");
++          return ISC_R_SUCCESS;
++        }
+ 	if (newstate == server_shutdown) {
+ 		shutdown_time = cur_time;
+ 		shutdown_state = shutdown_listeners;

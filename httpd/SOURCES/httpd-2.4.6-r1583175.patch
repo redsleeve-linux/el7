@@ -1,0 +1,19 @@
+--- a/modules/mappers/mod_alias.c	2014/03/30 18:15:25	1583174
++++ b/modules/mappers/mod_alias.c	2014/03/30 18:20:09	1583175
+@@ -371,15 +371,11 @@
+                             }
+                        }
+                        else {
+-                           int pathlen = strlen(found) -
+-                                         (strlen(r->uri + regm[0].rm_eo));
+-                           AP_DEBUG_ASSERT(pathlen >= 0);
+-                           AP_DEBUG_ASSERT(pathlen <= strlen(found));
+                            ap_set_context_info(r,
+                                                apr_pstrmemdup(r->pool, r->uri,
+                                                               regm[0].rm_eo),
+                                                apr_pstrmemdup(r->pool, found,
+-                                                              pathlen));
++                                                              strlen(found)));
+                        }
+                     }
+                     else {

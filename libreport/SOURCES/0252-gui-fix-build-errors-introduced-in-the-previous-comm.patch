@@ -1,0 +1,30 @@
+From b157b196f56a9238f4a39219d76952224f512792 Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Wed, 30 Jul 2014 08:02:17 +0200
+Subject: [PATCH] gui: fix build errors introduced in the previous commit
+
+Fixes commit 8190657d9fb808277f29e5535983a0a1f55badcf
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/gui-wizard-gtk/wizard.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/gui-wizard-gtk/wizard.c b/src/gui-wizard-gtk/wizard.c
+index b98ecea..8ca96eb 100644
+--- a/src/gui-wizard-gtk/wizard.c
++++ b/src/gui-wizard-gtk/wizard.c
+@@ -3798,9 +3798,9 @@ void create_assistant(GtkApplication *app, bool expert_mode)
+         gtk_box_pack_start(GTK_BOX(g_widget_warnings_area), GTK_WIDGET(vbox), false, false, 0);
+ 
+ #if ((GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION < 13) || (GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION == 13 && GTK_MICRO_VERSION < 5))
+-        gtk_box_pack_start(GTK_BOX(g_widget_warnings_area), alignment_right, true, false, 0);
+         GtkWidget *alignment_right = gtk_alignment_new(0.5,0.5,1,1);
+         gtk_widget_set_visible(alignment_right, TRUE);
++        gtk_box_pack_start(GTK_BOX(g_widget_warnings_area), alignment_right, true, false, 0);
+ #endif
+     }   /* Warnings area widget definition end */
+ 
+-- 
+2.21.0
+

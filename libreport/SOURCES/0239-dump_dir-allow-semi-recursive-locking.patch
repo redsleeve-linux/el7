@@ -1,0 +1,164 @@
+From d4b89774005c569d7fd576d0d0efa6b3dc877a4f Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Mon, 18 Mar 2019 12:26:37 +0100
+Subject: [PATCH] dump_dir: allow (semi)recursive locking
+
+This patch only tries to mitigate the consequences of a bug in code
+where someone tries to lock a dump directory while it is already locked
+by the same process. This usually happens when a callee accepts a path
+to directory and opens it on its own or when someone forgets to call
+dd_unlock() or in all the unpredictable circumstance we usually have to
+face in ABRT.
+
+It is not possible to implement the lock counter using only a symbolic
+link and file system functions, thus I've decided to put the
+responsibility of unlocking to the first dd_lock() caller and disallow
+the consecutive callers to unlock the dump directory.
+
+Related to abrt/abrt#898
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/include/dump_dir.h |  6 ++++++
+ src/lib/dump_dir.c     | 21 +++++++++++++-----
+ tests/dump_dir.at      | 49 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 71 insertions(+), 5 deletions(-)
+
+diff --git a/src/include/dump_dir.h b/src/include/dump_dir.h
+index badef17..b617c6c 100644
+--- a/src/include/dump_dir.h
++++ b/src/include/dump_dir.h
+@@ -71,6 +71,12 @@ struct dump_dir {
+     time_t dd_time;
+     char *dd_type;
+     int dd_fd;
++
++    /* In case of recursive locking the first caller owns the lock and is
++     * responsible for unlocking. The consecutive dd_lock() callers acquire the
++     * lock but are not able to unlock the dump directory.
++     */
++    int owns_lock;
+ };
+ 
+ void dd_close(struct dump_dir *dd);
+diff --git a/src/lib/dump_dir.c b/src/lib/dump_dir.c
+index eb0c176..5e32c08 100644
+--- a/src/lib/dump_dir.c
++++ b/src/lib/dump_dir.c
+@@ -277,6 +277,7 @@ int create_symlink_lockfile_at(int dir_fd, const char* lock_file,
+         if (strcmp(pid_buf, pid) == 0)
+         {
+             log("Lock file '%s' is already locked by us", lock_file);
++            errno = EALREADY;
+             return 0;
+         }
+         if (isdigit_str(pid_buf))
+@@ -359,7 +360,7 @@ static int dd_lock(struct dump_dir *dd, unsigned sleep_usec, int flags)
+         int r = create_symlink_lockfile_at(dd->dd_fd, ".lock", pid_buf, log_all_warnings);
+         if (r < 0)
+             return r; /* error */
+-        if (r > 0)
++        if (r > 0 || EALREADY == errno)
+             break; /* locked successfully */
+         if (flags & DD_DONT_WAIT_FOR_LOCK)
+         {
+@@ -371,6 +372,12 @@ static int dd_lock(struct dump_dir *dd, unsigned sleep_usec, int flags)
+         log_all_warnings = false;
+     }
+ 
++    /* Reset errno to 0 only if errno is EALREADY (used by
++     * create_symlink_lockfile() to signal that the dump directory is already
++     * locked by us) */
++    if (!(dd->owns_lock = (errno != EALREADY)))
++        errno = 0;
++
+     /* Are we called by dd_opendir (as opposed to dd_create)? */
+     if (sleep_usec == WAIT_FOR_OTHER_PROCESS_USLEEP) /* yes */
+     {
+@@ -382,8 +389,10 @@ static int dd_lock(struct dump_dir *dd, unsigned sleep_usec, int flags)
+          */
+         if (missing_file)
+         {
+-            xunlinkat(dd->dd_fd, ".lock", /*only files*/0);
+-            log_notice("Unlocked '%s' (no or corrupted '%s' file)", dd->dd_dirname, missing_file);
++            if (dd->owns_lock)
++                xunlinkat(dd->dd_fd, ".lock", /*only files*/0);
++
++            log_warning("Unlocked '%s/.lock' (no or corrupted '%s' file)", dd->dd_dirname, missing_file);
+             if (--count == 0 || flags & DD_DONT_WAIT_FOR_LOCK)
+             {
+                 errno = EISDIR; /* "this is an ordinary dir, not dump dir" */
+@@ -402,9 +411,11 @@ static void dd_unlock(struct dump_dir *dd)
+ {
+     if (dd->locked)
+     {
+-        dd->locked = 0;
++        if (dd->owns_lock)
++            xunlinkat(dd->dd_fd, ".lock", /*only files*/0);
+ 
+-        xunlinkat(dd->dd_fd, ".lock", /*only files*/0);
++        dd->owns_lock = 0;
++        dd->locked = 0;
+ 
+         log_info("Unlocked '%s/.lock'", dd->dd_dirname);
+     }
+diff --git a/tests/dump_dir.at b/tests/dump_dir.at
+index dc95e5b..98d564c 100644
+--- a/tests/dump_dir.at
++++ b/tests/dump_dir.at
+@@ -566,3 +566,52 @@ TS_MAIN
+ }
+ TS_RETURN_MAIN
+ ]])
++
++
++## -------------- ##
++## recursive_lock ##
++## -------------- ##
++
++AT_TESTFUN([recursive_lock],
++[[
++#include "internal_libreport.h"
++#include <errno.h>
++#include <assert.h>
++
++int main(int argc, char **argv)
++{
++    g_verbose = 3;
++
++    char *path = tmpnam(NULL);
++    struct dump_dir *dd = dd_create(path, -1L, DEFAULT_DUMP_DIR_MODE);
++
++    char *lock_path = concat_path_file(path, ".lock");
++    struct stat buf;
++
++    assert(dd);
++
++    assert(lstat(lock_path, &buf) == 0 && S_ISLNK(buf.st_mode));
++
++    dd_create_basic_files(dd, -1L, "/");
++    dd_save_text(dd, "type", "custom");
++
++    struct dump_dir *dd2 = dd_opendir(path, DD_OPEN_READONLY);
++    assert(dd2->owns_lock == 0);
++
++    struct dump_dir *dd3 = dd_opendir(path, 0);
++    assert(dd3->owns_lock == 0);
++
++    dd_close(dd2);
++    assert(lstat(lock_path, &buf) == 0 && S_ISLNK(buf.st_mode));
++
++    dd_close(dd3);
++    assert(lstat(lock_path, &buf) == 0 && S_ISLNK(buf.st_mode));
++
++    dd_close(dd);
++
++    assert(stat(lock_path, &buf) != 0 && errno == ENOENT);
++    free(lock_path);
++
++    return 0;
++}
++]])
+-- 
+2.21.0
+

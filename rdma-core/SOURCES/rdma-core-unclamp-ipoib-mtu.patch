@@ -1,0 +1,32 @@
+--- rdma-core-22.1.orig/redhat/rdma.ifup-ib	2019-08-27 10:15:27.537044097 -0400
++++ rdma-core-22.1/redhat/rdma.ifup-ib	2019-08-27 10:14:42.453131658 -0400
+@@ -110,19 +110,25 @@ if [ -e /sys/class/net/${DEVICE}/mode ];
+     # cycle, allowing people to change the mode without rebooting
+     if [ "${CONNECTED_MODE}" = yes ]; then
+         echo connected > /sys/class/net/${DEVICE}/mode
+-	# cap the MTU where we should based upon mode
++	# set default MTU based upon mode if none specified
+ 	[ -z "$MTU" ] && MTU=65520
+-	[ "$MTU" -gt 65520 ] && MTU=65520
+     else
+         echo datagram > /sys/class/net/${DEVICE}/mode
+-	# cap the MTU where we should based upon mode
++	# set default MTU based upon mode if none specified
+ 	[ -z "$MTU" ] && MTU=2044
+-	[ "$MTU" -gt 4092 ] && MTU=4092
++    fi
++    # cap the MTU to roughly the same as Ethernet's max MTU
++    if [ "$MTU" -gt 65520 ]; then
++        MTU=65520
++        net_log $"Warning: capping device ${DEVICE} MTU to ${MTU}."
+     fi
+ fi
+ 
+ if [ -n "${MTU}" ]; then
+     ip link set dev ${DEVICE} mtu ${MTU}
++    if [ "$?" ]; then
++        net_log $"Error setting device ${DEVICE} MTU to ${MTU}, using HW default."
++    fi
+ fi
+ 
+ # slave device?

@@ -15,10 +15,10 @@
 Summary: Apache HTTP Server
 Name: httpd
 Version: 2.4.6
-Release: 90%{?dist}.redsleeve
+Release: 93%{?dist}
 URL: http://httpd.apache.org/
 Source0: http://www.apache.org/dist/httpd/httpd-%{version}.tar.bz2
-Source1: index.html
+Source1: centos-noindex.tar.gz
 Source2: httpd.logrotate
 Source3: httpd.sysconf
 Source4: httpd-ssl-pass-dialog
@@ -71,6 +71,7 @@ Patch36: httpd-2.4.6-r1573626.patch
 Patch37: httpd-2.4.6-uds.patch
 Patch38: httpd-2.4.6-upn.patch
 Patch39: httpd-2.4.6-r1664565.patch
+Patch40: httpd-2.4.6-r1861793+.patch
 # Bug fixes
 Patch51: httpd-2.4.3-sslsninotreq.patch
 Patch55: httpd-2.4.4-malformed-host.patch
@@ -191,6 +192,10 @@ Patch138: httpd-2.4.6-r1515372.patch
 Patch139: httpd-2.4.6-r1824872.patch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1583218
 Patch140: httpd-2.4.6-r1833014.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1673457
+Patch141: httpd-2.4.6-r1583175.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1649470
+Patch142: httpd-2.4.6-r1862604.patch
 
 # Security fixes
 Patch200: httpd-2.4.6-CVE-2013-6438.patch
@@ -217,6 +222,9 @@ Patch220: httpd-2.4.6-CVE-2017-9798.patch
 Patch221: httpd-2.4.6-CVE-2018-1312.patch
 Patch222: httpd-2.4.6-CVE-2019-0217.patch
 Patch223: httpd-2.4.6-CVE-2019-0220.patch
+Patch224: httpd-2.4.6-CVE-2017-15710.patch
+Patch225: httpd-2.4.6-CVE-2018-1301.patch
+Patch226: httpd-2.4.6-CVE-2018-17199.patch
 
 License: ASL 2.0
 Group: System Environment/Daemons
@@ -283,7 +291,7 @@ Summary: SSL/TLS module for the Apache HTTP Server
 Epoch: 1
 BuildRequires: openssl-devel >= 1:1.0.1e-37
 Requires: openssl-libs >= 1:1.0.1e-37
-Requires(post): openssl, /bin/cat
+Requires(post): openssl, /bin/cat, hostname
 Requires(pre): httpd
 Requires: httpd = 0:%{version}-%{release}, httpd-mmn = %{mmnisa}
 Obsoletes: stronghold-mod_ssl
@@ -319,6 +327,7 @@ authentication to the Apache HTTP Server.
 Group: System Environment/Daemons
 Summary: Session interface for the Apache HTTP Server
 Requires: httpd = 0:%{version}-%{release}, httpd-mmn = %{mmnisa}
+Requires: apr-util-openssl
 
 %description -n mod_session
 The mod_session module and associated backends provide an abstract
@@ -351,6 +360,7 @@ rm modules/ssl/ssl_engine_dh.c
 %patch37 -p1 -b .uds
 %patch38 -p1 -b .upn
 %patch39 -p1 -b .r1664565
+%patch40 -p1 -b .r1861793+
 
 %patch51 -p1 -b .sninotreq
 %patch55 -p1 -b .malformedhost
@@ -438,6 +448,8 @@ rm modules/ssl/ssl_engine_dh.c
 %patch138 -p1 -b .r1515372
 %patch139 -p1 -b .r1824872
 %patch140 -p1 -b .r1833014
+%patch141 -p1 -b .r1583175
+%patch142 -p1 -b .1862604
 
 
 %patch200 -p1 -b .cve6438
@@ -464,6 +476,9 @@ rm modules/ssl/ssl_engine_dh.c
 %patch221 -p1 -b .cve1312
 %patch222 -p1 -b .cve0217
 %patch223 -p1 -b .cve0220
+%patch224 -p1 -b .cve15710
+%patch225 -p1 -b .cve1301
+%patch226 -p1 -b .cve17199
 
 # Patch in the vendor string and the release string
 sed -i '/^#define PLATFORM/s/Unix/%{vstring}/' os/unix/os.h
@@ -617,8 +632,9 @@ EOF
 
 # Handle contentdir
 mkdir $RPM_BUILD_ROOT%{contentdir}/noindex
-install -m 644 -p $RPM_SOURCE_DIR/index.html \
-        $RPM_BUILD_ROOT%{contentdir}/noindex/index.html
+tar xzf $RPM_SOURCE_DIR/centos-noindex.tar.gz \
+        -C $RPM_BUILD_ROOT%{contentdir}/noindex/ \
+        --strip-components=1
 
 rm -rf %{contentdir}/htdocs
 
@@ -642,7 +658,7 @@ rm -v $RPM_BUILD_ROOT%{docroot}/html/*.html \
       $RPM_BUILD_ROOT%{docroot}/cgi-bin/*
 
 # Symlink for the powered-by-$DISTRO image:
-ln -s ../../pixmaps/poweredby.png \
+ln -s ../noindex/images/poweredby.png \
         $RPM_BUILD_ROOT%{contentdir}/icons/poweredby.png
 
 # symlinks for /etc/httpd
@@ -828,7 +844,7 @@ rm -rf $RPM_BUILD_ROOT
 %{contentdir}/error/README
 %{contentdir}/error/*.var
 %{contentdir}/error/include/*.html
-%{contentdir}/noindex/index.html
+%{contentdir}/noindex/*
 
 %dir %{docroot}
 %dir %{docroot}/cgi-bin
@@ -894,16 +910,32 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/rpm/macros.httpd
 
 %changelog
-* Fri Aug 09 2019 Jacco Ligthart <jacco@redsleeve.org> - 2.4.6-90.el7.redsleeve
-- roll in redsleeve branding, based on RHEL
-
-* Tue Aug 06 2019 CentOS Sources <bugs@centos.org> - 2.4.6-90.el7.centos
+* Tue Mar 31 2020 CentOS Sources <bugs@centos.org> - 2.4.6-93.el7.centos
 - Remove index.html, add centos-noindex.tar.gz
 - change vstring
 - change symlink for poweredby.png
 - update welcome.conf with proper aliases
 
-* Sat Jun 08 2019 Lubos Uhliarik <luhliari@redhat.com>
+* Tue Oct 08 2019 Lubos Uhliarik <luhliari@redhat.com> - 2.4.6-93
+- Resolves: #1677496 - CVE-2018-17199 httpd: mod_session_cookie does not respect
+  expiry time
+
+* Thu Aug 22 2019 Joe Orton <jorton@redhat.com> - 2.4.6-92
+- htpasswd: add SHA-2 crypt() support (#1486889)
+
+* Wed Jul 31 2019 Lubos Uhliarik <luhliari@redhat.com> - 2.4.6-91
+- Resolves: #1630886 - scriptlet can fail if hostname is not installed
+- Resolves: #1565465 - CVE-2017-15710 httpd: Out of bound write in
+  mod_authnz_ldap when using too small Accept-Language values
+- Resolves: #1568298 - CVE-2018-1301 httpd: Out of bounds access after
+  failure in reading the HTTP request
+- Resolves: #1673457 - Apache child process crashes because ScriptAliasMatch
+  directive
+- Resolves: #1633152 - mod_session missing apr-util-openssl
+- Resolves: #1649470 - httpd response contains garbage in Content-Type header
+- Resolves: #1724034 - Unexpected OCSP in proxy SSL connection
+
+* Sat Jun 08 2019 Lubos Uhliarik <luhliari@redhat.com> - 2.4.6-90
 - Resolves: #1566317 - CVE-2018-1312 httpd: Weak Digest auth nonce generation
   in mod_auth_digest
 - Resolves: #1696141 - CVE-2019-0217 httpd: mod_auth_digest: access control

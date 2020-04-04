@@ -1,0 +1,51 @@
+From 213d508e72e5243db5711510b1d48b93b0aed9df Mon Sep 17 00:00:00 2001
+From: Honggang Li <honli@redhat.com>
+Date: Thu, 19 Sep 2019 14:40:45 +0800
+Subject: [PATCH rdma-core 1/5] srp_daemon: fix a double free segment fault for
+ ibsrpdm
+
+[ Upstream commit 0b09980860a05ec5feb25f7849c2d703db5c157e ]
+
+Command: ./ibsrpdm -d /dev/infiniband/umadX
+
+Invalid free() / delete / delete[] / realloc()
+   at 0x4C320DC: free (vg_replace_malloc.c:540)
+   by 0x403BBB: free_config (srp_daemon.c:1811)
+   by 0x4031BE: ibsrpdm (srp_daemon.c:2113)
+   by 0x4031BE: main (srp_daemon.c:2153)
+ Address 0x5ee5fd0 is 0 bytes inside a block of size 16 free'd
+   at 0x4C320DC: free (vg_replace_malloc.c:540)
+   by 0x404851: translate_umad_to_ibdev_and_port (srp_daemon.c:729)
+   by 0x404851: set_conf_dev_and_port (srp_daemon.c:1586)
+   by 0x403171: ibsrpdm (srp_daemon.c:2092)
+   by 0x403171: main (srp_daemon.c:2153)
+ Block was alloc'd at
+   at 0x4C30EDB: malloc (vg_replace_malloc.c:309)
+   by 0x40478D: translate_umad_to_ibdev_and_port (srp_daemon.c:698)
+   by 0x40478D: set_conf_dev_and_port (srp_daemon.c:1586)
+   by 0x403171: ibsrpdm (srp_daemon.c:2092)
+   by 0x403171: main (srp_daemon.c:2153)
+
+Signed-off-by: Honggang Li <honli@redhat.com>
+Reviewed-by: Bart Van Assche <bvanassche@acm.org>
+Signed-off-by: Leon Romanovsky <leonro@mellanox.com>
+Signed-off-by: Nicolas Morey-Chaisemartin <nmoreychaisemartin@suse.com>
+---
+ srp_daemon/srp_daemon.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/srp_daemon/srp_daemon.c b/srp_daemon/srp_daemon.c
+index baf4957a..82dc929f 100644
+--- a/srp_daemon/srp_daemon.c
++++ b/srp_daemon/srp_daemon.c
+@@ -724,6 +724,7 @@ end:
+ 	if (ret) {
+ 		free(*ibport);
+ 		free(*ibdev);
++		*ibdev = NULL;
+ 	}
+ 	free(class_dev_path);
+ 
+-- 
+2.20.1
+

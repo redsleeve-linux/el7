@@ -1,0 +1,25 @@
+commit 3da1a101937f62b2e4836346d096d3c745bf34fd
+Author: Lukáš Hrázký <lhrazky@redhat.com>
+Date:   Tue Dec 17 15:17:08 2019 +0100
+
+    Don't reset the package localpath to temporary after download (RhBug:1757613)
+    
+    The path is already changed from temporary to final earlier in the
+    function, as the file is renamed. The removed line seems superfluous and
+    out of place, the value in po.localpath should already be the correct
+    one.
+    
+    https://bugzilla.redhat.com/show_bug.cgi?id=1757613
+
+diff --git a/yum/__init__.py b/yum/__init__.py
+index 56f8c8c4..9c158c81 100644
+--- a/yum/__init__.py
++++ b/yum/__init__.py
+@@ -2583,7 +2583,6 @@ much more problems).
+                         result, errmsg = self.sigCheckPkg(po)
+                         if result != 0:
+                             self.verbose_logger.warn("%s", errmsg)
+-                    po.localpath = obj.filename
+                     if po in errors:
+                         del errors[po]
+ 

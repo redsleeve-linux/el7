@@ -1,0 +1,39 @@
+From 4ba33cbe861d0c4dc50fd513c76bedd782833b94 Mon Sep 17 00:00:00 2001
+From: Ernestas Kulik <ekulik@redhat.com>
+Date: Wed, 16 Oct 2019 16:46:54 +0200
+Subject: [PATCH] lib: problem_data: Add a null-guard for g_strsplit() call
+
+99d045d33f9805d7f81012d2bf7f01edcddb97f2 replaced a reinvented wheel
+with GLib API. However, null strings are not legal arguments in
+calls to g_strsplit().
+
+Signed-off-by: Ernestas Kulik <ekulik@redhat.com>
+---
+ src/lib/problem_data.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/lib/problem_data.c b/src/lib/problem_data.c
+index c2bbd65..c4dad37 100644
+--- a/src/lib/problem_data.c
++++ b/src/lib/problem_data.c
+@@ -523,9 +523,16 @@ problem_data_t *create_problem_data_from_dump_dir(struct dump_dir *dd)
+ problem_data_t *create_problem_data_for_reporting(const char *dump_dir_name)
+ {
+     struct dump_dir *dd = dd_opendir(dump_dir_name, /*flags:*/ 0);
++    char *exclude_items_string;
++    char **exclude_items = NULL;
+     if (!dd)
+         return NULL; /* dd_opendir already emitted error msg */
+-    char **exclude_items = g_strsplit(getenv("EXCLUDE_FROM_REPORT"), ",", -1);
++
++    exclude_items_string = getenv("EXCLUDE_FROM_REPORT");
++    if (NULL != exclude_items_string)
++    {
++        exclude_items = g_strsplit(exclude_items_string, ",", -1);
++    }
+     problem_data_t *problem_data = problem_data_new();
+     problem_data_load_from_dump_dir(problem_data, dd, exclude_items);
+     dd_close(dd);
+-- 
+2.23.0
+

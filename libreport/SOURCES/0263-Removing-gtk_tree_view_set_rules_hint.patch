@@ -1,0 +1,27 @@
+From 04daea171a1f8a1fef8b6a5dbebbacbb88f4d23b Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Mat=C4=9Bj=20Kudera?= <matejkudera1@seznam.cz>
+Date: Tue, 23 May 2017 14:03:01 +0200
+Subject: [PATCH] Removing 'gtk_tree_view_set_rules_hint'
+
+gtk_tree_view_set_rules_hint has been deprecated since version 3.14.
+Because it is a hint it is not secessary so we remowed it.
+---
+ src/gtk-helpers/config_dialog.c | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/src/gtk-helpers/config_dialog.c b/src/gtk-helpers/config_dialog.c
+index 1ad440b..14dfe42 100644
+--- a/src/gtk-helpers/config_dialog.c
++++ b/src/gtk-helpers/config_dialog.c
+@@ -270,8 +270,6 @@ GtkWidget *create_config_tab_content(const char *column_label,
+     g_object_set(G_OBJECT(renderer), "wrap-width", 440, NULL);
+     gtk_tree_view_column_set_sort_column_id(column, COLUMN_NAME);
+     gtk_tree_view_append_column(GTK_TREE_VIEW(tv), column);
+-    /* "Please draw rows in alternating colors": */
+-    gtk_tree_view_set_rules_hint(GTK_TREE_VIEW(tv), TRUE);
+     /* Hide Column Headers because we have only one - 'Events' - rhbz#1055633 */
+     gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(tv), FALSE);
+     GtkTreeModel *model = gtk_tree_model_filter_new(GTK_TREE_MODEL(store), NULL);
+-- 
+2.21.0
+

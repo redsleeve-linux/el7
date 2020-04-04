@@ -1,0 +1,22 @@
+diff --git a/rpmUtils/transaction.py b/rpmUtils/transaction.py
+index 778ed2db..96e0ffc3 100644
+--- a/rpmUtils/transaction.py
++++ b/rpmUtils/transaction.py
+@@ -119,11 +119,13 @@ class TransactionWrapper:
+         tserrors = self.ts.run(cb.callback, '')
+         self.ts.setFlags(origflags)
+     
++        if tserrors is None:
++            return []
++        if not tserrors:
++            return ['Unknown error during transaction test in RPM']
+         reserrors = []
+-        if tserrors:
+-            for (descr, (etype, mount, need)) in tserrors:
+-                reserrors.append(descr)
+-        
++        for (descr, (etype, mount, need)) in tserrors:
++            reserrors.append(descr)
+         return reserrors
+             
+         

@@ -18,7 +18,7 @@
 Summary:  Dynamic host configuration protocol software
 Name:     dhcp
 Version:  4.2.5
-Release:  77%{?dist}.redsleeve
+Release:  79%{?dist}
 # NEVER CHANGE THE EPOCH on this package.  The previous maintainer (prior to
 # dcantrell maintaining the package) made incorrect use of the epoch and
 # that's why it is at 12 now.  It should have never been used, but it was.
@@ -117,8 +117,9 @@ Patch75:  dhcp-4.2.5-isc-util.patch
 
 Patch76:  dhcp-isc_heap_delete.patch
 Patch77:  dhcp-handle_ctx_signals.patch
-Patch78:  dhcp-4.2.5-redsleeve-branding.patch
-
+Patch78:  dhcp-system_time_changed.patch
+Patch79:  dhcp-close_file_in_noreplay.patch
+Patch80:  dhcp-4.2.5-centos-branding.patch
 
 BuildRequires: autoconf
 BuildRequires: automake
@@ -126,7 +127,7 @@ BuildRequires: libtool
 BuildRequires: openldap-devel
 BuildRequires: libcap-ng-devel
 # https://fedorahosted.org/fpc/ticket/502#comment:3
-BuildRequires: bind-export-devel
+BuildRequires: bind-export-devel >= 9.11.4-11
 BuildRequires: systemd systemd-devel
 %if %sdt
 BuildRequires: systemtap-sdt-devel
@@ -461,7 +462,13 @@ rm -rf includes/isc-dhcp
 %patch76 -p1 -b .heap-delete
 
 %patch77 -p1 -b .sig-handlers
-%patch78 -p1
+
+# https://bugzilla.redhat.com/1093803
+%patch78 -p1 -b .monotonic
+
+%patch79 -p1 -b .close-noreplay
+%patch80 -p1
+
 
 # Update paths in all man pages
 for page in client/dhclient.conf.5 client/dhclient.leases.5 \
@@ -743,11 +750,14 @@ done
 
 
 %changelog
-* Fri Aug 09 2019 Jacco Ligthart <jacco@redsleeve.org> - 4.2.5-77.el7.redsleeve
-- Roll in RedSleeve Branding
-
-* Tue Aug 06 2019 CentOS Sources <bugs@centos.org> - 4.2.5-77.el7.centos
+* Tue Mar 31 2020 CentOS Sources <bugs@centos.org> - 4.2.5-79.el7.centos
 - Roll in CentOS Branding
+
+* Tue Oct  1 2019 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-79
+- Resolves:  #1756850 - Close FD in noreplay mode
+
+* Wed Aug 14 2019 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-78
+- Detect time shifts to prevent ip address expiration (#1093803)
 
 * Tue May 21 2019 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-77
 - Resolves: #1712414 - Reset signal handlers set by isclib

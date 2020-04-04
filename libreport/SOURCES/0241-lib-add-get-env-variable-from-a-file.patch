@@ -1,0 +1,108 @@
+From afe0c36d832df68c19373b2a99abba4fc840f0e1 Mon Sep 17 00:00:00 2001
+From: Martin Kutlak <mkutlak@redhat.com>
+Date: Tue, 21 May 2019 10:42:53 +0200
+Subject: [PATCH] lib: add get env variable from a file
+
+Introduced a new argument called 'delim' because /proc/PID/environ is
+delimited with 0 but FILENAME_ENVIRON is escaped version of that file
+with '\0's replaced by '\n'.
+
+While /proc/PID/environ entries are always delimted by '\0' (even the
+last one), other files might not use this style and the function must
+handle EOF without the entry delimiter.
+
+Cherry-picked from https://github.com/abrt/libreport/commit/a71e4149c85212c72af0cc67c5b99a5029491ed2
+---
+ src/include/internal_libreport.h |  2 ++
+ src/lib/get_cmdline.c            | 38 ++++++++++++++++++++++++++------
+ 2 files changed, 33 insertions(+), 7 deletions(-)
+
+diff --git a/src/include/internal_libreport.h b/src/include/internal_libreport.h
+index d7bab4e..fc0242c 100644
+--- a/src/include/internal_libreport.h
++++ b/src/include/internal_libreport.h
+@@ -638,6 +638,8 @@ struct strbuf *strbuf_prepend_strfv(struct strbuf *strbuf,
+ char* get_cmdline(pid_t pid);
+ #define get_environ libreport_get_environ
+ char* get_environ(pid_t pid);
++#define get_env_variable_ext libreport_get_env_variable_ext
++int get_env_variable_ext(int fd, char delim, const char *name, char **value);
+ #define get_env_variable libreport_get_env_variable
+ int get_env_variable(pid_t pid, const char *name, char **value);
+ 
+diff --git a/src/lib/get_cmdline.c b/src/lib/get_cmdline.c
+index 0fc0cbf..9e83994 100644
+--- a/src/lib/get_cmdline.c
++++ b/src/lib/get_cmdline.c
+@@ -149,15 +149,20 @@ char* get_environ(pid_t pid)
+     return get_escaped(path, '\n');
+ }
+ 
+-int get_env_variable(pid_t pid, const char *name, char **value)
++int get_env_variable_ext(int fd, char delim, const char *name, char **value)
+ {
+-    char path[sizeof("/proc/%lu/environ") + sizeof(long)*3];
+-    snprintf(path, sizeof(path), "/proc/%lu/environ", (long)pid);
++    int workfd = dup(fd);
++    if (workfd < 0)
++    {
++        perror_msg("dup()");
++        return -errno;
++    }
+ 
+-    FILE *fenv = fopen(path, "re");
++    FILE *fenv = fdopen(workfd, "re");
+     if (fenv == NULL)
+     {
+-        pwarn_msg("Failed to open environ file");
++        close(workfd);
++        perror_msg("fdopen()");
+         return -errno;
+     }
+ 
+@@ -177,17 +182,18 @@ int get_env_variable(pid_t pid, const char *name, char **value)
+         i = 0;
+ 
+         /* Read to the end of variable entry */
+-        while ((c = fgetc(fenv)) != EOF && c !='\0')
++        while ((c = fgetc(fenv)) != EOF && c != delim)
+             ++i;
+ 
+         /* Go to the next entry if the read entry isn't the searched variable */
+         if (skip)
+             continue;
+ 
++        const int eof = c != EOF;
+         *value = xmalloc(i+1);
+ 
+         /* i+1 because we didn't count '\0'  */
+-        if (fseek(fenv, -(i+1), SEEK_CUR) < 0)
++        if (fseek(fenv, -(i+eof), SEEK_CUR) < 0)
+             error_msg_and_die("Failed to seek");
+ 
+         if (fread(*value, 1, i, fenv) != i)
+@@ -201,3 +207,21 @@ int get_env_variable(pid_t pid, const char *name, char **value)
+     fclose(fenv);
+     return 0;
+ }
++
++int get_env_variable(pid_t pid, const char *name, char **value)
++{
++    char path[sizeof("/proc/%lu/environ") + sizeof(long)*3];
++    snprintf(path, sizeof(path), "/proc/%lu/environ", (long)pid);
++
++    const int envfd = open(path, O_RDONLY);
++    if (envfd < 0)
++    {
++        pwarn_msg("Failed to open environ file");
++        return -errno;
++    }
++
++    const int r = get_env_variable_ext(envfd, '\0', name, value);
++    close(envfd);
++
++    return r;
++}
+-- 
+2.21.0
+

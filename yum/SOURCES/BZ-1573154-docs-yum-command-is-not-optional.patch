@@ -1,0 +1,13 @@
+diff --git a/docs/yum.8 b/docs/yum.8
+index 2030cebf..e70aa788 100644
+--- a/docs/yum.8
++++ b/docs/yum.8
+@@ -3,7 +3,7 @@
+ .SH "NAME"
+ yum \- Yellowdog Updater Modified
+ .SH "SYNOPSIS"
+-\fByum\fP [options] [command] [package ...]
++\fByum\fP [options] command [package ...]
+ .SH "DESCRIPTION"
+ .PP 
+ \fByum\fP is an interactive, rpm based, package manager. It can automatically

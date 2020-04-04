@@ -1,0 +1,168 @@
+From d962bef7ac575c971f5792fc83dbccd17eb23989 Mon Sep 17 00:00:00 2001
+From: Alaa Hleihel <ahleihel@redhat.com>
+Date: Thu, 21 Nov 2019 16:25:34 -0500
+Subject: [PATCH rdma-core 5/5] mlx5: Support scatter to CQE over DCT QP
+
+Bugzilla: http://bugzilla.redhat.com/BZNUM
+Upstream: origin/master
+Conflicts:
+ - providers/mlx5/verbs.c
+   Had small context diff and dropped an hunk that is not relevant due to
+   missing patches.
+
+commit cd231947e19d5f40d55b8a493aa8c069b88df9e9
+Author: Guy Levi <guyle@mellanox.com>
+Date:   Tue Mar 26 09:40:17 2019 +0200
+
+    mlx5: Support scatter to CQE over DCT QP
+
+    Scatter to CQE which is a performance feature has never been enabled on
+    DCT QP.
+
+    A new capability which allows to enable the feature on DCT QP is
+    reported in query device related verb. Correspondingly, this patch
+    enables the feature functionality so it is aligned with other QPs and
+    the man page. It will be controlled by the legacy environment variable
+    and can be override by the DV creation flags.
+
+    Fixes: b9967a9d722a ("mlx5: Create DC transport QPs")
+    Signed-off-by: Guy Levi <guyle@mellanox.com>
+    Signed-off-by: Yishai Hadas <yishaih@mellanox.com>
+
+Signed-off-by: Jarod Wilson <jarod@redhat.com>
+---
+ providers/mlx5/mlx5.h  |  1 +
+ providers/mlx5/verbs.c | 37 +++++++++++++++++++++++++++----------
+ 2 files changed, 28 insertions(+), 10 deletions(-)
+
+diff --git a/providers/mlx5/mlx5.h b/providers/mlx5/mlx5.h
+index 75d599ad..4b6d903a 100644
+--- a/providers/mlx5/mlx5.h
++++ b/providers/mlx5/mlx5.h
+@@ -186,6 +186,7 @@ enum mlx5_vendor_cap_flags {
+ 	MLX5_VENDOR_CAP_FLAGS_CQE_128B_COMP	= 1 << 3,
+ 	MLX5_VENDOR_CAP_FLAGS_CQE_128B_PAD	= 1 << 4,
+ 	MLX5_VENDOR_CAP_FLAGS_PACKET_BASED_CREDIT_MODE	= 1 << 5,
++	MLX5_VENDOR_CAP_FLAGS_SCAT2CQE_DCT = 1 << 6,
+ };
+ 
+ enum {
+diff --git a/providers/mlx5/verbs.c b/providers/mlx5/verbs.c
+index 890ed980..dad20c4f 100644
+--- a/providers/mlx5/verbs.c
++++ b/providers/mlx5/verbs.c
+@@ -1642,7 +1642,7 @@ enum {
+ static int create_dct(struct ibv_context *context,
+ 		      struct ibv_qp_init_attr_ex *attr,
+ 		      struct mlx5dv_qp_init_attr *mlx5_qp_attr,
+-		      struct mlx5_qp		       *qp)
++		      struct mlx5_qp *qp, uint32_t mlx5_create_flags)
+ {
+ 	struct mlx5_create_qp		cmd = {};
+ 	struct mlx5_create_qp_resp	resp = {};
+@@ -1658,14 +1658,26 @@ static int create_dct(struct ibv_context *context,
+ 		return errno;
+ 	}
+ 
+-	if (!check_comp_mask(mlx5_qp_attr->comp_mask, MLX5DV_QP_INIT_ATTR_MASK_DC)) {
++	if (!check_comp_mask(mlx5_qp_attr->comp_mask,
++			     MLX5DV_QP_INIT_ATTR_MASK_DC |
++			     MLX5DV_QP_INIT_ATTR_MASK_QP_CREATE_FLAGS)) {
+ 		mlx5_dbg(fp, MLX5_DBG_QP,
+ 			 "Unsupported vendor comp_mask for %s\n", __func__);
+ 		errno = EINVAL;
+ 		return errno;
+ 	}
+ 
+-	cmd.flags = MLX5_QP_FLAG_TYPE_DCT;
++	if (!check_comp_mask(mlx5_create_flags, MLX5_QP_FLAG_SCATTER_CQE)) {
++		mlx5_dbg(fp, MLX5_DBG_QP,
++			 "Unsupported creation flags requested for DCT QP\n");
++		errno = EINVAL;
++		return errno;
++	}
++
++	if (!(ctx->vendor_cap_flags & MLX5_VENDOR_CAP_FLAGS_SCAT2CQE_DCT))
++		mlx5_create_flags &= ~MLX5_QP_FLAG_SCATTER_CQE;
++
++	cmd.flags = MLX5_QP_FLAG_TYPE_DCT | mlx5_create_flags;
+ 	cmd.access_key = mlx5_qp_attr->dc_init_attr.dct_access_key;
+ 
+ 	if (ctx->cqe_version) {
+@@ -1709,7 +1721,6 @@ static struct ibv_qp *create_qp(struct ibv_context *context,
+ 	int32_t				usr_idx = 0;
+ 	uint32_t			mlx5_create_flags = 0;
+ 	struct mlx5_bf			*bf = NULL;
+-	bool scatter_to_cqe_configured = false;
+ 	FILE *fp = ctx->dbg_fp;
+ 	struct mlx5_parent_domain *mparent_domain;
+ 	struct mlx5_ib_create_qp_resp  *resp_drv;
+@@ -1745,6 +1756,9 @@ static struct ibv_qp *create_qp(struct ibv_context *context,
+ 	memset(&resp, 0, sizeof(resp));
+ 	memset(&resp_ex, 0, sizeof(resp_ex));
+ 
++	if (use_scatter_to_cqe())
++		mlx5_create_flags |= MLX5_QP_FLAG_SCATTER_CQE;
++
+ 	if (mlx5_qp_attr) {
+ 		if (!check_comp_mask(mlx5_qp_attr->comp_mask,
+ 				     MLX5_DV_CREATE_QP_SUP_COMP_MASK)) {
+@@ -1792,14 +1806,13 @@ static struct ibv_qp *create_qp(struct ibv_context *context,
+ 					errno = EINVAL;
+ 					goto err;
+ 				}
+-				scatter_to_cqe_configured = true;
++				mlx5_create_flags &= ~MLX5_QP_FLAG_SCATTER_CQE;
+ 			}
+ 			if (mlx5_qp_attr->create_flags &
+ 			    MLX5DV_QP_CREATE_ALLOW_SCATTER_TO_CQE) {
+ 				mlx5_create_flags |=
+ 					(MLX5_QP_FLAG_ALLOW_SCATTER_CQE |
+ 					 MLX5_QP_FLAG_SCATTER_CQE);
+-				scatter_to_cqe_configured = true;
+ 			}
+ 			if (mlx5_qp_attr->create_flags &
+ 			    MLX5DV_QP_CREATE_PACKET_BASED_CREDIT_MODE)
+@@ -1810,7 +1823,8 @@ static struct ibv_qp *create_qp(struct ibv_context *context,
+ 		if (attr->qp_type == IBV_QPT_DRIVER) {
+ 			if (mlx5_qp_attr->comp_mask & MLX5DV_QP_INIT_ATTR_MASK_DC) {
+ 				if (mlx5_qp_attr->dc_init_attr.dc_type == MLX5DV_DCTYPE_DCT) {
+-					ret = create_dct(context, attr, mlx5_qp_attr, qp);
++					ret = create_dct(context, attr, mlx5_qp_attr,
++							 qp, mlx5_create_flags);
+ 					if (ret)
+ 						goto err;
+ 					return ibqp;
+@@ -1833,6 +1847,9 @@ static struct ibv_qp *create_qp(struct ibv_context *context,
+ 	}
+ 
+ 	if (attr->comp_mask & IBV_QP_INIT_ATTR_RX_HASH) {
++		/* Scatter2CQE is unsupported for RSS QP */
++		mlx5_create_flags &= ~MLX5_QP_FLAG_SCATTER_CQE;
++
+ 		ret = mlx5_cmd_create_rss_qp(context, attr, qp,
+ 					     mlx5_create_flags);
+ 		if (ret)
+@@ -1846,9 +1863,6 @@ static struct ibv_qp *create_qp(struct ibv_context *context,
+ 	if (qp->wq_sig)
+ 		cmd.flags |= MLX5_QP_FLAG_SIGNATURE;
+ 
+-	if (!scatter_to_cqe_configured && use_scatter_to_cqe())
+-		cmd.flags |= MLX5_QP_FLAG_SCATTER_CQE;
+-
+ 	ret = mlx5_calc_wq_size(ctx, attr, qp);
+ 	if (ret < 0) {
+ 		errno = -ret;
+@@ -2887,6 +2901,9 @@ int mlx5_query_device_ex(struct ibv_context *context,
+ 	if (resp.flags & MLX5_IB_QUERY_DEV_RESP_PACKET_BASED_CREDIT_MODE)
+ 		mctx->vendor_cap_flags |= MLX5_VENDOR_CAP_FLAGS_PACKET_BASED_CREDIT_MODE;
+ 
++	if (resp.flags & MLX5_IB_QUERY_DEV_RESP_FLAGS_SCAT2CQE_DCT)
++		mctx->vendor_cap_flags |= MLX5_VENDOR_CAP_FLAGS_SCAT2CQE_DCT;
++
+ 	major     = (raw_fw_ver >> 32) & 0xffff;
+ 	minor     = (raw_fw_ver >> 16) & 0xffff;
+ 	sub_minor = raw_fw_ver & 0xffff;
+-- 
+2.20.1
+

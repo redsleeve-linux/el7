@@ -114,7 +114,7 @@ Summary: An interpreted, interactive, object-oriented programming language
 Name: %{python}
 # Remember to also rebase python-docs when changing this:
 Version: 2.7.5
-Release: 86%{?dist}.redsleeve
+Release: 88%{?dist}
 License: Python
 Group: Development/Languages
 Requires: %{python}-libs%{?_isa} = %{version}-%{release}
@@ -1307,6 +1307,18 @@ Patch324: 00324-disallow-control-chars-in-http-urls.patch
 # Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1704174
 Patch325: 00325-CVE-2019-9948.patch
 
+# 00330 #
+# Fix CVE-2018-20852: cookie domain check returning incorrect results
+# Fixed upstream: https://bugs.python.org/issue35121
+# Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1741551
+Patch330: 00330-CVE-2018-20852.patch
+
+# 00332 #
+# Fix CVE-2019-16056: Dont parse domains containing @
+# Fixed upstream: https://bugs.python.org/issue34155
+# Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1750773
+Patch332: 00332-CVE-2019-16056.patch
+
 # (New patches go here ^^^)
 #
 # When adding new patches to "python" and "python3" in Fedora 17 onwards,
@@ -1331,9 +1343,7 @@ Patch325: 00325-CVE-2019-9948.patch
 #   %%{regenerate_autotooling_patch}
 # above:
 Patch5000: 05000-autotool-intermediates.patch
-
-Patch6001: python-2.7.5-Fix-re-engine-redsleeve.patch
-Patch6002: python-2.7.5-Fix-re-engine2-redsleeve.patch
+Patch99999: 99999-python-2.7.5-issues-17979-17998.patch
 
 # ======================================================
 # Additional metadata, and subpackages
@@ -1754,7 +1764,12 @@ mv Modules/cryptmodule.c Modules/_cryptmodule.c
 %patch320 -p1
 %patch324 -p1
 %patch325 -p1
+%patch330 -p1
+%patch332 -p1
 
+%ifarch %{arm} %{ix86} ppc
+%patch99999 -p1
+%endif
 
 # This shouldn't be necesarry, but is right now (2.2a3)
 find -name "*~" |xargs rm -f
@@ -1765,8 +1780,6 @@ find -name "*~" |xargs rm -f
 %patch5000 -p0 -b .autotool-intermediates
 %endif
 
-%patch6001 -p1
-%patch6002 -p1
 
 # ======================================================
 # Configuring and building the code:
@@ -2629,12 +2642,13 @@ rm -fr %{buildroot}
 # ======================================================
 
 %changelog
-* Sat Aug 10 2019 Jacco Ligthart <jacco@ligthart.nu> - 2.7.5-86.redsleeve
-- Issue #17998: Fix an internal error in regular expression engine.
-- https://github.com/OpenSCAP/scap-security-guide/issues/1332
-- https://bugs.python.org/issue17998
-- and related issue #18684
-- https://bugs.python.org/issue18684
+* Wed Sep 25 2019 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-88
+- Security fix for CVE-2019-16056
+Resolves: rhbz#1750773
+
+* Tue Aug 27 2019 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-87
+- Fix CVE-2018-20852
+Resolves: rhbz#1741551
 
 * Tue Jun 11 2019 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-86
 - Security fix for CVE-2019-10160

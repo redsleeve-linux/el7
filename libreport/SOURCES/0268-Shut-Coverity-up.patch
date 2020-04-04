@@ -1,0 +1,83 @@
+From 88c967f40857a0ebac6b2bde0209fbfbcf914d24 Mon Sep 17 00:00:00 2001
+From: Ernestas Kulik <ekulik@redhat.com>
+Date: Mon, 10 Jun 2019 14:09:44 +0200
+Subject: [PATCH] Shut Coverity up
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+In problem_report.c:
+    alloc_strlen: Allocating insufficient memory for the terminating
+null of the string.
+
+    That makes absolutely *no* sense in the context of fmemopen().
+
+In get_cmdline.c and problem_data.c:
+    The functions called sanitize the input, so I think we’re in the
+clear.
+
+In logging.c:
+    The buffer is dynamically reallocated if the error string length
+exceeds the initial size.
+
+Signed-off-by: Ernestas Kulik <ekulik@redhat.com>
+
+cov
+---
+ src/lib/get_cmdline.c    | 1 +
+ src/lib/logging.c        | 1 +
+ src/lib/problem_data.c   | 1 +
+ src/lib/problem_report.c | 1 +
+ 4 files changed, 4 insertions(+)
+
+diff --git a/src/lib/get_cmdline.c b/src/lib/get_cmdline.c
+index 9e83994..3ba6e32 100644
+--- a/src/lib/get_cmdline.c
++++ b/src/lib/get_cmdline.c
+@@ -111,6 +111,7 @@ static char* get_escaped(const char *path, char separator)
+             while (1)
+             {
+                 /* escape till next NUL char */
++                /* coverity[tainted_data] */
+                 char *d = append_escaped(dst, src);
+                 total_esc_len += (d - dst);
+                 dst = d;
+diff --git a/src/lib/logging.c b/src/lib/logging.c
+index 4b9dd87..be1a2e1 100644
+--- a/src/lib/logging.c
++++ b/src/lib/logging.c
+@@ -116,6 +116,7 @@ static void log_handler(int level,
+             msg[used++] = ':';
+             msg[used++] = ' ';
+         }
++        /* coverity[fixed_size_dest] */
+         strcpy(&msg[used], strerr);
+         used += strerr_len;
+     }
+diff --git a/src/lib/problem_data.c b/src/lib/problem_data.c
+index fdecc83..c2bbd65 100644
+--- a/src/lib/problem_data.c
++++ b/src/lib/problem_data.c
+@@ -469,6 +469,7 @@ void problem_data_load_from_dump_dir(problem_data_t *problem_data, struct dump_d
+         /* Sanitize possibly corrupted utf8.
+          * Of control chars, allow only tab and newline.
+          */
++        /* coverity[tainted_data] */
+         char *sanitized = sanitize_utf8(content,
+                 (SANITIZE_ALL & ~SANITIZE_LF & ~SANITIZE_TAB)
+         );
+diff --git a/src/lib/problem_report.c b/src/lib/problem_report.c
+index 2bf5530..dff4945 100644
+--- a/src/lib/problem_report.c
++++ b/src/lib/problem_report.c
+@@ -1124,6 +1124,7 @@ problem_formatter_load_string(problem_formatter_t *self, const char *fmt)
+     const size_t len = strlen(fmt);
+     if (len != 0)
+     {
++        /* coverity[alloc_strlen] */
+         FILE *fp = fmemopen((void *)fmt, len, "r");
+         if (fp == NULL)
+         {
+-- 
+2.21.0
+

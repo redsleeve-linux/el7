@@ -1,0 +1,122 @@
+From d8ddfcf4e0f7342f362d587a2789d69773a20f1c Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Tue, 21 May 2019 14:56:47 +0000
+Subject: [PATCH] daemon: avoid infinite crash loops
+
+Export an environment variable as a mark for abrtd (abrt-server) to
+identify processes directly involved in ABRT post-mortem processing.
+
+We must not run post-mortem EVENTs on problem directories caused by ABRT
+itself because we could create an infinite loop.
+
+There are to ways how to handle such directories:
+    * in non-debug mode: log a short message and remove them without
+      other actions - we must not leave them in the dump location by
+      default because the dump location would be growing
+
+    * in debug mode: log a more verbose message and leave them as they
+      are - we don need to have worries about the dump location growing
+      because someone intentionally enable the debug mode
+
+Related: rhbz#1246539
+
+cherry-picked from https://github.com/abrt/abrt/commit/68e0efaa36f6d4aabfd8ecf71bf0c22adfc72b03
+
+Related: rhbz#1688368
+
+Signed-off-by: Martin Kutlak <mkutlak@redhat.com>
+---
+ src/daemon/abrt-server.c | 54 ++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 52 insertions(+), 2 deletions(-)
+
+diff --git a/src/daemon/abrt-server.c b/src/daemon/abrt-server.c
+index e1dfc4af..60eb9b66 100644
+--- a/src/daemon/abrt-server.c
++++ b/src/daemon/abrt-server.c
+@@ -28,6 +28,7 @@
+ /* We exit after this many seconds */
+ #define TIMEOUT 10
+ 
++#define ABRT_SERVER_EVENT_ENV "ABRT_SERVER_PID"
+ 
+ /*
+ Unix socket in ABRT daemon for creating new dump directories.
+@@ -206,10 +207,11 @@ static pid_t spawn_event_handler_child(const char *dump_dir_name, const char *ev
+     int flags = EXECFLG_INPUT_NUL | EXECFLG_OUTPUT | EXECFLG_QUIET | EXECFLG_ERR2OUT;
+     VERB1 flags &= ~EXECFLG_QUIET;
+ 
+-    char *env_vec[2];
++    char *env_vec[3];
+     /* Intercept ASK_* messages in Client API -> don't wait for user response */
+     env_vec[0] = xstrdup("REPORT_CLIENT_NONINTERACTIVE=1");
+-    env_vec[1] = NULL;
++    env_vec[1] = xasprintf("%s=%d", ABRT_SERVER_EVENT_ENV, getpid());
++    env_vec[2] = NULL;
+ 
+     pid_t child = fork_execv_on_steroids(flags, args, pipeout,
+                                          env_vec, /*dir:*/ NULL,
+@@ -219,6 +221,23 @@ static pid_t spawn_event_handler_child(const char *dump_dir_name, const char *ev
+     return child;
+ }
+ 
++static int problem_dump_dir_was_provoked_by_abrt_event(struct dump_dir *dd, char  **provoker)
++{
++    char *env_var = NULL;
++    const int r = dd_get_env_variable(dd, ABRT_SERVER_EVENT_ENV, &env_var);
++
++    /* Dump directory doesn't contain the environ file */
++    if (r == -ENOENT)
++        return 0;
++
++    if (provoker != NULL)
++        *provoker = env_var;
++    else
++        free(env_var);
++
++    return env_var != NULL;
++}
++
+ static gboolean emit_new_problem_signal(gpointer data)
+ {
+     struct waiting_context *context = (struct waiting_context *)data;
+@@ -254,6 +273,37 @@ static int run_post_create(const char *dirname)
+     if (g_settings_privatereports)
+     {
+         struct dump_dir *dd = dd_opendir(dirname, DD_OPEN_READONLY);
++
++        char *provoker = NULL;
++        const bool event_dir = dd && problem_dump_dir_was_provoked_by_abrt_event(dd, &provoker);
++        if (event_dir)
++        {
++            if (g_settings_debug_level == 0)
++            {
++                error_msg("Removing problem provoked by ABRT(pid:%s): '%s'", provoker, dirname);
++                dd_delete(dd);
++            }
++            else
++            {
++                char *dumpdir = NULL;
++                char *event   = NULL;
++                char *reason  = NULL;
++                char *cmdline = NULL;
++
++                /* Ignore errors */
++                dd_get_env_variable(dd, "DUMP_DIR", &dumpdir);
++                dd_get_env_variable(dd, "EVENT",    &event);
++                reason  = dd_load_text(dd, FILENAME_REASON);
++                cmdline = dd_load_text(dd, FILENAME_CMDLINE);
++
++                error_msg("ABRT_SERVER_PID=%s;DUMP_DIR='%s';EVENT='%s';REASON='%s';CMDLINE='%s'",
++                           provoker, dumpdir, event, reason, cmdline);
++            }
++
++            free(provoker);
++            return 400;
++        }
++
+         const bool complete = dd && problem_dump_dir_is_complete(dd);
+         dd_close(dd);
+         if (complete)
+-- 
+2.21.0
+

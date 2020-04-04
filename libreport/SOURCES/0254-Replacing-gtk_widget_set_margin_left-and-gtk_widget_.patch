@@ -1,0 +1,74 @@
+From 3fbbec2b4863c1b31889d9e6b124d8f95fd9ea7c Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Mat=C4=9Bj=20Kudera?= <matejkudera1@seznam.cz>
+Date: Tue, 23 May 2017 14:36:35 +0200
+Subject: [PATCH] Replacing 'gtk_widget_set_margin_left' and
+ 'gtk_widget_set_margin_right'
+
+Removing if command which handled old versions of dtk-3 because old versions of dtk-3 are now used nowhere.
+gtk_widget_set_margin_left changed to gtk_widget_set_margin_start.
+gtk_widget_set_margin_right changed to gtk_widget_set_margin_end.
+---
+ src/gtk-helpers/event_config_dialog.c    | 6 +-----
+ src/gtk-helpers/workflow_config_dialog.c | 6 +-----
+ src/gui-wizard-gtk/wizard.c              | 6 ++----
+ 3 files changed, 4 insertions(+), 14 deletions(-)
+
+diff --git a/src/gtk-helpers/event_config_dialog.c b/src/gtk-helpers/event_config_dialog.c
+index c5c0c41..421a156 100644
+--- a/src/gtk-helpers/event_config_dialog.c
++++ b/src/gtk-helpers/event_config_dialog.c
+@@ -203,13 +203,9 @@ static GtkWidget *create_event_config_grid()
+ {
+     GtkWidget *option_table = gtk_grid_new();
+ 
+-#if ((GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION < 11) || (GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION == 11 && GTK_MICRO_VERSION < 2))
+-    gtk_widget_set_margin_left(option_table, 5);
+-    gtk_widget_set_margin_right(option_table, 5);
+-#else
+     gtk_widget_set_margin_start(option_table, 5);
+     gtk_widget_set_margin_end(option_table, 5);
+-#endif
++
+     gtk_widget_set_margin_top(option_table, 5);
+     gtk_widget_set_margin_bottom(option_table, 5);
+ 
+diff --git a/src/gtk-helpers/workflow_config_dialog.c b/src/gtk-helpers/workflow_config_dialog.c
+index 3280875..f2221c8 100644
+--- a/src/gtk-helpers/workflow_config_dialog.c
++++ b/src/gtk-helpers/workflow_config_dialog.c
+@@ -37,13 +37,9 @@ static void create_event_config_dialog_content_cb(event_config_t *ec, gpointer n
+     GtkWidget *ev_lbl = gtk_label_new(ec_get_screen_name(ec));
+ 
+     GtkWidget *content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+-#if ((GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION < 11) || (GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION == 11 && GTK_MICRO_VERSION < 2))
+-    gtk_widget_set_margin_left(content, 10);
+-    gtk_widget_set_margin_right(content, 10);
+-#else
+     gtk_widget_set_margin_start(content, 10);
+     gtk_widget_set_margin_end(content, 10);
+-#endif
++
+     gtk_widget_set_margin_top(content, 5);
+     gtk_widget_set_margin_bottom(content, 10);
+ 
+diff --git a/src/gui-wizard-gtk/wizard.c b/src/gui-wizard-gtk/wizard.c
+index 0845b4c..54d8ee2 100644
+--- a/src/gui-wizard-gtk/wizard.c
++++ b/src/gui-wizard-gtk/wizard.c
+@@ -3030,11 +3030,9 @@ static void add_workflow_buttons(GtkBox *box, GHashTable *workflows, GCallback f
+         gtk_label_set_use_markup(GTK_LABEL(label), true);
+         gtk_widget_set_halign(label, GTK_ALIGN_START);
+         gtk_widget_set_margin_top(label, 10);
+-#if ((GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION < 11) || (GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION == 11 && GTK_MICRO_VERSION < 2))
+-        gtk_widget_set_margin_left(label, 40);
+-#else
++
+         gtk_widget_set_margin_start(label, 40);
+-#endif
++		
+         gtk_widget_set_margin_bottom(label, 10);
+         free(btn_label);
+         g_signal_connect(button, "clicked", func, w);
+-- 
+2.21.0
+

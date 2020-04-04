@@ -1,0 +1,66 @@
+From 9ecb459f5bb442174189f25e9ce6c59d66b5b943 Mon Sep 17 00:00:00 2001
+From: Honggang Li <honli@redhat.com>
+Date: Tue, 4 Feb 2020 09:01:11 +0800
+Subject: [PATCH] ibacm: Do not open non InfiniBand device
+
+For dual port HCA, which has an InfiniBand port and an Ethernet port,
+only open InfiniBand port will introduce segment fault issues.
+
+Because the Ethernet port did not open yet, segment fault when active
+the Ethernet port. The second segment fault issue happens when there
+is asyn event on the Ethernet port.
+
+We should skip pure iWARP or RoCE devices, but not device which has at
+least one InfiniBand port.
+
+Signed-off-by: Honggang Li <honli@redhat.com>
+---
+ ibacm/src/acm.c | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)
+
+diff --git a/ibacm/src/acm.c b/ibacm/src/acm.c
+index 1aa08f4b..77828d8c 100644
+--- a/ibacm/src/acm.c
++++ b/ibacm/src/acm.c
+@@ -2600,9 +2600,11 @@ static void acm_open_dev(struct ibv_device *ibdev)
+ {
+ 	struct acmc_device *dev;
+ 	struct ibv_device_attr attr;
++	struct ibv_port_attr port_attr;
+ 	struct ibv_context *verbs;
+ 	size_t size;
+ 	int i, ret;
++	bool has_ib_port = false;
+ 
+ 	acm_log(1, "%s\n", ibdev->name);
+ 	verbs = ibv_open_device(ibdev);
+@@ -2617,6 +2619,26 @@ static void acm_open_dev(struct ibv_device *ibdev)
+ 		goto err1;
+ 	}
+ 
++	for (i = 0; i < attr.phys_port_cnt; i++) {
++		ret = ibv_query_port(verbs, i + 1, &port_attr);
++		if (ret) {
++			acm_log(0, "ERROR - ibv_query_port (%s, %d) return (%d)\n",
++				ibdev->name, i + 1, ret);
++			continue;
++		}
++
++		if (port_attr.link_layer == IBV_LINK_LAYER_INFINIBAND) {
++			acm_log(1, "%s port %d is an InfiniBand port\n", ibdev->name, i);
++			has_ib_port = true;
++		} else
++			acm_log(1, "%s port %d is not an InfiniBand port\n", ibdev->name, i);
++	}
++
++	if (!has_ib_port) {
++		acm_log(1, "%s does not support InfiniBand.\n", ibdev->name);
++		goto err1;
++	}
++
+ 	size = sizeof(*dev) + sizeof(struct acmc_port) * attr.phys_port_cnt;
+ 	dev = (struct acmc_device *) calloc(1, size);
+ 	if (!dev)
+-- 
+2.24.1
+

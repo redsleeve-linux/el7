@@ -1,0 +1,28 @@
+From 034ad86281330ccd1cfe22d40698dd15c2453853 Mon Sep 17 00:00:00 2001
+From: Andi Kleen <ak@linux.intel.com>
+Date: Mon, 16 Sep 2019 13:50:24 -0700
+Subject: [PATCH 2/2] Update manpage description of numa_node_to_cpu_update()
+
+---
+ numa.3 | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/numa.3 b/numa.3
+index e54cb0b..3e18098 100644
+--- a/numa.3
++++ b/numa.3
+@@ -799,8 +799,10 @@ will be set to
+ and \-1 returned. On success 0 is returned.
+ 
+ .BR numa_node_to_cpu_update ()
+-Mark the node's cpus bitmask stale, then get the latest bitmask by calling
++Mark cpus bitmask of all nodes stale, then get the latest bitmask by calling
+ .BR numa_node_to_cpus ()
++This allows to update the libnuma state after a CPU hotplug event. The application
++is in charge of detecting CPU hotplug events.
+ 
+ .BR numa_node_of_cpu ()
+ returns the node that a cpu belongs to. If the user supplies an invalid cpu
+-- 
+2.7.5
+

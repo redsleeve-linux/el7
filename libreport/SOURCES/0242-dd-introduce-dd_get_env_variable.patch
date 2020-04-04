@@ -1,0 +1,103 @@
+From af5ef029fe96a8703a1de7a60063c473d17d37a4 Mon Sep 17 00:00:00 2001
+From: Martin Kutlak <mkutlak@redhat.com>
+Date: Tue, 21 May 2019 10:45:55 +0200
+Subject: [PATCH] dd: introduce dd_get_env_variable
+
+I was thinking about adding 'dd_open_element' function returning file
+descriptor but I thrown this idea because we should try to hide
+implementation details and do not let users to parse elements on their
+own.
+
+Cherry-picked from https://github.com/abrt/libreport/commit/a1d7a0397b8251be58783dd5e8665099bf8ce868
+---
+ src/include/dump_dir.h | 11 +++++++++++
+ src/lib/dump_dir.c     | 11 +++++++++++
+ tests/dump_dir.at      | 31 +++++++++++++++++++++++++++++++
+ 3 files changed, 53 insertions(+)
+
+diff --git a/src/include/dump_dir.h b/src/include/dump_dir.h
+index b617c6c..a7ed431 100644
+--- a/src/include/dump_dir.h
++++ b/src/include/dump_dir.h
+@@ -118,6 +118,17 @@ int dd_get_next_file(struct dump_dir *dd, char **short_name, char **full_name);
+ 
+ char* dd_load_text_ext(const struct dump_dir *dd, const char *name, unsigned flags);
+ char* dd_load_text(const struct dump_dir *dd, const char *name);
++
++/* Returns value of environment variable with given name.
++ *
++ * @param dd Dump directory
++ * @param name Variables's name
++ * @param value Return value.
++ * @return 0 no success, or negative value if an error occurred (-ENOENT if the
++ * given dd does not support environment variables).
++ */
++int dd_get_env_variable(struct dump_dir *dd, const char *name, char **value);
++
+ void dd_save_text(struct dump_dir *dd, const char *name, const char *data);
+ void dd_save_binary(struct dump_dir *dd, const char *name, const char *data, unsigned size);
+ int dd_copy_file(struct dump_dir *dd, const char *name, const char *source_path);
+diff --git a/src/lib/dump_dir.c b/src/lib/dump_dir.c
+index 5e32c08..0da96cd 100644
+--- a/src/lib/dump_dir.c
++++ b/src/lib/dump_dir.c
+@@ -1242,6 +1242,17 @@ char* dd_load_text(const struct dump_dir *dd, const char *name)
+     return dd_load_text_ext(dd, name, /*flags:*/ 0);
+ }
+ 
++int dd_get_env_variable(struct dump_dir *dd, const char *name, char **value)
++{
++    const int fd = openat(dd->dd_fd, FILENAME_ENVIRON, O_RDONLY | O_NOFOLLOW);
++    if (fd < 0)
++        return -errno;
++
++    const int r  = get_env_variable_ext(fd, '\n', name, value);
++    close(fd);
++    return r;
++}
++
+ void dd_save_text(struct dump_dir *dd, const char *name, const char *data)
+ {
+     if (!dd->locked)
+diff --git a/tests/dump_dir.at b/tests/dump_dir.at
+index 98d564c..12a0c5c 100644
+--- a/tests/dump_dir.at
++++ b/tests/dump_dir.at
+@@ -615,3 +615,34 @@ int main(int argc, char **argv)
+     return 0;
+ }
+ ]])
++## ------------------- ##
++## dd_get_env_variable ##
++## ------------------- ##
++
++AT_TESTFUN([dd_get_env_variable],
++[[
++#include "testsuite.h"
++#include "testsuite_tools.h"
++
++TS_MAIN
++{
++    struct dump_dir *dd = testsuite_dump_dir_create(-1, -1, 0);
++
++    dd_create_basic_files(dd, geteuid(), NULL);
++
++    char *value = NULL;
++    TS_ASSERT_SIGNED_EQ(dd_get_env_variable(dd, "FROG", &value), -ENOENT);
++    TS_ASSERT_PTR_IS_NULL_MESSAGE(value, "Untouched return value on -ENOENT");
++
++    dd_save_text(dd, FILENAME_ENVIRON, "FROG=ribbit\nROOSTER=cockle-doodle-doo");
++
++    TS_ASSERT_FUNCTION(dd_get_env_variable(dd, "HORSE", &value));
++    TS_ASSERT_PTR_IS_NULL_MESSAGE(value, "Untouched return value on missing variable");
++
++    TS_ASSERT_FUNCTION(dd_get_env_variable(dd, "ROOSTER", &value));
++    TS_ASSERT_STRING_EQ(value, "cockle-doodle-doo", "Variable ROOSTER loaded from the dump dir");
++
++    testsuite_dump_dir_delete(dd);
++}
++TS_RETURN_MAIN
++]])
+-- 
+2.21.0
+

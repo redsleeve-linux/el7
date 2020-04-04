@@ -1,0 +1,32 @@
+From 38fad2d00f62f16d052cae0ed2cfe076956d2adc Mon Sep 17 00:00:00 2001
+From: Ernestas Kulik <ekulik@redhat.com>
+Date: Wed, 29 May 2019 10:06:33 +0200
+Subject: [PATCH] gui-wizard-gtk: Fix never-read assignment
+
+Signed-off-by: Ernestas Kulik <ekulik@redhat.com>
+---
+ src/gui-wizard-gtk/wizard.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/gui-wizard-gtk/wizard.c b/src/gui-wizard-gtk/wizard.c
+index b9b27fe..89b3a2c 100644
+--- a/src/gui-wizard-gtk/wizard.c
++++ b/src/gui-wizard-gtk/wizard.c
+@@ -2764,11 +2764,13 @@ static char *get_next_processed_event(GList **events_list)
+         char *expanded_events = list_possible_events(dd, g_dump_dir_name, event_name);
+ 
+         dd_close(dd);
++
+         free(event_name);
++        event_name = expanded_events;
+ 
+         GList *expanded_list = NULL;
+         /* add expanded events from event having trailing '*' */
+-        char *next = event_name = expanded_events;
++        char *next;
+         while ((next = strchr(event_name, '\n')))
+         {
+             /* 'event1\0event2\nevent3\n' */
+-- 
+2.21.0
+

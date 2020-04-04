@@ -1,0 +1,37 @@
+From 60171fcbb3326708e207d129306bbcbf831b6335 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Wed, 18 Jul 2018 15:23:48 +0000
+Subject: [PATCH] coverity fix [#def9]
+
+libreport-2.9.5/src/lib/abrt_sock.c:80: negative_returns: "socketfd" is passed
+to a parameter that cannot be negative.
+
+https://cov01.lab.eng.brq.redhat.com/el8-results/el8/libreport-2.9.5-2.el8+7/scan-results.html#def9
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+
+
+(cherry picked from commit a9d4eab52e3a30dc0baa730d9a8fd9ab21488110)
+---
+ src/lib/abrt_sock.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/lib/abrt_sock.c b/src/lib/abrt_sock.c
+index 962ecc9..8b80aac 100644
+--- a/src/lib/abrt_sock.c
++++ b/src/lib/abrt_sock.c
+@@ -75,9 +75,10 @@ static int connect_to_abrtd_and_call_DeleteDebugDump(const char *dump_dir_name)
+                 result = (response[9] - '0') * 100 + (response[10] - '0') * 10 + (response[11] - '0');
+             }
+         }
++
++        close(socketfd);
+     }
+ 
+-    close(socketfd);
+ 
+     return result;
+ }
+-- 
+2.21.0
+

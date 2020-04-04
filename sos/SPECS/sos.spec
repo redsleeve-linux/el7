@@ -1,8 +1,8 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 Summary: A set of tools to gather troubleshooting information from a system
 Name: sos
-Version: 3.7
-Release: 11%{?dist}.redsleeve
+Version: 3.8
+Release: 6%{?dist}
 Group: Applications/System
 Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
 License: GPLv2+
@@ -19,23 +19,13 @@ Requires: python2-futures
 Obsoletes: sos-plugins-openstack
 Conflicts: vdsm <= 4.30.17
 Patch0: skip-generating-doc.patch
-Patch1: sos-bz1656812-bump-release.patch
-Patch2: sos-bz1639166-pcp-pmlogger-no-limit.patch
-Patch3: sos-bz1697854-plugopts-default-datatypes.patch
-Patch4: sos-bz1697813-plugin-vs-command-timeouts.patch
-Patch5: sos-bz1311129-sos-conf-disabled-plugins-manpages.patch
-Patch6: sos-bz1702802-openstack_instack-ansible-log.patch
-Patch7: sos-bz1706060-vdsm-plugin.patch
-Patch8: sos-bz1711305-katello-qpid-certificate.patch
-Patch9: sos-bz1736424-timeouted-plugin-stop-further-collection.patch
-Patch10: sos-bz1736422-cmd-poll-performance.patch
-Patch11: sos-bz1751576-gluster-deployment-cleanup-logs.patch
-Patch12: sos-bz1751577-vdsm-fix-shell-commands.patch
-Patch13: sos-bz1751578-ovn-plugins-containerized.patch
-Patch14: sos-bz1760737-kernel-trace-disabled.patch
-Patch15: sos-bz1769259-interim-sysroot-forbidden-paths.patch
-Patch16: sos-bz1683904-option_to_limit_namespaces.patch
-Patch17: sos-3.7-redsleeve-branding.patch
+Patch1: sos-bz1744555-ovn-plugins-containerized.patch
+Patch2: sos-bz1757662-kernel-trace-disabled.patch
+Patch3: sos-bz1699381-gluster-skip-statedump-dirs.patch
+Patch4: sos-bz1767445-interim-sysroot-forbidden-paths.patch
+Patch5: sos-bz1630028-manpages-allow-system-changes.patch
+Patch6: sos-bz1781148-foreman-psql-dynflow-explicit-cast.patch
+Patch7: sos-3.8-centos-branding.patch
 
 %description
 Sos is a set of tools that gathers information about system
@@ -49,20 +39,10 @@ support technicians and developers.
 %patch1 -p1
 %patch2 -p1
 %patch3 -p1
-%patch4 -p1
+%patch4 -p1 
 %patch5 -p1
 %patch6 -p1
 %patch7 -p1
-%patch8 -p1
-%patch9 -p1
-%patch10 -p1
-%patch11 -p1
-%patch12 -p1
-%patch13 -p1
-%patch14 -p1
-%patch15 -p1
-%patch16 -p1
-%patch17 -p1
 
 %build
 make
@@ -86,41 +66,39 @@ rm -rf ${RPM_BUILD_ROOT}
 %config(noreplace) %{_sysconfdir}/sos.conf
 
 %changelog
-* Sat Mar 21 2020 Jacco Ligthart <jacco@redsleeve.org> - 3.7-11.el7.redsleeve
-- Roll in RedSleeve Branding
-
-* Tue Mar 17 2020 CentOS Sources <bugs@centos.org> - 3.7-11.el7.centos
+* Tue Mar 31 2020 CentOS Sources <bugs@centos.org> - 3.8-6.el7.centos
 - Roll in CentOS Branding
 
-* Wed Feb 19 2020 Jan Jansky <jjansky@redhat.com> = 3.7-11
-- [networking] options to limit namespaces
-  Resolves: bz1683904
+* Wed Dec 11 2019 Pavel Moravec <pmoravec@redhat.com> = 3.8-6
+- [foreman] cast dynflow_execution_plans.uuid as varchar
+  Resolves: bz1781148
 
-* Tue Nov 12 2019 Pavel Moravec <pmoravec@redhat.com> = 3.7-10
-- [archive] Handle checking sysroot in _make_leading_paths
-  Resolves: bz1769259
-
-* Wed Nov 06 2019 Pavel Moravec <pmoravec@redhat.com> = 3.7-9
+* Fri Nov 22 2019 Jan Jansky <jjansky@redhat.com> = 3.8-5
 - [Plugin, kernel] interim sysroot fixes
-  Resolves: bz1769259
+  Resolves: bz1767445
 
-* Fri Oct 11 2019 Pavel Moravec <pmoravec@redhat.com> = 3.7-8
+* Thu Nov 14 2019 Jan Jansky <jjansky@redhat.com> = 3.8-4
+- [man] describe --allow-system-changes
+  Resolves: bz1630028
+
+* Wed Oct 09 2019 Pavel Moravec <pmoravec@redhat.com> = 3.8-3
+- [gluster] process files only from a statedump dir
+  Resolves: bz1699381
 - [kernel] Don't collect trace file by default
-  Resolves: bz1760737
+  Resolves: bz1757662
 
-* Thu Sep 12 2019 Pavel Moravec <pmoravec@redhat.com> = 3.7-7
-- [ovirt_hosted_engine] Add gluster deployment and cleanup log
-  Resolves: bz1751576
-- [vdsm]: Fix executing shell commands
-  Resolves: bz1751577
+* Thu Sep 12 2019 Pavel Moravec <pmoravec@redhat.com> = 3.8-2
 - [ovn_*] Add support to containerized setups, add commands
-  Resolves: bz1751578
+  Resolves: bz1744555
+
+* Tue Aug 27 2019 Pavel Moravec <pmoravec@redhat.com> = 3.8-1
+- New upstream release sos-3.8
 
 * Thu Aug 01 2019 Pavel Moravec <pmoravec@redhat.com> = 3.7-6
 - [utilities] Fix high CPU usage and slow command collection
-  Resolves: bz1736422
+  Resolves: bz1733367
 - [sosreport,plugins] Stop plugin execution after timeout hit
-  Resolves: bz1736424
+  Resolves: bz1731007
 
 * Tue Jun 25 2019 Pavel Moravec <pmoravec@redhat.com> = 3.7-5
 - Updates to vdsm plugin

@@ -196,7 +196,7 @@
 %global updatever       %(VERSION=%{whole_update}; echo ${VERSION##*u})
 # eg jdk8u60-b27 -> b27
 %global buildver        %(VERSION=%{version_tag}; echo ${VERSION##*-})
-%global rpmrelease      0
+%global rpmrelease      1
 # Define milestone (EA for pre-releases, GA ("fcs") for releases)
 # Release will be (where N is usually a number starting at 1):
 # - 0.N%%{?extraver}%%{?dist} for EA releases,
@@ -563,6 +563,7 @@ exit 0
 %config(noreplace) %{_jvmdir}/%{jredir %%1}/lib/security/java.security
 %config(noreplace) %{_jvmdir}/%{jredir %%1}/lib/security/blacklisted.certs
 %config(noreplace) %{_jvmdir}/%{jredir %%1}/lib/logging.properties
+%config(noreplace) %{_jvmdir}/%{jredir %%1}/lib/net.properties
 %{_mandir}/man1/java-%{uniquesuffix %%1}.1*
 %{_mandir}/man1/jjs-%{uniquesuffix %%1}.1*
 %{_mandir}/man1/keytool-%{uniquesuffix %%1}.1*
@@ -834,7 +835,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
 
 Name:    java-%{javaver}-%{origin}
 Version: %{javaver}.%{updatever}.%{buildver}
-Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}.redsleeve
+Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
 # and this change was brought into RHEL-4. java-1.5.0-ibm packages
 # also included the epoch in their virtual provides. This created a
@@ -870,7 +871,7 @@ URL:      http://openjdk.java.net/
 # FILE_NAME_ROOT=%%{shenandoah_project}-%%{shenandoah_repo}-${VERSION}
 # REPO_ROOT=<path to checked-out repository> generate_source_tarball.sh
 # where the source is obtained from http://hg.openjdk.java.net/%%{project}/%%{repo}
-Source0: %{shenandoah_project}-%{shenandoah_repo}-%{shenandoah_revision}.tar.xz
+Source0: %{shenandoah_project}-%{shenandoah_repo}-%{shenandoah_revision}-4curve.tar.xz
 
 # Custom README for -src subpackage
 Source2:  README.md
@@ -938,16 +939,19 @@ Patch512: rh1649664-awt2dlibraries_compiled_with_no_strict_overflow.patch
 Patch523: pr2974-rh1337583-add_systemlineendings_option_to_keytool_and_use_line_separator_instead_of_crlf_in_pkcs10.patch
 # PR3083, RH1346460: Regression in SSL debug output without an ECC provider
 Patch528: pr3083-rh1346460-for_ssl_debug_return_null_instead_of_exception_when_theres_no_ecc_provider.patch
+# RH1566890: CVE-2018-3639
+Patch529: rh1566890-CVE_2018_3639-speculative_store_bypass.patch
+Patch531: rh1566890-CVE_2018_3639-speculative_store_bypass_toggle.patch
 # PR3601: Fix additional -Wreturn-type issues introduced by 8061651
 Patch530: pr3601-fix_additional_Wreturn_type_issues_introduced_by_8061651_for_prims_jvm_cpp.patch
 # PR2888: OpenJDK should check for system cacerts database (e.g. /etc/pki/java/cacerts)
 # PR3575, RH1567204: System cacerts database handling should not affect jssecacerts
 Patch539: pr2888-openjdk_should_check_for_system_cacerts_database_eg_etc_pki_java_cacerts.patch
-# RH1566890: CVE-2018-3639
-Patch529: rh1566890-CVE_2018_3639-speculative_store_bypass.patch
-Patch531: rh1566890-CVE_2018_3639-speculative_store_bypass_toggle.patch
-# JDK-8009550, RH910107: PlatformPCSC should load versioned so
 Patch541: rh1684077-openjdk_should_depend_on_pcsc-lite-libs_instead_of_pcsc-lite-devel.patch
+# JDK-8231991: Mouse wheel change focus on awt/swing windows
+Patch542: jdk8231991-mouse_wheel_focus.patch
+# JDK-8234107: Several AWT modal dialog tests failing on Linux after JDK-8231991
+Patch543: jdk8234107-mouse_wheel_test_fix.patch
 
 #############################################
 #
@@ -1072,6 +1076,13 @@ BuildRequires: pkgconfig
 BuildRequires: xorg-x11-proto-devel
 BuildRequires: zip
 BuildRequires: unzip
+%ifarch %{arm}
+BuildRequires: devtoolset-7-build
+BuildRequires: devtoolset-7-binutils
+BuildRequires: devtoolset-7-gcc
+BuildRequires: devtoolset-7-gcc-c++
+BuildRequires: devtoolset-7-gdb
+%endif 
 # Use OpenJDK 7 where available (on RHEL) to avoid
 # having to use the rhel-7.x-java-unsafe-candidate hack
 %if ! 0%{?fedora} && 0%{?rhel} <= 7
@@ -1358,14 +1369,16 @@ sh %{SOURCE12}
 %patch400
 %patch523
 %patch528
-%patch530
 %patch529
 %patch531
+%patch530
 %patch571
 %patch574
 %patch575
 %patch577
 %patch541
+%patch542
+%patch543
 
 # RPM-only fixes
 %patch539
@@ -1426,6 +1439,10 @@ sed -e "s:@NSS_LIBDIR@:%{NSS_LIBDIR}:g" %{SOURCE11} > nss.cfg
 
 
 %build
+%ifarch %{arm}
+%{?enable_devtoolset7:%{enable_devtoolset7}}
+%endif 
+
 # How many CPU's do we have?
 export NUM_PROC=%(/usr/bin/getconf _NPROCESSORS_ONLN 2> /dev/null || :)
 export NUM_PROC=${NUM_PROC:-1}
@@ -1448,6 +1465,9 @@ EXTRA_CPP_FLAGS="%ourcppflags"
 %ifarch %{power64} ppc
 # fix rpmlint warnings
 EXTRA_CFLAGS="$EXTRA_CFLAGS -fno-strict-aliasing"
+%endif
+%ifarch %{arm}
+EXTRA_CFLAGS="$EXTRA_CFLAGS -Wno-nonnull"
 %endif
 export EXTRA_CFLAGS
 
@@ -1599,18 +1619,18 @@ done
 # Using line number 1 might cause build problems. See:
 # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
 # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
-#gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
-#handle SIGSEGV pass nostop noprint
-#handle SIGILL pass nostop noprint
-#set breakpoint pending on
-#break javaCalls.cpp:1
-#commands 1
-#backtrace
-#quit
-#end
-#run -version
-#EOF
-#grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
+gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
+handle SIGSEGV pass nostop noprint
+handle SIGILL pass nostop noprint
+set breakpoint pending on
+break javaCalls.cpp:1
+commands 1
+backtrace
+quit
+end
+run -version
+EOF
+grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
 
 # Check src.zip has all sources. See RHBZ#1130490
 jar -tf $JAVA_HOME/src.zip | grep 'sun.misc.Unsafe'
@@ -2034,26 +2054,20 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
-* Fri Feb 07 2020 Jacco Ligthart <jacco@redsleeve.org> 1:1.8.0.242.b08-0.redsleeve
-- removed the gdb section of the SPEC file
-
-* Wed Jan 15 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.242.b08-0
+* Wed Jan 15 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.242.b08-1
 - Update to aarch64-shenandoah-jdk8u242-b08.
 - Remove local copies of JDK-8031111 & JDK-8132111 as replaced by upstream versions.
+- Fix paths in jdk8231991-mouse_wheel_focus.patch after git apply --stat complaints.
 - Resolves: rhbz#1785753
 
-* Wed Jan 15 2020 Andrew John Hughes <gnu.andrew@redhat.com> - 1:1.8.0.242.b07-1
+* Wed Jan 15 2020 Andrew John Hughes <gnu.andrew@redhat.com> - 1:1.8.0.242.b07-2
 - Add backports of JDK-8031111 & JDK-8132111 to fix TCK issue.
 - Resolves: rhbz#1785753
 
-* Mon Jan 13 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.242.b07-0
+* Mon Jan 13 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.242.b07-1
 - Update to aarch64-shenandoah-jdk8u242-b07.
 - Switch to GA mode for final release.
 - Remove Shenandoah S390 patch which is now included upstream as JDK-8236829.
-- Resolves: rhbz#1785753
-
-* Tue Jan 07 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.242.b06-0.0.ea
-- Update to aarch64-shenandoah-jdk8u242-b06 (EA)
 - Resolves: rhbz#1785753
 
 * Sun Jan 05 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.242.b05-0.1.ea
@@ -2063,51 +2077,74 @@ require "copy_jdk_configs.lua"
 - Add additional Shenandoah formatting fixes revealed by successful -Wno-error=format run
 - Resolves: rhbz#1785753
 
-* Thu Jan 02 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.242.b02-0.0.ea
-- Update to aarch64-shenandoah-jdk8u242-b02.
-- Resolves: rhbz#1785753
-
-* Thu Jan 02 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.242.b01-0.1.ea
-- Revert SSBD removal for now, until appropriate messaging has been decided.
-- Resolves: rhbz#1785753
-
-* Thu Dec 26 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.242.b01-0.0.ea
+* Thu Dec 26 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.242.b01-0.1.ea
 - Update to aarch64-shenandoah-jdk8u242-b01.
 - Switch to EA mode.
 - Resolves: rhbz#1785753
 
-* Tue Dec 24 2019 Andrew John Hughes <gnu.andrew@redhat.com> - 1:1.8.0.232.b09-1
-- Remove CVE-2018-3639 mitigation due to performance regression and
-    OpenJDK position on speculative execution vulnerabilities.
-    https://mail.openjdk.java.net/pipermail/vuln-announce/2019-July/000002.html
+* Sun Dec 22 2019 Andrew John Hughes <gnu.andrew@redhat.com> - 1:1.8.0.232.b09-5
+- Replace JDK-8231991 backport with upstream version and include JDK-8234107 fixup.
 - Resolves: rhbz#1785753
 
-* Fri Oct 11 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.232.b09-0
+* Wed Nov 27 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.232.b09-4
+- Update generate_source_tarball.sh script to use the PR3756 patch and retain the secp256k1 curve.
+- Regenerate source tarball using the updated script and add the -'4curve' suffix.
+- Resolves: rhbz#1746874
+
+* Mon Nov 25 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.232.b09-3
+- Mark net.properties as a config file (based on Fedora patch by James Cassell)
+- Resolves: rhbz#1710928
+
+* Wed Nov 06 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.232.b09-2
+- Add backport of JDK-8231991 (mouse wheel focus issue)
+- Resolves: rhbz#1741676
+
+* Fri Oct 11 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.232.b09-1
 - Update to aarch64-shenandoah-jdk8u232-b09.
 - Switch to GA mode for final release.
 - Remove PR1834/RH1022017 which is now handled by JDK-8228825 upstream.
 - Resolves: rhbz#1753423
 
-* Tue Oct 01 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.232.b08-0.0.ea
+* Tue Oct 01 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.232.b08-0.1.ea
 - Update to aarch64-shenandoah-jdk8u232-b08.
-- Resolves: rhbz#1753423
+- Resolves: rhbz#1737109
 
-* Tue Sep 17 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.232.b05-0.1.ea
+* Tue Sep 24 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.232.b07-0.1.ea
+- Update to aarch64-shenandoah-jdk8u232-b07.
+- Resolves: rhbz#1737109
+
+* Wed Sep 18 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.232.b06-0.1.ea
+- Update to aarch64-shenandoah-jdk8u232-b06.
+- Resolves: rhbz#1737109
+
+* Tue Sep 17 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.232.b05-0.2.ea
 - Update to aarch64-shenandoah-jdk8u232-b05-shenandoah-merge-2019-09-09.
 - Update version logic to handle -shenandoah* tag suffix.
-- Resolves: rhbz#1753423
+- Resolves: rhbz#1737109
 
-* Thu Sep 05 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.232.b05-0.0.ea
+* Thu Sep 05 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.232.b05-0.1.ea
 - Update to aarch64-shenandoah-jdk8u232-b05.
 - Drop upstreamed patch JDK-8141570/PR3548.
 - Adjust context of JDK-8143245/PR3548 to apply against upstream JDK-8141570.
-- Resolves: rhbz#1753423
+- Resolves: rhbz#1737109
 
-* Fri Jul 26 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.232.b01-0.0.ea
+* Tue Aug 20 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.232.b04-0.1.ea
+- Update to aarch64-shenandoah-jdk8u232-b04.
+- Resolves: rhbz#1737109
+
+* Sat Aug 10 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.232.b03-0.1.ea
+- Update to aarch64-shenandoah-jdk8u232-b03.
+- Resolves: rhbz#1737109
+
+* Fri Aug 02 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.232.b02-0.1.ea
+- Update to aarch64-shenandoah-jdk8u232-b02.
+- Resolves: rhbz#1737109
+
+* Fri Jul 26 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.232.b01-0.1.ea
 - Update to aarch64-shenandoah-jdk8u232-b01.
 - Switch to EA mode.
 - Drop JDK-8210761/RH1632174 as now upstream.
-- Resolves: rhbz#1753423
+- Resolves: rhbz#1498932
 
 * Thu Jul 11 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.222.b10-1
 - Update to aarch64-shenandoah-jdk8u222-b10.

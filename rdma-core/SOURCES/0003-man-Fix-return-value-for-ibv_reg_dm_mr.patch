@@ -1,0 +1,33 @@
+From 35a879329128596bdf0f1ac51fcd786cb1b59d86 Mon Sep 17 00:00:00 2001
+From: Noa Osherovich <noaos@mellanox.com>
+Date: Sun, 10 Nov 2019 15:11:50 +0200
+Subject: [PATCH rdma-core 3/5] man: Fix return value for ibv_reg_dm_mr
+
+[ Upstream commit bd96015f5167dded567ecb73f11a04d1d00a8036 ]
+
+ibv_reg_dm_mr returns a struct ibv_mr pointer while man page defined
+it as returning an int. Fix the description.
+
+Fixes: e1cebbf50c262 ('verbs: Add device memory (DM) support in libibverbs')
+Signed-off-by: Noa Osherovich <noaos@mellanox.com>
+Signed-off-by: Nicolas Morey-Chaisemartin <nmoreychaisemartin@suse.com>
+---
+ libibverbs/man/ibv_alloc_dm.3 | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libibverbs/man/ibv_alloc_dm.3 b/libibverbs/man/ibv_alloc_dm.3
+index d28a955c..28fa488a 100644
+--- a/libibverbs/man/ibv_alloc_dm.3
++++ b/libibverbs/man/ibv_alloc_dm.3
+@@ -70,7 +70,7 @@ is done with a byte offset from the beginning of the region.
+ .sp
+ This type of registration is done using ibv_reg_dm_mr.
+ .sp
+-.BI "int ibv_reg_dm_mr(struct ibv_pd " "*pd" ", struct ibv_dm " "*dm" ", uint64_t " "dm_offset",
++.BI "struct ibv_mr* ibv_reg_dm_mr(struct ibv_pd " "*pd" ", struct ibv_dm " "*dm" ", uint64_t " "dm_offset",
+ .BI "                  size_t " "length" ", uint32_t " "access");
+ .sp
+ .I pd
+-- 
+2.20.1
+

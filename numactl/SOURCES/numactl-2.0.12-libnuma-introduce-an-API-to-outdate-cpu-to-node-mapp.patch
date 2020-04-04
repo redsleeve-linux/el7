@@ -1,0 +1,183 @@
+From 3cc2e004cd5891a87d8bde2b9ddd814f68d1835a Mon Sep 17 00:00:00 2001
+From: Pingfan Liu <piliu@redhat.com>
+Date: Mon, 15 Jul 2019 16:24:39 +0800
+Subject: [PATCH 1/2] libnuma: introduce an API to outdate cpu to node mapping
+
+numa_node_to_cpus() caches the cpu to node mapping, and not updates it
+during the cpu online/offline event.
+
+Ideally, in order to update the mapping automatically, it requires
+something like udev to spy on kernel event socket, and update cache if
+event happen. This solution is a little complicated inside a libnuma.so. In
+stead of doing so, exposing an API numa_node_to_cpu_outdated() for user,
+and saddling the event-detecting task to the user.
+
+So the user of libnuma can work using either of the following models:
+ -1. blindless outdate cache if careless about performance
+     numa_node_to_cpu_outdated();
+     numa_node_to_cpu();
+ -2. event driven spy on kernel event, if happened, call
+     numa_node_to_cpu_outdated();
+
+Signed-off-by: Pingfan Liu <piliu@redhat.com>
+---
+ libnuma.c         | 32 ++++++++++++++++++++++++++++----
+ numa.3            |  7 +++++++
+ numa.h            |  2 ++
+ versions.ldscript |  1 +
+ 4 files changed, 38 insertions(+), 4 deletions(-)
+
+diff --git a/libnuma.c b/libnuma.c
+index cac8851..756a171 100644
+--- a/libnuma.c
++++ b/libnuma.c
+@@ -58,7 +58,9 @@ struct bitmask *numa_possible_cpus_ptr = NULL;
+ struct bitmask *numa_nodes_ptr = NULL;
+ static struct bitmask *numa_memnode_ptr = NULL;
+ static unsigned long *node_cpu_mask_v1[NUMA_NUM_NODES];
++static char node_cpu_mask_v1_stale = 1;
+ static struct bitmask **node_cpu_mask_v2;
++static char node_cpu_mask_v2_stale = 1;
+ 
+ WEAK void numa_error(char *where);
+ 
+@@ -1272,6 +1274,7 @@ numa_node_to_cpus_v1(int node, unsigned long *buffer, int bufferlen)
+ 	int err = 0;
+ 	char fn[64];
+ 	FILE *f;
++	char update;
+ 	char *line = NULL;
+ 	size_t len = 0;
+ 	struct bitmask bitmask;
+@@ -1287,7 +1290,8 @@ numa_node_to_cpus_v1(int node, unsigned long *buffer, int bufferlen)
+ 	}
+ 	if (bufferlen > buflen_needed)
+ 		memset(buffer, 0, bufferlen);
+-	if (node_cpu_mask_v1[node]) {
++	update = __atomic_fetch_and(&node_cpu_mask_v1_stale, 0, __ATOMIC_RELAXED);
++	if (node_cpu_mask_v1[node] && !update) {
+ 		memcpy(buffer, node_cpu_mask_v1[node], buflen_needed);
+ 		return 0;
+ 	}
+@@ -1328,7 +1332,15 @@ numa_node_to_cpus_v1(int node, unsigned long *buffer, int bufferlen)
+ 
+ 	/* slightly racy, see above */
+ 	if (node_cpu_mask_v1[node]) {
+-		if (mask != buffer)
++		if (update) {
++			/*
++			 * There may be readers on node_cpu_mask_v1[], hence it can not
++			 * be freed.
++			 */
++			memcpy(node_cpu_mask_v1[node], mask, buflen_needed);
++			free(mask);
++			mask = NULL;
++		} else if (mask != buffer)
+ 			free(mask);
+ 	} else {
+ 		node_cpu_mask_v1[node] = mask;
+@@ -1352,6 +1364,7 @@ numa_node_to_cpus_v2(int node, struct bitmask *buffer)
+ 	int nnodes = numa_max_node();
+ 	char fn[64], *line = NULL;
+ 	FILE *f;
++	char update;
+ 	size_t len = 0;
+ 	struct bitmask *mask;
+ 
+@@ -1364,7 +1377,8 @@ numa_node_to_cpus_v2(int node, struct bitmask *buffer)
+ 	}
+ 	numa_bitmask_clearall(buffer);
+ 
+-	if (node_cpu_mask_v2[node]) {
++	update = __atomic_fetch_and(&node_cpu_mask_v2_stale, 0, __ATOMIC_RELAXED);
++	if (node_cpu_mask_v2[node] && !update) {
+ 		/* have already constructed a mask for this node */
+ 		if (buffer->size < node_cpu_mask_v2[node]->size) {
+ 			errno = EINVAL;
+@@ -1407,8 +1421,12 @@ numa_node_to_cpus_v2(int node, struct bitmask *buffer)
+ 	/* slightly racy, see above */
+ 	/* save the mask we created */
+ 	if (node_cpu_mask_v2[node]) {
++		if (update) {
++			copy_bitmask_to_bitmask(mask, node_cpu_mask_v2[node]);
++			numa_bitmask_free(mask);
++			mask = NULL;
+ 		/* how could this be? */
+-		if (mask != buffer)
++		} else if (mask != buffer)
+ 			numa_bitmask_free(mask);
+ 	} else {
+ 		/* we don't want to cache faulty result */
+@@ -1424,6 +1442,12 @@ __asm__(".symver numa_node_to_cpus_v2,numa_node_to_cpus@@libnuma_1.2");
+ make_internal_alias(numa_node_to_cpus_v1);
+ make_internal_alias(numa_node_to_cpus_v2);
+ 
++void numa_node_to_cpu_update(void)
++{
++	__atomic_store_n(&node_cpu_mask_v1_stale, 1, __ATOMIC_RELAXED);
++	__atomic_store_n(&node_cpu_mask_v2_stale, 1, __ATOMIC_RELAXED);
++}
++
+ /* report the node of the specified cpu */
+ int numa_node_of_cpu(int cpu)
+ {
+diff --git a/numa.3 b/numa.3
+index ba00572..e54cb0b 100644
+--- a/numa.3
++++ b/numa.3
+@@ -124,6 +124,8 @@ numa \- NUMA policy library
+ .br
+ .BI "int numa_node_to_cpus(int " node ", struct bitmask *" mask ");
+ .br
++.BI "void numa_node_to_cpu_update();"
++.br
+ .BI "int numa_node_of_cpu(int " cpu ");
+ .sp
+ .BI "struct bitmask *numa_allocate_cpumask();"
+@@ -232,6 +234,7 @@ Most functions in this library are only concerned about numa nodes and
+ their memory.
+ The exceptions to this are:
+ .IR numa_node_to_cpus (),
++.IR numa_node_to_cpu_update (),
+ .IR numa_node_of_cpu (),
+ .IR numa_bind (),
+ .IR numa_run_on_node (),
+@@ -795,6 +798,10 @@ will be set to
+ .I ERANGE
+ and \-1 returned. On success 0 is returned.
+ 
++.BR numa_node_to_cpu_update ()
++Mark the node's cpus bitmask stale, then get the latest bitmask by calling
++.BR numa_node_to_cpus ()
++
+ .BR numa_node_of_cpu ()
+ returns the node that a cpu belongs to. If the user supplies an invalid cpu
+ .I errno
+diff --git a/numa.h b/numa.h
+index 3a8c543..7316d1e 100644
+--- a/numa.h
++++ b/numa.h
+@@ -282,6 +282,8 @@ static inline void numa_free_cpumask(struct bitmask *b)
+ /* Convert node to CPU mask. -1/errno on failure, otherwise 0. */
+ int numa_node_to_cpus(int, struct bitmask *);
+ 
++void numa_node_to_cpu_update(void);
++
+ /* report the node of the specified cpu. -1/errno on invalid cpu. */
+ int numa_node_of_cpu(int cpu);
+ 
+diff --git a/versions.ldscript b/versions.ldscript
+index 4b04936..23074a0 100644
+--- a/versions.ldscript
++++ b/versions.ldscript
+@@ -60,6 +60,7 @@ libnuma_1.1 {
+     numa_tonodemask_memory;
+     numa_warn;
+     numa_exit_on_warn;
++    numa_node_to_cpu_update;
+   local:
+     *;
+ };
+-- 
+2.7.5
+

@@ -1,0 +1,30 @@
+From 01c86d501d6f7c5ec1f0c0272fdd27405505d126 Mon Sep 17 00:00:00 2001
+From: Martin Kutlak <mkutlak@redhat.com>
+Date: Mon, 20 Aug 2018 14:38:31 +0200
+Subject: [PATCH] coverity: Change data type for bug_id variable #def[44,43]
+
+If bug_id is an integer, it makes condition 'bug_id > INT_MAX' always evaluate False.
+
+It is changed to unsigned long because of strtoul (converts strings to unsigned long).
+
+Signed-off-by: Martin Kutlak <mkutlak@redhat.com>
+---
+ src/plugins/reporter-bugzilla.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/plugins/reporter-bugzilla.c b/src/plugins/reporter-bugzilla.c
+index fbe7873..09de6de 100644
+--- a/src/plugins/reporter-bugzilla.c
++++ b/src/plugins/reporter-bugzilla.c
+@@ -1121,7 +1121,7 @@ int main(int argc, char **argv)
+     login(client, &rhbz);
+ 
+ 
+-    int bug_id = 0;
++    unsigned long bug_id = 0;
+ 
+     /* If REMOTE_RESULT contains "DUPLICATE 12345", we consider it a dup of 12345
+      * and won't search on bz server.
+-- 
+2.21.0
+

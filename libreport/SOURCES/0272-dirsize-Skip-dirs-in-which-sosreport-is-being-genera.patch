@@ -1,0 +1,38 @@
+From eef59d2358cf63338f38727c5d08be70619e4e55 Mon Sep 17 00:00:00 2001
+From: Martin Kutlak <mkutlak@redhat.com>
+Date: Wed, 14 Aug 2019 16:46:08 +0200
+Subject: [PATCH] dirsize: Skip dirs in which sosreport is being generated
+
+With these changes ABRT will skip directories in which sosreport is running
+and won't delete them when MaxCrashReportSize limit is exceeded.
+
+I had a concern about the size of the logs that sosreport collects but
+there is a limit set by sosreport for how big the individual logs can
+be and the default value is 25MiB.
+
+Fixes: rhbz#1671232
+
+Signed-off-by: Martin Kutlak <mkutlak@redhat.com>
+---
+ src/lib/dirsize.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/lib/dirsize.c b/src/lib/dirsize.c
+index 6d96e71..7ee9752 100644
+--- a/src/lib/dirsize.c
++++ b/src/lib/dirsize.c
+@@ -91,6 +91,11 @@ double get_dirsize_find_largest_dir(
+         if (dot_or_dotdot(ep->d_name))
+             continue;
+         char *dname = concat_path_file(pPath, ep->d_name);
++        if (lstat(concat_path_file(dname, "sosreport.log"), &statbuf) == 0)
++        {
++            log_debug("Skipping %s': sosreport is being generated.", dname);
++            goto next;
++        }
+         if (lstat(dname, &statbuf) != 0)
+         {
+             goto next;
+-- 
+2.21.0
+

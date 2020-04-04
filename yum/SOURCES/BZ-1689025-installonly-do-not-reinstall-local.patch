@@ -1,0 +1,21 @@
+diff --git a/yum/__init__.py b/yum/__init__.py
+index 56f8c8c4..ebec4e92 100644
+--- a/yum/__init__.py
++++ b/yum/__init__.py
+@@ -5605,11 +5605,11 @@ much more problems).
+ 
+         for installed_pkg in installedByKey:
+             if po.verGT(installed_pkg): # we're newer - this is an update, pass to them
+-                if installed_pkg.name in self.conf.exactarchlist:
+-                    if po.arch == installed_pkg.arch:
+-                        updatepkgs.append((po, installed_pkg))
+-                    else:
+-                        donothingpkgs.append(po)
++                if (installed_pkg.name in self.conf.exactarchlist
++                        and po.arch != installed_pkg.arch):
++                    donothingpkgs.append(po)
++                elif self.allowedMultipleInstalls(po):
++                    installpkgs.append(po)
+                 else:
+                     updatepkgs.append((po, installed_pkg))
+             elif po.verEQ(installed_pkg):

@@ -1,0 +1,119 @@
+From 5fbbc63c5e41eab4fe34e3bb2c76abf26023bd55 Mon Sep 17 00:00:00 2001
+From: Pavel Moravec <pmoravec@redhat.com>
+Date: Mon, 9 Dec 2019 13:22:34 +0100
+Subject: [PATCH] [foreman] cast dynflow_execution_plans.uuid as varchar
+
+Due to a change in foreman DB scheme, we must explicitly cast
+dynflow_execution_plans.uuid as a varchar since foreman-tasks
+0.15.5 .
+
+The explicit casting works well on older versions as well.
+
+Resolves: #1882
+
+Signed-off-by: Pavel Moravec <pmoravec@redhat.com>
+---
+ sos/plugins/foreman.py | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/sos/plugins/foreman.py b/sos/plugins/foreman.py
+index c8ed2850..c1546eae 100644
+--- a/sos/plugins/foreman.py
++++ b/sos/plugins/foreman.py
+@@ -176,22 +176,24 @@ class Foreman(Plugin):
+         dyncmd = (
+             'select dynflow_execution_plans.* from foreman_tasks_tasks join '
+             'dynflow_execution_plans on (foreman_tasks_tasks.external_id = '
+-            'dynflow_execution_plans.uuid) where foreman_tasks_tasks.'
++            'dynflow_execution_plans.uuid::varchar) where foreman_tasks_tasks.'
+             'started_at > NOW() - interval %s' % quote(months)
+         )
+ 
+         dactioncmd = (
+              'select dynflow_actions.* from foreman_tasks_tasks join '
+              'dynflow_actions on (foreman_tasks_tasks.external_id = '
+-             'dynflow_actions.execution_plan_uuid) where foreman_tasks_tasks.'
+-             'started_at > NOW() - interval %s' % quote(months)
++             'dynflow_actions.execution_plan_uuid::varchar) where '
++             'foreman_tasks_tasks.started_at > NOW() - interval %s'
++             % quote(months)
+         )
+ 
+         dstepscmd = (
+             'select dynflow_steps.* from foreman_tasks_tasks join '
+             'dynflow_steps on (foreman_tasks_tasks.external_id = '
+-            'dynflow_steps.execution_plan_uuid) where foreman_tasks_tasks.'
+-            'started_at > NOW() - interval %s' % quote(months)
++            'dynflow_steps.execution_plan_uuid::varchar) where '
++            'foreman_tasks_tasks.started_at > NOW() - interval %s'
++            % quote(months)
+         )
+ 
+         # Populate this dict with DB queries that should be saved directly as
+-- 
+2.21.0
+
+From 40cfbd26a64d33cd3ed87edbf8d2b248d339ad9b Mon Sep 17 00:00:00 2001
+From: Pavel Moravec <pmoravec@redhat.com>
+Date: Thu, 5 Dec 2019 14:26:03 +0100
+Subject: [PATCH] [plugins] improve heuristic for applying --since to
+ logarchives
+
+logarchive_pattern treats some configs (e.g. /etc/dbus-1) as log
+archives, causing --since option will skip collecting them.
+
+This patch just improves the heuristic by claiming nothing under /etc
+is a logarchive, and adds a warning to sosreport help.
+
+Improves: #1847
+
+Signed-off-by: Pavel Moravec <pmoravec@redhat.com>
+---
+ man/en/sosreport.1      | 7 +++++--
+ sos/plugins/__init__.py | 5 ++++-
+ 2 files changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/man/en/sosreport.1 b/man/en/sosreport.1
+index a885d563..75819b6e 100644
+--- a/man/en/sosreport.1
++++ b/man/en/sosreport.1
+@@ -158,8 +158,11 @@ and including logs in non-default locations. This option may significantly
+ increase the size of reports.
+ .TP
+ .B \--since YYYYMMDD[HHMMSS]
+-Limits the collection to logs newer than this date.
+-This also affects \--all-logs. Will pad with 0s if HHMMSS isn't specified.
++Limits the collection of log archives to those newer than this date. A log
++archive is any file not found in /etc, that has either a numeric or a
++compression-type file extension for example ".zip". ".1", ".gz" etc.).
++This also affects \--all-logs. The date string will be padded with zeros
++if HHMMSS is not specified.
+ .TP
+ .B \--allow-system-changes
+ Run commands even if they can change the system (e.g. load kernel modules).
+diff --git a/sos/plugins/__init__.py b/sos/plugins/__init__.py
+index b7a47b6a..44ae413d 100644
+--- a/sos/plugins/__init__.py
++++ b/sos/plugins/__init__.py
+@@ -917,6 +917,7 @@ class Plugin(object):
+             since = self.get_option('since')
+ 
+         logarchive_pattern = re.compile(r'.*((\.(zip|gz|bz2|xz))|[-.][\d]+)$')
++        configfile_pattern = re.compile(r"^%s/*" % self.join_sysroot("etc"))
+ 
+         if not self.test_predicate(pred=pred):
+             self._log_info("skipped copy spec '%s' due to predicate (%s)" %
+@@ -962,7 +963,9 @@ class Plugin(object):
+                 """ When --since is passed, or maxage is coming from the
+                 plugin, we need to filter out older files """
+ 
+-                if logarchive_pattern.search(path) is None:
++                # skip config files or not-logarchive files from the filter
++                if ((logarchive_pattern.search(path) is None) or
++                   (configfile_pattern.search(path) is not None)):
+                     return True
+                 filetime = datetime.fromtimestamp(getmtime(path))
+                 if ((since and filetime < since) or
+-- 
+2.21.0
+

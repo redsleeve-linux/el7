@@ -1,0 +1,35 @@
+From 0eb1bff4cf000777734e611f9673e18a868d25b1 Mon Sep 17 00:00:00 2001
+From: Ernestas Kulik <ekulik@redhat.com>
+Date: Mon, 10 Jun 2019 15:19:00 +0200
+Subject: [PATCH] lib: spawn: Explicitly initialize array
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Clang seems to think that the call just after declaring it doesn’t
+set any values.
+
+Signed-off-by: Ernestas Kulik <ekulik@redhat.com>
+---
+ src/lib/spawn.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/lib/spawn.c b/src/lib/spawn.c
+index 7effe5c..c52cbf7 100644
+--- a/src/lib/spawn.c
++++ b/src/lib/spawn.c
+@@ -160,7 +160,10 @@ char *run_in_shell_and_save_output(int flags,
+ 	flags &= ~EXECFLG_INPUT;
+ 
+ 	const char *argv[] = { "/bin/sh", "-c", cmd, NULL };
+-	int pipeout[2];
++	/* Clang seems to think that pipeout[0] is uninitialized when calling
++     * safe_read().
++	 */
++	int pipeout[2] = { 0 };
+ 	pid_t child = fork_execv_on_steroids(flags, (char **)argv, pipeout,
+ 		/*env_vec:*/ NULL, dir, /*uid (unused):*/ 0);
+ 
+-- 
+2.21.0
+

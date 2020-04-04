@@ -1,0 +1,90 @@
+From 4e4d79150fc71cd89a173bb137570db82df60de8 Mon Sep 17 00:00:00 2001
+From: Martin Kutlak <mkutlak@redhat.com>
+Date: Tue, 21 May 2019 10:38:21 +0200
+Subject: [PATCH] lib: Add get_env_variable function
+
+Cherry-picked from https://github.com/abrt/libreport/commit/eb844f53ed3a7943b7e3f88d76daa94e2892f10a
+
+Signed-off-by: Martin Kutlak <mkutlak@redhat.com>
+---
+ src/include/internal_libreport.h |  2 ++
+ src/lib/get_cmdline.c            | 53 ++++++++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+)
+
+diff --git a/src/include/internal_libreport.h b/src/include/internal_libreport.h
+index 23cdfa0..d7bab4e 100644
+--- a/src/include/internal_libreport.h
++++ b/src/include/internal_libreport.h
+@@ -638,6 +638,8 @@ struct strbuf *strbuf_prepend_strfv(struct strbuf *strbuf,
+ char* get_cmdline(pid_t pid);
+ #define get_environ libreport_get_environ
+ char* get_environ(pid_t pid);
++#define get_env_variable libreport_get_env_variable
++int get_env_variable(pid_t pid, const char *name, char **value);
+ 
+ /* Takes ptr to time_t, or NULL if you want to use current time.
+  * Returns "YYYY-MM-DD-hh:mm:ss" string.
+diff --git a/src/lib/get_cmdline.c b/src/lib/get_cmdline.c
+index 55c49ea..0fc0cbf 100644
+--- a/src/lib/get_cmdline.c
++++ b/src/lib/get_cmdline.c
+@@ -148,3 +148,56 @@ char* get_environ(pid_t pid)
+     snprintf(path, sizeof(path), "/proc/%lu/environ", (long)pid);
+     return get_escaped(path, '\n');
+ }
++
++int get_env_variable(pid_t pid, const char *name, char **value)
++{
++    char path[sizeof("/proc/%lu/environ") + sizeof(long)*3];
++    snprintf(path, sizeof(path), "/proc/%lu/environ", (long)pid);
++
++    FILE *fenv = fopen(path, "re");
++    if (fenv == NULL)
++    {
++        pwarn_msg("Failed to open environ file");
++        return -errno;
++    }
++
++    size_t len = strlen(name);
++    int c = 0;
++    while (c != EOF)
++    {
++        long i = 0;
++        /* Check variable name */
++        while ((c = fgetc(fenv)) != EOF && (i < len && c == name[i++]))
++            ;
++
++        if (c == EOF)
++            break;
++
++        const int skip = (c != '=' || name[i] != '\0');
++        i = 0;
++
++        /* Read to the end of variable entry */
++        while ((c = fgetc(fenv)) != EOF && c !='\0')
++            ++i;
++
++        /* Go to the next entry if the read entry isn't the searched variable */
++        if (skip)
++            continue;
++
++        *value = xmalloc(i+1);
++
++        /* i+1 because we didn't count '\0'  */
++        if (fseek(fenv, -(i+1), SEEK_CUR) < 0)
++            error_msg_and_die("Failed to seek");
++
++        if (fread(*value, 1, i, fenv) != i)
++            error_msg_and_die("Failed to read value");
++
++        (*value)[i] = '\0';
++
++        break;
++    }
++
++    fclose(fenv);
++    return 0;
++}
+-- 
+2.21.0
+

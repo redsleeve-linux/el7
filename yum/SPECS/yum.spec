@@ -32,11 +32,11 @@
 Summary: RPM package installer/updater/manager
 Name: yum
 Version: 3.4.3
-Release: 163%{?dist}.redsleeve
+Release: 167%{?dist}
 License: GPLv2+
 Group: System Environment/Base
 Source0: http://yum.baseurl.org/download/3.4/%{name}-%{version}.tar.gz
-Source1: yum.conf.redsleeve
+Source1: yum.conf.centos
 Source2: yum-updatesd.conf.fedora
 Patch1: yum-distro-configs.patch
 Patch5: geode-arch.patch
@@ -174,7 +174,18 @@ Patch341: BZ-1645173-clean-all-disk-usage-fixes.patch
 Patch342: BZ-1600383-save-ts-no-str-concat.patch
 Patch343: BZ-1510491-fixup-yumdb-validator.patch
 
-Patch1000: redsleeve-branding-yum.patch
+# rhel-7.8
+Patch360: BZ-1689025-installonly-do-not-reinstall-local.patch
+Patch361: BZ-1713649-depsolve-every-provider-conflicts.patch
+Patch362: BZ-1690376-gracefully-handle-empty-rpm-error-list.patch
+Patch363: BZ-1564747-gracefully-handle-reinstall-self-conflicts.patch
+Patch364: BZ-1510495-yumRepo-migrate-more-prints-to-logging.patch
+Patch365: BZ-1744639-yum-cron-make-sure-output-fully-unicode.patch
+Patch366: BZ-1573154-docs-yum-command-is-not-optional.patch
+Patch367: BZ-1645618-updateinfo-suggest-verbose-command.patch
+Patch368: BZ-1757613-downloadonly-do-not-reset-localpath.patch
+
+Patch1000: centos-branding-yum.patch
 
 URL: http://yum.baseurl.org/
 BuildArchitectures: noarch
@@ -433,6 +444,16 @@ Install this package if you want auto yum updates nightly via cron.
 %patch342 -p1
 %patch343 -p1
 
+# rhel-7.8
+%patch360 -p1
+%patch361 -p1
+%patch362 -p1
+%patch363 -p1
+%patch364 -p1
+%patch365 -p1
+%patch366 -p1
+%patch367 -p1
+%patch368 -p1
 %patch1000 -p1
 
 # Do distro config. changes after everything else.
@@ -665,17 +686,40 @@ exit 0
 %endif
 
 %changelog
-* Sat Aug 10 2019 Jacco Ligthart <jacco@redsleeve.org> - 3.4.3-163.el7.redsleeve
-- RedSleeve rebranding
-
-* Tue Aug 06 2019 CentOS Sources <bugs@centos.org> - 3.4.3-163.el7.centos
+* Tue Mar 31 2020 CentOS Sources <bugs@centos.org> - 3.4.3-167.el7.centos
 - CentOS yum config
 -  use the CentOS bug tracker url
 -  retain installonly limit of 5
 -  ensure distrover is always from centos-release
 - Make yum require yum-plugin-fastestmirror
 
-* Wed May 17 2019 Michal Domonkos <mdomonko@redhat.com> - 3.4.3-163
+* Fri Jan 10 2020 Michal Domonkos <mdomonko@redhat.com> - 3.4.3-167
+- downloadonly: do not reset localpath
+- Resolves: bug#1757613
+
+* Mon Sep 09 2019 Michal Domonkos <mdomonko@redhat.com> - 3.4.3-166
+- docs: yum command argument is not optional
+- Resolves: bug#1573154
+- updateinfo: suggest command for --verbose if bad duplicate
+- Resolves: bug#1645618
+
+* Mon Aug 26 2019 Michal Domonkos <mdomonko@redhat.com> - 3.4.3-165
+- yum-cron: convert output to unicode before emitting
+- Resolves: bug#1744639
+
+* Fri Aug 23 2019 Michal Domonkos <mdomonko@redhat.com> - 3.4.3-164
+- Do not reinstall local installonly packages
+- Resolves: bug#1689025
+- Fix traceback when every provider conflicts with requiring package
+- Resolves: bug#1713649
+- Gracefully handle empty RPM error list during transaction test
+- Resolves: bug#1690376
+- Gracefully handle self-conflicts during reinstall
+- Resolves: bug#1564747
+- yumRepo: migrate more prints to logging
+- Resolves: bug#1510495
+
+* Fri May 17 2019 Michal Domonkos <mdomonko@redhat.com> - 3.4.3-163
 - Fix from_repo yumdb validator for local pkgs
 - Resolves: bug#1510491
 

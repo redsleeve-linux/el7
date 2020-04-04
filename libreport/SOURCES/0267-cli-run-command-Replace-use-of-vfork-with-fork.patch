@@ -1,0 +1,48 @@
+From c8ef6fff3b051ef970a439115e1630105f87bdce Mon Sep 17 00:00:00 2001
+From: Ernestas Kulik <ekulik@redhat.com>
+Date: Mon, 10 Jun 2019 13:38:34 +0200
+Subject: [PATCH] cli: run-command: Replace use of vfork() with fork()
+
+vfork() replacing fork() was most likely an optimization, but, over
+time, changes were added that violate the contract, i.e. the code
+started going things other than exec and exit:
+https://pubs.opengroup.org/onlinepubs/009695399/functions/vfork.html.
+
+posix_spawn(), as recommended by Clang, would not be a suitable
+replacement, as we need to call tcsetpgrp() on the child, doing which
+after exec is too late if the goal is to avoid races.
+
+Signed-off-by: Ernestas Kulik <ekulik@redhat.com>
+---
+ src/cli/run-command.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cli/run-command.c b/src/cli/run-command.c
+index 232f725..a8416a0 100644
+--- a/src/cli/run-command.c
++++ b/src/cli/run-command.c
+@@ -53,10 +53,10 @@ static void start_command(struct command *cmd)
+ 
+   fflush(NULL);
+ 
+-  cmd->pid = vfork();
++  cmd->pid = fork();
+   if (cmd->pid < 0)
+   {
+-    perror_msg_and_die("vfork");
++    perror_msg_and_die("fork");
+   }
+   if (cmd->pid == 0)
+   {
+@@ -85,7 +85,7 @@ static void start_command(struct command *cmd)
+     signal(SIGTTOU, SIG_DFL);
+ 
+     execvp(cmd->argv[0], cmd->argv);
+-    /* Better to use _exit (not exit) after vfork:
++    /* Better to use _exit (not exit) after fork:
+      * we don't want to mess up parent's memory state
+      * by running libc cleanup routines.
+      */
+-- 
+2.21.0
+

@@ -1,0 +1,110 @@
+From 4cb71a45b448dd8008242a5de122771c4e6d1c36 Mon Sep 17 00:00:00 2001
+From: rpm-build <rpm-build>
+Date: Thu, 29 Aug 2019 09:21:57 -0400
+Subject: [PATCH] boot-splash: handle update coming in after splash is unloaded
+
+In some scenario i don't quite understand, involving plymouthd
+getting updated while it's running, the boot splash can get unloaded
+while its progress timeout remains active, leading to crash.
+
+This commit protects against such a crash.
+---
+ src/libply-splash-core/ply-boot-splash.c | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)
+
+diff --git a/src/libply-splash-core/ply-boot-splash.c b/src/libply-splash-core/ply-boot-splash.c
+index 664acc3..267136a 100644
+--- a/src/libply-splash-core/ply-boot-splash.c
++++ b/src/libply-splash-core/ply-boot-splash.c
+@@ -412,75 +412,80 @@ ply_boot_splash_free (ply_boot_splash_t *splash)
+ 
+   if (splash->module_handle != NULL)
+     {
+       ply_boot_splash_unset_keyboard (splash);
+ 
+       remove_pixel_displays (splash);
+       ply_list_free (splash->pixel_displays);
+ 
+       remove_text_displays (splash);
+       ply_list_free (splash->text_displays);
+ 
+       ply_boot_splash_unload (splash);
+     }
+ 
+   if (splash->idle_trigger != NULL)
+     ply_trigger_free (splash->idle_trigger);
+ 
+   free (splash->theme_path);
+   free (splash->plugin_dir);
+   free (splash);
+ }
+ 
+ static void
+ ply_boot_splash_update_progress (ply_boot_splash_t *splash)
+ {
+   double percentage=0.0;
+   double time=0.0;
+ 
+   assert (splash != NULL);
+ 
++  if (splash->plugin_interface == NULL)
++    return;
++
+   if (splash->progress)
+     {
+       percentage = ply_progress_get_percentage(splash->progress);
+       time = ply_progress_get_time(splash->progress);
+     }
+ 
+   if (splash->plugin_interface->on_boot_progress != NULL)
+-    splash->plugin_interface->on_boot_progress (splash->plugin,
+-                                                time,
+-                                                percentage);
+-
+-  ply_event_loop_watch_for_timeout (splash->loop,
+-                                   1.0 / UPDATES_PER_SECOND,
+-                                   (ply_event_loop_timeout_handler_t)
+-                                   ply_boot_splash_update_progress, splash);
++    {
++      splash->plugin_interface->on_boot_progress (splash->plugin,
++                                                  time,
++                                                  percentage);
++
++      ply_event_loop_watch_for_timeout (splash->loop,
++                                        1.0 / UPDATES_PER_SECOND,
++                                        (ply_event_loop_timeout_handler_t)
++                                        ply_boot_splash_update_progress, splash);
++    }
+ }
+ 
+ void
+ ply_boot_splash_attach_progress (ply_boot_splash_t *splash,
+                                       ply_progress_t    *progress)
+ {
+   assert (splash != NULL);
+   assert (progress != NULL);
+   assert (splash->progress == NULL);
+   splash->progress = progress;
+ }
+ 
+ 
+ bool
+ ply_boot_splash_show (ply_boot_splash_t *splash,
+                       ply_boot_splash_mode_t mode)
+ {
+   assert (splash != NULL);
+   assert (mode != PLY_BOOT_SPLASH_MODE_INVALID);
+   assert (splash->module_handle != NULL);
+   assert (splash->loop != NULL);
+   assert (splash->plugin_interface != NULL);
+   assert (splash->plugin != NULL);
+   assert (splash->plugin_interface->show_splash_screen != NULL);
+ 
+   if (splash->mode == mode)
+     {
+       ply_trace ("already set same splash screen mode");
+       return true;
+     }
+-- 
+2.21.0
+

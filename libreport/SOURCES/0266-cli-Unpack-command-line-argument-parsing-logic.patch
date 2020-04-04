@@ -1,0 +1,62 @@
+From 2b6424dec2233ef944b6947bbf2350daf222adae Mon Sep 17 00:00:00 2001
+From: Ernestas Kulik <ekulik@redhat.com>
+Date: Tue, 28 May 2019 15:51:05 +0200
+Subject: [PATCH] cli: Unpack command-line argument parsing logic
+
+Currently, checking for invalid command line needlessly involves
+convoluted bitwise operations, which can be simplified drastically.
+
+First, argc is reduced by optind, which points to the next argument to
+be processed. If everything goes well, argc should be 1, since the only
+remaining argument to be processed is the problem directory. If that
+does not hold, we want to bail. Another point at which we want to bail
+is when an option is passed that operates on the positional argument
+(anything but -L, which just lists available events). Checking for that
+involves ANDing the current option mask with the mask of all such
+options. The result is NOTed for comparison, since argc is 0 in such
+cases.
+
+Signed-off-by: Ernestas Kulik <ekulik@redhat.com>
+---
+ src/cli/cli.c | 17 ++++++++---------
+ 1 file changed, 8 insertions(+), 9 deletions(-)
+
+diff --git a/src/cli/cli.c b/src/cli/cli.c
+index a467bf6..67ce7dd 100644
+--- a/src/cli/cli.c
++++ b/src/cli/cli.c
+@@ -39,6 +39,9 @@ static char *steal_directory_if_needed(char *dump_dir_name)
+ 
+ int main(int argc, char** argv)
+ {
++    bool runaway_arguments;
++    bool missing_positional_argument;
++
+     abrt_init(argv);
+ 
+     setlocale(LC_ALL, "");
+@@ -108,16 +111,12 @@ int main(int argc, char** argv)
+     argv += optind;
+     argc -= optind;
+ 
++    runaway_arguments = argc > 1;
++    missing_positional_argument = (opts & OPTMASK_need_arg) && (argc == 0);
++
+     /* Check for bad usage */
+-    if (argc > 1 /* more than one arg? */
+-        ||
+-        /* dont_need_arg == have_arg? bad in both cases:
+-         * TRUE == TRUE (dont need arg but have) or
+-         * FALSE == FALSE (need arg but havent).
+-         * OPT_list_events is an exception, it can be used in both cases.
+-         */
+-        ((!(opts & OPTMASK_need_arg) == argc) && (op != OPT_list_events))
+-    ) {
++    if (runaway_arguments || (missing_positional_argument && op != OPT_list_events))
++    {
+         show_usage_and_die(program_usage_string, program_options);
+     }
+ 
+-- 
+2.21.0
+

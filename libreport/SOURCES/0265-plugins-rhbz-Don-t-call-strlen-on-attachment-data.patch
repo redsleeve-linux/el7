@@ -1,0 +1,42 @@
+From 6e7c6e3dc51c370f78872e72584f746cfb5aa2fe Mon Sep 17 00:00:00 2001
+From: Ernestas Kulik <ekulik@redhat.com>
+Date: Wed, 29 May 2019 14:07:52 +0200
+Subject: [PATCH] =?UTF-8?q?plugins:=20rhbz:=20Don=E2=80=99t=20call=20strle?=
+ =?UTF-8?q?n()=20on=20attachment=20data?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+It might not be textual, meaning that, if the blob somehow begins with
+NUL, it would be treated as empty.
+
+Signed-off-by: Ernestas Kulik <ekulik@redhat.com>
+---
+ src/plugins/rhbz.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/plugins/rhbz.c b/src/plugins/rhbz.c
+index a227c62..7708043 100644
+--- a/src/plugins/rhbz.c
++++ b/src/plugins/rhbz.c
+@@ -657,7 +657,7 @@ int rhbz_attach_blob(struct abrt_xmlrpc *ax, const char *bug_id,
+ {
+     func_entry();
+ 
+-    if (strlen(data) == 0)
++    if (0 == data_len)
+     {
+         log_notice("not attaching an empty file: '%s'", filename);
+         /* Return SUCCESS */
+@@ -727,7 +727,7 @@ int rhbz_attach_fd(struct abrt_xmlrpc *ax, const char *bug_id,
+ 
+ //TODO: need to have a method of attaching huge files (IOW: 1Gb read isn't good).
+ 
+-    char *data = xmalloc(size + 1);
++    char *data = xmalloc(size);
+     ssize_t r = full_read(fd, data, size);
+     if (r < 0)
+     {
+-- 
+2.21.0
+

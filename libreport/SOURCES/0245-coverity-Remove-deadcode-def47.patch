@@ -1,0 +1,35 @@
+From ff367c32ff0916f6ab674a46770af7a695850433 Mon Sep 17 00:00:00 2001
+From: Martin Kutlak <mkutlak@redhat.com>
+Date: Tue, 21 Aug 2018 11:06:51 +0000
+Subject: [PATCH] coverity: Remove deadcode #def47
+
+Value of not_reportable was already checked for NULL/empty value and
+therefore the ternary expression must be True and will never result in """".
+
+Signed-off-by: Martin Kutlak <mkutlak@redhat.com>
+
+
+(cherry picked from commit 94ffb1d8287530ed0fb87b8aa7d693ba754a9387)
+---
+ src/report-newt/report-newt.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/report-newt/report-newt.c b/src/report-newt/report-newt.c
+index 2427d86..a51e4f7 100644
+--- a/src/report-newt/report-newt.c
++++ b/src/report-newt/report-newt.c
+@@ -328,9 +328,8 @@ static int report(const char *dump_dir_name)
+     {
+         char *reason = dd_load_text_ext(dd, FILENAME_REASON, 0
+                                         | DD_LOAD_TEXT_RETURN_NULL_ON_FAILURE);
+-        char *t = xasprintf("%s%s%s",
+-                            not_reportable ? : "",
+-                            not_reportable ? " " : "",
++        char *t = xasprintf("%s %s",
++                            not_reportable,
+                             reason ? : _("(no description)"));
+ 
+         newtWinMessage(_("Error"), _("Ok"), (char *)"%s", t);
+-- 
+2.21.0
+

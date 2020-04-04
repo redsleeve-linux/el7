@@ -58,7 +58,7 @@
 %global ppc64le         ppc64le
 %global ppc64be         ppc64 ppc64p7
 %global multilib_arches %{power64} sparc64 x86_64
-%global jit_arches      %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64} s390x
+%global jit_arches      %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64} %{arm} s390x
 %global aot_arches      x86_64 %{aarch64}
 
 # By default, we build a debug build during main build on JIT architectures
@@ -211,7 +211,7 @@
 %global top_level_dir_name   %{origin}
 %global minorver        0
 %global buildver        10
-%global rpmrelease      1
+%global rpmrelease      3
 #%%global tagsuffix      %{nil}
 # priority must be 7 digits in total
 # setting to 1, so debug ones can have 0
@@ -873,7 +873,7 @@ Provides: java-%{javaver}-%{origin}-src%1 = %{epoch}:%{version}-%{release}
 
 Name:    java-%{javaver}-%{origin}
 Version: %{newjavaver}.%{buildver}
-Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}.redsleeve
+Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
 # and this change was brought into RHEL-4. java-1.5.0-ibm packages
 # also included the epoch in their virtual provides. This created a
@@ -908,7 +908,7 @@ URL:      http://openjdk.java.net/
 
 # to regenerate source0 (jdk) and source8 (jdk's taspets) run update_package.sh
 # update_package.sh contains hard-coded repos, revisions, tags, and projects to regenerate the source archives
-Source0: shenandoah-jdk%{majorver}-shenandoah-jdk-%{newjavaver}+%{buildver}%{?tagsuffix:-%{tagsuffix}}.tar.xz
+Source0: shenandoah-jdk%{majorver}-shenandoah-jdk-%{newjavaver}+%{buildver}%{?tagsuffix:-%{tagsuffix}}-4curve.tar.xz
 Source8: systemtap_3.2_tapsets_hg-icedtea8-9d464368e06d.tar.xz
 
 # Desktop files. Adapted from IcedTea
@@ -949,6 +949,8 @@ Patch4:    pr3183-rh1340845-support_fedora_rhel_system_crypto_policy.patch
 # Shenandoah specific patches
 #
 #############################################
+# JDK-8237396: JvmtiTagMap::weak_oops_do() should not trigger barriers
+Patch10: jdk8237396-avoid_triggering_barriers.patch
 
 #############################################
 #
@@ -1245,6 +1247,7 @@ pushd %{top_level_dir_name}
 %patch7 -p1
 %patch8 -p1
 %patch9 -p1
+%patch10 -p1
 popd # openjdk
 
 %patch1000
@@ -1484,7 +1487,7 @@ done
 # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
 # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
 # Temporarily disabled on s390x as it sporadically crashes with SIGFPE, Arithmetic exception.
-%ifnarch s390x %{arm}
+%ifnarch s390x
 gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
 handle SIGSEGV pass nostop noprint
 handle SIGILL pass nostop noprint
@@ -1798,17 +1801,49 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
-* Fri Feb 07 2020 Jacco Ligthart <jacco@redsleeve.org> - 1:11.0.6.10-1.redsleeve
-- removed arm from jit_arches
-- removed the gdb section of the SPEC file
+* Sun Feb 16 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.6.10-3
+- Add JDK-8237396 backport to resolve Shenandoah TCK breakage in traversal mode.
+- Resolves: rhbz#1785753
 
-* Sat Jan 11 2020 Andrew John Hughes <gnu.andrew@redhat.com> - 1:11.0.6.10-1
+* Sat Jan 11 2020 Andrew John Hughes <gnu.andrew@redhat.com> - 1:11.0.6.10-2
 - Add JDK-8236039 backport to resolve OpenShift blocker
 - Resolves: rhbz#1785753
 
-* Thu Jan 09 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.6.10-0
+* Thu Jan 09 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.6.10-1
 - Update to shenandoah-jdk-11.0.6+10 (GA)
 - Switch to GA mode for final release.
+- Resolves: rhbz#1785753
+
+* Thu Jan 09 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.6.9-0.1.ea
+- Update to shenandoah-jdk-11.0.6+9 (EA)
+- Resolves: rhbz#1785753
+
+* Wed Jan 08 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.6.8-0.1.ea
+- Update to shenandoah-jdk-11.0.6+8 (EA)
+- Resolves: rhbz#1785753
+
+* Wed Jan 08 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.6.7-0.1.ea
+- Update to shenandoah-jdk-11.0.6+7 (EA)
+- Resolves: rhbz#1785753
+
+* Wed Jan 08 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.6.6-0.1.ea
+- Update to shenandoah-jdk-11.0.6+6 (EA)
+- Resolves: rhbz#1785753
+
+* Tue Jan 07 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.6.5-0.1.ea
+- Update to shenandoah-jdk-11.0.6+5 (EA)
+- Resolves: rhbz#1785753
+
+* Mon Jan 06 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.6.4-0.1.ea
+- Update to shenandoah-jdk-11.0.6+4 (EA)
+- Resolves: rhbz#1785753
+
+* Fri Jan 03 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.6.3-0.1.ea
+- Update to shenandoah-jdk-11.0.6+3 (EA)
+- Resolves: rhbz#1785753
+
+* Mon Dec 30 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.6.2-0.1.ea
+- Update to shenandoah-jdk-11.0.6+2 (EA)
 - Resolves: rhbz#1785753
 
 * Thu Dec 19 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.6.1-0.1.ea
@@ -1817,24 +1852,61 @@ require "copy_jdk_configs.lua"
 - Add support for jfr binary.
 - Resolves: rhbz#1785753
 
-* Wed Oct 09 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.5.10-0
+* Wed Oct 09 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.5.10-1
 - Update to shenandoah-jdk-11.0.5+10 (GA)
 - Switch to GA mode for final release.
-- Remove PR1834/RH1022017 which is now handled by JDK-8228825 upstream.
 - Resolves: rhbz#1753423
 
-* Wed Oct 09 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.5.9-0.0.ea
+* Mon Oct 07 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.5.9-0.1.ea
 - Update to shenandoah-jdk-11.0.5+9 (EA)
-- Resolves: rhbz#1753423
+- Resolves: rhbz#1737117
 
-* Fri Sep 06 2019 Andrew John Hughes <gnu.andrew@redhat.com> - 1:11.0.5.2-0.0.ea
+* Sun Oct 06 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.5.8-0.1.ea
+- Update to shenandoah-jdk-11.0.5+8 (EA)
+- Resolves: rhbz#1737117
+
+* Fri Oct 04 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.5.7-0.1.ea
+- Update to shenandoah-jdk-11.0.5+7 (EA)
+- Resolves: rhbz#1737117
+
+* Wed Oct 02 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.5.6-0.1.ea
+- Update to shenandoah-jdk-11.0.5+6 (EA)
+- Resolves: rhbz#1737117
+
+* Tue Sep 17 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.5.5-0.1.ea
+- Update to shenandoah-jdk-11.0.5+5 (EA)
+- Resolves: rhbz#1737117
+
+* Wed Sep 11 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.5.4-0.1.ea
+- Revert rpmdev-bumpspec workaround as it has consequences for RPM installation.
+- Resolves: rhbz#1737117
+
+* Mon Sep 09 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.5.4-0.1.ea
+- Update to shenandoah-jdk-11.0.5+4 (EA)
+- Resolves: rhbz#1737117
+
+* Thu Sep 05 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.5.3-0.1.ea
+- Use 'release' rather than 'rpmrelease' for the release variable so rpmdev-bumpspec works again.
+- Resolves: rhbz#1737117
+
+* Thu Sep 05 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.5.3-0.1.ea
+- Update to shenandoah-jdk-11.0.5+3 (EA)
+- Resolves: rhbz#1737117
+
+* Tue Aug 27 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.5.2-0.2.ea
+- Update generate_source_tarball.sh script to use the PR3751 patch and retain the secp256k1 curve.
+- Regenerate source tarball using the updated script and add the -'4curve' suffix.
+- PR3751 includes the changes in the PR1834/RH1022017 patch which is removed.
+- Resolves: rhbz#1699068
+
+* Sat Aug 24 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.5.2-0.1.ea
 - Update to shenandoah-jdk-11.0.5+2 (EA)
-- Resolves: rhbz#1753423
+- Resolves: rhbz#1737117
 
-* Mon Aug 12 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.5.1-0.0.ea
+* Mon Aug 12 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.5.1-0.1.ea
 - Update to shenandoah-jdk-11.0.5+1 (EA)
 - Switch to EA mode for 11.0.5 pre-release builds.
-- Resolves: rhbz#1753423
+- Resolves: rhbz#1737117
 
 * Tue Jul 09 2019 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.4.11-1
 - Update to shenandoah-jdk-11.0.4+11 (GA)
