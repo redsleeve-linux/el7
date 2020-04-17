@@ -1,0 +1,144 @@
+From 5a3cd50df652e4a70f85ccc712dc11bf9726adda Mon Sep 17 00:00:00 2001
+From: Eduardo Otubo <otubo@redhat.com>
+Date: Wed, 16 Oct 2019 12:10:24 +0200
+Subject: [PATCH] util: json.dumps on python 2.7 will handle UnicodeDecodeError
+ on binary
+
+RH-Author: Eduardo Otubo <otubo@redhat.com>
+Message-id: <20191016121024.23694-1-otubo@redhat.com>
+Patchwork-id: 91812
+O-Subject: [RHEL-7.8/RHEL-8.1.0 cloud-init PATCH] util: json.dumps on python 2.7 will handle UnicodeDecodeError on binary
+Bugzilla: 1744526
+RH-Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+RH-Acked-by: Mohammed Gamal <mgamal@redhat.com>
+
+commit 067516d7bc917e4921b9f1424b7a64e92cae0ad2
+Author: Chad Smith <chad.smith@canonical.com>
+Date:   Fri Sep 27 20:46:00 2019 +0000
+
+    util: json.dumps on python 2.7 will handle UnicodeDecodeError on binary
+
+    Since python 2.7 doesn't handle UnicodeDecodeErrors with the default
+    handler
+
+    LP: #1801364
+
+Signed-off-by: Eduardo Otubo <otubo@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ cloudinit/sources/tests/test_init.py | 12 +++++-------
+ cloudinit/tests/test_util.py         | 20 ++++++++++++++++++++
+ cloudinit/util.py                    | 27 +++++++++++++++++++++++++--
+ 3 files changed, 50 insertions(+), 9 deletions(-)
+
+diff --git a/cloudinit/sources/tests/test_init.py b/cloudinit/sources/tests/test_init.py
+index 6378e98..9698261 100644
+--- a/cloudinit/sources/tests/test_init.py
++++ b/cloudinit/sources/tests/test_init.py
+@@ -457,19 +457,17 @@ class TestDataSource(CiTestCase):
+             instance_json['ds']['meta_data'])
+ 
+     @skipIf(not six.PY2, "Only python2 hits UnicodeDecodeErrors on non-utf8")
+-    def test_non_utf8_encoding_logs_warning(self):
+-        """When non-utf-8 values exist in py2 instance-data is not written."""
++    def test_non_utf8_encoding_gets_b64encoded(self):
++        """When non-utf-8 values exist in py2 instance-data is b64encoded."""
+         tmp = self.tmp_dir()
+         datasource = DataSourceTestSubclassNet(
+             self.sys_cfg, self.distro, Paths({'run_dir': tmp}),
+             custom_metadata={'key1': 'val1', 'key2': {'key2.1': b'ab\xaadef'}})
+         self.assertTrue(datasource.get_data())
+         json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
+-        self.assertFalse(os.path.exists(json_file))
+-        self.assertIn(
+-            "WARNING: Error persisting instance-data.json: 'utf8' codec can't"
+-            " decode byte 0xaa in position 2: invalid start byte",
+-            self.logs.getvalue())
++        instance_json = util.load_json(util.load_file(json_file))
++        key21_value = instance_json['ds']['meta_data']['key2']['key2.1']
++        self.assertEqual('ci-b64:' + util.b64e(b'ab\xaadef'), key21_value)
+ 
+     def test_get_hostname_subclass_support(self):
+         """Validate get_hostname signature on all subclasses of DataSource."""
+diff --git a/cloudinit/tests/test_util.py b/cloudinit/tests/test_util.py
+index e3d2dba..f4f95e9 100644
+--- a/cloudinit/tests/test_util.py
++++ b/cloudinit/tests/test_util.py
+@@ -2,7 +2,9 @@
+ 
+ """Tests for cloudinit.util"""
+ 
++import base64
+ import logging
++import json
+ import platform
+ 
+ import cloudinit.util as util
+@@ -528,6 +530,24 @@ class TestGetLinuxDistro(CiTestCase):
+         self.assertEqual(('foo', '1.1', 'aarch64'), dist)
+ 
+ 
++class TestJsonDumps(CiTestCase):
++    def test_is_str(self):
++        """json_dumps should return a string."""
++        self.assertTrue(isinstance(util.json_dumps({'abc': '123'}), str))
++
++    def test_utf8(self):
++        smiley = '\\ud83d\\ude03'
++        self.assertEqual(
++            {'smiley': smiley},
++            json.loads(util.json_dumps({'smiley': smiley})))
++
++    def test_non_utf8(self):
++        blob = b'\xba\x03Qx-#y\xea'
++        self.assertEqual(
++            {'blob': 'ci-b64:' + base64.b64encode(blob).decode('utf-8')},
++            json.loads(util.json_dumps({'blob': blob})))
++
++
+ @mock.patch('os.path.exists')
+ class TestIsLXD(CiTestCase):
+ 
+diff --git a/cloudinit/util.py b/cloudinit/util.py
+index a84112a..2c9ac66 100644
+--- a/cloudinit/util.py
++++ b/cloudinit/util.py
+@@ -1590,10 +1590,33 @@ def json_serialize_default(_obj):
+         return 'Warning: redacted unserializable type {0}'.format(type(_obj))
+ 
+ 
++def json_preserialize_binary(data):
++    """Preserialize any discovered binary values to avoid json.dumps issues.
++
++    Used only on python 2.7 where default type handling is not honored for
++    failure to encode binary data. LP: #1801364.
++    TODO(Drop this function when py2.7 support is dropped from cloud-init)
++    """
++    data = obj_copy.deepcopy(data)
++    for key, value in data.items():
++        if isinstance(value, (dict)):
++            data[key] = json_preserialize_binary(value)
++        if isinstance(value, bytes):
++            data[key] = 'ci-b64:{0}'.format(b64e(value))
++    return data
++
++
+ def json_dumps(data):
+     """Return data in nicely formatted json."""
+-    return json.dumps(data, indent=1, sort_keys=True,
+-                      separators=(',', ': '), default=json_serialize_default)
++    try:
++        return json.dumps(
++            data, indent=1, sort_keys=True, separators=(',', ': '),
++            default=json_serialize_default)
++    except UnicodeDecodeError:
++        if sys.version_info[:2] == (2, 7):
++            data = json_preserialize_binary(data)
++            return json.dumps(data)
++        raise
+ 
+ 
+ def yaml_dumps(obj, explicit_start=True, explicit_end=True):
+-- 
+1.8.3.1
+

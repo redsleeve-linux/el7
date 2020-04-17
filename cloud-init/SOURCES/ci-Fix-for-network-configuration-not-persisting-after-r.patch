@@ -1,0 +1,107 @@
+From 9969cf3eaa23398816d140b319b3277465aa4bb8 Mon Sep 17 00:00:00 2001
+From: Eduardo Otubo <otubo@redhat.com>
+Date: Fri, 6 Sep 2019 12:12:11 +0200
+Subject: [PATCH] Fix for network configuration not persisting after reboot
+
+RH-Author: Eduardo Otubo <otubo@redhat.com>
+Message-id: <20190906121211.23172-1-otubo@redhat.com>
+Patchwork-id: 90300
+O-Subject: [RHEL-7.8/RHEL-8.1.0 cloud-init PATCH] Fix for network configuration not persisting after reboot
+Bugzilla: 1593010
+RH-Acked-by: Mohammed Gamal <mgamal@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+The reasons the configuration does not persist after reboot includes
+different aspects and they're all fixed on this patch:
+
+  1) The rpm package doesn't include the systemd-generator and
+ds-identify. The systemd-generator is called early in the boot process
+that calls ds-identify to check if there's any Data Source available in
+the current boot. In the current use case, the Data Source is removed
+from the VM on the second boot, this means cloud-init should disable
+itself in order to keep the configuration it did in the first boot.
+
+  2) Even after adding those scripts, cloud-init was still being
+executed and the configurations were being lost. The reason for this is
+that the cloud-init systemd units had a wrong dependency
+
+     WantedBy: multi-user.target
+
+     Which would start them every time no matter the return of
+ds-identify. The fix is to replace the dependency by the systemd unit to
+cloud-init.target, which is the main cloud-init target enabled - or in
+this case, disabled by ds-identify. The file cloud-init.target was also
+missing on rpm package.
+
+After adding both scripts, the main cloud-init systemd target and
+adjusting the systemd dependencies the configuration persists after
+reboots and shutdowns.
+
+Signed-off-by: Eduardo Otubo <otubo@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ redhat/cloud-init.spec.template       | 15 +++++++++++++++
+ rhel/systemd/cloud-config.service     |  2 +-
+ rhel/systemd/cloud-final.service      |  2 +-
+ rhel/systemd/cloud-init-local.service |  2 +-
+ rhel/systemd/cloud-init.service       |  2 +-
+ rhel/systemd/cloud-init.target        |  7 +++++++
+ 6 files changed, 26 insertions(+), 4 deletions(-)
+ create mode 100644 rhel/systemd/cloud-init.target
+
+diff --git a/rhel/systemd/cloud-config.service b/rhel/systemd/cloud-config.service
+index 12ca9df..f3dcd4b 100644
+--- a/rhel/systemd/cloud-config.service
++++ b/rhel/systemd/cloud-config.service
+@@ -15,4 +15,4 @@ TimeoutSec=0
+ StandardOutput=journal+console
+ 
+ [Install]
+-WantedBy=multi-user.target
++WantedBy=cloud-init.target
+diff --git a/rhel/systemd/cloud-final.service b/rhel/systemd/cloud-final.service
+index 32a83d8..739b7e3 100644
+--- a/rhel/systemd/cloud-final.service
++++ b/rhel/systemd/cloud-final.service
+@@ -16,4 +16,4 @@ KillMode=process
+ StandardOutput=journal+console
+ 
+ [Install]
+-WantedBy=multi-user.target
++WantedBy=cloud-init.target
+diff --git a/rhel/systemd/cloud-init-local.service b/rhel/systemd/cloud-init-local.service
+index 656eddb..8f9f6c9 100644
+--- a/rhel/systemd/cloud-init-local.service
++++ b/rhel/systemd/cloud-init-local.service
+@@ -28,4 +28,4 @@ TimeoutSec=0
+ StandardOutput=journal+console
+ 
+ [Install]
+-WantedBy=multi-user.target
++WantedBy=cloud-init.target
+diff --git a/rhel/systemd/cloud-init.service b/rhel/systemd/cloud-init.service
+index 68fc5f1..d0023a0 100644
+--- a/rhel/systemd/cloud-init.service
++++ b/rhel/systemd/cloud-init.service
+@@ -22,4 +22,4 @@ TimeoutSec=0
+ StandardOutput=journal+console
+ 
+ [Install]
+-WantedBy=multi-user.target
++WantedBy=cloud-init.target
+diff --git a/rhel/systemd/cloud-init.target b/rhel/systemd/cloud-init.target
+new file mode 100644
+index 0000000..083c3b6
+--- /dev/null
++++ b/rhel/systemd/cloud-init.target
+@@ -0,0 +1,7 @@
++# cloud-init target is enabled by cloud-init-generator
++# To disable it you can either:
++#  a.) boot with kernel cmdline of 'cloud-init=disabled'
++#  b.) touch a file /etc/cloud/cloud-init.disabled
++[Unit]
++Description=Cloud-init target
++After=multi-user.target
+-- 
+1.8.3.1
+
