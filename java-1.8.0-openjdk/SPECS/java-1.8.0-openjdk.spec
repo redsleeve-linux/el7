@@ -180,7 +180,7 @@
 # note, following three variables are sedded from update_sources if used correctly. Hardcode them rather there.
 %global shenandoah_project	aarch64-port
 %global shenandoah_repo		jdk8u-shenandoah
-%global shenandoah_revision    	aarch64-shenandoah-jdk8u242-b08
+%global shenandoah_revision    	aarch64-shenandoah-jdk8u252-b09
 # Define old aarch64/jdk8u tree variables for compatibility
 %global project         %{shenandoah_project}
 %global repo            %{shenandoah_repo}
@@ -196,7 +196,7 @@
 %global updatever       %(VERSION=%{whole_update}; echo ${VERSION##*u})
 # eg jdk8u60-b27 -> b27
 %global buildver        %(VERSION=%{version_tag}; echo ${VERSION##*-})
-%global rpmrelease      1
+%global rpmrelease      2
 # Define milestone (EA for pre-releases, GA ("fcs") for releases)
 # Release will be (where N is usually a number starting at 1):
 # - 0.N%%{?extraver}%%{?dist} for EA releases,
@@ -542,9 +542,10 @@ exit 0
 
 %global files_jre_headless() %{expand:
 %defattr(-,root,root,-)
-%doc %{buildoutputdir %%1}/images/%{jdkimage}/jre/ASSEMBLY_EXCEPTION
-%doc %{buildoutputdir %%1}/images/%{jdkimage}/jre/LICENSE
-%doc %{buildoutputdir %%1}/images/%{jdkimage}/jre/THIRD_PARTY_README
+%license %{buildoutputdir %%1}/images/%{jdkimage}/jre/ASSEMBLY_EXCEPTION
+%license %{buildoutputdir %%1}/images/%{jdkimage}/jre/LICENSE
+%license %{buildoutputdir %%1}/images/%{jdkimage}/jre/THIRD_PARTY_README
+%doc %{_defaultdocdir}/%{uniquejavadocdir %%1}/NEWS
 %dir %{_jvmdir}/%{sdkdir %%1}
 %{_jvmdir}/%{jrelnk %%1}
 %{_jvmjardir}/%{jrelnk %%1}
@@ -588,9 +589,9 @@ exit 0
 
 %global files_devel() %{expand:
 %defattr(-,root,root,-)
-%doc %{buildoutputdir %%1}/images/%{jdkimage}/ASSEMBLY_EXCEPTION
-%doc %{buildoutputdir %%1}/images/%{jdkimage}/LICENSE
-%doc %{buildoutputdir %%1}/images/%{jdkimage}/THIRD_PARTY_README
+%license %{buildoutputdir %%1}/images/%{jdkimage}/ASSEMBLY_EXCEPTION
+%license %{buildoutputdir %%1}/images/%{jdkimage}/LICENSE
+%license %{buildoutputdir %%1}/images/%{jdkimage}/THIRD_PARTY_README
 %dir %{_jvmdir}/%{sdkdir %%1}/bin
 %dir %{_jvmdir}/%{sdkdir %%1}/include
 %dir %{_jvmdir}/%{sdkdir %%1}/lib
@@ -639,7 +640,7 @@ exit 0
 
 %global files_demo() %{expand:
 %defattr(-,root,root,-)
-%doc %{buildoutputdir %%1}/images/%{jdkimage}/jre/LICENSE
+%license %{buildoutputdir %%1}/images/%{jdkimage}/jre/LICENSE
 }
 
 %global files_src() %{expand:
@@ -651,13 +652,13 @@ exit 0
 %global files_javadoc() %{expand:
 %defattr(-,root,root,-)
 %doc %{_javadocdir}/%{uniquejavadocdir %%1}
-%doc %{buildoutputdir %%1}/images/%{jdkimage}/jre/LICENSE
+%license %{buildoutputdir %%1}/images/%{jdkimage}/jre/LICENSE
 }
 
 %global files_javadoc_zip() %{expand:
 %defattr(-,root,root,-)
 %doc %{_javadocdir}/%{uniquejavadocdir %%1}.zip
-%doc %{buildoutputdir %%1}/images/%{jdkimage}/jre/LICENSE
+%license %{buildoutputdir %%1}/images/%{jdkimage}/jre/LICENSE
 }
 
 %global files_accessibility() %{expand:
@@ -835,7 +836,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
 
 Name:    java-%{javaver}-%{origin}
 Version: %{javaver}.%{updatever}.%{buildver}
-Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}.redsleeve
+Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
 # and this change was brought into RHEL-4. java-1.5.0-ibm packages
 # also included the epoch in their virtual provides. This created a
@@ -875,6 +876,9 @@ Source0: %{shenandoah_project}-%{shenandoah_repo}-%{shenandoah_revision}-4curve.
 
 # Custom README for -src subpackage
 Source2:  README.md
+
+# Release notes
+Source7: NEWS
 
 # Use 'icedtea_sync.sh' to update the following
 # They are based on code contained in the IcedTea project (3.x).
@@ -948,10 +952,6 @@ Patch530: pr3601-fix_additional_Wreturn_type_issues_introduced_by_8061651_for_pr
 # PR3575, RH1567204: System cacerts database handling should not affect jssecacerts
 Patch539: pr2888-openjdk_should_check_for_system_cacerts_database_eg_etc_pki_java_cacerts.patch
 Patch541: rh1684077-openjdk_should_depend_on_pcsc-lite-libs_instead_of_pcsc-lite-devel.patch
-# JDK-8231991: Mouse wheel change focus on awt/swing windows
-Patch542: jdk8231991-mouse_wheel_focus.patch
-# JDK-8234107: Several AWT modal dialog tests failing on Linux after JDK-8231991
-Patch543: jdk8234107-mouse_wheel_test_fix.patch
 
 #############################################
 #
@@ -1083,6 +1083,7 @@ BuildRequires: devtoolset-7-gcc
 BuildRequires: devtoolset-7-gcc-c++
 BuildRequires: devtoolset-7-gdb
 %endif 
+
 # Use OpenJDK 7 where available (on RHEL) to avoid
 # having to use the rhel-7.x-java-unsafe-candidate hack
 %if ! 0%{?fedora} && 0%{?rhel} <= 7
@@ -1377,8 +1378,6 @@ sh %{SOURCE12}
 %patch575
 %patch577
 %patch541
-%patch542
-%patch543
 
 # RPM-only fixes
 %patch539
@@ -1441,7 +1440,7 @@ sed -e "s:@NSS_LIBDIR@:%{NSS_LIBDIR}:g" %{SOURCE11} > nss.cfg
 %build
 %ifarch %{arm}
 %{?enable_devtoolset7:%{enable_devtoolset7}}
-%endif 
+%endif
 
 # How many CPU's do we have?
 export NUM_PROC=%(/usr/bin/getconf _NPROCESSORS_ONLN 2> /dev/null || :)
@@ -1469,7 +1468,8 @@ EXTRA_CFLAGS="$EXTRA_CFLAGS -fno-strict-aliasing"
 %ifarch %{arm}
 EXTRA_CFLAGS="$EXTRA_CFLAGS -Wno-nonnull"
 %endif
-export EXTRA_CFLAGS
+EXTRA_ASFLAGS="${EXTRA_CFLAGS}"
+export EXTRA_CFLAGS EXTRA_ASFLAGS
 
 (cd %{top_level_dir_name}/common/autoconf
  bash ./autogen.sh
@@ -1507,6 +1507,7 @@ bash ../../configure \
     --with-stdc++lib=dynamic \
     --with-extra-cxxflags="$EXTRA_CPP_FLAGS" \
     --with-extra-cflags="$EXTRA_CFLAGS" \
+    --with-extra-asflags="$EXTRA_ASFLAGS" \
     --with-extra-ldflags="%{ourldflags}" \
     --with-num-cores="$NUM_PROC"
 
@@ -1619,18 +1620,18 @@ done
 # Using line number 1 might cause build problems. See:
 # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
 # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
-#gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
-#handle SIGSEGV pass nostop noprint
-#handle SIGILL pass nostop noprint
-#set breakpoint pending on
-#break javaCalls.cpp:1
-#commands 1
-#backtrace
-#quit
-#end
-#run -version
-#EOF
-#grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
+gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
+handle SIGSEGV pass nostop noprint
+handle SIGILL pass nostop noprint
+set breakpoint pending on
+break javaCalls.cpp:1
+commands 1
+backtrace
+quit
+end
+run -version
+EOF
+grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
 
 # Check src.zip has all sources. See RHBZ#1130490
 jar -tf $JAVA_HOME/src.zip | grep 'sun.misc.Unsafe'
@@ -1759,6 +1760,11 @@ popd
 install -d -m 755 $RPM_BUILD_ROOT%{_javadocdir}
 cp -a %{buildoutputdir $normal_suffix}/docs $RPM_BUILD_ROOT%{_javadocdir}/%{uniquejavadocdir $suffix}
 cp -a %{buildoutputdir $normal_suffix}/bundles/jdk-%{javaver}_%{updatever}%{milestone_version}${normal_suffix}-%{buildver}-docs.zip  $RPM_BUILD_ROOT%{_javadocdir}/%{uniquejavadocdir $suffix}.zip
+
+# Install release notes
+commondocdir=${RPM_BUILD_ROOT}%{_defaultdocdir}/%{uniquejavadocdir $suffix}
+install -d -m 755 ${commondocdir}
+cp -a %{SOURCE7} ${commondocdir}
 
 # Install icons and menu entries
 for s in 16 24 32 48 ; do
@@ -2054,8 +2060,55 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
-* Sun Apr 05 2020 Jacco Ligthart <jacco@redsleeve.org> 1:1.8.0.242.b08-1.redsleeve
-- removed the gdb section of the SPEC file
+* Tue Apr 14 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b09-2
+- Add release notes.
+- Mark license files with appropriate macro.
+- Resolves: rhbz#1810557
+
+* Sun Apr 12 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b09-1
+- Make use of --with-extra-asflags introduced in jdk8u252-b01.
+- Resolves: rhbz#1810557
+
+* Mon Apr 06 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b09-0
+- Update to aarch64-shenandoah-jdk8u242-b09.
+- Switch to GA mode for final release.
+- Resolves: rhbz#1810557
+
+* Fri Mar 27 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b08-0.0.ea
+- Update to aarch64-shenandoah-jdk8u252-b08.
+- Resolves: rhbz#1810557
+
+* Tue Mar 24 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b07-0.0.ea
+- Update to aarch64-shenandoah-jdk8u252-b07.
+- Resolves: rhbz#1810557
+
+* Mon Mar 16 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b06-0.0.ea
+- Update to aarch64-shenandoah-jdk8u252-b06.
+- Resolves: rhbz#1810557
+
+* Fri Feb 28 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b05-0.0.ea
+- Update to aarch64-shenandoah-jdk8u252-b05.
+- Resolves: rhbz#1810557
+
+* Mon Feb 24 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b04-0.0.ea
+- Update to aarch64-shenandoah-jdk8u252-b04.
+- Resolves: rhbz#1810557
+
+* Wed Feb 19 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b03-0.0.ea
+- Update to aarch64-shenandoah-jdk8u252-b03.
+- Adjust PR2974/RH1337583 & PR3083/RH1346460 following context changes in JDK-8230978
+- Resolves: rhbz#1810557
+
+* Tue Feb 04 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b02-0.0.ea
+- Update to aarch64-shenandoah-jdk8u252-b02.
+- Resolves: rhbz#1810557
+
+* Mon Jan 27 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b01-0.1.ea
+- Update to aarch64-shenandoah-jdk8u252-b01.
+- Switch to EA mode.
+- Adjust JDK-8199936/PR3533 patch following JDK-8227397 configure change
+- Remove local copies of JDK-8231991 & JDK-8234107 as replaced by upstream versions.
+- Resolves: rhbz#1810557
 
 * Wed Jan 15 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.242.b08-1
 - Update to aarch64-shenandoah-jdk8u242-b08.
