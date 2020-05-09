@@ -58,7 +58,7 @@
 %global ppc64le         ppc64le
 %global ppc64be         ppc64 ppc64p7
 %global multilib_arches %{power64} sparc64 x86_64
-%global jit_arches      %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64} s390x
+%global jit_arches      %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64} %{arm} s390x
 %global aot_arches      x86_64 %{aarch64}
 
 # By default, we build a debug build during main build on JIT architectures
@@ -188,7 +188,7 @@
 
 # New Version-String scheme-style defines
 %global majorver 11
-%global securityver 6
+%global securityver 7
 # buildjdkver is usually same as %%{majorver},
 # but in time of bootstrap of next jdk, it is majorver-1, 
 # and this it is better to change it here, on single place
@@ -211,7 +211,7 @@
 %global top_level_dir_name   %{origin}
 %global minorver        0
 %global buildver        10
-%global rpmrelease      3
+%global rpmrelease      4
 #%%global tagsuffix      %{nil}
 # priority must be 7 digits in total
 # setting to 1, so debug ones can have 0
@@ -522,6 +522,7 @@ exit 0
 
 %define files_jre_headless() %{expand:
 %license %{_jvmdir}/%{sdkdir %%1}/legal
+%doc %{_defaultdocdir}/%{uniquejavadocdir %%1}/NEWS
 %dir %{_sysconfdir}/.java/.systemPrefs
 %dir %{_sysconfdir}/.java
 %dir %{_jvmdir}/%{sdkdir %%1}
@@ -873,7 +874,7 @@ Provides: java-%{javaver}-%{origin}-src%1 = %{epoch}:%{version}-%{release}
 
 Name:    java-%{javaver}-%{origin}
 Version: %{newjavaver}.%{buildver}
-Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}.redsleeve
+Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
 # and this change was brought into RHEL-4. java-1.5.0-ibm packages
 # also included the epoch in their virtual provides. This created a
@@ -913,6 +914,9 @@ Source8: systemtap_3.2_tapsets_hg-icedtea8-9d464368e06d.tar.xz
 
 # Desktop files. Adapted from IcedTea
 Source9: jconsole.desktop.in
+
+# Release notes
+Source10: NEWS
 
 # nss configuration file
 Source11: nss.cfg.in
@@ -964,14 +968,14 @@ Patch6:    rh1566890-CVE_2018_3639-speculative_store_bypass.patch
 Patch7: jdk8009550-rh910107-search_for_versioned_libpcsclite.patch
 # S390 ambiguous log2_intptr call
 Patch8: s390-8214206_fix.patch
-# JDK-8236039: JSSE Client does not accept status_request extension in CertificateRequest messages for TLS 1.3
-Patch9: jdk8236039-status_request_extension.patch
 
 #############################################
 #
 # JDK 9+ only patches
 #
 #############################################
+# JDK-8228407: JVM crashes with shared archive file mismatch
+Patch9: jdk8228407-shared_archive_crash.patch
 
 BuildRequires: autoconf
 BuildRequires: automake
@@ -1331,7 +1335,8 @@ EXTRA_CPP_FLAGS="${EXTRA_CPP_FLAGS} -mstackrealign"
 # fix rpmlint warnings
 EXTRA_CFLAGS="$EXTRA_CFLAGS -fno-strict-aliasing"
 %endif
-export EXTRA_CFLAGS
+EXTRA_ASFLAGS="${EXTRA_CFLAGS}"
+export EXTRA_CFLAGS EXTRA_ASFLAGS
 
 for suffix in %{build_loop} ; do
 if [ "x$suffix" = "x" ] ; then
@@ -1370,6 +1375,7 @@ bash ../configure \
     --with-stdc++lib=dynamic \
     --with-extra-cxxflags="$EXTRA_CPP_FLAGS" \
     --with-extra-cflags="$EXTRA_CFLAGS" \
+    --with-extra-asflags="$EXTRA_ASFLAGS" \
     --with-extra-ldflags="%{ourldflags}" \
     --with-num-cores="$NUM_PROC" \
     --disable-javac-server \
@@ -1487,7 +1493,7 @@ done
 # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
 # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
 # Temporarily disabled on s390x as it sporadically crashes with SIGFPE, Arithmetic exception.
-%ifnarch s390x %{arm}
+%ifnarch s390x
 gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
 handle SIGSEGV pass nostop noprint
 handle SIGILL pass nostop noprint
@@ -1584,6 +1590,11 @@ popd
 install -d -m 755 $RPM_BUILD_ROOT%{_javadocdir}
 cp -a %{buildoutputdir $normal_suffix}/images/docs $RPM_BUILD_ROOT%{_javadocdir}/%{uniquejavadocdir $suffix}
 cp -a %{buildoutputdir $normal_suffix}/bundles/jdk-%{newjavaver}%{ea_designator_zip}+%{buildver}%{lts_designator_zip}-docs.zip $RPM_BUILD_ROOT%{_javadocdir}/%{uniquejavadocdir -- $suffix}.zip
+
+# Install release notes
+commondocdir=${RPM_BUILD_ROOT}%{_defaultdocdir}/%{uniquejavadocdir $suffix}
+install -d -m 755 ${commondocdir}
+cp -a %{SOURCE10} ${commondocdir}
 
 # Install icons and menu entries
 for s in 16 24 32 48 ; do
@@ -1801,9 +1812,64 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
-* Wed Apr 15 2020 Jacco Ligthart <jacco@redsleeve.org> - 1:11.0.6.10-3.redsleeve
-- removed arm from jit_arches
-- removed the gdb section of the SPEC file
+* Wed Apr 15 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.7.10-4
+- Add JDK-8228407 backport to resolve crashes during verification.
+- Resolves: rhbz#1810557
+
+* Tue Apr 14 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.7.10-3
+- Amend release notes, removing issue actually fixed in 11.0.6.
+- Resolves: rhbz#1810557
+
+* Mon Apr 13 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.7.10-2
+- Add release notes.
+- Resolves: rhbz#1810557
+
+* Mon Apr 13 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.7.10-1
+- Make use of --with-extra-asflags introduced in jdk-11.0.6+1.
+- Resolves: rhbz#1810557
+
+* Tue Mar 31 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.7.10-0
+- Update to shenandoah-jdk-11.0.7+10 (GA)
+- Switch to GA mode for final release.
+- Resolves: rhbz#1810557
+
+* Sat Mar 28 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.7.9-0.0.ea
+- Update to shenandoah-jdk-11.0.7+9 (EA)
+- Resolves: rhbz#1810557
+
+* Sat Mar 28 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.7.8-0.0.ea
+- Update to shenandoah-jdk-11.0.7+8 (EA)
+- Resolves: rhbz#1810557
+
+* Sat Mar 28 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.7.7-0.0.ea
+- Update to shenandoah-jdk-11.0.7+7 (EA)
+- Resolves: rhbz#1810557
+
+* Mon Mar 16 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.7.6-0.0.ea
+- Update to shenandoah-jdk-11.0.7+6 (EA)
+- Resolves: rhbz#1810557
+
+* Sun Mar 15 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.7.5-0.0.ea
+- Update to shenandoah-jdk-11.0.7+5 (EA)
+- Resolves: rhbz#1810557
+
+* Fri Feb 28 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.7.4-0.0.ea
+- Update to shenandoah-jdk-11.0.7+4 (EA)
+- Resolves: rhbz#1810557
+
+* Tue Feb 18 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.7.3-0.0.ea
+- Update to shenandoah-jdk-11.0.7+3 (EA)
+- Resolves: rhbz#1810557
+
+* Sun Feb 16 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.7.2-0.0.ea
+- Update to shenandoah-jdk-11.0.7+2 (EA)
+- Resolves: rhbz#1810557
+
+* Sun Feb 16 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.7.1-0.0.ea
+- Update to shenandoah-jdk-11.0.7+1 (EA)
+- Switch to EA mode for 11.0.7 pre-release builds.
+- Drop JDK-8236039 backport now applied upstream.
+- Resolves: rhbz#1810557
 
 * Sun Feb 16 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.6.10-3
 - Add JDK-8237396 backport to resolve Shenandoah TCK breakage in traversal mode.
