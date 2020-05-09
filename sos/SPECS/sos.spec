@@ -2,7 +2,7 @@
 Summary: A set of tools to gather troubleshooting information from a system
 Name: sos
 Version: 3.8
-Release: 6%{?dist}
+Release: 6%{?dist}.redsleeve
 Group: Applications/System
 Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
 License: GPLv2+
@@ -25,7 +25,7 @@ Patch3: sos-bz1699381-gluster-skip-statedump-dirs.patch
 Patch4: sos-bz1767445-interim-sysroot-forbidden-paths.patch
 Patch5: sos-bz1630028-manpages-allow-system-changes.patch
 Patch6: sos-bz1781148-foreman-psql-dynflow-explicit-cast.patch
-Patch7: sos-3.8-centos-branding.patch
+Patch7: sos-3.8-redsleeve-branding.patch
 
 %description
 Sos is a set of tools that gathers information about system
@@ -66,6 +66,9 @@ rm -rf ${RPM_BUILD_ROOT}
 %config(noreplace) %{_sysconfdir}/sos.conf
 
 %changelog
+* Sun Apr 05 2020 Jacco Ligthart <jacco@redsleeve.org> - 3.8-6.el7.redsleeve
+- Roll in RedSleeve Branding
+
 * Tue Mar 31 2020 CentOS Sources <bugs@centos.org> - 3.8-6.el7.centos
 - Roll in CentOS Branding
 

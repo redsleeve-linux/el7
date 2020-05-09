@@ -1,6 +1,6 @@
-From 19b9150f2decd141b3e58995820f3391f6758871 Mon Sep 17 00:00:00 2001
+From 01fffec250d5b9017aff2f982609cec36f529b6b Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sat, 21 Mar 2020 21:46:21 +0100
+Date: Sun, 5 Apr 2020 13:14:56 +0200
 Subject: [PATCH] disabled tcmalloc for arm
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] disabled tcmalloc for arm
  1 file changed, 5 insertions(+), 2 deletions(-)
 
 diff --git a/SPECS/389-ds-base.spec b/SPECS/389-ds-base.spec
-index ac72c06..fdb1f08 100644
+index f131749..b72bc0c 100644
 --- a/SPECS/389-ds-base.spec
 +++ b/SPECS/389-ds-base.spec
 @@ -19,7 +19,7 @@
@@ -23,22 +23,22 @@ index ac72c06..fdb1f08 100644
 @@ -39,7 +39,7 @@
  Summary:          389 Directory Server (%{variant})
  Name:             389-ds-base
- Version:          1.3.9.1
--Release:          %{?relprefix}13%{?prerel}%{?dist}
-+Release:          %{?relprefix}13%{?prerel}%{?dist}.redsleeve
+ Version:          1.3.10.1
+-Release:          %{?relprefix}5%{?prerel}%{?dist}
++Release:          %{?relprefix}5%{?prerel}%{?dist}.redsleeve
  License:          GPLv3+
  URL:              https://www.port389.org/
  Group:            System Environment/Daemons
-@@ -546,6 +546,9 @@ fi
+@@ -513,6 +513,9 @@ fi
  %{_sysconfdir}/%{pkgname}/dirsrvtests
  
  %changelog
-+* Sat Mar 21 2020 Jacco Ligthart <jacco@redsleeve.org> - 1.3.9.1-13.redsleeve
++* Sun Apr 05 2020 Jacco Ligthart <jacco@redsleeve.org> - 1.3.10.1-5.redsleeve
 +- disabled tcmalloc for arm
 +
- * Wed Feb 12 2020 Mark Reynolds <mreynolds@redhat.com> - 1.3.9.1-13
- - Bump version to 1.3.9.1-13
- - Resolves: Bug 1801693 - ns-slapd is crashing while restarting ipactl
+ * Fri Feb 7 2020 Mark Reynolds <mreynolds@redhat.com> - 1.3.10.1-5
+ - Bump version to 1.3.10.1-5
+ - Resolves: Bug 1744623 - DB Deadlock on modrdn appears to corrupt database and entry cache(cont)
 -- 
 1.8.3.1
 

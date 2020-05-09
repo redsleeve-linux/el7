@@ -1,6 +1,6 @@
-From 1e3187a825f50f095de91c36fb8b30ac5028bc9c Mon Sep 17 00:00:00 2001
+From 722f1b812b700fb5247295da0f91d0e0f5a40dca Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Thu, 8 Nov 2018 23:32:03 +0100
+Date: Fri, 17 Apr 2020 21:32:13 +0200
 Subject: [PATCH] rebrand for redsleeve
 
 ---
@@ -28,37 +28,37 @@ index 0000000..8311704
 +     gecos: Cloud User
 +     groups: [wheel, adm, systemd-journal]
 diff --git a/SPECS/cloud-init.spec b/SPECS/cloud-init.spec
-index 4f3b5a0..2593702 100644
+index 422bcf2..331e643 100644
 --- a/SPECS/cloud-init.spec
 +++ b/SPECS/cloud-init.spec
 @@ -7,7 +7,7 @@
  
  Name:           cloud-init
- Version:        18.2
--Release:        1%{?dist}.1
-+Release:        1%{?dist}.1.redsleeve
+ Version:        18.5
+-Release:        6%{?dist}
++Release:        6%{?dist}.redsleeve
  Summary:        Cloud instance init scripts
  
  Group:          System Environment/Base
-@@ -34,7 +34,7 @@ Patch12: ci-azure-Add-reported-ready-marker-file.patch
- # For bz#1633282 - [Azure] cloud-init fails to mount /dev/sdb1 after stop(deallocate)&&start VM
- Patch13: ci-Adding-disk_setup-to-rhel-cloud.cfg.patch
+@@ -47,7 +47,7 @@ Patch20: ci-Fix-for-network-configuration-not-persisting-after-r.patch
+ # For bz#1744526 - [cloud-init][OpenStack] cloud-init can't persist instance-data.json
+ Patch21: ci-util-json.dumps-on-python-2.7-will-handle-UnicodeDec.patch
  
--Patch9999: cloud-init-centos-user.patch 
-+Patch9999: cloud-init-redsleeve-user.patch 
+-Patch9999: cloud-init-centos-user.patch
++Patch9999: cloud-init-redsleeve-user.patch
  
  # Deal with noarch -> arch
  # https://bugzilla.redhat.com/show_bug.cgi?id=1067089
-@@ -187,6 +187,9 @@ fi
+@@ -217,6 +217,9 @@ fi
  %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
  
  %changelog
-+* Thu Nov 08 2018 Jacco Ligthart <jacco@redsleeve.org 18.2-1.el7_6.1.redsleeve
++* Fri Apr 17 2020 Jacco Ligthart <jacco@redsleeve.org 18.5-6.el7.redsleeve
 +- rebrand for redsleeve
 +
- * Thu Sep 27 2018 Miroslav Rezanina <mrezanin@redhat.com> - 18.2-1.el7_6.1
- - ci-Adding-systemd-mount-options-to-wait-for-cloud-init.patch [bz#1633282]
- - ci-Azure-Ignore-NTFS-mount-errors-when-checking-ephemer.patch [bz#1633282]
+ * Thu Oct 24 2019 Miroslav Rezanina <mrezanin@redhat.com> - 18.5-6.el7
+ - ci-util-json.dumps-on-python-2.7-will-handle-UnicodeDec.patch [bz#1744526]
+ - Resolves: bz#1744526
 -- 
 1.8.3.1
 

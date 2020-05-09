@@ -7,7 +7,7 @@
 
 Name:           cloud-init
 Version:        18.5
-Release:        6%{?dist}
+Release:        6%{?dist}.redsleeve
 Summary:        Cloud instance init scripts
 
 Group:          System Environment/Base
@@ -47,7 +47,7 @@ Patch20: ci-Fix-for-network-configuration-not-persisting-after-r.patch
 # For bz#1744526 - [cloud-init][OpenStack] cloud-init can't persist instance-data.json
 Patch21: ci-util-json.dumps-on-python-2.7-will-handle-UnicodeDec.patch
 
-Patch9999: cloud-init-centos-user.patch
+Patch9999: cloud-init-redsleeve-user.patch
 
 # Deal with noarch -> arch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1067089
@@ -217,6 +217,9 @@ fi
 %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
 
 %changelog
+* Fri Apr 17 2020 Jacco Ligthart <jacco@redsleeve.org 18.5-6.el7.redsleeve
+- rebrand for redsleeve
+
 * Thu Oct 24 2019 Miroslav Rezanina <mrezanin@redhat.com> - 18.5-6.el7
 - ci-util-json.dumps-on-python-2.7-will-handle-UnicodeDec.patch [bz#1744526]
 - Resolves: bz#1744526

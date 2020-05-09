@@ -1,6 +1,6 @@
-From a0e7a921be681fa8335ad3e264004d88153da125 Mon Sep 17 00:00:00 2001
+From 2225b05f6cedcaa8ec568f6a1a6fbb7d27e3cba0 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Fri, 7 Feb 2020 23:39:21 +0100
+Date: Thu, 16 Apr 2020 00:19:56 +0200
 Subject: [PATCH] removed arm from jit_arches
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] removed arm from jit_arches
  1 file changed, 7 insertions(+), 3 deletions(-)
 
 diff --git a/SPECS/java-11-openjdk.spec b/SPECS/java-11-openjdk.spec
-index e05a0d1..c812937 100644
+index 12f5cd0..f4a89c8 100644
 --- a/SPECS/java-11-openjdk.spec
 +++ b/SPECS/java-11-openjdk.spec
 @@ -58,7 +58,7 @@
@@ -29,7 +29,7 @@ index e05a0d1..c812937 100644
  # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
  # and this change was brought into RHEL-4. java-1.5.0-ibm packages
  # also included the epoch in their virtual provides. This created a
-@@ -1484,7 +1484,7 @@ done
+@@ -1487,7 +1487,7 @@ done
  # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
  # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
  # Temporarily disabled on s390x as it sporadically crashes with SIGFPE, Arithmetic exception.
@@ -38,16 +38,16 @@ index e05a0d1..c812937 100644
  gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
  handle SIGSEGV pass nostop noprint
  handle SIGILL pass nostop noprint
-@@ -1798,6 +1798,10 @@ require "copy_jdk_configs.lua"
+@@ -1801,6 +1801,10 @@ require "copy_jdk_configs.lua"
  %endif
  
  %changelog
-+* Fri Feb 07 2020 Jacco Ligthart <jacco@redsleeve.org> - 1:11.0.6.10-1.redsleeve
++* Wed Apr 15 2020 Jacco Ligthart <jacco@redsleeve.org> - 1:11.0.6.10-3.redsleeve
 +- removed arm from jit_arches
 +- removed the gdb section of the SPEC file
 +
- * Sat Jan 11 2020 Andrew John Hughes <gnu.andrew@redhat.com> - 1:11.0.6.10-1
- - Add JDK-8236039 backport to resolve OpenShift blocker
+ * Sun Feb 16 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.6.10-3
+ - Add JDK-8237396 backport to resolve Shenandoah TCK breakage in traversal mode.
  - Resolves: rhbz#1785753
 -- 
 1.8.3.1

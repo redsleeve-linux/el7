@@ -1,6 +1,6 @@
-From 0fc4e3be15941d5cb1170d0b02624a9e22685cdc Mon Sep 17 00:00:00 2001
+From 16855cca9df9462ed069809e3a9858f3d0ba79ea Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Fri, 7 Feb 2020 23:51:02 +0100
+Date: Sun, 5 Apr 2020 13:39:32 +0200
 Subject: [PATCH] SPEC adjusted to build on armv5
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] SPEC adjusted to build on armv5
  1 file changed, 13 insertions(+), 9 deletions(-)
 
 diff --git a/SPECS/mesa.spec b/SPECS/mesa.spec
-index 74df8bc..7e270e8 100644
+index 9e29839..c36846c 100644
 --- a/SPECS/mesa.spec
 +++ b/SPECS/mesa.spec
 @@ -7,7 +7,7 @@
@@ -24,8 +24,8 @@ index 74df8bc..7e270e8 100644
  Summary: Mesa graphics libraries
  Name: mesa
  Version: 18.3.4
--Release: 6%{?dist}
-+Release: 6%{?dist}.redsleeve
+-Release: 7%{?dist}
++Release: 7%{?dist}.redsleeve
  License: MIT
  Group: System Environment/Libraries
  URL: http://www.mesa3d.org
@@ -83,11 +83,11 @@ index 74df8bc..7e270e8 100644
  %endif
  
  %changelog
-+* Fri Feb 07 2020 Jacco Ligthart <jacco@redsleeve.org> - 18.3.4-6.redsleeve
++* Sun Apr 05 2020 Jacco Ligthart <jacco@redsleeve.org> - 18.3.4-7.redsleeve
 +- small changes to the spec to make it build on armv5
 +
- * Mon Jan 06 2020 Ben Crocker <bcrocker@redhat.com> - 18.3.4-6
- - Patch to require Large CodeModel for llvmpipe on ppc64/ppc64le (#1543572)
+ * Thu Jan 23 2020 Tomas Pelka <tpelka@redhat.com> - 18.3.4-7
+ - bump version and rebuild to avoind conflict with 7.7.z build (#1543572)
  
 -- 
 1.8.3.1

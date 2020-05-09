@@ -19,7 +19,7 @@
 %global use_tcmalloc 0
 %global variant base-asan
 %else
-%if %{_arch} != "s390x" && %{_arch} != "s390"
+%ifnarch s390 s390x %{arm}
 %global use_tcmalloc 1
 %else
 %global use_tcmalloc 0
@@ -39,7 +39,7 @@
 Summary:          389 Directory Server (%{variant})
 Name:             389-ds-base
 Version:          1.3.10.1
-Release:          %{?relprefix}5%{?prerel}%{?dist}
+Release:          %{?relprefix}5%{?prerel}%{?dist}.redsleeve
 License:          GPLv3+
 URL:              https://www.port389.org/
 Group:            System Environment/Daemons
@@ -513,6 +513,9 @@ fi
 %{_sysconfdir}/%{pkgname}/dirsrvtests
 
 %changelog
+* Sun Apr 05 2020 Jacco Ligthart <jacco@redsleeve.org> - 1.3.10.1-5.redsleeve
+- disabled tcmalloc for arm
+
 * Fri Feb 7 2020 Mark Reynolds <mreynolds@redhat.com> - 1.3.10.1-5
 - Bump version to 1.3.10.1-5
 - Resolves: Bug 1744623 - DB Deadlock on modrdn appears to corrupt database and entry cache(cont)

@@ -1,6 +1,6 @@
-From fc3f809c14083b3420e98548e89e7865291c73f3 Mon Sep 17 00:00:00 2001
+From 97583e33840fc46bc09fcbe9d5decf3f933c0cdd Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Fri, 16 Aug 2019 15:29:49 +0200
+Date: Sun, 5 Apr 2020 13:37:26 +0200
 Subject: [PATCH] undo most of the CentOS work to get an unbranded version.
 
 ---
@@ -8,21 +8,21 @@ Subject: [PATCH] undo most of the CentOS work to get an unbranded version.
  1 file changed, 63 insertions(+), 60 deletions(-)
 
 diff --git a/SPECS/libreport.spec b/SPECS/libreport.spec
-index fb4b58a..e18c775 100644
+index 0588d39..be871ee 100644
 --- a/SPECS/libreport.spec
 +++ b/SPECS/libreport.spec
 @@ -7,7 +7,7 @@
  Summary: Generic library for reporting various problems
  Name: libreport
  Version: 2.1.11
--Release: 43%{?dist}
-+Release: 43%{?dist}.redsleeve
+-Release: 53%{?dist}
++Release: 53%{?dist}.redsleeve
  License: GPLv2+
  Group: System Environment/Libraries
  URL: https://fedorahosted.org/abrt/
-@@ -268,21 +268,21 @@ Patch236: 0236-tests-include-testsuite.h-in-the-dist-archive.patch
- #Patch237: 0237-spec-include-testsuite-headers-in-the-devel-package.patch
- # git format-patch 2.1.11-43.el7 -N --start-number 231 --topo-order
+@@ -311,21 +311,21 @@ Patch273: 0273-lib-problem_data-Add-a-null-guard-for-g_strsplit-cal.patch
+ Patch274: 0274-Update-translations.patch
+ # git format-patch 2.1.11-52.el7 -N --start-number=275 --topo-order
  
 -Patch1000: 1000-bugzilla-port-to-Problem-Format-API.patch
 -Patch1001: 1001-lib-created-a-new-lib-file-for-reporters.patch
@@ -52,7 +52,7 @@ index fb4b58a..e18c775 100644
  
  # git is need for '%%autosetup -S git' which automatically applies all the
  # patches above. Please, be aware that the patches must be generated
-@@ -472,24 +472,24 @@ Uploads micro-report to abrt server
+@@ -515,24 +515,24 @@ Uploads micro-report to abrt server
  %description plugin-bugzilla
  Plugin to report bugs into the bugzilla.
  
@@ -92,7 +92,7 @@ index fb4b58a..e18c775 100644
  
  %package plugin-rhtsupport
  Summary: %{name}'s RHTSupport plugin
-@@ -736,7 +736,7 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
+@@ -779,7 +779,7 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
  %{_includedir}/libreport/dump_dir.h
  %{_includedir}/libreport/event_config.h
  %{_includedir}/libreport/problem_data.h
@@ -101,7 +101,7 @@ index fb4b58a..e18c775 100644
  %{_includedir}/libreport/report.h
  %{_includedir}/libreport/run_event.h
  %{_includedir}/libreport/file_obj.h
-@@ -744,7 +744,7 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
+@@ -787,7 +787,7 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
  %{_includedir}/libreport/workflow.h
  %{_includedir}/libreport/ureport.h
  %{_includedir}/libreport/global_configuration.h
@@ -110,7 +110,7 @@ index fb4b58a..e18c775 100644
  # Private api headers:
  %{_includedir}/libreport/internal_abrt_dbus.h
  %{_includedir}/libreport/internal_libreport.h
-@@ -865,39 +865,39 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
+@@ -908,39 +908,39 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
  %{_mandir}/man5/bugzilla_format_kernel.conf.5.*
  %{_bindir}/reporter-bugzilla
  
@@ -182,16 +182,16 @@ index fb4b58a..e18c775 100644
  
  %files plugin-rhtsupport
  %defattr(-,root,root,-)
-@@ -1010,6 +1010,9 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
+@@ -1053,6 +1053,9 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
  
  
  %changelog
-+* Fri Aug 16 2019 Jacco Ligthart <jacco@redsleeve.org> = 2.1.11-43.redsleeve
++* Sun Apr 05 2020 Jacco Ligthart <jacco@redsleeve.org> = 2.1.11-53.redsleeve
 +- undo most of the CentOS work to get an unbranded version.
 +
- * Tue Nov 20 2018 Martin Kutlak <mkutlak@redhat.com> - 2.1.11-43
- - dd: extend the scope of DD_DONT_WAIT_FOR_LOCK
- - dd: log lock warning only once not x times per sec
+ * Mon Nov 11 2019 Ernestas Kulik <ekulik@redhat.com> - 2.1.11-53
+ - Rebuild due to translations not being merged
+ 
 -- 
 1.8.3.1
 

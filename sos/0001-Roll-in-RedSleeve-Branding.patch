@@ -1,24 +1,24 @@
-From f4d15561adffcee5eb861afc2936f3808d1d5553 Mon Sep 17 00:00:00 2001
+From bf58a703550418bec226e442a1b9cc75aae20d0b Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sat, 21 Mar 2020 23:10:44 +0100
+Date: Sun, 5 Apr 2020 13:58:28 +0200
 Subject: [PATCH] Roll in RedSleeve Branding
 
 ---
- SOURCES/sos-3.7-redsleeve-branding.patch | 107 +++++++++++++++++++++++++++++++
- SPECS/sos.spec                           |   7 +-
- 2 files changed, 112 insertions(+), 2 deletions(-)
- create mode 100644 SOURCES/sos-3.7-redsleeve-branding.patch
+ SOURCES/sos-3.8-redsleeve-branding.patch | 96 ++++++++++++++++++++++++++++++++
+ SPECS/sos.spec                           |  7 ++-
+ 2 files changed, 101 insertions(+), 2 deletions(-)
+ create mode 100644 SOURCES/sos-3.8-redsleeve-branding.patch
 
-diff --git a/SOURCES/sos-3.7-redsleeve-branding.patch b/SOURCES/sos-3.7-redsleeve-branding.patch
+diff --git a/SOURCES/sos-3.8-redsleeve-branding.patch b/SOURCES/sos-3.8-redsleeve-branding.patch
 new file mode 100644
-index 0000000..e8fb21a
+index 0000000..851aeb9
 --- /dev/null
-+++ b/SOURCES/sos-3.7-redsleeve-branding.patch
-@@ -0,0 +1,107 @@
-+diff -uNrp sos-3.7.orig/sos/policies/redhat.py sos-3.7/sos/policies/redhat.py
-+--- sos-3.7.orig/sos/policies/redhat.py	2020-03-18 00:35:41.357473057 +0000
-++++ sos-3.7/sos/policies/redhat.py	2020-03-18 00:37:31.569721326 +0000
-+@@ -31,9 +31,9 @@ OS_RELEASE = "/etc/os-release"
++++ b/SOURCES/sos-3.8-redsleeve-branding.patch
+@@ -0,0 +1,96 @@
++diff -uNrp sos-3.8.orig/sos/policies/redhat.py sos-3.8/sos/policies/redhat.py
++--- sos-3.8.orig/sos/policies/redhat.py	2019-08-27 08:17:45.000000000 +0000
+++++ sos-3.8/sos/policies/redhat.py	2020-04-02 10:59:05.707237510 +0000
++@@ -23,9 +23,9 @@ OS_RELEASE = "/etc/os-release"
 + 
 + 
 + class RedHatPolicy(LinuxPolicy):
@@ -31,7 +31,7 @@ index 0000000..e8fb21a
 +     _redhat_release = '/etc/redhat-release'
 +     _tmp_dir = "/var/tmp"
 +     _rpmq_cmd = 'rpm -qa --queryformat "%{NAME}|%{VERSION}|%{RELEASE}\\n"'
-+@@ -92,9 +92,9 @@ class RedHatPolicy(LinuxPolicy):
++@@ -77,9 +77,9 @@ class RedHatPolicy(LinuxPolicy):
 + 
 +     @classmethod
 +     def check(cls):
@@ -43,16 +43,7 @@ index 0000000..e8fb21a
 +         return False
 + 
 +     def check_usrmove(self, pkgs):
-+@@ -185,7 +185,7 @@ class RedHatPolicy(LinuxPolicy):
-+         return self.host_name()
-+ 
-+ 
-+-# Container environment variables on Red Hat systems.
-++# Container environment variables on RedSleeve systems.
-+ ENV_CONTAINER = 'container'
-+ ENV_HOST_SYSROOT = 'HOST'
-+ 
-+@@ -196,7 +196,7 @@ _cb_plugs = ['abrt', 'block', 'boot', 'd
++@@ -180,22 +180,22 @@ _cb_plugs = ['abrt', 'block', 'boot', 'd
 +              'hardware', 'host', 'kernel', 'logs', 'lvm2', 'memory', 'rpm',
 +              'process', 'systemd', 'yum', 'xfs']
 + 
@@ -60,21 +51,19 @@ index 0000000..e8fb21a
 ++RHEL_RELEASE_STR = "RedSleeve Linux"
 + 
 + RHV = "rhv"
-+ RHV_DESC = "Red Hat Virtualization"
-+@@ -205,17 +205,17 @@ RHEL = "rhel"
++-RHV_DESC = "Red Hat Virtualization"
+++RHV_DESC = "Virtualization"
++ 
++ RHEL = "rhel"
 + RHEL_DESC = RHEL_RELEASE_STR
 + 
 + RHOSP = "rhosp"
 +-RHOSP_DESC = "Red Hat OpenStack Platform"
-++RHOSP_DESC = "RDO"
-+ RHOSP_OPTS = SoSOptions(plugopts=[
-+                              'process.lsof=off',
-+                              'networking.ethtool_namespaces=False',
-+                              'networking.namespaces=200'])
+++RHOSP_DESC = "OpenStack"
 + 
 + RHOCP = "ocp"
 +-RHOCP_DESC = "OpenShift Container Platform by Red Hat"
-++RHOCP_DESC = "OpenShift"
+++RHOCP_DESC = "RDO"
 + 
 + RH_SATELLITE = "satellite"
 +-RH_SATELLITE_DESC = "Red Hat Satellite"
@@ -82,7 +71,7 @@ index 0000000..e8fb21a
 + SAT_OPTS = SoSOptions(verify=True, plugopts=['apache.log=on'])
 + 
 + CB = "cantboot"
-+@@ -253,9 +253,9 @@ No changes will be made to system config
++@@ -235,9 +235,9 @@ No changes will be made to system config
 + 
 + 
 + class RHELPolicy(RedHatPolicy):
@@ -95,7 +84,7 @@ index 0000000..e8fb21a
 +     msg = _("""\
 + This command will collect diagnostic and configuration \
 + information from this %(distro)s system and installed \
-+@@ -274,7 +274,7 @@ support representative.
++@@ -256,7 +256,7 @@ support representative.
 +     def check(cls):
 +         """Test to see if the running host is a RHEL installation.
 + 
@@ -104,7 +93,7 @@ index 0000000..e8fb21a
 +             release string at the beginning of the NAME field in the
 +             `/etc/os-release` file and returns ``True`` if it is
 +             found, and ``False`` otherwise.
-+@@ -343,7 +343,7 @@ class CentOsPolicy(RHELPolicy):
++@@ -313,7 +313,7 @@ class CentOsPolicy(RHELPolicy):
 + 
 + ATOMIC = "atomic"
 + ATOMIC_RELEASE_STR = "Atomic"
@@ -113,7 +102,7 @@ index 0000000..e8fb21a
 + 
 + atomic_presets = {
 +     ATOMIC: PresetDefaults(name=ATOMIC, desc=ATOMIC_DESC, note=NOTE_TIME,
-+@@ -352,7 +352,7 @@ atomic_presets = {
++@@ -322,7 +322,7 @@ atomic_presets = {
 + 
 + 
 + class RedHatAtomicPolicy(RHELPolicy):
@@ -123,35 +112,35 @@ index 0000000..e8fb21a
 + This command will collect diagnostic and configuration \
 + information from this %(distro)s system.
 diff --git a/SPECS/sos.spec b/SPECS/sos.spec
-index bcf9a11..bf54b93 100644
+index 5016024..7760d25 100644
 --- a/SPECS/sos.spec
 +++ b/SPECS/sos.spec
 @@ -2,7 +2,7 @@
  Summary: A set of tools to gather troubleshooting information from a system
  Name: sos
- Version: 3.7
--Release: 11%{?dist}
-+Release: 11%{?dist}.redsleeve
+ Version: 3.8
+-Release: 6%{?dist}
++Release: 6%{?dist}.redsleeve
  Group: Applications/System
  Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
  License: GPLv2+
-@@ -35,7 +35,7 @@ Patch13: sos-bz1751578-ovn-plugins-containerized.patch
- Patch14: sos-bz1760737-kernel-trace-disabled.patch
- Patch15: sos-bz1769259-interim-sysroot-forbidden-paths.patch
- Patch16: sos-bz1683904-option_to_limit_namespaces.patch
--Patch17: sos-3.7-centos-branding.patch
-+Patch17: sos-3.7-redsleeve-branding.patch
+@@ -25,7 +25,7 @@ Patch3: sos-bz1699381-gluster-skip-statedump-dirs.patch
+ Patch4: sos-bz1767445-interim-sysroot-forbidden-paths.patch
+ Patch5: sos-bz1630028-manpages-allow-system-changes.patch
+ Patch6: sos-bz1781148-foreman-psql-dynflow-explicit-cast.patch
+-Patch7: sos-3.8-centos-branding.patch
++Patch7: sos-3.8-redsleeve-branding.patch
  
  %description
  Sos is a set of tools that gathers information about system
-@@ -86,6 +86,9 @@ rm -rf ${RPM_BUILD_ROOT}
+@@ -66,6 +66,9 @@ rm -rf ${RPM_BUILD_ROOT}
  %config(noreplace) %{_sysconfdir}/sos.conf
  
  %changelog
-+* Sat Mar 21 2020 Jacco Ligthart <jacco@redsleeve.org> - 3.7-11.el7.redsleeve
++* Sun Apr 05 2020 Jacco Ligthart <jacco@redsleeve.org> - 3.8-6.el7.redsleeve
 +- Roll in RedSleeve Branding
 +
- * Tue Mar 17 2020 CentOS Sources <bugs@centos.org> - 3.7-11.el7.centos
+ * Tue Mar 31 2020 CentOS Sources <bugs@centos.org> - 3.8-6.el7.centos
  - Roll in CentOS Branding
  
 -- 
