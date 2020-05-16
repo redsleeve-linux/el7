@@ -1,0 +1,142 @@
+From 4e903b8594bb59a953e66ca0fb422079f6f6b573 Mon Sep 17 00:00:00 2001
+From: Eduardo Habkost <ehabkost@redhat.com>
+Date: Wed, 21 Aug 2019 14:30:05 +0200
+Subject: [PATCH 1/3] target-i386: Support "invariant tsc" flag
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: Eduardo Habkost <ehabkost@redhat.com>
+Message-id: <20190821143006.23516-2-ehabkost@redhat.com>
+Patchwork-id: 90101
+O-Subject: [RHEL-7.8 qemu-kvm PATCH 1/2] target-i386: Support "invariant tsc" flag
+Bugzilla: 1626871
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Bandan Das <bsd@redhat.com>
+RH-Acked-by: Igor Mammedov <imammedo@redhat.com>
+
+From: Marcelo Tosatti <mtosatti@redhat.com>
+
+Expose "Invariant TSC" flag, if KVM is enabled. From Intel documentation:
+
+17.13.1 Invariant TSC The time stamp counter in newer processors may
+support an enhancement, referred to as invariant TSC. Processor’s
+support for invariant TSC is indicated by CPUID.80000007H:EDX[8].
+The invariant TSC will run at a constant rate in all ACPI P-, C-.
+and T-states. This is the architectural behavior moving forward. On
+processors with invariant TSC support, the OS may use the TSC for wall
+clock timer services (instead of ACPI or HPET timers). TSC reads are
+much more efficient and do not incur the overhead associated with a ring
+transition or access to a platform resource.
+
+Backport notes:
+  One extra line to remove invtsc was added to
+  kvm_cpu_fill_host(), to replace the unmigratable_flags field,
+  and fix the same issue fixed by upstream commit 120eee7d1fdb
+  ("target-i386: Set migratable=yes by default on "host" CPU
+  mooel").
+
+Signed-off-by: Marcelo Tosatti <mtosatti@redhat.com>
+[ehabkost: redo feature filtering to use .tcg_features]
+[ehabkost: add CPUID_APM_INVTSC macro, add it to .unmigratable_flags]
+Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
+Signed-off-by: Andreas Färber <afaerber@suse.de>
+(cherry picked from commit 303752a9068bfe84b9b05f1cd5ad5ff65b7f3ea6)
+Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
+
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ target-i386/cpu.c | 26 ++++++++++++++++++++++++++
+ target-i386/cpu.h |  4 ++++
+ 2 files changed, 30 insertions(+)
+
+diff --git a/target-i386/cpu.c b/target-i386/cpu.c
+index c2fcd1e..c74f597 100644
+--- a/target-i386/cpu.c
++++ b/target-i386/cpu.c
+@@ -199,6 +199,17 @@ static const char *cpuid_xsave_feature_name[] = {
+     NULL, NULL, NULL, NULL,
+ };
+ 
++static const char *cpuid_apm_edx_feature_name[] = {
++    NULL, NULL, NULL, NULL,
++    NULL, NULL, NULL, NULL,
++    "invtsc", NULL, NULL, NULL,
++    NULL, NULL, NULL, NULL,
++    NULL, NULL, NULL, NULL,
++    NULL, NULL, NULL, NULL,
++    NULL, NULL, NULL, NULL,
++    NULL, NULL, NULL, NULL,
++};
++
+ #define I486_FEATURES (CPUID_FP87 | CPUID_VME | CPUID_PSE)
+ #define PENTIUM_FEATURES (I486_FEATURES | CPUID_DE | CPUID_TSC | \
+           CPUID_MSR | CPUID_MCE | CPUID_CX8 | CPUID_MMX | CPUID_APIC)
+@@ -258,6 +269,7 @@ static const char *cpuid_xsave_feature_name[] = {
+           CPUID_7_0_EBX_RDSEED */
+ #define TCG_7_0_ECX_FEATURES 0
+ #define TCG_7_0_EDX_FEATURES 0
++#define TCG_APM_FEATURES 0
+ 
+ 
+ typedef struct FeatureWordInfo {
+@@ -326,6 +338,12 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
+         .cpuid_reg = R_EDX,
+         .tcg_features = TCG_7_0_EDX_FEATURES,
+     },
++    [FEAT_8000_0007_EDX] = {
++        .feat_names = cpuid_apm_edx_feature_name,
++        .cpuid_eax = 0x80000007,
++        .cpuid_reg = R_EDX,
++        .tcg_features = TCG_APM_FEATURES,
++    },
+     [FEAT_8000_0008_EBX] = {
+         .feat_names = cpuid_80000008_ebx_feature_name,
+         .cpuid_eax = 0x80000008,
+@@ -1750,6 +1768,8 @@ static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
+ 
+     /* arch-facilities: deprecated (see comment on x86_cpu_realizefn()) */
+     x86_cpu_def->features[FEAT_7_0_EDX] &= ~CPUID_7_0_EDX_ARCH_CAPABILITIES;
++    /* invtsc: not migratable, so not enabled by default */
++    x86_cpu_def->features[FEAT_8000_0007_EDX] &= ~CPUID_APM_INVTSC;
+ 
+ #endif /* CONFIG_KVM */
+ }
+@@ -2805,6 +2825,12 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
+         *ecx = 0x02008140;
+         *edx = 0;
+         break;
++    case 0x80000007:
++        *eax = 0;
++        *ebx = 0;
++        *ecx = 0;
++        *edx = env->features[FEAT_8000_0007_EDX];
++        break;
+     case 0x80000008:
+         /* virtual & phys address size in low 2 bytes. */
+ /* XXX: This value must match the one used in the MMU code. */
+diff --git a/target-i386/cpu.h b/target-i386/cpu.h
+index 5d47ab8..cbbc34f 100644
+--- a/target-i386/cpu.h
++++ b/target-i386/cpu.h
+@@ -408,6 +408,7 @@ typedef enum FeatureWord {
+     FEAT_7_0_EDX,       /* CPUID[EAX=7,ECX=0].EDX */
+     FEAT_8000_0001_EDX, /* CPUID[8000_0001].EDX */
+     FEAT_8000_0001_ECX, /* CPUID[8000_0001].ECX */
++    FEAT_8000_0007_EDX, /* CPUID[8000_0007].EDX */
+     FEAT_8000_0008_EBX, /* CPUID[8000_0008].EBX */
+     FEAT_C000_0001_EDX, /* CPUID[C000_0001].EDX */
+     FEAT_KVM,           /* CPUID[4000_0001].EAX (KVM_CPUID_FEATURES) */
+@@ -613,6 +614,9 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
+ #define CPUID_XSAVE_XGETBV1    (1U << 2)
+ #define CPUID_XSAVE_XSAVES     (1U << 3)
+ 
++/* CPUID[0x80000007].EDX flags: */
++#define CPUID_APM_INVTSC       (1U << 8)
++
+ #define CPUID_VENDOR_SZ      12
+ 
+ #define CPUID_VENDOR_INTEL_1 0x756e6547 /* "Genu" */
+-- 
+1.8.3.1
+

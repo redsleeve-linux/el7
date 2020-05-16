@@ -1,13 +1,13 @@
-From 5b1c740a646c4ecd8c85ac02429f43b84c746a04 Mon Sep 17 00:00:00 2001
+From 2ce01dcb0add24ad6ba0a703b63d00fb9d95ee5f Mon Sep 17 00:00:00 2001
 From: Eduardo Habkost <ehabkost@redhat.com>
-Date: Tue, 3 Dec 2019 23:22:01 +0100
+Date: Wed, 4 Dec 2019 01:48:28 +0100
 Subject: [PATCH 1/2] target/i386: Export TAA_NO bit to guests
 
 RH-Author: Eduardo Habkost <ehabkost@redhat.com>
-Message-id: <20191203232202.555105-2-ehabkost@redhat.com>
-Patchwork-id: 92844
-O-Subject: [RHEL-7.7.z qemu-kvm PATCH 1/2] target/i386: Export TAA_NO bit to guests
-Bugzilla: 1771960
+Message-id: <20191204014829.608318-2-ehabkost@redhat.com>
+Patchwork-id: 92853
+O-Subject: [RHEL-7.8 qemu-kvm PATCH 1/2] target/i386: Export TAA_NO bit to guests
+Bugzilla: 1771961
 RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
 RH-Acked-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
 RH-Acked-by: Igor Mammedov <imammedo@redhat.com>
@@ -31,13 +31,13 @@ Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/target-i386/cpu.c b/target-i386/cpu.c
-index 5aa45ba..2de8822 100644
+index 9283902..120df73 100644
 --- a/target-i386/cpu.c
 +++ b/target-i386/cpu.c
-@@ -201,7 +201,7 @@ static const char *cpuid_xsave_feature_name[] = {
+@@ -212,7 +212,7 @@ static const char *cpuid_apm_edx_feature_name[] = {
  static const char *cpuid_arch_capabilities_feature_name[] = {
      "rdctl-no", "ibrs-all", "rsba", "skip-l1dfl-vmentry",
-     "ssb-no", NULL, NULL, NULL,
+     "ssb-no", "mds-no", NULL, NULL,
 -    NULL, NULL, NULL, NULL,
 +    "taa-no", NULL, NULL, NULL,
      NULL, NULL, NULL, NULL,

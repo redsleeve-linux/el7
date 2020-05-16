@@ -1,39 +1,36 @@
-From 44f5e2649ee37f15607c516c8f9efc58aad708bb Mon Sep 17 00:00:00 2001
-From: Eduardo Habkost <ehabkost@redhat.com>
-Date: Wed, 9 Oct 2019 17:51:45 +0200
-Subject: [PATCH 07/10] x86: define a new MSR based feature word --
+From a047703bdb55821e77d9a89f484e98e5293dc5bf Mon Sep 17 00:00:00 2001
+From: "plai@redhat.com" <plai@redhat.com>
+Date: Mon, 23 Sep 2019 20:40:24 +0200
+Subject: [PATCH 08/12] x86: define a new MSR based feature word --
  FEATURE_WORDS_ARCH_CAPABILITIES
 
-RH-Author: Eduardo Habkost <ehabkost@redhat.com>
-Message-id: <20191009175148.1361-8-ehabkost@redhat.com>
-Patchwork-id: 91362
-O-Subject: [RHEL-7.7.z qemu-kvm PATCH 07/10] x86: define a new MSR based feature word -- FEATURE_WORDS_ARCH_CAPABILITIES
-Bugzilla: 1730606
-RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Author: plai@redhat.com
+Message-id: <1569271227-28026-8-git-send-email-plai@redhat.com>
+Patchwork-id: 90860
+O-Subject: [RHEL7.8 qemu-kvm PATCH v6 07/10] x86: define a new MSR based feature word -- FEATURE_WORDS_ARCH_CAPABILITIES
+Bugzilla: 1709971
+RH-Acked-by: Eduardo Habkost <ehabkost@redhat.com>
 RH-Acked-by: Bandan Das <bsd@redhat.com>
-RH-Acked-by: Igor Mammedov <imammedo@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
 
 From: Robert Hoo <robert.hu@linux.intel.com>
 
 Note RSBA is specially treated -- no matter host support it or not, qemu
 pretends it is supported.
 
-7.8 backport conflicts (plai):
-	target/i386/cpu.c
-	target/i386/cpu.h
-	target/i386/kvm.c
-
-7.7.z backport notes (ehabkost):
-* Cherry picked from 7.8 tree with no conflicts
-
 Signed-off-by: Robert Hoo <robert.hu@linux.intel.com>
 Message-Id: <1539578845-37944-4-git-send-email-robert.hu@linux.intel.com>
 [ehabkost: removed automatic enabling of RSBA]
 Reviewed-by: Eduardo Habkost <ehabkost@redhat.com>
 Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
+
 (cherry picked from commit d86f963694df27f11b3681ffd225c9362de1b634)
 Signed-off-by: Paul Lai <plai@redhat.com>
-Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
+
+Resolved Conflicts:
+	target/i386/cpu.c
+	target/i386/cpu.h
+	target/i386/kvm.c
 
 Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
 ---
@@ -43,10 +40,10 @@ Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
  3 files changed, 41 insertions(+)
 
 diff --git a/target-i386/cpu.c b/target-i386/cpu.c
-index 7fecd21..35381f0 100644
+index 488634c..24fc000 100644
 --- a/target-i386/cpu.c
 +++ b/target-i386/cpu.c
-@@ -199,6 +199,17 @@ static const char *cpuid_xsave_feature_name[] = {
+@@ -210,6 +210,17 @@ static const char *cpuid_apm_edx_feature_name[] = {
      NULL, NULL, NULL, NULL,
  };
  
@@ -64,7 +61,7 @@ index 7fecd21..35381f0 100644
  #define I486_FEATURES (CPUID_FP87 | CPUID_VME | CPUID_PSE)
  #define PENTIUM_FEATURES (I486_FEATURES | CPUID_DE | CPUID_TSC | \
            CPUID_MSR | CPUID_MCE | CPUID_CX8 | CPUID_MMX | CPUID_APIC)
-@@ -375,6 +386,18 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
+@@ -392,6 +403,18 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
              .reg = R_EAX,
          },
      },
@@ -84,10 +81,10 @@ index 7fecd21..35381f0 100644
  
  typedef struct X86RegisterInfo32 {
 diff --git a/target-i386/cpu.h b/target-i386/cpu.h
-index ea5df77..1c62e63 100644
+index 0ce479a..5a86b2c 100644
 --- a/target-i386/cpu.h
 +++ b/target-i386/cpu.h
-@@ -415,6 +415,7 @@ typedef enum FeatureWord {
+@@ -416,6 +416,7 @@ typedef enum FeatureWord {
      FEAT_KVM,           /* CPUID[4000_0001].EAX (KVM_CPUID_FEATURES) */
      FEAT_SVM,           /* CPUID[8000_000A].EDX */
      FEAT_XSAVE,         /* CPUID[EAX=0xd,ECX=1].EAX */
@@ -95,7 +92,7 @@ index ea5df77..1c62e63 100644
      FEATURE_WORDS,
  } FeatureWord;
  
-@@ -632,6 +633,13 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
+@@ -636,6 +637,13 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
  #define CPUID_MWAIT_IBE     (1U << 1) /* Interrupts can exit capability */
  #define CPUID_MWAIT_EMX     (1U << 0) /* enumeration supported */
  
@@ -110,10 +107,10 @@ index ea5df77..1c62e63 100644
  #define HYPERV_SPINLOCK_NEVER_RETRY             0xFFFFFFFF
  #endif
 diff --git a/target-i386/kvm.c b/target-i386/kvm.c
-index 2b1d7da..180ae56 100644
+index 159ed4c..722cfbc 100644
 --- a/target-i386/kvm.c
 +++ b/target-i386/kvm.c
-@@ -1325,6 +1325,16 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
+@@ -1339,6 +1339,16 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
              kvm_msr_entry_set(&msrs[n++], MSR_IA32_TSC, env->tsc);
          }
      }

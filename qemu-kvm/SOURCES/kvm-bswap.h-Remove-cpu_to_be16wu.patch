@@ -1,0 +1,197 @@
+From 30ed4a7f03ef8820773f6eb7d63e982ad04aa8d6 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Philippe=20Mathieu-Daud=C3=A9?= <philmd@redhat.com>
+Date: Sat, 13 Jul 2019 12:38:01 +0200
+Subject: [PATCH 2/4] bswap.h: Remove cpu_to_be16wu()
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: Philippe Mathieu-Daudé <philmd@redhat.com>
+Message-id: <20190713123802.23932-2-philmd@redhat.com>
+Patchwork-id: 89507
+O-Subject: [RHEL-7.7 qemu-kvm PATCH 1/2] bswap.h: Remove cpu_to_be16wu()
+Bugzilla: 1270166
+RH-Acked-by: Xiao Wang <jasowang@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Stefano Garzarella <sgarzare@redhat.com>
+
+From: Peter Maydell <peter.maydell@linaro.org>
+
+Replace the legacy cpu_to_be16wu() with stw_be_p().
+
+Signed-off-by: Peter Maydell <peter.maydell@linaro.org>
+Reviewed-by: Richard Henderson <rth@twiddle.net>
+Reviewed-by: Michael S. Tsirkin <mst@redhat.com>
+Message-id: 1383669517-25598-7-git-send-email-peter.maydell@linaro.org
+Signed-off-by: Anthony Liguori <aliguori@amazon.com>
+(cherry picked from commit d8ee2591e495d5feb0e0250866222dedc805c8d8)
+[PMD: fix conflict in include/qemu/bswap.h]
+Signed-off-by: Philippe Mathieu-Daudé <philmd@redhat.com>
+
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/block/cdrom.c     |  4 ++--
+ hw/ide/atapi.c       | 16 ++++++++--------
+ hw/net/e1000.c       | 19 ++++++++-----------
+ include/qemu/bswap.h |  5 -----
+ 4 files changed, 18 insertions(+), 26 deletions(-)
+
+diff --git a/hw/block/cdrom.c b/hw/block/cdrom.c
+index 38469fa..5c69f34 100644
+--- a/hw/block/cdrom.c
++++ b/hw/block/cdrom.c
+@@ -77,7 +77,7 @@ int cdrom_read_toc(int nb_sectors, uint8_t *buf, int msf, int start_track)
+         q += 4;
+     }
+     len = q - buf;
+-    cpu_to_be16wu((uint16_t *)buf, len - 2);
++    stw_be_p(buf, len - 2);
+     return len;
+ }
+ 
+@@ -150,6 +150,6 @@ int cdrom_read_toc_raw(int nb_sectors, uint8_t *buf, int msf, int session_num)
+     }
+ 
+     len = q - buf;
+-    cpu_to_be16wu((uint16_t *)buf, len - 2);
++    stw_be_p(buf, len - 2);
+     return len;
+ }
+diff --git a/hw/ide/atapi.c b/hw/ide/atapi.c
+index a411748..490070a 100644
+--- a/hw/ide/atapi.c
++++ b/hw/ide/atapi.c
+@@ -454,7 +454,7 @@ static int ide_dvd_read_structure(IDEState *s, int format,
+                 cpu_to_ube32(buf + 16, total_sectors - 1); /* l0 end sector */
+ 
+                 /* Size of buffer, not including 2 byte size field */
+-                cpu_to_be16wu((uint16_t *)buf, 2048 + 2);
++                stw_be_p(buf, 2048 + 2);
+ 
+                 /* 2k data + 4 byte header */
+                 return (2048 + 4);
+@@ -465,7 +465,7 @@ static int ide_dvd_read_structure(IDEState *s, int format,
+             buf[5] = 0; /* no region restrictions */
+ 
+             /* Size of buffer, not including 2 byte size field */
+-            cpu_to_be16wu((uint16_t *)buf, 4 + 2);
++            stw_be_p(buf, 4 + 2);
+ 
+             /* 4 byte header + 4 byte data */
+             return (4 + 4);
+@@ -475,7 +475,7 @@ static int ide_dvd_read_structure(IDEState *s, int format,
+ 
+         case 0x04: /* DVD disc manufacturing information */
+             /* Size of buffer, not including 2 byte size field */
+-            cpu_to_be16wu((uint16_t *)buf, 2048 + 2);
++            stw_be_p(buf, 2048 + 2);
+ 
+             /* 2k data + 4 byte header */
+             return (2048 + 4);
+@@ -488,22 +488,22 @@ static int ide_dvd_read_structure(IDEState *s, int format,
+ 
+             buf[4] = 0x00; /* Physical format */
+             buf[5] = 0x40; /* Not writable, is readable */
+-            cpu_to_be16wu((uint16_t *)(buf + 6), 2048 + 4);
++            stw_be_p(buf + 6, 2048 + 4);
+ 
+             buf[8] = 0x01; /* Copyright info */
+             buf[9] = 0x40; /* Not writable, is readable */
+-            cpu_to_be16wu((uint16_t *)(buf + 10), 4 + 4);
++            stw_be_p(buf + 10, 4 + 4);
+ 
+             buf[12] = 0x03; /* BCA info */
+             buf[13] = 0x40; /* Not writable, is readable */
+-            cpu_to_be16wu((uint16_t *)(buf + 14), 188 + 4);
++            stw_be_p(buf + 14, 188 + 4);
+ 
+             buf[16] = 0x04; /* Manufacturing info */
+             buf[17] = 0x40; /* Not writable, is readable */
+-            cpu_to_be16wu((uint16_t *)(buf + 18), 2048 + 4);
++            stw_be_p(buf + 18, 2048 + 4);
+ 
+             /* Size of buffer, not including 2 byte size field */
+-            cpu_to_be16wu((uint16_t *)buf, 16 + 2);
++            stw_be_p(buf, 16 + 2);
+ 
+             /* data written + 4 byte header */
+             return (16 + 4);
+diff --git a/hw/net/e1000.c b/hw/net/e1000.c
+index 2cd38bc..711d369 100644
+--- a/hw/net/e1000.c
++++ b/hw/net/e1000.c
+@@ -442,8 +442,7 @@ putsum(uint8_t *data, uint32_t n, uint32_t sloc, uint32_t css, uint32_t cse)
+         n = cse + 1;
+     if (sloc < n-1) {
+         sum = net_checksum_add(n-css, data+css);
+-        cpu_to_be16wu((uint16_t *)(data + sloc),
+-                      net_checksum_finish(sum));
++        stw_be_p(data + sloc, net_checksum_finish(sum));
+     }
+ }
+ 
+@@ -504,13 +503,11 @@ xmit_seg(E1000State *s)
+         DBGOUT(TXSUM, "frames %d size %d ipcss %d\n",
+                frames, tp->size, css);
+         if (tp->ip) {		// IPv4
+-            cpu_to_be16wu((uint16_t *)(tp->data+css+2),
+-                          tp->size - css);
+-            cpu_to_be16wu((uint16_t *)(tp->data+css+4),
++            stw_be_p(tp->data+css+2, tp->size - css);
++            stw_be_p(tp->data+css+4,
+                           be16_to_cpup((uint16_t *)(tp->data+css+4))+frames);
+         } else			// IPv6
+-            cpu_to_be16wu((uint16_t *)(tp->data+css+4),
+-                          tp->size - css);
++            stw_be_p(tp->data+css+4, tp->size - css);
+         css = tp->tucss;
+         len = tp->size - css;
+         DBGOUT(TXSUM, "tcp %d tucss %d len %d\n", tp->tcp, css, len);
+@@ -521,14 +518,14 @@ xmit_seg(E1000State *s)
+             if (tp->paylen - sofar > tp->mss)
+                 tp->data[css + 13] &= ~9;		// PSH, FIN
+         } else	// UDP
+-            cpu_to_be16wu((uint16_t *)(tp->data+css+4), len);
++            stw_be_p(tp->data+css+4, len);
+         if (tp->sum_needed & E1000_TXD_POPTS_TXSM) {
+             unsigned int phsum;
+             // add pseudo-header length before checksum calculation
+             sp = (uint16_t *)(tp->data + tp->tucso);
+             phsum = be16_to_cpup(sp) + len;
+             phsum = (phsum >> 16) + (phsum & 0xffff);
+-            cpu_to_be16wu(sp, phsum);
++            stw_be_p(sp, phsum);
+         }
+         tp->tso_frames++;
+     }
+@@ -596,9 +593,9 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
+     if (vlan_enabled(s) && is_vlan_txd(txd_lower) &&
+         (tp->cptse || txd_lower & E1000_TXD_CMD_EOP)) {
+         tp->vlan_needed = 1;
+-        cpu_to_be16wu((uint16_t *)(tp->vlan_header),
++        stw_be_p(tp->vlan_header,
+                       le16_to_cpup((uint16_t *)(s->mac_reg + VET)));
+-        cpu_to_be16wu((uint16_t *)(tp->vlan_header + 2),
++        stw_be_p(tp->vlan_header + 2,
+                       le16_to_cpu(dp->upper.fields.special));
+     }
+         
+diff --git a/include/qemu/bswap.h b/include/qemu/bswap.h
+index 14a5f65..91734ad 100644
+--- a/include/qemu/bswap.h
++++ b/include/qemu/bswap.h
+@@ -437,11 +437,6 @@ static inline uint32_t be32_to_cpupu(const uint32_t *p)
+     return ldl_be_p(p);
+ }
+ 
+-static inline void cpu_to_be16wu(uint16_t *p, uint16_t v)
+-{
+-    stw_be_p(p, v);
+-}
+-
+ static inline void cpu_to_be32wu(uint32_t *p, uint32_t v)
+ {
+     stl_be_p(p, v);
+-- 
+1.8.3.1
+

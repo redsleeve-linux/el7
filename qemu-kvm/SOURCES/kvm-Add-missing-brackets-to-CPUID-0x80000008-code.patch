@@ -1,0 +1,54 @@
+From 23e038b8eb586dc19f1d653cd98d0cae109f359b Mon Sep 17 00:00:00 2001
+From: Eduardo Habkost <ehabkost@redhat.com>
+Date: Thu, 10 Oct 2019 22:18:07 +0200
+Subject: [PATCH 4/4] Add missing brackets to CPUID[0x80000008] code
+
+RH-Author: Eduardo Habkost <ehabkost@redhat.com>
+Message-id: <20191010221807.2953-1-ehabkost@redhat.com>
+Patchwork-id: 91713
+O-Subject: [RHEL-7.8 qemu-kvm PATCH] Add missing brackets to CPUID[0x80000008] code
+Bugzilla: 1760607
+RH-Acked-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: John Snow <jsnow@redhat.com>
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1760607
+Brew: https://brewweb.engineering.redhat.com/brew/taskinfo?taskID=23986041
+Upstream: not applicable
+
+I've made a mistake at downstream-only commit ba222e201e07
+("i386: Don't copy host virtual address limit"): I forgot to add
+brackets to the existing if statement.  This expose an invalid
+physical address size to the guest if the host xlevel is less
+than 0x80000008.
+
+Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ target-i386/cpu.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/target-i386/cpu.c b/target-i386/cpu.c
+index b4839df..9283902 100644
+--- a/target-i386/cpu.c
++++ b/target-i386/cpu.c
+@@ -2978,7 +2978,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
+             if (kvm_enabled()) {
+                 uint32_t _eax;
+                 host_cpuid(0x80000000, 0, &_eax, NULL, NULL, NULL);
+-                if (_eax >= 0x80000008)
++                if (_eax >= 0x80000008) {
+                     host_cpuid(0x80000008, 0, &_eax, NULL, NULL, NULL);
+                     /*
+                      * Override physical size only, as RHEL-7 KVM only supports
+@@ -2986,6 +2986,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
+                      */
+                     *eax &= ~0xff;
+                     *eax |= _eax & 0xff;
++                }
+             }
+         } else {
+             if (env->features[FEAT_1_EDX] & CPUID_PSE36) {
+-- 
+1.8.3.1
+

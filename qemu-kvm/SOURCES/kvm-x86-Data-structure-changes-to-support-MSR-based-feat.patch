@@ -1,17 +1,17 @@
-From c238d465b43fa575e2571f54813ca44a8709168d Mon Sep 17 00:00:00 2001
-From: Eduardo Habkost <ehabkost@redhat.com>
-Date: Wed, 9 Oct 2019 17:51:44 +0200
-Subject: [PATCH 06/10] x86: Data structure changes to support MSR based
+From e2f14f95ccb04db5f470d3593e2a2f2dc69187d8 Mon Sep 17 00:00:00 2001
+From: "plai@redhat.com" <plai@redhat.com>
+Date: Mon, 23 Sep 2019 20:40:23 +0200
+Subject: [PATCH 07/12] x86: Data structure changes to support MSR based
  features
 
-RH-Author: Eduardo Habkost <ehabkost@redhat.com>
-Message-id: <20191009175148.1361-7-ehabkost@redhat.com>
-Patchwork-id: 91364
-O-Subject: [RHEL-7.7.z qemu-kvm PATCH 06/10] x86: Data structure changes to support MSR based features
-Bugzilla: 1730606
-RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Author: plai@redhat.com
+Message-id: <1569271227-28026-7-git-send-email-plai@redhat.com>
+Patchwork-id: 90863
+O-Subject: [RHEL7.8 qemu-kvm PATCH v6 06/10] x86: Data structure changes to support MSR based features
+Bugzilla: 1709971
+RH-Acked-by: Eduardo Habkost <ehabkost@redhat.com>
 RH-Acked-by: Bandan Das <bsd@redhat.com>
-RH-Acked-by: Igor Mammedov <imammedo@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
 
 From: Robert Hoo <robert.hu@linux.intel.com>
 
@@ -19,34 +19,31 @@ Add FeatureWordType indicator in struct FeatureWordInfo.
 Change feature_word_info[] accordingly.
 Change existing functions that refer to feature_word_info[] accordingly.
 
-7.8 backport conflicts (plai):
+Signed-off-by: Robert Hoo <robert.hu@linux.intel.com>
+Message-Id: <1539578845-37944-3-git-send-email-robert.hu@linux.intel.com>
+[ehabkost: fixed hvf_enabled() case]
+Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
+
+(cherry picked from commit 07585923485952bf4cb7da563c9f91fecc85d09c)
+Signed-off-by: Paul Lai <plai@redhat.com>
+
+Resolved Conflicts:
 	target/i386/cpu.c changes to target-i386/cpu.c
 
 	x86_cpu_get_supported_feature_word() updated @ 07585923485
 	   dropped hvf_enabled(), tcg_enabled(), and migratable_only checks
 
-7.7.z backport notes (ehabkost):
-* Cherry pick from 7.8 tree with no conflicts
-
-Signed-off-by: Robert Hoo <robert.hu@linux.intel.com>
-Message-Id: <1539578845-37944-3-git-send-email-robert.hu@linux.intel.com>
-[ehabkost: fixed hvf_enabled() case]
-Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
-(cherry picked from commit 07585923485952bf4cb7da563c9f91fecc85d09c)
-Signed-off-by: Paul Lai <plai@redhat.com>
-Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
-
 Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
 ---
- target-i386/cpu.c | 160 ++++++++++++++++++++++++++++++++++++++++--------------
- 1 file changed, 118 insertions(+), 42 deletions(-)
+ target-i386/cpu.c | 163 +++++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 119 insertions(+), 44 deletions(-)
 
 diff --git a/target-i386/cpu.c b/target-i386/cpu.c
-index ba2ce8e..7fecd21 100644
+index 838c616..488634c 100644
 --- a/target-i386/cpu.c
 +++ b/target-i386/cpu.c
-@@ -260,83 +260,120 @@ static const char *cpuid_xsave_feature_name[] = {
- #define TCG_7_0_EDX_FEATURES 0
+@@ -272,89 +272,125 @@ static const char *cpuid_apm_edx_feature_name[] = {
+ #define TCG_APM_FEATURES 0
  
  
 +typedef enum FeatureWordType {
@@ -170,6 +167,13 @@ index ba2ce8e..7fecd21 100644
 +        },
          .tcg_features = TCG_7_0_EDX_FEATURES,
      },
+     [FEAT_8000_0007_EDX] = {
+         .feat_names = cpuid_apm_edx_feature_name,
+-        .cpuid_eax = 0x80000007,
+-        .cpuid_reg = R_EDX,
++        .cpuid = { .eax = 0x80000007, .reg = R_EDX, },
+         .tcg_features = TCG_APM_FEATURES,
+     },
      [FEAT_8000_0008_EBX] = {
 +        .type = CPUID_FEATURE_WORD,
          .feat_names = cpuid_80000008_ebx_feature_name,
@@ -192,7 +196,7 @@ index ba2ce8e..7fecd21 100644
      },
  };
  
-@@ -366,6 +403,8 @@ typedef struct ExtSaveArea {
+@@ -384,6 +420,8 @@ typedef struct ExtSaveArea {
      uint32_t offset, size;
  } ExtSaveArea;
  
@@ -201,7 +205,7 @@ index ba2ce8e..7fecd21 100644
  static const ExtSaveArea ext_save_areas[] = {
      [2] = { .feature = FEAT_1_ECX, .bits = CPUID_EXT_AVX,
              .offset = 0x240, .size = 0x100 },
-@@ -1737,10 +1776,7 @@ static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
+@@ -1755,10 +1793,7 @@ static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
  
      FeatureWord w;
      for (w = 0; w < FEATURE_WORDS; w++) {
@@ -213,7 +217,7 @@ index ba2ce8e..7fecd21 100644
      }
  
      /*
-@@ -1754,19 +1790,40 @@ static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
+@@ -1774,19 +1809,40 @@ static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
  #endif /* CONFIG_KVM */
  }
  
@@ -258,7 +262,7 @@ index ba2ce8e..7fecd21 100644
          }
      }
  }
-@@ -2075,11 +2132,18 @@ static void x86_cpu_get_feature_words(Object *obj, Visitor *v, void *opaque,
+@@ -2095,11 +2151,18 @@ static void x86_cpu_get_feature_words(Object *obj, Visitor *v, void *opaque,
  
      for (w = 0; w < FEATURE_WORDS; w++) {
          FeatureWordInfo *wi = &feature_word_info[w];
@@ -281,7 +285,7 @@ index ba2ce8e..7fecd21 100644
          qwi->features = array[w];
  
          /* List will be in reverse order, but order shouldn't matter */
-@@ -2370,11 +2434,23 @@ CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
+@@ -2390,11 +2453,23 @@ CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
  static uint32_t x86_cpu_get_supported_feature_word(FeatureWord w)
  {
      FeatureWordInfo *wi = &feature_word_info[w];

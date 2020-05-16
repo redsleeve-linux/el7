@@ -79,7 +79,7 @@ Obsoletes: %1 < %{obsoletes_version}                                      \
 Summary: QEMU is a machine emulator and virtualizer
 Name: %{pkgname}%{?pkgsuffix}
 Version: 1.5.3
-Release: 167%{?dist}.4
+Release: 173%{?dist}.3
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 Epoch: 10
 License: GPLv2 and GPLv2+ and CC-BY
@@ -3972,36 +3972,70 @@ Patch1955: kvm-slirp-fix-big-little-endian-conversion-in-ident-prot.patch
 Patch1956: kvm-slirp-ensure-there-is-enough-space-in-mbuf-to-null-t.patch
 # For bz#1669068 - CVE-2019-6778 qemu-kvm: QEMU: slirp: heap buffer overflow in tcp_emu() [rhel-7.7]
 Patch1957: kvm-slirp-don-t-manipulate-so_rcv-in-tcp_emu.patch
-# For bz#1732337 - CVE-2019-12155 qemu-kvm: QEMU: qxl: null pointer dereference while releasing spice resources [rhel-7] [rhel-7.7.z]
+# For bz#1712703 - CVE-2019-12155 qemu-kvm: QEMU: qxl: null pointer dereference while releasing spice resources [rhel-7]
 Patch1958: kvm-qxl-check-release-info-object.patch
-# For bz#1734748 - CVE-2019-14378 qemu-kvm: QEMU: slirp: heap buffer overflow during packet reassembly [rhel-7.7.z]
-Patch1959: kvm-Fix-heap-overflow-in-ip_reass-on-big-packet-input.patch
-# For bz#1730606 - [Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm [rhel-7.7.z]
-Patch1960: kvm-target-i386-Merge-feature-filtering-checking-functio.patch
-# For bz#1730606 - [Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm [rhel-7.7.z]
-Patch1961: kvm-target-i386-Isolate-KVM-specific-code-on-CPU-feature.patch
-# For bz#1730606 - [Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm [rhel-7.7.z]
-Patch1962: kvm-i386-Add-new-MSR-indices-for-IA32_PRED_CMD-and-IA32_.patch
-# For bz#1730606 - [Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm [rhel-7.7.z]
-Patch1963: kvm-i386-Add-CPUID-bit-and-feature-words-for-IA32_ARCH_C.patch
-# For bz#1730606 - [Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm [rhel-7.7.z]
-Patch1964: kvm-Add-support-to-KVM_GET_MSR_FEATURE_INDEX_LIST-an.patch
-# For bz#1730606 - [Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm [rhel-7.7.z]
-Patch1965: kvm-x86-Data-structure-changes-to-support-MSR-based-feat.patch
-# For bz#1730606 - [Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm [rhel-7.7.z]
-Patch1966: kvm-x86-define-a-new-MSR-based-feature-word-FEATURE_WORD.patch
-# For bz#1730606 - [Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm [rhel-7.7.z]
-Patch1967: kvm-Use-KVM_GET_MSR_INDEX_LIST-for-MSR_IA32_ARCH_CAP.patch
-# For bz#1730606 - [Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm [rhel-7.7.z]
-Patch1968: kvm-i386-kvm-Disable-arch_capabilities-if-MSR-can-t-be-s.patch
-# For bz#1730606 - [Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm [rhel-7.7.z]
-Patch1969: kvm-Remove-arch-capabilities-deprecation.patch
-# For bz#1771960 - CVE-2019-11135 qemu-kvm: hw: TSX Transaction Asynchronous Abort (TAA) [rhel-7.7.z]
-Patch1970: kvm-target-i386-Export-TAA_NO-bit-to-guests.patch
-# For bz#1771960 - CVE-2019-11135 qemu-kvm: hw: TSX Transaction Asynchronous Abort (TAA) [rhel-7.7.z]
-Patch1971: kvm-target-i386-add-support-for-MSR_IA32_TSX_CTRL.patch
-# For bz#1755333 - [Intel 7.8 FEAT] MDS_NO exposure to guest - qemu-kvm [rhel-7.7.z]
-Patch1972: kvm-target-i386-add-MDS-NO-feature.patch
+# For bz#1270166 - UDP packet checksum is not converted from 0x0000 to 0xffff with Qemu e1000 emulation.
+Patch1959: kvm-bswap.h-Remove-cpu_to_be16wu.patch
+# For bz#1270166 - UDP packet checksum is not converted from 0x0000 to 0xffff with Qemu e1000 emulation.
+Patch1960: kvm-net-Transmit-zero-UDP-checksum-as-0xFFFF.patch
+# For bz#1734749 - CVE-2019-14378 qemu-kvm: QEMU: slirp: heap buffer overflow during packet reassembly [rhel-7.8]
+Patch1961: kvm-Fix-heap-overflow-in-ip_reass-on-big-packet-input.patch
+# For bz#1626871 - [RFE] request for using TscInvariant feature with qemu-kvm.
+Patch1962: kvm-target-i386-Support-invariant-tsc-flag.patch
+# For bz#1626871 - [RFE] request for using TscInvariant feature with qemu-kvm.
+Patch1963: kvm-target-i386-block-migration-and-savevm-if-invariant-.patch
+# For bz#1706658 - [Intel 7.8 Bug] qemu-kvm fail with "err:kvm_init_vcpu() invalidate argumant" on ICX platform
+Patch1964: kvm-i386-Don-t-copy-host-virtual-address-limit.patch
+# For bz#1749735 - CVE-2019-15890 qemu-kvm: QEMU: Slirp: use-after-free during packet reassembly [rhel-7]
+Patch1965: kvm-Using-ip_deq-after-m_free-might-read-pointers-from-a.patch
+# For bz#1709971 - [Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm
+Patch1966: kvm-target-i386-Merge-feature-filtering-checking-functio.patch
+# For bz#1709971 - [Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm
+Patch1967: kvm-target-i386-Isolate-KVM-specific-code-on-CPU-feature.patch
+# For bz#1709971 - [Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm
+Patch1968: kvm-i386-Add-new-MSR-indices-for-IA32_PRED_CMD-and-IA32_.patch
+# For bz#1709971 - [Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm
+Patch1969: kvm-i386-Add-CPUID-bit-and-feature-words-for-IA32_ARCH_C.patch
+# For bz#1709971 - [Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm
+Patch1970: kvm-Add-support-to-KVM_GET_MSR_FEATURE_INDEX_LIST-an.patch
+# For bz#1709971 - [Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm
+Patch1971: kvm-x86-Data-structure-changes-to-support-MSR-based-feat.patch
+# For bz#1709971 - [Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm
+Patch1972: kvm-x86-define-a-new-MSR-based-feature-word-FEATURE_WORD.patch
+# For bz#1709971 - [Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm
+Patch1973: kvm-Use-KVM_GET_MSR_INDEX_LIST-for-MSR_IA32_ARCH_CAP.patch
+# For bz#1709971 - [Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm
+Patch1974: kvm-i386-kvm-Disable-arch_capabilities-if-MSR-can-t-be-s.patch
+# For bz#1709971 - [Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm
+Patch1975: kvm-Remove-arch-capabilities-deprecation.patch
+# For bz#1714791 - [Intel 7.8 FEAT] MDS_NO exposure to guest - qemu-kvm
+Patch1976: kvm-target-i386-add-MDS-NO-feature.patch
+# For bz#1638471 - [Intel 7.8 Feat] qemu-kvm Introduce Cascade Lake (CLX) cpu model
+Patch1977: kvm-i386-Add-new-model-of-Cascadelake-Server.patch
+# For bz#1638471 - [Intel 7.8 Feat] qemu-kvm Introduce Cascade Lake (CLX) cpu model
+Patch1978: kvm-i386-Disable-OSPKE-on-Cascadelake-Server.patch
+# For bz#1638471 - [Intel 7.8 Feat] qemu-kvm Introduce Cascade Lake (CLX) cpu model
+Patch1979: kvm-i386-remove-the-INTEL_PT-CPUID-bit-from-Cascadelake-.patch
+# For bz#1760607 - Corrupted EAX values due to missing brackets at CPUID[0x800000008] code
+Patch1980: kvm-Add-missing-brackets-to-CPUID-0x80000008-code.patch
+# For bz#1771961 - CVE-2019-11135 qemu-kvm: hw: TSX Transaction Asynchronous Abort (TAA) [rhel-7.8]
+Patch1981: kvm-target-i386-Export-TAA_NO-bit-to-guests.patch
+# For bz#1771961 - CVE-2019-11135 qemu-kvm: hw: TSX Transaction Asynchronous Abort (TAA) [rhel-7.8]
+Patch1982: kvm-target-i386-add-support-for-MSR_IA32_TSX_CTRL.patch
+# For bz#1791560 - CVE-2020-7039 qemu-kvm: QEMU: slirp: OOB buffer access while emulating tcp protocols in tcp_emu() [rhel-7.8]
+Patch1983: kvm-tcp_emu-Fix-oob-access.patch
+# For bz#1791560 - CVE-2020-7039 qemu-kvm: QEMU: slirp: OOB buffer access while emulating tcp protocols in tcp_emu() [rhel-7.8]
+Patch1984: kvm-slirp-use-correct-size-while-emulating-IRC-commands.patch
+# For bz#1791560 - CVE-2020-7039 qemu-kvm: QEMU: slirp: OOB buffer access while emulating tcp protocols in tcp_emu() [rhel-7.8]
+Patch1985: kvm-slirp-use-correct-size-while-emulating-commands.patch
+# For bz#1798970 - CVE-2020-8608 qemu-kvm: QEMU: Slirp: potential OOB access due to unsafe snprintf() usages [rhel-7.8.z]
+Patch1986: kvm-util-add-slirp_fmt-helpers.patch
+# For bz#1798970 - CVE-2020-8608 qemu-kvm: QEMU: Slirp: potential OOB access due to unsafe snprintf() usages [rhel-7.8.z]
+Patch1987: kvm-tcp_emu-fix-unsafe-snprintf-usages.patch
+# For bz#1822235 - Add support for newer glusterfs [rhel-7.8.z]
+Patch1988: kvm-gluster-Handle-changed-glfs_ftruncate-signature.patch
+# For bz#1822235 - Add support for newer glusterfs [rhel-7.8.z]
+Patch1989: kvm-gluster-the-glfs_io_cbk-callback-function-pointer-ad.patch
 
 
 BuildRequires: zlib-devel
@@ -6152,6 +6186,23 @@ tar -xf %{SOURCE21}
 %patch1970 -p1
 %patch1971 -p1
 %patch1972 -p1
+%patch1973 -p1
+%patch1974 -p1
+%patch1975 -p1
+%patch1976 -p1
+%patch1977 -p1
+%patch1978 -p1
+%patch1979 -p1
+%patch1980 -p1
+%patch1981 -p1
+%patch1982 -p1
+%patch1983 -p1
+%patch1984 -p1
+%patch1985 -p1
+%patch1986 -p1
+%patch1987 -p1
+%patch1988 -p1
+%patch1989 -p1
 
 %build
 buildarch="%{kvm_target}-softmmu"
@@ -6597,38 +6648,81 @@ sh %{_sysconfdir}/sysconfig/modules/kvm.modules &> /dev/null || :
 %{_mandir}/man8/qemu-nbd.8*
 
 %changelog
-* Mon Jan 06 2020 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-167.el7_7.4
-- kvm-target-i386-add-MDS-NO-feature.patch [bz#1755333]
-- Resolves: bz#1755333
-  ([Intel 7.8 FEAT] MDS_NO exposure to guest - qemu-kvm [rhel-7.7.z])
+* Tue Apr 14 2020 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-173.el7_8.3
+- kvm-gluster-Handle-changed-glfs_ftruncate-signature.patch [bz#1822235]
+- kvm-gluster-the-glfs_io_cbk-callback-function-pointer-ad.patch [bz#1822235]
+- Resolves: bz#1822235
+  (Add support for newer glusterfs [rhel-7.8.z])
 
-* Tue Dec 10 2019 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-167.el7_7.3
-- kvm-target-i386-Export-TAA_NO-bit-to-guests.patch [bz#1771960]
-- kvm-target-i386-add-support-for-MSR_IA32_TSX_CTRL.patch [bz#1771960]
-- Resolves: bz#1771960
-  (CVE-2019-11135 qemu-kvm: hw: TSX Transaction Asynchronous Abort (TAA) [rhel-7.7.z])
+* Wed Mar 04 2020 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-173.el7_8.1
+- kvm-util-add-slirp_fmt-helpers.patch [bz#1798970]
+- kvm-tcp_emu-fix-unsafe-snprintf-usages.patch [bz#1798970]
+- Resolves: bz#1798970
+  (CVE-2020-8608 qemu-kvm: QEMU: Slirp: potential OOB access due to unsafe snprintf() usages [rhel-7.8.z])
 
-* Thu Oct 24 2019 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-167.el7_7.2
-- kvm-target-i386-Merge-feature-filtering-checking-functio.patch [bz#1730606]
-- kvm-target-i386-Isolate-KVM-specific-code-on-CPU-feature.patch [bz#1730606]
-- kvm-i386-Add-new-MSR-indices-for-IA32_PRED_CMD-and-IA32_.patch [bz#1730606]
-- kvm-i386-Add-CPUID-bit-and-feature-words-for-IA32_ARCH_C.patch [bz#1730606]
-- kvm-Add-support-to-KVM_GET_MSR_FEATURE_INDEX_LIST-an.patch [bz#1730606]
-- kvm-x86-Data-structure-changes-to-support-MSR-based-feat.patch [bz#1730606]
-- kvm-x86-define-a-new-MSR-based-feature-word-FEATURE_WORD.patch [bz#1730606]
-- kvm-Use-KVM_GET_MSR_INDEX_LIST-for-MSR_IA32_ARCH_CAP.patch [bz#1730606]
-- kvm-i386-kvm-Disable-arch_capabilities-if-MSR-can-t-be-s.patch [bz#1730606]
-- kvm-Remove-arch-capabilities-deprecation.patch [bz#1730606]
-- Resolves: bz#1730606
-  ([Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm [rhel-7.7.z])
+* Thu Jan 23 2020 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-173.el7
+- kvm-tcp_emu-Fix-oob-access.patch [bz#1791560]
+- kvm-slirp-use-correct-size-while-emulating-IRC-commands.patch [bz#1791560]
+- kvm-slirp-use-correct-size-while-emulating-commands.patch [bz#1791560]
+- Resolves: bz#1791560
+  (CVE-2020-7039 qemu-kvm: QEMU: slirp: OOB buffer access while emulating tcp protocols in tcp_emu() [rhel-7.8])
 
-* Mon Aug 12 2019 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-167.el7_7.1
-- kvm-qxl-check-release-info-object.patch [bz#1732337]
-- kvm-Fix-heap-overflow-in-ip_reass-on-big-packet-input.patch [bz#1734748]
-- Resolves: bz#1732337
-  (CVE-2019-12155 qemu-kvm: QEMU: qxl: null pointer dereference while releasing spice resources [rhel-7] [rhel-7.7.z])
-- Resolves: bz#1734748
-  (CVE-2019-14378 qemu-kvm: QEMU: slirp: heap buffer overflow during packet reassembly [rhel-7.7.z])
+* Thu Dec 05 2019 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-172.el7
+- kvm-target-i386-Export-TAA_NO-bit-to-guests.patch [bz#1771961]
+- kvm-target-i386-add-support-for-MSR_IA32_TSX_CTRL.patch [bz#1771961]
+- Resolves: bz#1771961
+  (CVE-2019-11135 qemu-kvm: hw: TSX Transaction Asynchronous Abort (TAA) [rhel-7.8])
+
+* Tue Oct 15 2019 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-171.el7
+- kvm-i386-Add-new-model-of-Cascadelake-Server.patch [bz#1638471]
+- kvm-i386-Disable-OSPKE-on-Cascadelake-Server.patch [bz#1638471]
+- kvm-i386-remove-the-INTEL_PT-CPUID-bit-from-Cascadelake-.patch [bz#1638471]
+- kvm-Add-missing-brackets-to-CPUID-0x80000008-code.patch [bz#1760607]
+- Resolves: bz#1638471
+  ([Intel 7.8 Feat] qemu-kvm Introduce Cascade Lake (CLX) cpu model)
+- Resolves: bz#1760607
+  (Corrupted EAX values due to missing brackets at CPUID[0x800000008] code)
+
+* Wed Oct 02 2019 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-170.el7
+- kvm-Using-ip_deq-after-m_free-might-read-pointers-from-a.patch [bz#1749735]
+- kvm-target-i386-Merge-feature-filtering-checking-functio.patch [bz#1709971]
+- kvm-target-i386-Isolate-KVM-specific-code-on-CPU-feature.patch [bz#1709971]
+- kvm-i386-Add-new-MSR-indices-for-IA32_PRED_CMD-and-IA32_.patch [bz#1709971]
+- kvm-i386-Add-CPUID-bit-and-feature-words-for-IA32_ARCH_C.patch [bz#1709971]
+- kvm-Add-support-to-KVM_GET_MSR_FEATURE_INDEX_LIST-an.patch [bz#1709971]
+- kvm-x86-Data-structure-changes-to-support-MSR-based-feat.patch [bz#1709971]
+- kvm-x86-define-a-new-MSR-based-feature-word-FEATURE_WORD.patch [bz#1709971]
+- kvm-Use-KVM_GET_MSR_INDEX_LIST-for-MSR_IA32_ARCH_CAP.patch [bz#1709971]
+- kvm-i386-kvm-Disable-arch_capabilities-if-MSR-can-t-be-s.patch [bz#1709971]
+- kvm-Remove-arch-capabilities-deprecation.patch [bz#1709971]
+- kvm-target-i386-add-MDS-NO-feature.patch [bz#1714791]
+- Resolves: bz#1709971
+  ([Intel 7.8 Bug] [KVM][CLX] CPUID_7_0_EDX_ARCH_CAPABILITIES is not enabled in VM qemu-kvm)
+- Resolves: bz#1714791
+  ([Intel 7.8 FEAT] MDS_NO exposure to guest - qemu-kvm)
+- Resolves: bz#1749735
+  (CVE-2019-15890 qemu-kvm: QEMU: Slirp: use-after-free during packet reassembly [rhel-7])
+
+* Wed Sep 04 2019 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-169.el7
+- kvm-target-i386-Support-invariant-tsc-flag.patch [bz#1626871]
+- kvm-target-i386-block-migration-and-savevm-if-invariant-.patch [bz#1626871]
+- kvm-i386-Don-t-copy-host-virtual-address-limit.patch [bz#1706658]
+- Resolves: bz#1626871
+  ([RFE] request for using TscInvariant feature with qemu-kvm.)
+- Resolves: bz#1706658
+  ([Intel 7.8 Bug] qemu-kvm fail with "err:kvm_init_vcpu() invalidate argumant" on ICX platform)
+
+* Tue Aug 20 2019 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-168.el7
+- kvm-qxl-check-release-info-object.patch [bz#1712703]
+- kvm-bswap.h-Remove-cpu_to_be16wu.patch [bz#1270166]
+- kvm-net-Transmit-zero-UDP-checksum-as-0xFFFF.patch [bz#1270166]
+- kvm-Fix-heap-overflow-in-ip_reass-on-big-packet-input.patch [bz#1734749]
+- Resolves: bz#1270166
+  (UDP packet checksum is not converted from 0x0000 to 0xffff with Qemu e1000 emulation.)
+- Resolves: bz#1712703
+  (CVE-2019-12155 qemu-kvm: QEMU: qxl: null pointer dereference while releasing spice resources [rhel-7])
+- Resolves: bz#1734749
+  (CVE-2019-14378 qemu-kvm: QEMU: slirp: heap buffer overflow during packet reassembly [rhel-7.8])
 
 * Wed Jun 12 2019 Miroslav Rezanina <mrezanin@redhat.com> - 1.5.3-167.el7
 - Reverting kvm-seccomp-set-the-seccomp-filter-to-all-threads.patch [bz#1618503]

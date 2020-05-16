@@ -1,18 +1,16 @@
-From deb80e0563048d3bb02d4c975929ddc8502172d4 Mon Sep 17 00:00:00 2001
-From: Eduardo Habkost <ehabkost@redhat.com>
-Date: Wed, 9 Oct 2019 17:51:48 +0200
-Subject: [PATCH 10/10] Remove arch-capabilities deprecation
+From 8328a7b83a78666fff5166a615e4ef5792c743f0 Mon Sep 17 00:00:00 2001
+From: "plai@redhat.com" <plai@redhat.com>
+Date: Mon, 23 Sep 2019 20:40:27 +0200
+Subject: [PATCH 11/12] Remove arch-capabilities deprecation
 
-RH-Author: Eduardo Habkost <ehabkost@redhat.com>
-Message-id: <20191009175148.1361-11-ehabkost@redhat.com>
-Patchwork-id: 91366
-O-Subject: [RHEL-7.7.z qemu-kvm PATCH 10/10] Remove arch-capabilities deprecation
-Bugzilla: 1730606
-RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Author: plai@redhat.com
+Message-id: <1569271227-28026-11-git-send-email-plai@redhat.com>
+Patchwork-id: 90854
+O-Subject: [RHEL7.8 qemu-kvm PATCH v6 10/10] Remove arch-capabilities deprecation
+Bugzilla: 1709971
+RH-Acked-by: Eduardo Habkost <ehabkost@redhat.com>
 RH-Acked-by: Bandan Das <bsd@redhat.com>
-RH-Acked-by: Igor Mammedov <imammedo@redhat.com>
-
-From: Paul Lai <plai@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
 
 [RHEL INTERNAL] Logic to support arch-capabilities now exists.
 Deprecation of arch-facilities is no longer needed.
@@ -20,17 +18,16 @@ Deprecation of arch-facilities is no longer needed.
 fixes: arch-facilities deprecation introduced by
   59c1aecdd i386: Deprecate arch-facilities and make it block live migration
 
-7.7.z backport notes (ehabkost):
-* Cherry pick from 7.8 tree with no conflicts
-
-Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
 Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+Conflicts:
+	target-i386/cpu.c
 ---
  target-i386/cpu.c | 8 --------
  1 file changed, 8 deletions(-)
 
 diff --git a/target-i386/cpu.c b/target-i386/cpu.c
-index 35381f0..5aa45ba 100644
+index 24fc000..3ea4e97 100644
 --- a/target-i386/cpu.c
 +++ b/target-i386/cpu.c
 @@ -34,7 +34,6 @@
@@ -41,7 +38,7 @@ index 35381f0..5aa45ba 100644
  
  #include "hw/hw.h"
  #if defined(CONFIG_KVM)
-@@ -1802,13 +1801,6 @@ static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
+@@ -1819,13 +1818,6 @@ static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
          x86_cpu_def->features[w] = x86_cpu_get_supported_feature_word(w);
      }
  
@@ -52,9 +49,9 @@ index 35381f0..5aa45ba 100644
 -
 -    /* arch-facilities: deprecated (see comment on x86_cpu_realizefn()) */
 -    x86_cpu_def->features[FEAT_7_0_EDX] &= ~CPUID_7_0_EDX_ARCH_CAPABILITIES;
+     /* invtsc: not migratable, so not enabled by default */
+     x86_cpu_def->features[FEAT_8000_0007_EDX] &= ~CPUID_APM_INVTSC;
  
- #endif /* CONFIG_KVM */
- }
 -- 
 1.8.3.1
 

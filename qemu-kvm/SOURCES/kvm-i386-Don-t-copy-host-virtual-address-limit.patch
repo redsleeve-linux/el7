@@ -1,0 +1,55 @@
+From ba222e201e070d95e282762e890cf8e86251e84c Mon Sep 17 00:00:00 2001
+From: Eduardo Habkost <ehabkost@redhat.com>
+Date: Wed, 21 Aug 2019 22:28:26 +0200
+Subject: [PATCH 3/3] i386: Don't copy host virtual address limit
+
+RH-Author: Eduardo Habkost <ehabkost@redhat.com>
+Message-id: <20190821222826.11853-1-ehabkost@redhat.com>
+Patchwork-id: 90110
+O-Subject: [RHEL-7.8 qemu-kvm PATCH] i386: Don't copy host virtual address limit
+Bugzilla: 1706658
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+RH-Acked-by: Bandan Das <bsd@redhat.com>
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1706658
+Brew: https://brewweb.engineering.redhat.com/brew/taskinfo?taskID=23157241
+Upstream: not applicable
+
+The KVM code in RHEL-7 supports only 48-bit virtual addresses.
+Copying the host virtual address size to the guest is pointless
+and only makes the VM crash if the host virtual address size is
+not 48 bits.
+
+Change the downstream-only code that copies host CPUID to just
+copy the physical address limit, and keep the hardcoded virtual
+address size.
+
+Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ target-i386/cpu.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/target-i386/cpu.c b/target-i386/cpu.c
+index c74f597..ca43268 100644
+--- a/target-i386/cpu.c
++++ b/target-i386/cpu.c
+@@ -2841,7 +2841,13 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
+                 uint32_t _eax;
+                 host_cpuid(0x80000000, 0, &_eax, NULL, NULL, NULL);
+                 if (_eax >= 0x80000008)
+-                    host_cpuid(0x80000008, 0, eax, NULL, NULL, NULL);
++                    host_cpuid(0x80000008, 0, &_eax, NULL, NULL, NULL);
++                    /*
++                     * Override physical size only, as RHEL-7 KVM only supports
++                     * 48 bits virtual.
++                     */
++                    *eax &= ~0xff;
++                    *eax |= _eax & 0xff;
+             }
+         } else {
+             if (env->features[FEAT_1_EDX] & CPUID_PSE36) {
+-- 
+1.8.3.1
+

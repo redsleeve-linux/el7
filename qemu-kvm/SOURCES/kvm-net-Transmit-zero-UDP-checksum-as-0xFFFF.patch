@@ -1,0 +1,92 @@
+From 58d702589fd93689c142e8cb48d51877a8de3a93 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Philippe=20Mathieu-Daud=C3=A9?= <philmd@redhat.com>
+Date: Sat, 13 Jul 2019 12:38:02 +0200
+Subject: [PATCH 3/4] net: Transmit zero UDP checksum as 0xFFFF
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: Philippe Mathieu-Daudé <philmd@redhat.com>
+Message-id: <20190713123802.23932-3-philmd@redhat.com>
+Patchwork-id: 89509
+O-Subject: [RHEL-7.7 qemu-kvm PATCH 2/2] net: Transmit zero UDP checksum as 0xFFFF
+Bugzilla: 1270166
+RH-Acked-by: Xiao Wang <jasowang@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Stefano Garzarella <sgarzare@redhat.com>
+
+From: Ed Swierk <eswierk@skyportsystems.com>
+
+The checksum algorithm used by IPv4, TCP and UDP allows a zero value
+to be represented by either 0x0000 and 0xFFFF. But per RFC 768, a zero
+UDP checksum must be transmitted as 0xFFFF because 0x0000 is a special
+value meaning no checksum.
+
+Substitute 0xFFFF whenever a checksum is computed as zero when
+modifying a UDP datagram header. Doing this on IPv4 and TCP checksums
+is unnecessary but legal. Add a wrapper for net_checksum_finish() that
+makes the substitution.
+
+(We can't just change net_checksum_finish(), as that function is also
+used by receivers to verify checksums, and in that case the expected
+value is always 0x0000.)
+
+Signed-off-by: Ed Swierk <eswierk@skyportsystems.com>
+Signed-off-by: Jason Wang <jasowang@redhat.com>
+(cherry picked from commit 0dacea92d26c31d453c58de2e99c178fee554166)
+[PMD: conflicts: hw/net/net_rx_pkt.c hw/net/vmxnet3.c]
+Signed-off-by: Philippe Mathieu-Daudé <philmd@redhat.com>
+
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/net/e1000.c         | 2 +-
+ hw/net/vmxnet_tx_pkt.c | 2 +-
+ include/net/checksum.h | 6 ++++++
+ 3 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/hw/net/e1000.c b/hw/net/e1000.c
+index 711d369..d876949 100644
+--- a/hw/net/e1000.c
++++ b/hw/net/e1000.c
+@@ -442,7 +442,7 @@ putsum(uint8_t *data, uint32_t n, uint32_t sloc, uint32_t css, uint32_t cse)
+         n = cse + 1;
+     if (sloc < n-1) {
+         sum = net_checksum_add(n-css, data+css);
+-        stw_be_p(data + sloc, net_checksum_finish(sum));
++        stw_be_p(data + sloc, net_checksum_finish_nozero(sum));
+     }
+ }
+ 
+diff --git a/hw/net/vmxnet_tx_pkt.c b/hw/net/vmxnet_tx_pkt.c
+index fc01e4d..03f34cf 100644
+--- a/hw/net/vmxnet_tx_pkt.c
++++ b/hw/net/vmxnet_tx_pkt.c
+@@ -437,7 +437,7 @@ static void vmxnet_tx_pkt_do_sw_csum(struct VmxnetTxPkt *pkt)
+     csum_cntr += eth_calc_pseudo_hdr_csum(iphdr, csl);
+ 
+     /* Put the checksum obtained into the packet */
+-    csum = cpu_to_be16(net_checksum_finish(csum_cntr));
++    csum = cpu_to_be16(net_checksum_finish_nozero(csum_cntr));
+     iov_from_buf(iov, iov_len, csum_offset, &csum, sizeof csum);
+ }
+ 
+diff --git a/include/net/checksum.h b/include/net/checksum.h
+index 80203fb..78b7d9b 100644
+--- a/include/net/checksum.h
++++ b/include/net/checksum.h
+@@ -33,6 +33,12 @@ net_checksum_add(int len, uint8_t *buf)
+ }
+ 
+ static inline uint16_t
++net_checksum_finish_nozero(uint32_t sum)
++{
++    return net_checksum_finish(sum) ?: 0xFFFF;
++}
++
++static inline uint16_t
+ net_raw_checksum(uint8_t *data, int length)
+ {
+     return net_checksum_finish(net_checksum_add(length, data));
+-- 
+1.8.3.1
+

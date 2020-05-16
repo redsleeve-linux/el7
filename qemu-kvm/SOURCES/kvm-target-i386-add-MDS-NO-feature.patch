@@ -1,16 +1,16 @@
-From c432e7520c4410545d5883f2a5be5dcecbf1854d Mon Sep 17 00:00:00 2001
+From 5f41a4ac3ff6527f7a23c3b2a2d8bef128f5c077 Mon Sep 17 00:00:00 2001
 From: Eduardo Habkost <ehabkost@redhat.com>
-Date: Mon, 6 Jan 2020 13:04:21 +0100
-Subject: [PATCH] target/i386: add MDS-NO feature
+Date: Tue, 24 Sep 2019 20:50:32 +0200
+Subject: [PATCH 12/12] target/i386: add MDS-NO feature
 
 RH-Author: Eduardo Habkost <ehabkost@redhat.com>
-Message-id: <20191024031525.7449-1-ehabkost@redhat.com>
-Patchwork-id: 91937
-O-Subject: [RHEL-7.7.z qemu-kvm PATCH] target/i386: add MDS-NO feature
-Bugzilla: 1755333
-RH-Acked-by: Igor Mammedov <imammedo@redhat.com>
+Message-id: <20190924205032.12926-2-ehabkost@redhat.com>
+Patchwork-id: 90873
+O-Subject: [RHEL-7.8 qemu-kvm PATCH 1/1] target/i386: add MDS-NO feature
+Bugzilla: 1714791
 RH-Acked-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
-RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Acked-by: Igor Mammedov <imammedo@redhat.com>
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
 
 From: Paolo Bonzini <pbonzini@redhat.com>
 
@@ -27,21 +27,22 @@ Message-Id: <20190516185320.28340-1-pbonzini@redhat.com>
 Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
 (cherry picked from commit 20140a82c67467f53814ca197403d5e1b561a5e5)
 Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
 ---
  target-i386/cpu.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/target-i386/cpu.c b/target-i386/cpu.c
-index 48d3aec..63ae76e 100644
+index 3ea4e97..f92cb62 100644
 --- a/target-i386/cpu.c
 +++ b/target-i386/cpu.c
-@@ -200,7 +200,7 @@ static const char *cpuid_xsave_feature_name[] = {
+@@ -211,7 +211,7 @@ static const char *cpuid_apm_edx_feature_name[] = {
  
  static const char *cpuid_arch_capabilities_feature_name[] = {
      "rdctl-no", "ibrs-all", "rsba", "skip-l1dfl-vmentry",
--    "ssb-no", NULL, NULL, "tsx-ctrl",
-+    "ssb-no", "mds-no", NULL, "tsx-ctrl",
-     "taa-no", NULL, NULL, NULL,
+-    "ssb-no", NULL, NULL, NULL,
++    "ssb-no", "mds-no", NULL, NULL,
+     NULL, NULL, NULL, NULL,
      NULL, NULL, NULL, NULL,
      NULL, NULL, NULL, NULL,
 -- 

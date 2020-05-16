@@ -1,17 +1,17 @@
-From 71b9824a243c47739730c263107b0e49f459db28 Mon Sep 17 00:00:00 2001
-From: Eduardo Habkost <ehabkost@redhat.com>
-Date: Wed, 9 Oct 2019 17:51:41 +0200
-Subject: [PATCH 03/10] i386: Add new MSR indices for IA32_PRED_CMD and
+From 2ef29c217183a2e16bbc8d209d94a2bb5a009204 Mon Sep 17 00:00:00 2001
+From: "plai@redhat.com" <plai@redhat.com>
+Date: Mon, 23 Sep 2019 20:40:20 +0200
+Subject: [PATCH 04/12] i386: Add new MSR indices for IA32_PRED_CMD and
  IA32_ARCH_CAPABILITIES
 
-RH-Author: Eduardo Habkost <ehabkost@redhat.com>
-Message-id: <20191009175148.1361-4-ehabkost@redhat.com>
-Patchwork-id: 91359
-O-Subject: [RHEL-7.7.z qemu-kvm PATCH 03/10] i386: Add new MSR indices for IA32_PRED_CMD and IA32_ARCH_CAPABILITIES
-Bugzilla: 1730606
-RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Author: plai@redhat.com
+Message-id: <1569271227-28026-4-git-send-email-plai@redhat.com>
+Patchwork-id: 90862
+O-Subject: [RHEL7.8 qemu-kvm PATCH v6 03/10] i386: Add new MSR indices for IA32_PRED_CMD and IA32_ARCH_CAPABILITIES
+Bugzilla: 1709971
+RH-Acked-by: Eduardo Habkost <ehabkost@redhat.com>
 RH-Acked-by: Bandan Das <bsd@redhat.com>
-RH-Acked-by: Igor Mammedov <imammedo@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
 
 From: Robert Hoo <robert.hu@linux.intel.com>
 
@@ -27,14 +27,13 @@ Message-Id: <1530781798-183214-2-git-send-email-robert.hu@linux.intel.com>
 Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
 (cherry picked from commit 8c80c99fcceabd0708a5a83f08577e778c9419f5)
 Signed-off-by: Paul Lai <plai@redhat.com>
-Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
 Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
 ---
  target-i386/cpu.h | 2 ++
  1 file changed, 2 insertions(+)
 
 diff --git a/target-i386/cpu.h b/target-i386/cpu.h
-index 5d47ab8..ea5df77 100644
+index cbbc34f..0ce479a 100644
 --- a/target-i386/cpu.h
 +++ b/target-i386/cpu.h
 @@ -306,6 +306,8 @@

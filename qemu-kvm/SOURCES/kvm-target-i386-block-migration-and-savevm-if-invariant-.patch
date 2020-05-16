@@ -1,0 +1,111 @@
+From f53b97e4cda28b911c11400a985bcff587b2df34 Mon Sep 17 00:00:00 2001
+From: Eduardo Habkost <ehabkost@redhat.com>
+Date: Wed, 21 Aug 2019 14:30:06 +0200
+Subject: [PATCH 2/3] target-i386: block migration and savevm if invariant tsc
+ is exposed
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: Eduardo Habkost <ehabkost@redhat.com>
+Message-id: <20190821143006.23516-3-ehabkost@redhat.com>
+Patchwork-id: 90102
+O-Subject: [RHEL-7.8 qemu-kvm PATCH 2/2] target-i386: block migration and savevm if invariant tsc is exposed
+Bugzilla: 1626871
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Bandan Das <bsd@redhat.com>
+RH-Acked-by: Igor Mammedov <imammedo@redhat.com>
+
+From: Marcelo Tosatti <mtosatti@redhat.com>
+
+Invariant TSC documentation mentions that "invariant TSC will run at a
+constant rate in all ACPI P-, C-. and T-states".
+
+This is not the case if migration to a host with different TSC frequency
+is allowed, or if savevm is performed. So block migration/savevm.
+
+Signed-off-by: Marcelo Tosatti <mtosatti@redhat.com>
+Reviewed-by: Eduardo Habkost <ehabkost@redhat.com>
+Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
+Reviewed-by: Juan Quintela <quintela@redhat.com>
+[AF+mtosatti: Updated error message]
+Signed-off-by: Andreas Färber <afaerber@suse.de>
+(cherry picked from commit 68bfd0ad4a1dcc4c328d5db85dc746b49c1ec07e)
+Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
+
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ target-i386/cpu-qom.h |  2 +-
+ target-i386/kvm.c     | 15 +++++++++++++++
+ target-i386/machine.c |  2 +-
+ 3 files changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/target-i386/cpu-qom.h b/target-i386/cpu-qom.h
+index 0b01e8f..89dd29a 100644
+--- a/target-i386/cpu-qom.h
++++ b/target-i386/cpu-qom.h
+@@ -94,7 +94,7 @@ static inline X86CPU *x86_env_get_cpu(CPUX86State *env)
+ #define ENV_OFFSET offsetof(X86CPU, env)
+ 
+ #ifndef CONFIG_USER_ONLY
+-extern const struct VMStateDescription vmstate_x86_cpu;
++extern struct VMStateDescription vmstate_x86_cpu;
+ #endif
+ 
+ /**
+diff --git a/target-i386/kvm.c b/target-i386/kvm.c
+index d5f6deb..b6c76f1 100644
+--- a/target-i386/kvm.c
++++ b/target-i386/kvm.c
+@@ -33,6 +33,8 @@
+ #include "exec/ioport.h"
+ #include <asm/hyperv.h>
+ #include "hw/pci/pci.h"
++#include "migration/migration.h"
++#include "qapi/qmp/qerror.h"
+ 
+ //#define DEBUG_KVM
+ 
+@@ -449,6 +451,8 @@ static bool hyperv_enabled(X86CPU *cpu)
+             cpu->hyperv_relaxed_timing);
+ }
+ 
++static Error *invtsc_mig_blocker;
++
+ #define KVM_MAX_CPUID_ENTRIES  100
+ 
+ int kvm_arch_init_vcpu(CPUState *cs)
+@@ -698,6 +702,17 @@ int kvm_arch_init_vcpu(CPUState *cs)
+ 
+     qemu_add_vm_change_state_handler(cpu_update_state, env);
+ 
++    c = cpuid_find_entry(&cpuid_data.cpuid, 0x80000007, 0);
++    if (c && (c->edx & 1<<8) && invtsc_mig_blocker == NULL) {
++        /* for migration */
++        error_setg(&invtsc_mig_blocker,
++                   "State blocked by non-migratable CPU device"
++                   " (invtsc flag)");
++        migrate_add_blocker(invtsc_mig_blocker);
++        /* for savevm */
++        vmstate_x86_cpu.unmigratable = 1;
++    }
++
+     cpuid_data.cpuid.padding = 0;
+     r = kvm_vcpu_ioctl(cs, KVM_SET_CPUID2, &cpuid_data);
+     if (r) {
+diff --git a/target-i386/machine.c b/target-i386/machine.c
+index 507ab1a..cd2cf6f 100644
+--- a/target-i386/machine.c
++++ b/target-i386/machine.c
+@@ -778,7 +778,7 @@ static const VMStateDescription vmstate_msr_virt_ssbd = {
+     }
+ };
+ 
+-const VMStateDescription vmstate_x86_cpu = {
++VMStateDescription vmstate_x86_cpu = {
+     .name = "cpu",
+     .version_id = 12,
+     .minimum_version_id = 3,
+-- 
+1.8.3.1
+

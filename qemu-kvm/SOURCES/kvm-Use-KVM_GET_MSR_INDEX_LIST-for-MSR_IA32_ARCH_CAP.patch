@@ -1,28 +1,22 @@
-From dd8556fe139be9237694229e55ac3762ec71eca5 Mon Sep 17 00:00:00 2001
-From: Eduardo Habkost <ehabkost@redhat.com>
-Date: Wed, 9 Oct 2019 17:51:46 +0200
-Subject: [PATCH 08/10] kvm: Use KVM_GET_MSR_INDEX_LIST for
+From aa89186992d427e17118608c9fa02b36be8fab8e Mon Sep 17 00:00:00 2001
+From: "plai@redhat.com" <plai@redhat.com>
+Date: Mon, 23 Sep 2019 20:40:25 +0200
+Subject: [PATCH 09/12] kvm: Use KVM_GET_MSR_INDEX_LIST for
  MSR_IA32_ARCH_CAPABILITIES support
 
-RH-Author: Eduardo Habkost <ehabkost@redhat.com>
-Message-id: <20191009175148.1361-9-ehabkost@redhat.com>
-Patchwork-id: 91363
-O-Subject: [RHEL-7.7.z qemu-kvm PATCH 08/10] kvm: Use KVM_GET_MSR_INDEX_LIST for MSR_IA32_ARCH_CAPABILITIES support
-Bugzilla: 1730606
-RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Author: plai@redhat.com
+Message-id: <1569271227-28026-9-git-send-email-plai@redhat.com>
+Patchwork-id: 90861
+O-Subject: [RHEL7.8 qemu-kvm PATCH v6 08/10] kvm: Use KVM_GET_MSR_INDEX_LIST for MSR_IA32_ARCH_CAPABILITIES support
+Bugzilla: 1709971
+RH-Acked-by: Eduardo Habkost <ehabkost@redhat.com>
 RH-Acked-by: Bandan Das <bsd@redhat.com>
-RH-Acked-by: Igor Mammedov <imammedo@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
 
 From: Bandan Das <bsd@redhat.com>
 
 When writing to guest's MSR_IA32_ARCH_CAPABILITIES, check whether it's
 supported in the guest using the KVM_GET_MSR_INDEX_LIST ioctl.
-
-7.8 backport conflicts (plai):
-	target/i386/kvm.c changes to target-i386/kvm.c
-
-7.7.z backport notes (ehabkost):
-* Cherry pick from 7.8 tree with no conflicts
 
 Fixes: d86f963694df27f11b3681ffd225c9362de1b634
 Suggested-by: Eduardo Habkost <ehabkost@redhat.com>
@@ -32,7 +26,10 @@ Message-Id: <jpg4lc4iiav.fsf_-_@linux.bootlegged.copy>
 Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
 (cherry picked from commit aec5e9c3a94cf8b7920f59bef69a6f426092c4a0)
 Signed-off-by: Paul Lai <plai@redhat.com>
-Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
+
+Resolved Conflicts:
+	target/i386/kvm.c changes to target-i386/kvm.c
+
 Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
 ---
  target-i386/cpu.h |  1 +
@@ -40,10 +37,10 @@ Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
  2 files changed, 12 insertions(+), 8 deletions(-)
 
 diff --git a/target-i386/cpu.h b/target-i386/cpu.h
-index 1c62e63..d855ae3 100644
+index 5a86b2c..8f73af7 100644
 --- a/target-i386/cpu.h
 +++ b/target-i386/cpu.h
-@@ -1066,6 +1066,7 @@ typedef struct CPUX86State {
+@@ -1070,6 +1070,7 @@ typedef struct CPUX86State {
  
      uint64_t spec_ctrl;
      uint64_t virt_ssbd;
@@ -52,10 +49,10 @@ index 1c62e63..d855ae3 100644
      TPRAccess tpr_access_type;
  } CPUX86State;
 diff --git a/target-i386/kvm.c b/target-i386/kvm.c
-index 180ae56..bc3a514 100644
+index 722cfbc..12781a8 100644
 --- a/target-i386/kvm.c
 +++ b/target-i386/kvm.c
-@@ -80,6 +80,7 @@ static bool has_msr_mtrr;
+@@ -81,6 +81,7 @@ static bool has_msr_mtrr;
  static bool has_msr_xss;
  static bool has_msr_spec_ctrl;
  static bool has_msr_virt_ssbd;
@@ -63,7 +60,7 @@ index 180ae56..bc3a514 100644
  
  static bool has_msr_architectural_pmu;
  static uint32_t num_architectural_pmu_counters;
-@@ -888,6 +889,10 @@ static int kvm_get_supported_msrs(KVMState *s)
+@@ -902,6 +903,10 @@ static int kvm_get_supported_msrs(KVMState *s)
                      has_msr_virt_ssbd = true;
                      continue;
                  }
@@ -74,7 +71,7 @@ index 180ae56..bc3a514 100644
              }
          }
  
-@@ -1326,14 +1331,9 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
+@@ -1340,14 +1345,9 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
          }
      }
      /* If host supports feature MSR, write down. */
@@ -92,7 +89,7 @@ index 180ae56..bc3a514 100644
      }
      /*
       * The following MSRs have side effects on the guest or are too heavy
-@@ -1925,6 +1925,9 @@ static int kvm_get_msrs(X86CPU *cpu)
+@@ -1939,6 +1939,9 @@ static int kvm_get_msrs(X86CPU *cpu)
          case MSR_VIRT_SSBD:
              env->virt_ssbd = msrs[i].data;
              break;

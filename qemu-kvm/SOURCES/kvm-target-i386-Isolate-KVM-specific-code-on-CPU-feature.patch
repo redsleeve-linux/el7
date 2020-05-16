@@ -1,20 +1,22 @@
-From 2b13f79a51b0106170cd0b5d9996a3a553d8781e Mon Sep 17 00:00:00 2001
-From: Eduardo Habkost <ehabkost@redhat.com>
-Date: Wed, 9 Oct 2019 17:51:40 +0200
-Subject: [PATCH 02/10] target-i386: Isolate KVM-specific code on CPU feature
+From 592237e21bc3527ebc66b8f4c76652cf5cde9438 Mon Sep 17 00:00:00 2001
+From: "plai@redhat.com" <plai@redhat.com>
+Date: Mon, 23 Sep 2019 20:40:19 +0200
+Subject: [PATCH 03/12] target-i386: Isolate KVM-specific code on CPU feature
  filtering logic
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 
-RH-Author: Eduardo Habkost <ehabkost@redhat.com>
-Message-id: <20191009175148.1361-3-ehabkost@redhat.com>
-Patchwork-id: 91358
-O-Subject: [RHEL-7.7.z qemu-kvm PATCH 02/10] target-i386: Isolate KVM-specific code on CPU feature filtering logic
-Bugzilla: 1730606
-RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Author: plai@redhat.com
+Message-id: <1569271227-28026-3-git-send-email-plai@redhat.com>
+Patchwork-id: 90855
+O-Subject: [RHEL7.8 qemu-kvm PATCH v6 02/10] target-i386: Isolate KVM-specific code on CPU feature filtering logic
+Bugzilla: 1709971
+RH-Acked-by: Eduardo Habkost <ehabkost@redhat.com>
 RH-Acked-by: Bandan Das <bsd@redhat.com>
-RH-Acked-by: Igor Mammedov <imammedo@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+From: Eduardo Habkost <ehabkost@redhat.com>
 
 This will allow us to re-use the feature filtering logic (and the
 check/enforce flag logic) for TCG.
@@ -24,17 +26,16 @@ Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
 Signed-off-by: Andreas Färber <afaerber@suse.de>
 (cherry picked from commit 27418adf32b9cd164d464fffc4fc0505d6b2b15d)
 Signed-off-by: Paul Lai <plai@redhat.com>
-Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
 Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
 ---
  target-i386/cpu.c | 21 +++++++++++++--------
  1 file changed, 13 insertions(+), 8 deletions(-)
 
 diff --git a/target-i386/cpu.c b/target-i386/cpu.c
-index c9d7557..5cfed19 100644
+index 6fb805b..ff0921f 100644
 --- a/target-i386/cpu.c
 +++ b/target-i386/cpu.c
-@@ -2367,6 +2367,16 @@ CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
+@@ -2387,6 +2387,16 @@ CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
      return cpu_list;
  }
  
@@ -51,7 +52,7 @@ index c9d7557..5cfed19 100644
  /*
   * Filters CPU feature words based on host availability of each feature.
   *
-@@ -2374,20 +2384,15 @@ CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
+@@ -2394,20 +2404,15 @@ CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
   *
   * Returns: 0 if all flags are supported by the host, non-zero otherwise.
   */
@@ -74,7 +75,7 @@ index c9d7557..5cfed19 100644
          uint32_t requested_features = env->features[w];
          env->features[w] &= host_feat;
          cpu->filtered_features[w] = requested_features & ~env->features[w];
-@@ -3070,7 +3075,7 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
+@@ -3102,7 +3107,7 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
              env->features[w] &= feature_word_info[w].tcg_features;
          }
      } else {

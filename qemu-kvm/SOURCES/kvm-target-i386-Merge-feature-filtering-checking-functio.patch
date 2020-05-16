@@ -1,19 +1,21 @@
-From 7e79bb0dc6af82413c9c5b153f18ce91146e0e53 Mon Sep 17 00:00:00 2001
-From: Eduardo Habkost <ehabkost@redhat.com>
-Date: Wed, 9 Oct 2019 17:51:39 +0200
-Subject: [PATCH 01/10] target-i386: Merge feature filtering/checking functions
+From 50e0729e98e9938b338367e29afd6b7abce9bb04 Mon Sep 17 00:00:00 2001
+From: "plai@redhat.com" <plai@redhat.com>
+Date: Mon, 23 Sep 2019 20:40:18 +0200
+Subject: [PATCH 02/12] target-i386: Merge feature filtering/checking functions
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 
-RH-Author: Eduardo Habkost <ehabkost@redhat.com>
-Message-id: <20191009175148.1361-2-ehabkost@redhat.com>
-Patchwork-id: 91357
-O-Subject: [RHEL-7.7.z qemu-kvm PATCH 01/10] target-i386: Merge feature filtering/checking functions
-Bugzilla: 1730606
-RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Author: plai@redhat.com
+Message-id: <1569271227-28026-2-git-send-email-plai@redhat.com>
+Patchwork-id: 90853
+O-Subject: [RHEL7.8 qemu-kvm PATCH v6 01/10] target-i386: Merge feature filtering/checking functions
+Bugzilla: 1709971
+RH-Acked-by: Eduardo Habkost <ehabkost@redhat.com>
 RH-Acked-by: Bandan Das <bsd@redhat.com>
-RH-Acked-by: Igor Mammedov <imammedo@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+From: Eduardo Habkost <ehabkost@redhat.com>
 
 Merge filter_features_for_kvm() and kvm_check_features_against_host().
 
@@ -21,29 +23,25 @@ Both functions made exactly the same calculations, the only difference
 was that filter_features_for_kvm() changed the bits on cpu->features[],
 and kvm_check_features_against_host() did error reporting.
 
-7.8 backport notes (plai):
-* unavailable_host_feature() removed due to lack of references.
-* report_unavailable_features() from 51f63aed3 to make things compile.
-
-7.7.z backport notes (ehabkost):
-* cherry-pick from 7.8 with no conflicts
-
 Reviewed-by: Richard Henderson <rth@twiddle.net>
 Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
 Signed-off-by: Andreas Färber <afaerber@suse.de>
 (cherry picked from commit 51f63aed32314479065207ff2fb28255de4dbda4)
 Signed-off-by: Paul Lai <plai@redhat.com>
-Signed-off-by: Eduardo Habkost <ehabkost@redhat.com>
+
+  unavailable_host_feature() removed due to lack of references.
+  report_unavailable_features() from 51f63aed3 to make things compile.
+
 Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
 ---
  target-i386/cpu.c | 91 ++++++++++++++-----------------------------------------
  1 file changed, 22 insertions(+), 69 deletions(-)
 
 diff --git a/target-i386/cpu.c b/target-i386/cpu.c
-index c2fcd1e..c9d7557 100644
+index ca43268..6fb805b 100644
 --- a/target-i386/cpu.c
 +++ b/target-i386/cpu.c
-@@ -1754,11 +1754,11 @@ static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
+@@ -1774,11 +1774,11 @@ static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
  #endif /* CONFIG_KVM */
  }
  
@@ -57,7 +55,7 @@ index c2fcd1e..c9d7557 100644
          if (1 << i & mask) {
              const char *reg = get_register_name_32(f->cpuid_reg);
              assert(reg);
-@@ -1767,40 +1767,8 @@ static int unavailable_host_feature(FeatureWordInfo *f, uint32_t mask)
+@@ -1787,40 +1787,8 @@ static int unavailable_host_feature(FeatureWordInfo *f, uint32_t mask)
                  f->cpuid_eax, reg,
                  f->feat_names[i] ? "." : "",
                  f->feat_names[i] ? f->feat_names[i] : "", i);
@@ -98,7 +96,7 @@ index c2fcd1e..c9d7557 100644
  }
  
  static void x86_cpuid_version_get_family(Object *obj, Visitor *v, void *opaque,
-@@ -2399,12 +2367,21 @@ CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
+@@ -2419,12 +2387,21 @@ CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
      return cpu_list;
  }
  
@@ -122,7 +120,7 @@ index c2fcd1e..c9d7557 100644
  
      for (w = 0; w < FEATURE_WORDS; w++) {
          FeatureWordInfo *wi = &feature_word_info[w];
-@@ -2414,9 +2391,16 @@ static void filter_features_for_kvm(X86CPU *cpu)
+@@ -2434,9 +2411,16 @@ static void filter_features_for_kvm(X86CPU *cpu)
          uint32_t requested_features = env->features[w];
          env->features[w] &= host_feat;
          cpu->filtered_features[w] = requested_features & ~env->features[w];
@@ -140,7 +138,7 @@ index c2fcd1e..c9d7557 100644
  
  static void cpu_x86_register(X86CPU *cpu, const char *name, Error **errp)
  {
-@@ -3086,42 +3070,11 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
+@@ -3118,42 +3102,11 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
              env->features[w] &= feature_word_info[w].tcg_features;
          }
      } else {

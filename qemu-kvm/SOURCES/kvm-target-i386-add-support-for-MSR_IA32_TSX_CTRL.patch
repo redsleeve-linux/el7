@@ -1,13 +1,13 @@
-From bd481c114114e2a694ed1e8cb24e3c5d7cc451a3 Mon Sep 17 00:00:00 2001
+From 73fac9c9beb00cc462eaae8589b4b2261142a8b2 Mon Sep 17 00:00:00 2001
 From: Eduardo Habkost <ehabkost@redhat.com>
-Date: Tue, 3 Dec 2019 23:22:02 +0100
+Date: Wed, 4 Dec 2019 01:48:29 +0100
 Subject: [PATCH 2/2] target/i386: add support for MSR_IA32_TSX_CTRL
 
 RH-Author: Eduardo Habkost <ehabkost@redhat.com>
-Message-id: <20191203232202.555105-3-ehabkost@redhat.com>
-Patchwork-id: 92845
-O-Subject: [RHEL-7.7.z qemu-kvm PATCH 2/2] target/i386: add support for MSR_IA32_TSX_CTRL
-Bugzilla: 1771960
+Message-id: <20191204014829.608318-3-ehabkost@redhat.com>
+Patchwork-id: 92854
+O-Subject: [RHEL-7.8 qemu-kvm PATCH 2/2] target/i386: add support for MSR_IA32_TSX_CTRL
+Bugzilla: 1771961
 RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
 RH-Acked-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
 RH-Acked-by: Igor Mammedov <imammedo@redhat.com>
@@ -37,20 +37,20 @@ Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
  4 files changed, 41 insertions(+), 1 deletion(-)
 
 diff --git a/target-i386/cpu.c b/target-i386/cpu.c
-index 2de8822..48d3aec 100644
+index 120df73..57f5364 100644
 --- a/target-i386/cpu.c
 +++ b/target-i386/cpu.c
-@@ -200,7 +200,7 @@ static const char *cpuid_xsave_feature_name[] = {
+@@ -211,7 +211,7 @@ static const char *cpuid_apm_edx_feature_name[] = {
  
  static const char *cpuid_arch_capabilities_feature_name[] = {
      "rdctl-no", "ibrs-all", "rsba", "skip-l1dfl-vmentry",
--    "ssb-no", NULL, NULL, NULL,
-+    "ssb-no", NULL, NULL, "tsx-ctrl",
+-    "ssb-no", "mds-no", NULL, NULL,
++    "ssb-no", "mds-no", NULL, "tsx-ctrl",
      "taa-no", NULL, NULL, NULL,
      NULL, NULL, NULL, NULL,
      NULL, NULL, NULL, NULL,
 diff --git a/target-i386/cpu.h b/target-i386/cpu.h
-index d855ae3..705cd66 100644
+index 8f73af7..c9bcdd5 100644
 --- a/target-i386/cpu.h
 +++ b/target-i386/cpu.h
 @@ -307,7 +307,11 @@
@@ -65,7 +65,7 @@ index d855ae3..705cd66 100644
  #define MSR_IA32_TSCDEADLINE            0x6e0
  
  #define MSR_P6_PERFCTR0                 0xc1
-@@ -1063,6 +1067,7 @@ typedef struct CPUX86State {
+@@ -1067,6 +1071,7 @@ typedef struct CPUX86State {
      uint64_t xss;
  
      uint32_t pkru;
@@ -74,10 +74,10 @@ index d855ae3..705cd66 100644
      uint64_t spec_ctrl;
      uint64_t virt_ssbd;
 diff --git a/target-i386/kvm.c b/target-i386/kvm.c
-index 0374b7a..689b37c 100644
+index c79b0ea..7df2b28 100644
 --- a/target-i386/kvm.c
 +++ b/target-i386/kvm.c
-@@ -79,6 +79,7 @@ static bool has_msr_hv_tsc;
+@@ -80,6 +80,7 @@ static bool has_msr_hv_tsc;
  static bool has_msr_mtrr;
  static bool has_msr_xss;
  static bool has_msr_spec_ctrl;
@@ -85,7 +85,7 @@ index 0374b7a..689b37c 100644
  static bool has_msr_virt_ssbd;
  static bool has_msr_arch_capabs;
  
-@@ -894,6 +895,10 @@ static int kvm_get_supported_msrs(KVMState *s)
+@@ -908,6 +909,10 @@ static int kvm_get_supported_msrs(KVMState *s)
                      has_msr_spec_ctrl = true;
                      continue;
                  }
@@ -96,7 +96,7 @@ index 0374b7a..689b37c 100644
                  if (kvm_msr_list->indices[i] == MSR_VIRT_SSBD) {
                      has_msr_virt_ssbd = true;
                      continue;
-@@ -1316,6 +1321,9 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
+@@ -1330,6 +1335,9 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
      if (has_msr_spec_ctrl) {
          kvm_msr_entry_set(&msrs[n++], MSR_IA32_SPEC_CTRL, env->spec_ctrl);
      }
@@ -106,7 +106,7 @@ index 0374b7a..689b37c 100644
      if (has_msr_virt_ssbd) {
          kvm_msr_entry_set(&msrs[n++], MSR_VIRT_SSBD, env->virt_ssbd);
      }
-@@ -1685,6 +1693,9 @@ static int kvm_get_msrs(X86CPU *cpu)
+@@ -1699,6 +1707,9 @@ static int kvm_get_msrs(X86CPU *cpu)
      if (has_msr_spec_ctrl) {
          msrs[n++].index = MSR_IA32_SPEC_CTRL;
      }
@@ -116,7 +116,7 @@ index 0374b7a..689b37c 100644
      if (has_msr_virt_ssbd) {
          msrs[n++].index = MSR_VIRT_SSBD;
      }
-@@ -1931,6 +1942,9 @@ static int kvm_get_msrs(X86CPU *cpu)
+@@ -1945,6 +1956,9 @@ static int kvm_get_msrs(X86CPU *cpu)
          case MSR_IA32_SPEC_CTRL:
              env->spec_ctrl = msrs[i].data;
              break;
@@ -127,7 +127,7 @@ index 0374b7a..689b37c 100644
              env->virt_ssbd = msrs[i].data;
              break;
 diff --git a/target-i386/machine.c b/target-i386/machine.c
-index 507ab1a..266797a 100644
+index cd2cf6f..892c8f4 100644
 --- a/target-i386/machine.c
 +++ b/target-i386/machine.c
 @@ -778,6 +778,24 @@ static const VMStateDescription vmstate_msr_virt_ssbd = {
@@ -152,10 +152,10 @@ index 507ab1a..266797a 100644
 +    }
 +};
 +
- const VMStateDescription vmstate_x86_cpu = {
+ VMStateDescription vmstate_x86_cpu = {
      .name = "cpu",
      .version_id = 12,
-@@ -938,6 +956,9 @@ const VMStateDescription vmstate_x86_cpu = {
+@@ -938,6 +956,9 @@ VMStateDescription vmstate_x86_cpu = {
          }, {
              .vmsd = &vmstate_msr_virt_ssbd,
              .needed = virt_ssbd_needed,
