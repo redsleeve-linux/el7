@@ -1,6 +1,6 @@
 diff -uNrp sos-3.8.orig/sos/policies/redhat.py sos-3.8/sos/policies/redhat.py
---- sos-3.8.orig/sos/policies/redhat.py	2019-08-27 08:17:45.000000000 +0000
-+++ sos-3.8/sos/policies/redhat.py	2020-04-02 10:59:05.707237510 +0000
+--- sos-3.8.orig/sos/policies/redhat.py	2020-05-12 15:45:00.128929276 +0000
++++ sos-3.8/sos/policies/redhat.py	2020-05-12 15:59:16.328778927 +0000
 @@ -23,9 +23,9 @@ OS_RELEASE = "/etc/os-release"
  
  
@@ -10,7 +10,7 @@ diff -uNrp sos-3.8.orig/sos/policies/redhat.py sos-3.8/sos/policies/redhat.py
 -    vendor_url = "http://www.redhat.com/"
 +    distro = "CentOS"
 +    vendor = "CentOS"
-+    vendor_url = "http://www,centos.org/"
++    vendor_url = "http://www.centos.org/"
      _redhat_release = '/etc/redhat-release'
      _tmp_dir = "/var/tmp"
      _rpmq_cmd = 'rpm -qa --queryformat "%{NAME}|%{VERSION}|%{RELEASE}\\n"'
@@ -26,7 +26,7 @@ diff -uNrp sos-3.8.orig/sos/policies/redhat.py sos-3.8/sos/policies/redhat.py
          return False
  
      def check_usrmove(self, pkgs):
-@@ -180,22 +180,22 @@ _cb_plugs = ['abrt', 'block', 'boot', 'd
+@@ -178,26 +178,26 @@ _cb_plugs = ['abrt', 'block', 'boot', 'd
               'hardware', 'host', 'kernel', 'logs', 'lvm2', 'memory', 'rpm',
               'process', 'systemd', 'yum', 'xfs']
  
@@ -43,6 +43,10 @@ diff -uNrp sos-3.8.orig/sos/policies/redhat.py sos-3.8/sos/policies/redhat.py
  RHOSP = "rhosp"
 -RHOSP_DESC = "Red Hat OpenStack Platform"
 +RHOSP_DESC = "OpenStack"
+ RHOSP_OPTS = SoSOptions(plugopts=[
+                              'process.lsof=off',
+                              'networking.ethtool_namespaces=False',
+                              'networking.namespaces=200'])
  
  RHOCP = "ocp"
 -RHOCP_DESC = "OpenShift Container Platform by Red Hat"
@@ -54,7 +58,7 @@ diff -uNrp sos-3.8.orig/sos/policies/redhat.py sos-3.8/sos/policies/redhat.py
  SAT_OPTS = SoSOptions(verify=True, plugopts=['apache.log=on'])
  
  CB = "cantboot"
-@@ -235,9 +235,9 @@ No changes will be made to system config
+@@ -236,9 +236,9 @@ No changes will be made to system config
  
  
  class RHELPolicy(RedHatPolicy):
@@ -67,7 +71,7 @@ diff -uNrp sos-3.8.orig/sos/policies/redhat.py sos-3.8/sos/policies/redhat.py
      msg = _("""\
  This command will collect diagnostic and configuration \
  information from this %(distro)s system and installed \
-@@ -256,7 +256,7 @@ support representative.
+@@ -257,7 +257,7 @@ support representative.
      def check(cls):
          """Test to see if the running host is a RHEL installation.
  
@@ -76,7 +80,7 @@ diff -uNrp sos-3.8.orig/sos/policies/redhat.py sos-3.8/sos/policies/redhat.py
              release string at the beginning of the NAME field in the
              `/etc/os-release` file and returns ``True`` if it is
              found, and ``False`` otherwise.
-@@ -313,7 +313,7 @@ class CentOsPolicy(RHELPolicy):
+@@ -314,7 +314,7 @@ class CentOsPolicy(RHELPolicy):
  
  ATOMIC = "atomic"
  ATOMIC_RELEASE_STR = "Atomic"
@@ -85,7 +89,7 @@ diff -uNrp sos-3.8.orig/sos/policies/redhat.py sos-3.8/sos/policies/redhat.py
  
  atomic_presets = {
      ATOMIC: PresetDefaults(name=ATOMIC, desc=ATOMIC_DESC, note=NOTE_TIME,
-@@ -322,7 +322,7 @@ atomic_presets = {
+@@ -323,7 +323,7 @@ atomic_presets = {
  
  
  class RedHatAtomicPolicy(RHELPolicy):

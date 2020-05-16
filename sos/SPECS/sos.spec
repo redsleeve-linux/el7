@@ -2,7 +2,7 @@
 Summary: A set of tools to gather troubleshooting information from a system
 Name: sos
 Version: 3.8
-Release: 6%{?dist}.redsleeve
+Release: 8%{?dist}
 Group: Applications/System
 Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
 License: GPLv2+
@@ -18,6 +18,7 @@ Requires: xz
 Requires: python2-futures
 Obsoletes: sos-plugins-openstack
 Conflicts: vdsm <= 4.30.17
+Obsoletes: leapp-repository-sos-plugin
 Patch0: skip-generating-doc.patch
 Patch1: sos-bz1744555-ovn-plugins-containerized.patch
 Patch2: sos-bz1757662-kernel-trace-disabled.patch
@@ -25,7 +26,8 @@ Patch3: sos-bz1699381-gluster-skip-statedump-dirs.patch
 Patch4: sos-bz1767445-interim-sysroot-forbidden-paths.patch
 Patch5: sos-bz1630028-manpages-allow-system-changes.patch
 Patch6: sos-bz1781148-foreman-psql-dynflow-explicit-cast.patch
-Patch7: sos-3.8-redsleeve-branding.patch
+Patch7: sos-bz1683904-option_to_limit_namespaces.patch
+Patch8: sos-3.8-centos-branding.patch
 
 %description
 Sos is a set of tools that gathers information about system
@@ -43,6 +45,7 @@ support technicians and developers.
 %patch5 -p1
 %patch6 -p1
 %patch7 -p1
+%patch8 -p1
 
 %build
 make
@@ -66,11 +69,16 @@ rm -rf ${RPM_BUILD_ROOT}
 %config(noreplace) %{_sysconfdir}/sos.conf
 
 %changelog
-* Sun Apr 05 2020 Jacco Ligthart <jacco@redsleeve.org> - 3.8-6.el7.redsleeve
-- Roll in RedSleeve Branding
-
-* Tue Mar 31 2020 CentOS Sources <bugs@centos.org> - 3.8-6.el7.centos
+* Tue May 12 2020 CentOS Sources <bugs@centos.org> - 3.8-8.el7.centos
 - Roll in CentOS Branding
+
+* Mon Feb 24 2020 Jan Jansky <jjansky@redhat.com> = 3.8-8
+- Added Obsolete for leapp-repository-sos-plugin to solve
+  conflicts during install/upgrade/downgrade of RPM.
+
+* Wed Feb 19 2020 Jan Jansky <jjansky@redhat.com> = 3.8-7
+- [networking] options to limit namespaces
+  Resolves: bz1683904
 
 * Wed Dec 11 2019 Pavel Moravec <pmoravec@redhat.com> = 3.8-6
 - [foreman] cast dynflow_execution_plans.uuid as varchar
