@@ -7,7 +7,7 @@
 %define with_vdpau 1
 %define with_wayland 1
 
-%ifnarch ppc %{arm}
+%ifnarch ppc
 %define with_radeonsi 1
 %endif
 
@@ -61,7 +61,7 @@
 Summary: Mesa graphics libraries
 Name: mesa
 Version: 18.3.4
-Release: 7%{?dist}.redsleeve
+Release: 7%{?dist}.1
 License: MIT
 Group: System Environment/Libraries
 URL: http://www.mesa3d.org
@@ -86,6 +86,9 @@ Patch3: fix-timeout-warnings.patch
 Patch4: 0001-glx-fix-shared-memory-leak-in-X11.patch
 # fix remove shm
 Patch5: fix-llvmpipe-remote-shm.patch
+Patch6: dri-shm-fix-put-image.patch
+Patch7: 0001-dri-add-another-get-shm-variant.patch
+Patch8: 0002-glx-add-getImageShm2-path.patch
 
 Patch12: mesa-8.0.1-fix-16bpp.patch
 Patch15: mesa-9.2-hardware-float.patch
@@ -120,8 +123,7 @@ BuildRequires: python-mako
 BuildRequires: gettext
 %if 0%{?with_llvm}
 %if 0%{?with_private_llvm}
-#BuildRequires: llvm-private-devel >= 6.0
-BuildRequires: mesa-private-llvm-devel
+BuildRequires: llvm-private-devel >= 6.0
 %else
 BuildRequires: llvm-devel >= 3.0
 %endif
@@ -346,6 +348,9 @@ grep -q ^/ src/gallium/auxiliary/vl/vl_decoder.c && exit 1
 %patch3 -p1 -b .timeout
 %patch4 -p1 -b .shmleak
 %patch5 -p1 -b .shmremote
+%patch6 -p1 -b .shmputfix
+%patch7 -p1 -b .shmget1
+%patch8 -p1 -b .shmget2
 
 #patch12 -p1 -b .16bpp
 
@@ -355,8 +360,8 @@ grep -q ^/ src/gallium/auxiliary/vl/vl_decoder.c && exit 1
 %patch31 -p1 -b .codemodel
 
 %if 0%{with_private_llvm}
-sed -i 's/\[llvm-config\]/\[mesa-private-llvm-config-%{__isa_bits}\]/g' configure.ac
-sed -i 's/`$LLVM_CONFIG --version`/$LLVM_VERSION_MAJOR.$LLVM_VERSION_MINOR-mesa/' configure.ac
+sed -i 's/\[llvm-config\]/\[llvm-private-config-%{__isa_bits}\]/g' configure.ac
+sed -i 's/`$LLVM_CONFIG --version`/$LLVM_VERSION_MAJOR.$LLVM_VERSION_MINOR-rhel/' configure.ac
 %endif
 
 # need to use libdrm_nouveau2 on F17
@@ -408,7 +413,7 @@ export CXXFLAGS="$RPM_OPT_FLAGS -fno-rtti -fno-exceptions"
     --enable-dri \
 %if %{with_hardware}
     %{?with_vmware:--enable-xa} \
-    --with-gallium-drivers=%{?with_vmware:svga,}%{?with_radeonsi:radeonsi,}%{?with_llvm:swrast,r300,}%{?with_freedreno:freedreno,}nouveau,virgl \
+    --with-gallium-drivers=%{?with_vmware:svga,}%{?with_radeonsi:radeonsi,}%{?with_llvm:swrast,r600,r300,}%{?with_freedreno:freedreno,}nouveau,virgl \
 %else
     --with-gallium-drivers=%{?with_llvm:swrast} \
 %endif
@@ -529,7 +534,7 @@ rm -rf $RPM_BUILD_ROOT
 %endif
 %if 0%{?with_llvm}
 %{_libdir}/dri/r300_dri.so
-#%{_libdir}/dri/r600_dri.so
+%{_libdir}/dri/r600_dri.so
 %if 0%{?with_radeonsi}
 %{_libdir}/dri/radeonsi_dri.so
 %endif
@@ -563,8 +568,8 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,root,root,-)
 %{_libdir}/vdpau/libvdpau_nouveau.so.1*
 %if 0%{?with_llvm}
-#%{_libdir}/vdpau/libvdpau_r600.so.1*
-#%{_libdir}/vdpau/libvdpau_radeonsi.so.1*
+%{_libdir}/vdpau/libvdpau_r600.so.1*
+%{_libdir}/vdpau/libvdpau_radeonsi.so.1*
 %endif
 %endif
 %endif
@@ -669,8 +674,8 @@ rm -rf $RPM_BUILD_ROOT
 %endif
 
 %changelog
-* Sun Apr 05 2020 Jacco Ligthart <jacco@redsleeve.org> - 18.3.4-7.redsleeve
-- small changes to the spec to make it build on armv5
+* Fri Mar 13 2020 Dave Airlie <airlied@redhat.com> - 18.3.4-7.1
+- Backport put/get shm fixes to EL7 (#1749699)
 
 * Thu Jan 23 2020 Tomas Pelka <tpelka@redhat.com> - 18.3.4-7
 - bump version and rebuild to avoind conflict with 7.7.z build (#1543572)
