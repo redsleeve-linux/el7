@@ -19,7 +19,7 @@
 %global use_tcmalloc 0
 %global variant base-asan
 %else
-%if %{_arch} != "s390x" && %{_arch} != "s390"
+%ifnarch s390 s390x %{arm}
 %global use_tcmalloc 1
 %else
 %global use_tcmalloc 0
@@ -39,7 +39,7 @@
 Summary:          389 Directory Server (%{variant})
 Name:             389-ds-base
 Version:          1.3.10.1
-Release:          %{?relprefix}9%{?prerel}%{?dist}
+Release:          %{?relprefix}9%{?prerel}%{?dist}.redsleeve
 License:          GPLv3+
 URL:              https://www.port389.org/
 Group:            System Environment/Daemons
@@ -521,6 +521,9 @@ fi
 %{_sysconfdir}/%{pkgname}/dirsrvtests
 
 %changelog
+* Sat May 16 2020 Jacco Ligthart <jacco@redsleeve.org> - 1.3.10.1-9.redsleeve
+- disabled tcmalloc for arm
+
 * Mon Apr 6 2020 Mark Reynolds <mreynolds@redhat.com> - 1.3.10.1-9
 - Bump version to 1.3.10.1-9
 - Resolves: Bug 1817933 - cenotaph errors on modrdn operations
