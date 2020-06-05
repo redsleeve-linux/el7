@@ -1,6 +1,6 @@
-From 16855cca9df9462ed069809e3a9858f3d0ba79ea Mon Sep 17 00:00:00 2001
+From 4b6dca3aeceaa4a44069e9d65cc31467c59dad2d Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sun, 5 Apr 2020 13:39:32 +0200
+Date: Sat, 16 May 2020 21:19:34 +0200
 Subject: [PATCH] SPEC adjusted to build on armv5
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] SPEC adjusted to build on armv5
  1 file changed, 13 insertions(+), 9 deletions(-)
 
 diff --git a/SPECS/mesa.spec b/SPECS/mesa.spec
-index 9e29839..c36846c 100644
+index ddfa7af..3d86ccd 100644
 --- a/SPECS/mesa.spec
 +++ b/SPECS/mesa.spec
 @@ -7,7 +7,7 @@
@@ -24,12 +24,12 @@ index 9e29839..c36846c 100644
  Summary: Mesa graphics libraries
  Name: mesa
  Version: 18.3.4
--Release: 7%{?dist}
-+Release: 7%{?dist}.redsleeve
+-Release: 7%{?dist}.1
++Release: 7%{?dist}.1.redsleeve
  License: MIT
  Group: System Environment/Libraries
  URL: http://www.mesa3d.org
-@@ -120,7 +120,8 @@ BuildRequires: python-mako
+@@ -123,7 +123,8 @@ BuildRequires: python-mako
  BuildRequires: gettext
  %if 0%{?with_llvm}
  %if 0%{?with_private_llvm}
@@ -39,7 +39,7 @@ index 9e29839..c36846c 100644
  %else
  BuildRequires: llvm-devel >= 3.0
  %endif
-@@ -354,8 +355,8 @@ grep -q ^/ src/gallium/auxiliary/vl/vl_decoder.c && exit 1
+@@ -360,8 +361,8 @@ grep -q ^/ src/gallium/auxiliary/vl/vl_decoder.c && exit 1
  %patch31 -p1 -b .codemodel
  
  %if 0%{with_private_llvm}
@@ -50,7 +50,7 @@ index 9e29839..c36846c 100644
  %endif
  
  # need to use libdrm_nouveau2 on F17
-@@ -407,7 +408,7 @@ export CXXFLAGS="$RPM_OPT_FLAGS -fno-rtti -fno-exceptions"
+@@ -413,7 +414,7 @@ export CXXFLAGS="$RPM_OPT_FLAGS -fno-rtti -fno-exceptions"
      --enable-dri \
  %if %{with_hardware}
      %{?with_vmware:--enable-xa} \
@@ -59,7 +59,7 @@ index 9e29839..c36846c 100644
  %else
      --with-gallium-drivers=%{?with_llvm:swrast} \
  %endif
-@@ -528,7 +529,7 @@ rm -rf $RPM_BUILD_ROOT
+@@ -534,7 +535,7 @@ rm -rf $RPM_BUILD_ROOT
  %endif
  %if 0%{?with_llvm}
  %{_libdir}/dri/r300_dri.so
@@ -68,7 +68,7 @@ index 9e29839..c36846c 100644
  %if 0%{?with_radeonsi}
  %{_libdir}/dri/radeonsi_dri.so
  %endif
-@@ -562,8 +563,8 @@ rm -rf $RPM_BUILD_ROOT
+@@ -568,8 +569,8 @@ rm -rf $RPM_BUILD_ROOT
  %defattr(-,root,root,-)
  %{_libdir}/vdpau/libvdpau_nouveau.so.1*
  %if 0%{?with_llvm}
@@ -79,15 +79,15 @@ index 9e29839..c36846c 100644
  %endif
  %endif
  %endif
-@@ -668,6 +669,9 @@ rm -rf $RPM_BUILD_ROOT
+@@ -674,6 +675,9 @@ rm -rf $RPM_BUILD_ROOT
  %endif
  
  %changelog
-+* Sun Apr 05 2020 Jacco Ligthart <jacco@redsleeve.org> - 18.3.4-7.redsleeve
++* Sat May 16 2020 Jacco Ligthart <jacco@redsleeve.org> - 18.3.4-7.1.redsleeve
 +- small changes to the spec to make it build on armv5
 +
- * Thu Jan 23 2020 Tomas Pelka <tpelka@redhat.com> - 18.3.4-7
- - bump version and rebuild to avoind conflict with 7.7.z build (#1543572)
+ * Fri Mar 13 2020 Dave Airlie <airlied@redhat.com> - 18.3.4-7.1
+ - Backport put/get shm fixes to EL7 (#1749699)
  
 -- 
 1.8.3.1
