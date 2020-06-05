@@ -1,20 +1,20 @@
-From bf58a703550418bec226e442a1b9cc75aae20d0b Mon Sep 17 00:00:00 2001
+From f03c8f54f37397c230f4860fce17a5d4bf3bc627 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sun, 5 Apr 2020 13:58:28 +0200
+Date: Sat, 16 May 2020 21:30:02 +0200
 Subject: [PATCH] Roll in RedSleeve Branding
 
 ---
- SOURCES/sos-3.8-redsleeve-branding.patch | 96 ++++++++++++++++++++++++++++++++
- SPECS/sos.spec                           |  7 ++-
- 2 files changed, 101 insertions(+), 2 deletions(-)
+ SOURCES/sos-3.8-redsleeve-branding.patch | 100 +++++++++++++++++++++++++++++++
+ SPECS/sos.spec                           |   7 ++-
+ 2 files changed, 105 insertions(+), 2 deletions(-)
  create mode 100644 SOURCES/sos-3.8-redsleeve-branding.patch
 
 diff --git a/SOURCES/sos-3.8-redsleeve-branding.patch b/SOURCES/sos-3.8-redsleeve-branding.patch
 new file mode 100644
-index 0000000..851aeb9
+index 0000000..b071c88
 --- /dev/null
 +++ b/SOURCES/sos-3.8-redsleeve-branding.patch
-@@ -0,0 +1,96 @@
+@@ -0,0 +1,100 @@
 +diff -uNrp sos-3.8.orig/sos/policies/redhat.py sos-3.8/sos/policies/redhat.py
 +--- sos-3.8.orig/sos/policies/redhat.py	2019-08-27 08:17:45.000000000 +0000
 ++++ sos-3.8/sos/policies/redhat.py	2020-04-02 10:59:05.707237510 +0000
@@ -43,7 +43,7 @@ index 0000000..851aeb9
 +         return False
 + 
 +     def check_usrmove(self, pkgs):
-+@@ -180,22 +180,22 @@ _cb_plugs = ['abrt', 'block', 'boot', 'd
++@@ -180,26 +180,26 @@ _cb_plugs = ['abrt', 'block', 'boot', 'd
 +              'hardware', 'host', 'kernel', 'logs', 'lvm2', 'memory', 'rpm',
 +              'process', 'systemd', 'yum', 'xfs']
 + 
@@ -60,6 +60,10 @@ index 0000000..851aeb9
 + RHOSP = "rhosp"
 +-RHOSP_DESC = "Red Hat OpenStack Platform"
 ++RHOSP_DESC = "OpenStack"
++ RHOSP_OPTS = SoSOptions(plugopts=[
++                              'process.lsof=off',
++                              'networking.ethtool_namespaces=False',
++                              'networking.namespaces=200'])
 + 
 + RHOCP = "ocp"
 +-RHOCP_DESC = "OpenShift Container Platform by Red Hat"
@@ -112,35 +116,35 @@ index 0000000..851aeb9
 + This command will collect diagnostic and configuration \
 + information from this %(distro)s system.
 diff --git a/SPECS/sos.spec b/SPECS/sos.spec
-index 5016024..7760d25 100644
+index eb0a8f0..7570877 100644
 --- a/SPECS/sos.spec
 +++ b/SPECS/sos.spec
 @@ -2,7 +2,7 @@
  Summary: A set of tools to gather troubleshooting information from a system
  Name: sos
  Version: 3.8
--Release: 6%{?dist}
-+Release: 6%{?dist}.redsleeve
+-Release: 8%{?dist}
++Release: 8%{?dist}.redsleeve
  Group: Applications/System
  Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
  License: GPLv2+
-@@ -25,7 +25,7 @@ Patch3: sos-bz1699381-gluster-skip-statedump-dirs.patch
- Patch4: sos-bz1767445-interim-sysroot-forbidden-paths.patch
+@@ -27,7 +27,7 @@ Patch4: sos-bz1767445-interim-sysroot-forbidden-paths.patch
  Patch5: sos-bz1630028-manpages-allow-system-changes.patch
  Patch6: sos-bz1781148-foreman-psql-dynflow-explicit-cast.patch
--Patch7: sos-3.8-centos-branding.patch
-+Patch7: sos-3.8-redsleeve-branding.patch
+ Patch7: sos-bz1683904-option_to_limit_namespaces.patch
+-Patch8: sos-3.8-centos-branding.patch
++Patch8: sos-3.8-redsleeve-branding.patch
  
  %description
  Sos is a set of tools that gathers information about system
-@@ -66,6 +66,9 @@ rm -rf ${RPM_BUILD_ROOT}
+@@ -69,6 +69,9 @@ rm -rf ${RPM_BUILD_ROOT}
  %config(noreplace) %{_sysconfdir}/sos.conf
  
  %changelog
-+* Sun Apr 05 2020 Jacco Ligthart <jacco@redsleeve.org> - 3.8-6.el7.redsleeve
++* Sat May 16 2020 Jacco Ligthart <jacco@redsleeve.org> - 3.8-8.el7.redsleeve
 +- Roll in RedSleeve Branding
 +
- * Tue Mar 31 2020 CentOS Sources <bugs@centos.org> - 3.8-6.el7.centos
+ * Tue May 12 2020 CentOS Sources <bugs@centos.org> - 3.8-8.el7.centos
  - Roll in CentOS Branding
  
 -- 
