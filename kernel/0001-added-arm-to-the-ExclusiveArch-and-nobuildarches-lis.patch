@@ -1,6 +1,6 @@
-From 8c71f5334f93040938afca1e86ae9ae53545b040 Mon Sep 17 00:00:00 2001
+From 3d87cb9c3fb58806b4cd2459f9cec51c2da03743 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sun, 5 Apr 2020 13:30:18 +0200
+Date: Sat, 16 May 2020 21:15:57 +0200
 Subject: [PATCH] added arm to the ExclusiveArch and nobuildarches lists
 
 ---
@@ -8,10 +8,10 @@ Subject: [PATCH] added arm to the ExclusiveArch and nobuildarches lists
  1 file changed, 11 insertions(+), 3 deletions(-)
 
 diff --git a/SPECS/kernel.spec b/SPECS/kernel.spec
-index baf6aee..0de7436 100644
+index 966500b..c929b57 100644
 --- a/SPECS/kernel.spec
 +++ b/SPECS/kernel.spec
-@@ -220,6 +220,11 @@ Summary: The Linux kernel
+@@ -223,6 +223,11 @@ Summary: The Linux kernel
  %define with_kdump 1
  %endif
  
@@ -23,7 +23,7 @@ index baf6aee..0de7436 100644
  #cross compile make
  %if %{with_cross}
  %define cross_opts CROSS_COMPILE=%{cross_target}-linux-gnu-
-@@ -239,7 +244,7 @@ Summary: The Linux kernel
+@@ -242,7 +247,7 @@ Summary: The Linux kernel
  # Which is a BadThing(tm).
  
  # We only build kernel-headers on the following...
@@ -32,7 +32,7 @@ index baf6aee..0de7436 100644
  
  %ifarch %nobuildarches
  %define with_default 0
-@@ -327,10 +332,10 @@ Group: System Environment/Kernel
+@@ -330,10 +335,10 @@ Group: System Environment/Kernel
  License: GPLv2
  URL: http://www.kernel.org/
  Version: %{rpmversion}
@@ -45,14 +45,14 @@ index baf6aee..0de7436 100644
  ExclusiveOS: Linux
  
  %kernel_reqprovconf
-@@ -1773,6 +1778,9 @@ fi
+@@ -1776,6 +1781,9 @@ fi
  %kernel_variant_files %{with_kdump} kdump
  
  %changelog
-+* Sun Apr 05 2020 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-1127.el7.redsleeve
++* Sat May 16 2020 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-1127.8.2.el7.redsleeve
 +- added arm to the ExclusiveArch and nobuildarches lists
 +
- * Tue Mar 31 2020 CentOS Sources <bugs@centos.org> - 3.10.0-1127.el7.centos
+ * Tue May 12 2020 CentOS Sources <bugs@centos.org> - 3.10.0-1127.8.2.el7
  - Apply debranding changes
  
 -- 
