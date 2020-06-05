@@ -1,6 +1,6 @@
-From 2d2a917020e992722f1a18a751404b49bb61d41d Mon Sep 17 00:00:00 2001
+From 2c80be005ed429a2f9d0206a385d59ec909ace31 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sun, 5 Apr 2020 16:57:05 +0200
+Date: Sat, 9 May 2020 19:16:09 +0200
 Subject: [PATCH] removed the gdb section of the SPEC file
 
 ---
@@ -8,10 +8,10 @@ Subject: [PATCH] removed the gdb section of the SPEC file
  1 file changed, 16 insertions(+), 13 deletions(-)
 
 diff --git a/SPECS/java-1.8.0-openjdk.spec b/SPECS/java-1.8.0-openjdk.spec
-index 01a082e..2a8515b 100644
+index ceec3b9..f6e2c0a 100644
 --- a/SPECS/java-1.8.0-openjdk.spec
 +++ b/SPECS/java-1.8.0-openjdk.spec
-@@ -835,7 +835,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
+@@ -836,7 +836,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
  
  Name:    java-%{javaver}-%{origin}
  Version: %{javaver}.%{updatever}.%{buildver}
@@ -20,7 +20,7 @@ index 01a082e..2a8515b 100644
  # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
  # and this change was brought into RHEL-4. java-1.5.0-ibm packages
  # also included the epoch in their virtual provides. This created a
-@@ -1619,18 +1619,18 @@ done
+@@ -1620,18 +1620,18 @@ done
  # Using line number 1 might cause build problems. See:
  # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
  # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
@@ -51,16 +51,16 @@ index 01a082e..2a8515b 100644
  
  # Check src.zip has all sources. See RHBZ#1130490
  jar -tf $JAVA_HOME/src.zip | grep 'sun.misc.Unsafe'
-@@ -2054,6 +2054,9 @@ require "copy_jdk_configs.lua"
+@@ -2060,6 +2060,9 @@ require "copy_jdk_configs.lua"
  %endif
  
  %changelog
-+* Sun Apr 05 2020 Jacco Ligthart <jacco@redsleeve.org> 1:1.8.0.242.b08-1.redsleeve
++* Sat May 09 2020 Jacco Ligthart <jacco@redsleeve.org> 1:1.8.0.252.b09-2.redsleeve
 +- removed the gdb section of the SPEC file
 +
- * Wed Jan 15 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.242.b08-1
- - Update to aarch64-shenandoah-jdk8u242-b08.
- - Remove local copies of JDK-8031111 & JDK-8132111 as replaced by upstream versions.
+ * Tue Apr 14 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b09-2
+ - Add release notes.
+ - Mark license files with appropriate macro.
 -- 
 1.8.3.1
 
