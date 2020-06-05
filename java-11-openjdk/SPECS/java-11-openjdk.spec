@@ -58,7 +58,7 @@
 %global ppc64le         ppc64le
 %global ppc64be         ppc64 ppc64p7
 %global multilib_arches %{power64} sparc64 x86_64
-%global jit_arches      %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64} %{arm} s390x
+%global jit_arches      %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64} s390x
 %global aot_arches      x86_64 %{aarch64}
 
 # By default, we build a debug build during main build on JIT architectures
@@ -874,7 +874,7 @@ Provides: java-%{javaver}-%{origin}-src%1 = %{epoch}:%{version}-%{release}
 
 Name:    java-%{javaver}-%{origin}
 Version: %{newjavaver}.%{buildver}
-Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}
+Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}.redsleeve
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
 # and this change was brought into RHEL-4. java-1.5.0-ibm packages
 # also included the epoch in their virtual provides. This created a
@@ -1493,7 +1493,7 @@ done
 # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
 # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
 # Temporarily disabled on s390x as it sporadically crashes with SIGFPE, Arithmetic exception.
-%ifnarch s390x
+%ifnarch s390x %{arm}
 gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
 handle SIGSEGV pass nostop noprint
 handle SIGILL pass nostop noprint
@@ -1812,6 +1812,10 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
+* Sat May 09 2020 Jacco Ligthart <jacco@redsleeve.org> - 1:11.0.7.10-4.redsleeve
+- removed arm from jit_arches
+- removed the gdb section of the SPEC file
+
 * Wed Apr 15 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.7.10-4
 - Add JDK-8228407 backport to resolve crashes during verification.
 - Resolves: rhbz#1810557
