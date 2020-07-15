@@ -1,7 +1,7 @@
 Summary: The NTP daemon and utilities
 Name: ntp
 Version: 4.2.6p5
-Release: 29%{?dist}.redsleeve
+Release: 29%{?dist}.2
 # primary license (COPYRIGHT) : MIT
 # ElectricFence/ (not used) : GPLv2
 # kernel/sys/ppsclock.h (not used) : BSD with advertising
@@ -200,6 +200,10 @@ Patch76: ntp-4.2.6p5-decodenetnum.patch
 Patch77: ntp-4.2.6p5-netlinkdrop.patch
 # ntpbz #2890
 Patch78: ntp-4.2.6p5-netlinknobuf.patch
+# ntpbz #3592
+Patch79: ntp-4.2.6p5-cve-2020-11868.patch
+# ntpbz #3596
+Patch80: ntp-4.2.6p5-randomtx.patch
 
 # add bugs for compatibility with original EL7 ntpstat
 Patch100: ntpstat-compat.patch
@@ -273,7 +277,7 @@ This package contains NTP documentation in HTML format.
 # pool.ntp.org vendor zone which will be used in ntp.conf
 %if 0%{!?vendorzone:1}
 %{?fedora: %global vendorzone fedora.}
-%{?rhel: %global vendorzone redsleeve.}
+%{?rhel: %global vendorzone centos.}
 %endif
 
 %prep
@@ -358,6 +362,8 @@ This package contains NTP documentation in HTML format.
 %patch76 -p1 -b .decodenetnum
 %patch77 -p1 -b .netlinkdrop
 %patch78 -p1 -b .netlinknobuf
+%patch79 -p1 -b .cve-2020-11868
+%patch80 -p1 -b .randomtx
 
 %patch100 -p1 -b .compat
 
@@ -568,11 +574,12 @@ popd
 %{ntpdocdir}/html
 
 %changelog
-* Sat Aug 10 2019 Jacco Ligthart <jacco@redsleeve.org> - 4.2.6p5-29.el7.redsleeve.1
+* Tue Jun 23 2020 CentOS Sources <bugs@centos.org> - 4.2.6p5-29.el7.centos.2
 - rebrand vendorzone
 
-* Tue Aug 06 2019 CentOS Sources <bugs@centos.org> - 4.2.6p5-29.el7.centos
-- rebrand vendorzone
+* Mon Jun 01 2020 Miroslav Lichvar <mlichvar@redhat.com> 4.2.6p5-29.el7_8.2
+- don't update transmission time on invalid response (CVE-2020-11868)
+- randomize transmit timestamp in client requests (CVE-?, #1813787)
 
 * Fri Jan 11 2019 Miroslav Lichvar <mlichvar@redhat.com> 4.2.6p5-29
 - fix CVE-2016-7429 patch to restore default ttl configuration (#1550637)

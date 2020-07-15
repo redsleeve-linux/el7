@@ -1,0 +1,76 @@
+diff -up ntp-4.2.6p5/include/ntp.h.randomtx ntp-4.2.6p5/include/ntp.h
+--- ntp-4.2.6p5/include/ntp.h.randomtx	2020-05-27 16:11:23.206229510 +0200
++++ ntp-4.2.6p5/include/ntp.h	2020-05-27 16:11:23.217229536 +0200
+@@ -351,6 +351,7 @@ struct peer {
+ 	l_fp	dst;		/* destination timestamp */
+ 	l_fp	aorg;		/* origin timestamp */
+ 	l_fp	borg;		/* alternate origin timestamp */
++	l_fp	xorg;		/* hidden origin timestamp (client mode) */
+ 	double	offset;		/* peer clock offset */
+ 	double	delay;		/* peer roundtrip delay */
+ 	double	jitter;		/* peer jitter (squares) */
+diff -up ntp-4.2.6p5/ntpd/ntp_proto.c.randomtx ntp-4.2.6p5/ntpd/ntp_proto.c
+--- ntp-4.2.6p5/ntpd/ntp_proto.c.randomtx	2020-05-27 16:11:23.216229533 +0200
++++ ntp-4.2.6p5/ntpd/ntp_proto.c	2020-05-28 09:02:50.973320647 +0200
+@@ -1563,14 +1563,14 @@ process_packet(
+ 	/*
+ 	 * Basic mode, otherwise known as the old fashioned way.
+ 	 *
+-	 * t1 = p_org, t2 = p_rec, t3 = p_xmt, t4 = peer->dst
++	 * t1 = peer->xorg, t2 = p_rec, t3 = p_xmt, t4 = peer->dst
+ 	 */
+ 	} else {
+ 		ci = p_xmt;				/* t3 - t4 */
+ 		L_SUB(&ci, &peer->dst);
+ 		LFPTOD(&ci, t34);
+ 		ci = p_rec;				/* t2 - t1 */
+-		L_SUB(&ci, &p_org);
++		L_SUB(&ci, &peer->xorg);
+ 		LFPTOD(&ci, t21);
+ 		p_del = fabs(t21 - t34);
+ 		p_offset = (t21 + t34) / 2.;
+@@ -2942,6 +2942,16 @@ peer_xmit(
+ 	HTONL_FP(&peer->rec, &xpkt.org);
+ 	HTONL_FP(&peer->dst, &xpkt.rec);
+ 
++	/* Generate a random transmit timestamp in the client mode to
++	   make the server origin timestamp unpredictable */
++	if (peer->flip == 0 && peer->hmode == MODE_CLIENT) {
++		if (ntp_crypto_random_buf(&peer->aorg, sizeof (peer->aorg))) {
++			msyslog(LOG_ERR, "ntp_crypto_random_buf() failed.");
++			exit(1);
++		}
++		xpkt.precision = 32;
++	}
++
+ 	/*
+ 	 * If the received packet contains a MAC, the transmitted packet
+ 	 * is authenticated and contains a MAC. If not, the transmitted
+@@ -2965,9 +2975,11 @@ peer_xmit(
+ 		 * Transmit a-priori timestamps
+ 		 */
+ 		get_systime(&xmt_tx);
++		peer->xorg = xmt_tx;
+ 		if (peer->flip == 0) {	/* basic mode */
+-			peer->aorg = xmt_tx;
+-			HTONL_FP(&xmt_tx, &xpkt.xmt);
++			if (peer->hmode != MODE_CLIENT)
++				peer->aorg = xmt_tx;
++			HTONL_FP(&peer->aorg, &xpkt.xmt);
+ 		} else {		/* interleaved modes */
+ 			if (peer->hmode == MODE_BROADCAST) { /* bcst */
+ 				HTONL_FP(&xmt_tx, &xpkt.xmt);
+@@ -3266,9 +3278,11 @@ peer_xmit(
+ 	 * Transmit a-priori timestamps
+ 	 */
+ 	get_systime(&xmt_tx);
++	peer->xorg = xmt_tx;
+ 	if (peer->flip == 0) {		/* basic mode */
+-		peer->aorg = xmt_tx;
+-		HTONL_FP(&xmt_tx, &xpkt.xmt);
++		if (peer->hmode != MODE_CLIENT)
++			peer->aorg = xmt_tx;
++		HTONL_FP(&peer->aorg, &xpkt.xmt);
+ 	} else {			/* interleaved modes */
+ 		if (peer->hmode == MODE_BROADCAST) { /* bcst */
+ 			HTONL_FP(&xmt_tx, &xpkt.xmt);
