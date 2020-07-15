@@ -7,7 +7,7 @@
 
 Name:           cloud-init
 Version:        18.5
-Release:        6%{?dist}.redsleeve
+Release:        6%{?dist}.5
 Summary:        Cloud instance init scripts
 
 Group:          System Environment/Base
@@ -46,8 +46,31 @@ Patch19: ci-Azure-Return-static-fallback-address-as-if-failed-to.patch
 Patch20: ci-Fix-for-network-configuration-not-persisting-after-r.patch
 # For bz#1744526 - [cloud-init][OpenStack] cloud-init can't persist instance-data.json
 Patch21: ci-util-json.dumps-on-python-2.7-will-handle-UnicodeDec.patch
+# For bz#1810064 - cloud-init Azure byte swap (hyperV Gen2 Only) [rhel-7.8.z]
+Patch22: ci-azure-avoid.patch
+# For bz#1802173 - [cloud-init][rhel-7.8.z]cloud-init cloud-final.service fail with KeyError: 'modules-init' after upgrade to version 18.2-1.el7_6.1 in RHV
+Patch23: ci-cmd-main.py-Fix-missing-modules-init-key-in-modes-di.patch
+# For bz#1801094 - [RHEL7] swapon fails with "swapfile has holes" when created on a xfs filesystem by cloud-init [rhel-7.8.z]
+Patch24: ci-Do-not-use-fallocate-in-swap-file-creation-on-xfs.-7.patch
+# For bz#1801094 - [RHEL7] swapon fails with "swapfile has holes" when created on a xfs filesystem by cloud-init [rhel-7.8.z]
+Patch25: ci-swap-file-size-being-used-before-checked-if-str-315.patch
+# For bz#1801094 - [RHEL7] swapon fails with "swapfile has holes" when created on a xfs filesystem by cloud-init [rhel-7.8.z]
+Patch26: ci-cc_mounts-fix-incorrect-format-specifiers-316.patch
+# For bz#1827207 - Support for AWS IMDS v2 (available in cloud-init 19.4) [rhel-7.8.z]
+Patch27: ci-New-data-source-for-the-Exoscale.com-cloud-platform.patch
+# For bz#1827207 - Support for AWS IMDS v2 (available in cloud-init 19.4) [rhel-7.8.z]
+Patch28: ci-Add-support-for-publishing-host-keys-to-GCE-guest-at.patch
+# For bz#1827207 - Support for AWS IMDS v2 (available in cloud-init 19.4) [rhel-7.8.z]
+Patch29: ci-exoscale-fix-sysconfig-cloud_config_modules-override.patch
+# For bz#1827207 - Support for AWS IMDS v2 (available in cloud-init 19.4) [rhel-7.8.z]
+Patch30: ci-exoscale-Increase-url_max_wait-to-120s.patch
+# For bz#1827207 - Support for AWS IMDS v2 (available in cloud-init 19.4) [rhel-7.8.z]
+Patch31: ci-ec2-Add-support-for-AWS-IMDS-v2-session-oriented-55.patch
+# For bz#1832177 - [Azure] cloud-init provisioning failed in Azure [rhel-7.8.z]
+Patch32: ci-url_helper-read_file_or_url-should-pass-headers-para.patch
 
-Patch9999: cloud-init-redsleeve-user.patch
+Patch9999: cloud-init-centos-user.patch
+
 
 # Deal with noarch -> arch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1067089
@@ -217,8 +240,36 @@ fi
 %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
 
 %changelog
-* Fri Apr 17 2020 Jacco Ligthart <jacco@redsleeve.org 18.5-6.el7.redsleeve
-- rebrand for redsleeve
+* Wed May 20 2020 Miroslav Rezanina <mrezanin@redhat.com> - 18.5-6.el7_8.5
+- ci-url_helper-read_file_or_url-should-pass-headers-para.patch [bz#1832177]
+- Resolves: bz#1832177
+  ([Azure] cloud-init provisioning failed in Azure [rhel-7.8.z])
+
+* Tue May 05 2020 Miroslav Rezanina <mrezanin@redhat.com> - 18.5-6.el7_8.4
+- ci-New-data-source-for-the-Exoscale.com-cloud-platform.patch [bz#1827207]
+- ci-Add-support-for-publishing-host-keys-to-GCE-guest-at.patch [bz#1827207]
+- ci-exoscale-fix-sysconfig-cloud_config_modules-override.patch [bz#1827207]
+- ci-exoscale-Increase-url_max_wait-to-120s.patch [bz#1827207]
+- ci-ec2-Add-support-for-AWS-IMDS-v2-session-oriented-55.patch [bz#1827207]
+- Resolves: bz#1827207
+  (Support for AWS IMDS v2 (available in cloud-init 19.4) [rhel-7.8.z])
+
+* Tue Apr 28 2020 Miroslav Rezanina <mrezanin@redhat.com> - 18.5-6.el7_8.3
+- ci-Do-not-use-fallocate-in-swap-file-creation-on-xfs.-7.patch [bz#1801094]
+- ci-swap-file-size-being-used-before-checked-if-str-315.patch [bz#1801094]
+- ci-cc_mounts-fix-incorrect-format-specifiers-316.patch [bz#1801094]
+- Resolves: bz#1801094
+  ([RHEL7] swapon fails with "swapfile has holes" when created on a xfs filesystem by cloud-init [rhel-7.8.z])
+
+* Tue Apr 14 2020 Miroslav Rezanina <mrezanin@redhat.com> - 18.5-6.el7_8.2
+- ci-cmd-main.py-Fix-missing-modules-init-key-in-modes-di.patch [bz#1802173]
+- Resolves: bz#1802173
+  ([cloud-init][rhel-7.8.z]cloud-init cloud-final.service fail with KeyError: 'modules-init' after upgrade to version 18.2-1.el7_6.1 in RHV)
+
+* Mon Mar 30 2020 Miroslav Rezanina <mrezanin@redhat.com> - 18.5-6.el7_8.1
+- ci-azure-avoid.patch [bz#1810064]
+- Resolves: bz#1810064
+  (cloud-init Azure byte swap (hyperV Gen2 Only) [rhel-7.8.z])
 
 * Thu Oct 24 2019 Miroslav Rezanina <mrezanin@redhat.com> - 18.5-6.el7
 - ci-util-json.dumps-on-python-2.7-will-handle-UnicodeDec.patch [bz#1744526]

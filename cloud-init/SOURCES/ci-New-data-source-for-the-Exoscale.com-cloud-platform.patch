@@ -1,0 +1,672 @@
+From ccae8d2ac218366c529aac03b29c46400843d4a0 Mon Sep 17 00:00:00 2001
+From: Eduardo Otubo <otubo@redhat.com>
+Date: Tue, 5 May 2020 08:08:09 +0200
+Subject: [PATCH 1/5] New data source for the Exoscale.com cloud platform
+
+RH-Author: Eduardo Otubo <otubo@redhat.com>
+Message-id: <20200504085238.25884-2-otubo@redhat.com>
+Patchwork-id: 96244
+O-Subject: [RHEL-7.8.z cloud-init PATCH 1/5] New data source for the Exoscale.com cloud platform
+Bugzilla: 1827207
+RH-Acked-by: Cathy Avery <cavery@redhat.com>
+RH-Acked-by: Mohammed Gamal <mgamal@redhat.com>
+RH-Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+
+commit 4dfed67d0e82970f8717d0b524c593962698ca4f
+Author: Chris Glass <christopher.glass@exoscale.ch>
+Date:   Thu Aug 8 17:09:57 2019 +0000
+
+    New data source for the Exoscale.com cloud platform
+
+    - dsidentify switches to the new Exoscale datasource on matching DMI name
+    - New Exoscale datasource added
+
+    Signed-off-by: Mathieu Corbin <mathieu.corbin@exoscale.ch>
+
+Signed-off-by: Eduardo Otubo <otubo@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ cloudinit/apport.py                              |   1 +
+ cloudinit/settings.py                            |   1 +
+ cloudinit/sources/DataSourceExoscale.py          | 258 +++++++++++++++++++++++
+ doc/rtd/topics/datasources.rst                   |   1 +
+ doc/rtd/topics/datasources/exoscale.rst          |  68 ++++++
+ tests/unittests/test_datasource/test_common.py   |   2 +
+ tests/unittests/test_datasource/test_exoscale.py | 203 ++++++++++++++++++
+ tools/ds-identify                                |   7 +-
+ 8 files changed, 540 insertions(+), 1 deletion(-)
+ create mode 100644 cloudinit/sources/DataSourceExoscale.py
+ create mode 100644 doc/rtd/topics/datasources/exoscale.rst
+ create mode 100644 tests/unittests/test_datasource/test_exoscale.py
+
+diff --git a/cloudinit/apport.py b/cloudinit/apport.py
+index 22cb7fd..003ff1f 100644
+--- a/cloudinit/apport.py
++++ b/cloudinit/apport.py
+@@ -23,6 +23,7 @@ KNOWN_CLOUD_NAMES = [
+     'CloudStack',
+     'DigitalOcean',
+     'GCE - Google Compute Engine',
++    'Exoscale',
+     'Hetzner Cloud',
+     'IBM - (aka SoftLayer or BlueMix)',
+     'LXD',
+diff --git a/cloudinit/settings.py b/cloudinit/settings.py
+index d982a4d..229b420 100644
+--- a/cloudinit/settings.py
++++ b/cloudinit/settings.py
+@@ -39,6 +39,7 @@ CFG_BUILTIN = {
+         'Hetzner',
+         'IBMCloud',
+         'Oracle',
++        'Exoscale',
+         # At the end to act as a 'catch' when none of the above work...
+         'None',
+     ],
+diff --git a/cloudinit/sources/DataSourceExoscale.py b/cloudinit/sources/DataSourceExoscale.py
+new file mode 100644
+index 0000000..52e7f6f
+--- /dev/null
++++ b/cloudinit/sources/DataSourceExoscale.py
+@@ -0,0 +1,258 @@
++# Author: Mathieu Corbin <mathieu.corbin@exoscale.com>
++# Author: Christopher Glass <christopher.glass@exoscale.com>
++#
++# This file is part of cloud-init. See LICENSE file for license information.
++
++from cloudinit import ec2_utils as ec2
++from cloudinit import log as logging
++from cloudinit import sources
++from cloudinit import url_helper
++from cloudinit import util
++
++LOG = logging.getLogger(__name__)
++
++METADATA_URL = "http://169.254.169.254"
++API_VERSION = "1.0"
++PASSWORD_SERVER_PORT = 8080
++
++URL_TIMEOUT = 10
++URL_RETRIES = 6
++
++EXOSCALE_DMI_NAME = "Exoscale"
++
++BUILTIN_DS_CONFIG = {
++    # We run the set password config module on every boot in order to enable
++    # resetting the instance's password via the exoscale console (and a
++    # subsequent instance reboot).
++    'cloud_config_modules': [["set-passwords", "always"]]
++}
++
++
++class DataSourceExoscale(sources.DataSource):
++
++    dsname = 'Exoscale'
++
++    def __init__(self, sys_cfg, distro, paths):
++        super(DataSourceExoscale, self).__init__(sys_cfg, distro, paths)
++        LOG.debug("Initializing the Exoscale datasource")
++
++        self.metadata_url = self.ds_cfg.get('metadata_url', METADATA_URL)
++        self.api_version = self.ds_cfg.get('api_version', API_VERSION)
++        self.password_server_port = int(
++            self.ds_cfg.get('password_server_port', PASSWORD_SERVER_PORT))
++        self.url_timeout = self.ds_cfg.get('timeout', URL_TIMEOUT)
++        self.url_retries = self.ds_cfg.get('retries', URL_RETRIES)
++
++        self.extra_config = BUILTIN_DS_CONFIG
++
++    def wait_for_metadata_service(self):
++        """Wait for the metadata service to be reachable."""
++
++        metadata_url = "{}/{}/meta-data/instance-id".format(
++            self.metadata_url, self.api_version)
++
++        url = url_helper.wait_for_url(
++            urls=[metadata_url],
++            max_wait=self.url_max_wait,
++            timeout=self.url_timeout,
++            status_cb=LOG.critical)
++
++        return bool(url)
++
++    def crawl_metadata(self):
++        """
++        Crawl the metadata service when available.
++
++        @returns: Dictionary of crawled metadata content.
++        """
++        metadata_ready = util.log_time(
++            logfunc=LOG.info,
++            msg='waiting for the metadata service',
++            func=self.wait_for_metadata_service)
++
++        if not metadata_ready:
++            return {}
++
++        return read_metadata(self.metadata_url, self.api_version,
++                             self.password_server_port, self.url_timeout,
++                             self.url_retries)
++
++    def _get_data(self):
++        """Fetch the user data, the metadata and the VM password
++        from the metadata service.
++
++        Please refer to the datasource documentation for details on how the
++        metadata server and password server are crawled.
++        """
++        if not self._is_platform_viable():
++            return False
++
++        data = util.log_time(
++            logfunc=LOG.debug,
++            msg='Crawl of metadata service',
++            func=self.crawl_metadata)
++
++        if not data:
++            return False
++
++        self.userdata_raw = data['user-data']
++        self.metadata = data['meta-data']
++        password = data.get('password')
++
++        password_config = {}
++        if password:
++            # Since we have a password, let's make sure we are allowed to use
++            # it by allowing ssh_pwauth.
++            # The password module's default behavior is to leave the
++            # configuration as-is in this regard, so that means it will either
++            # leave the password always disabled if no password is ever set, or
++            # leave the password login enabled if we set it once.
++            password_config = {
++                'ssh_pwauth': True,
++                'password': password,
++                'chpasswd': {
++                    'expire': False,
++                },
++            }
++
++        # builtin extra_config overrides password_config
++        self.extra_config = util.mergemanydict(
++            [self.extra_config, password_config])
++
++        return True
++
++    def get_config_obj(self):
++        return self.extra_config
++
++    def _is_platform_viable(self):
++        return util.read_dmi_data('system-product-name').startswith(
++            EXOSCALE_DMI_NAME)
++
++
++# Used to match classes to dependencies
++datasources = [
++    (DataSourceExoscale, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
++]
++
++
++# Return a list of data sources that match this set of dependencies
++def get_datasource_list(depends):
++    return sources.list_from_depends(depends, datasources)
++
++
++def get_password(metadata_url=METADATA_URL,
++                 api_version=API_VERSION,
++                 password_server_port=PASSWORD_SERVER_PORT,
++                 url_timeout=URL_TIMEOUT,
++                 url_retries=URL_RETRIES):
++    """Obtain the VM's password if set.
++
++    Once fetched the password is marked saved. Future calls to this method may
++    return empty string or 'saved_password'."""
++    password_url = "{}:{}/{}/".format(metadata_url, password_server_port,
++                                      api_version)
++    response = url_helper.read_file_or_url(
++        password_url,
++        ssl_details=None,
++        headers={"DomU_Request": "send_my_password"},
++        timeout=url_timeout,
++        retries=url_retries)
++    password = response.contents.decode('utf-8')
++    # the password is empty or already saved
++    # Note: the original metadata server would answer an additional
++    # 'bad_request' status, but the Exoscale implementation does not.
++    if password in ['', 'saved_password']:
++        return None
++    # save the password
++    url_helper.read_file_or_url(
++        password_url,
++        ssl_details=None,
++        headers={"DomU_Request": "saved_password"},
++        timeout=url_timeout,
++        retries=url_retries)
++    return password
++
++
++def read_metadata(metadata_url=METADATA_URL,
++                  api_version=API_VERSION,
++                  password_server_port=PASSWORD_SERVER_PORT,
++                  url_timeout=URL_TIMEOUT,
++                  url_retries=URL_RETRIES):
++    """Query the metadata server and return the retrieved data."""
++    crawled_metadata = {}
++    crawled_metadata['_metadata_api_version'] = api_version
++    try:
++        crawled_metadata['user-data'] = ec2.get_instance_userdata(
++            api_version,
++            metadata_url,
++            timeout=url_timeout,
++            retries=url_retries)
++        crawled_metadata['meta-data'] = ec2.get_instance_metadata(
++            api_version,
++            metadata_url,
++            timeout=url_timeout,
++            retries=url_retries)
++    except Exception as e:
++        util.logexc(LOG, "failed reading from metadata url %s (%s)",
++                    metadata_url, e)
++        return {}
++
++    try:
++        crawled_metadata['password'] = get_password(
++            api_version=api_version,
++            metadata_url=metadata_url,
++            password_server_port=password_server_port,
++            url_retries=url_retries,
++            url_timeout=url_timeout)
++    except Exception as e:
++        util.logexc(LOG, "failed to read from password server url %s:%s (%s)",
++                    metadata_url, password_server_port, e)
++
++    return crawled_metadata
++
++
++if __name__ == "__main__":
++    import argparse
++
++    parser = argparse.ArgumentParser(description='Query Exoscale Metadata')
++    parser.add_argument(
++        "--endpoint",
++        metavar="URL",
++        help="The url of the metadata service.",
++        default=METADATA_URL)
++    parser.add_argument(
++        "--version",
++        metavar="VERSION",
++        help="The version of the metadata endpoint to query.",
++        default=API_VERSION)
++    parser.add_argument(
++        "--retries",
++        metavar="NUM",
++        type=int,
++        help="The number of retries querying the endpoint.",
++        default=URL_RETRIES)
++    parser.add_argument(
++        "--timeout",
++        metavar="NUM",
++        type=int,
++        help="The time in seconds to wait before timing out.",
++        default=URL_TIMEOUT)
++    parser.add_argument(
++        "--password-port",
++        metavar="PORT",
++        type=int,
++        help="The port on which the password endpoint listens",
++        default=PASSWORD_SERVER_PORT)
++
++    args = parser.parse_args()
++
++    data = read_metadata(
++        metadata_url=args.endpoint,
++        api_version=args.version,
++        password_server_port=args.password_port,
++        url_timeout=args.timeout,
++        url_retries=args.retries)
++
++    print(util.json_dumps(data))
++
++# vi: ts=4 expandtab
+diff --git a/doc/rtd/topics/datasources.rst b/doc/rtd/topics/datasources.rst
+index e34f145..fcfd91a 100644
+--- a/doc/rtd/topics/datasources.rst
++++ b/doc/rtd/topics/datasources.rst
+@@ -96,6 +96,7 @@ Follow for more information.
+    datasources/configdrive.rst
+    datasources/digitalocean.rst
+    datasources/ec2.rst
++   datasources/exoscale.rst
+    datasources/maas.rst
+    datasources/nocloud.rst
+    datasources/opennebula.rst
+diff --git a/doc/rtd/topics/datasources/exoscale.rst b/doc/rtd/topics/datasources/exoscale.rst
+new file mode 100644
+index 0000000..27aec9c
+--- /dev/null
++++ b/doc/rtd/topics/datasources/exoscale.rst
+@@ -0,0 +1,68 @@
++.. _datasource_exoscale:
++
++Exoscale
++========
++
++This datasource supports reading from the metadata server used on the
++`Exoscale platform <https://exoscale.com>`_.
++
++Use of the Exoscale datasource is recommended to benefit from new features of
++the Exoscale platform.
++
++The datasource relies on the availability of a compatible metadata server
++(``http://169.254.169.254`` is used by default) and its companion password
++server, reachable at the same address (by default on port 8080).
++
++Crawling of metadata
++--------------------
++
++The metadata service and password server are crawled slightly differently:
++
++ * The "metadata service" is crawled every boot.
++ * The password server is also crawled every boot (the Exoscale datasource
++   forces the password module to run with "frequency always").
++
++In the password server case, the following rules apply in order to enable the
++"restore instance password" functionality:
++
++ * If a password is returned by the password server, it is then marked "saved"
++   by the cloud-init datasource. Subsequent boots will skip setting the password
++   (the password server will return "saved_password").
++ * When the instance password is reset (via the Exoscale UI), the password
++   server will return the non-empty password at next boot, therefore causing
++   cloud-init to reset the instance's password.
++
++Configuration
++-------------
++
++Users of this datasource are discouraged from changing the default settings
++unless instructed to by Exoscale support.
++
++The following settings are available and can be set for the datasource in system
++configuration (in `/etc/cloud/cloud.cfg.d/`).
++
++The settings available are:
++
++ * **metadata_url**: The URL for the metadata service (defaults to
++   ``http://169.254.169.254``)
++ * **api_version**: The API version path on which to query the instance metadata
++   (defaults to ``1.0``)
++ * **password_server_port**: The port (on the metadata server) on which the
++   password server listens (defaults to ``8080``).
++ * **timeout**: the timeout value provided to urlopen for each individual http
++   request. (defaults to ``10``)
++ * **retries**: The number of retries that should be done for an http request
++   (defaults to ``6``)
++
++
++An example configuration with the default values is provided below:
++
++.. sourcecode:: yaml
++
++   datasource:
++     Exoscale:
++       metadata_url: "http://169.254.169.254"
++       api_version: "1.0"
++       password_server_port: 8080
++       timeout: 10
++       retries: 6
+diff --git a/tests/unittests/test_datasource/test_common.py b/tests/unittests/test_datasource/test_common.py
+index 6b01a4e..24b0fac 100644
+--- a/tests/unittests/test_datasource/test_common.py
++++ b/tests/unittests/test_datasource/test_common.py
+@@ -13,6 +13,7 @@ from cloudinit.sources import (
+     DataSourceConfigDrive as ConfigDrive,
+     DataSourceDigitalOcean as DigitalOcean,
+     DataSourceEc2 as Ec2,
++    DataSourceExoscale as Exoscale,
+     DataSourceGCE as GCE,
+     DataSourceHetzner as Hetzner,
+     DataSourceIBMCloud as IBMCloud,
+@@ -53,6 +54,7 @@ DEFAULT_NETWORK = [
+     CloudStack.DataSourceCloudStack,
+     DSNone.DataSourceNone,
+     Ec2.DataSourceEc2,
++    Exoscale.DataSourceExoscale,
+     GCE.DataSourceGCE,
+     MAAS.DataSourceMAAS,
+     NoCloud.DataSourceNoCloudNet,
+diff --git a/tests/unittests/test_datasource/test_exoscale.py b/tests/unittests/test_datasource/test_exoscale.py
+new file mode 100644
+index 0000000..350c330
+--- /dev/null
++++ b/tests/unittests/test_datasource/test_exoscale.py
+@@ -0,0 +1,203 @@
++# Author: Mathieu Corbin <mathieu.corbin@exoscale.com>
++# Author: Christopher Glass <christopher.glass@exoscale.com>
++#
++# This file is part of cloud-init. See LICENSE file for license information.
++from cloudinit import helpers
++from cloudinit.sources.DataSourceExoscale import (
++    API_VERSION,
++    DataSourceExoscale,
++    METADATA_URL,
++    get_password,
++    PASSWORD_SERVER_PORT,
++    read_metadata)
++from cloudinit.tests.helpers import HttprettyTestCase, mock
++
++import httpretty
++import requests
++
++
++TEST_PASSWORD_URL = "{}:{}/{}/".format(METADATA_URL,
++                                       PASSWORD_SERVER_PORT,
++                                       API_VERSION)
++
++TEST_METADATA_URL = "{}/{}/meta-data/".format(METADATA_URL,
++                                              API_VERSION)
++
++TEST_USERDATA_URL = "{}/{}/user-data".format(METADATA_URL,
++                                             API_VERSION)
++
++
++@httpretty.activate
++class TestDatasourceExoscale(HttprettyTestCase):
++
++    def setUp(self):
++        super(TestDatasourceExoscale, self).setUp()
++        self.tmp = self.tmp_dir()
++        self.password_url = TEST_PASSWORD_URL
++        self.metadata_url = TEST_METADATA_URL
++        self.userdata_url = TEST_USERDATA_URL
++
++    def test_password_saved(self):
++        """The password is not set when it is not found
++        in the metadata service."""
++        httpretty.register_uri(httpretty.GET,
++                               self.password_url,
++                               body="saved_password")
++        self.assertFalse(get_password())
++
++    def test_password_empty(self):
++        """No password is set if the metadata service returns
++        an empty string."""
++        httpretty.register_uri(httpretty.GET,
++                               self.password_url,
++                               body="")
++        self.assertFalse(get_password())
++
++    def test_password(self):
++        """The password is set to what is found in the metadata
++        service."""
++        expected_password = "p@ssw0rd"
++        httpretty.register_uri(httpretty.GET,
++                               self.password_url,
++                               body=expected_password)
++        password = get_password()
++        self.assertEqual(expected_password, password)
++
++    def test_get_data(self):
++        """The datasource conforms to expected behavior when supplied
++        full test data."""
++        path = helpers.Paths({'run_dir': self.tmp})
++        ds = DataSourceExoscale({}, None, path)
++        ds._is_platform_viable = lambda: True
++        expected_password = "p@ssw0rd"
++        expected_id = "12345"
++        expected_hostname = "myname"
++        expected_userdata = "#cloud-config"
++        httpretty.register_uri(httpretty.GET,
++                               self.userdata_url,
++                               body=expected_userdata)
++        httpretty.register_uri(httpretty.GET,
++                               self.password_url,
++                               body=expected_password)
++        httpretty.register_uri(httpretty.GET,
++                               self.metadata_url,
++                               body="instance-id\nlocal-hostname")
++        httpretty.register_uri(httpretty.GET,
++                               "{}local-hostname".format(self.metadata_url),
++                               body=expected_hostname)
++        httpretty.register_uri(httpretty.GET,
++                               "{}instance-id".format(self.metadata_url),
++                               body=expected_id)
++        self.assertTrue(ds._get_data())
++        self.assertEqual(ds.userdata_raw.decode("utf-8"), "#cloud-config")
++        self.assertEqual(ds.metadata, {"instance-id": expected_id,
++                                       "local-hostname": expected_hostname})
++        self.assertEqual(ds.get_config_obj(),
++                         {'ssh_pwauth': True,
++                          'password': expected_password,
++                          'cloud_config_modules': [
++                              ["set-passwords", "always"]],
++                          'chpasswd': {
++                              'expire': False,
++                          }})
++
++    def test_get_data_saved_password(self):
++        """The datasource conforms to expected behavior when saved_password is
++        returned by the password server."""
++        path = helpers.Paths({'run_dir': self.tmp})
++        ds = DataSourceExoscale({}, None, path)
++        ds._is_platform_viable = lambda: True
++        expected_answer = "saved_password"
++        expected_id = "12345"
++        expected_hostname = "myname"
++        expected_userdata = "#cloud-config"
++        httpretty.register_uri(httpretty.GET,
++                               self.userdata_url,
++                               body=expected_userdata)
++        httpretty.register_uri(httpretty.GET,
++                               self.password_url,
++                               body=expected_answer)
++        httpretty.register_uri(httpretty.GET,
++                               self.metadata_url,
++                               body="instance-id\nlocal-hostname")
++        httpretty.register_uri(httpretty.GET,
++                               "{}local-hostname".format(self.metadata_url),
++                               body=expected_hostname)
++        httpretty.register_uri(httpretty.GET,
++                               "{}instance-id".format(self.metadata_url),
++                               body=expected_id)
++        self.assertTrue(ds._get_data())
++        self.assertEqual(ds.userdata_raw.decode("utf-8"), "#cloud-config")
++        self.assertEqual(ds.metadata, {"instance-id": expected_id,
++                                       "local-hostname": expected_hostname})
++        self.assertEqual(ds.get_config_obj(),
++                         {'cloud_config_modules': [
++                             ["set-passwords", "always"]]})
++
++    def test_get_data_no_password(self):
++        """The datasource conforms to expected behavior when no password is
++        returned by the password server."""
++        path = helpers.Paths({'run_dir': self.tmp})
++        ds = DataSourceExoscale({}, None, path)
++        ds._is_platform_viable = lambda: True
++        expected_answer = ""
++        expected_id = "12345"
++        expected_hostname = "myname"
++        expected_userdata = "#cloud-config"
++        httpretty.register_uri(httpretty.GET,
++                               self.userdata_url,
++                               body=expected_userdata)
++        httpretty.register_uri(httpretty.GET,
++                               self.password_url,
++                               body=expected_answer)
++        httpretty.register_uri(httpretty.GET,
++                               self.metadata_url,
++                               body="instance-id\nlocal-hostname")
++        httpretty.register_uri(httpretty.GET,
++                               "{}local-hostname".format(self.metadata_url),
++                               body=expected_hostname)
++        httpretty.register_uri(httpretty.GET,
++                               "{}instance-id".format(self.metadata_url),
++                               body=expected_id)
++        self.assertTrue(ds._get_data())
++        self.assertEqual(ds.userdata_raw.decode("utf-8"), "#cloud-config")
++        self.assertEqual(ds.metadata, {"instance-id": expected_id,
++                                       "local-hostname": expected_hostname})
++        self.assertEqual(ds.get_config_obj(),
++                         {'cloud_config_modules': [
++                             ["set-passwords", "always"]]})
++
++    @mock.patch('cloudinit.sources.DataSourceExoscale.get_password')
++    def test_read_metadata_when_password_server_unreachable(self, m_password):
++        """The read_metadata function returns partial results in case the
++        password server (only) is unreachable."""
++        expected_id = "12345"
++        expected_hostname = "myname"
++        expected_userdata = "#cloud-config"
++
++        m_password.side_effect = requests.Timeout('Fake Connection Timeout')
++        httpretty.register_uri(httpretty.GET,
++                               self.userdata_url,
++                               body=expected_userdata)
++        httpretty.register_uri(httpretty.GET,
++                               self.metadata_url,
++                               body="instance-id\nlocal-hostname")
++        httpretty.register_uri(httpretty.GET,
++                               "{}local-hostname".format(self.metadata_url),
++                               body=expected_hostname)
++        httpretty.register_uri(httpretty.GET,
++                               "{}instance-id".format(self.metadata_url),
++                               body=expected_id)
++
++        result = read_metadata()
++
++        self.assertIsNone(result.get("password"))
++        self.assertEqual(result.get("user-data").decode("utf-8"),
++                         expected_userdata)
++
++    def test_non_viable_platform(self):
++        """The datasource fails fast when the platform is not viable."""
++        path = helpers.Paths({'run_dir': self.tmp})
++        ds = DataSourceExoscale({}, None, path)
++        ds._is_platform_viable = lambda: False
++        self.assertFalse(ds._get_data())
+diff --git a/tools/ds-identify b/tools/ds-identify
+index 1acfeeb..6c89b06 100755
+--- a/tools/ds-identify
++++ b/tools/ds-identify
+@@ -124,7 +124,7 @@ DI_DSNAME=""
+ # be searched if there is no setting found in config.
+ DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep \
+ CloudSigma CloudStack DigitalOcean AliYun Ec2 GCE OpenNebula OpenStack \
+-OVF SmartOS Scaleway Hetzner IBMCloud Oracle"
++OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale"
+ DI_DSLIST=""
+ DI_MODE=""
+ DI_ON_FOUND=""
+@@ -553,6 +553,11 @@ dscheck_CloudStack() {
+     return $DS_NOT_FOUND
+ }
+ 
++dscheck_Exoscale() {
++    dmi_product_name_matches "Exoscale*" && return $DS_FOUND
++    return $DS_NOT_FOUND
++}
++
+ dscheck_CloudSigma() {
+     # http://paste.ubuntu.com/23624795/
+     dmi_product_name_matches "CloudSigma" && return $DS_FOUND
+-- 
+1.8.3.1
+

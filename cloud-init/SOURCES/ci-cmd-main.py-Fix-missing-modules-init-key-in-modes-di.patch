@@ -1,0 +1,58 @@
+From 2b7bcfb3cfb6ac668627b26c83a2d60a29a75392 Mon Sep 17 00:00:00 2001
+From: Eduardo Otubo <otubo@redhat.com>
+Date: Tue, 14 Apr 2020 14:21:35 +0200
+Subject: [PATCH] cmd:main.py: Fix missing 'modules-init' key in modes dict
+
+RH-Author: Eduardo Otubo <otubo@redhat.com>
+Message-id: <20200414104642.19930-1-otubo@redhat.com>
+Patchwork-id: 94672
+O-Subject: [RHEL-7.8.z cloud-init PATCH] cmd:main.py: Fix missing 'modules-init' key in modes dict
+Bugzilla: 1802173
+RH-Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+RH-Acked-by: Mohammed Gamal <mgamal@redhat.com>
+RH-Acked-by: Cathy Avery <cavery@redhat.com>
+
+commit bdd9c0ac9bcd68ec1ac3b2038dad0ba3dbd83341
+Author: Antonio Romito <antonio.romito@manicom.io>
+Date:   Tue Apr 9 14:54:23 2019 +0000
+
+    cmd:main.py: Fix missing 'modules-init' key in modes dict
+
+    Cloud-init's main.py will fail when presented with a new
+    stage name 'modules-init' if upgrading an older cloud-init.
+    Fix this by initializing unknown stage names before accessing.
+
+    LP: #1815109
+
+Signed-off-by: Eduardo Otubo <otubo@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ cloudinit/cmd/main.py | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/cloudinit/cmd/main.py b/cloudinit/cmd/main.py
+index 933c019..a5446da 100644
+--- a/cloudinit/cmd/main.py
++++ b/cloudinit/cmd/main.py
+@@ -632,13 +632,14 @@ def status_wrapper(name, args, data_d=None, link_d=None):
+         'start': None,
+         'finished': None,
+     }
++
+     if status is None:
+         status = {'v1': {}}
+-        for m in modes:
+-            status['v1'][m] = nullstatus.copy()
+         status['v1']['datasource'] = None
+-    elif mode not in status['v1']:
+-        status['v1'][mode] = nullstatus.copy()
++
++    for m in modes:
++        if m not in status['v1']:
++            status['v1'][m] = nullstatus.copy()
+ 
+     v1 = status['v1']
+     v1['stage'] = mode
+-- 
+1.8.3.1
+

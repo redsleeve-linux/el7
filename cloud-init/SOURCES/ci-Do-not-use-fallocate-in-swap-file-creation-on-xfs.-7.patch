@@ -1,0 +1,164 @@
+From e78ae6d16009263a8dfcd91ea8ce8fc08a077529 Mon Sep 17 00:00:00 2001
+From: Eduardo Otubo <otubo@redhat.com>
+Date: Tue, 28 Apr 2020 08:22:03 +0200
+Subject: [PATCH 1/3] Do not use fallocate in swap file creation on xfs. (#70)
+
+RH-Author: Eduardo Otubo <otubo@redhat.com>
+Message-id: <20200422130428.7663-2-otubo@redhat.com>
+Patchwork-id: 96031
+O-Subject: [RHEL-7.7.z/RHEL-7.8.z cloud-init PATCH 1/3] Do not use fallocate in swap file creation on xfs. (#70)
+Bugzilla: 1801094
+RH-Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+RH-Acked-by: Cathy Avery <cavery@redhat.com>
+
+commit 6603706eec1c39d9d591c8ffa0ef7171b74d84d6
+Author: Eduardo Otubo <otubo@redhat.com>
+Date:   Thu Jan 23 17:41:48 2020 +0100
+
+    Do not use fallocate in swap file creation on xfs. (#70)
+
+    When creating a swap file on an xfs filesystem, fallocate cannot be used.
+    Doing so results in failure of swapon and a message like:
+     swapon: swapfile has holes
+
+    The solution here is to maintain a list (currently containing only XFS)
+    of filesystems where fallocate cannot be used. The, on those fileystems
+    use the slower but functional 'dd' method.
+
+    Signed-off-by: Eduardo Otubo <otubo@redhat.com>
+    Co-authored-by: Adam Dobrawy <naczelnik@jawnosc.tk>
+    Co-authored-by:  Scott Moser <smoser@brickies.net>
+    Co-authored-by: Daniel Watkins <daniel@daniel-watkins.co.uk>
+
+    LP: #1781781
+
+Signed-off-bt: Eduardo Otubo <otubo@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ cloudinit/config/cc_mounts.py                      | 67 ++++++++++++++++------
+ .../unittests/test_handler/test_handler_mounts.py  | 12 ++++
+ 2 files changed, 62 insertions(+), 17 deletions(-)
+
+diff --git a/cloudinit/config/cc_mounts.py b/cloudinit/config/cc_mounts.py
+index 123ffb8..6884ddf 100644
+--- a/cloudinit/config/cc_mounts.py
++++ b/cloudinit/config/cc_mounts.py
+@@ -223,13 +223,58 @@ def suggested_swapsize(memsize=None, maxsize=None, fsys=None):
+     return size
+ 
+ 
++def create_swapfile(fname, size):
++    """Size is in MiB."""
++
++    errmsg = "Failed to create swapfile '%s' of size %dMB via %s: %s"
++
++    def create_swap(fname, size, method):
++        LOG.debug("Creating swapfile in '%s' on fstype '%s' using '%s'",
++                  fname, fstype, method)
++
++        if method == "fallocate":
++            cmd = ['fallocate', '-l', '%dM' % size, fname]
++        elif method == "dd":
++            cmd = ['dd', 'if=/dev/zero', 'of=%s' % fname, 'bs=1M',
++                   'count=%d' % size]
++
++        try:
++            util.subp(cmd, capture=True)
++        except util.ProcessExecutionError as e:
++            LOG.warning(errmsg, fname, size, method, e)
++            util.del_file(fname)
++
++    swap_dir = os.path.dirname(fname)
++    util.ensure_dir(swap_dir)
++
++    fstype = util.get_mount_info(swap_dir)[1]
++
++    if fstype in ("xfs", "btrfs"):
++        create_swap(fname, size, "dd")
++    else:
++        try:
++            create_swap(fname, size, "fallocate")
++        except util.ProcessExecutionError as e:
++            LOG.warning(errmsg, fname, size, "dd", e)
++            LOG.warning("Will attempt with dd.")
++            create_swap(fname, size, "dd")
++
++    util.chmod(fname, 0o600)
++    try:
++        util.subp(['mkswap', fname])
++    except util.ProcessExecutionError:
++        util.del_file(fname)
++        raise
++
++
+ def setup_swapfile(fname, size=None, maxsize=None):
+     """
+     fname: full path string of filename to setup
+     size: the size to create. set to "auto" for recommended
+     maxsize: the maximum size
+     """
+-    tdir = os.path.dirname(fname)
++    swap_dir = os.path.dirname(fname)
++    mibsize = str(int(size / (2 ** 20)))
+     if str(size).lower() == "auto":
+         try:
+             memsize = util.read_meminfo()['total']
+@@ -237,28 +282,16 @@ def setup_swapfile(fname, size=None, maxsize=None):
+             LOG.debug("Not creating swap: failed to read meminfo")
+             return
+ 
+-        util.ensure_dir(tdir)
+-        size = suggested_swapsize(fsys=tdir, maxsize=maxsize,
++        util.ensure_dir(swap_dir)
++        size = suggested_swapsize(fsys=swap_dir, maxsize=maxsize,
+                                   memsize=memsize)
+ 
+     if not size:
+         LOG.debug("Not creating swap: suggested size was 0")
+         return
+ 
+-    mbsize = str(int(size / (2 ** 20)))
+-    msg = "creating swap file '%s' of %sMB" % (fname, mbsize)
+-    try:
+-        util.ensure_dir(tdir)
+-        util.log_time(LOG.debug, msg, func=util.subp,
+-                      args=[['sh', '-c',
+-                            ('rm -f "$1" && umask 0066 && '
+-                             '{ fallocate -l "${2}M" "$1" || '
+-                             ' dd if=/dev/zero "of=$1" bs=1M "count=$2"; } && '
+-                             'mkswap "$1" || { r=$?; rm -f "$1"; exit $r; }'),
+-                             'setup_swap', fname, mbsize]])
+-
+-    except Exception as e:
+-        raise IOError("Failed %s: %s" % (msg, e))
++    util.log_time(LOG.debug, msg="Setting up swap file", func=create_swapfile,
++                  args=[fname, mibsize])
+ 
+     return fname
+ 
+diff --git a/tests/unittests/test_handler/test_handler_mounts.py b/tests/unittests/test_handler/test_handler_mounts.py
+index 0fb160b..7bcefa0 100644
+--- a/tests/unittests/test_handler/test_handler_mounts.py
++++ b/tests/unittests/test_handler/test_handler_mounts.py
+@@ -181,6 +181,18 @@ class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
+ 
+         return dev
+ 
++    def test_swap_integrity(self):
++        '''Ensure that the swap file is correctly created and can
++        swapon successfully. Fixing the corner case of:
++        kernel: swapon: swapfile has holes'''
++
++        fstab = '/swap.img swap swap defaults 0 0\n'
++
++        with open(cc_mounts.FSTAB_PATH, 'w') as fd:
++            fd.write(fstab)
++        cc = {'swap': ['filename: /swap.img', 'size: 512', 'maxsize: 512']}
++        cc_mounts.handle(None, cc, self.mock_cloud, self.mock_log, [])
++
+     def test_fstab_no_swap_device(self):
+         '''Ensure that cloud-init adds a discovered swap partition
+         to /etc/fstab.'''
+-- 
+1.8.3.1
+

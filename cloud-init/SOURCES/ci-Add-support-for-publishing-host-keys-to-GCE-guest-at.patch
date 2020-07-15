@@ -1,0 +1,473 @@
+From 60991b1241a5efb585df889d4343007e501fd70c Mon Sep 17 00:00:00 2001
+From: Eduardo Otubo <otubo@redhat.com>
+Date: Tue, 5 May 2020 08:08:15 +0200
+Subject: [PATCH 2/5] Add support for publishing host keys to GCE guest
+ attributes
+
+RH-Author: Eduardo Otubo <otubo@redhat.com>
+Message-id: <20200504085238.25884-3-otubo@redhat.com>
+Patchwork-id: 96243
+O-Subject: [RHEL-7.8.z cloud-init PATCH 2/5] Add support for publishing host keys to GCE guest attributes
+Bugzilla: 1827207
+RH-Acked-by: Cathy Avery <cavery@redhat.com>
+RH-Acked-by: Mohammed Gamal <mgamal@redhat.com>
+RH-Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+
+commit 155847209e6a3ed5face91a133d8488a703f3f93
+Author: Rick Wright <rickw@google.com>
+Date:   Fri Aug 9 17:11:05 2019 +0000
+
+    Add support for publishing host keys to GCE guest attributes
+
+    This adds an empty publish_host_keys() method to the default datasource
+    that is called by cc_ssh.py. This feature can be controlled by the
+    'ssh_publish_hostkeys' config option. It is enabled by default but can
+    be disabled by setting 'enabled' to false. Also, a blacklist of key
+    types is supported.
+
+    In addition, this change implements ssh_publish_hostkeys() for the GCE
+    datasource, attempting to write the hostkeys to the instance's guest
+    attributes. Using these hostkeys for ssh connections is currently
+    supported by the alpha version of Google's 'gcloud' command-line tool.
+
+    (On Google Compute Engine, this feature will be enabled by setting the
+    'enable-guest-attributes' metadata key to 'true' for the
+    project/instance that you would like to use this feature for. When
+    connecting to the instance for the first time using 'gcloud compute ssh'
+    the hostkeys will be read from the guest attributes for the instance and
+    written to the user's local known_hosts file for Google Compute Engine
+    instances.)
+
+Signed-off-by: Eduardo Otubo <otubo@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ cloudinit/config/cc_ssh.py                  |  55 +++++++++
+ cloudinit/config/tests/test_ssh.py          | 166 ++++++++++++++++++++++++++++
+ cloudinit/sources/DataSourceGCE.py          |  22 +++-
+ cloudinit/sources/__init__.py               |  10 ++
+ cloudinit/url_helper.py                     |   9 +-
+ tests/unittests/test_datasource/test_gce.py |  18 +++
+ 6 files changed, 274 insertions(+), 6 deletions(-)
+
+diff --git a/cloudinit/config/cc_ssh.py b/cloudinit/config/cc_ssh.py
+index f8f7cb3..53f6939 100755
+--- a/cloudinit/config/cc_ssh.py
++++ b/cloudinit/config/cc_ssh.py
+@@ -91,6 +91,9 @@ public keys.
+     ssh_authorized_keys:
+         - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAGEA3FSyQwBI6Z+nCSjUU ...
+         - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA3I7VUf2l5gSn5uavROsc5HRDpZ ...
++    ssh_publish_hostkeys:
++        enabled: <true/false> (Defaults to true)
++        blacklist: <list of key types> (Defaults to [dsa])
+ """
+ 
+ import glob
+@@ -104,6 +107,10 @@ from cloudinit import util
+ 
+ GENERATE_KEY_NAMES = ['rsa', 'dsa', 'ecdsa', 'ed25519']
+ KEY_FILE_TPL = '/etc/ssh/ssh_host_%s_key'
++PUBLISH_HOST_KEYS = True
++# Don't publish the dsa hostkey by default since OpenSSH recommends not using
++# it.
++HOST_KEY_PUBLISH_BLACKLIST = ['dsa']
+ 
+ CONFIG_KEY_TO_FILE = {}
+ PRIV_TO_PUB = {}
+@@ -176,6 +183,23 @@ def handle(_name, cfg, cloud, log, _args):
+                         util.logexc(log, "Failed generating key type %s to "
+                                     "file %s", keytype, keyfile)
+ 
++    if "ssh_publish_hostkeys" in cfg:
++        host_key_blacklist = util.get_cfg_option_list(
++            cfg["ssh_publish_hostkeys"], "blacklist",
++            HOST_KEY_PUBLISH_BLACKLIST)
++        publish_hostkeys = util.get_cfg_option_bool(
++            cfg["ssh_publish_hostkeys"], "enabled", PUBLISH_HOST_KEYS)
++    else:
++        host_key_blacklist = HOST_KEY_PUBLISH_BLACKLIST
++        publish_hostkeys = PUBLISH_HOST_KEYS
++
++    if publish_hostkeys:
++        hostkeys = get_public_host_keys(blacklist=host_key_blacklist)
++        try:
++            cloud.datasource.publish_host_keys(hostkeys)
++        except Exception as e:
++            util.logexc(log, "Publishing host keys failed!")
++
+     try:
+         (users, _groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
+         (user, _user_config) = ug_util.extract_default(users)
+@@ -209,4 +233,35 @@ def apply_credentials(keys, user, disable_root, disable_root_opts):
+ 
+     ssh_util.setup_user_keys(keys, 'root', options=key_prefix)
+ 
++
++def get_public_host_keys(blacklist=None):
++    """Read host keys from /etc/ssh/*.pub files and return them as a list.
++
++    @param blacklist: List of key types to ignore. e.g. ['dsa', 'rsa']
++    @returns: List of keys, each formatted as a two-element tuple.
++        e.g. [('ssh-rsa', 'AAAAB3Nz...'), ('ssh-ed25519', 'AAAAC3Nx...')]
++    """
++    public_key_file_tmpl = '%s.pub' % (KEY_FILE_TPL,)
++    key_list = []
++    blacklist_files = []
++    if blacklist:
++        # Convert blacklist to filenames:
++        # 'dsa' -> '/etc/ssh/ssh_host_dsa_key.pub'
++        blacklist_files = [public_key_file_tmpl % (key_type,)
++                           for key_type in blacklist]
++    # Get list of public key files and filter out blacklisted files.
++    file_list = [hostfile for hostfile
++                 in glob.glob(public_key_file_tmpl % ('*',))
++                 if hostfile not in blacklist_files]
++
++    # Read host key files, retrieve first two fields as a tuple and
++    # append that tuple to key_list.
++    for file_name in file_list:
++        file_contents = util.load_file(file_name)
++        key_data = file_contents.split()
++        if key_data and len(key_data) > 1:
++            key_list.append(tuple(key_data[:2]))
++    return key_list
++
++
+ # vi: ts=4 expandtab
+diff --git a/cloudinit/config/tests/test_ssh.py b/cloudinit/config/tests/test_ssh.py
+index c8a4271..e778984 100644
+--- a/cloudinit/config/tests/test_ssh.py
++++ b/cloudinit/config/tests/test_ssh.py
+@@ -1,5 +1,6 @@
+ # This file is part of cloud-init. See LICENSE file for license information.
+ 
++import os.path
+ 
+ from cloudinit.config import cc_ssh
+ from cloudinit import ssh_util
+@@ -12,6 +13,25 @@ MODPATH = "cloudinit.config.cc_ssh."
+ class TestHandleSsh(CiTestCase):
+     """Test cc_ssh handling of ssh config."""
+ 
++    def _publish_hostkey_test_setup(self):
++        self.test_hostkeys = {
++            'dsa': ('ssh-dss', 'AAAAB3NzaC1kc3MAAACB'),
++            'ecdsa': ('ecdsa-sha2-nistp256', 'AAAAE2VjZ'),
++            'ed25519': ('ssh-ed25519', 'AAAAC3NzaC1lZDI'),
++            'rsa': ('ssh-rsa', 'AAAAB3NzaC1yc2EAAA'),
++        }
++        self.test_hostkey_files = []
++        hostkey_tmpdir = self.tmp_dir()
++        for key_type in ['dsa', 'ecdsa', 'ed25519', 'rsa']:
++            key_data = self.test_hostkeys[key_type]
++            filename = 'ssh_host_%s_key.pub' % key_type
++            filepath = os.path.join(hostkey_tmpdir, filename)
++            self.test_hostkey_files.append(filepath)
++            with open(filepath, 'w') as f:
++                f.write(' '.join(key_data))
++
++        cc_ssh.KEY_FILE_TPL = os.path.join(hostkey_tmpdir, 'ssh_host_%s_key')
++
+     def test_apply_credentials_with_user(self, m_setup_keys):
+         """Apply keys for the given user and root."""
+         keys = ["key1"]
+@@ -64,6 +84,7 @@ class TestHandleSsh(CiTestCase):
+         # Mock os.path.exits to True to short-circuit the key writing logic
+         m_path_exists.return_value = True
+         m_nug.return_value = ([], {})
++        cc_ssh.PUBLISH_HOST_KEYS = False
+         cloud = self.tmp_cloud(
+             distro='ubuntu', metadata={'public-keys': keys})
+         cc_ssh.handle("name", cfg, cloud, None, None)
+@@ -149,3 +170,148 @@ class TestHandleSsh(CiTestCase):
+         self.assertEqual([mock.call(set(keys), user),
+                           mock.call(set(keys), "root", options="")],
+                          m_setup_keys.call_args_list)
++
++    @mock.patch(MODPATH + "glob.glob")
++    @mock.patch(MODPATH + "ug_util.normalize_users_groups")
++    @mock.patch(MODPATH + "os.path.exists")
++    def test_handle_publish_hostkeys_default(
++            self, m_path_exists, m_nug, m_glob, m_setup_keys):
++        """Test handle with various configs for ssh_publish_hostkeys."""
++        self._publish_hostkey_test_setup()
++        cc_ssh.PUBLISH_HOST_KEYS = True
++        keys = ["key1"]
++        user = "clouduser"
++        # Return no matching keys for first glob, test keys for second.
++        m_glob.side_effect = iter([
++                                  [],
++                                  self.test_hostkey_files,
++                                  ])
++        # Mock os.path.exits to True to short-circuit the key writing logic
++        m_path_exists.return_value = True
++        m_nug.return_value = ({user: {"default": user}}, {})
++        cloud = self.tmp_cloud(
++            distro='ubuntu', metadata={'public-keys': keys})
++        cloud.datasource.publish_host_keys = mock.Mock()
++
++        cfg = {}
++        expected_call = [self.test_hostkeys[key_type] for key_type
++                         in ['ecdsa', 'ed25519', 'rsa']]
++        cc_ssh.handle("name", cfg, cloud, None, None)
++        self.assertEqual([mock.call(expected_call)],
++                         cloud.datasource.publish_host_keys.call_args_list)
++
++    @mock.patch(MODPATH + "glob.glob")
++    @mock.patch(MODPATH + "ug_util.normalize_users_groups")
++    @mock.patch(MODPATH + "os.path.exists")
++    def test_handle_publish_hostkeys_config_enable(
++            self, m_path_exists, m_nug, m_glob, m_setup_keys):
++        """Test handle with various configs for ssh_publish_hostkeys."""
++        self._publish_hostkey_test_setup()
++        cc_ssh.PUBLISH_HOST_KEYS = False
++        keys = ["key1"]
++        user = "clouduser"
++        # Return no matching keys for first glob, test keys for second.
++        m_glob.side_effect = iter([
++                                  [],
++                                  self.test_hostkey_files,
++                                  ])
++        # Mock os.path.exits to True to short-circuit the key writing logic
++        m_path_exists.return_value = True
++        m_nug.return_value = ({user: {"default": user}}, {})
++        cloud = self.tmp_cloud(
++            distro='ubuntu', metadata={'public-keys': keys})
++        cloud.datasource.publish_host_keys = mock.Mock()
++
++        cfg = {'ssh_publish_hostkeys': {'enabled': True}}
++        expected_call = [self.test_hostkeys[key_type] for key_type
++                         in ['ecdsa', 'ed25519', 'rsa']]
++        cc_ssh.handle("name", cfg, cloud, None, None)
++        self.assertEqual([mock.call(expected_call)],
++                         cloud.datasource.publish_host_keys.call_args_list)
++
++    @mock.patch(MODPATH + "glob.glob")
++    @mock.patch(MODPATH + "ug_util.normalize_users_groups")
++    @mock.patch(MODPATH + "os.path.exists")
++    def test_handle_publish_hostkeys_config_disable(
++            self, m_path_exists, m_nug, m_glob, m_setup_keys):
++        """Test handle with various configs for ssh_publish_hostkeys."""
++        self._publish_hostkey_test_setup()
++        cc_ssh.PUBLISH_HOST_KEYS = True
++        keys = ["key1"]
++        user = "clouduser"
++        # Return no matching keys for first glob, test keys for second.
++        m_glob.side_effect = iter([
++                                  [],
++                                  self.test_hostkey_files,
++                                  ])
++        # Mock os.path.exits to True to short-circuit the key writing logic
++        m_path_exists.return_value = True
++        m_nug.return_value = ({user: {"default": user}}, {})
++        cloud = self.tmp_cloud(
++            distro='ubuntu', metadata={'public-keys': keys})
++        cloud.datasource.publish_host_keys = mock.Mock()
++
++        cfg = {'ssh_publish_hostkeys': {'enabled': False}}
++        cc_ssh.handle("name", cfg, cloud, None, None)
++        self.assertFalse(cloud.datasource.publish_host_keys.call_args_list)
++        cloud.datasource.publish_host_keys.assert_not_called()
++
++    @mock.patch(MODPATH + "glob.glob")
++    @mock.patch(MODPATH + "ug_util.normalize_users_groups")
++    @mock.patch(MODPATH + "os.path.exists")
++    def test_handle_publish_hostkeys_config_blacklist(
++            self, m_path_exists, m_nug, m_glob, m_setup_keys):
++        """Test handle with various configs for ssh_publish_hostkeys."""
++        self._publish_hostkey_test_setup()
++        cc_ssh.PUBLISH_HOST_KEYS = True
++        keys = ["key1"]
++        user = "clouduser"
++        # Return no matching keys for first glob, test keys for second.
++        m_glob.side_effect = iter([
++                                  [],
++                                  self.test_hostkey_files,
++                                  ])
++        # Mock os.path.exits to True to short-circuit the key writing logic
++        m_path_exists.return_value = True
++        m_nug.return_value = ({user: {"default": user}}, {})
++        cloud = self.tmp_cloud(
++            distro='ubuntu', metadata={'public-keys': keys})
++        cloud.datasource.publish_host_keys = mock.Mock()
++
++        cfg = {'ssh_publish_hostkeys': {'enabled': True,
++                                        'blacklist': ['dsa', 'rsa']}}
++        expected_call = [self.test_hostkeys[key_type] for key_type
++                         in ['ecdsa', 'ed25519']]
++        cc_ssh.handle("name", cfg, cloud, None, None)
++        self.assertEqual([mock.call(expected_call)],
++                         cloud.datasource.publish_host_keys.call_args_list)
++
++    @mock.patch(MODPATH + "glob.glob")
++    @mock.patch(MODPATH + "ug_util.normalize_users_groups")
++    @mock.patch(MODPATH + "os.path.exists")
++    def test_handle_publish_hostkeys_empty_blacklist(
++            self, m_path_exists, m_nug, m_glob, m_setup_keys):
++        """Test handle with various configs for ssh_publish_hostkeys."""
++        self._publish_hostkey_test_setup()
++        cc_ssh.PUBLISH_HOST_KEYS = True
++        keys = ["key1"]
++        user = "clouduser"
++        # Return no matching keys for first glob, test keys for second.
++        m_glob.side_effect = iter([
++                                  [],
++                                  self.test_hostkey_files,
++                                  ])
++        # Mock os.path.exits to True to short-circuit the key writing logic
++        m_path_exists.return_value = True
++        m_nug.return_value = ({user: {"default": user}}, {})
++        cloud = self.tmp_cloud(
++            distro='ubuntu', metadata={'public-keys': keys})
++        cloud.datasource.publish_host_keys = mock.Mock()
++
++        cfg = {'ssh_publish_hostkeys': {'enabled': True,
++                                        'blacklist': []}}
++        expected_call = [self.test_hostkeys[key_type] for key_type
++                         in ['dsa', 'ecdsa', 'ed25519', 'rsa']]
++        cc_ssh.handle("name", cfg, cloud, None, None)
++        self.assertEqual([mock.call(expected_call)],
++                         cloud.datasource.publish_host_keys.call_args_list)
+diff --git a/cloudinit/sources/DataSourceGCE.py b/cloudinit/sources/DataSourceGCE.py
+index d816262..6cbfbba 100644
+--- a/cloudinit/sources/DataSourceGCE.py
++++ b/cloudinit/sources/DataSourceGCE.py
+@@ -18,10 +18,13 @@ LOG = logging.getLogger(__name__)
+ MD_V1_URL = 'http://metadata.google.internal/computeMetadata/v1/'
+ BUILTIN_DS_CONFIG = {'metadata_url': MD_V1_URL}
+ REQUIRED_FIELDS = ('instance-id', 'availability-zone', 'local-hostname')
++GUEST_ATTRIBUTES_URL = ('http://metadata.google.internal/computeMetadata/'
++                        'v1/instance/guest-attributes')
++HOSTKEY_NAMESPACE = 'hostkeys'
++HEADERS = {'Metadata-Flavor': 'Google'}
+ 
+ 
+ class GoogleMetadataFetcher(object):
+-    headers = {'Metadata-Flavor': 'Google'}
+ 
+     def __init__(self, metadata_address):
+         self.metadata_address = metadata_address
+@@ -32,7 +35,7 @@ class GoogleMetadataFetcher(object):
+             url = self.metadata_address + path
+             if is_recursive:
+                 url += '/?recursive=True'
+-            resp = url_helper.readurl(url=url, headers=self.headers)
++            resp = url_helper.readurl(url=url, headers=HEADERS)
+         except url_helper.UrlError as exc:
+             msg = "url %s raised exception %s"
+             LOG.debug(msg, path, exc)
+@@ -90,6 +93,10 @@ class DataSourceGCE(sources.DataSource):
+         public_keys_data = self.metadata['public-keys-data']
+         return _parse_public_keys(public_keys_data, self.default_user)
+ 
++    def publish_host_keys(self, hostkeys):
++        for key in hostkeys:
++            _write_host_key_to_guest_attributes(*key)
++
+     def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
+         # GCE has long FDQN's and has asked for short hostnames.
+         return self.metadata['local-hostname'].split('.')[0]
+@@ -103,6 +110,17 @@ class DataSourceGCE(sources.DataSource):
+         return self.availability_zone.rsplit('-', 1)[0]
+ 
+ 
++def _write_host_key_to_guest_attributes(key_type, key_value):
++    url = '%s/%s/%s' % (GUEST_ATTRIBUTES_URL, HOSTKEY_NAMESPACE, key_type)
++    key_value = key_value.encode('utf-8')
++    resp = url_helper.readurl(url=url, data=key_value, headers=HEADERS,
++                              request_method='PUT', check_status=False)
++    if resp.ok():
++        LOG.debug('Wrote %s host key to guest attributes.',  key_type)
++    else:
++        LOG.debug('Unable to write %s host key to guest attributes.', key_type)
++
++
+ def _has_expired(public_key):
+     # Check whether an SSH key is expired. Public key input is a single SSH
+     # public key in the GCE specific key format documented here:
+diff --git a/cloudinit/sources/__init__.py b/cloudinit/sources/__init__.py
+index e6966b3..425e703 100644
+--- a/cloudinit/sources/__init__.py
++++ b/cloudinit/sources/__init__.py
+@@ -474,6 +474,16 @@ class DataSource(object):
+     def get_public_ssh_keys(self):
+         return normalize_pubkey_data(self.metadata.get('public-keys'))
+ 
++    def publish_host_keys(self, hostkeys):
++        """Publish the public SSH host keys (found in /etc/ssh/*.pub).
++
++        @param hostkeys: List of host key tuples (key_type, key_value),
++            where key_type is the first field in the public key file
++            (e.g. 'ssh-rsa') and key_value is the key itself
++            (e.g. 'AAAAB3NzaC1y...').
++        """
++        pass
++
+     def _remap_device(self, short_name):
+         # LP: #611137
+         # the metadata service may believe that devices are named 'sda'
+diff --git a/cloudinit/url_helper.py b/cloudinit/url_helper.py
+index 396d69a..1b0721b 100644
+--- a/cloudinit/url_helper.py
++++ b/cloudinit/url_helper.py
+@@ -199,18 +199,19 @@ def _get_ssl_args(url, ssl_details):
+ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
+             headers=None, headers_cb=None, ssl_details=None,
+             check_status=True, allow_redirects=True, exception_cb=None,
+-            session=None, infinite=False, log_req_resp=True):
++            session=None, infinite=False, log_req_resp=True,
++            request_method=None):
+     url = _cleanurl(url)
+     req_args = {
+         'url': url,
+     }
+     req_args.update(_get_ssl_args(url, ssl_details))
+     req_args['allow_redirects'] = allow_redirects
+-    req_args['method'] = 'GET'
++    if not request_method:
++        request_method = 'POST' if data else 'GET'
++    req_args['method'] = request_method
+     if timeout is not None:
+         req_args['timeout'] = max(float(timeout), 0)
+-    if data:
+-        req_args['method'] = 'POST'
+     # It doesn't seem like config
+     # was added in older library versions (or newer ones either), thus we
+     # need to manually do the retries if it wasn't...
+diff --git a/tests/unittests/test_datasource/test_gce.py b/tests/unittests/test_datasource/test_gce.py
+index 41176c6..67744d3 100644
+--- a/tests/unittests/test_datasource/test_gce.py
++++ b/tests/unittests/test_datasource/test_gce.py
+@@ -55,6 +55,8 @@ GCE_USER_DATA_TEXT = {
+ HEADERS = {'Metadata-Flavor': 'Google'}
+ MD_URL_RE = re.compile(
+     r'http://metadata.google.internal/computeMetadata/v1/.*')
++GUEST_ATTRIBUTES_URL = ('http://metadata.google.internal/computeMetadata/'
++                        'v1/instance/guest-attributes/hostkeys/')
+ 
+ 
+ def _set_mock_metadata(gce_meta=None):
+@@ -341,4 +343,20 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
+             public_key_data, default_user='default')
+         self.assertEqual(sorted(found), sorted(expected))
+ 
++    @mock.patch("cloudinit.url_helper.readurl")
++    def test_publish_host_keys(self, m_readurl):
++        hostkeys = [('ssh-rsa', 'asdfasdf'),
++                    ('ssh-ed25519', 'qwerqwer')]
++        readurl_expected_calls = [
++            mock.call(check_status=False, data=b'asdfasdf', headers=HEADERS,
++                      request_method='PUT',
++                      url='%s%s' % (GUEST_ATTRIBUTES_URL, 'ssh-rsa')),
++            mock.call(check_status=False, data=b'qwerqwer', headers=HEADERS,
++                      request_method='PUT',
++                      url='%s%s' % (GUEST_ATTRIBUTES_URL, 'ssh-ed25519')),
++        ]
++        self.ds.publish_host_keys(hostkeys)
++        m_readurl.assert_has_calls(readurl_expected_calls, any_order=True)
++
++
+ # vi: ts=4 expandtab
+-- 
+1.8.3.1
+

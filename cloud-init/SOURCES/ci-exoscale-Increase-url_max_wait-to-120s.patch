@@ -1,0 +1,51 @@
+From 4e539790e57452b24aa6851452201c0f2a87c464 Mon Sep 17 00:00:00 2001
+From: Eduardo Otubo <otubo@redhat.com>
+Date: Tue, 5 May 2020 08:08:21 +0200
+Subject: [PATCH 4/5] exoscale: Increase url_max_wait to 120s.
+
+RH-Author: Eduardo Otubo <otubo@redhat.com>
+Message-id: <20200504085238.25884-5-otubo@redhat.com>
+Patchwork-id: 96247
+O-Subject: [RHEL-7.8.z cloud-init PATCH 4/5] exoscale: Increase url_max_wait to 120s.
+Bugzilla: 1827207
+RH-Acked-by: Cathy Avery <cavery@redhat.com>
+RH-Acked-by: Mohammed Gamal <mgamal@redhat.com>
+RH-Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+
+commit 3e2482e8aa6630ca9bc115dc1f82d44d3fde1681
+Author: Chris Glass <chris@exoscale.ch>
+Date:   Thu Oct 24 17:32:58 2019 +0000
+
+    exoscale: Increase url_max_wait to 120s.
+
+    The exoscale datasource defines a shorter timeout than the default (10)
+    but did not override url_max_wait, resulting in a single attempt being
+    made to wait for the metadata service.
+
+    In some rare cases, a race condition means the route to the metadata
+    service is not set within 10 seconds, and more attempts should be made.
+
+    This sets the url_max_wait for the datasource to 120.
+
+Signed-off-by: Eduardo Otubo <otubo@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ cloudinit/sources/DataSourceExoscale.py | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/cloudinit/sources/DataSourceExoscale.py b/cloudinit/sources/DataSourceExoscale.py
+index fdfb4ed..4616daa 100644
+--- a/cloudinit/sources/DataSourceExoscale.py
++++ b/cloudinit/sources/DataSourceExoscale.py
+@@ -26,6 +26,8 @@ class DataSourceExoscale(sources.DataSource):
+ 
+     dsname = 'Exoscale'
+ 
++    url_max_wait = 120
++
+     def __init__(self, sys_cfg, distro, paths):
+         super(DataSourceExoscale, self).__init__(sys_cfg, distro, paths)
+         LOG.debug("Initializing the Exoscale datasource")
+-- 
+1.8.3.1
+
