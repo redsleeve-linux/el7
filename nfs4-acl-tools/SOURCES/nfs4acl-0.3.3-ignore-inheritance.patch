@@ -1,0 +1,48 @@
+commit e32f747b21f01b646e27ca5048fe54b2391ca62f
+Author: NeilBrown <neilb@suse.com>
+Date:   Wed Feb 24 14:54:18 2016 +1100
+
+    nfs4_ace_from_string: ignore inheritance ACEs on non-directories.
+    
+    If you try to use
+         nfs4_setfacl -R -a A:d:........   directory
+    
+    to recursively set an inheritance ACE on all directories in a tree, it
+    will fail on the first non-directory as setting an inheritance ACE
+    there is not permitted (and as it aborts on the first sign of an error).
+    
+    So use the is_dir flag to avoid doing that, just as is done with the
+    DELETE_CHILD permission.
+    
+    Signed-off-by: NeilBrown <neilb@suse.com>
+    Signed-off-by: J. Bruce Fields <bfields@redhat.com>
+
+diff --git a/libnfs4acl/nfs4_ace_from_string.c b/libnfs4acl/nfs4_ace_from_string.c
+index 510ffee..a7a3036 100644
+--- a/libnfs4acl/nfs4_ace_from_string.c
++++ b/libnfs4acl/nfs4_ace_from_string.c
+@@ -185,16 +185,20 @@ struct nfs4_ace * nfs4_ace_from_string(char *ace_buf, int is_dir)
+ 	for (buflen = strlen(field); buflen > 0; buflen--) {
+ 		switch (*field) {
+ 			case FLAG_FILE_INHERIT:
+-				flags |= NFS4_ACE_FILE_INHERIT_ACE;
++				if (is_dir)
++					flags |= NFS4_ACE_FILE_INHERIT_ACE;
+ 				break;
+ 			case FLAG_DIR_INHERIT:
+-				flags |= NFS4_ACE_DIRECTORY_INHERIT_ACE;
++				if (is_dir)
++					flags |= NFS4_ACE_DIRECTORY_INHERIT_ACE;
+ 				break;
+ 			case FLAG_NO_PROPAGATE_INHERIT:
+-				flags |= NFS4_ACE_NO_PROPAGATE_INHERIT_ACE;
++				if (is_dir)
++					flags |= NFS4_ACE_NO_PROPAGATE_INHERIT_ACE;
+ 				break;
+ 			case FLAG_INHERIT_ONLY:
+-				flags |= NFS4_ACE_INHERIT_ONLY_ACE;
++				if (is_dir)
++					flags |= NFS4_ACE_INHERIT_ONLY_ACE;
+ 				break;
+ 			case FLAG_SUCCESSFUL_ACCESS:
+ 				flags |= NFS4_ACE_SUCCESSFUL_ACCESS_ACE_FLAG;

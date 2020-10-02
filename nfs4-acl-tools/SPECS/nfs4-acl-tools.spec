@@ -1,6 +1,6 @@
 Name:           nfs4-acl-tools
 Version:        0.3.3
-Release:        20%{?dist}.redsleeve
+Release:        21%{?dist}
 Summary:        The nfs4 ACL tools
 Group:          Applications/System
 License:        BSD
@@ -34,10 +34,12 @@ Patch009: nfs4-acl-tools-0.3.3-R-flag.patch
 # RHEL 7.7
 #
 Patch010: nfs4-acl-tools-0.3.3-skip-comment-field.patch
+#
+# RHEL 7.9
+#
+Patch011: nfs4acl-0.3.3-ignore-inheritance.patch
 
 Patch100: nfs4acl-0.2.0-compile.patch
-
-Patch10001: ../SOURCES/nfs4acl-0.3.3-libtool.patch
 
 %description
 This package contains commandline and GUI ACL utilities for the Linux
@@ -63,10 +65,10 @@ NFSv4 client.
 %patch009 -p1
 # 1666850 - nfs4_setfacl error applying nfs4_getfacl output 
 %patch010 -p1
+# 1842954 - nfs4_setfacl -R should ignore inheritance ACEs on non-directories.
+%patch011 -p1
 
 %patch100 -p1
-
-%patch10001 -p1
 
 %build
 %ifarch s390 s390x sparc
@@ -101,8 +103,8 @@ rm -rf %{buildroot}
 %{_mandir}/man5/*
 
 %changelog
-* Sat Aug 10 2019 Jacco Ligthart <jacco@redsleeve.org> - 0.3.3-20.redsleeve
-- added "--tag=CC" to the make command due to libtool errors
+* Mon Jun  8 2020 Steve Dickson <steved@redhat.com> 0.3.3-21
+- nfs4_ace_from_string: ignore inheritance ACEs on non-directories. (bz 1842954)
 
 * Wed Apr 10 2019 Steve Dickson <steved@redhat.com> 0.3.3-20
 - nfs4_setfacl: Skip comment field while reading ACE(s) (bz 1666850)
