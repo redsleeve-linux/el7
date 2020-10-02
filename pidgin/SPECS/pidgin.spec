@@ -110,7 +110,7 @@
 
 Name:           pidgin
 Version:        2.10.11
-Release:        8%{?dist}.redsleeve
+Release:        9%{?dist}
 License:        GPLv2+ and GPLv2 and MIT
 # GPLv2+ - libpurple, gnt, finch, pidgin, most prpls
 # GPLv2 - novell prpls
@@ -174,6 +174,9 @@ Patch104:       pidgin-2.10.11-IRC-Skip-EXTERNAL-SASL-auth-mechanism.patch
 
 # https://bugzilla.redhat.com/show_bug.cgi?id=1433761
 Patch105:       pidgin-2.10.11-Rework-tray-icon-blinking.patch
+
+# https://bugzilla.redhat.com/show_bug.cgi?id=1745267
+Patch106:       pidgin-2.10.11-ssl-nss-Use-default-NSS-ciphersuites.patch
 
 BuildRoot:      %{_tmppath}/%{name}-%{version}-root
 Summary:        A Gtk+ based multiprotocol instant messaging client
@@ -476,6 +479,7 @@ echo "FEDORA=%{fedora} RHEL=%{rhel}"
 %patch103 -p1 -b .Wsign-compare
 %patch104 -p1 -b .IRC-skip-EXTERNAL
 %patch105 -p1 -b .rework-tray-icon-blinking
+%patch106 -p1 -b .use-default-NSS-ciphersuites
 
 # Our preferences
 cp %{SOURCE1} prefs.xml
@@ -553,11 +557,11 @@ autoreconf --force --install
            --enable-tcl --enable-tk \
            --disable-schemas-install $SWITCHES
 
-make %{?_smp_mflags} LIBTOOL="/usr/bin/libtool --tag=CC"
+make %{?_smp_mflags} LIBTOOL=/usr/bin/libtool
 
 # one_time_password plugin, included upstream but not built by default
 cd libpurple/plugins/
-make one_time_password.so LIBTOOL="/usr/bin/libtool --tag=CC"
+make one_time_password.so LIBTOOL=/usr/bin/libtool
 cd -
 
 %if %{api_docs}
@@ -567,7 +571,7 @@ find doc/html -empty -delete
 
 %install
 rm -rf $RPM_BUILD_ROOT
-make DESTDIR=$RPM_BUILD_ROOT install LIBTOOL="/usr/bin/libtool --tag=CC"
+make DESTDIR=$RPM_BUILD_ROOT install LIBTOOL=/usr/bin/libtool
 
 install -m 0755 libpurple/plugins/one_time_password.so $RPM_BUILD_ROOT%{_libdir}/purple-2/
 
@@ -771,8 +775,9 @@ rm -rf $RPM_BUILD_ROOT
 %endif
 
 %changelog
-* Sat Aug 10 2019 Jacco Ligthart <jacco@redsleeve.org> 2.10.11-8.el7.redsleeve
-- added "--tag=CC" to the make command due to libtool errors
+* Thu May 28 2020 Debarshi Ray <rishi@fedoraproject.org> - 2.10.11-9
+- Make TLS 1.3 work
+  Resolves: #1745267
 
 * Tue Oct 09 2018 Debarshi Ray <rishi@fedoraproject.org> - 2.10.11-8
 - Rework tray icon blinking
