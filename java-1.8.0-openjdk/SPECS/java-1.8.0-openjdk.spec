@@ -31,6 +31,11 @@
 %global ppc64be         ppc64 ppc64p7
 %global multilib_arches %{power64} sparc64 x86_64
 %global jit_arches      %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64}
+%global sa_arches       %{ix86} x86_64 sparcv9 sparc64 %{aarch64}
+# MetaspaceShared::generate_vtable_methods not implemented for PPC JIT
+# See https://bugzilla.redhat.com/show_bug.cgi?id=513605
+%global share_arches    %{ix86} x86_64 sparcv9 sparc64 %{aarch64}
+%global jfr_arches      x86_64 sparcv9 sparc64 %{aarch64} %{power64}
 
 # By default, we build a debug build during main build on JIT architectures
 %ifarch %{jit_arches}
@@ -58,11 +63,8 @@
 %global bootstrap_build 1
 %endif
 
-%if %{bootstrap_build}
-%global release_targets bootcycle-images zip-docs
-%else
+%global bootstrap_targets images
 %global release_targets images zip-docs
-%endif
 # No docs nor bootcycle for debug builds
 %global debug_targets images
 
@@ -103,7 +105,7 @@
 # In some cases, the arch used by the JDK does
 # not match _arch.
 # Also, in some cases, the machine name used by SystemTap
-# does not match that given by _build_cpu
+# does not match that given by _target_cpu
 %ifarch x86_64
 %global archinstall amd64
 %global stapinstall x86_64
@@ -147,15 +149,17 @@
 # 32 bit sparc, optimized for v9
 %ifarch sparcv9
 %global archinstall sparc
-%global stapinstall %{_build_cpu}
+%global stapinstall %{_target_cpu}
 %endif
 # 64 bit sparc
 %ifarch sparc64
 %global archinstall sparcv9
-%global stapinstall %{_build_cpu}
+%global stapinstall %{_target_cpu}
 %endif
-%ifnarch %{jit_arches}
-%global archinstall %{_arch}
+# Need to support noarch for srpm build
+%ifarch noarch
+%global archinstall %{nil}
+%global stapinstall %{nil}
 %endif
 
 %ifarch %{jit_arches}
@@ -180,13 +184,13 @@
 # note, following three variables are sedded from update_sources if used correctly. Hardcode them rather there.
 %global shenandoah_project	aarch64-port
 %global shenandoah_repo		jdk8u-shenandoah
-%global shenandoah_revision    	aarch64-shenandoah-jdk8u252-b09
+%global shenandoah_revision    	aarch64-shenandoah-jdk8u265-b01
 # Define old aarch64/jdk8u tree variables for compatibility
 %global project         %{shenandoah_project}
 %global repo            %{shenandoah_repo}
 %global revision        %{shenandoah_revision}
 # Define IcedTea version used for SystemTap tapsets and desktop files
-%global icedteaver      3.11.0
+%global icedteaver      3.15.0
 
 # e.g. aarch64-shenandoah-jdk8u212-b04-shenandoah-merge-2019-04-30 -> aarch64-shenandoah-jdk8u212-b04
 %global version_tag     %(VERSION=%{revision}; echo ${VERSION%%-shenandoah-merge*})
@@ -196,7 +200,7 @@
 %global updatever       %(VERSION=%{whole_update}; echo ${VERSION##*u})
 # eg jdk8u60-b27 -> b27
 %global buildver        %(VERSION=%{version_tag}; echo ${VERSION##*-})
-%global rpmrelease      2
+%global rpmrelease      1
 # Define milestone (EA for pre-releases, GA ("fcs") for releases)
 # Release will be (where N is usually a number starting at 1):
 # - 0.N%%{?extraver}%%{?dist} for EA releases,
@@ -224,7 +228,7 @@
 # images stub
 %global jdkimage       j2sdk-image
 # output dir stub
-%global buildoutputdir() %{expand:%{top_level_dir_name}/build/jdk8.build%1}
+%define buildoutputdir() %{expand:build/jdk8.build%1}
 #we can copy the javadoc to not arched dir, or make it not noarch
 %global uniquejavadocdir()    %{expand:%{fullversion}%1}
 #main id and dir of this jdk
@@ -238,6 +242,7 @@
 %global sdkbindir()     %{expand:%{_jvmdir}/%{sdkdir %%1}/bin}
 %global jrebindir()     %{expand:%{_jvmdir}/%{jredir %%1}/bin}
 %global jvmjardir()     %{expand:%{_jvmjardir}/%{uniquesuffix %%1}}
+%global alt_java_name     alt-java
 
 %global rpm_state_dir %{_localstatedir}/lib/rpm-state/
 
@@ -249,9 +254,10 @@
 # and 32 bit architectures we place the tapsets under the arch
 # specific dir (note that systemtap will only pickup the tapset
 # for the primary arch for now). Systemtap uses the machine name
-# aka build_cpu as architecture specific directory name.
+# aka target_cpu as architecture specific directory name.
 %global tapsetroot /usr/share/systemtap
-%global tapsetdir %{tapsetroot}/tapset/%{stapinstall}
+%global tapsetdirttapset %{tapsetroot}/tapset/
+%global tapsetdir %{tapsetdirttapset}/%{stapinstall}
 %endif
 
 # not-duplicated scriptlets for normal/debug packages
@@ -266,12 +272,8 @@ exit 0
 
 
 %global post_headless() %{expand:
-%ifarch %{jit_arches}
-# MetaspaceShared::generate_vtable_methods not implemented for PPC JIT
-%ifnarch %{power64}
-#see https://bugzilla.redhat.com/show_bug.cgi?id=513605
+%ifarch %{share_arches}
 %{jrebindir %%1}/java -Xshare:dump >/dev/null 2>/dev/null
-%endif
 %endif
 
 PRIORITY=%{priority}
@@ -284,6 +286,7 @@ alternatives \\
   --install %{_bindir}/java java %{jrebindir %%1}/java $PRIORITY  --family %{name}.%{_arch} \\
   --slave %{_jvmdir}/jre jre %{_jvmdir}/%{jredir %%1} \\
   --slave %{_jvmjardir}/jre jre_exports %{_jvmjardir}/%{jrelnk %%1} \\
+  --slave %{_bindir}/%{alt_java_name} %{alt_java_name} %{jrebindir %%1}/%{alt_java_name} \\
   --slave %{_bindir}/jjs jjs %{jrebindir %%1}/jjs \\
   --slave %{_bindir}/keytool keytool %{jrebindir %%1}/keytool \\
   --slave %{_bindir}/orbd orbd %{jrebindir %%1}/orbd \\
@@ -296,6 +299,8 @@ alternatives \\
   --slave %{_bindir}/unpack200 unpack200 %{jrebindir %%1}/unpack200 \\
   --slave %{_mandir}/man1/java.1$ext java.1$ext \\
   %{_mandir}/man1/java-%{uniquesuffix %%1}.1$ext \\
+  --slave %{_mandir}/man1/%{alt_java_name}.1$ext %{alt_java_name}.1$ext \\
+  %{_mandir}/man1/%{alt_java_name}-%{uniquesuffix %%1}.1$ext \\
   --slave %{_mandir}/man1/jjs.1$ext jjs.1$ext \\
   %{_mandir}/man1/jjs-%{uniquesuffix %%1}.1$ext \\
   --slave %{_mandir}/man1/keytool.1$ext keytool.1$ext \\
@@ -376,7 +381,9 @@ alternatives \\
   --slave %{_jvmdir}/java java_sdk %{_jvmdir}/%{sdkdir %%1} \\
   --slave %{_jvmjardir}/java java_sdk_exports %{_jvmjardir}/%{sdkdir %%1} \\
   --slave %{_bindir}/appletviewer appletviewer %{sdkbindir %%1}/appletviewer \\
+  --slave %{_bindir}/clhsdb clhsdb %{sdkbindir %%1}/clhsdb \\
   --slave %{_bindir}/extcheck extcheck %{sdkbindir %%1}/extcheck \\
+  --slave %{_bindir}/hsdb hsdb %{sdkbindir %%1}/hsdb \\
   --slave %{_bindir}/idlj idlj %{sdkbindir %%1}/idlj \\
   --slave %{_bindir}/jar jar %{sdkbindir %%1}/jar \\
   --slave %{_bindir}/jarsigner jarsigner %{sdkbindir %%1}/jarsigner \\
@@ -387,6 +394,9 @@ alternatives \\
   --slave %{_bindir}/jconsole jconsole %{sdkbindir %%1}/jconsole \\
   --slave %{_bindir}/jdb jdb %{sdkbindir %%1}/jdb \\
   --slave %{_bindir}/jdeps jdeps %{sdkbindir %%1}/jdeps \\
+%ifarch %{jfr_arches}
+  --slave %{_bindir}/jfr jfr %{sdkbindir %%1}/jfr \\
+%endif
   --slave %{_bindir}/jhat jhat %{sdkbindir %%1}/jhat \\
   --slave %{_bindir}/jinfo jinfo %{sdkbindir %%1}/jinfo \\
   --slave %{_bindir}/jmap jmap %{sdkbindir %%1}/jmap \\
@@ -542,9 +552,9 @@ exit 0
 
 %global files_jre_headless() %{expand:
 %defattr(-,root,root,-)
-%license %{buildoutputdir %%1}/images/%{jdkimage}/jre/ASSEMBLY_EXCEPTION
-%license %{buildoutputdir %%1}/images/%{jdkimage}/jre/LICENSE
-%license %{buildoutputdir %%1}/images/%{jdkimage}/jre/THIRD_PARTY_README
+%license %{_jvmdir}/%{jredir %%1}/ASSEMBLY_EXCEPTION
+%license %{_jvmdir}/%{jredir %%1}/LICENSE
+%license %{_jvmdir}/%{jredir %%1}/THIRD_PARTY_README
 %doc %{_defaultdocdir}/%{uniquejavadocdir %%1}/NEWS
 %dir %{_jvmdir}/%{sdkdir %%1}
 %{_jvmdir}/%{jrelnk %%1}
@@ -566,6 +576,7 @@ exit 0
 %config(noreplace) %{_jvmdir}/%{jredir %%1}/lib/logging.properties
 %config(noreplace) %{_jvmdir}/%{jredir %%1}/lib/net.properties
 %{_mandir}/man1/java-%{uniquesuffix %%1}.1*
+%{_mandir}/man1/%{alt_java_name}-%{uniquesuffix %%1}.1*
 %{_mandir}/man1/jjs-%{uniquesuffix %%1}.1*
 %{_mandir}/man1/keytool-%{uniquesuffix %%1}.1*
 %{_mandir}/man1/orbd-%{uniquesuffix %%1}.1*
@@ -577,11 +588,9 @@ exit 0
 %{_mandir}/man1/unpack200-%{uniquesuffix %%1}.1*
 %{_mandir}/man1/policytool-%{uniquesuffix %%1}.1*
 %config(noreplace) %{_jvmdir}/%{jredir %%1}/lib/security/nss.cfg
-%ifarch %{jit_arches}
-%ifnarch %{power64}
+%ifarch %{share_arches}
 %attr(444, root, root) %ghost %{_jvmdir}/%{jredir %%1}/lib/%{archinstall}/server/classes.jsa
 %attr(444, root, root) %ghost %{_jvmdir}/%{jredir %%1}/lib/%{archinstall}/client/classes.jsa
-%endif
 %endif
 %{_jvmdir}/%{jredir %%1}/lib/%{archinstall}/server/
 %{_jvmdir}/%{jredir %%1}/lib/%{archinstall}/client/
@@ -589,9 +598,9 @@ exit 0
 
 %global files_devel() %{expand:
 %defattr(-,root,root,-)
-%license %{buildoutputdir %%1}/images/%{jdkimage}/ASSEMBLY_EXCEPTION
-%license %{buildoutputdir %%1}/images/%{jdkimage}/LICENSE
-%license %{buildoutputdir %%1}/images/%{jdkimage}/THIRD_PARTY_README
+%license %{_jvmdir}/%{sdkdir %%1}/ASSEMBLY_EXCEPTION
+%license %{_jvmdir}/%{sdkdir %%1}/LICENSE
+%license %{_jvmdir}/%{sdkdir %%1}/THIRD_PARTY_README
 %dir %{_jvmdir}/%{sdkdir %%1}/bin
 %dir %{_jvmdir}/%{sdkdir %%1}/include
 %dir %{_jvmdir}/%{sdkdir %%1}/lib
@@ -704,7 +713,8 @@ Requires: ca-certificates
 # Require jpackage-utils for ownership of /usr/lib/jvm/
 Requires: jpackage-utils
 # Require zoneinfo data provided by tzdata-java subpackage.
-Requires: tzdata-java >= 2015d
+# 2020a required as of JDK-8243541
+Requires: tzdata-java >= 2020a
 # libsctp.so.1 is being `dlopen`ed on demand
 Requires: lksctp-tools%{?_isa}
 # tool to copy jdk's configs - should be Recommends only, but then only dnf/yum enforce it,
@@ -836,7 +846,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
 
 Name:    java-%{javaver}-%{origin}
 Version: %{javaver}.%{updatever}.%{buildver}
-Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}.redsleeve
+Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
 # and this change was brought into RHEL-4. java-1.5.0-ibm packages
 # also included the epoch in their virtual provides. This created a
@@ -1000,7 +1010,10 @@ Patch102: jdk8203030-zero_s390_31_bit_size_t_type_conflicts_in_shared_code.patch
 # 8035341: Allow using a system installed libpng
 Patch202: jdk8035341-allow_using_system_installed_libpng.patch
 # 8042159: Allow using a system-installed lcms2
-Patch203: jdk8042159-allow_using_system_installed_lcms2.patch
+Patch203: jdk8042159-allow_using_system_installed_lcms2-root.patch
+Patch204: jdk8042159-allow_using_system_installed_lcms2-jdk.patch
+# JDK-8186464, RH1433262: ZipFile cannot read some InfoZip ZIP64 zip files
+Patch12: jdk8186464-rh1433262-zip64_failure.patch
 
 #############################################
 #
@@ -1096,7 +1109,8 @@ BuildRequires: java-1.8.0-openjdk-devel
 %ifnarch %{jit_arches}
 BuildRequires: libffi-devel
 %endif
-BuildRequires: tzdata-java >= 2015d
+# 2020a required as of JDK-8243541
+BuildRequires: tzdata-java >= 2020a
 # Earlier versions have a bug in tree vectorization on PPC
 BuildRequires: gcc >= 4.8.3-8
 
@@ -1295,6 +1309,14 @@ See normal java-%{version}-openjdk-accessibility description.
 %endif
 
 %prep
+
+# Using the echo macro breaks rpmdev-bumpspec, as it parses the first line of stdout :-(
+%if 0%{?stapinstall:1}
+  echo "CPU: %{_target_cpu}, arch install directory: %{archinstall}, SystemTap install directory: %{stapinstall}"
+%else
+  %{error:Unrecognised architecture %{_target_cpu}}
+%endif
+
 if [ %{include_normal_build} -eq 0 -o  %{include_normal_build} -eq 1 ] ; then
   echo "include_normal_build is %{include_normal_build}"
 else
@@ -1347,6 +1369,7 @@ sh %{SOURCE12}
 %patch201
 %patch202
 %patch203
+%patch204
 
 %patch1
 %patch3
@@ -1378,6 +1401,7 @@ sh %{SOURCE12}
 %patch575
 %patch577
 %patch541
+%patch12
 
 # RPM-only fixes
 %patch539
@@ -1424,7 +1448,7 @@ for file in %{SOURCE9} %{SOURCE10} ; do
     EXT="${FILE##*.}"
     NAME="${FILE%.*}"
     OUTPUT_FILE=$NAME$suffix.$EXT
-    sed    -e  "s:_BINDIR_:%{sdkbindir -- $suffix}:g" $file > $OUTPUT_FILE
+    sed    -e  "s:_SDKBINDIR_:%{sdkbindir -- $suffix}:g" $file > $OUTPUT_FILE
     sed -i -e  "s:_JREBINDIR_:%{jrebindir -- $suffix}:g" $OUTPUT_FILE
     sed -i -e  "s:@target_cpu@:%{_arch}:g" $OUTPUT_FILE
     sed -i -e  "s:@OPENJDK_VER@:%{version}-%{release}$suffix:g" $OUTPUT_FILE
@@ -1475,20 +1499,23 @@ export EXTRA_CFLAGS EXTRA_ASFLAGS
  bash ./autogen.sh
 )
 
-for suffix in %{build_loop} ; do
-if [ "$suffix" = "%{debug_suffix}" ] ; then
-debugbuild=%{debugbuild_parameter}
-else
-debugbuild=%{normalbuild_parameter}
-fi
+function buildjdk() {
+    local outputdir=${1}
+    local buildjdk=${2}
+    local maketargets=${3}
+    local debuglevel=${4}
 
-# Variable used in hs_err hook on build failures
-top_dir_abs_path=$(pwd)/%{top_level_dir_name}
+    local top_srcdir_abs_path=$(pwd)/%{top_level_dir_name}
+    # Variable used in hs_err hook on build failures
+    local top_builddir_abs_path=$(pwd)/${outputdir}
 
-mkdir -p %{buildoutputdir $suffix}
-pushd %{buildoutputdir $suffix}
+    mkdir -p ${outputdir}
+    pushd ${outputdir}
 
-bash ../../configure \
+    bash ${top_srcdir_abs_path}/configure \
+%ifarch %{jfr_arches}
+    --enable-jfr \
+%endif
 %ifnarch %{jit_arches}
     --with-jvm-variants=zero \
 %endif
@@ -1496,8 +1523,8 @@ bash ../../configure \
     --with-milestone=%{milestone} \
     --with-update-version=%{updatever} \
     --with-build-number=%{buildver} \
-    --with-boot-jdk=/usr/lib/jvm/java-openjdk \
-    --with-debug-level=$debugbuild \
+    --with-boot-jdk=${buildjdk} \
+    --with-debug-level=${debuglevel} \
     --enable-unlimited-crypto \
     --with-zlib=system \
     --with-libjpeg=system \
@@ -1511,8 +1538,43 @@ bash ../../configure \
     --with-extra-ldflags="%{ourldflags}" \
     --with-num-cores="$NUM_PROC"
 
-cat spec.gmk
-cat hotspot-spec.gmk
+    cat spec.gmk
+    cat hotspot-spec.gmk
+
+    make \
+	JAVAC_FLAGS=-g \
+	LOG=trace \
+	SCTP_WERROR= \
+	${maketargets} || ( pwd; find ${top_srcdir_abs_path} ${top_builddir_abs_path} -name "hs_err_pid*.log" | xargs cat && false )
+
+    # the build (erroneously) removes read permissions from some jars
+    # this is a regression in OpenJDK 7 (our compiler):
+    # http://icedtea.classpath.org/bugzilla/show_bug.cgi?id=1437
+    find images/%{jdkimage} -iname '*.jar' -exec chmod ugo+r {} \;
+    chmod ugo+r images/%{jdkimage}/lib/ct.sym
+
+    # remove redundant *diz and *debuginfo files
+    find images/%{jdkimage} -iname '*.diz' -exec rm -v {} \;
+    find images/%{jdkimage} -iname '*.debuginfo' -exec rm -v {} \;
+
+    # Build screws up permissions on binaries
+    # https://bugs.openjdk.java.net/browse/JDK-8173610
+    find images/%{jdkimage} -iname '*.so' -exec chmod +x {} \;
+    find images/%{jdkimage}/bin/ -exec chmod +x {} \;
+
+    popd >& /dev/null
+}
+
+for suffix in %{build_loop} ; do
+if [ "$suffix" = "%{debug_suffix}" ] ; then
+debugbuild=%{debugbuild_parameter}
+else
+debugbuild=%{normalbuild_parameter}
+fi
+
+systemjdk=/usr/lib/jvm/java-openjdk
+builddir=%{buildoutputdir $suffix}
+bootbuilddir=boot${builddir}
 
 # Debug builds don't need same targets as release for
 # build speed-up
@@ -1520,27 +1582,14 @@ maketargets="%{release_targets}"
 if echo $debugbuild | grep -q "debug" ; then
   maketargets="%{debug_targets}"
 fi
-make \
-    JAVAC_FLAGS=-g \
-    LOG=trace \
-    $maketargets || ( pwd; find $top_dir_abs_path -name "hs_err_pid*.log" | xargs cat && false )
 
-# the build (erroneously) removes read permissions from some jars
-# this is a regression in OpenJDK 7 (our compiler):
-# http://icedtea.classpath.org/bugzilla/show_bug.cgi?id=1437
-find images/%{jdkimage} -iname '*.jar' -exec chmod ugo+r {} \;
-chmod ugo+r images/%{jdkimage}/lib/ct.sym
-
-# remove redundant *diz and *debuginfo files
-find images/%{jdkimage} -iname '*.diz' -exec rm {} \;
-find images/%{jdkimage} -iname '*.debuginfo' -exec rm {} \;
-
-# Build screws up permissions on binaries
-# https://bugs.openjdk.java.net/browse/JDK-8173610
-find images/%{jdkimage} -iname '*.so' -exec chmod +x {} \;
-find images/%{jdkimage}/bin/ -exec chmod +x {} \;
-
-popd >& /dev/null
+%if %{bootstrap_build}
+buildjdk ${bootbuilddir} ${systemjdk} "%{bootstrap_targets}" ${debugbuild}
+buildjdk ${builddir} $(pwd)/${bootbuilddir}/images/%{jdkimage} "${maketargets}" ${debugbuild}
+rm -rf ${bootbuilddir}
+%else
+buildjdk ${builddir} ${systemjdk} "${maketargets}" ${debugbuild}
+%endif
 
 # Install nss.cfg right away as we will be using the JRE above
 export JAVA_HOME=$(pwd)/%{buildoutputdir $suffix}/images/%{jdkimage}
@@ -1551,6 +1600,15 @@ install -m 644 nss.cfg $JAVA_HOME/jre/lib/security/
 # Use system-wide tzdata
 rm $JAVA_HOME/jre/lib/tzdb.dat
 ln -s %{_datadir}/javazi-1.8/tzdb.dat $JAVA_HOME/jre/lib/tzdb.dat
+
+# Create fake alt-java as a placeholder for future alt-java
+pushd ${JAVA_HOME}
+cp -a jre/bin/java jre/bin/%{alt_java_name}
+cp -a bin/java bin/%{alt_java_name}
+# add alt-java man page
+echo "Hardened java binary recommended for launching untrusted code from the Web e.g. javaws" > man/man1/%{alt_java_name}.1
+cat man/man1/java.1 >> man/man1/%{alt_java_name}.1
+popd
 
 # build cycles
 done
@@ -1620,18 +1678,18 @@ done
 # Using line number 1 might cause build problems. See:
 # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
 # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
-#gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
-#handle SIGSEGV pass nostop noprint
-#handle SIGILL pass nostop noprint
-#set breakpoint pending on
-#break javaCalls.cpp:1
-#commands 1
-#backtrace
-#quit
-#end
-#run -version
-#EOF
-#grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
+gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
+handle SIGSEGV pass nostop noprint
+handle SIGILL pass nostop noprint
+set breakpoint pending on
+break javaCalls.cpp:1
+commands 1
+backtrace
+quit
+end
+run -version
+EOF
+grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
 
 # Check src.zip has all sources. See RHBZ#1130490
 jar -tf $JAVA_HOME/src.zip | grep 'sun.misc.Unsafe'
@@ -1663,9 +1721,9 @@ mkdir -p $RPM_BUILD_ROOT%{_jvmdir}/%{jredir $suffix}/lib/%{archinstall}/client/
 
   # Install main files.
   install -d -m 755 $RPM_BUILD_ROOT%{_jvmdir}/%{sdkdir $suffix}
-  cp -a bin include lib src.zip $RPM_BUILD_ROOT%{_jvmdir}/%{sdkdir $suffix}
+  cp -a bin include lib src.zip {ASSEMBLY_EXCEPTION,LICENSE,THIRD_PARTY_README} $RPM_BUILD_ROOT%{_jvmdir}/%{sdkdir $suffix}
   install -d -m 755 $RPM_BUILD_ROOT%{_jvmdir}/%{jredir $suffix}
-  cp -a jre/bin jre/lib $RPM_BUILD_ROOT%{_jvmdir}/%{jredir $suffix}
+  cp -a jre/bin jre/lib jre/{ASSEMBLY_EXCEPTION,LICENSE,THIRD_PARTY_README} $RPM_BUILD_ROOT%{_jvmdir}/%{jredir $suffix}
 
 %if %{with_systemtap}
   # Install systemtap support files
@@ -2060,49 +2118,169 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
-* Sat May 09 2020 Jacco Ligthart <jacco@redsleeve.org> 1:1.8.0.252.b09-2.redsleeve
-- removed the gdb section of the SPEC file
+* Mon Jul 27 2020 Jiri Vanek <jvanek@redhat.com> - 1:1.8.0.265.b01-1
+- ASSEMBLY_EXCEPTION LICENSE THIRD_PARTY_README moved to fully versioned dirs
+- Resolves: rhbz#1861222
 
-* Tue Apr 14 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b09-2
+* Mon Jul 27 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.265.b01-0
+- Update to aarch64-shenandoah-jdk8u265-b01.
+- Update release notes for 8u265 release.
+- Resolves: rhbz#1860456
+
+* Thu Jul 16 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.262.b10-2
+- Remove issues in NEWS file duplicated between 8u252 & 8u262 releases.
+- Resolves: rhbz#1838811
+
+* Sun Jul 12 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.262.b10-1
+- Update to aarch64-shenandoah-jdk8u262-b10.
+- Switch to GA mode for final release.
+- Update release notes for 8u262 release.
+- Split JDK-8042159 patch into per-repo patches as upstream.
+- Update JDK-8042159 JDK patch to apply after JDK-8238002 changes to Awt2dLibraries.gmk
+- Resolves: rhbz#1838811
+
+* Sat Jul 11 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.262.b09-0.5.ea
+- Restructure the build so a minimal initial build is then used for the final build (with docs)
+- This reduces pressure on the system JDK and ensures the JDK being built can do a full build
+- Introduce jfr_arches for architectures which support JFR.
+- Introduce sa_arches for architectures which support the serviceability agent.
+- Introduce share_arches for architectures which support class sharing (-Xshare:dump).
+- Resolves: rhbz#1838811
+
+* Fri Jul 10 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.262.b09-0.4.ea
+- With JDK-8248399 fixed, a broken jfr binary is no longer installed on architectures without JFR.
+- Resolves: rhbz#1838811
+
+* Thu Jul 09 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.262.b09-0.3.ea
+- Update to aarch64-shenandoah-jdk8u262-b09-shenandoah-merge-2020-07-03
+- Resolves: rhbz#1838811
+
+* Sun Jul 05 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.262.b09-0.2.ea
+- Sync alt-java support with java-11-openjdk version.
+- Resolves: rhbz#1838811
+
+* Mon Jun 29 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.262.b09-0.1.ea
+- Update to aarch64-shenandoah-jdk8u262-b09.
+- Resolves: rhbz#1838811
+
+* Fri Jun 26 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.262.b08-0.1.ea
+- Update to aarch64-shenandoah-jdk8u262-b08.
+- Resolves: rhbz#1838811
+
+* Tue Jun 23 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.262.b07-0.3.ea
+- Update to aarch64-shenandoah-jdk8u262-b07-shenandoah-merge-2020-06-18.
+- Resolves: rhbz#1838811
+
+* Fri Jun 19 2020 Jiri Vanek <jvanek@redhat.com> - 1:1.8.0.262.b07-0.2.ea
+- Created copy of java as alt-java and adapted alternatives and man pages
+- Resolves: rhbz#1838811
+
+* Tue Jun 16 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.262.b07-0.1.ea
+- Update to aarch64-shenandoah-jdk8u262-b07.
+- Drop JDK-8243541 backport now applied upstream.
+- Resolves: rhbz#1838811
+
+* Tue Jun 09 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.262.b06-0.2.ea
+- Sync SystemTap & desktop files with upstream IcedTea release 3.15.0, removing previous workarounds
+- Sync stapinstall handling with RHEL 8 implementation
+- Need to support noarch for creating source RPMs for non-scratch builds.
+- Resolves: rhbz#1838811
+
+* Mon Jun 08 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.262.b06-0.1.ea
+- Update to aarch64-shenandoah-jdk8u262-b06.
+- Resolves: rhbz#1838811
+
+* Mon Jun 08 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.262.b05-0.4.ea
+- Backport JDK-8186464 so ZIP64 archives < 4GB can be read.
+- Resolves: rhbz#1433262
+
+* Mon Jun 08 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.262.b05-0.3.ea
+- Update to aarch64-shenandoah-jdk8u262-b05-shenandoah-merge-2020-06-04.
+- Resolves: rhbz#1838811
+
+* Mon Jun 08 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.262.b05-0.2.ea
+- Backport JDK-8243541 & require tzdata 2020a as latest tzdata package needs resource updates
+- Resolves: rhbz#1838229
+
+* Sun Jun 07 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.262.b05-0.1.ea
+- Update to aarch64-shenandoah-jdk8u262-b05.
+- Remove backports of JDK-8227269 & JDK-8241750 included upstream in 8u262-b05.
+- Resolves: rhbz#1838811
+
+* Sun Jun 07 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.262.b04-0.1.ea
+- Update to aarch64-shenandoah-jdk8u262-b04.
+- Resolves: rhbz#1838811
+
+* Sun Jun 07 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.262.b03-0.2.ea
+- Update to aarch64-shenandoah-jdk8u262-b03-shenandoah-merge-2020-05-20.
+- Resolves: rhbz#1838811
+
+* Sat Jun 06 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.262.b03-0.1.ea
+- Update to aarch64-shenandoah-jdk8u262-b03.
+- Resolves: rhbz#1838811
+
+* Sat Jun 06 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.262.b02-0.2.ea
+- Enable JFR in our builds, ahead of upstream default.
+- Only enable JFR for JIT builds, as it is not supported with Zero.
+- Turn off JFR on x86 for now due to assert(SerializePageShiftCount == count) crash.
+- Resolves: rhbz#1838811
+
+* Wed Jun 03 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.262.b02-0.1.ea
+- Update to aarch64-shenandoah-jdk8u262-b02.
+- Resolves: rhbz#1838811
+
+* Sun May 24 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.262.b01-0.1.ea
+- Update to aarch64-shenandoah-jdk8u262-b01.
+- Switch to EA mode.
+- Adjust JDK-8143245/PR3548 patch following context changes due to JDK-8203287 for JFR
+- Adjust RH1648644 following context changes due to introduction of JFR packages
+- Add recently added binaries to alternatives set (clhsdb, hsdb, jfr)
+- Resolves: rhbz#1838811
+
+* Sat May 23 2020 Andrew John Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b09-4
+- Add backports of JDK-8227269 & JDK-8241750 to resolve slow class loading with JDWP enabled.
+- Resolves: rhbz#1751985
+
+* Wed Apr 15 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b09-3
 - Add release notes.
 - Mark license files with appropriate macro.
 - Resolves: rhbz#1810557
 
-* Sun Apr 12 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b09-1
-- Make use of --with-extra-asflags introduced in jdk8u252-b01.
-- Resolves: rhbz#1810557
-
-* Mon Apr 06 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b09-0
+* Wed Apr 15 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b09-3
 - Update to aarch64-shenandoah-jdk8u242-b09.
 - Switch to GA mode for final release.
 - Resolves: rhbz#1810557
 
-* Fri Mar 27 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b08-0.0.ea
+* Sun Apr 12 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b08-0.2.ea
+- Make use of --with-extra-asflags introduced in jdk8u252-b01.
+- Resolves: rhbz#1810557
+
+* Fri Mar 27 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b08-0.1.ea
 - Update to aarch64-shenandoah-jdk8u252-b08.
 - Resolves: rhbz#1810557
 
-* Tue Mar 24 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b07-0.0.ea
+* Tue Mar 24 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b07-0.1.ea
 - Update to aarch64-shenandoah-jdk8u252-b07.
 - Resolves: rhbz#1810557
 
-* Mon Mar 16 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b06-0.0.ea
+* Mon Mar 16 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b06-0.1.ea
 - Update to aarch64-shenandoah-jdk8u252-b06.
 - Resolves: rhbz#1810557
 
-* Fri Feb 28 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b05-0.0.ea
+* Fri Feb 28 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b05-0.1.ea
 - Update to aarch64-shenandoah-jdk8u252-b05.
 - Resolves: rhbz#1810557
 
-* Mon Feb 24 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b04-0.0.ea
+* Mon Feb 24 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b04-0.1.ea
 - Update to aarch64-shenandoah-jdk8u252-b04.
 - Resolves: rhbz#1810557
 
-* Wed Feb 19 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b03-0.0.ea
+* Wed Feb 19 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b03-0.1.ea
 - Update to aarch64-shenandoah-jdk8u252-b03.
 - Adjust PR2974/RH1337583 & PR3083/RH1346460 following context changes in JDK-8230978
 - Resolves: rhbz#1810557
 
-* Tue Feb 04 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b02-0.0.ea
+* Tue Feb 04 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b02-0.1.ea
 - Update to aarch64-shenandoah-jdk8u252-b02.
 - Resolves: rhbz#1810557
 
