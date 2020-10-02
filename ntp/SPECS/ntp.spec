@@ -1,7 +1,7 @@
 Summary: The NTP daemon and utilities
 Name: ntp
 Version: 4.2.6p5
-Release: 29%{?dist}.2
+Release: 29%{?dist}.2.redsleeve
 # primary license (COPYRIGHT) : MIT
 # ElectricFence/ (not used) : GPLv2
 # kernel/sys/ppsclock.h (not used) : BSD with advertising
@@ -277,7 +277,7 @@ This package contains NTP documentation in HTML format.
 # pool.ntp.org vendor zone which will be used in ntp.conf
 %if 0%{!?vendorzone:1}
 %{?fedora: %global vendorzone fedora.}
-%{?rhel: %global vendorzone centos.}
+%{?rhel: %global vendorzone redsleeve.}
 %endif
 
 %prep
@@ -574,6 +574,9 @@ popd
 %{ntpdocdir}/html
 
 %changelog
+* Thu Jul 16 2020 Jacco Ligthart <jacco@redsleeve.org> - 4.2.6p5-29.el7.redsleeve.2
+- rebrand vendorzone
+
 * Tue Jun 23 2020 CentOS Sources <bugs@centos.org> - 4.2.6p5-29.el7.centos.2
 - rebrand vendorzone
 

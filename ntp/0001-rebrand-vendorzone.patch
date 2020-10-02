@@ -1,6 +1,6 @@
-From bcd94ff9420b4ac1755540fad583113760f02c70 Mon Sep 17 00:00:00 2001
+From 758734462d868f0d7fc21891b96c5b9c4da16602 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sat, 10 Aug 2019 06:38:40 +0200
+Date: Thu, 16 Jul 2020 00:22:48 +0200
 Subject: [PATCH] rebrand vendorzone
 
 ---
@@ -8,19 +8,19 @@ Subject: [PATCH] rebrand vendorzone
  1 file changed, 5 insertions(+), 2 deletions(-)
 
 diff --git a/SPECS/ntp.spec b/SPECS/ntp.spec
-index 178a961..db36ac6 100644
+index 847f5ad..83a7ea7 100644
 --- a/SPECS/ntp.spec
 +++ b/SPECS/ntp.spec
 @@ -1,7 +1,7 @@
  Summary: The NTP daemon and utilities
  Name: ntp
  Version: 4.2.6p5
--Release: 29%{?dist}
-+Release: 29%{?dist}.redsleeve
+-Release: 29%{?dist}.2
++Release: 29%{?dist}.2.redsleeve
  # primary license (COPYRIGHT) : MIT
  # ElectricFence/ (not used) : GPLv2
  # kernel/sys/ppsclock.h (not used) : BSD with advertising
-@@ -273,7 +273,7 @@ This package contains NTP documentation in HTML format.
+@@ -277,7 +277,7 @@ This package contains NTP documentation in HTML format.
  # pool.ntp.org vendor zone which will be used in ntp.conf
  %if 0%{!?vendorzone:1}
  %{?fedora: %global vendorzone fedora.}
@@ -29,14 +29,14 @@ index 178a961..db36ac6 100644
  %endif
  
  %prep
-@@ -568,6 +568,9 @@ popd
+@@ -574,6 +574,9 @@ popd
  %{ntpdocdir}/html
  
  %changelog
-+* Sat Aug 10 2019 Jacco Ligthart <jacco@redsleeve.org> - 4.2.6p5-29.el7.redsleeve.1
++* Thu Jul 16 2020 Jacco Ligthart <jacco@redsleeve.org> - 4.2.6p5-29.el7.redsleeve.2
 +- rebrand vendorzone
 +
- * Tue Aug 06 2019 CentOS Sources <bugs@centos.org> - 4.2.6p5-29.el7.centos
+ * Tue Jun 23 2020 CentOS Sources <bugs@centos.org> - 4.2.6p5-29.el7.centos.2
  - rebrand vendorzone
  
 -- 
