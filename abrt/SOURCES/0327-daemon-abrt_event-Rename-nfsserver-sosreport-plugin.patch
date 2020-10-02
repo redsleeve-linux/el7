@@ -1,0 +1,30 @@
+From 8b2f7af031bbe811da4a4a631e1c89462c37d20b Mon Sep 17 00:00:00 2001
+From: Ernestas Kulik <ekulik@redhat.com>
+Date: Thu, 2 Jul 2020 14:41:47 +0200
+Subject: [PATCH] daemon: abrt_event: Rename nfsserver sosreport plugin
+
+The nfsserver plugin was folded into the nfs one, breaking the world.
+
+https://github.com/sosreport/sos/commit/fad72dbacc7e5c3c2721e452823750974ea31550
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1848871
+---
+ src/daemon/abrt_event.conf | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/daemon/abrt_event.conf b/src/daemon/abrt_event.conf
+index a8d03381..f2bf22e8 100644
+--- a/src/daemon/abrt_event.conf
++++ b/src/daemon/abrt_event.conf
+@@ -71,7 +71,7 @@ EVENT=post-create
+         nice sosreport --tmp-dir "$DUMP_DIR" --batch \
+                 --only=anaconda --only=boot --only=devicemapper \
+                 --only=filesys --only=hardware --only=kernel --only=libraries \
+-                --only=memory --only=networking --only=nfsserver --only=pam \
++                --only=memory --only=networking --only=nfs --only=pam \
+                 --only=process --only=rpm -k rpm.rpmva=off --only=ssh \
+                 --only=services --only=yum --only=date --only=host --only=x11 \
+                 --only=cups --only=logs --only=grub2 --only=cron --only=pci \
+-- 
+2.26.2
+

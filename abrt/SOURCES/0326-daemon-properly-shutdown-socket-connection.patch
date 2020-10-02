@@ -1,0 +1,40 @@
+From 0a684e2c013e7a64c16dfb5b980fd4bdafaf4c9a Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Thu, 3 Nov 2016 10:57:10 +0100
+Subject: [PATCH] daemon: properly shutdown socket connection
+
+Upon a new connection from a peer abrtd creates a connection fd and
+spawns a new process that executes abrt-server. The new process
+duplicates the connection fd to STDIN_FILENO and STDOUT_FILENO. When
+abrt-sever is done with creation of a dump directory it sends a message
+about that and closes STDOUT_FILENO to shut down the connection.
+
+However, abrt-server leaves STDIN_FILENO opened and thus the connection
+is not closed. This has a negative effect on the Python exception handler
+that waits until the connection is closed - effectively, it delays
+restarts of crashed processes.
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ src/daemon/abrt-server.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/daemon/abrt-server.c b/src/daemon/abrt-server.c
+index 60eb9b66..182e110e 100644
+--- a/src/daemon/abrt-server.c
++++ b/src/daemon/abrt-server.c
+@@ -624,6 +624,11 @@ static int create_problem_dir(GHashTable *problem_info, unsigned pid)
+      */
+     printf("HTTP/1.1 201 Created\r\n\r\n");
+     fflush(NULL);
++
++    /* Closing STDIN_FILENO (abrtd duped the socket to stdin and stdout) and
++     * not-replacing it with something else to let abrt-server die on reading
++     * from invalid stdin - to catch bugs. */
++    close(STDIN_FILENO);
+     close(STDOUT_FILENO);
+     xdup2(STDERR_FILENO, STDOUT_FILENO); /* paranoia: don't leave stdout fd closed */
+ 
+-- 
+2.26.2
+

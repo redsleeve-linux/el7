@@ -33,7 +33,7 @@
 Summary: Automatic bug detection and reporting tool
 Name: abrt
 Version: 2.1.11
-Release: 57%{?dist}.redsleeve
+Release: 60%{?dist}
 License: GPLv2+
 Group: Applications/System
 URL: https://abrt.readthedocs.org/
@@ -399,13 +399,18 @@ Patch322: 0322-hooks-ccpp-Honor-CreateCoreBacktrace.patch
 # git format-patch 2.1.11-53.el7 -N --start-number 323 --topo-order
 Patch323: 0323-plugins-Catch-unhandled-exception-in-a-a-g-machine-i.patch
 Patch324: 0324-daemon-avoid-infinite-crash-loops.patch
-# git format-patch 2.1.11-56.el7 -N --start-number=325 --topo-order
+# git format-patch 2.1.11-55.el7 -N --start-number=325 --topo-order
+Patch325: 0325-harvest_vmcore-Fix-missing-argument-error-during-del.patch
+# git format-patch --no-numbered --start-number=326 --topo-order 2.1.11-58.el7
+Patch326: 0326-daemon-properly-shutdown-socket-connection.patch
+# git format-patch --no-numbered --start-number=327 --topo-order 2.1.11-59.el7
+Patch327: 0327-daemon-abrt_event-Rename-nfsserver-sosreport-plugin.patch
 
 
 # autogen.sh is need to regenerate all the Makefile files
 Patch1006: 1000-Add-autogen.sh.patch
 Patch1000: 1000-event-don-t-run-the-reporter-bugzilla-h-on-RHEL-and-.patch
-#Patch1002: 1002-plugin-set-URL-to-retrace-server.patch
+Patch1002: 1002-plugin-set-URL-to-retrace-server.patch
 Patch1004: 1004-turn-sosreport-off.patch
 Patch1005: 1005-cli-list-revert-patch-7966e5737e8d3af43b1ecdd6a82323.patch
 
@@ -455,9 +460,9 @@ Requires: python-dbus
 Requires: dmidecode
 %endif
 Requires: libreport-plugin-ureport >= %{libreport_ver}
-#%if 0%{?rhel}
-#Requires: libreport-plugin-rhtsupport
-#%endif
+%if 0%{?rhel}
+Requires: libreport-plugin-rhtsupport
+%endif
 
 # we used to have abrt-plugin-bodhi, but we have removed it
 # and we want allow users to update abrt without necessity to
@@ -640,14 +645,14 @@ Requires: abrt-addon-ccpp
 Requires: abrt-addon-python
 Requires: abrt-addon-xorg
 %if 0%{?rhel}
-#%if 0%{?centos_ver}
-#Requires: libreport-centos >= %{libreport_ver}
-#Requires: libreport-plugin-mantisbt >= %{libreport_ver}
-#%else
-#Requires: libreport-rhel >= %{libreport_ver}
-#Requires: libreport-plugin-rhtsupport >= %{libreport_ver}
-#%endif
-#%else
+%if 0%{?centos_ver}
+Requires: libreport-centos >= %{libreport_ver}
+Requires: libreport-plugin-mantisbt >= %{libreport_ver}
+%else
+Requires: libreport-rhel >= %{libreport_ver}
+Requires: libreport-plugin-rhtsupport >= %{libreport_ver}
+%endif
+%else
 Requires: abrt-retrace-client
 Requires: libreport-plugin-bugzilla >= %{libreport_ver}
 Requires: libreport-plugin-logger >= %{libreport_ver}
@@ -679,19 +684,19 @@ Requires: elfutils
 Requires: abrt-gui
 Requires: gnome-abrt
 %if 0%{?rhel}
-#%if 0%{?centos_ver}
-#Requires: libreport-centos >= %{libreport_ver}
-#Requires: libreport-plugin-mantisbt >= %{libreport_ver}
-#%else
-#Requires: libreport-rhel >= %{libreport_ver}
-#Requires: libreport-plugin-rhtsupport >= %{libreport_ver}
-#%endif
-#%else
+%if 0%{?centos_ver}
+Requires: libreport-centos >= %{libreport_ver}
+Requires: libreport-plugin-mantisbt >= %{libreport_ver}
+%else
+Requires: libreport-rhel >= %{libreport_ver}
+Requires: libreport-plugin-rhtsupport >= %{libreport_ver}
+%endif
+%else
 Requires: abrt-retrace-client
 Requires: libreport-plugin-bugzilla >= %{libreport_ver}
 Requires: libreport-plugin-logger >= %{libreport_ver}
 Requires: libreport-plugin-ureport >= %{libreport_ver}
-#Requires: libreport-fedora >= %{libreport_ver}
+Requires: libreport-fedora >= %{libreport_ver}
 %endif
 #Requires: abrt-plugin-firefox
 Provides: bug-buddy = 2.28.0
@@ -1245,10 +1250,7 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 %config(noreplace) %{_sysconfdir}/profile.d/abrt-console-notification.sh
 
 %changelog
-* Sun Apr 05 2020 Jacco Ligthart <jacco@redsleeve.org> - 2.1.11-57.el7.redsleeve
-- removed requirements to proprietary CentOS end RHEL libreport packages
-
-* Tue Mar 31 2020 CentOS Sources <bugs@centos.org> - 2.1.11-57.el7.centos
+* Tue Sep 29 2020 CentOS Sources <bugs@centos.org> - 2.1.11-60.el7.centos
 - Drop RHTS hint
 -  Change by David Mansfield <david@orthanc.cobite.com>
 -  Per http://bugs.centos.org/view.php?id=7192
@@ -1256,6 +1258,15 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 - set URL to retrace server
 - update to not run sosreport
 -  Per http://bugs.centos.org/view.php?id=7913
+
+* Thu Jul 2 2020 - Ernestas Kulik <ekulik@redhat.com> - 2.1.11-60
+- Add patch for #1848871
+
+* Mon May 25 2020 Ernestas Kulik <ekulik@redhat.com> - 2.1.11-59
+- Add patch for #1839004
+
+* Mon Mar 23 2020 Ernestas Kulik <ekulik@redhat.com> - 2.1.11-58
+- Add patch for #1807397
 
 * Mon Aug 19 2019 Ernestas Kulik <ekulik@redhat.com> - 2.1.11-57
 - Drop patch for test suite
