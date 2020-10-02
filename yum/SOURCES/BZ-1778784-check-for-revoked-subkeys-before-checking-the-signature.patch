@@ -1,0 +1,48 @@
+From f8616a2d6e22705371fe6ba47597238d3d1dc2f1 Mon Sep 17 00:00:00 2001
+From: Pavla Kratochvilova <pkratoch@redhat.com>
+Date: Fri, 3 Apr 2020 07:59:38 +0200
+Subject: [PATCH] Check for revoked subkeys before checking the signature. BZ 1778784
+
+The reverse order resulted in error "Invalid GPG Key from
+<path to GPG key>: signature 9 doesn't bind subkey to key, type is
+subkey revocation" when the package was signed with a GPG key
+with revoked subkey.
+---
+ yum/pgpmsg.py | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/yum/pgpmsg.py b/yum/pgpmsg.py
+index d3d30a1..1b7698b 100644
+--- a/yum/pgpmsg.py
++++ b/yum/pgpmsg.py
+@@ -1074,21 +1074,21 @@ be scanned to make sure they are valid for a pgp certificate."""
+                     pkt_idx = pkt_idx + 1
+                     is_revoked = 0
+ 
++                    # there may optionally be a revocation
++                    if pkt_idx < len(pkts) and pkts[pkt_idx].pkt_typ == CTB_PKT_SIG and pkts[pkt_idx].sig_type == SIG_TYPE_SUBKEY_REVOKE :
++                        is_revoked = 1
++                        subkey.append(pkts[pkt_idx])
++                        pkt_idx = pkt_idx + 1
++
+                     # there must be one signature following the subkey that binds it to the main key
+                     if pkt_idx >= len(pkts) :
+                         raise ValueError('subkey at index %d was not followed by a signature' % (pkt_idx-1))
+                     if pkts[pkt_idx].pkt_typ != CTB_PKT_SIG or pkts[pkt_idx].sig_type != SIG_TYPE_SUBKEY_BIND :
+                         raise ValueError('signature %d doesn\'t bind subkey to key, type is %s' % (pkt_idx, map_to_str(sig_type_to_str, pkts[pkt_idx].sig_type)))
+                     subkey.append(pkts[pkt_idx])
+ 
+                     pkt_idx = pkt_idx + 1
+ 
+-                    # there may optionally be a revocation
+-                    if pkt_idx < len(pkts) and pkts[pkt_idx].pkt_typ == CTB_PKT_SIG and pkts[pkt_idx].sig_type == SIG_TYPE_SUBKEY_REVOKE :
+-                        is_revoked = 1
+-                        subkey.append(pkts[pkt_idx])
+-                        pkt_idx = pkt_idx + 1
+-
+                     # append the user ID and signature(s) onto the list
+                     if is_revoked :
+                         self.rvkd_subkeys.append(subkey)
+--
+libgit2 0.28.5
+

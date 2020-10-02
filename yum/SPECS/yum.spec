@@ -32,11 +32,11 @@
 Summary: RPM package installer/updater/manager
 Name: yum
 Version: 3.4.3
-Release: 167%{?dist}.redsleeve
+Release: 168%{?dist}
 License: GPLv2+
 Group: System Environment/Base
 Source0: http://yum.baseurl.org/download/3.4/%{name}-%{version}.tar.gz
-Source1: yum.conf.redsleeve
+Source1: yum.conf.centos
 Source2: yum-updatesd.conf.fedora
 Patch1: yum-distro-configs.patch
 Patch5: geode-arch.patch
@@ -185,7 +185,11 @@ Patch366: BZ-1573154-docs-yum-command-is-not-optional.patch
 Patch367: BZ-1645618-updateinfo-suggest-verbose-command.patch
 Patch368: BZ-1757613-downloadonly-do-not-reset-localpath.patch
 
-Patch1000: redsleeve-branding-yum.patch
+# rhel-7.9
+Patch369: BZ-1778763-fix-typo-sig_typ-sig_type.patch
+Patch370: BZ-1778784-check-for-revoked-subkeys-before-checking-the-signature.patch
+
+Patch1000: centos-branding-yum.patch
 
 URL: http://yum.baseurl.org/
 BuildArchitectures: noarch
@@ -454,6 +458,11 @@ Install this package if you want auto yum updates nightly via cron.
 %patch366 -p1
 %patch367 -p1
 %patch368 -p1
+
+# rhel-7.9
+%patch369 -p1
+%patch370 -p1
+
 %patch1000 -p1
 
 # Do distro config. changes after everything else.
@@ -686,15 +695,18 @@ exit 0
 %endif
 
 %changelog
-* Sun Apr 05 2020 Jacco Ligthart <jacco@redsleeve.org> - 3.4.3-167.el7.redsleeve
-- RedSleeve rebranding
-
-* Tue Mar 31 2020 CentOS Sources <bugs@centos.org> - 3.4.3-167.el7.centos
+* Tue Sep 29 2020 CentOS Sources <bugs@centos.org> - 3.4.3-168.el7.centos
 - CentOS yum config
 -  use the CentOS bug tracker url
 -  retain installonly limit of 5
 -  ensure distrover is always from centos-release
 - Make yum require yum-plugin-fastestmirror
+
+* Thu Apr 16 2020 Pavla Kratochvilova <pkratoch@redhat.com> - 3.4.3-168
+- Fix typo sig_typ -> sig_type
+- Resolves: bug#1778763
+- Check for revoked subkeys before checking the signature
+- Resolves: bug#1778784
 
 * Fri Jan 10 2020 Michal Domonkos <mdomonko@redhat.com> - 3.4.3-167
 - downloadonly: do not reset localpath
