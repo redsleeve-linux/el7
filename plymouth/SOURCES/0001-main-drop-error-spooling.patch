@@ -1,0 +1,219 @@
+From 62cd5c826756efc3acb24267cb4271c0a615c8e9 Mon Sep 17 00:00:00 2001
+From: Ray Strode <rstrode@redhat.com>
+Date: Wed, 6 May 2020 10:32:38 -0400
+Subject: [PATCH] main: drop error spooling
+
+In the olden days, the login screen contained a little system
+tray icon to show errors from boot.  We ditched that years ago,
+but we still have the backend code in place for it.
+
+Drop that unnecessary code.
+---
+ src/Makefile.am |  1 -
+ src/main.c      | 53 -------------------------------------------------
+ 2 files changed, 54 deletions(-)
+
+diff --git a/src/Makefile.am b/src/Makefile.am
+index fc2f5da..3aab240 100644
+--- a/src/Makefile.am
++++ b/src/Makefile.am
+@@ -1,40 +1,39 @@
+ SUBDIRS = libply libply-splash-core libply-splash-graphics . plugins client viewer
+ if ENABLE_UPSTART_MONITORING
+ SUBDIRS += upstart-bridge
+ endif
+ AM_CPPFLAGS = -I$(top_srcdir)                                                 \
+            -I$(srcdir)/libply                                                 \
+            -I$(srcdir)/libply-splash-core                                     \
+            -I$(srcdir)                                                        \
+            -DPLYMOUTH_LOG_DIRECTORY=\"$(localstatedir)/log\"                  \
+-           -DPLYMOUTH_SPOOL_DIRECTORY=\"$(localstatedir)/spool/plymouth\"     \
+            -DPLYMOUTH_TIME_DIRECTORY=\"$(localstatedir)/lib/plymouth/\"       \
+            -DPLYMOUTH_LOGO_FILE=\"$(logofile)\"
+ 
+ plymouthdbindir = $(plymouthdaemondir)
+ plymouthdbin_PROGRAMS = plymouthd
+ 
+ plymouthd_CFLAGS = $(PLYMOUTH_CFLAGS)                                         \
+ 		   -rdynamic                                                  \
+ 		   -DPLYMOUTH_PLUGIN_PATH=\"$(PLYMOUTH_PLUGIN_PATH)\"         \
+ 		   -DPLYMOUTH_THEME_PATH=\"$(PLYMOUTH_THEME_PATH)/\"          \
+ 		   -DPLYMOUTH_POLICY_DIR=\"$(PLYMOUTH_POLICY_DIR)/\"          \
+ 		   -DPLYMOUTH_RUNTIME_DIR=\"$(PLYMOUTH_RUNTIME_DIR)\"         \
+ 		   -DPLYMOUTH_CONF_DIR=\"$(PLYMOUTH_CONF_DIR)/\"
+ plymouthd_LDADD = $(PLYMOUTH_LIBS) libply/libply.la libply-splash-core/libply-splash-core.la
+ plymouthd_SOURCES =                                                            \
+                    ply-boot-protocol.h                                        \
+                    ply-boot-server.h                                          \
+                    ply-boot-server.c                                          \
+                    plugins/splash/details/plugin.c                  \
+                    main.c
+ 
+ plymouthdrundir = $(localstatedir)/run/plymouth
+ plymouthdspooldir = $(localstatedir)/spool/plymouth
+ plymouthdtimedir = $(localstatedir)/lib/plymouth
+ 
+ pkgconfigdir = $(libdir)/pkgconfig
+ pkgconfig_DATA = ply-splash-core.pc ply-splash-graphics.pc
+ 
+ plymouthd_defaultsdir = $(PLYMOUTH_POLICY_DIR)
+ dist_plymouthd_defaults_DATA = plymouthd.defaults
+diff --git a/src/main.c b/src/main.c
+index 68c1d89..b1b8035 100644
+--- a/src/main.c
++++ b/src/main.c
+@@ -696,151 +696,98 @@ get_cache_file_for_mode (ply_mode_t mode)
+     }
+ 
+   ply_trace ("returning cache file '%s'", filename);
+   return filename;
+ }
+ 
+ static const char *
+ get_log_file_for_mode (ply_mode_t mode)
+ {
+   const char *filename;
+ 
+   switch ((int)mode)
+     {
+     case PLY_MODE_BOOT:
+       filename = PLYMOUTH_LOG_DIRECTORY "/boot.log";
+       break;
+     case PLY_MODE_SHUTDOWN:
+     case PLY_MODE_UPDATES:
+       filename = _PATH_DEVNULL;
+       break;
+     default:
+       ply_error ("Unhandled case in %s line %d\n", __FILE__, __LINE__);
+       abort ();
+       break;
+     }
+ 
+   ply_trace ("returning log file '%s'", filename);
+   return filename;
+ }
+ 
+-static const char *
+-get_log_spool_file_for_mode (ply_mode_t mode)
+-{
+-  const char *filename;
+-
+-  switch ((int)mode)
+-    {
+-    case PLY_MODE_BOOT:
+-      filename = PLYMOUTH_SPOOL_DIRECTORY "/boot.log";
+-      break;
+-    case PLY_MODE_SHUTDOWN:
+-    case PLY_MODE_UPDATES:
+-      filename = NULL;
+-      break;
+-    default:
+-      ply_error ("Unhandled case in %s line %d\n", __FILE__, __LINE__);
+-      abort ();
+-      break;
+-    }
+-
+-  ply_trace ("returning spool file '%s'", filename);
+-  return filename;
+-}
+-
+-static void
+-spool_error (state_t *state)
+-{
+-  const char *logfile;
+-  const char *logspool;
+-
+-  ply_trace ("spooling error for viewer");
+-
+-  logfile = get_log_file_for_mode (state->mode);
+-  logspool = get_log_spool_file_for_mode (state->mode);
+-
+-  if (logfile != NULL && logspool != NULL)
+-    {
+-      unlink (logspool);
+-
+-      ply_create_file_link (logfile, logspool);
+-    }
+-}
+-
+ static void
+ prepare_logging (state_t *state)
+ {
+   const char *logfile;
+ 
+   if (!state->system_initialized)
+     {
+       ply_trace ("not preparing logging yet, system not initialized");
+       return;
+     }
+ 
+   if (state->session == NULL)
+     {
+       ply_trace ("not preparing logging, no session");
+       return;
+     }
+ 
+   logfile = get_log_file_for_mode (state->mode);
+   if (logfile != NULL)
+     {
+       ply_trace ("opening log '%s'", logfile);
+       ply_terminal_session_open_log (state->session, logfile);
+-
+-      if (state->number_of_errors > 0)
+-        spool_error (state);
+     }
+ }
+ 
+ static void
+ on_system_initialized (state_t *state)
+ {
+   ply_trace ("system now initialized, opening log");
+   state->system_initialized = true;
+ 
+   prepare_logging (state);
+ }
+ 
+ static void
+ on_error (state_t *state)
+ {
+   ply_trace ("encountered error during boot up");
+-
+-  if (state->system_initialized && state->number_of_errors == 0)
+-    spool_error (state);
+-  else
+-    ply_trace ("not spooling because number of errors %d", state->number_of_errors);
+-
+-  state->number_of_errors++;
+ }
+ 
+ static bool
+ plymouth_should_ignore_show_splash_calls (state_t *state)
+ {
+   ply_trace ("checking if plymouth should be running");
+   if (state->mode != PLY_MODE_BOOT || command_line_has_argument (state->kernel_command_line, "plymouth.force-splash"))
+       return false;
+ 
+   if (command_line_has_argument (state->kernel_command_line, "plymouth.ignore-show-splash"))
+       return true;
+ 
+   return false;
+ }
+ 
+ static bool
+ sh_is_init (state_t *state)
+ {
+   const char *init_string;
+   size_t length;
+ 
+   init_string = command_line_get_string_after_prefix (state->kernel_command_line, "init=");
+ 
+   if (init_string)
+     {
+       length = strcspn (init_string, " \n");
+       if (length > 2 && ply_string_has_prefix (init_string + length - 2, "sh"))
+         return true;
+     }
+ 
+-- 
+2.25.1
+
