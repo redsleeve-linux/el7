@@ -18,7 +18,7 @@
 Summary:  Dynamic host configuration protocol software
 Name:     dhcp
 Version:  4.2.5
-Release:  79%{?dist}.redsleeve
+Release:  82%{?dist}
 # NEVER CHANGE THE EPOCH on this package.  The previous maintainer (prior to
 # dcantrell maintaining the package) made incorrect use of the epoch and
 # that's why it is at 12 now.  It should have never been used, but it was.
@@ -119,7 +119,8 @@ Patch76:  dhcp-isc_heap_delete.patch
 Patch77:  dhcp-handle_ctx_signals.patch
 Patch78:  dhcp-system_time_changed.patch
 Patch79:  dhcp-close_file_in_noreplay.patch
-Patch80:  dhcp-4.2.5-redsleeve-branding.patch
+Patch80:  dhcp-resize_ldap_buffer.patch
+Patch81:  dhcp-4.2.5-centos-branding.patch
 
 BuildRequires: autoconf
 BuildRequires: automake
@@ -467,7 +468,10 @@ rm -rf includes/isc-dhcp
 %patch78 -p1 -b .monotonic
 
 %patch79 -p1 -b .close-noreplay
-%patch80 -p1
+
+# https://bugzilla.redhat.com/show_bug.cgi?id=1697637
+%patch80 -p1 -b .ldap-resize
+%patch81 -p1
 
 
 # Update paths in all man pages
@@ -750,11 +754,17 @@ done
 
 
 %changelog
-* Sun Apr 05 2020 Jacco Ligthart <jacco@redsleeve.org> - 4.2.5-79.el7.redsleeve
-- Roll in RedSleeve Branding
-
-* Tue Mar 31 2020 CentOS Sources <bugs@centos.org> - 4.2.5-79.el7.centos
+* Tue Sep 29 2020 CentOS Sources <bugs@centos.org> - 4.2.5-82.el7.centos
 - Roll in CentOS Branding
+
+* Thu Jan 23 2020 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-82
+- Related: #1668696 - Fix syntax error in dhclient script
+
+* Wed Jan 22 2020 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-81
+- Resolves: #1668696 - Update /etc/resolv.conf in stateless mode
+
+* Thu Jan 16 2020 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-80
+- Resolves: #1697637 - Resize ldap buffers to truncate bigger objects
 
 * Tue Oct  1 2019 Pavel Zhukov <pzhukov@redhat.com> - 12:4.2.5-79
 - Resolves:  #1756850 - Close FD in noreplay mode

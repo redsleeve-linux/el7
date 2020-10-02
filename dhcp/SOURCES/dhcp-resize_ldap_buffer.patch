@@ -1,0 +1,724 @@
+diff --git a/common/conflex.c b/common/conflex.c
+index c99732e..df33f18 100644
+--- a/common/conflex.c
++++ b/common/conflex.c
+@@ -153,13 +153,19 @@ save_parse_state(struct parse *cfile) {
+ /*
+  * Return the parser to the previous saved state.
+  *
+- * You must call save_parse_state() before calling 
+- * restore_parse_state(), but you can call restore_parse_state() any
+- * number of times after that.
++ * You must call save_parse_state() every time before calling
++ * restore_parse_state().
++ *
++ * Note: When the read function callback is in use in ldap mode,
++ * a call to get_char() may reallocate the buffer and will append
++ * config data to the buffer until a state restore.
++ * Do not restore to the (freed) pointer and size, but use new one.
+  */
+ isc_result_t
+ restore_parse_state(struct parse *cfile) {
+ 	struct parse *saved_state;
++	char *inbuf = cfile->inbuf;
++	size_t size = cfile->bufsiz;
+ 
+ 	if (cfile->saved_state == NULL) {
+ 		return DHCP_R_NOTYET;
+@@ -167,7 +173,11 @@ restore_parse_state(struct parse *cfile) {
+ 
+ 	saved_state = cfile->saved_state;
+ 	memcpy(cfile, saved_state, sizeof(*cfile));
+-	cfile->saved_state = saved_state;
++	dfree(cfile->saved_state, MDL);
++	cfile->saved_state = NULL;
++
++	cfile->inbuf = inbuf;
++	cfile->bufsiz = size;
+ 	return ISC_R_SUCCESS;
+ }
+ 
+diff --git a/server/ldap.c b/server/ldap.c
+index 5577e7a..9a8b33e 100644
+--- a/server/ldap.c
++++ b/server/ldap.c
+@@ -80,12 +80,107 @@ typedef struct ldap_dn_node {
+ static ldap_dn_node *ldap_service_dn_head = NULL;
+ static ldap_dn_node *ldap_service_dn_tail = NULL;
+ 
++static int ldap_read_function (struct parse *cfile);
++
++static struct parse *
++x_parser_init(const char *name)
++{
++  struct parse *cfile;
++  isc_result_t res;
++  char *inbuf;
++
++  inbuf = dmalloc (LDAP_BUFFER_SIZE, MDL);
++  if (inbuf == NULL)
++    return NULL;
++
++  cfile = (struct parse *) NULL;
++  res = new_parse (&cfile, -1, inbuf, LDAP_BUFFER_SIZE, name, 0);
++  if (res != ISC_R_SUCCESS)
++    {
++      dfree(inbuf, MDL);
++      return NULL;
++    }
++  /* the buffer is still empty */
++  cfile->bufsiz = LDAP_BUFFER_SIZE;
++  cfile->buflen = cfile->bufix = 0;
++  /* attach ldap read function */
++  cfile->read_function = ldap_read_function;
++  return cfile;
++}
++
++static isc_result_t
++x_parser_free(struct parse **cfile)
++{
++  if (cfile && *cfile)
++    {
++      if ((*cfile)->inbuf)
++          dfree((*cfile)->inbuf, MDL);
++      (*cfile)->inbuf = NULL;
++      (*cfile)->bufsiz = 0;
++      return end_parse(cfile);
++    }
++  return ISC_R_SUCCESS;
++}
++
++static int
++x_parser_resize(struct parse *cfile, size_t len)
++{
++  size_t size;
++  char * temp;
++
++  /* grow by len rounded up at LDAP_BUFFER_SIZE */
++  size = cfile->bufsiz + (len | (LDAP_BUFFER_SIZE-1)) + 1;
++
++  /* realloc would be better, but there isn't any */
++  if ((temp = dmalloc (size, MDL)) != NULL)
++    {
++#if defined (DEBUG_LDAP)
++      log_info ("Reallocated %s buffer from %zu to %zu",
++                cfile->tlname, cfile->bufsiz, size);
++#endif
++      memcpy(temp, cfile->inbuf, cfile->bufsiz);
++      dfree(cfile->inbuf, MDL);
++      cfile->inbuf  = temp;
++      cfile->bufsiz = size;
++      return 1;
++    }
++
++  /*
++   * Hmm... what is worser, consider it as fatal error and
++   * bail out completely or discard config data in hope it
++   * is "only" an option in dynamic host lookup?
++   */
++  log_error("Unable to reallocated %s buffer from %zu to %zu",
++            cfile->tlname, cfile->bufsiz, size);
++  return 0;
++}
+ 
+ static char *
+-x_strncat(char *dst, const char *src, size_t dst_size)
++x_parser_strcat(struct parse *cfile, const char *str)
++{
++  size_t cur = strlen(cfile->inbuf);
++  size_t len = strlen(str);
++  size_t cnt;
++
++  if (cur + len >= cfile->bufsiz && !x_parser_resize(cfile, len))
++    return NULL;
++
++  cnt = cfile->bufsiz > cur ? cfile->bufsiz - cur - 1 : 0;
++  return strncat(cfile->inbuf, str, cnt);
++}
++
++static inline void
++x_parser_reset(struct parse *cfile)
++{
++  cfile->inbuf[0] = '\0';
++  cfile->bufix = cfile->buflen = 0;
++}
++
++static inline size_t
++x_parser_length(struct parse *cfile)
+ {
+-  size_t len = strlen(dst);
+-  return strncat(dst, src, dst_size > len ? dst_size - len - 1: 0);
++  cfile->buflen = strlen(cfile->inbuf);
++  return cfile->buflen;
+ }
+ 
+ static void
+@@ -102,9 +197,9 @@ ldap_parse_class (struct ldap_config_stack *item, struct parse *cfile)
+       return;
+     }
+ 
+-  x_strncat (cfile->inbuf, "class \"", LDAP_BUFFER_SIZE);
+-  x_strncat (cfile->inbuf, tempbv[0]->bv_val, LDAP_BUFFER_SIZE);
+-  x_strncat (cfile->inbuf, "\" {\n", LDAP_BUFFER_SIZE);
++  x_parser_strcat (cfile, "class \"");
++  x_parser_strcat (cfile, tempbv[0]->bv_val);
++  x_parser_strcat (cfile, "\" {\n");
+ 
+   item->close_brace = 1;
+   ldap_value_free_len (tempbv);
+@@ -136,11 +231,11 @@ ldap_parse_subclass (struct ldap_config_stack *item, struct parse *cfile)
+       return;
+     }
+ 
+-  x_strncat (cfile->inbuf, "subclass ", LDAP_BUFFER_SIZE);
+-  x_strncat (cfile->inbuf, classdata[0]->bv_val, LDAP_BUFFER_SIZE);
+-  x_strncat (cfile->inbuf, " ", LDAP_BUFFER_SIZE);
+-  x_strncat (cfile->inbuf, tempbv[0]->bv_val, LDAP_BUFFER_SIZE);
+-  x_strncat (cfile->inbuf, " {\n", LDAP_BUFFER_SIZE);
++  x_parser_strcat (cfile, "subclass ");
++  x_parser_strcat (cfile, classdata[0]->bv_val);
++  x_parser_strcat (cfile, " ");
++  x_parser_strcat (cfile, tempbv[0]->bv_val);
++  x_parser_strcat (cfile, " {\n");
+ 
+   item->close_brace = 1;
+   ldap_value_free_len (tempbv);
+@@ -164,14 +259,14 @@ ldap_parse_host (struct ldap_config_stack *item, struct parse *cfile)
+ 
+   hwaddr = ldap_get_values_len (ld, item->ldent, "dhcpHWAddress");
+ 
+-  x_strncat (cfile->inbuf, "host ", LDAP_BUFFER_SIZE);
+-  x_strncat (cfile->inbuf, tempbv[0]->bv_val, LDAP_BUFFER_SIZE);
++  x_parser_strcat (cfile, "host ");
++  x_parser_strcat (cfile, tempbv[0]->bv_val);
+ 
+   if (hwaddr != NULL && hwaddr[0] != NULL)
+     {
+-      x_strncat (cfile->inbuf, " {\nhardware ", LDAP_BUFFER_SIZE);
+-      x_strncat (cfile->inbuf, hwaddr[0]->bv_val, LDAP_BUFFER_SIZE);
+-      x_strncat (cfile->inbuf, ";\n", LDAP_BUFFER_SIZE);
++      x_parser_strcat (cfile, " {\nhardware ");
++      x_parser_strcat (cfile, hwaddr[0]->bv_val);
++      x_parser_strcat (cfile, ";\n");
+       ldap_value_free_len (hwaddr);
+     }
+ 
+@@ -194,9 +289,9 @@ ldap_parse_shared_network (struct ldap_config_stack *item, struct parse *cfile)
+       return;
+     }
+ 
+-  x_strncat (cfile->inbuf, "shared-network \"", LDAP_BUFFER_SIZE);
+-  x_strncat (cfile->inbuf, tempbv[0]->bv_val, LDAP_BUFFER_SIZE);
+-  x_strncat (cfile->inbuf, "\" {\n", LDAP_BUFFER_SIZE);
++  x_parser_strcat (cfile, "shared-network \"");
++  x_parser_strcat (cfile, tempbv[0]->bv_val);
++  x_parser_strcat (cfile, "\" {\n");
+ 
+   item->close_brace = 1;
+   ldap_value_free_len (tempbv);
+@@ -249,14 +344,14 @@ ldap_parse_subnet (struct ldap_config_stack *item, struct parse *cfile)
+       return;
+     }
+ 
+-  x_strncat (cfile->inbuf, "subnet ", LDAP_BUFFER_SIZE);
+-  x_strncat (cfile->inbuf, tempbv[0]->bv_val, LDAP_BUFFER_SIZE);
++  x_parser_strcat (cfile, "subnet ");
++  x_parser_strcat (cfile, tempbv[0]->bv_val);
+ 
+-  x_strncat (cfile->inbuf, " netmask ", LDAP_BUFFER_SIZE);
++  x_parser_strcat (cfile, " netmask ");
+   parse_netmask (strtol (netmaskstr[0]->bv_val, NULL, 10), netmaskbuf);
+-  x_strncat (cfile->inbuf, netmaskbuf, LDAP_BUFFER_SIZE);
++  x_parser_strcat (cfile, netmaskbuf);
+ 
+-  x_strncat (cfile->inbuf, " {\n", LDAP_BUFFER_SIZE);
++  x_parser_strcat (cfile, " {\n");
+ 
+   ldap_value_free_len (tempbv);
+   ldap_value_free_len (netmaskstr);
+@@ -265,10 +360,10 @@ ldap_parse_subnet (struct ldap_config_stack *item, struct parse *cfile)
+     {
+       for (i=0; tempbv[i] != NULL; i++)
+         {
+-          x_strncat (cfile->inbuf, "range", LDAP_BUFFER_SIZE);
+-          x_strncat (cfile->inbuf, " ", LDAP_BUFFER_SIZE);
+-          x_strncat (cfile->inbuf, tempbv[i]->bv_val, LDAP_BUFFER_SIZE);
+-          x_strncat (cfile->inbuf, ";\n", LDAP_BUFFER_SIZE);
++          x_parser_strcat (cfile, "range");
++          x_parser_strcat (cfile, " ");
++          x_parser_strcat (cfile, tempbv[i]->bv_val);
++          x_parser_strcat (cfile, ";\n");
+         }
+     }
+ 
+@@ -282,17 +377,17 @@ ldap_parse_pool (struct ldap_config_stack *item, struct parse *cfile)
+   struct berval **tempbv;
+   int i;
+ 
+-  x_strncat (cfile->inbuf, "pool {\n", LDAP_BUFFER_SIZE);
++  x_parser_strcat (cfile, "pool {\n");
+ 
+   if ((tempbv = ldap_get_values_len (ld, item->ldent, "dhcpRange")) != NULL)
+     {
+-      x_strncat (cfile->inbuf, "range", LDAP_BUFFER_SIZE);
++      x_parser_strcat (cfile, "range");
+       for (i=0; tempbv[i] != NULL; i++)
+         {
+-          x_strncat (cfile->inbuf, " ", LDAP_BUFFER_SIZE);
+-          x_strncat (cfile->inbuf, tempbv[i]->bv_val, LDAP_BUFFER_SIZE);
++          x_parser_strcat (cfile, " ");
++          x_parser_strcat (cfile, tempbv[i]->bv_val);
+         }
+-      x_strncat (cfile->inbuf, ";\n", LDAP_BUFFER_SIZE);
++      x_parser_strcat (cfile, ";\n");
+       ldap_value_free_len (tempbv);
+     }
+ 
+@@ -300,8 +395,8 @@ ldap_parse_pool (struct ldap_config_stack *item, struct parse *cfile)
+     {
+       for (i=0; tempbv[i] != NULL; i++)
+         {
+-          x_strncat (cfile->inbuf, tempbv[i]->bv_val, LDAP_BUFFER_SIZE);
+-          x_strncat (cfile->inbuf, ";\n", LDAP_BUFFER_SIZE);
++          x_parser_strcat (cfile, tempbv[i]->bv_val);
++          x_parser_strcat (cfile, ";\n");
+         }
+       ldap_value_free_len (tempbv);
+     }
+@@ -313,7 +408,7 @@ ldap_parse_pool (struct ldap_config_stack *item, struct parse *cfile)
+ static void
+ ldap_parse_group (struct ldap_config_stack *item, struct parse *cfile)
+ {
+-  x_strncat (cfile->inbuf, "group {\n", LDAP_BUFFER_SIZE);
++  x_parser_strcat (cfile, "group {\n");
+   item->close_brace = 1;
+ }
+ 
+@@ -325,25 +420,25 @@ ldap_parse_key (struct ldap_config_stack *item, struct parse *cfile)
+ 
+   if ((tempbv = ldap_get_values_len (ld, item->ldent, "cn")) != NULL)
+     {
+-      x_strncat (cfile->inbuf, "key ", LDAP_BUFFER_SIZE);
+-      x_strncat (cfile->inbuf, tempbv[0]->bv_val, LDAP_BUFFER_SIZE);
+-      x_strncat (cfile->inbuf, " {\n", LDAP_BUFFER_SIZE);
++      x_parser_strcat (cfile, "key ");
++      x_parser_strcat (cfile, tempbv[0]->bv_val);
++      x_parser_strcat (cfile, " {\n");
+       ldap_value_free_len (tempbv);
+     }
+ 
+   if ((tempbv = ldap_get_values_len (ld, item->ldent, "dhcpKeyAlgorithm")) != NULL)
+     {
+-      x_strncat (cfile->inbuf, "algorithm ", LDAP_BUFFER_SIZE);
+-      x_strncat (cfile->inbuf, tempbv[0]->bv_val, LDAP_BUFFER_SIZE);
+-      x_strncat (cfile->inbuf, ";\n", LDAP_BUFFER_SIZE);
++      x_parser_strcat (cfile, "algorithm ");
++      x_parser_strcat (cfile, tempbv[0]->bv_val);
++      x_parser_strcat (cfile, ";\n");
+       ldap_value_free_len (tempbv);
+     }
+ 
+   if ((tempbv = ldap_get_values_len (ld, item->ldent, "dhcpKeySecret")) != NULL)
+     {
+-      x_strncat (cfile->inbuf, "secret ", LDAP_BUFFER_SIZE);
+-      x_strncat (cfile->inbuf, tempbv[0]->bv_val, LDAP_BUFFER_SIZE);
+-      x_strncat (cfile->inbuf, ";\n", LDAP_BUFFER_SIZE);
++      x_parser_strcat (cfile, "secret ");
++      x_parser_strcat (cfile, tempbv[0]->bv_val);
++      x_parser_strcat (cfile, ";\n");
+       ldap_value_free_len (tempbv);
+     }
+ 
+@@ -361,18 +456,18 @@ ldap_parse_zone (struct ldap_config_stack *item, struct parse *cfile)
+ 
+   if ((tempbv = ldap_get_values_len (ld, item->ldent, "cn")) != NULL)
+     {
+-      x_strncat (cfile->inbuf, "zone ", LDAP_BUFFER_SIZE);
+-      x_strncat (cfile->inbuf, tempbv[0]->bv_val, LDAP_BUFFER_SIZE);
+-      x_strncat (cfile->inbuf, " {\n", LDAP_BUFFER_SIZE);
++      x_parser_strcat (cfile, "zone ");
++      x_parser_strcat (cfile, tempbv[0]->bv_val);
++      x_parser_strcat (cfile, " {\n");
+       ldap_value_free_len (tempbv);
+     }
+ 
+   if ((tempbv = ldap_get_values_len (ld, item->ldent, "dhcpDnsZoneServer")) != NULL)
+     {
+-      x_strncat (cfile->inbuf, "primary ", LDAP_BUFFER_SIZE);
+-      x_strncat (cfile->inbuf, tempbv[0]->bv_val, LDAP_BUFFER_SIZE);
++      x_parser_strcat (cfile, "primary ");
++      x_parser_strcat (cfile, tempbv[0]->bv_val);
+ 
+-      x_strncat (cfile->inbuf, ";\n", LDAP_BUFFER_SIZE);
++      x_parser_strcat (cfile, ";\n");
+       ldap_value_free_len (tempbv);
+     }
+ 
+@@ -400,9 +495,9 @@ ldap_parse_zone (struct ldap_config_stack *item, struct parse *cfile)
+           strncpy (keyCn, cnFindStart, len);
+           keyCn[len] = '\0';
+ 
+-          x_strncat (cfile->inbuf, "key ", LDAP_BUFFER_SIZE);
+-          x_strncat (cfile->inbuf, keyCn, LDAP_BUFFER_SIZE);
+-          x_strncat (cfile->inbuf, ";\n", LDAP_BUFFER_SIZE);
++          x_parser_strcat (cfile, "key ");
++          x_parser_strcat (cfile, keyCn);
++          x_parser_strcat (cfile, ";\n");
+ 
+           dfree (keyCn, MDL);
+         }
+@@ -990,7 +1085,7 @@ next_ldap_entry (struct parse *cfile)
+ 
+   if (ldap_stack != NULL && ldap_stack->close_brace)
+     {
+-      x_strncat (cfile->inbuf, "}\n", LDAP_BUFFER_SIZE);
++      x_parser_strcat (cfile, "}\n");
+       ldap_stack->close_brace = 0;
+     }
+ 
+@@ -1000,7 +1095,7 @@ next_ldap_entry (struct parse *cfile)
+     {
+       if (ldap_stack->close_brace)
+         {
+-          x_strncat (cfile->inbuf, "}\n", LDAP_BUFFER_SIZE);
++          x_parser_strcat (cfile, "}\n");
+           ldap_stack->close_brace = 0;
+         }
+ 
+@@ -1011,7 +1106,7 @@ next_ldap_entry (struct parse *cfile)
+ 
+   if (ldap_stack != NULL && ldap_stack->close_brace)
+     {
+-      x_strncat (cfile->inbuf, "}\n", LDAP_BUFFER_SIZE);
++      x_parser_strcat (cfile, "}\n");
+       ldap_stack->close_brace = 0;
+     }
+ }
+@@ -1067,13 +1162,13 @@ check_statement_end (const char *statement)
+ 
+ 
+ static isc_result_t
+-ldap_parse_entry_options (LDAPMessage *ent, char *buffer, size_t size,
++ldap_parse_entry_options (LDAPMessage *ent, struct parse *cfile,
+                           int *lease_limit)
+ {
+   struct berval **tempbv;
+   int i;
+ 
+-  if (ent == NULL || buffer == NULL || size == 0)
++  if (ent == NULL || cfile == NULL)
+     return (ISC_R_FAILURE);
+ 
+   if ((tempbv = ldap_get_values_len (ld, ent, "dhcpStatements")) != NULL)
+@@ -1087,16 +1182,16 @@ ldap_parse_entry_options (LDAPMessage *ent, char *buffer, size_t size,
+               continue;
+             }
+ 
+-          x_strncat (buffer, tempbv[i]->bv_val, size);
++          x_parser_strcat (cfile, tempbv[i]->bv_val);
+ 
+           switch((int) check_statement_end (tempbv[i]->bv_val))
+             {
+               case '}':
+               case ';':
+-                x_strncat (buffer, "\n", size);
++                x_parser_strcat (cfile, "\n");
+                 break;
+               default:
+-                x_strncat (buffer, ";\n", size);
++                x_parser_strcat (cfile, ";\n");
+                 break;
+             }
+         }
+@@ -1107,15 +1202,15 @@ ldap_parse_entry_options (LDAPMessage *ent, char *buffer, size_t size,
+     {
+       for (i=0; tempbv[i] != NULL; i++)
+         {
+-          x_strncat (buffer, "option ", size);
+-          x_strncat (buffer, tempbv[i]->bv_val, size);
++          x_parser_strcat (cfile, "option ");
++          x_parser_strcat (cfile, tempbv[i]->bv_val);
+           switch ((int) check_statement_end (tempbv[i]->bv_val))
+             {
+               case ';':
+-                x_strncat (buffer, "\n", size);
++                x_parser_strcat (cfile, "\n");
+                 break;
+               default:
+-                x_strncat (buffer, ";\n", size);
++                x_parser_strcat (cfile, ";\n");
+                 break;
+             }
+         }
+@@ -1135,6 +1230,7 @@ ldap_generate_config_string (struct parse *cfile)
+   LDAPMessage * ent, * res;
+   int i, ignore, found;
+   int ret;
++  size_t len = cfile->buflen;
+ 
+   if (ld == NULL)
+     ldap_start ();
+@@ -1187,7 +1283,7 @@ ldap_generate_config_string (struct parse *cfile)
+       else
+         found = 0;
+ 
+-      if (found && cfile->inbuf[0] == '\0')
++      if (found && x_parser_length(cfile) <= len)
+         {
+           ignore = 1;
+           break;
+@@ -1202,8 +1298,7 @@ ldap_generate_config_string (struct parse *cfile)
+       return;
+     }
+ 
+-  ldap_parse_entry_options(entry->ldent, cfile->inbuf,
+-                           LDAP_BUFFER_SIZE-1, NULL);
++  ldap_parse_entry_options(entry->ldent, cfile, NULL);
+ 
+   dn = ldap_get_dn (ld, entry->ldent);
+ 
+@@ -1269,25 +1364,31 @@ ldap_write_debug (const void *buff, size_t size)
+ static int
+ ldap_read_function (struct parse *cfile)
+ {
+-  cfile->inbuf[0] = '\0';
+-  cfile->buflen = 0;
+- 
+-  while (ldap_stack != NULL && *cfile->inbuf == '\0')
++  size_t len;
++
++  /* append when in saved state */
++  if (cfile->saved_state == NULL)
++    {
++      cfile->inbuf[0] = '\0';
++      cfile->bufix = 0;
++      cfile->buflen = 0;
++    }
++  len = cfile->buflen;
++
++  while (ldap_stack != NULL && x_parser_length(cfile) <= len)
+     ldap_generate_config_string (cfile);
+ 
+-  if (ldap_stack == NULL && *cfile->inbuf == '\0')
++  if (x_parser_length(cfile) <= len && ldap_stack == NULL)
+     return (EOF);
+ 
+-  cfile->bufix = 1;
+-  cfile->buflen = strlen (cfile->inbuf) - 1;
+-  if (cfile->buflen > 0)
+-    ldap_write_debug (cfile->inbuf, cfile->buflen);
++  if (cfile->buflen > len)
++    ldap_write_debug (cfile->inbuf + len, cfile->buflen - len);
+ 
+ #if defined (DEBUG_LDAP)
+   log_info ("Sending config line '%s'", cfile->inbuf);
+ #endif
+ 
+-  return (cfile->inbuf[0]);
++  return (cfile->inbuf[cfile->bufix++]);
+ }
+ 
+ 
+@@ -1353,7 +1454,7 @@ ldap_read_config (void)
+ {
+   LDAPMessage * ldres, * hostres, * ent, * hostent;
+   char hfilter[1024], sfilter[1024], fqdn[257];
+-  char *buffer, *hostdn;
++  char *hostdn;
+   ldap_dn_node *curr = NULL;
+   struct parse *cfile;
+   struct utsname unme;
+@@ -1362,20 +1463,18 @@ ldap_read_config (void)
+   int ret, cnt;
+   struct berval **tempbv = NULL;
+ 
++  cfile = x_parser_init("LDAP");
++  if (cfile == NULL)
++    return (ISC_R_NOMEMORY);
++  
+   if (ld == NULL)
+     ldap_start ();
+   if (ld == NULL)
+-    return (ldap_server == NULL ? ISC_R_SUCCESS : ISC_R_FAILURE);
+- 
+-  buffer = dmalloc (LDAP_BUFFER_SIZE+1, MDL);
+-  if (buffer == NULL)
+-    return (ISC_R_FAILURE);
++    {
++      x_parser_free(&cfile);
++      return (ldap_server == NULL ? ISC_R_SUCCESS : ISC_R_FAILURE);
++    }
+ 
+-  cfile = (struct parse *) NULL;
+-  res = new_parse (&cfile, -1, buffer, LDAP_BUFFER_SIZE, "LDAP", 0);
+-  if (res != ISC_R_SUCCESS)
+-    return (res);
+- 
+   uname (&unme);
+   if (ldap_dhcp_server_cn != NULL)
+     {
+@@ -1403,10 +1502,11 @@ ldap_read_config (void)
+                                 &hostres)) != LDAP_SUCCESS)
+     {
+       log_error ("Cannot find host LDAP entry %s %s",
+-		 ((ldap_dhcp_server_cn == NULL)?(unme.nodename):(ldap_dhcp_server_cn)), hfilter);
++                 ((ldap_dhcp_server_cn == NULL)?(unme.nodename):(ldap_dhcp_server_cn)), hfilter);
+       if(NULL != hostres)
+         ldap_msgfree (hostres);
+       ldap_stop();
++      x_parser_free(&cfile);
+       return (ISC_R_FAILURE);
+     }
+ 
+@@ -1415,6 +1515,7 @@ ldap_read_config (void)
+       log_error ("Error: Cannot find LDAP entry matching %s", hfilter);
+       ldap_msgfree (hostres);
+       ldap_stop();
++      x_parser_free(&cfile);
+       return (ISC_R_FAILURE);
+     }
+ 
+@@ -1437,6 +1538,7 @@ ldap_read_config (void)
+         ldap_memfree (hostdn);
+       ldap_msgfree (hostres);
+       ldap_stop();
++      x_parser_free(&cfile);
+       return (ISC_R_FAILURE);
+     }
+ 
+@@ -1444,31 +1546,30 @@ ldap_read_config (void)
+   log_info ("LDAP: Parsing dhcpServer options '%s' ...", hostdn);
+ #endif
+ 
+-  cfile->inbuf[0] = '\0';
+-  ldap_parse_entry_options(hostent, cfile->inbuf, LDAP_BUFFER_SIZE, NULL);
+-  cfile->buflen = strlen (cfile->inbuf);
+-  if(cfile->buflen > 0)
++  res = ldap_parse_entry_options(hostent, cfile, NULL);
++  if (res != ISC_R_SUCCESS)
+     {
+-      ldap_write_debug (cfile->inbuf, cfile->buflen);
++      ldap_memfree (hostdn);
++      ldap_stop();
++      x_parser_free(&cfile);
++      return res;
++    }
+ 
++  if (x_parser_length(cfile) > 0)
++    {
+       res = conf_file_subparse (cfile, root_group, ROOT_GROUP);
+       if (res != ISC_R_SUCCESS)
+         {
+           log_error ("LDAP: cannot parse dhcpServer entry '%s'", hostdn);
+           ldap_memfree (hostdn);
+           ldap_stop();
++          x_parser_free(&cfile);
+           return res;
+         }
+-      cfile->inbuf[0] = '\0';
++      x_parser_reset(cfile);
+     }
+   ldap_msgfree (hostres);
+ 
+-  /*
+-  ** attach ldap (tree) read function now
+-  */
+-  cfile->bufix = cfile->buflen = 0;
+-  cfile->read_function = ldap_read_function;
+-
+   res = ISC_R_SUCCESS;
+   for (cnt=0; tempbv[cnt] != NULL; cnt++)
+     {
+@@ -1545,7 +1646,7 @@ ldap_read_config (void)
+         }
+     }
+ 
+-  end_parse (&cfile);
++  x_parser_free(&cfile);
+   ldap_close_debug_fd();
+ 
+   ldap_memfree (hostdn);
+@@ -1593,17 +1694,18 @@ ldap_parse_options (LDAPMessage * ent, struct group *group,
+                          struct class **class)
+ {
+   int declaration, lease_limit;
+-  char option_buffer[8192];
+   enum dhcp_token token;
+   struct parse *cfile;
+   isc_result_t res;
+   const char *val;
+ 
+   lease_limit = 0;
+-  *option_buffer = '\0';
+- 
+- /* This block of code will try to find the parent of the host, and
+-    if it is a group object, fetch the options and apply to the host. */
++  cfile = x_parser_init(type == HOST_DECL ? "LDAP-HOST" : "LDAP-SUBCLASS");
++  if (cfile == NULL)
++    return (lease_limit);
++
++  /* This block of code will try to find the parent of the host, and
++     if it is a group object, fetch the options and apply to the host. */
+   if (type == HOST_DECL) 
+     {
+       char *hostdn, *basedn, *temp1, *temp2, filter[1024];
+@@ -1642,13 +1744,11 @@ ldap_parse_options (LDAPMessage * ent, struct group *group,
+                 {
+                   if ((entry = ldap_first_entry (ld, groupdn)) != NULL)
+                     {
+-                      res = ldap_parse_entry_options (entry, option_buffer,
+-                                                      sizeof(option_buffer) - 1,
+-                                                      &lease_limit);
++                      res = ldap_parse_entry_options (entry, cfile, &lease_limit);
+                       if (res != ISC_R_SUCCESS)
+                         {
+                           /* reset option buffer discarding any results */
+-                          *option_buffer = '\0';
++                          x_parser_reset(cfile);
+                           lease_limit = 0;
+                         }
+                     }
+@@ -1659,24 +1759,18 @@ ldap_parse_options (LDAPMessage * ent, struct group *group,
+         }
+     }
+ 
+-  res = ldap_parse_entry_options (ent, option_buffer, sizeof(option_buffer) - 1,
+-                                  &lease_limit);
+-  if (res != ISC_R_SUCCESS)
+-    return (lease_limit);
+-
+-  option_buffer[sizeof(option_buffer) - 1] = '\0';
+-  if (*option_buffer == '\0')
+-    return (lease_limit);
+-
+-  cfile = (struct parse *) NULL;
+-  res = new_parse (&cfile, -1, option_buffer, strlen (option_buffer), 
+-                   type == HOST_DECL ? "LDAP-HOST" : "LDAP-SUBCLASS", 0);
++  res = ldap_parse_entry_options (ent, cfile, &lease_limit);
+   if (res != ISC_R_SUCCESS)
+-    return (lease_limit);
++    {
++      x_parser_free(&cfile);
++      return (lease_limit);
++    }
+ 
+-#if defined (DEBUG_LDAP)
+-  log_info ("Sending the following options: '%s'", option_buffer);
+-#endif
++  if (x_parser_length(cfile) == 0)
++    {
++      x_parser_free(&cfile);
++      return (lease_limit);
++    }
+ 
+   declaration = 0;
+   do
+@@ -1687,7 +1781,7 @@ ldap_parse_options (LDAPMessage * ent, struct group *group,
+        declaration = parse_statement (cfile, group, type, host, declaration);
+     } while (1);
+ 
+-  end_parse (&cfile);
++  x_parser_free(&cfile);
+ 
+   return (lease_limit);
+ }
