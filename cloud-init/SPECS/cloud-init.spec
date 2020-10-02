@@ -7,7 +7,7 @@
 
 Name:           cloud-init
 Version:        18.5
-Release:        6%{?dist}.5
+Release:        6%{?dist}.5.redsleeve
 Summary:        Cloud instance init scripts
 
 Group:          System Environment/Base
@@ -69,7 +69,7 @@ Patch31: ci-ec2-Add-support-for-AWS-IMDS-v2-session-oriented-55.patch
 # For bz#1832177 - [Azure] cloud-init provisioning failed in Azure [rhel-7.8.z]
 Patch32: ci-url_helper-read_file_or_url-should-pass-headers-para.patch
 
-Patch9999: cloud-init-centos-user.patch
+Patch9999: cloud-init-redsleeve-user.patch
 
 
 # Deal with noarch -> arch
@@ -240,6 +240,9 @@ fi
 %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
 
 %changelog
+* Thu Jul 16 2020 Jacco Ligthart <jacco@redsleeve.org 18.5-6.el7.5.redsleeve
+- rebrand for redsleeve
+
 * Wed May 20 2020 Miroslav Rezanina <mrezanin@redhat.com> - 18.5-6.el7_8.5
 - ci-url_helper-read_file_or_url-should-pass-headers-para.patch [bz#1832177]
 - Resolves: bz#1832177
