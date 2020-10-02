@@ -15,10 +15,10 @@
 Summary: Apache HTTP Server
 Name: httpd
 Version: 2.4.6
-Release: 93%{?dist}.redsleeve
+Release: 95%{?dist}
 URL: http://httpd.apache.org/
 Source0: http://www.apache.org/dist/httpd/httpd-%{version}.tar.bz2
-Source1: index.html
+Source1: centos-noindex.tar.gz
 Source2: httpd.logrotate
 Source3: httpd.sysconf
 Source4: httpd-ssl-pass-dialog
@@ -72,6 +72,9 @@ Patch37: httpd-2.4.6-uds.patch
 Patch38: httpd-2.4.6-upn.patch
 Patch39: httpd-2.4.6-r1664565.patch
 Patch40: httpd-2.4.6-r1861793+.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1715981
+Patch41: httpd-2.4.6-session-expiry-updt-int.patch
+
 # Bug fixes
 Patch51: httpd-2.4.3-sslsninotreq.patch
 Patch55: httpd-2.4.4-malformed-host.patch
@@ -196,6 +199,8 @@ Patch140: httpd-2.4.6-r1833014.patch
 Patch141: httpd-2.4.6-r1583175.patch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1649470
 Patch142: httpd-2.4.6-r1862604.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1724879
+Patch143: httpd-2.4.6-ssl-close-notify-client.patch
 
 # Security fixes
 Patch200: httpd-2.4.6-CVE-2013-6438.patch
@@ -225,6 +230,11 @@ Patch223: httpd-2.4.6-CVE-2019-0220.patch
 Patch224: httpd-2.4.6-CVE-2017-15710.patch
 Patch225: httpd-2.4.6-CVE-2018-1301.patch
 Patch226: httpd-2.4.6-CVE-2018-17199.patch
+Patch227: httpd-2.4.6-CVE-2017-15715.patch
+Patch228: httpd-2.4.6-CVE-2019-10098.patch
+Patch229: httpd-2.4.6-CVE-2018-1303.patch
+Patch230: httpd-2.4.6-CVE-2018-1283.patch
+Patch240: httpd-2.4.6-CVE-2020-1934.patch
 
 License: ASL 2.0
 Group: System Environment/Daemons
@@ -361,6 +371,7 @@ rm modules/ssl/ssl_engine_dh.c
 %patch38 -p1 -b .upn
 %patch39 -p1 -b .r1664565
 %patch40 -p1 -b .r1861793+
+%patch41 -p1 -b .session-expiry
 
 %patch51 -p1 -b .sninotreq
 %patch55 -p1 -b .malformedhost
@@ -449,8 +460,8 @@ rm modules/ssl/ssl_engine_dh.c
 %patch139 -p1 -b .r1824872
 %patch140 -p1 -b .r1833014
 %patch141 -p1 -b .r1583175
-%patch142 -p1 -b .1862604
-
+%patch142 -p1 -b .r1862604
+%patch143 -p1 -b .ssl-close-notify-client
 
 %patch200 -p1 -b .cve6438
 %patch201 -p1 -b .cve0098
@@ -479,6 +490,11 @@ rm modules/ssl/ssl_engine_dh.c
 %patch224 -p1 -b .cve15710
 %patch225 -p1 -b .cve1301
 %patch226 -p1 -b .cve17199
+%patch227 -p1 -b .cve15715
+%patch228 -p1 -b .cve10098
+%patch229 -p1 -b .cve1303
+%patch230 -p1 -b .cve1283
+%patch240 -p1 -b .cve1934
 
 # Patch in the vendor string and the release string
 sed -i '/^#define PLATFORM/s/Unix/%{vstring}/' os/unix/os.h
@@ -632,8 +648,9 @@ EOF
 
 # Handle contentdir
 mkdir $RPM_BUILD_ROOT%{contentdir}/noindex
-install -m 644 -p $RPM_SOURCE_DIR/index.html \
-        $RPM_BUILD_ROOT%{contentdir}/noindex/index.html
+tar xzf $RPM_SOURCE_DIR/centos-noindex.tar.gz \
+        -C $RPM_BUILD_ROOT%{contentdir}/noindex/ \
+        --strip-components=1
 
 rm -rf %{contentdir}/htdocs
 
@@ -657,7 +674,7 @@ rm -v $RPM_BUILD_ROOT%{docroot}/html/*.html \
       $RPM_BUILD_ROOT%{docroot}/cgi-bin/*
 
 # Symlink for the powered-by-$DISTRO image:
-ln -s ../../pixmaps/poweredby.png \
+ln -s ../noindex/images/poweredby.png \
         $RPM_BUILD_ROOT%{contentdir}/icons/poweredby.png
 
 # symlinks for /etc/httpd
@@ -843,7 +860,7 @@ rm -rf $RPM_BUILD_ROOT
 %{contentdir}/error/README
 %{contentdir}/error/*.var
 %{contentdir}/error/include/*.html
-%{contentdir}/noindex/index.html
+%{contentdir}/noindex/*
 
 %dir %{docroot}
 %dir %{docroot}/cgi-bin
@@ -909,14 +926,27 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/rpm/macros.httpd
 
 %changelog
-* Sun Apr 05 2020 Jacco Ligthart <jacco@redsleeve.org> - 2.4.6-93.el7.redsleeve
-- roll in redsleeve branding, based on RHEL
-
-* Tue Mar 31 2020 CentOS Sources <bugs@centos.org> - 2.4.6-93.el7.centos
+* Tue Sep 29 2020 CentOS Sources <bugs@centos.org> - 2.4.6-95.el7.centos
 - Remove index.html, add centos-noindex.tar.gz
 - change vstring
 - change symlink for poweredby.png
 - update welcome.conf with proper aliases
+
+* Fri Apr 17 2020 Lubos Uhliarik <luhliari@redhat.com> - 2.4.6-95
+- Resolves: #1823262 - CVE-2020-1934 httpd: mod_proxy_ftp use of uninitialized
+  value
+
+* Thu Mar 26 2020 Lubos Uhliarik <luhliari@redhat.com> - 2.4.6-94
+- Resolves: #1565491 - CVE-2017-15715 httpd: <FilesMatch> bypass with a trailing
+  newline in the file name
+- Resolves: #1747283 - CVE-2019-10098 httpd: mod_rewrite potential open redirect
+- Resolves: #1724879 - httpd terminates all SSL connections using an abortive
+  shutdown
+- Resolves: #1715981 - Backport of SessionExpiryUpdateInterval directive
+- Resolves: #1565457 - CVE-2018-1303 httpd: Out of bounds read in
+  mod_cache_socache can allow a remote attacker to cause a denial of service
+- Resolves: #1566531 - CVE-2018-1283 httpd: Improper handling of headers in 
+  mod_session can allow a remote user to modify session data for CGI applications
 
 * Tue Oct 08 2019 Lubos Uhliarik <luhliari@redhat.com> - 2.4.6-93
 - Resolves: #1677496 - CVE-2018-17199 httpd: mod_session_cookie does not respect

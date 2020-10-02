@@ -1,0 +1,161 @@
+diff --git a/include/http_connection.h b/include/http_connection.h
+index 2192507..924ddda 100644
+--- a/include/http_connection.h
++++ b/include/http_connection.h
+@@ -47,9 +47,18 @@ extern "C" {
+  */
+ AP_CORE_DECLARE(void) ap_process_connection(conn_rec *c, void *csd);
+ 
++/**
++ * Shutdown the connection for writing.
++ * @param c The connection to shutdown
++ * @param flush Whether or not to flush pending data before
++ * @return APR_SUCCESS or the underlying error
++ */
++AP_CORE_DECLARE(apr_status_t) ap_shutdown_conn(conn_rec *c, int flush);
++
+ /**
+  * Flushes all remain data in the client send buffer
+  * @param c The connection to flush
++ * @remark calls ap_shutdown_conn(c, 1)
+  */
+ AP_CORE_DECLARE(void) ap_flush_conn(conn_rec *c);
+ 
+diff --git a/modules/proxy/proxy_util.c b/modules/proxy/proxy_util.c
+index 8be833a..6c79a1a 100644
+--- a/modules/proxy/proxy_util.c
++++ b/modules/proxy/proxy_util.c
+@@ -2886,6 +2886,33 @@ PROXY_DECLARE(int) ap_proxy_connect_backend(const char *proxy_function,
+     }
+ }
+ 
++static apr_status_t connection_shutdown(void *theconn)
++{
++    proxy_conn_rec *conn = (proxy_conn_rec *)theconn;
++    conn_rec *c = conn->connection;
++    if (c) {
++        if (!c->aborted) {
++            apr_interval_time_t saved_timeout = 0;
++            apr_socket_timeout_get(conn->sock, &saved_timeout);
++            if (saved_timeout) {
++                apr_socket_timeout_set(conn->sock, 0);
++            }
++
++            (void)ap_shutdown_conn(c, 0);
++            c->aborted = 1;
++
++            if (saved_timeout) {
++                apr_socket_timeout_set(conn->sock, saved_timeout);
++            }
++        }
++
++        ap_log_cerror(APLOG_MARK, APLOG_DEBUG, 0, c, APLOGNO(02642)
++                      "proxy: connection shutdown");
++    }
++    return APR_SUCCESS;
++}
++
++
+ PROXY_DECLARE(int) ap_proxy_connection_create(const char *proxy_function,
+                                               proxy_conn_rec *conn,
+                                               conn_rec *c,
+@@ -2958,6 +2985,11 @@ PROXY_DECLARE(int) ap_proxy_connection_create(const char *proxy_function,
+     }
+     apr_socket_timeout_set(conn->sock, current_timeout);
+ 
++    /* Shutdown the connection before closing it (eg. SSL connections
++     * need to be close-notify-ed).
++     */
++    apr_pool_pre_cleanup_register(conn->scpool, conn, connection_shutdown);
++
+     return OK;
+ }
+ 
+diff --git a/modules/ssl/ssl_util_ssl.c b/modules/ssl/ssl_util_ssl.c
+index fbd701f..a8778d4 100644
+--- a/modules/ssl/ssl_util_ssl.c
++++ b/modules/ssl/ssl_util_ssl.c
+@@ -166,6 +166,7 @@ int SSL_smart_shutdown(SSL *ssl)
+ {
+     int i;
+     int rc;
++    int flush;
+ 
+     /*
+      * Repeat the calls, because SSL_shutdown internally dispatches through a
+@@ -175,8 +176,20 @@ int SSL_smart_shutdown(SSL *ssl)
+      * connection and OpenSSL cannot recognize it.
+      */
+     rc = 0;
++    flush = !(SSL_get_shutdown(ssl) & SSL_SENT_SHUTDOWN);
+     for (i = 0; i < 4 /* max 2x pending + 2x data = 4 */; i++) {
+-        if ((rc = SSL_shutdown(ssl)))
++        rc = SSL_shutdown(ssl);
++        if (rc >= 0 && flush && (SSL_get_shutdown(ssl) & SSL_SENT_SHUTDOWN)) {
++            /* Once the close notity is sent through the output filters,
++             * ensure it is flushed through the socket.
++             */
++            if (BIO_flush(SSL_get_wbio(ssl)) <= 0) {
++                rc = -1;
++                break;
++            }
++            flush = 0;
++        }
++        if (rc != 0)
+             break;
+     }
+     return rc;
+diff --git a/server/connection.c b/server/connection.c
+index 6e4495f..4942c77 100644
+--- a/server/connection.c
++++ b/server/connection.c
+@@ -64,22 +64,32 @@ AP_IMPLEMENT_HOOK_RUN_ALL(int,pre_connection,(conn_rec *c, void *csd),(c, csd),O
+ #define MAX_SECS_TO_LINGER 30
+ #endif
+ 
+-AP_CORE_DECLARE(void) ap_flush_conn(conn_rec *c)
++AP_CORE_DECLARE(apr_status_t) ap_shutdown_conn(conn_rec *c, int flush)
+ {
++    apr_status_t rv;
+     apr_bucket_brigade *bb;
+     apr_bucket *b;
+ 
+     bb = apr_brigade_create(c->pool, c->bucket_alloc);
+ 
+-    /* FLUSH bucket */
+-    b = apr_bucket_flush_create(c->bucket_alloc);
+-    APR_BRIGADE_INSERT_TAIL(bb, b);
++    if (flush) {
++        /* FLUSH bucket */
++        b = apr_bucket_flush_create(c->bucket_alloc);
++        APR_BRIGADE_INSERT_TAIL(bb, b);
++    }
+ 
+     /* End Of Connection bucket */
+     b = ap_bucket_eoc_create(c->bucket_alloc);
+     APR_BRIGADE_INSERT_TAIL(bb, b);
+ 
+-    ap_pass_brigade(c->output_filters, bb);
++    rv = ap_pass_brigade(c->output_filters, bb);
++    apr_brigade_destroy(bb);
++    return rv;
++}
++
++AP_CORE_DECLARE(void) ap_flush_conn(conn_rec *c)
++{
++    (void)ap_shutdown_conn(c, 1);
+ }
+ 
+ /* we now proceed to read from the client until we get EOF, or until
+diff --git a/server/mpm/event/event.c b/server/mpm/event/event.c
+index 5852685..defa109 100644
+--- a/server/mpm/event/event.c
++++ b/server/mpm/event/event.c
+@@ -841,6 +841,7 @@ static int start_lingering_close_nonblocking(event_conn_state_t *cs)
+     apr_socket_t *csd = cs->pfd.desc.s;
+ 
+     if (c->aborted
++        || ap_shutdown_conn(c, 0) != APR_SUCCESS || c->aborted
+         || apr_socket_shutdown(csd, APR_SHUTDOWN_WRITE) != APR_SUCCESS) {
+         apr_socket_close(csd);
+         apr_pool_clear(cs->p);
