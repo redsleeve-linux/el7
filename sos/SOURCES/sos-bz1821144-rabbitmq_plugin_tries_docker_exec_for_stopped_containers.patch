@@ -1,0 +1,36 @@
+From e9848da576dde21e1bc22c540d9828a3ea783867 Mon Sep 17 00:00:00 2001
+From: Takashi Kajinami <tkajinam@redhat.com>
+Date: Mon, 6 Apr 2020 11:20:46 +0900
+Subject: [PATCH] [rabbitmq] Do not run exec for stopped containers
+
+Currently rabbitmq plugin invokes rabbitmqctl command by docker exec
+for all containers whose name start with rabbitmq, but it always tries
+to run commands agaist stopped containers, which can never succeed.
+
+This patch makes sure that the plugin only use running containers,
+to avoid useless trial with stopped containers.
+
+Resolves: #2000
+
+Signed-off-by: Takashi Kajinami <tkajinam@redhat.com>
+Signed-off-by: Jake Hunsaker <jhunsake@redhat.com>
+---
+ sos/plugins/rabbitmq.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sos/plugins/rabbitmq.py b/sos/plugins/rabbitmq.py
+index 488040c..9ebf6c0 100644
+--- a/sos/plugins/rabbitmq.py
++++ b/sos/plugins/rabbitmq.py
+@@ -23,7 +23,7 @@ class RabbitMQ(Plugin, RedHatPlugin, DebianPlugin, UbuntuPlugin):
+ 
+     def setup(self):
+         container_status = self.exec_cmd(
+-            "docker ps -a --format='{{ .Names }}'"
++            "docker ps --format='{{ .Names }}'"
+         )
+ 
+         in_container = False
+-- 
+1.8.3.1
+

@@ -1,0 +1,54 @@
+From c5a3dd0fb1e256772d83f19bc458e79b2cf5baf7 Mon Sep 17 00:00:00 2001
+From: Jake Hunsaker <jhunsake@redhat.com>
+Date: Fri, 3 Jul 2020 12:24:10 -0400
+Subject: [PATCH] [pci] Update gating for lspci commands
+
+It was reported that certain arches may create subdir structures under
+/proc/bus/pci differently than others - most notably that the first
+device subdir could be '0000:00' instead of just '00'.
+
+Rather than chase these different layouts, update the gating check for
+running `lspci` commands to being that /proc/bus/pci exists and it has
+more than just the `devices` file present, as this file may be present
+but empty when nothing else exists under `/proc/bus/pci`.
+
+This is the legacy-3.9 backport from #2138
+
+Signed-off-by: Jake Hunsaker <jhunsake@redhat.com>
+---
+ sos/plugins/pci.py | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/sos/plugins/pci.py b/sos/plugins/pci.py
+index ac90f09..053307c 100644
+--- a/sos/plugins/pci.py
++++ b/sos/plugins/pci.py
+@@ -17,6 +17,16 @@ class Pci(Plugin, RedHatPlugin, UbuntuPlugin, DebianPlugin):
+     plugin_name = "pci"
+     profiles = ('hardware', 'system')
+ 
++    def check_for_bus_devices(self):
++        if not os.path.isdir('/proc/bus/pci'):
++            return False
++        # ensure that more than just the 'devices' file, which can be empty,
++        # exists in the pci directory. This implies actual devices are present
++        content = os.listdir('/proc/bus/pci')
++        if 'devices' in content:
++            content.remove('devices')
++        return len(content) > 0
++
+     def setup(self):
+         self.add_copy_spec([
+             "/proc/ioports",
+@@ -24,7 +34,7 @@ class Pci(Plugin, RedHatPlugin, UbuntuPlugin, DebianPlugin):
+             "/proc/bus/pci"
+         ])
+ 
+-        if os.path.isdir("/proc/bus/pci/00"):
++        if self.check_for_bus_devices():
+             self.add_cmd_output("lspci -nnvv", root_symlink="lspci")
+             self.add_cmd_output("lspci -tv")
+ 
+-- 
+1.8.3.1
+

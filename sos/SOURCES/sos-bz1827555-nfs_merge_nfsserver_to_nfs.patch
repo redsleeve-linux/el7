@@ -1,0 +1,119 @@
+From 1ee160b31f08497af7ebbf9c156dd855b70950a9 Mon Sep 17 00:00:00 2001
+From: Jan Jansky <jjansky@redhat.com>
+Date: Tue, 19 May 2020 17:38:06 +0200
+Subject: [PATCH] [nfs] merge nfsserver plugin into nfs one
+
+nfsserver plugin enabledness relies on legacy init scripts. A more
+appropriate way to idenfity a NFS server is via nfs-utils package
+(though it could be present also on a NFS client).
+
+As that package enables nfs plugin, it is reasonable to merge the
+plugins into one.
+
+Related: #2073
+Resolves: #2076
+Closes: #2061
+
+Signed-off-by: Jan Jansky <jjansky@redhat.com>
+Signed-off-by: Jake Hunsaker <jhunsake@redhat.com>
+---
+ sos/plugins/nfs.py       | 13 +++++++++++-
+ sos/plugins/nfsserver.py | 55 ------------------------------------------------
+ 2 files changed, 12 insertions(+), 56 deletions(-)
+ delete mode 100644 sos/plugins/nfsserver.py
+
+diff --git a/sos/plugins/nfs.py b/sos/plugins/nfs.py
+index 833d79a..57074f4 100644
+--- a/sos/plugins/nfs.py
++++ b/sos/plugins/nfs.py
+@@ -14,7 +14,7 @@ class Nfs(Plugin, RedHatPlugin, DebianPlugin, UbuntuPlugin):
+     """
+     plugin_name = 'nfs'
+     profiles = ('storage', 'network', 'nfs')
+-    packages = ['nfs-utils']
++    packages = ('nfs-utils', )
+ 
+     def setup(self):
+         self.add_copy_spec([
+@@ -24,6 +24,17 @@ class Nfs(Plugin, RedHatPlugin, DebianPlugin, UbuntuPlugin):
+             "/proc/fs/nfsfs/servers",
+             "/proc/fs/nfsfs/volumes",
+             "/run/sysconfig/nfs-utils",
++            "/etc/exports",
++            "/etc/exports.d",
++            "/var/lib/nfs/etab",
++            "/var/lib/nfs/xtab",
++            "/var/lib/nfs/rmtab",
++        ])
++
++        self.add_cmd_output([
++            "rpcinfo -p localhost",
++            "nfsstat -o all",
++            "exportfs -v",
+         ])
+         return
+ 
+diff --git a/sos/plugins/nfsserver.py b/sos/plugins/nfsserver.py
+deleted file mode 100644
+index 3ee08cd..0000000
+--- a/sos/plugins/nfsserver.py
++++ /dev/null
+@@ -1,55 +0,0 @@
+-# Copyright (C) 2007 Red Hat, Inc., Eugene Teo <eteo@redhat.com>
+-
+-# This file is part of the sos project: https://github.com/sosreport/sos
+-#
+-# This copyrighted material is made available to anyone wishing to use,
+-# modify, copy, or redistribute it subject to the terms and conditions of
+-# version 2 of the GNU General Public License.
+-#
+-# See the LICENSE file in the source distribution for further information.
+-
+-from sos.plugins import Plugin, RedHatPlugin
+-import os
+-from stat import ST_SIZE
+-
+-
+-class NfsServer(Plugin, RedHatPlugin):
+-    """NFS server information
+-    """
+-
+-    plugin_name = 'nfsserver'
+-    profiles = ('storage', 'network', 'services', 'nfs')
+-
+-    def check_enabled(self):
+-        default_runlevel = self.policy.default_runlevel()
+-        nfs_runlevels = self.policy.runlevel_by_service("nfs")
+-        if default_runlevel in nfs_runlevels:
+-            return True
+-
+-        try:
+-            exports = os.stat("/etc/exports")[ST_SIZE]
+-            xtab = os.stat("/var/lib/nfs/xtab")[ST_SIZE]
+-            if exports or xtab:
+-                return True
+-        except OSError:
+-            pass
+-
+-        return False
+-
+-    def setup(self):
+-        self.add_copy_spec([
+-            "/etc/exports",
+-            "/etc/exports.d",
+-            "/var/lib/nfs/etab",
+-            "/var/lib/nfs/xtab",
+-            "/var/lib/nfs/rmtab"
+-        ])
+-
+-        self.add_cmd_output([
+-            "rpcinfo -p localhost",
+-            "nfsstat -o all",
+-            "exportfs -v"
+-        ])
+-
+-
+-# vim: set et ts=4 sw=4 :
+-- 
+1.8.3.1
+

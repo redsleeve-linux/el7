@@ -1,8 +1,8 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 Summary: A set of tools to gather troubleshooting information from a system
 Name: sos
-Version: 3.8
-Release: 8%{?dist}.redsleeve
+Version: 3.9
+Release: 4%{?dist}
 Group: Applications/System
 Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
 License: GPLv2+
@@ -20,14 +20,18 @@ Obsoletes: sos-plugins-openstack
 Conflicts: vdsm <= 4.30.17
 Obsoletes: leapp-repository-sos-plugin
 Patch0: skip-generating-doc.patch
-Patch1: sos-bz1744555-ovn-plugins-containerized.patch
-Patch2: sos-bz1757662-kernel-trace-disabled.patch
-Patch3: sos-bz1699381-gluster-skip-statedump-dirs.patch
-Patch4: sos-bz1767445-interim-sysroot-forbidden-paths.patch
-Patch5: sos-bz1630028-manpages-allow-system-changes.patch
-Patch6: sos-bz1781148-foreman-psql-dynflow-explicit-cast.patch
-Patch7: sos-bz1683904-option_to_limit_namespaces.patch
-Patch8: sos-3.8-redsleeve-branding.patch
+Patch1: sos-bz1538226-insights_collect_insights_archive_if_available.patch
+Patch2: sos-bz1821144-rabbitmq_plugin_tries_docker_exec_for_stopped_containers.patch
+Patch3: sos-redis_collection_of_redis_from_scl.patch
+Patch4: sos-bz1827555-nfs_merge_nfsserver_to_nfs.patch
+Patch5: sos-bz1840571-rabbitmq_emulate_tty_timeout_foreground.patch
+Patch6: sos-bz1843520-gluster_volume_splitlines.patch
+Patch7: sos-bz1850544-block_luks_partition_not_detected.patch
+Patch8: sos-bz1853701-pci_gating_for_lspci.patch
+Patch9: sos-bz1853235-foreman_collect_stats_of_some_tables.patch
+Patch10: sos-bz1850925-logs_collect_also_not_persistent_logs.patch
+Patch11: sos-bz1856417-gluster-remove_only_dump_files.patch
+Patch12: sos-centos-branding.patch
 
 %description
 Sos is a set of tools that gathers information about system
@@ -41,11 +45,15 @@ support technicians and developers.
 %patch1 -p1
 %patch2 -p1
 %patch3 -p1
-%patch4 -p1 
+%patch4 -p1
 %patch5 -p1
 %patch6 -p1
 %patch7 -p1
 %patch8 -p1
+%patch9 -p1
+%patch10 -p1
+%patch11 -p1
+%patch12 -p1
 
 %build
 make
@@ -69,11 +77,31 @@ rm -rf ${RPM_BUILD_ROOT}
 %config(noreplace) %{_sysconfdir}/sos.conf
 
 %changelog
-* Sat May 16 2020 Jacco Ligthart <jacco@redsleeve.org> - 3.8-8.el7.redsleeve
-- Roll in RedSleeve Branding
-
-* Tue May 12 2020 CentOS Sources <bugs@centos.org> - 3.8-8.el7.centos
+* Tue Sep 29 2020 CentOS Sources <bugs@centos.org> - 3.9-4.el7.centos
 - Roll in CentOS Branding
+
+* Thu Jul 16 2020 Jan Jansky <jjansky@redhat.com> = 3.9-4
+- [gluster] remove only dump files
+  Resolves: bz1856417
+
+* Tue Jul 07 2020 Jan Jansky <jjansky@redhat.com> = 3.9-3
+- [gluster] fix gluster volume splitlines iteration
+  Resolves: bz1843520
+- [block] proper parsing of luks partition on self device
+  Resolves: bz1850544
+- [pci] Update gating for lspci commands
+  Resolves: bz1853701
+- [foreman] collects stats of some tables from foreman DB
+  Resolves: bz1853235
+- [logs] collect also non-persistent journal logs
+  Resolves: bz1850925
+
+* Wed May 27 2020 Jan Jansky <jjansky@redhat.com> = 3.9-2
+- [rabbitmq] emulate TTY via timeout foreground
+  Resolves: bz1840571
+
+* Tue May 19 2020 Jan Jansky <jjansky@redhat.com> = 3.9-1
+- New upstream release sos-3.9
 
 * Mon Feb 24 2020 Jan Jansky <jjansky@redhat.com> = 3.8-8
 - Added Obsolete for leapp-repository-sos-plugin to solve

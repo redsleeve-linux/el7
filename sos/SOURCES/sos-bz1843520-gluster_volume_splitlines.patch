@@ -1,0 +1,37 @@
+From 348f87d29cc6567312de122729dcca348f024623 Mon Sep 17 00:00:00 2001
+From: Pavel Moravec <pmoravec@redhat.com>
+Date: Mon, 8 Jun 2020 15:16:28 +0200
+Subject: [PATCH] [gluster] fix gluster volume splitlines iteration
+
+Iterate via "gluster volue info" output split to lines,
+and dont truncate the trailing character (a relict from past different
+content parsing).
+
+Resolves: #2107
+
+Signed-off-by: Pavel Moravec <pmoravec@redhat.com>
+Signed-off-by: Jake Hunsaker <jhunsake@redhat.com>
+---
+ sos/plugins/gluster.py | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/sos/plugins/gluster.py b/sos/plugins/gluster.py
+index 1a349d9..a5b0458 100644
+--- a/sos/plugins/gluster.py
++++ b/sos/plugins/gluster.py
+@@ -103,10 +103,10 @@ class Gluster(Plugin, RedHatPlugin):
+ 
+         volume_cmd = self.collect_cmd_output("gluster volume info")
+         if volume_cmd['status'] == 0:
+-            for line in volume_cmd['output']:
++            for line in volume_cmd['output'].splitlines():
+                 if not line.startswith("Volume Name:"):
+                     continue
+-                volname = line[12:-1]
++                volname = line[12:]
+                 self.add_cmd_output([
+                     "gluster volume get %s all" % volname,
+                     "gluster volume geo-replication %s status" % volname,
+-- 
+1.8.3.1
+

@@ -1,0 +1,50 @@
+From 65c81d285def5f5b7e150bfe68dc84cacbe73cbe Mon Sep 17 00:00:00 2001
+From: Jan Jansky <jjansky@redhat.com>
+Date: Thu, 25 Jun 2020 13:28:14 +0200
+Subject: [PATCH] [foreman] collects stats of some tables from foreman DB
+
+Too many logs, audits or fact_names suggest performance problems,
+so it is worth collecting stats/counts of them.
+
+Related: #2117
+Resolves: #2131
+
+Signed-off-by: Jan Jansky <jjansky@redhat.com>
+Signed-off-by: Jake Hunsaker <jhunsake@redhat.com>
+---
+ sos/plugins/foreman.py | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/sos/plugins/foreman.py b/sos/plugins/foreman.py
+index a533251..16d8c7f 100644
+--- a/sos/plugins/foreman.py
++++ b/sos/plugins/foreman.py
+@@ -204,6 +204,15 @@ class Foreman(Plugin):
+             % quote(months)
+         )
+ 
++        # counts of fact_names prefixes/types: much of one type suggests
++        # performance issues
++        factnamescmd = (
++            'WITH prefix_counts AS (SELECT split_part(name,\'::\',1) FROM '
++            'fact_names) SELECT COUNT(*), split_part AS "fact_name_prefix" '
++            'FROM prefix_counts GROUP BY split_part ORDER BY count DESC '
++            'LIMIT 100'
++        )
++
+         # Populate this dict with DB queries that should be saved directly as
+         # postgres formats them. The key will be the filename in the foreman
+         # plugin directory, with the value being the DB query to run
+@@ -213,6 +222,9 @@ class Foreman(Plugin):
+             'foreman_auth_table': authcmd,
+             'dynflow_schema_info': 'select * from dynflow_schema_info',
+             'foreman_tasks_tasks': 'select * from foreman_tasks_tasks',
++            'audits_table_count': 'select count(*) from audits',
++            'logs_table_count': 'select count(*) from logs',
++            'fact_names_prefixes': factnamescmd,
+             'smart_proxies': 'select sp.name, sp.url, ' +
+                              'sp.download_policy,n.ip from smart_proxies ' +
+                              'as sp left join hosts as h on h.name=sp.name ' +
+-- 
+1.8.3.1
+

@@ -1,0 +1,35 @@
+From a2f8d3bea955568f97367f75720728619b12276a Mon Sep 17 00:00:00 2001
+From: Pavel Moravec <pmoravec@redhat.com>
+Date: Fri, 24 Apr 2020 11:41:54 +0200
+Subject: [PATCH] [insights] collect insights-client dump
+
+Collect data of "insights-client --offline" into
+sos_commands/insights/insights-client-dump directory.
+
+Related: #2030
+Resolves: #2032
+
+Signed-off-by: Pavel Moravec <pmoravec@redhat.com>
+Signed-off-by: Jake Hunsaker <jhunsake@redhat.com>
+---
+ sos/plugins/insights.py | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/sos/plugins/insights.py b/sos/plugins/insights.py
+index a944e49..62ece8b 100644
+--- a/sos/plugins/insights.py
++++ b/sos/plugins/insights.py
+@@ -31,6 +31,10 @@ class RedHatInsights(Plugin, RedHatPlugin):
+         else:
+             self.add_copy_spec("/var/log/insights-client/insights-client.log")
+ 
++        # Collect insights-client report data into given dump dir
++        path = self.get_cmd_output_path(name="insights-client-dump")
++        self.add_cmd_output("insights-client --offline --output-dir %s" % path)
++
+     def postproc(self):
+         for conf in self.config:
+             self.do_file_sub(
+-- 
+1.8.3.1
+

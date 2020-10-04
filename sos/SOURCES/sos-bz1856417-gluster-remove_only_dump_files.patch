@@ -1,0 +1,48 @@
+From 61a638ba60b30408735e4f65dcfdf7aa6b420449 Mon Sep 17 00:00:00 2001
+From: Jan Jansky <jjansky@redhat.com>
+Date: Wed, 15 Jul 2020 15:58:58 +0200
+Subject: [PATCH] [gluster] remove only dump files
+
+Removes only dump files and leaving
+other files as .socket or sock.
+
+Related: #2152
+Resolves: #2153
+
+Signed-off-by: Jan Jansky <jjansky@redhat.com>
+Signed-off-by: Jake Hunsaker <jhunsake@redhat.com>
+---
+ sos/plugins/gluster.py | 17 ++++++++---------
+ 1 file changed, 8 insertions(+), 9 deletions(-)
+
+diff --git a/sos/plugins/gluster.py b/sos/plugins/gluster.py
+index a5b0458..777f941 100644
+--- a/sos/plugins/gluster.py
++++ b/sos/plugins/gluster.py
+@@ -40,15 +40,14 @@ class Gluster(Plugin, RedHatPlugin):
+                 ret = string.count(last_line, 'DUMP_END_TIME')
+ 
+     def postproc(self):
+-        if not os.path.exists(self.statedump_dir):
+-            return
+-        try:
+-            for dirs in os.listdir(self.statedump_dir):
+-                os.remove(os.path.join(self.statedump_dir, dirs))
+-            os.rmdir(self.statedump_dir)
+-            os.unlink('/tmp/glusterdump.options')
+-        except OSError:
+-            pass
++        if self.get_option("dump"):
++            if not os.path.exists(self.statedump_dir):
++                return
++            try:
++                for name in glob.glob(self.statedump_dir + '/*.dump.[0-9]*'):
++                    os.remove(name)
++            except OSError:
++                pass
+ 
+     def setup(self):
+         self.add_forbidden_path("/var/lib/glusterd/geo-replication/secret.pem")
+-- 
+1.8.3.1
+

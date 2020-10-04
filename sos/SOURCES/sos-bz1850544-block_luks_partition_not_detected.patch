@@ -1,0 +1,29 @@
+From a0969a58be1cfa0f517ce126980d930c033e3b31 Mon Sep 17 00:00:00 2001
+From: Jake Hunsaker <jhunsake@redhat.com>
+Date: Wed, 24 Jun 2020 10:10:22 -0400
+Subject: [PATCH] [block] Fix typo in LUKS detection
+
+Fixes a typo in detecting LUKS partitions for cryptsetup output
+collection.
+
+Signed-off-by: Jake Hunsaker <jhunsake@redhat.com>
+---
+ sos/plugins/block.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sos/plugins/block.py b/sos/plugins/block.py
+index 621985d..71f4d66 100644
+--- a/sos/plugins/block.py
++++ b/sos/plugins/block.py
+@@ -57,7 +57,7 @@ class Block(Plugin, RedHatPlugin, DebianPlugin, UbuntuPlugin):
+         # for LUKS devices, collect cryptsetup luksDump
+         if lsblk['status'] == 0:
+             for line in lsblk['output'].splitlines():
+-                if 'crypto LUKS' in line:
++                if 'crypto_LUKS' in line:
+                     dev = line.split()[0]
+                     self.add_cmd_output('cryptsetup luksDump /dev/%s' % dev)
+ 
+-- 
+1.8.3.1
+
