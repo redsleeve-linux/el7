@@ -14,7 +14,7 @@ URL: https://www.python.org/
 #  WARNING  When rebasing to a new Python version,
 #           remember to update the python3-docs package as well
 Version: %{pybasever}.8
-Release: 13%{?dist}.redsleeve
+Release: 17%{?dist}
 License: Python
 
 
@@ -281,38 +281,6 @@ Patch111: 00111-no-static-lib.patch
 # these unittest hooks in their own "check" phases)
 Patch132: 00132-add-rpmbuild-hooks-to-unittest.patch
 
-# 00146 #
-# Support OpenSSL FIPS mode (e.g. when OPENSSL_FORCE_FIPS_MODE=1 is set)
-# - handle failures from OpenSSL (e.g. on attempts to use MD5 in a
-#   FIPS-enforcing environment)
-# - add a new "usedforsecurity" keyword argument to the various digest
-#   algorithms in hashlib so that you can whitelist a callsite with
-#   "usedforsecurity=False"
-# (sent upstream for python 3 as http://bugs.python.org/issue9216 ; see RHEL6
-# python patch 119)
-# - enforce usage of the _hashlib implementation: don't fall back to the _md5
-#   and _sha* modules (leading to clearer error messages if fips selftests
-#   fail)
-# - don't build the _md5 and _sha* modules; rely on the _hashlib implementation
-#   of hashlib
-# (rhbz#1732908)
-# Note: Up to Python 3.4.0.b1, upstream had their own implementation of what
-# they assumed would become sha3. This patch was adapted to give it the
-# usedforsecurity argument, even though it did nothing (OpenSSL didn't have
-# sha3 implementation at that time).In 3.4.0.b2, sha3 implementation was reverted
-# (see http://bugs.python.org/issue16113), but the alterations were left in the
-# patch, since they may be useful again if upstream decides to rerevert sha3
-# implementation and OpenSSL still doesn't support it. For now, they're harmless.
-
-# Patch is updated to be compatible with blake2 and shake algorithms
-
-# As of python 3.6.3, upstream raises a ValueError when a hash function
-# fails to be initialized (e.g. in fips mode).
-# https://github.com/python/cpython/commit/31b8efeaa893e95358b71eb2b8365552d3966b4a
-# Since we carry downstream our own implementation of hashlib for fips mode
-# we remove the implementation that was introduced with python 3.6.3 for now.
-Patch146: 00146-hashlib-fips.patch
-
 # 00155 #
 # Avoid allocating thunks in ctypes unless absolutely necessary, to avoid
 # generating SELinux denials on "import ctypes" and "import uuid" when
@@ -425,6 +393,34 @@ Patch324: 00324-disallow-control-chars-in-http-urls.patch
 # Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1714642
 Patch325: 00325-CVE-2019-9948.patch
 
+# 00329 #
+# Support OpenSSL FIPS mode
+# - Fallback implementations md5, sha1, sha256, sha512 are removed in favor of OpenSSL wrappers
+# - In FIPS mode, OpenSSL wrappers are always used in hashlib
+# - add a new "usedforsecurity" keyword argument to the various digest
+#   algorithms in hashlib so that you can whitelist a callsite with
+#   "usedforsecurity=False"
+#   The change has been implemented upstream since Python 3.9:
+#   https://bugs.python.org/issue9216
+# - In FIPS mode, the blake2, sha3 and shake hashes are not available.
+# - In FIPS mode, hmac.HMAC can only be instantiated with an OpenSSL wrapper
+#   or an string with OpenSSL hash name as the "digestmod" argument.
+#   The argument must be specified (instead of defaulting to ‘md5’).
+#
+#   Upstream changes that have also been backported with this patch
+#   to allow tests to pass on stricter environments:
+#
+#   Avoid MD5 or check for MD5 availablity
+#   https://bugs.python.org/issue38270
+#   https://github.com/python/cpython/pull/16393
+#   https://github.com/python/cpython/pull/16437
+#   https://github.com/python/cpython/pull/17446
+#
+#   add usedforsecurity to hashlib constructors (partial backport for fixing a uuid test)
+#   https://github.com/python/cpython/pull/16044
+# Resolves: rhbz#1788459
+Patch329: 00329-fips.patch
+
 # 00330 #
 # Fix CVE-2018-20852: cookie domain check returning incorrect results
 # Fixed upstream: https://bugs.python.org/issue35121
@@ -442,6 +438,18 @@ Patch332: 00332-CVE-2019-16056.patch
 # more stack memory on some hardware.
 # Fixed upstream: https://bugs.python.org/issue21131
 Patch333: 00333-fix-faulthandler-stack.patch
+
+# 00344 #
+# Fix CVE-2019-16935: XSS vulnerability in the documentation XML-RPC server in server_title field
+# Fixed upstream: https://bugs.python.org/issue38243
+# Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1797999
+Patch344: 00344-CVE-2019-16935.patch
+
+# 00346 #
+# Fix CVE-2020-8492: wrong backtracking in urllib.request.AbstractBasicAuthHandler allows for a ReDoS
+# Fixed upstream: https://bugs.python.org/issue39503
+# Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1810616
+Patch346: 00346-CVE-2020-8492.patch
 
 # (New patches go here ^^^)
 #
@@ -592,6 +600,10 @@ Provides: python%{pyshortver}-idle = %{version}-%{release}
 Provides: python%{pyshortver}-idle%{?_isa} = %{version}-%{release}
 Obsoletes: python%{pyshortver}-idle < %{version}-%{release}
 
+Provides: python%{pyshortver}-tools = %{version}-%{release}
+Provides: python%{pyshortver}-tools%{?_isa} = %{version}-%{release}
+Obsoletes: python%{pyshortver}-tools < %{version}-%{release}
+
 # /usr/bin/idle3 was moved from here:
 Obsoletes: python34-tools < 3.4.9-3
 
@@ -736,7 +748,6 @@ sed -r -i s/'_PIP_VERSION = "[0-9.]+"'/'_PIP_VERSION = "%{pip_version}"'/ Lib/en
 %endif
 %patch111 -p1
 %patch132 -p1
-%patch146 -p1
 %patch155 -p1
 %patch160 -p1
 %patch163 -p1
@@ -758,9 +769,12 @@ sed -r -i s/'_PIP_VERSION = "[0-9.]+"'/'_PIP_VERSION = "%{pip_version}"'/ Lib/en
 %patch320 -p1
 %patch324 -p1
 %patch325 -p1
+%patch329 -p1
 %patch330 -p1
 %patch332 -p1
 %patch333 -p1
+%patch344 -p1
+%patch346 -p1
 
 
 # Remove files that should be generated by the build
@@ -1151,8 +1165,6 @@ CheckPython() {
     -x test_distutils \
     -x test_bdist_rpm \
     %ifarch %{arm}
-    -x test_asyncio \
-    -x test_float \
     -x test_gdb \
     %endif 
     %ifarch %{mips64}
@@ -1273,11 +1285,8 @@ CheckPython optimized
 %{pylibdir}/pydoc_data
 
 %{dynload_dir}/_blake2.%{SOABI_optimized}.so
-%{dynload_dir}/_md5.%{SOABI_optimized}.so
-%{dynload_dir}/_sha1.%{SOABI_optimized}.so
-%{dynload_dir}/_sha256.%{SOABI_optimized}.so
 %{dynload_dir}/_sha3.%{SOABI_optimized}.so
-%{dynload_dir}/_sha512.%{SOABI_optimized}.so
+%{dynload_dir}/_hmacopenssl.%{SOABI_optimized}.so
 
 %{dynload_dir}/_asyncio.%{SOABI_optimized}.so
 %{dynload_dir}/_bisect.%{SOABI_optimized}.so
@@ -1531,11 +1540,8 @@ CheckPython optimized
 # ...with debug builds of the built-in "extension" modules:
 
 %{dynload_dir}/_blake2.%{SOABI_debug}.so
-%{dynload_dir}/_md5.%{SOABI_debug}.so
-%{dynload_dir}/_sha1.%{SOABI_debug}.so
-%{dynload_dir}/_sha256.%{SOABI_debug}.so
 %{dynload_dir}/_sha3.%{SOABI_debug}.so
-%{dynload_dir}/_sha512.%{SOABI_debug}.so
+%{dynload_dir}/_hmacopenssl.%{SOABI_debug}.so
 
 %{dynload_dir}/_asyncio.%{SOABI_debug}.so
 %{dynload_dir}/_bisect.%{SOABI_debug}.so
@@ -1646,8 +1652,21 @@ CheckPython optimized
 # ======================================================
 
 %changelog
-* Sat Apr 04 2020 Jacco Ligthart <jacco@redsleeve.org> - 3.6.8-13.redsleeve
-- disabled two more tests, as they are known to break on armv5
+* Wed May 06 2020 Charalampos Stratakis <cstratak@redhat.com> - 3.6.8-17
+- Overhaul python's FIPS mode support
+Resolves: rhbz#1788459
+
+* Fri Apr 03 2020 Charalampos Stratakis <cstratak@redhat.com> - 3.6.8-16
+- Security fix for CVE-2020-8492
+Resolves: rhbz#1810616
+
+* Fri Mar 13 2020 Charalampos Stratakis <cstratak@redhat.com> - 3.6.8-15
+- Security fix for CVE-2019-16935
+Resolves: rhbz#1797999
+
+* Tue Mar 10 2020 Charalampos Stratakis <cstratak@redhat.com> - 3.6.8-14
+- Provide and obsolete the python36-tools subpackage for EPEL compatibility
+Resolves: rhbz#1763730
 
 * Thu Sep 26 2019 Charalampos Stratakis <cstratak@redhat.com> - 3.6.8-13
 - Security fix for CVE-2019-16056
