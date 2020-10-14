@@ -1,0 +1,350 @@
+From 0bd7f6b5f393a88b45ced71f1645705b651de9f2 Mon Sep 17 00:00:00 2001
+From: Eduardo Otubo <otubo@redhat.com>
+Date: Mon, 11 May 2020 09:24:29 +0200
+Subject: [PATCH 2/2] ec2: Do not log IMDSv2 token values, instead use REDACTED
+ (#219)
+
+RH-Author: Eduardo Otubo <otubo@redhat.com>
+Message-id: <20200505082940.18316-1-otubo@redhat.com>
+Patchwork-id: 96264
+O-Subject: [RHEL-7.9/RHEL-8.3 cloud-init PATCH] ec2: Do not log IMDSv2 token values, instead use REDACTED (#219)
+Bugzilla: 1821999
+RH-Acked-by: Cathy Avery <cavery@redhat.com>
+RH-Acked-by: Mohammed Gamal <mgamal@redhat.com>
+RH-Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+
+Note: There's no RHEL-8.3/cloud-init-19.4 branch yet, but it should be
+queued to be applied on top of it when it's created.
+
+commit 87cd040ed8fe7195cbb357ed3bbf53cd2a81436c
+Author: Ryan Harper <ryan.harper@canonical.com>
+Date:   Wed Feb 19 15:01:09 2020 -0600
+
+    ec2: Do not log IMDSv2 token values, instead use REDACTED (#219)
+
+    Instead of logging the token values used log the headers and replace the actual
+    values with the string 'REDACTED'.  This allows users to examine cloud-init.log
+    and see that the IMDSv2 token header is being used but avoids leaving the value
+    used in the log file itself.
+
+    LP: #1863943
+
+Signed-off-by: Eduardo Otubo <otubo@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ cloudinit/ec2_utils.py                      | 12 ++++++++--
+ cloudinit/sources/DataSourceEc2.py          | 35 +++++++++++++++++++----------
+ cloudinit/url_helper.py                     | 27 ++++++++++++++++------
+ tests/unittests/test_datasource/test_ec2.py | 17 ++++++++++++++
+ 4 files changed, 70 insertions(+), 21 deletions(-)
+
+diff --git a/cloudinit/ec2_utils.py b/cloudinit/ec2_utils.py
+index 57708c1..34acfe8 100644
+--- a/cloudinit/ec2_utils.py
++++ b/cloudinit/ec2_utils.py
+@@ -142,7 +142,8 @@ def skip_retry_on_codes(status_codes, _request_args, cause):
+ def get_instance_userdata(api_version='latest',
+                           metadata_address='http://169.254.169.254',
+                           ssl_details=None, timeout=5, retries=5,
+-                          headers_cb=None, exception_cb=None):
++                          headers_cb=None, headers_redact=None,
++                          exception_cb=None):
+     ud_url = url_helper.combine_url(metadata_address, api_version)
+     ud_url = url_helper.combine_url(ud_url, 'user-data')
+     user_data = ''
+@@ -155,7 +156,8 @@ def get_instance_userdata(api_version='latest',
+                                              SKIP_USERDATA_CODES)
+         response = url_helper.read_file_or_url(
+             ud_url, ssl_details=ssl_details, timeout=timeout,
+-            retries=retries, exception_cb=exception_cb, headers_cb=headers_cb)
++            retries=retries, exception_cb=exception_cb, headers_cb=headers_cb,
++            headers_redact=headers_redact)
+         user_data = response.contents
+     except url_helper.UrlError as e:
+         if e.code not in SKIP_USERDATA_CODES:
+@@ -169,11 +171,13 @@ def _get_instance_metadata(tree, api_version='latest',
+                            metadata_address='http://169.254.169.254',
+                            ssl_details=None, timeout=5, retries=5,
+                            leaf_decoder=None, headers_cb=None,
++                           headers_redact=None,
+                            exception_cb=None):
+     md_url = url_helper.combine_url(metadata_address, api_version, tree)
+     caller = functools.partial(
+         url_helper.read_file_or_url, ssl_details=ssl_details,
+         timeout=timeout, retries=retries, headers_cb=headers_cb,
++        headers_redact=headers_redact,
+         exception_cb=exception_cb)
+ 
+     def mcaller(url):
+@@ -197,6 +201,7 @@ def get_instance_metadata(api_version='latest',
+                           metadata_address='http://169.254.169.254',
+                           ssl_details=None, timeout=5, retries=5,
+                           leaf_decoder=None, headers_cb=None,
++                          headers_redact=None,
+                           exception_cb=None):
+     # Note, 'meta-data' explicitly has trailing /.
+     # this is required for CloudStack (LP: #1356855)
+@@ -204,6 +209,7 @@ def get_instance_metadata(api_version='latest',
+                                   metadata_address=metadata_address,
+                                   ssl_details=ssl_details, timeout=timeout,
+                                   retries=retries, leaf_decoder=leaf_decoder,
++                                  headers_redact=headers_redact,
+                                   headers_cb=headers_cb,
+                                   exception_cb=exception_cb)
+ 
+@@ -212,12 +218,14 @@ def get_instance_identity(api_version='latest',
+                           metadata_address='http://169.254.169.254',
+                           ssl_details=None, timeout=5, retries=5,
+                           leaf_decoder=None, headers_cb=None,
++                          headers_redact=None,
+                           exception_cb=None):
+     return _get_instance_metadata(tree='dynamic/instance-identity',
+                                   api_version=api_version,
+                                   metadata_address=metadata_address,
+                                   ssl_details=ssl_details, timeout=timeout,
+                                   retries=retries, leaf_decoder=leaf_decoder,
++                                  headers_redact=headers_redact,
+                                   headers_cb=headers_cb,
+                                   exception_cb=exception_cb)
+ # vi: ts=4 expandtab
+diff --git a/cloudinit/sources/DataSourceEc2.py b/cloudinit/sources/DataSourceEc2.py
+index b9f346a..0f2bfef 100644
+--- a/cloudinit/sources/DataSourceEc2.py
++++ b/cloudinit/sources/DataSourceEc2.py
+@@ -31,6 +31,9 @@ STRICT_ID_DEFAULT = "warn"
+ API_TOKEN_ROUTE = 'latest/api/token'
+ API_TOKEN_DISABLED = '_ec2_disable_api_token'
+ AWS_TOKEN_TTL_SECONDS = '21600'
++AWS_TOKEN_PUT_HEADER = 'X-aws-ec2-metadata-token'
++AWS_TOKEN_REQ_HEADER = AWS_TOKEN_PUT_HEADER + '-ttl-seconds'
++AWS_TOKEN_REDACT = [AWS_TOKEN_PUT_HEADER, AWS_TOKEN_REQ_HEADER]
+ 
+ 
+ class CloudNames(object):
+@@ -158,7 +161,8 @@ class DataSourceEc2(sources.DataSource):
+         for api_ver in self.extended_metadata_versions:
+             url = url_tmpl.format(self.metadata_address, api_ver)
+             try:
+-                resp = uhelp.readurl(url=url, headers=headers)
++                resp = uhelp.readurl(url=url, headers=headers,
++                                     headers_redact=AWS_TOKEN_REDACT)
+             except uhelp.UrlError as e:
+                 LOG.debug('url %s raised exception %s', url, e)
+             else:
+@@ -180,6 +184,7 @@ class DataSourceEc2(sources.DataSource):
+                 self.identity = ec2.get_instance_identity(
+                     api_version, self.metadata_address,
+                     headers_cb=self._get_headers,
++                    headers_redact=AWS_TOKEN_REDACT,
+                     exception_cb=self._refresh_stale_aws_token_cb).get(
+                         'document', {})
+             return self.identity.get(
+@@ -205,7 +210,8 @@ class DataSourceEc2(sources.DataSource):
+         LOG.debug('Fetching Ec2 IMDSv2 API Token')
+         url, response = uhelp.wait_for_url(
+             urls=urls, max_wait=1, timeout=1, status_cb=self._status_cb,
+-            headers_cb=self._get_headers, request_method=request_method)
++            headers_cb=self._get_headers, request_method=request_method,
++            headers_redact=AWS_TOKEN_REDACT)
+ 
+         if url and response:
+             self._api_token = response
+@@ -252,7 +258,8 @@ class DataSourceEc2(sources.DataSource):
+             url, _ = uhelp.wait_for_url(
+                 urls=urls, max_wait=url_params.max_wait_seconds,
+                 timeout=url_params.timeout_seconds, status_cb=LOG.warning,
+-                headers_cb=self._get_headers, request_method=request_method)
++                headers_redact=AWS_TOKEN_REDACT, headers_cb=self._get_headers,
++                request_method=request_method)
+ 
+             if url:
+                 metadata_address = url2base[url]
+@@ -420,6 +427,7 @@ class DataSourceEc2(sources.DataSource):
+         if not self.wait_for_metadata_service():
+             return {}
+         api_version = self.get_metadata_api_version()
++        redact = AWS_TOKEN_REDACT
+         crawled_metadata = {}
+         if self.cloud_name == CloudNames.AWS:
+             exc_cb = self._refresh_stale_aws_token_cb
+@@ -429,14 +437,17 @@ class DataSourceEc2(sources.DataSource):
+         try:
+             crawled_metadata['user-data'] = ec2.get_instance_userdata(
+                 api_version, self.metadata_address,
+-                headers_cb=self._get_headers, exception_cb=exc_cb_ud)
++                headers_cb=self._get_headers, headers_redact=redact,
++                exception_cb=exc_cb_ud)
+             crawled_metadata['meta-data'] = ec2.get_instance_metadata(
+                 api_version, self.metadata_address,
+-                headers_cb=self._get_headers, exception_cb=exc_cb)
++                headers_cb=self._get_headers, headers_redact=redact,
++                exception_cb=exc_cb)
+             if self.cloud_name == CloudNames.AWS:
+                 identity = ec2.get_instance_identity(
+                     api_version, self.metadata_address,
+-                    headers_cb=self._get_headers, exception_cb=exc_cb)
++                    headers_cb=self._get_headers, headers_redact=redact,
++                    exception_cb=exc_cb)
+                 crawled_metadata['dynamic'] = {'instance-identity': identity}
+         except Exception:
+             util.logexc(
+@@ -455,11 +466,12 @@ class DataSourceEc2(sources.DataSource):
+         if self.cloud_name != CloudNames.AWS:
+             return None
+         LOG.debug("Refreshing Ec2 metadata API token")
+-        request_header = {'X-aws-ec2-metadata-token-ttl-seconds': seconds}
++        request_header = {AWS_TOKEN_REQ_HEADER: seconds}
+         token_url = '{}/{}'.format(self.metadata_address, API_TOKEN_ROUTE)
+         try:
+-            response = uhelp.readurl(
+-                token_url, headers=request_header, request_method="PUT")
++            response = uhelp.readurl(token_url, headers=request_header,
++                                     headers_redact=AWS_TOKEN_REDACT,
++                                     request_method="PUT")
+         except uhelp.UrlError as e:
+             LOG.warning(
+                 'Unable to get API token: %s raised exception %s',
+@@ -500,8 +512,7 @@ class DataSourceEc2(sources.DataSource):
+                                                  API_TOKEN_DISABLED):
+             return {}
+         # Request a 6 hour token if URL is API_TOKEN_ROUTE
+-        request_token_header = {
+-            'X-aws-ec2-metadata-token-ttl-seconds': AWS_TOKEN_TTL_SECONDS}
++        request_token_header = {AWS_TOKEN_REQ_HEADER: AWS_TOKEN_TTL_SECONDS}
+         if API_TOKEN_ROUTE in url:
+             return request_token_header
+         if not self._api_token:
+@@ -511,7 +522,7 @@ class DataSourceEc2(sources.DataSource):
+             self._api_token = self._refresh_api_token()
+             if not self._api_token:
+                 return {}
+-        return {'X-aws-ec2-metadata-token': self._api_token}
++        return {AWS_TOKEN_PUT_HEADER: self._api_token}
+ 
+ 
+ class DataSourceEc2Local(DataSourceEc2):
+diff --git a/cloudinit/url_helper.py b/cloudinit/url_helper.py
+index 1496a47..3e7de9f 100644
+--- a/cloudinit/url_helper.py
++++ b/cloudinit/url_helper.py
+@@ -8,6 +8,7 @@
+ #
+ # This file is part of cloud-init. See LICENSE file for license information.
+ 
++import copy
+ import json
+ import os
+ import requests
+@@ -41,6 +42,7 @@ else:
+ SSL_ENABLED = False
+ CONFIG_ENABLED = False  # This was added in 0.7 (but taken out in >=1.0)
+ _REQ_VER = None
++REDACTED = 'REDACTED'
+ try:
+     from distutils.version import LooseVersion
+     import pkg_resources
+@@ -199,9 +201,9 @@ def _get_ssl_args(url, ssl_details):
+ 
+ 
+ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
+-            headers=None, headers_cb=None, ssl_details=None,
+-            check_status=True, allow_redirects=True, exception_cb=None,
+-            session=None, infinite=False, log_req_resp=True,
++            headers=None, headers_cb=None, headers_redact=None,
++            ssl_details=None, check_status=True, allow_redirects=True,
++            exception_cb=None, session=None, infinite=False, log_req_resp=True,
+             request_method=None):
+     """Wrapper around requests.Session to read the url and retry if necessary
+ 
+@@ -217,6 +219,7 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
+     :param headers: Optional dict of headers to send during request
+     :param headers_cb: Optional callable returning a dict of values to send as
+         headers during request
++    :param headers_redact: Optional list of header names to redact from the log
+     :param ssl_details: Optional dict providing key_file, ca_certs, and
+         cert_file keys for use on in ssl connections.
+     :param check_status: Optional boolean set True to raise when HTTPError
+@@ -243,6 +246,8 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
+     req_args['method'] = request_method
+     if timeout is not None:
+         req_args['timeout'] = max(float(timeout), 0)
++    if headers_redact is None:
++        headers_redact = []
+     # It doesn't seem like config
+     # was added in older library versions (or newer ones either), thus we
+     # need to manually do the retries if it wasn't...
+@@ -287,6 +292,12 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
+             if k == 'data':
+                 continue
+             filtered_req_args[k] = v
++            if k == 'headers':
++                for hkey, _hval in v.items():
++                    if hkey in headers_redact:
++                        filtered_req_args[k][hkey] = (
++                            copy.deepcopy(req_args[k][hkey]))
++                        filtered_req_args[k][hkey] = REDACTED
+         try:
+ 
+             if log_req_resp:
+@@ -339,8 +350,8 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
+     return None  # Should throw before this...
+ 
+ 
+-def wait_for_url(urls, max_wait=None, timeout=None,
+-                 status_cb=None, headers_cb=None, sleep_time=1,
++def wait_for_url(urls, max_wait=None, timeout=None, status_cb=None,
++                 headers_cb=None, headers_redact=None, sleep_time=1,
+                  exception_cb=None, sleep_time_cb=None, request_method=None):
+     """
+     urls:      a list of urls to try
+@@ -352,6 +363,7 @@ def wait_for_url(urls, max_wait=None, timeout=None,
+     status_cb: call method with string message when a url is not available
+     headers_cb: call method with single argument of url to get headers
+                 for request.
++    headers_redact: a list of header names to redact from the log
+     exception_cb: call method with 2 arguments 'msg' (per status_cb) and
+                   'exception', the exception that occurred.
+     sleep_time_cb: call method with 2 arguments (response, loop_n) that
+@@ -415,8 +427,9 @@ def wait_for_url(urls, max_wait=None, timeout=None,
+                     headers = {}
+ 
+                 response = readurl(
+-                    url, headers=headers, timeout=timeout,
+-                    check_status=False, request_method=request_method)
++                    url, headers=headers, headers_redact=headers_redact,
++                    timeout=timeout, check_status=False,
++                    request_method=request_method)
+                 if not response.contents:
+                     reason = "empty response [%s]" % (response.code)
+                     url_exc = UrlError(ValueError(reason), code=response.code,
+diff --git a/tests/unittests/test_datasource/test_ec2.py b/tests/unittests/test_datasource/test_ec2.py
+index 34a089f..bd5bd4c 100644
+--- a/tests/unittests/test_datasource/test_ec2.py
++++ b/tests/unittests/test_datasource/test_ec2.py
+@@ -429,6 +429,23 @@ class TestEc2(test_helpers.HttprettyTestCase):
+         self.assertTrue(ds.get_data())
+         self.assertFalse(ds.is_classic_instance())
+ 
++    def test_aws_token_redacted(self):
++        """Verify that aws tokens are redacted when logged."""
++        ds = self._setup_ds(
++            platform_data=self.valid_platform_data,
++            sys_cfg={'datasource': {'Ec2': {'strict_id': False}}},
++            md={'md': DEFAULT_METADATA})
++        self.assertTrue(ds.get_data())
++        all_logs = self.logs.getvalue().splitlines()
++        REDACT_TTL = "'X-aws-ec2-metadata-token-ttl-seconds': 'REDACTED'"
++        REDACT_TOK = "'X-aws-ec2-metadata-token': 'REDACTED'"
++        logs_with_redacted_ttl = [log for log in all_logs if REDACT_TTL in log]
++        logs_with_redacted = [log for log in all_logs if REDACT_TOK in log]
++        logs_with_token = [log for log in all_logs if 'API-TOKEN' in log]
++        self.assertEqual(1, len(logs_with_redacted_ttl))
++        self.assertEqual(79, len(logs_with_redacted))
++        self.assertEqual(0, len(logs_with_token))
++
+     @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
+     def test_valid_platform_with_strict_true(self, m_dhcp):
+         """Valid platform data should return true with strict_id true."""
+-- 
+1.8.3.1
+

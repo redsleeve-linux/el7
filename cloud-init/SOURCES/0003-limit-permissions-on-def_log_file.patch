@@ -1,4 +1,4 @@
-From 0101e1677a1ae5ba328657e0b060277707de3913 Mon Sep 17 00:00:00 2001
+From ca723f1846bb8e2880ac264b28bdf7ecd14c9e70 Mon Sep 17 00:00:00 2001
 From: Lars Kellogg-Stedman <lars@redhat.com>
 Date: Fri, 7 Apr 2017 18:50:54 -0400
 Subject: limit permissions on def_log_file
@@ -16,10 +16,10 @@ X-approved-upstream: true
  3 files changed, 7 insertions(+), 1 deletion(-)
 
 diff --git a/cloudinit/settings.py b/cloudinit/settings.py
-index c536768..d982a4d 100644
+index 3a04a58..439eee0 100644
 --- a/cloudinit/settings.py
 +++ b/cloudinit/settings.py
-@@ -43,6 +43,7 @@ CFG_BUILTIN = {
+@@ -45,6 +45,7 @@ CFG_BUILTIN = {
          'None',
      ],
      'def_log_file': '/var/log/cloud-init.log',
@@ -28,10 +28,10 @@ index c536768..d982a4d 100644
      'mount_default_fields': [None, None, 'auto', 'defaults,nofail', '0', '2'],
      'ssh_deletekeys': False,
 diff --git a/cloudinit/stages.py b/cloudinit/stages.py
-index 8a06412..4f15484 100644
+index 71f3a49..68b83af 100644
 --- a/cloudinit/stages.py
 +++ b/cloudinit/stages.py
-@@ -148,8 +148,9 @@ class Init(object):
+@@ -149,8 +149,9 @@ class Init(object):
      def _initialize_filesystem(self):
          util.ensure_dirs(self._initial_subdirs())
          log_file = util.get_cfg_option_str(self.cfg, 'def_log_file')

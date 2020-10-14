@@ -1,0 +1,126 @@
+From 2a79d9ca066648feaa29e16e0ab6c2607907352e Mon Sep 17 00:00:00 2001
+From: Eduardo Otubo <otubo@redhat.com>
+Date: Wed, 20 May 2020 12:44:07 +0200
+Subject: [PATCH] ec2: only redact token request headers in logs, avoid
+ altering request (#230)
+
+RH-Author: Eduardo Otubo <otubo@redhat.com>
+Message-id: <20200519110500.21088-1-otubo@redhat.com>
+Patchwork-id: 96614
+O-Subject: [RHEL-7.9 cloud-init PATCH] ec2: only redact token request headers in logs, avoid altering request (#230)
+Bugzilla: 1821999
+RH-Acked-by: Cathy Avery <cavery@redhat.com>
+RH-Acked-by: Mohammed Gamal <mgamal@redhat.com>
+RH-Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+
+commit fa1abfec27050a4fb71cad950a17e42f9b43b478
+Author: Chad Smith <chad.smith@canonical.com>
+Date:   Tue Mar 3 15:23:33 2020 -0700
+
+    ec2: only redact token request headers in logs, avoid altering request (#230)
+
+    Our header redact logic was redacting both logged request headers and
+    the actual source request. This results in DataSourceEc2 sending the
+    invalid header "X-aws-ec2-metadata-token-ttl-seconds: REDACTED" which
+    gets an HTTP status response of 400.
+
+    Cloud-init retries this failed token request for 2 minutes before
+    falling back to IMDSv1.
+
+    LP: #1865882
+
+Signed-off-by: Eduardo Otubo <otubo@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ cloudinit/tests/test_url_helper.py | 34 +++++++++++++++++++++++++++++++++-
+ cloudinit/url_helper.py            | 15 ++++++++-------
+ 2 files changed, 41 insertions(+), 8 deletions(-)
+
+diff --git a/cloudinit/tests/test_url_helper.py b/cloudinit/tests/test_url_helper.py
+index 1674120..29b3937 100644
+--- a/cloudinit/tests/test_url_helper.py
++++ b/cloudinit/tests/test_url_helper.py
+@@ -1,7 +1,8 @@
+ # This file is part of cloud-init. See LICENSE file for license information.
+ 
+ from cloudinit.url_helper import (
+-    NOT_FOUND, UrlError, oauth_headers, read_file_or_url, retry_on_url_exc)
++    NOT_FOUND, UrlError, REDACTED, oauth_headers, read_file_or_url,
++    retry_on_url_exc)
+ from cloudinit.tests.helpers import CiTestCase, mock, skipIf
+ from cloudinit import util
+ from cloudinit import version
+@@ -50,6 +51,9 @@ class TestOAuthHeaders(CiTestCase):
+ 
+ 
+ class TestReadFileOrUrl(CiTestCase):
++
++    with_logs = True
++
+     def test_read_file_or_url_str_from_file(self):
+         """Test that str(result.contents) on file is text version of contents.
+         It should not be "b'data'", but just "'data'" """
+@@ -71,6 +75,34 @@ class TestReadFileOrUrl(CiTestCase):
+         self.assertEqual(result.contents, data)
+         self.assertEqual(str(result), data.decode('utf-8'))
+ 
++    @httpretty.activate
++    def test_read_file_or_url_str_from_url_redacting_headers_from_logs(self):
++        """Headers are redacted from logs but unredacted in requests."""
++        url = 'http://hostname/path'
++        headers = {'sensitive': 'sekret', 'server': 'blah'}
++        httpretty.register_uri(httpretty.GET, url)
++
++        read_file_or_url(url, headers=headers, headers_redact=['sensitive'])
++        logs = self.logs.getvalue()
++        for k in headers.keys():
++            self.assertEqual(headers[k],  httpretty.last_request().headers[k])
++        self.assertIn(REDACTED, logs)
++        self.assertNotIn('sekret', logs)
++
++    @httpretty.activate
++    def test_read_file_or_url_str_from_url_redacts_noheaders(self):
++        """When no headers_redact, header values are in logs and requests."""
++        url = 'http://hostname/path'
++        headers = {'sensitive': 'sekret', 'server': 'blah'}
++        httpretty.register_uri(httpretty.GET, url)
++
++        read_file_or_url(url, headers=headers)
++        for k in headers.keys():
++            self.assertEqual(headers[k], httpretty.last_request().headers[k])
++        logs = self.logs.getvalue()
++        self.assertNotIn(REDACTED, logs)
++        self.assertIn('sekret', logs)
++
+     @mock.patch(M_PATH + 'readurl')
+     def test_read_file_or_url_passes_params_to_readurl(self, m_readurl):
+         """read_file_or_url passes all params through to readurl."""
+diff --git a/cloudinit/url_helper.py b/cloudinit/url_helper.py
+index 3e7de9f..e6188ea 100644
+--- a/cloudinit/url_helper.py
++++ b/cloudinit/url_helper.py
+@@ -291,13 +291,14 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
+         for (k, v) in req_args.items():
+             if k == 'data':
+                 continue
+-            filtered_req_args[k] = v
+-            if k == 'headers':
+-                for hkey, _hval in v.items():
+-                    if hkey in headers_redact:
+-                        filtered_req_args[k][hkey] = (
+-                            copy.deepcopy(req_args[k][hkey]))
+-                        filtered_req_args[k][hkey] = REDACTED
++            if k == 'headers' and headers_redact:
++                matched_headers = [k for k in headers_redact if v.get(k)]
++                if matched_headers:
++                    filtered_req_args[k] = copy.deepcopy(v)
++                    for key in matched_headers:
++                        filtered_req_args[k][key] = REDACTED
++            else:
++                filtered_req_args[k] = v
+         try:
+ 
+             if log_req_resp:
+-- 
+1.8.3.1
+

@@ -1,7 +1,7 @@
-From 9969cf3eaa23398816d140b319b3277465aa4bb8 Mon Sep 17 00:00:00 2001
+From 3bf572e6716815a6c901fa210d940780d58869d5 Mon Sep 17 00:00:00 2001
 From: Eduardo Otubo <otubo@redhat.com>
 Date: Fri, 6 Sep 2019 12:12:11 +0200
-Subject: [PATCH] Fix for network configuration not persisting after reboot
+Subject: Fix for network configuration not persisting after reboot
 
 RH-Author: Eduardo Otubo <otubo@redhat.com>
 Message-id: <20190906121211.23172-1-otubo@redhat.com>
@@ -39,14 +39,19 @@ reboots and shutdowns.
 
 Signed-off-by: Eduardo Otubo <otubo@redhat.com>
 Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+Rebase notes (19.4):
+- Using cloud-init-generator.tmpl for cloud-init-generator (upstream change)
+- Hack fix in ds-identify handling in cloud-init-generator
 ---
- redhat/cloud-init.spec.template       | 15 +++++++++++++++
+ redhat/cloud-init.spec.template       | 16 ++++++++++++++++
  rhel/systemd/cloud-config.service     |  2 +-
  rhel/systemd/cloud-final.service      |  2 +-
  rhel/systemd/cloud-init-local.service |  2 +-
  rhel/systemd/cloud-init.service       |  2 +-
  rhel/systemd/cloud-init.target        |  7 +++++++
- 6 files changed, 26 insertions(+), 4 deletions(-)
+ systemd/cloud-init-generator.tmpl     |  2 +-
+ 7 files changed, 28 insertions(+), 5 deletions(-)
  create mode 100644 rhel/systemd/cloud-init.target
 
 diff --git a/rhel/systemd/cloud-config.service b/rhel/systemd/cloud-config.service
@@ -102,6 +107,19 @@ index 0000000..083c3b6
 +[Unit]
 +Description=Cloud-init target
 +After=multi-user.target
+diff --git a/systemd/cloud-init-generator.tmpl b/systemd/cloud-init-generator.tmpl
+index 45efa24..ac8becc 100755
+--- a/systemd/cloud-init-generator.tmpl
++++ b/systemd/cloud-init-generator.tmpl
+@@ -83,7 +83,7 @@ default() {
+ 
+ check_for_datasource() {
+     local ds_rc=""
+-{% if variant in ["redhat", "fedora", "centos"] %}
++{% if variant in ["fedora", "centos"] %}
+     local dsidentify="/usr/libexec/cloud-init/ds-identify"
+ {% else %}
+     local dsidentify="/usr/lib/cloud-init/ds-identify"
 -- 
 1.8.3.1
 

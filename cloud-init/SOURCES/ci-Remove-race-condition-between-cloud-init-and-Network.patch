@@ -1,0 +1,49 @@
+From 3b847118d283245c809172250b90a698372d7cdb Mon Sep 17 00:00:00 2001
+From: Eduardo Otubo <otubo@redhat.com>
+Date: Mon, 2 Mar 2020 10:46:35 +0100
+Subject: [PATCH 2/5] Remove race condition between cloud-init and
+ NetworkManager
+
+Message-id: <20200302104635.11648-1-otubo@redhat.com>
+Patchwork-id: 94098
+O-Subject: [RHEL-7.9/RHEL-8.2.0 cloud-init PATCH] Remove race condition between cloud-init and NetworkManager
+Bugzilla: 1748015
+RH-Acked-by: Cathy Avery <cavery@redhat.com>
+RH-Acked-by: Mohammed Gamal <mgamal@redhat.com>
+
+cloud-init service is set to start before NetworkManager service starts,
+but this does not avoid a race condition between them. NetworkManager
+starts before cloud-init can write `dns=none' to the file:
+/etc/NetworkManager/conf.d/99-cloud-init.conf. This way NetworkManager
+doesn't read the configuration and erases all resolv.conf values upon
+shutdown. On the next reboot neither cloud-init or NetworkManager will
+write anything to resolv.conf, leaving it blank.
+
+This patch introduces a NM reload (try-restart) at the end of cloud-init
+start up so it won't erase resolv.conf upon first shutdown.
+
+x-downstream-only: yes
+resolves: rhbz#1748015, rhbz#1807797 and rhbz#1804780
+
+Signed-off-by: Eduardo Otubo otubo@redhat.com
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ rhel/systemd/cloud-final.service | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/rhel/systemd/cloud-final.service b/rhel/systemd/cloud-final.service
+index 739b7e3..f303483 100644
+--- a/rhel/systemd/cloud-final.service
++++ b/rhel/systemd/cloud-final.service
+@@ -11,6 +11,8 @@ ExecStart=/usr/bin/cloud-init modules --mode=final
+ RemainAfterExit=yes
+ TimeoutSec=0
+ KillMode=process
++ExecStartPost=/bin/echo "try restart NetworkManager.service"
++ExecStartPost=/usr/bin/systemctl try-restart NetworkManager.service
+ 
+ # Output needs to appear in instance console output
+ StandardOutput=journal+console
+-- 
+1.8.3.1
+

@@ -1,3 +1,9 @@
+%if %{rhel} >= 8
+%global __python %{__python3}
+%else
+%global __python %{__python2}
+%endif
+
 %{!?python_sitelib: %global python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 %{!?license: %global license %%doc}
 
@@ -6,8 +12,8 @@
 %global debug_package %{nil}
 
 Name:           cloud-init
-Version:        18.5
-Release:        6%{?dist}.5.redsleeve
+Version:        19.4
+Release:        7%{?dist}
 Summary:        Cloud instance init scripts
 
 Group:          System Environment/Base
@@ -20,57 +26,36 @@ Patch0001: 0001-Add-initial-redhat-setup.patch
 Patch0002: 0002-Do-not-write-NM_CONTROLLED-no-in-generated-interface.patch
 Patch0003: 0003-limit-permissions-on-def_log_file.patch
 Patch0004: 0004-remove-tee-command-from-logging-configuration.patch
-Patch0005: 0005-azure-ensure-that-networkmanager-hook-script-runs.patch
-Patch0006: 0006-sysconfig-Don-t-write-BOOTPROTO-dhcp-for-ipv6-dhcp.patch
-Patch0007: 0007-DataSourceAzure.py-use-hostnamectl-to-set-hostname.patch
-Patch0008: 0008-sysconfig-Don-t-disable-IPV6_AUTOCONF.patch
-Patch0009: 0009-net-Wait-for-dhclient-to-daemonize-before-reading-le.patch
-Patch0010: 0010-cloud-init-per-don-t-use-dashes-in-sem-names.patch
-Patch0011: 0011-azure-Filter-list-of-ssh-keys-pulled-from-fabric.patch
-Patch0012: 0012-include-NOZEROCONF-yes-in-etc-sysconfig-network.patch
-# For bz#1687565 - cloud-init 18.5 rebase for fast provisioning on Azure [RHEL 7]
-Patch13: ci-Azure-Ensure-platform-random_seed-is-always-serializ.patch
-# For bz#1687565 - cloud-init 18.5 rebase for fast provisioning on Azure [RHEL 7]
-Patch14: ci-DatasourceAzure-add-additional-logging-for-azure-dat.patch
-# For bz#1687565 - cloud-init 18.5 rebase for fast provisioning on Azure [RHEL 7]
-Patch15: ci-Azure-Changes-to-the-Hyper-V-KVP-Reporter.patch
-# For bz#1687565 - cloud-init 18.5 rebase for fast provisioning on Azure [RHEL 7]
-Patch16: ci-DataSourceAzure-Adjust-timeout-for-polling-IMDS.patch
-# For bz#1687565 - cloud-init 18.5 rebase for fast provisioning on Azure [RHEL 7]
-Patch17: ci-cc_mounts-check-if-mount-a-on-no-change-fstab-path.patch
-# For bz#1707725 - [WALA][cloud] cloud-init dhclient-hook script has some unexpected side-effects on Azure
-Patch18: ci-Revert-azure-ensure-that-networkmanager-hook-script-.patch
-# For bz#1726701 - [Azure] [RHEL 7.8] Cloud-init fixes to support fast provisioning for Azure
-Patch19: ci-Azure-Return-static-fallback-address-as-if-failed-to.patch
-# For bz#1593010 - [cloud-init][RHVM]cloud-init network configuration does not persist reboot [RHEL 7.8]
-Patch20: ci-Fix-for-network-configuration-not-persisting-after-r.patch
-# For bz#1744526 - [cloud-init][OpenStack] cloud-init can't persist instance-data.json
-Patch21: ci-util-json.dumps-on-python-2.7-will-handle-UnicodeDec.patch
-# For bz#1810064 - cloud-init Azure byte swap (hyperV Gen2 Only) [rhel-7.8.z]
-Patch22: ci-azure-avoid.patch
-# For bz#1802173 - [cloud-init][rhel-7.8.z]cloud-init cloud-final.service fail with KeyError: 'modules-init' after upgrade to version 18.2-1.el7_6.1 in RHV
-Patch23: ci-cmd-main.py-Fix-missing-modules-init-key-in-modes-di.patch
-# For bz#1801094 - [RHEL7] swapon fails with "swapfile has holes" when created on a xfs filesystem by cloud-init [rhel-7.8.z]
-Patch24: ci-Do-not-use-fallocate-in-swap-file-creation-on-xfs.-7.patch
-# For bz#1801094 - [RHEL7] swapon fails with "swapfile has holes" when created on a xfs filesystem by cloud-init [rhel-7.8.z]
-Patch25: ci-swap-file-size-being-used-before-checked-if-str-315.patch
-# For bz#1801094 - [RHEL7] swapon fails with "swapfile has holes" when created on a xfs filesystem by cloud-init [rhel-7.8.z]
-Patch26: ci-cc_mounts-fix-incorrect-format-specifiers-316.patch
-# For bz#1827207 - Support for AWS IMDS v2 (available in cloud-init 19.4) [rhel-7.8.z]
-Patch27: ci-New-data-source-for-the-Exoscale.com-cloud-platform.patch
-# For bz#1827207 - Support for AWS IMDS v2 (available in cloud-init 19.4) [rhel-7.8.z]
-Patch28: ci-Add-support-for-publishing-host-keys-to-GCE-guest-at.patch
-# For bz#1827207 - Support for AWS IMDS v2 (available in cloud-init 19.4) [rhel-7.8.z]
-Patch29: ci-exoscale-fix-sysconfig-cloud_config_modules-override.patch
-# For bz#1827207 - Support for AWS IMDS v2 (available in cloud-init 19.4) [rhel-7.8.z]
-Patch30: ci-exoscale-Increase-url_max_wait-to-120s.patch
-# For bz#1827207 - Support for AWS IMDS v2 (available in cloud-init 19.4) [rhel-7.8.z]
-Patch31: ci-ec2-Add-support-for-AWS-IMDS-v2-session-oriented-55.patch
-# For bz#1832177 - [Azure] cloud-init provisioning failed in Azure [rhel-7.8.z]
-Patch32: ci-url_helper-read_file_or_url-should-pass-headers-para.patch
+Patch0005: 0005-sysconfig-Don-t-write-BOOTPROTO-dhcp-for-ipv6-dhcp.patch
+Patch0006: 0006-DataSourceAzure.py-use-hostnamectl-to-set-hostname.patch
+Patch0007: 0007-include-NOZEROCONF-yes-in-etc-sysconfig-network.patch
+Patch0008: 0008-Fix-for-network-configuration-not-persisting-after-r.patch
+# For bz#1549638 - [RHEL7]cloud-user added to wheel group and sudoers.d causes 'sudo -v' prompts for passphrase
+Patch9: ci-Removing-cloud-user-from-wheel.patch
+# For bz#1748015 - [cloud-init][RHEL7] /etc/resolv.conf lose config after reboot (initial instance is ok)
+Patch10: ci-Remove-race-condition-between-cloud-init-and-Network.patch
+# For bz#1812170 - CVE-2020-8632 cloud-init: Too short random password length in cc_set_password in config/cc_set_passwords.py [rhel-7]
+Patch11: ci-cc_set_password-increase-random-pwlength-from-9-to-2.patch
+# For bz#1812173 - CVE-2020-8631 cloud-init: Use of random.choice when generating random password [rhel-7]
+Patch12: ci-utils-use-SystemRandom-when-generating-random-passwo.patch
+# For bz#1574338 - CVE-2018-10896 cloud-init: SSH host keys are not regenerated for the new instances [rhel-7]
+Patch13: ci-Enable-ssh_deletekeys-by-default.patch
+# For bz#1772505 - [RHEL7] swapon fails with "swapfile has holes" when created on a xfs filesystem by cloud-init
+Patch14: ci-Do-not-use-fallocate-in-swap-file-creation-on-xfs.-7.patch
+# For bz#1772505 - [RHEL7] swapon fails with "swapfile has holes" when created on a xfs filesystem by cloud-init
+Patch15: ci-swap-file-size-being-used-before-checked-if-str-315.patch
+# For bz#1748015 - [cloud-init][RHEL7] /etc/resolv.conf lose config after reboot (initial instance is ok)
+Patch16: ci-Remove-race-condition-between-cloud-init-and-Network-v2.patch
+# For bz#1772505 - [RHEL7] swapon fails with "swapfile has holes" when created on a xfs filesystem by cloud-init
+Patch17: ci-cc_mounts-fix-incorrect-format-specifiers-316.patch
+# For bz#1748015 - [cloud-init][RHEL7] /etc/resolv.conf lose config after reboot (initial instance is ok)
+Patch18: ci-Use-reload-or-try-restart-instead-of-try-reload-or-r.patch
+# For bz#1821999 - [RHEL7.9] Do not log IMDSv2 token values into cloud-init.log
+Patch19: ci-ec2-Do-not-log-IMDSv2-token-values-instead-use-REDAC.patch
+# For bz#1821999 - [RHEL7.9] Do not log IMDSv2 token values into cloud-init.log
+Patch20: ci-ec2-only-redact-token-request-headers-in-logs-avoid-.patch
 
-Patch9999: cloud-init-redsleeve-user.patch
-
+Patch9999: cloud-init-centos-user.patch
 
 # Deal with noarch -> arch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1067089
@@ -152,7 +137,8 @@ mkdir -p $RPM_BUILD_ROOT%{_unitdir}
 cp rhel/systemd/* $RPM_BUILD_ROOT%{_unitdir}/
 
 [ ! -d $RPM_BUILD_ROOT/usr/lib/systemd/system-generators ] && mkdir -p $RPM_BUILD_ROOT/usr/lib/systemd/system-generators
-cp -p systemd/cloud-init-generator $RPM_BUILD_ROOT/usr/lib/systemd/system-generators
+cp -p systemd/cloud-init-generator.tmpl $RPM_BUILD_ROOT/usr/lib/systemd/system-generators/cloud-init-generator
+sed -i '1d' $RPM_BUILD_ROOT/usr/lib/systemd/system-generators/cloud-init-generator
 
 [ ! -d $RPM_BUILD_ROOT/usr/lib/%{name} ] && mkdir -p $RPM_BUILD_ROOT/usr/lib/%{name}
 cp -p tools/ds-identify $RPM_BUILD_ROOT/usr/lib/%{name}/ds-identify
@@ -240,39 +226,58 @@ fi
 %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
 
 %changelog
-* Thu Jul 16 2020 Jacco Ligthart <jacco@redsleeve.org 18.5-6.el7.5.redsleeve
-- rebrand for redsleeve
+* Wed May 20 2020 Miroslav Rezanina <mrezanin@redhat.com> - 19.4-7.el7
+- ci-ec2-only-redact-token-request-headers-in-logs-avoid-.patch [bz#1821999]
+- Resolves: bz#1821999
+  ([RHEL7.9] Do not log IMDSv2 token values into cloud-init.log)
 
-* Wed May 20 2020 Miroslav Rezanina <mrezanin@redhat.com> - 18.5-6.el7_8.5
-- ci-url_helper-read_file_or_url-should-pass-headers-para.patch [bz#1832177]
-- Resolves: bz#1832177
-  ([Azure] cloud-init provisioning failed in Azure [rhel-7.8.z])
+* Mon May 11 2020 Miroslav Rezanina <mrezanin@redhat.com> - 19.4-6.el7
+- ci-Use-reload-or-try-restart-instead-of-try-reload-or-r.patch [bz#1748015]
+- ci-ec2-Do-not-log-IMDSv2-token-values-instead-use-REDAC.patch [bz#1821999]
+- Resolves: bz#1748015
+  ([cloud-init][RHEL7] /etc/resolv.conf lose config after reboot (initial instance is ok))
+- Resolves: bz#1821999
+  ([RHEL7.9] Do not log IMDSv2 token values into cloud-init.log)
 
-* Tue May 05 2020 Miroslav Rezanina <mrezanin@redhat.com> - 18.5-6.el7_8.4
-- ci-New-data-source-for-the-Exoscale.com-cloud-platform.patch [bz#1827207]
-- ci-Add-support-for-publishing-host-keys-to-GCE-guest-at.patch [bz#1827207]
-- ci-exoscale-fix-sysconfig-cloud_config_modules-override.patch [bz#1827207]
-- ci-exoscale-Increase-url_max_wait-to-120s.patch [bz#1827207]
-- ci-ec2-Add-support-for-AWS-IMDS-v2-session-oriented-55.patch [bz#1827207]
-- Resolves: bz#1827207
-  (Support for AWS IMDS v2 (available in cloud-init 19.4) [rhel-7.8.z])
+* Mon Apr 27 2020 Miroslav Rezanina <mrezanin@redhat.com> - 19.4-5.el7
+- ci-Remove-race-condition-between-cloud-init-and-Network-v2.patch [bz#1748015]
+- ci-cc_mounts-fix-incorrect-format-specifiers-316.patch [bz#1772505]
+- Resolves: bz#1748015
+  ([cloud-init][RHEL7] /etc/resolv.conf lose config after reboot (initial instance is ok))
+- Resolves: bz#1772505
+  ([RHEL7] swapon fails with "swapfile has holes" when created on a xfs filesystem by cloud-init)
 
-* Tue Apr 28 2020 Miroslav Rezanina <mrezanin@redhat.com> - 18.5-6.el7_8.3
-- ci-Do-not-use-fallocate-in-swap-file-creation-on-xfs.-7.patch [bz#1801094]
-- ci-swap-file-size-being-used-before-checked-if-str-315.patch [bz#1801094]
-- ci-cc_mounts-fix-incorrect-format-specifiers-316.patch [bz#1801094]
-- Resolves: bz#1801094
-  ([RHEL7] swapon fails with "swapfile has holes" when created on a xfs filesystem by cloud-init [rhel-7.8.z])
+* Wed Apr 15 2020 Miroslav Rezanina <mrezanin@redhat.com> - 19.4-4.el7
+- ci-swap-file-size-being-used-before-checked-if-str-315.patch [bz#1772505]
+- Resolves: bz#1772505
+  ([RHEL7] swapon fails with "swapfile has holes" when created on a xfs filesystem by cloud-init)
 
-* Tue Apr 14 2020 Miroslav Rezanina <mrezanin@redhat.com> - 18.5-6.el7_8.2
-- ci-cmd-main.py-Fix-missing-modules-init-key-in-modes-di.patch [bz#1802173]
-- Resolves: bz#1802173
-  ([cloud-init][rhel-7.8.z]cloud-init cloud-final.service fail with KeyError: 'modules-init' after upgrade to version 18.2-1.el7_6.1 in RHV)
+* Mon Mar 30 2020 Miroslav Rezanina <mrezanin@redhat.com> - 19.4-3.el7
+- ci-Do-not-use-fallocate-in-swap-file-creation-on-xfs.-7.patch [bz#1772505]
+- Resolves: bz#1772505
+  ([RHEL7] swapon fails with "swapfile has holes" when created on a xfs filesystem by cloud-init)
 
-* Mon Mar 30 2020 Miroslav Rezanina <mrezanin@redhat.com> - 18.5-6.el7_8.1
-- ci-azure-avoid.patch [bz#1810064]
-- Resolves: bz#1810064
-  (cloud-init Azure byte swap (hyperV Gen2 Only) [rhel-7.8.z])
+* Thu Mar 19 2020 Miroslav Rezanina <mrezanin@redhat.com> - 19.4-2.el7
+- ci-Removing-cloud-user-from-wheel.patch [bz#1549638]
+- ci-Remove-race-condition-between-cloud-init-and-Network.patch [bz#1748015]
+- ci-cc_set_password-increase-random-pwlength-from-9-to-2.patch [bz#1812170]
+- ci-utils-use-SystemRandom-when-generating-random-passwo.patch [bz#1812173]
+- ci-Enable-ssh_deletekeys-by-default.patch [bz#1574338]
+- Resolves: bz#1549638
+  ([RHEL7]cloud-user added to wheel group and sudoers.d causes 'sudo -v' prompts for passphrase)
+- Resolves: bz#1574338
+  (CVE-2018-10896 cloud-init: SSH host keys are not regenerated for the new instances [rhel-7])
+- Resolves: bz#1748015
+  ([cloud-init][RHEL7] /etc/resolv.conf lose config after reboot (initial instance is ok))
+- Resolves: bz#1812170
+  (CVE-2020-8632 cloud-init: Too short random password length in cc_set_password in config/cc_set_passwords.py [rhel-7])
+- Resolves: bz#1812173
+  (CVE-2020-8631 cloud-init: Use of random.choice when generating random password [rhel-7])
+
+* Tue Mar 17 2020 Miroslav Rezanina <mrezanin@redhat.com> - 19.4-1.el7
+- Rebase to 19.4 [bz#1803094]
+- Resolves: bz#1803094
+  ([RHEL-7.9] cloud-init rebase to 19.4)
 
 * Thu Oct 24 2019 Miroslav Rezanina <mrezanin@redhat.com> - 18.5-6.el7
 - ci-util-json.dumps-on-python-2.7-will-handle-UnicodeDec.patch [bz#1744526]

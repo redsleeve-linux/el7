@@ -1,15 +1,14 @@
-From e78ae6d16009263a8dfcd91ea8ce8fc08a077529 Mon Sep 17 00:00:00 2001
+From 5bdb6bc091a0270912974583a7dabe94f5b8a1ef Mon Sep 17 00:00:00 2001
 From: Eduardo Otubo <otubo@redhat.com>
-Date: Tue, 28 Apr 2020 08:22:03 +0200
-Subject: [PATCH 1/3] Do not use fallocate in swap file creation on xfs. (#70)
+Date: Wed, 18 Mar 2020 14:11:23 +0100
+Subject: [PATCH] Do not use fallocate in swap file creation on xfs. (#70)
 
-RH-Author: Eduardo Otubo <otubo@redhat.com>
-Message-id: <20200422130428.7663-2-otubo@redhat.com>
-Patchwork-id: 96031
-O-Subject: [RHEL-7.7.z/RHEL-7.8.z cloud-init PATCH 1/3] Do not use fallocate in swap file creation on xfs. (#70)
-Bugzilla: 1801094
+Message-id: <20200318141123.30265-1-otubo@redhat.com>
+Patchwork-id: 94377
+O-Subject: [RHEL-7.9 cloud-init PATCH] Do not use fallocate in swap file creation on xfs. (#70)
+Bugzilla: 1772505
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
 RH-Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
-RH-Acked-by: Cathy Avery <cavery@redhat.com>
 
 commit 6603706eec1c39d9d591c8ffa0ef7171b74d84d6
 Author: Eduardo Otubo <otubo@redhat.com>
@@ -32,7 +31,7 @@ Date:   Thu Jan 23 17:41:48 2020 +0100
 
     LP: #1781781
 
-Signed-off-bt: Eduardo Otubo <otubo@redhat.com>
+Signed-off-by: Eduardo Otubo <otubo@redhat.com>
 Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
 ---
  cloudinit/config/cc_mounts.py                      | 67 ++++++++++++++++------
@@ -40,7 +39,7 @@ Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
  2 files changed, 62 insertions(+), 17 deletions(-)
 
 diff --git a/cloudinit/config/cc_mounts.py b/cloudinit/config/cc_mounts.py
-index 123ffb8..6884ddf 100644
+index c741c74..4293844 100644
 --- a/cloudinit/config/cc_mounts.py
 +++ b/cloudinit/config/cc_mounts.py
 @@ -223,13 +223,58 @@ def suggested_swapsize(memsize=None, maxsize=None, fsys=None):
@@ -123,10 +122,10 @@ index 123ffb8..6884ddf 100644
 -        util.ensure_dir(tdir)
 -        util.log_time(LOG.debug, msg, func=util.subp,
 -                      args=[['sh', '-c',
--                            ('rm -f "$1" && umask 0066 && '
--                             '{ fallocate -l "${2}M" "$1" || '
--                             ' dd if=/dev/zero "of=$1" bs=1M "count=$2"; } && '
--                             'mkswap "$1" || { r=$?; rm -f "$1"; exit $r; }'),
+-                             ('rm -f "$1" && umask 0066 && '
+-                              '{ fallocate -l "${2}M" "$1" || '
+-                              'dd if=/dev/zero "of=$1" bs=1M "count=$2"; } && '
+-                              'mkswap "$1" || { r=$?; rm -f "$1"; exit $r; }'),
 -                             'setup_swap', fname, mbsize]])
 -
 -    except Exception as e:

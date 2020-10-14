@@ -1,0 +1,43 @@
+From 2c0a8c2df07ad186e19cc9bde31b407c83d9ff40 Mon Sep 17 00:00:00 2001
+From: Eduardo Otubo <otubo@redhat.com>
+Date: Thu, 23 Jan 2020 11:13:17 +0100
+Subject: [PATCH 1/5] Removing cloud-user from wheel
+
+Message-id: <20200123111317.15542-1-otubo@redhat.com>
+Patchwork-id: 93442
+O-Subject: [RHEL-7.9/RHEL-8 cloud-init PATCH] Removing cloud-user from wheel
+Bugzilla: 1549638
+RH-Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+
+Including cloud-user to both sudoers and wheel group makes the command
+`sudo -v' to ask for password. Besides the bogus behavior, it's
+unecessary to have the user on both. Removing the user from `wheel'
+group solves the issue
+
+X-downstream-only: yes
+Resolves: rhbz#1549638
+Resolves: rhbz#1785648
+
+Signed-off-by: Eduardo Otubo <otubo@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ rhel/cloud.cfg | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/rhel/cloud.cfg b/rhel/cloud.cfg
+index f0db3c1..82e8bf6 100644
+--- a/rhel/cloud.cfg
++++ b/rhel/cloud.cfg
+@@ -57,7 +57,7 @@ system_info:
+     name: cloud-user
+     lock_passwd: true
+     gecos: Cloud User
+-    groups: [wheel, adm, systemd-journal]
++    groups: [adm, systemd-journal]
+     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+     shell: /bin/bash
+   distro: rhel
+-- 
+1.8.3.1
+

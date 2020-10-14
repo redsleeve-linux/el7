@@ -1,15 +1,24 @@
-From 00b8210223ce3af97109df5cdb85b8e40541dd33 Mon Sep 17 00:00:00 2001
+From 20b0ac8b92ef134dbf8446c79da54011ddc5be2e Mon Sep 17 00:00:00 2001
 From: Eduardo Otubo <otubo@redhat.com>
-Date: Tue, 28 Apr 2020 08:22:07 +0200
-Subject: [PATCH 3/3] cc_mounts: fix incorrect format specifiers (#316)
+Date: Mon, 27 Apr 2020 10:53:07 +0200
+Subject: [PATCH 2/2] cc_mounts: fix incorrect format specifiers (#316)
 
 RH-Author: Eduardo Otubo <otubo@redhat.com>
-Message-id: <20200422130428.7663-4-otubo@redhat.com>
-Patchwork-id: 96034
-O-Subject: [RHEL-7.7.z/RHEL-7.8.z cloud-init PATCH 3/3] cc_mounts: fix incorrect format specifiers (#316)
-Bugzilla: 1801094
+Message-id: <20200421081604.8658-1-otubo@redhat.com>
+Patchwork-id: 96012
+O-Subject: [RHEL-7.9 cloud-init PATCH] cc_mounts: fix incorrect format specifiers (#316)
+Bugzilla: 1772505
 RH-Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
-RH-Acked-by: Cathy Avery <cavery@redhat.com>
+RH-Acked-by: Mohammed Gamal <mgamal@redhat.com>
+
+BZ: 1772505
+BRANCH: rhel79/master-19.4
+BREW: 28082908
+
+Conflicts: Not exactly a conflict, but removed optional notations
+"variable: type" and "-> type" from function header create_swapfile() as
+it is only available on Python >= 3.5 and this patch is for RHEL-7.9
+only (Python 2.*). The rest of the cherry-pick was clean.
 
 commit 9d7b35ce23aaf8741dd49b16e359c96591be3c76
 Author: Daniel Watkins <oddbloke@ubuntu.com>
@@ -28,7 +37,7 @@ Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
  create mode 100644 cloudinit/config/tests/test_mounts.py
 
 diff --git a/cloudinit/config/cc_mounts.py b/cloudinit/config/cc_mounts.py
-index 811781f..7c4e104 100644
+index 0573026..7e8d63e 100644
 --- a/cloudinit/config/cc_mounts.py
 +++ b/cloudinit/config/cc_mounts.py
 @@ -226,17 +226,17 @@ def suggested_swapsize(memsize=None, maxsize=None, fsys=None):

@@ -1,4 +1,4 @@
-From 933f0331cfe293a34412eb06c59d8d3a06cdd9f9 Mon Sep 17 00:00:00 2001
+From f762ed6ffe869cfbf3d527eb9e65a3745dd3c890 Mon Sep 17 00:00:00 2001
 From: Miroslav Rezanina <mrezanin@redhat.com>
 Date: Thu, 31 May 2018 19:46:53 +0200
 Subject: remove 'tee' command from logging configuration

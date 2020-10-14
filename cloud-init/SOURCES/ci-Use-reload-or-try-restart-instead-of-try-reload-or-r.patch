@@ -1,0 +1,43 @@
+From 43026829fcd2154f3a6d94eb512e7fd956fde424 Mon Sep 17 00:00:00 2001
+From: Eduardo Otubo <otubo@redhat.com>
+Date: Mon, 11 May 2020 09:24:12 +0200
+Subject: [PATCH 1/2] Use reload-or-try-restart instead of
+ try-reload-or-restart
+
+RH-Author: Eduardo Otubo <otubo@redhat.com>
+Message-id: <20200504091743.28013-1-otubo@redhat.com>
+Patchwork-id: 96249
+O-Subject: [RHEL-7.9 cloud-init PATCH] Use reload-or-try-restart instead of try-reload-or-restart
+Bugzilla: 1748015
+RH-Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+RH-Acked-by: Mohammed Gamal <mgamal@redhat.com>
+
+The verb `try-reload-or-restart' is available only on systemd >= 229 and
+RHEL-7.9 uses systemd = 219. Also this doesn't happen on RHEL-8.* which
+uses 239.
+
+x-downstream-only: yes
+Resolves: rhbz#1748015
+
+Signed-off-by: Eduardo Otubo <otubo@redhat.com>
+---
+ rhel/systemd/cloud-final.service | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/rhel/systemd/cloud-final.service b/rhel/systemd/cloud-final.service
+index 8510520..621d4f8 100644
+--- a/rhel/systemd/cloud-final.service
++++ b/rhel/systemd/cloud-final.service
+@@ -12,7 +12,8 @@ RemainAfterExit=yes
+ TimeoutSec=0
+ KillMode=process
+ ExecStartPost=/bin/echo "try restart NetworkManager.service"
+-ExecStartPost=/usr/bin/systemctl try-reload-or-restart NetworkManager.service
++# TODO: try-reload-or-restart is available only on systemd >= 229
++ExecStartPost=/usr/bin/systemctl reload-or-try-restart NetworkManager.service
+ 
+ # Output needs to appear in instance console output
+ StandardOutput=journal+console
+-- 
+1.8.3.1
+

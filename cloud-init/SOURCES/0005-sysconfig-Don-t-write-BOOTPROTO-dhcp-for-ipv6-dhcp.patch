@@ -1,0 +1,34 @@
+From a48707b6ecd359a2bb058b1278584185a98a8445 Mon Sep 17 00:00:00 2001
+From: Miroslav Rezanina <mrezanin@redhat.com>
+Date: Thu, 31 May 2018 20:00:32 +0200
+Subject: sysconfig: Don't write BOOTPROTO=dhcp for ipv6 dhcp
+
+Don't write BOOTPROTO=dhcp for ipv6 dhcp, as BOOTPROTO applies
+only to ipv4. Explicitly write IPV6_AUTOCONF=no for dhcp on ipv6.
+
+X-downstream-only: yes
+
+Resolves: rhbz#1519271
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+
+Merged patches (19.4):
+- 1da1ea1 sysconfig: Don't disable IPV6_AUTOCONF
+---
+ tests/unittests/test_net.py | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/tests/unittests/test_net.py b/tests/unittests/test_net.py
+index a931a3e..1306a0f 100644
+--- a/tests/unittests/test_net.py
++++ b/tests/unittests/test_net.py
+@@ -1483,6 +1483,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
+                 BOOTPROTO=none
+                 DEVICE=bond0
+                 DHCPV6C=yes
++                IPV6_AUTOCONF=no
+                 IPV6INIT=yes
+                 MACADDR=aa:bb:cc:dd:ee:ff
+                 ONBOOT=yes
+-- 
+1.8.3.1
+

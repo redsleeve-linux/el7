@@ -1,21 +1,21 @@
-From 6f8623c570247903e3cba925676677e44a99c69c Mon Sep 17 00:00:00 2001
+From cda350cffa9f04e0ba4fb787217c715a7c7fb777 Mon Sep 17 00:00:00 2001
 From: Eduardo Otubo <otubo@redhat.com>
-Date: Tue, 28 Apr 2020 08:22:05 +0200
-Subject: [PATCH 2/3] swap file "size" being used before checked if str (#315)
+Date: Wed, 15 Apr 2020 09:40:11 +0200
+Subject: [PATCH] swap file "size" being used before checked if str (#315)
 
 RH-Author: Eduardo Otubo <otubo@redhat.com>
-Message-id: <20200422130428.7663-3-otubo@redhat.com>
-Patchwork-id: 96033
-O-Subject: [RHEL-7.7.z/RHEL-7.8.z cloud-init PATCH 2/3] swap file "size" being used before checked if str (#315)
-Bugzilla: 1801094
+Message-id: <20200414163333.5424-1-otubo@redhat.com>
+Patchwork-id: 94678
+O-Subject: [RHEL-7.9 cloud-init PATCH] swap file "size" being used before checked if str (#315)
+Bugzilla: 1772505
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
 RH-Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
-RH-Acked-by: Cathy Avery <cavery@redhat.com>
 
 commit 46cf23c28812d3e3ba0c570defd9a05628af5556
 Author: Eduardo Otubo <otubo@redhat.com>
-Date:   Tue Apr 14 18:16:25 2020 +0200
+Date:   Tue Apr 14 17:45:14 2020 +0200
 
-    swap file "size" being used before checked if str (#315)
+    swap file "size" being used before checked if str
 
     Swap file size variable was being used before checked if it's set to str
     "auto". If set to "auto", it will break with:
@@ -23,7 +23,6 @@ Date:   Tue Apr 14 18:16:25 2020 +0200
       failed to setup swap: unsupported operand type(s) for /: 'str' and 'int'
 
     Signed-off-by: Eduardo Otubo <otubo@redhat.com>
-    RHBZ: 1772505
 
 Signed-off-by: Eduardo Otubo <otubo@redhat.com>
 Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
@@ -32,7 +31,7 @@ Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/cloudinit/config/cc_mounts.py b/cloudinit/config/cc_mounts.py
-index 6884ddf..811781f 100644
+index 4293844..0573026 100644
 --- a/cloudinit/config/cc_mounts.py
 +++ b/cloudinit/config/cc_mounts.py
 @@ -274,7 +274,6 @@ def setup_swapfile(fname, size=None, maxsize=None):

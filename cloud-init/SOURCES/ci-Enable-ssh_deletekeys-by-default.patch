@@ -1,0 +1,40 @@
+From 5bc897b13aa3090770af618f0cfa49f958436515 Mon Sep 17 00:00:00 2001
+From: Eduardo Otubo <otubo@redhat.com>
+Date: Tue, 17 Mar 2020 09:17:05 +0100
+Subject: [PATCH 5/5] Enable ssh_deletekeys by default
+
+Message-id: <20200317091705.15715-1-otubo@redhat.com>
+Patchwork-id: 94365
+O-Subject: [RHEL-7.9/RHEL-8.2.0 cloud-init PATCH] Enable ssh_deletekeys by default
+Bugzilla: 1574338
+RH-Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+RH-Acked-by: Mohammed Gamal <mgamal@redhat.com>
+
+The configuration option ssh_deletekeys will trigger the generation
+of new ssh keys for every new instance deployed.
+
+x-downstream-only: yes
+resolves: rhbz#1814152
+
+Signed-off-by: Eduardo Otubo <otubo@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ rhel/cloud.cfg | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/rhel/cloud.cfg b/rhel/cloud.cfg
+index 82e8bf6..9ecba21 100644
+--- a/rhel/cloud.cfg
++++ b/rhel/cloud.cfg
+@@ -6,7 +6,7 @@ ssh_pwauth:   0
+ 
+ mount_default_fields: [~, ~, 'auto', 'defaults,nofail,x-systemd.requires=cloud-init.service', '0', '2']
+ resize_rootfs_tmp: /dev
+-ssh_deletekeys:   0
++ssh_deletekeys:   1
+ ssh_genkeytypes:  ~
+ syslog_fix_perms: ~
+ disable_vmware_customization: false
+-- 
+1.8.3.1
+
