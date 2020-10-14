@@ -1,6 +1,6 @@
 Name: rdma-core
 Version: 22.4
-Release: 2%{?dist}
+Release: 5%{?dist}
 Summary: RDMA core userspace libraries and daemons
 
 %ifnarch %{arm}
@@ -22,6 +22,10 @@ Patch5: 0005-fix_mtu_limiting_for_ipoib.patch
 Patch6: 0006-srp_daemon-Remove-unsupported-systemd-configurations.patch
 Patch7: 0007-srp_daemon-srp_daemon.service-should-be-started-afte.patch
 Patch8: rdma-core-unclamp-ipoib-mtu.patch
+# Additional upstream patches from branch v23
+Patch11: 0101-Update-kernel-headers.patch
+Patch12: 0102-bnxt_re-lib-Enable-Broadcom-s-57500-RoCE-adapter.patch
+Patch13: 0103-mlx5-Add-new-device-IDs.patch
 # Additional upstream patches from stable-vX/master branch
 Patch101: 0001-srp_daemon-fix-a-double-free-segment-fault-for-ibsrp.patch
 Patch102: 0002-cxgb4-free-appropriate-pointer-in-error-case.patch
@@ -30,6 +34,11 @@ Patch103: 0003-man-Fix-return-value-for-ibv_reg_dm_mr.patch
 Patch104: 0004-Update-kernel-headers.patch
 Patch105: 0005-mlx5-Support-scatter-to-CQE-over-DCT-QP.patch
 Patch106: 0001-ibacm-Do-not-open-non-InfiniBand-device.patch
+# Patches backported from stable-v27
+Patch107: 0001-bnxt_re-lib-Add-remaining-pci-ids-for-gen-P5-devices.patch
+Patch108: 0002-bnxt_re-lib-Recognize-additional-5750x-device-ID-s.patch
+
+Patch109: 0001-libibverbs-Fix-ABI_placeholder1-and-ABI_placeholder2.patch
 # Do not build static libs by default.
 %define with_static %{?_with_static: 1} %{?!_with_static: 0}
 
@@ -283,12 +292,18 @@ discover and use SCSI devices via the SCSI RDMA Protocol over InfiniBand.
 %patch6 -p1
 %patch7 -p1
 %patch8 -p1
+%patch11 -p1
+%patch12 -p1
+%patch13 -p1
 %patch101 -p1
 %patch102 -p1
 %patch103 -p1
 %patch104 -p1
 %patch105 -p1
 %patch106 -p1
+%patch107 -p1
+%patch108 -p1
+%patch109 -p1
 
 %build
 
@@ -558,6 +573,18 @@ rm -rf %{buildroot}/%{_initrddir}/
 %doc %{_docdir}/%{name}-%{version}/ibsrpdm.md
 
 %changelog
+* Sat Jun 06 2020 Honggang Li <honli@redhat.com> - 22.4-5
+- libibverbs: Fix ABI_placeholder1 and ABI_placeholder2 assignment
+- Resolves: rhbz#1843221
+
+* Tue Apr 28 2020 Honggang Li <honli@redhat.com> - 22.4-4
+- libbnxt_re support for some new device ids and generation id
+- Resolves: rhbz#1828482
+
+* Mon Mar 30 2020 Honggang Li <honli@redhat.com> - 22.4-3
+- Restore three patches
+- Resolves: rhbz#1817412
+
 * Wed Feb 19 2020 Honggang Li <honli@redhat.com> - 22.4-2
 - Fix ibacm segfault for dual port HCA support IB and Ethernet
 - Resolves: rhbz#1793585

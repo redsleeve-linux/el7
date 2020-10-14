@@ -1,0 +1,79 @@
+From a71bdf9008efb5c28290e2ca7c58bc7d019f7194 Mon Sep 17 00:00:00 2001
+From: Honggang Li <honli@redhat.com>
+Date: Thu, 4 Jun 2020 14:33:38 +0800
+Subject: [PATCH] libibverbs: Fix ABI_placeholder1 and ABI_placeholder2
+ assignment
+
+The assignment of ABI_placeholder1 and ABI_placeholder2 must be
+after the provider populated context_ex->ibv_create_flow and
+context_ex->ibv_destroy_flow.
+
+Applications, which compiled against old libibverbs released between
+commit 501b53b30752 and 1111cf9895bb, will fail if they are linked
+with libibverbs released after 1111cf9895bb and call ibv_create_flow.
+
+[1] 501b53b30752 ("Fix create/destroy flow API")
+
+Fixes: 1111cf9895bb ("verbs: Always allocate a verbs_context")
+Signed-off-by: Honggang Li <honli@redhat.com>
+(cherry picked from commit 88789b7ba618d55491026c74a9a31699805e5934)
+Signed-off-by: Honggang Li <honli@redhat.com>
+---
+ libibverbs/device.c | 34 +++++++++++++++++-----------------
+ 1 file changed, 17 insertions(+), 17 deletions(-)
+
+diff --git a/libibverbs/device.c b/libibverbs/device.c
+index 273768023078..6f2a32fe0586 100644
+--- a/libibverbs/device.c
++++ b/libibverbs/device.c
+@@ -240,23 +240,6 @@ int verbs_init_context(struct verbs_context *context_ex,
+ 	context_ex->context.abi_compat = __VERBS_ABI_IS_EXTENDED;
+ 	context_ex->sz = sizeof(*context_ex);
+ 
+-	/*
+-	 * In order to maintain backward/forward binary compatibility
+-	 * with apps compiled against libibverbs-1.1.8 that use the
+-	 * flow steering addition, we need to set the two
+-	 * ABI_placeholder entries to match the driver set flow
+-	 * entries.  This is because apps compiled against
+-	 * libibverbs-1.1.8 use an inline ibv_create_flow and
+-	 * ibv_destroy_flow function that looks in the placeholder
+-	 * spots for the proper entry points.  For apps compiled
+-	 * against libibverbs-1.1.9 and later, the inline functions
+-	 * will be looking in the right place.
+-	 */
+-	context_ex->ABI_placeholder1 =
+-		(void (*)(void))context_ex->ibv_create_flow;
+-	context_ex->ABI_placeholder2 =
+-		(void (*)(void))context_ex->ibv_destroy_flow;
+-
+ 	context_ex->priv = calloc(1, sizeof(*context_ex->priv));
+ 	if (!context_ex->priv) {
+ 		errno = ENOMEM;
+@@ -314,6 +297,23 @@ static void set_lib_ops(struct verbs_context *vctx)
+ #undef ibv_query_port
+ 	vctx->context.ops._compat_query_port = ibv_query_port;
+ 	vctx->query_port = __lib_query_port;
++
++	/*
++	 * In order to maintain backward/forward binary compatibility
++	 * with apps compiled against libibverbs-1.1.8 that use the
++	 * flow steering addition, we need to set the two
++	 * ABI_placeholder entries to match the driver set flow
++	 * entries.  This is because apps compiled against
++	 * libibverbs-1.1.8 use an inline ibv_create_flow and
++	 * ibv_destroy_flow function that looks in the placeholder
++	 * spots for the proper entry points.  For apps compiled
++	 * against libibverbs-1.1.9 and later, the inline functions
++	 * will be looking in the right place.
++	 */
++	vctx->ABI_placeholder1 =
++		(void (*)(void))vctx->ibv_create_flow;
++	vctx->ABI_placeholder2 =
++		(void (*)(void))vctx->ibv_destroy_flow;
+ }
+ 
+ struct ibv_context *verbs_open_device(struct ibv_device *device, void *private_data)
+-- 
+2.25.4
+
