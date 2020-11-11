@@ -1,0 +1,385 @@
+diff -urpN webkitgtk-2.28.0.orig/CMakeLists.txt webkitgtk-2.28.0.cmake/CMakeLists.txt
+--- webkitgtk-2.28.0.orig/CMakeLists.txt	2020-02-04 04:23:40.000000000 -0600
++++ webkitgtk-2.28.0.cmake/CMakeLists.txt	2020-03-19 15:44:50.038776382 -0500
+@@ -2,13 +2,13 @@
+ # Determine CMake version and build type.
+ # -----------------------------------------------------------------------------
+ #
+-# NOTE: cmake_minimum_required() and project() *MUST* be the two first commands
++# NOTE: cmake_minimum_required() and project() *MUST* be the two fist commands
+ # used, see https://cmake.org/cmake/help/v3.3/command/project.html -- the
+ # latter in particular handles loading a bunch of shared CMake definitions
+ # and loading the cross-compilation settings from CMAKE_TOOLCHAIN_FILE.
+ #
+ 
+-cmake_minimum_required(VERSION 3.10)
++cmake_minimum_required(VERSION 3.3)
+ 
+ project(WebKit)
+ 
+diff -urpN webkitgtk-2.28.0.orig/Source/cmake/FindICU.cmake webkitgtk-2.28.0.cmake/Source/cmake/FindICU.cmake
+--- webkitgtk-2.28.0.orig/Source/cmake/FindICU.cmake	1969-12-31 18:00:00.000000000 -0600
++++ webkitgtk-2.28.0.cmake/Source/cmake/FindICU.cmake	2020-03-19 15:44:50.042776404 -0500
+@@ -0,0 +1,110 @@
++# Finds the International Components for Unicode (ICU) Library
++#
++#  ICU_FOUND          - True if ICU found.
++#  ICU_I18N_FOUND     - True if ICU's internationalization library found.
++#  ICU_INCLUDE_DIRS   - Directory to include to get ICU headers
++#                       Note: always include ICU headers as, e.g.,
++#                       unicode/utypes.h
++#  ICU_LIBRARIES      - Libraries to link against for the common ICU
++#  ICU_I18N_LIBRARIES - Libraries to link against for ICU internationaliation
++#                       (note: in addition to ICU_LIBRARIES)
++
++find_package(PkgConfig)
++pkg_check_modules(PC_ICU icu-uc)
++
++# Look for the header file.
++find_path(
++    ICU_INCLUDE_DIR
++    NAMES unicode/utypes.h
++    HINTS ${PC_ICU_INCLUDE_DIRS}
++          ${PC_ICU_INCLUDEDIR}
++          ${WEBKIT_LIBRARIES_INCLUDE_DIR}
++    DOC "Include directory for the ICU library")
++mark_as_advanced(ICU_INCLUDE_DIR)
++
++# Look for the library.
++find_library(
++    ICU_LIBRARY
++    NAMES libicuuc cygicuuc cygicuuc32 icuuc
++    HINTS ${PC_ICU_LIBRARY_DIRS}
++          ${PC_ICU_LIBDIR}
++          ${WEBKIT_LIBRARIES_LINK_DIR}
++    DOC "Libraries to link against for the common parts of ICU")
++mark_as_advanced(ICU_LIBRARY)
++
++# Copy the results to the output variables.
++if (ICU_INCLUDE_DIR AND ICU_LIBRARY)
++    set(ICU_FOUND 1)
++    set(ICU_LIBRARIES ${ICU_LIBRARY})
++    set(ICU_INCLUDE_DIRS ${ICU_INCLUDE_DIR})
++
++    set(ICU_VERSION 0)
++    set(ICU_MAJOR_VERSION 0)
++    set(ICU_MINOR_VERSION 0)
++    file(READ "${ICU_INCLUDE_DIR}/unicode/uversion.h" _ICU_VERSION_CONENTS)
++    string(REGEX REPLACE ".*#define U_ICU_VERSION_MAJOR_NUM ([0-9]+).*" "\\1" ICU_MAJOR_VERSION "${_ICU_VERSION_CONENTS}")
++    string(REGEX REPLACE ".*#define U_ICU_VERSION_MINOR_NUM ([0-9]+).*" "\\1" ICU_MINOR_VERSION "${_ICU_VERSION_CONENTS}")
++
++    set(ICU_VERSION "${ICU_MAJOR_VERSION}.${ICU_MINOR_VERSION}")
++
++    # Look for the ICU internationalization libraries
++    pkg_check_modules(PC_ICU_I18N icu-i18n)
++    find_library(
++        ICU_I18N_LIBRARY
++        NAMES icui18n libicui18n libicuin cygicuin cygicuin32 icuin
++        HINTS ${PC_ICU_I18N_LIBRARY_DIRS}
++              ${PC_ICU_I18N_LIBDIR}
++              ${WEBKIT_LIBRARIES_LINK_DIR}
++        DOC "Libraries to link against for ICU internationalization")
++    mark_as_advanced(ICU_I18N_LIBRARY)
++    if (ICU_I18N_LIBRARY)
++        set(ICU_I18N_FOUND 1)
++        set(ICU_I18N_LIBRARIES ${ICU_I18N_LIBRARY})
++    else ()
++        set(ICU_I18N_FOUND 0)
++        set(ICU_I18N_LIBRARIES)
++    endif ()
++
++    # Look for the ICU data libraries
++    find_library(
++        ICU_DATA_LIBRARY
++        NAMES icudata libicudata cygicudata cygicudata32
++        HINTS ${PC_ICU_I18N_LIBRARY_DIRS}
++              ${PC_ICU_I18N_LIBDIR}
++              ${WEBKIT_LIBRARIES_LINK_DIR}
++        DOC "Libraries to link against for ICU data")
++    mark_as_advanced(ICU_DATA_LIBRARY)
++    if (ICU_DATA_LIBRARY)
++        set(ICU_DATA_FOUND 1)
++        set(ICU_DATA_LIBRARIES ${ICU_DATA_LIBRARY})
++    else ()
++        set(ICU_DATA_FOUND 0)
++        set(ICU_DATA_LIBRARIES)
++    endif ()
++else ()
++    set(ICU_FOUND 0)
++    set(ICU_I18N_FOUND 0)
++    set(ICU_DATA_FOUND 0)
++    set(ICU_LIBRARIES)
++    set(ICU_I18N_LIBRARIES)
++    set(ICU_DATA_LIBRARIES)
++    set(ICU_INCLUDE_DIRS)
++    set(ICU_VERSION)
++    set(ICU_MAJOR_VERSION)
++    set(ICU_MINOR_VERSION)
++endif ()
++
++if (ICU_FOUND)
++    if (NOT ICU_FIND_QUIETLY)
++        message(STATUS "Found ICU header files in ${ICU_INCLUDE_DIRS}")
++        message(STATUS "Found ICU libraries: ${ICU_LIBRARIES}")
++        message(STATUS "Found ICU internationaliation libraries: ${ICU_I18N_LIBRARIES}")
++        message(STATUS "Found ICU data libraries: ${ICU_DATA_LIBRARIES}")
++    endif ()
++else ()
++    if (ICU_FIND_REQUIRED)
++        message(FATAL_ERROR "Could not find ICU")
++    else ()
++        message(STATUS "Optional package ICU was not found")
++    endif ()
++endif ()
+diff -urpN webkitgtk-2.28.0.orig/Source/cmake/OptionsCommon.cmake webkitgtk-2.28.0.cmake/Source/cmake/OptionsCommon.cmake
+--- webkitgtk-2.28.0.orig/Source/cmake/OptionsCommon.cmake	2020-02-04 04:24:08.000000000 -0600
++++ webkitgtk-2.28.0.cmake/Source/cmake/OptionsCommon.cmake	2020-03-19 15:44:50.042776404 -0500
+@@ -1,7 +1,3 @@
+-set(CMAKE_CXX_STANDARD 17)
+-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+-set(CMAKE_CXX_EXTENSIONS OFF)
+-
+ add_definitions(-DBUILDING_WITH_CMAKE=1)
+ add_definitions(-DHAVE_CONFIG_H=1)
+ 
+diff -urpN webkitgtk-2.28.0.orig/Source/cmake/OptionsGTK.cmake webkitgtk-2.28.0.cmake/Source/cmake/OptionsGTK.cmake
+--- webkitgtk-2.28.0.orig/Source/cmake/OptionsGTK.cmake	2020-03-10 03:31:09.000000000 -0500
++++ webkitgtk-2.28.0.cmake/Source/cmake/OptionsGTK.cmake	2020-03-23 14:27:09.176026963 -0500
+@@ -25,7 +25,7 @@ find_package(GLIB 2.44.0 REQUIRED COMPON
+ find_package(GTK3 3.22.0 REQUIRED)
+ find_package(GDK3 3.22.0 REQUIRED)
+ find_package(HarfBuzz 0.9.18 REQUIRED COMPONENTS ICU)
+-find_package(ICU REQUIRED COMPONENTS data i18n uc)
++find_package(ICU REQUIRED)
+ find_package(JPEG REQUIRED)
+ find_package(LibSoup 2.54.0 REQUIRED)
+ find_package(LibXml2 2.8.0 REQUIRED)
+diff -urpN webkitgtk-2.28.0.orig/Source/cmake/OptionsJSCOnly.cmake webkitgtk-2.28.0.cmake/Source/cmake/OptionsJSCOnly.cmake
+--- webkitgtk-2.28.0.orig/Source/cmake/OptionsJSCOnly.cmake	2020-02-04 04:24:08.000000000 -0600
++++ webkitgtk-2.28.0.cmake/Source/cmake/OptionsJSCOnly.cmake	2020-03-19 15:44:50.046776424 -0500
+@@ -96,8 +96,9 @@ else ()
+ endif ()
+ 
+ if (NOT APPLE)
+-    find_package(ICU REQUIRED COMPONENTS data i18n uc)
++    find_package(ICU REQUIRED)
+ else ()
+     add_definitions(-DU_DISABLE_RENAMING=1 -DU_SHOW_CPLUSPLUS_API=0)
+-    include(target/icu)
++    set(ICU_INCLUDE_DIRS ${CMAKE_BINARY_DIR}/ICU/Headers)
++    set(ICU_LIBRARIES libicucore.dylib)
+ endif ()
+diff -urpN webkitgtk-2.28.0.orig/Source/cmake/OptionsWin.cmake webkitgtk-2.28.0.cmake/Source/cmake/OptionsWin.cmake
+--- webkitgtk-2.28.0.orig/Source/cmake/OptionsWin.cmake	2020-02-04 04:24:08.000000000 -0600
++++ webkitgtk-2.28.0.cmake/Source/cmake/OptionsWin.cmake	2020-03-19 15:44:50.046776424 -0500
+@@ -164,6 +164,8 @@ set(WTF_LIBRARY_TYPE SHARED)
+ set(PAL_LIBRARY_TYPE STATIC)
+ set(WebKitLegacy_LIBRARY_TYPE SHARED)
+ 
++find_package(ICU REQUIRED)
++
+ # If <winsock2.h> is not included before <windows.h> redefinition errors occur
+ # unless _WINSOCKAPI_ is defined before <windows.h> is included
+ add_definitions(-D_WINSOCKAPI_=)
+diff -urpN webkitgtk-2.28.0.orig/Source/cmake/WebKitCompilerFlags.cmake webkitgtk-2.28.0.cmake/Source/cmake/WebKitCompilerFlags.cmake
+--- webkitgtk-2.28.0.orig/Source/cmake/WebKitCompilerFlags.cmake	2020-02-25 07:02:33.000000000 -0600
++++ webkitgtk-2.28.0.cmake/Source/cmake/WebKitCompilerFlags.cmake	2020-03-19 15:44:50.046776424 -0500
+@@ -104,6 +104,13 @@ if (COMPILER_IS_GCC_OR_CLANG)
+         WEBKIT_APPEND_GLOBAL_COMPILER_FLAGS(-fno-exceptions)
+         WEBKIT_APPEND_GLOBAL_CXX_FLAGS(-fno-rtti)
+ 
++        check_cxx_compiler_flag("-std=c++17" CXX_COMPILER_SUPPORTS_CXX17)
++        if (CXX_COMPILER_SUPPORTS_CXX17)
++            WEBKIT_APPEND_GLOBAL_CXX_FLAGS(-std=c++17)
++        else ()
++            message(FATAL_ERROR "Compiler with C++17 support is required")
++        endif ()
++
+         if (WIN32)
+             WEBKIT_APPEND_GLOBAL_COMPILER_FLAGS(-mno-ms-bitfields)
+             WEBKIT_PREPEND_GLOBAL_COMPILER_FLAGS(-Wno-unknown-pragmas)
+diff -urpN webkitgtk-2.28.0.orig/Source/JavaScriptCore/CMakeLists.txt webkitgtk-2.28.0.cmake/Source/JavaScriptCore/CMakeLists.txt
+--- webkitgtk-2.28.0.orig/Source/JavaScriptCore/CMakeLists.txt	2020-02-04 04:23:58.000000000 -0600
++++ webkitgtk-2.28.0.cmake/Source/JavaScriptCore/CMakeLists.txt	2020-03-19 15:44:50.050776446 -0500
+@@ -1,4 +1,4 @@
+-cmake_minimum_required(VERSION 3.10)
++cmake_minimum_required(VERSION 2.8.12)
+ include(WebKitCommon)
+ include(target/TargetWTF)
+ set_property(DIRECTORY . PROPERTY FOLDER "JavaScriptCore")
+@@ -54,6 +54,10 @@ if (USE_CAPSTONE)
+     list(APPEND JavaScriptCore_PRIVATE_INCLUDE_DIRECTORIES "${THIRDPARTY_DIR}/capstone/Source/include")
+ endif ()
+ 
++set(JavaScriptCore_SYSTEM_INCLUDE_DIRECTORIES
++    "${ICU_INCLUDE_DIRS}"
++)
++
+ set(JavaScriptCore_OBJECT_LUT_SOURCES
+     runtime/ArrayConstructor.cpp
+     runtime/AsyncFromSyncIteratorPrototype.cpp
+@@ -222,11 +226,7 @@ add_custom_command(
+     VERBATIM)
+ 
+ 
+-if (WTF_OS_MAC_OS_X)
+     execute_process(COMMAND bash -c "date +'%s'" OUTPUT_VARIABLE BUILD_TIME OUTPUT_STRIP_TRAILING_WHITESPACE)
+-else ()
+-    string(TIMESTAMP BUILD_TIME "%s")
+-endif ()
+ 
+ list(APPEND JavaScriptCore_HEADERS
+     ${JavaScriptCore_DERIVED_SOURCES_DIR}/BytecodeStructs.h
+diff -urpN webkitgtk-2.28.0.orig/Source/ThirdParty/ANGLE/include/CMakeLists.txt webkitgtk-2.28.0.cmake/Source/ThirdParty/ANGLE/include/CMakeLists.txt
+--- webkitgtk-2.28.0.orig/Source/ThirdParty/ANGLE/include/CMakeLists.txt	2020-02-04 04:24:05.000000000 -0600
++++ webkitgtk-2.28.0.cmake/Source/ThirdParty/ANGLE/include/CMakeLists.txt	2020-03-20 16:05:39.703431614 -0500
+@@ -1,19 +1,39 @@
+ string(REGEX REPLACE "(^|;)include/" "\\1" includes "${libangle_includes}")
+ 
+-set(egl_headers ${includes})
+-list(FILTER egl_headers INCLUDE REGEX "EGL/.*")
++set(egl_headers
++    EGL/egl.h
++    EGL/eglext.h
++    EGL/eglext_angle.h
++    EGL/eglplatform.h
++)
++
++set(gles_headers
++    GLES/egl.h
++    GLES/gl.h
++    GLES/glext.h
++    GLES/glext_explicit_context_autogen.inc
++    GLES/glext_angle.h
++    GLES/glplatform.h
++)
++
++set(gles2_headers
++    GLES2/gl2.h
++    GLES2/gl2ext.h
++    GLES2/gl2ext_explicit_context_autogen.inc
++    GLES2/gl2ext_angle.h
++    GLES2/gl2platform.h
++)
++
++set(gles3_headers
++    GLES3/gl3.h
++    GLES3/gl3ext_explicit_context_autogen.inc
++    GLES3/gl31.h
++    GLES3/gl31ext_explicit_context_autogen.inc
++    GLES3/gl32.h
++    GLES3/gl3platform.h
++)
+ 
+-set(gles_headers ${includes})
+-list(FILTER gles_headers INCLUDE REGEX "GLES/.*")
+-
+-set(gles2_headers ${includes})
+-list(FILTER gles2_headers INCLUDE REGEX "GLES2/.*")
+-
+-set(gles3_headers ${includes})
+-list(FILTER gles3_headers INCLUDE REGEX "GLES3/.*")
+-
+-set(khr_headers ${includes})
+-list(FILTER khr_headers INCLUDE REGEX "KHR/.*")
++set(khr_headers KHR/khrplatform.h)
+ 
+ set(glslang_headers
+     GLSLANG/ShaderLang.h
+diff -urpN webkitgtk-2.28.0.orig/Source/WebCore/CMakeLists.txt webkitgtk-2.28.0.cmake/Source/WebCore/CMakeLists.txt
+--- webkitgtk-2.28.0.orig/Source/WebCore/CMakeLists.txt	2020-02-04 04:24:07.000000000 -0600
++++ webkitgtk-2.28.0.cmake/Source/WebCore/CMakeLists.txt	2020-03-20 15:38:13.886631507 -0500
+@@ -1,4 +1,4 @@
+-cmake_minimum_required(VERSION 3.10)
++cmake_minimum_required(VERSION 2.8.12)
+ 
+ include(WebKitCommon)
+ include(target/TargetWTF)
+@@ -173,6 +173,7 @@ set(WebCore_PRIVATE_INCLUDE_DIRECTORIES
+ )
+ 
+ set(WebCore_SYSTEM_INCLUDE_DIRECTORIES
++    ${ICU_INCLUDE_DIRS}
+     ${LIBXML2_INCLUDE_DIR}
+     ${LIBXSLT_INCLUDE_DIR}
+     ${ZLIB_INCLUDE_DIRS}
+@@ -1220,7 +1221,8 @@ set(WebCore_PLUG_INS_RESOURCES
+ )
+ 
+ set(WebCore_LIBRARIES
+-    SQLite::SQLite3
++    ${ICU_LIBRARIES}
++    ${SQLite3_LIBRARIES}
+     ${LIBXML2_LIBRARIES}
+     ${LIBXSLT_LIBRARIES}
+     ${ZLIB_LIBRARIES}
+diff -urpN webkitgtk-2.28.0.orig/Source/WebCore/PAL/pal/CMakeLists.txt webkitgtk-2.28.0.cmake/Source/WebCore/PAL/pal/CMakeLists.txt
+--- webkitgtk-2.28.0.orig/Source/WebCore/PAL/pal/CMakeLists.txt	2020-02-04 04:24:07.000000000 -0600
++++ webkitgtk-2.28.0.cmake/Source/WebCore/PAL/pal/CMakeLists.txt	2020-03-19 15:44:50.054776467 -0500
+@@ -38,6 +38,10 @@ set(PAL_PRIVATE_INCLUDE_DIRECTORIES
+     "${PAL_DIR}/pal/text"
+ )
+ 
++set(PAL_SYSTEM_INCLUDE_DIRECTORIES
++    ${ICU_INCLUDE_DIRS}
++)
++
+ set(PAL_LIBRARIES
+     WebKit::JavaScriptCore
+ )
+diff -urpN webkitgtk-2.28.0.orig/Source/WebCore/platform/FreeType.cmake webkitgtk-2.28.0.cmake/Source/WebCore/platform/FreeType.cmake
+--- webkitgtk-2.28.0.orig/Source/WebCore/platform/FreeType.cmake	2020-02-04 04:24:07.000000000 -0600
++++ webkitgtk-2.28.0.cmake/Source/WebCore/platform/FreeType.cmake	2020-03-20 15:52:06.347082668 -0500
+@@ -34,8 +34,7 @@ list(APPEND WebCore_SYSTEM_INCLUDE_DIREC
+ )
+ 
+ list(APPEND WebCore_LIBRARIES
+-    HarfBuzz::HarfBuzz
+-    HarfBuzz::ICU
+     ${FONTCONFIG_LIBRARIES}
+     ${FREETYPE_LIBRARIES}
++    ${HarfBuzz_LIBRARIES}
+ )
+diff -urpN webkitgtk-2.28.0.orig/Source/WebKit/CMakeLists.txt webkitgtk-2.28.0.cmake/Source/WebKit/CMakeLists.txt
+--- webkitgtk-2.28.0.orig/Source/WebKit/CMakeLists.txt	2020-02-04 04:24:08.000000000 -0600
++++ webkitgtk-2.28.0.cmake/Source/WebKit/CMakeLists.txt	2020-03-19 15:44:50.054776467 -0500
+@@ -109,6 +109,10 @@ set(WebKit_INCLUDE_DIRECTORIES
+ 
+ set(PROTOCOL_GENERATOR_SCRIPTS_DIR "${JAVASCRIPTCORE_DIR}/inspector/scripts")
+ 
++set(WebKit_SYSTEM_INCLUDE_DIRECTORIES
++    ${ICU_INCLUDE_DIRS}
++)
++
+ list(APPEND WebKit_UNIFIED_SOURCE_LIST_FILES
+     "Sources.txt"
+ )
+diff -urpN webkitgtk-2.28.0.orig/Source/WTF/CMakeLists.txt webkitgtk-2.28.0.cmake/Source/WTF/CMakeLists.txt
+--- webkitgtk-2.28.0.orig/Source/WTF/CMakeLists.txt	2020-02-04 04:24:07.000000000 -0600
++++ webkitgtk-2.28.0.cmake/Source/WTF/CMakeLists.txt	2020-03-19 15:44:50.054776467 -0500
+@@ -1,4 +1,4 @@
+-cmake_minimum_required(VERSION 3.10)
++cmake_minimum_required(VERSION 2.8.12)
+ include(WebKitCommon)
+ set_property(DIRECTORY . PROPERTY FOLDER "WTF")
+ 
+diff -urpN webkitgtk-2.28.0.orig/Source/WTF/wtf/CMakeLists.txt webkitgtk-2.28.0.cmake/Source/WTF/wtf/CMakeLists.txt
+--- webkitgtk-2.28.0.orig/Source/WTF/wtf/CMakeLists.txt	2020-02-04 04:24:07.000000000 -0600
++++ webkitgtk-2.28.0.cmake/Source/WTF/wtf/CMakeLists.txt	2020-03-19 15:44:50.054776467 -0500
+@@ -517,10 +517,13 @@ if (NOT USE_SYSTEM_MALLOC)
+     list(APPEND WTF_LIBRARIES WebKit::bmalloc)
+ endif ()
+ 
++set(WTF_SYSTEM_INCLUDE_DIRECTORIES
++    ${ICU_INCLUDE_DIRS}
++)
+ list(APPEND WTF_LIBRARIES
+-    ICU::data
+-    ICU::i18n
+-    ICU::uc
++    ${ICU_DATA_LIBRARIES}
++    ${ICU_I18N_LIBRARIES}
++    ${ICU_LIBRARIES}
+ )
+ 
+ set(WTF_INTERFACE_LIBRARIES WTF)

@@ -58,8 +58,8 @@ diff -up webkitgtk-2.20.0/Source/cmake/FindWOFF2Dec.cmake.remove_woff2 webkitgtk
 diff -up webkitgtk-2.20.0/Source/CMakeLists.txt.remove_woff2 webkitgtk-2.20.0/Source/CMakeLists.txt
 --- webkitgtk-2.20.0/Source/CMakeLists.txt.remove_woff2	2018-03-12 14:34:12.488957858 +0100
 +++ webkitgtk-2.20.0/Source/CMakeLists.txt	2018-03-12 14:36:44.010873857 +0100
-@@ -21,6 +21,10 @@ if (USE_OPENVR)
-     add_subdirectory(ThirdParty/openvr)
+@@ -21,6 +21,10 @@ if (ENABLE_API_TESTS)
+     add_subdirectory(ThirdParty/gtest)
  endif ()
  
 +if (USE_WOFF2)
@@ -5280,9 +5280,9 @@ diff -up webkitgtk-2.20.0/Source/WebCore/CMakeLists.txt.remove_woff2 webkitgtk-2
  endif ()
  
  if (USE_WOFF2)
--  list(APPEND WebCore_INCLUDE_DIRECTORIES "${WOFF2DEC_INCLUDE_DIRS}")
+-  list(APPEND WebCore_PRIVATE_INCLUDE_DIRECTORIES "${WOFF2DEC_INCLUDE_DIRS}")
 -  list(APPEND WebCore_LIBRARIES "${WOFF2DEC_LIBRARIES}")
-+  list(APPEND WebCore_INCLUDE_DIRECTORIES "${THIRDPARTY_DIR}/woff2/include")
++  list(APPEND WebCore_PRIVATE_INCLUDE_DIRECTORIES "${THIRDPARTY_DIR}/woff2/include")
 +  list(APPEND WebCore_LIBRARIES woff2)
  endif ()
  

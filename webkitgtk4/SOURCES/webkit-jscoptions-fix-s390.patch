@@ -1,0 +1,53 @@
+diff --git a/Source/JavaScriptCore/API/glib/JSCOptions.cpp b/Source/JavaScriptCore/API/glib/JSCOptions.cpp
+index e730b85563f3..0d66596626d6 100644
+--- a/Source/JavaScriptCore/API/glib/JSCOptions.cpp
++++ b/Source/JavaScriptCore/API/glib/JSCOptions.cpp
+@@ -73,7 +73,6 @@ static void valueToGValue(int32_t value, GValue* gValue)
+     g_value_set_int(gValue, value);
+ }
+ 
+-#if CPU(ADDRESS64)
+ static bool valueFromGValue(const GValue* gValue, unsigned& value)
+ {
+     value = g_value_get_uint(gValue);
+@@ -84,7 +83,6 @@ static void valueToGValue(unsigned value, GValue* gValue)
+ {
+     g_value_set_uint(gValue, value);
+ }
+-#endif
+ 
+ static bool valueFromGValue(const GValue* gValue, size_t& value)
+ {
+@@ -542,12 +540,10 @@ static JSCOptionType jscOptionsType(int)
+     return JSC_OPTION_INT;
+ }
+ 
+-#if CPU(ADDRESS64)
+ static JSCOptionType jscOptionsType(unsigned)
+ {
+     return JSC_OPTION_UINT;
+ }
+-#endif
+ 
+ static JSCOptionType jscOptionsType(size_t)
+ {
+diff --git a/Source/JavaScriptCore/runtime/Options.cpp b/Source/JavaScriptCore/runtime/Options.cpp
+index 74ccdeb2794c..359618472534 100644
+--- a/Source/JavaScriptCore/runtime/Options.cpp
++++ b/Source/JavaScriptCore/runtime/Options.cpp
+@@ -88,7 +88,6 @@ Optional<OptionsStorage::Unsigned> parse(const char* string)
+     return WTF::nullopt;
+ }
+ 
+-#if CPU(ADDRESS64) || OS(DARWIN)
+ template<>
+ Optional<OptionsStorage::Size> parse(const char* string)
+ {
+@@ -97,7 +96,6 @@ Optional<OptionsStorage::Size> parse(const char* string)
+         return value;
+     return WTF::nullopt;
+ }
+-#endif // CPU(ADDRESS64) || OS(DARWIN)
+ 
+ template<>
+ Optional<OptionsStorage::Double> parse(const char* string)

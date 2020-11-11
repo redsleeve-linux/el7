@@ -45,12 +45,12 @@
      }
  
 +#if ENABLE(APNG)
-     void blendPixel(RGBA32* dest, unsigned r, unsigned g, unsigned b, unsigned a)
+     void blendPixel(uint32_t* dest, unsigned r, unsigned g, unsigned b, unsigned a)
      {
          if (!a)
-@@ -172,6 +173,7 @@ public:
+@@ -174,6 +175,7 @@ public:
          else
-             *dest = makeUnPremultipliedRGBA(r, g, b, a);
+             *dest = makeUnPremultipliedRGBA(r, g, b, a).value();
      }
 +#endif
  
@@ -183,7 +183,7 @@
 -    // This can be executed both in the main thread (when not using async decoding) or in the decoding thread.
 -    // When executed in the decoding thread, a call to setData() from the main thread may change the data
 -    // the WebPDemuxer is using, leaving it in an inconsistent state, so we need to protect the data.
--    RefPtr<SharedBuffer> protectedData(m_data);
+-    RefPtr<SharedBuffer::DataSegment> protectedData(m_data);
 -    WebPData inputData = { reinterpret_cast<const uint8_t*>(protectedData->data()), protectedData->size() };
 -    WebPDemuxState demuxerState;
 -    WebPDemuxer* demuxer = WebPDemuxPartial(&inputData, &demuxerState);

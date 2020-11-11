@@ -26,23 +26,21 @@
 # rhpkg build --target rhel-7.7-devtoolset-7-candidate
 
 Name:           webkitgtk4
-Version:        2.22.7
-Release:        2%{?dist}.redsleeve
+Version:        2.28.2
+Release:        2%{?dist}
 Summary:        GTK+ Web content engine library
 
 License:        LGPLv2
-URL:            http://www.webkitgtk.org
-Source0:        http://webkitgtk.org/releases/webkitgtk-%{version}.tar.xz
+URL:            https://www.webkitgtk.org
+Source0:        https://webkitgtk.org/releases/webkitgtk-%{version}.tar.xz
 %if 0%{?bundle_icu}
-Source1:        http://download.icu-project.org/files/icu4c/57.1/icu4c-57_1-src.tgz
+Source1:        https://download.icu-project.org/files/icu4c/57.1/icu4c-57_1-src.tgz
 %endif
 
-
-# https://bugs.webkit.org/show_bug.cgi?id=132333
-Patch0:         webkit-cloop_big_endians.patch
-# Silly workaround for
-# https://bugs.webkit.org/show_bug.cgi?id=182923
-Patch1:         webkit-page_size.patch
+# https://bugs.webkit.org/show_bug.cgi?id=209360
+Patch0:         webkit-aarch64_page_size.patch
+# https://bugs.webkit.org/show_bug.cgi?id=193749
+Patch1:         evolution-shared-secondary-process.patch
 # Revert woff2 and brotli removal to bundle them again, as they are not
 # included in RHEL 7
 # https://bugs.webkit.org/show_bug.cgi?id=179630
@@ -53,23 +51,22 @@ Patch3:         webkit-library_typos.patch
 Patch4:         webkit-remove_woff2.patch
 # https://bugs.webkit.org/show_bug.cgi?id=177804
 Patch5:         webkit-remove_brotli.patch
-# We don't have new enough version of libgcrypt to support Subtle Crypto, lower
-# the version in the check so configure can pass and also disable Subtle Crypto
+# We don't have new enough version of libgcrypt to support WebCrypto, lower
+# the version in the check so configure can pass and also disable WebCrypto
 # through cmake argument.
 Patch6:         webkit-lower_libgcrypt_version.patch
 # We don't have new enough version of libwebp (that has demux) to support the
 # animated WebP images - revert the change that introduced it.
 Patch7:         webkit-no_webp_demux.patch
-Patch8:         webkit-memset_zero_length.patch
-Patch10:        webkit-covscan_uninit_ctor.patch
-Patch11:        webkit-covscan_uninit.patch
-# https://bugzilla.redhat.com/show_bug.cgi?id=1591638
-Patch20:        webkit-atk_crash.patch
-# https://bugzilla.redhat.com/show_bug.cgi?id=1503624
-Patch21:        webkit-atk_continuation_crash.patch
-# https://bugs.webkit.org/show_bug.cgi?id=196350
-Patch22:        webkit-initialize-tracktypeasstring.patch
-
+# https://bugs.webkit.org/show_bug.cgi?id=210685
+Patch8:         webkit-fix-ppc64le-s390x.patch
+# Upstream requires CMake 3.10, but we have only 3.6 in devtoolset.
+Patch9:         webkit-old-cmake.patch
+# Fix build on 32-bit s390. I'm not upstreaming this since we don't support this
+# architecture in RHEL 8.
+Patch10:        webkit-jscoptions-fix-s390.patch
+# https://bugs.webkit.org/show_bug.cgi?id=212590
+Patch11:        webkit-objectidentifier-undefined.patch
 
 %if 0%{?bundle_icu}
 Patch50: icu-8198.revert.icu5431.patch
@@ -85,8 +82,6 @@ Patch58: icu-dont_use_clang_even_if_installed.patch
 Patch59: icu-rhbz1444101-icu-changeset-39671.patch
 %endif
 
-Patch1000: webkitgtk4_always_inc_atomic.patch
-
 BuildRequires:  at-spi2-core-devel
 BuildRequires:  bison
 BuildRequires:  cairo-devel
@@ -94,7 +89,6 @@ BuildRequires:  enchant-devel
 BuildRequires:  flex
 BuildRequires:  fontconfig-devel
 BuildRequires:  freetype-devel
-BuildRequires:  geoclue2-devel
 BuildRequires:  gettext
 BuildRequires:  glib2-devel
 BuildRequires:  gobject-introspection-devel
@@ -102,7 +96,6 @@ BuildRequires:  gperf
 BuildRequires:  gstreamer1-devel
 BuildRequires:  gstreamer1-plugins-base-devel
 BuildRequires:  gstreamer1-plugins-bad-free-devel
-BuildRequires:  gtk2-devel
 BuildRequires:  gtk3-devel
 BuildRequires:  gtk-doc >= 1.25
 BuildRequires:  harfbuzz-devel
@@ -127,6 +120,7 @@ BuildRequires:  pcre-devel
 BuildRequires:  perl-Switch
 BuildRequires:  perl-JSON-PP
 BuildRequires:  ruby
+BuildRequires:  rubygem-json
 BuildRequires:  rubygems
 BuildRequires:  sqlite-devel
 BuildRequires:  hyphen-devel
@@ -154,18 +148,19 @@ BuildRequires: python
 Obsoletes:      libwebkit2gtk < 2.5.0
 Provides:       libwebkit2gtk = %{version}-%{release}
 
-# We're supposed to specify versions here, but these Google libs don't do
+# GTK+ 2 plugins support was removed in 2.25.3
+Obsoletes:      webkitgtk4-plugin-process-gtk2 < %{version}-%{release}
+Provides:       webkitgtk4-plugin-process-gtk2 = %{version}-%{release}
+
+# We're supposed to specify versions here, but these libraries don't do
 # normal releases. Accordingly, they're not suitable to be system libs.
 # Provides:       bundled(angle)
 # Provides:       bundled(brotli)
+# Provides:       bundled(xdgmime)
 # Provides:       bundled(woff2)
 
 # Require the jsc subpackage
 Requires:       %{name}-jsc%{?_isa} = %{version}-%{release}
-
-# Require the support for the GTK+ 2 based NPAPI plugins
-# Would be nice to recommend as in Fedora, but RHEL7 RPM doesn't support it.
-Requires:       %{name}-plugin-process-gtk2%{?_isa} = %{version}-%{release}
 
 %description
 WebKitGTK+ is the port of the portable web rendering engine WebKit to the
@@ -207,14 +202,6 @@ Requires:       %{name} = %{version}-%{release}
 The %{name}-jsc-devel package contains libraries, build data, and header
 files for developing applications that use JavaScript engine from %{name}.
 
-%package        plugin-process-gtk2
-Summary:        GTK+ 2 based NPAPI plugins support for %{name}
-Requires:       %{name}-jsc%{?_isa} = %{version}-%{release}
-Requires:       %{name} = %{version}-%{release}
-
-%description    plugin-process-gtk2
-Support for the GTK+ 2 based NPAPI plugins (such as Adobe Flash) for %{name}.
-
 %prep
 %if 0%{?bundle_icu}
 %setup -q -T -n icu -b 1
@@ -232,25 +219,23 @@ Support for the GTK+ 2 based NPAPI plugins (such as Adobe Flash) for %{name}.
 %patch59 -p1 -b .rhbz1444101-icu-changeset-39671.patch
 
 %setup -q -T -n webkitgtk-%{version} -b 0
-%patch0 -p1 -b .cloop_big_endians
-%patch1 -p1 -b .page_size
+%patch0 -p1 -b .aarch64_page_size
+%patch1 -p1 -b .evolution_shared_secondary_process
 %patch2 -R -p1 -b .woff2_1.0.2
 %patch3 -R -p1 -b .library_typos
 %patch4 -p1 -b .remove_woff2
 %patch5 -p1 -b .remove_brotli
 %patch6 -p1 -b .lower_libgcrypt_version
 %patch7 -p1 -b .no_webp_demux
-%patch8 -p1 -b .memset_zero_length
-%patch10 -p1 -b .covscan_uninit_ctor
-%patch11 -p1 -b .covscan_uninit
-%patch20 -p1 -b .atk_crash
-%patch21 -p1 -b .atk_continuation_crash
-%patch22 -p1 -b .initialize-tracktypeasstring
+%patch8 -p1 -b .fix_ppc64le_s390x
+%patch9 -p1 -b .old_cmake
+%ifarch s390
+%patch10 -p1 -b .jscoptions_fix_s390
+%endif
+%patch11 -p1 -b .objectidentifier_undefined
 %else
 %autosetup -p1 -n webkitgtk-%{version}
 %endif
-
-%patch1000 -p1
 
 # Remove bundled libraries
 rm -rf Source/ThirdParty/gtest/
@@ -329,7 +314,7 @@ source /opt/rh/llvm-toolset-7/enable
 
 # Disable ld.gold on s390 as it does not have it.
 # Also for aarch64 as the support is in upstream, but not packaged in Fedora.
-# Disable subtle crypto as we have an old libgcrypt in RHEL 7
+# Disable WebCrypto as we have an old libgcrypt in RHEL 7
 mkdir -p %{_target_platform}
 pushd %{_target_platform}
 %cmake \
@@ -344,12 +329,15 @@ pushd %{_target_platform}
 %endif
   -DENABLE_GTKDOC=ON \
   -DENABLE_MINIBROWSER=ON \
-  -DENABLE_SUBTLE_CRYPTO=OFF \
+  -DENABLE_WEB_CRYPTO=OFF \
   -DENABLE_MEDIA_SOURCE=OFF \
-%ifarch s390 aarch64 %{arm}
+  -DENABLE_BUBBLEWRAP_SANDBOX=OFF \
+  -DUSE_OPENJPEG=OFF \
+  -DUSE_WPE_RENDERER=OFF \
+%ifarch s390 aarch64
   -DUSE_LD_GOLD=OFF \
 %endif
-%ifarch s390 s390x ppc %{power64} aarch64 %{mips} %{arm}
+%ifarch s390 s390x ppc %{power64} aarch64 %{mips}
   -DENABLE_JIT=OFF \
   -DUSE_SYSTEM_MALLOC=ON \
 %endif
@@ -357,8 +345,7 @@ pushd %{_target_platform}
 popd
 
 # Remove the static amount of jobs once
-# https://projects.engineering.redhat.com/browse/BREW-2146 is resolved
-# make %{?_smp_mflags} -C %{_target_platform}
+# Use -j2 to reduce maximum memory usage (relative to default -j24).
 make -j2 -C %{_target_platform}
 
 %install
@@ -384,19 +371,16 @@ chmod 644 $RPM_BUILD_ROOT%{_libdir}/webkit2gtk-4.0/libicuuc.so.57.1
 
 # Finally, copy over and rename various files for %%license inclusion
 %add_to_license_files Source/JavaScriptCore/COPYING.LIB
-%add_to_license_files Source/JavaScriptCore/icu/LICENSE
 %add_to_license_files Source/ThirdParty/ANGLE/LICENSE
 %add_to_license_files Source/ThirdParty/ANGLE/src/common/third_party/smhasher/LICENSE
 %add_to_license_files Source/ThirdParty/ANGLE/src/third_party/compiler/LICENSE
 %add_to_license_files Source/ThirdParty/ANGLE/src/third_party/libXNVCtrl/LICENSE
 %add_to_license_files Source/ThirdParty/brotli/LICENSE
 %add_to_license_files Source/ThirdParty/woff2/LICENSE
-%add_to_license_files Source/WebCore/icu/LICENSE
 %add_to_license_files Source/WebCore/LICENSE-APPLE
 %add_to_license_files Source/WebCore/LICENSE-LGPL-2
 %add_to_license_files Source/WebCore/LICENSE-LGPL-2.1
 %add_to_license_files Source/WebInspectorUI/UserInterface/External/CodeMirror/LICENSE
-%add_to_license_files Source/WebInspectorUI/UserInterface/External/ESLint/LICENSE
 %add_to_license_files Source/WebInspectorUI/UserInterface/External/Esprima/LICENSE
 %add_to_license_files Source/WebInspectorUI/UserInterface/External/three.js/LICENSE
 %add_to_license_files Source/WTF/icu/LICENSE
@@ -425,7 +409,6 @@ chmod 644 $RPM_BUILD_ROOT%{_libdir}/webkit2gtk-4.0/libicuuc.so.57.1
 %attr(0755,root,root) %{_libdir}/webkit2gtk-4.0/libicuuc.so.57.1
 %{_libexecdir}/webkit2gtk-4.0/
 %{_bindir}/WebKitWebDriver
-%exclude %{_libexecdir}/webkit2gtk-4.0/WebKitPluginProcess2
 
 %files devel
 %{_libexecdir}/webkit2gtk-4.0/MiniBrowser
@@ -452,9 +435,6 @@ chmod 644 $RPM_BUILD_ROOT%{_libdir}/webkit2gtk-4.0/libicuuc.so.57.1
 %dir %{_datadir}/gir-1.0
 %{_datadir}/gir-1.0/JavaScriptCore-4.0.gir
 
-%files plugin-process-gtk2
-%{_libexecdir}/webkit2gtk-4.0/WebKitPluginProcess2
-
 %files doc
 %dir %{_datadir}/gtk-doc
 %dir %{_datadir}/gtk-doc/html
@@ -463,11 +443,11 @@ chmod 644 $RPM_BUILD_ROOT%{_libdir}/webkit2gtk-4.0/libicuuc.so.57.1
 %{_datadir}/gtk-doc/html/webkitdomgtk-4.0/
 
 %changelog
-* Fri Aug 16 2019 Jacco Ligthart <jacco@redsleeve.com> - 2.22.7-2.redsleeve
-- disabled LD_GOLD4, JIT for arm
-- use system malloc for arm
-- added a patch to always link against atomic
-- only use 2 cpus for building, better for not swapping
+* Sat Jun 20 2020 Michael Catanzaro <mcatanzaro@redhat.com> - 2.28.2-2
+- Resolves: rhbz#1817144 Rebuild to support ppc and s390
+
+* Thu May 21 2020 Michael Catanzaro <mcatanzaro@redhat.com> - 2.28.2-1
+- Resolves: rhbz#1817144 Rebase to 2.28.2
 
 * Thu Apr 04 2019 Eike Rathke <erack@redhat.com> - 2.22.7-2
 - Related: rhbz#1669482 covscan fixes

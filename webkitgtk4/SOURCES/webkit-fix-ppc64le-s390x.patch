@@ -1,0 +1,25 @@
+Index: /Source/JavaScriptCore/heap/GCMemoryOperations.h
+===================================================================
+--- /Source/JavaScriptCore/heap/GCMemoryOperations.h	(revision 261325)
++++ /Source/JavaScriptCore/heap/GCMemoryOperations.h	(revision 261326)
+@@ -54,5 +54,5 @@
+     };
+ 
+-#if COMPILER(GCC_COMPATIBLE) && USE(JSVALUE64)
++#if COMPILER(GCC_COMPATIBLE) && (CPU(X86_64) || CPU(ARM64))
+     if (bytes <= smallCutoff)
+         slowPathForwardMemcpy();
+@@ -122,6 +122,4 @@
+             : "d0", "d1", "memory"
+         );
+-#else
+-    slowPathForwardMemcpy();
+ #endif // CPU(X86_64)
+     } else {
+@@ -140,5 +138,5 @@
+ #else
+     slowPathForwardMemcpy();
+-#endif // COMPILER(GCC_COMPATIBLE)
++#endif // COMPILER(GCC_COMPATIBLE) && (CPU(X86_64) || CPU(ARM64))
+ #else
+     memcpy(dst, src, bytes);
