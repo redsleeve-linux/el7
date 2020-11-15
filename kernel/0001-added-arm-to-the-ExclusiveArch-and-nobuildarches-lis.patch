@@ -1,6 +1,6 @@
-From f5b743c8c04666c501da3b14cd84b2a7cf91756e Mon Sep 17 00:00:00 2001
+From f788ba01dd2066261fb7d75ce3cb74828a3b73a7 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Thu, 16 Jul 2020 00:18:50 +0200
+Date: Sat, 3 Oct 2020 01:46:12 +0200
 Subject: [PATCH] added arm to the ExclusiveArch and nobuildarches lists
 
 ---
@@ -8,10 +8,10 @@ Subject: [PATCH] added arm to the ExclusiveArch and nobuildarches lists
  1 file changed, 11 insertions(+), 3 deletions(-)
 
 diff --git a/SPECS/kernel.spec b/SPECS/kernel.spec
-index 4dafec3..43b8be2 100644
+index cf29157..ed931cd 100644
 --- a/SPECS/kernel.spec
 +++ b/SPECS/kernel.spec
-@@ -223,6 +223,11 @@ Summary: The Linux kernel
+@@ -226,6 +226,11 @@ Summary: The Linux kernel
  %define with_kdump 1
  %endif
  
@@ -23,7 +23,7 @@ index 4dafec3..43b8be2 100644
  #cross compile make
  %if %{with_cross}
  %define cross_opts CROSS_COMPILE=%{cross_target}-linux-gnu-
-@@ -242,7 +247,7 @@ Summary: The Linux kernel
+@@ -245,7 +250,7 @@ Summary: The Linux kernel
  # Which is a BadThing(tm).
  
  # We only build kernel-headers on the following...
@@ -32,7 +32,7 @@ index 4dafec3..43b8be2 100644
  
  %ifarch %nobuildarches
  %define with_default 0
-@@ -330,10 +335,10 @@ Group: System Environment/Kernel
+@@ -333,10 +338,10 @@ Group: System Environment/Kernel
  License: GPLv2
  URL: http://www.kernel.org/
  Version: %{rpmversion}
@@ -45,16 +45,16 @@ index 4dafec3..43b8be2 100644
  ExclusiveOS: Linux
  
  %kernel_reqprovconf
-@@ -1776,6 +1781,9 @@ fi
+@@ -1802,6 +1807,9 @@ fi
  %kernel_variant_files %{with_kdump} kdump
  
  %changelog
-+* Thu Jul 16 2020 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-1127.13.1.el7.redsleeve
++* Fri Oct 02 2020 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-1160.el7.redsleeve
 +- added arm to the ExclusiveArch and nobuildarches lists
 +
- * Tue Jun 23 2020 CentOS Sources <bugs@centos.org> - 3.10.0-1127.13.1.el7
- - Apply debranding changes
- 
+ * Tue Aug 18 2020 Jan Stancek <jstancek@redhat.com> [3.10.0-1160.el7]
+ - [kernel] modsign: Add nomokvarconfig kernel parameter (Lenny Szubowicz) [1867857]
+ - [firmware] modsign: Add support for loading certs from the EFI MOK config table (Lenny Szubowicz) [1867857]
 -- 
 1.8.3.1
 
