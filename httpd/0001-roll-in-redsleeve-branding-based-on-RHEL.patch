@@ -1,6 +1,6 @@
-From 7209076426bc934fc5bac3cea2d30ee73ce27269 Mon Sep 17 00:00:00 2001
+From e6e0f135ebaed681bb9b9866358962247d38184d Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sun, 5 Apr 2020 13:26:28 +0200
+Date: Sat, 3 Oct 2020 01:23:11 +0200
 Subject: [PATCH] roll in redsleeve branding, based on RHEL
 
 ---
@@ -53,15 +53,15 @@ index c1b6c11..5d1e452 100644
 -Alias /images/apache_pb.gif /usr/share/httpd/noindex/images/apache_pb.gif
 -Alias /images/poweredby.png /usr/share/httpd/noindex/images/poweredby.png
 diff --git a/SPECS/httpd.spec b/SPECS/httpd.spec
-index 4259e99..d1d0831 100644
+index 13a8054..93a0671 100644
 --- a/SPECS/httpd.spec
 +++ b/SPECS/httpd.spec
 @@ -15,10 +15,10 @@
  Summary: Apache HTTP Server
  Name: httpd
  Version: 2.4.6
--Release: 93%{?dist}
-+Release: 93%{?dist}.redsleeve
+-Release: 95%{?dist}
++Release: 95%{?dist}.redsleeve
  URL: http://httpd.apache.org/
  Source0: http://www.apache.org/dist/httpd/httpd-%{version}.tar.bz2
 -Source1: centos-noindex.tar.gz
@@ -69,7 +69,7 @@ index 4259e99..d1d0831 100644
  Source2: httpd.logrotate
  Source3: httpd.sysconf
  Source4: httpd-ssl-pass-dialog
-@@ -632,9 +632,8 @@ EOF
+@@ -648,9 +648,8 @@ EOF
  
  # Handle contentdir
  mkdir $RPM_BUILD_ROOT%{contentdir}/noindex
@@ -81,7 +81,7 @@ index 4259e99..d1d0831 100644
  
  rm -rf %{contentdir}/htdocs
  
-@@ -658,7 +657,7 @@ rm -v $RPM_BUILD_ROOT%{docroot}/html/*.html \
+@@ -674,7 +673,7 @@ rm -v $RPM_BUILD_ROOT%{docroot}/html/*.html \
        $RPM_BUILD_ROOT%{docroot}/cgi-bin/*
  
  # Symlink for the powered-by-$DISTRO image:
@@ -90,7 +90,7 @@ index 4259e99..d1d0831 100644
          $RPM_BUILD_ROOT%{contentdir}/icons/poweredby.png
  
  # symlinks for /etc/httpd
-@@ -844,7 +843,7 @@ rm -rf $RPM_BUILD_ROOT
+@@ -860,7 +859,7 @@ rm -rf $RPM_BUILD_ROOT
  %{contentdir}/error/README
  %{contentdir}/error/*.var
  %{contentdir}/error/include/*.html
@@ -99,14 +99,14 @@ index 4259e99..d1d0831 100644
  
  %dir %{docroot}
  %dir %{docroot}/cgi-bin
-@@ -910,6 +909,9 @@ rm -rf $RPM_BUILD_ROOT
+@@ -926,6 +925,9 @@ rm -rf $RPM_BUILD_ROOT
  %{_sysconfdir}/rpm/macros.httpd
  
  %changelog
-+* Sun Apr 05 2020 Jacco Ligthart <jacco@redsleeve.org> - 2.4.6-93.el7.redsleeve
++* Fri Oct 02 2020 Jacco Ligthart <jacco@redsleeve.org> - 2.4.6-95.el7.redsleeve
 +- roll in redsleeve branding, based on RHEL
 +
- * Tue Mar 31 2020 CentOS Sources <bugs@centos.org> - 2.4.6-93.el7.centos
+ * Tue Sep 29 2020 CentOS Sources <bugs@centos.org> - 2.4.6-95.el7.centos
  - Remove index.html, add centos-noindex.tar.gz
  - change vstring
 -- 
