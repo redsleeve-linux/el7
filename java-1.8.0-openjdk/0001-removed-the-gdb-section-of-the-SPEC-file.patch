@@ -1,6 +1,6 @@
-From 2c80be005ed429a2f9d0206a385d59ec909ace31 Mon Sep 17 00:00:00 2001
+From 55ef07269832b7308f3dd530bd085bcaa3177ade Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sat, 9 May 2020 19:16:09 +0200
+Date: Sun, 4 Oct 2020 19:39:00 +0200
 Subject: [PATCH] removed the gdb section of the SPEC file
 
 ---
@@ -8,10 +8,10 @@ Subject: [PATCH] removed the gdb section of the SPEC file
  1 file changed, 16 insertions(+), 13 deletions(-)
 
 diff --git a/SPECS/java-1.8.0-openjdk.spec b/SPECS/java-1.8.0-openjdk.spec
-index ceec3b9..f6e2c0a 100644
+index 3790683..0b25d91 100644
 --- a/SPECS/java-1.8.0-openjdk.spec
 +++ b/SPECS/java-1.8.0-openjdk.spec
-@@ -836,7 +836,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
+@@ -846,7 +846,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
  
  Name:    java-%{javaver}-%{origin}
  Version: %{javaver}.%{updatever}.%{buildver}
@@ -20,7 +20,7 @@ index ceec3b9..f6e2c0a 100644
  # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
  # and this change was brought into RHEL-4. java-1.5.0-ibm packages
  # also included the epoch in their virtual provides. This created a
-@@ -1620,18 +1620,18 @@ done
+@@ -1678,18 +1678,18 @@ done
  # Using line number 1 might cause build problems. See:
  # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
  # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
@@ -51,16 +51,16 @@ index ceec3b9..f6e2c0a 100644
  
  # Check src.zip has all sources. See RHBZ#1130490
  jar -tf $JAVA_HOME/src.zip | grep 'sun.misc.Unsafe'
-@@ -2060,6 +2060,9 @@ require "copy_jdk_configs.lua"
+@@ -2118,6 +2118,9 @@ require "copy_jdk_configs.lua"
  %endif
  
  %changelog
-+* Sat May 09 2020 Jacco Ligthart <jacco@redsleeve.org> 1:1.8.0.252.b09-2.redsleeve
++* Sun Oct 04 2020 Jacco Ligthart <jacco@redsleeve.org> 1:1.8.0.265.b01-1.redsleeve
 +- removed the gdb section of the SPEC file
 +
- * Tue Apr 14 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.252.b09-2
- - Add release notes.
- - Mark license files with appropriate macro.
+ * Mon Jul 27 2020 Jiri Vanek <jvanek@redhat.com> - 1:1.8.0.265.b01-1
+ - ASSEMBLY_EXCEPTION LICENSE THIRD_PARTY_README moved to fully versioned dirs
+ - Resolves: rhbz#1861222
 -- 
 1.8.3.1
 
