@@ -7,7 +7,7 @@
 %define with_vdpau 1
 %define with_wayland 1
 
-%ifnarch ppc
+%ifnarch ppc %{arm}
 %define with_radeonsi 1
 %endif
 
@@ -61,7 +61,7 @@
 Summary: Mesa graphics libraries
 Name: mesa
 Version: 18.3.4
-Release: 10%{?dist}
+Release: 10%{?dist}.redsleeve
 License: MIT
 Group: System Environment/Libraries
 URL: http://www.mesa3d.org
@@ -122,7 +122,8 @@ BuildRequires: python-mako
 BuildRequires: gettext
 %if 0%{?with_llvm}
 %if 0%{?with_private_llvm}
-BuildRequires: llvm-private-devel >= 6.0
+#BuildRequires: llvm-private-devel >= 6.0
+BuildRequires: mesa-private-llvm-devel
 %else
 BuildRequires: llvm-devel >= 3.0
 %endif
@@ -359,8 +360,8 @@ grep -q ^/ src/gallium/auxiliary/vl/vl_decoder.c && exit 1
 %patch31 -p1 -b .codemodel
 
 %if 0%{with_private_llvm}
-sed -i 's/\[llvm-config\]/\[llvm-private-config-%{__isa_bits}\]/g' configure.ac
-sed -i 's/`$LLVM_CONFIG --version`/$LLVM_VERSION_MAJOR.$LLVM_VERSION_MINOR-rhel/' configure.ac
+sed -i 's/\[llvm-config\]/\[mesa-private-llvm-config-%{__isa_bits}\]/g' configure.ac
+sed -i 's/`$LLVM_CONFIG --version`/$LLVM_VERSION_MAJOR.$LLVM_VERSION_MINOR-mesa/' configure.ac
 %endif
 
 # need to use libdrm_nouveau2 on F17
@@ -412,7 +413,7 @@ export CXXFLAGS="$RPM_OPT_FLAGS -fno-rtti -fno-exceptions"
     --enable-dri \
 %if %{with_hardware}
     %{?with_vmware:--enable-xa} \
-    --with-gallium-drivers=%{?with_vmware:svga,}%{?with_radeonsi:radeonsi,}%{?with_llvm:swrast,r600,r300,}%{?with_freedreno:freedreno,}nouveau,virgl \
+    --with-gallium-drivers=%{?with_vmware:svga,}%{?with_radeonsi:radeonsi,}%{?with_llvm:swrast,r300,}%{?with_freedreno:freedreno,}nouveau,virgl \
 %else
     --with-gallium-drivers=%{?with_llvm:swrast} \
 %endif
@@ -533,7 +534,7 @@ rm -rf $RPM_BUILD_ROOT
 %endif
 %if 0%{?with_llvm}
 %{_libdir}/dri/r300_dri.so
-%{_libdir}/dri/r600_dri.so
+#%{_libdir}/dri/r600_dri.so
 %if 0%{?with_radeonsi}
 %{_libdir}/dri/radeonsi_dri.so
 %endif
@@ -567,8 +568,8 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,root,root,-)
 %{_libdir}/vdpau/libvdpau_nouveau.so.1*
 %if 0%{?with_llvm}
-%{_libdir}/vdpau/libvdpau_r600.so.1*
-%{_libdir}/vdpau/libvdpau_radeonsi.so.1*
+#%{_libdir}/vdpau/libvdpau_r600.so.1*
+#%{_libdir}/vdpau/libvdpau_radeonsi.so.1*
 %endif
 %endif
 %endif
@@ -673,6 +674,9 @@ rm -rf $RPM_BUILD_ROOT
 %endif
 
 %changelog
+* Fri Oct 02 2020 Jacco Ligthart <jacco@redsleeve.org> - 18.3.4-10.redsleeve
+- small changes to the spec to make it build on armv5
+
 * Thu Jun 18 2020 Adam Jackson <ajax@redhat.com> - 18.3.4-10
 - Revert the previous fix due to regressions in Firefox, Chrome, etc.
 
