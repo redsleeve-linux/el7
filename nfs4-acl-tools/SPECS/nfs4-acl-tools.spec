@@ -1,6 +1,6 @@
 Name:           nfs4-acl-tools
 Version:        0.3.3
-Release:        21%{?dist}
+Release:        21%{?dist}.redsleeve
 Summary:        The nfs4 ACL tools
 Group:          Applications/System
 License:        BSD
@@ -41,6 +41,8 @@ Patch011: nfs4acl-0.3.3-ignore-inheritance.patch
 
 Patch100: nfs4acl-0.2.0-compile.patch
 
+Patch10001: ../SOURCES/nfs4acl-0.3.3-libtool.patch
+
 %description
 This package contains commandline and GUI ACL utilities for the Linux
 NFSv4 client.
@@ -69,6 +71,8 @@ NFSv4 client.
 %patch011 -p1
 
 %patch100 -p1
+
+%patch10001 -p1
 
 %build
 %ifarch s390 s390x sparc
@@ -103,6 +107,9 @@ rm -rf %{buildroot}
 %{_mandir}/man5/*
 
 %changelog
+* Fri Oct 02 2020 Jacco Ligthart <jacco@redsleeve.org> - 0.3.3-21.redsleeve
+- added "--tag=CC" to the make command due to libtool errors
+
 * Mon Jun  8 2020 Steve Dickson <steved@redhat.com> 0.3.3-21
 - nfs4_ace_from_string: ignore inheritance ACEs on non-directories. (bz 1842954)
 
