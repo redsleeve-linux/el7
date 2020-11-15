@@ -1,6 +1,6 @@
-From efa7a144ca2611743be38b4beb80d6c57fafae00 Mon Sep 17 00:00:00 2001
+From 3c319cf67bba4ffc7a1bc22bca03cd2afea807e8 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sat, 10 Aug 2019 10:19:08 +0200
+Date: Sat, 3 Oct 2020 02:44:10 +0200
 Subject: [PATCH] added "--tag=CC" to the make command due to libtool errors
 
 ---
@@ -8,19 +8,19 @@ Subject: [PATCH] added "--tag=CC" to the make command due to libtool errors
  1 file changed, 7 insertions(+), 4 deletions(-)
 
 diff --git a/SPECS/pidgin.spec b/SPECS/pidgin.spec
-index e854332..54f6b8b 100644
+index eef89f8..9c14d45 100644
 --- a/SPECS/pidgin.spec
 +++ b/SPECS/pidgin.spec
 @@ -110,7 +110,7 @@
  
  Name:           pidgin
  Version:        2.10.11
--Release:        8%{?dist}
-+Release:        8%{?dist}.redsleeve
+-Release:        9%{?dist}
++Release:        9%{?dist}.redsleeve
  License:        GPLv2+ and GPLv2 and MIT
  # GPLv2+ - libpurple, gnt, finch, pidgin, most prpls
  # GPLv2 - novell prpls
-@@ -553,11 +553,11 @@ autoreconf --force --install
+@@ -557,11 +557,11 @@ autoreconf --force --install
             --enable-tcl --enable-tk \
             --disable-schemas-install $SWITCHES
  
@@ -34,7 +34,7 @@ index e854332..54f6b8b 100644
  cd -
  
  %if %{api_docs}
-@@ -567,7 +567,7 @@ find doc/html -empty -delete
+@@ -571,7 +571,7 @@ find doc/html -empty -delete
  
  %install
  rm -rf $RPM_BUILD_ROOT
@@ -43,16 +43,16 @@ index e854332..54f6b8b 100644
  
  install -m 0755 libpurple/plugins/one_time_password.so $RPM_BUILD_ROOT%{_libdir}/purple-2/
  
-@@ -771,6 +771,9 @@ rm -rf $RPM_BUILD_ROOT
+@@ -775,6 +775,9 @@ rm -rf $RPM_BUILD_ROOT
  %endif
  
  %changelog
-+* Sat Aug 10 2019 Jacco Ligthart <jacco@redsleeve.org> 2.10.11-8.el7.redsleeve
++* Fri Oct 02 2020 Jacco Ligthart <jacco@redsleeve.org> 2.10.11-9.el7.redsleeve
 +- added "--tag=CC" to the make command due to libtool errors
 +
- * Tue Oct 09 2018 Debarshi Ray <rishi@fedoraproject.org> - 2.10.11-8
- - Rework tray icon blinking
- - Unbreak connections to Freenode
+ * Thu May 28 2020 Debarshi Ray <rishi@fedoraproject.org> - 2.10.11-9
+ - Make TLS 1.3 work
+   Resolves: #1745267
 -- 
 1.8.3.1
 

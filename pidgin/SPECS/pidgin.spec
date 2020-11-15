@@ -110,7 +110,7 @@
 
 Name:           pidgin
 Version:        2.10.11
-Release:        9%{?dist}
+Release:        9%{?dist}.redsleeve
 License:        GPLv2+ and GPLv2 and MIT
 # GPLv2+ - libpurple, gnt, finch, pidgin, most prpls
 # GPLv2 - novell prpls
@@ -557,11 +557,11 @@ autoreconf --force --install
            --enable-tcl --enable-tk \
            --disable-schemas-install $SWITCHES
 
-make %{?_smp_mflags} LIBTOOL=/usr/bin/libtool
+make %{?_smp_mflags} LIBTOOL="/usr/bin/libtool --tag=CC"
 
 # one_time_password plugin, included upstream but not built by default
 cd libpurple/plugins/
-make one_time_password.so LIBTOOL=/usr/bin/libtool
+make one_time_password.so LIBTOOL="/usr/bin/libtool --tag=CC"
 cd -
 
 %if %{api_docs}
@@ -571,7 +571,7 @@ find doc/html -empty -delete
 
 %install
 rm -rf $RPM_BUILD_ROOT
-make DESTDIR=$RPM_BUILD_ROOT install LIBTOOL=/usr/bin/libtool
+make DESTDIR=$RPM_BUILD_ROOT install LIBTOOL="/usr/bin/libtool --tag=CC"
 
 install -m 0755 libpurple/plugins/one_time_password.so $RPM_BUILD_ROOT%{_libdir}/purple-2/
 
@@ -775,6 +775,9 @@ rm -rf $RPM_BUILD_ROOT
 %endif
 
 %changelog
+* Fri Oct 02 2020 Jacco Ligthart <jacco@redsleeve.org> 2.10.11-9.el7.redsleeve
+- added "--tag=CC" to the make command due to libtool errors
+
 * Thu May 28 2020 Debarshi Ray <rishi@fedoraproject.org> - 2.10.11-9
 - Make TLS 1.3 work
   Resolves: #1745267
