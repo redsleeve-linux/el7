@@ -19,7 +19,7 @@
 %global use_tcmalloc 0
 %global variant base-asan
 %else
-%if %{_arch} != "s390x" && %{_arch} != "s390"
+%ifnarch s390 s390x %{arm}
 %global use_tcmalloc 1
 %else
 %global use_tcmalloc 0
@@ -39,7 +39,7 @@
 Summary:          389 Directory Server (%{variant})
 Name:             389-ds-base
 Version:          1.3.10.2
-Release:          %{?relprefix}6%{?prerel}%{?dist}
+Release:          %{?relprefix}6%{?prerel}%{?dist}.redsleeve
 License:          GPLv3+
 URL:              https://www.port389.org/
 Group:            System Environment/Daemons
@@ -505,6 +505,9 @@ fi
 %{_sysconfdir}/%{pkgname}/dirsrvtests
 
 %changelog
+* Wed Oct 14 2020 Jacco Ligthart <jacco@redsleeve.org> - 1.3.10.2-6.redsleeve
+- disabled tcmalloc for arm
+
 * Thu Jun 4 2020 Mark Reynolds <mreynolds@redhat.com> - 1.3.10-2-6
 - Bump version to 1.3.10.2-6
 - Resolves: Bug 1839085 - IPA: Winsync not honoring parameters winSyncDirectoryFilter and winSyncWindowsFilter
