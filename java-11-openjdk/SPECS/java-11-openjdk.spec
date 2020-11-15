@@ -69,14 +69,32 @@
 # we need to distinguish between big and little endian PPC64
 %global ppc64le         ppc64le
 %global ppc64be         ppc64 ppc64p7
+# Set of architectures which support multiple ABIs
 %global multilib_arches %{power64} sparc64 x86_64
-%global jit_arches      %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64} s390x
+# Set of architectures for which we build slowdebug builds
+%global debug_arches    %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64} s390x
+# Set of architectures with a Just-In-Time (JIT) compiler
+%global jit_arches      %{debug_arches} %{arm}
+# Set of architectures which run a full bootstrap cycle
+%global bootstrap_arches %{jit_arches}
+# Set of architectures which support SystemTap tapsets
+%global systemtap_arches %{jit_arches}
+# Set of architectures with a Ahead-Of-Time (AOT) compiler
 %global aot_arches      x86_64 %{aarch64}
+# Set of architectures which support the serviceability agent
+%global sa_arches       %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64} %{arm}
+# Set of architectures which support class data sharing
+# As of JDK-8005165 in OpenJDK 10, class sharing is not arch-specific
+# However, it does segfault on the Zero assembler port, so currently JIT only
+%global share_arches    %{jit_arches}
+# Set of architectures for which we build the Shenandoah garbage collector
+%global shenandoah_arches x86_64 %{aarch64}
+# Set of architectures for which we build the Z garbage collector
+%global zgc_arches x86_64
 
 # By default, we build a debug build during main build on JIT architectures
 %if %{with slowdebug}
-%ifarch %{jit_arches}
-%ifnarch %{arm}
+%ifarch %{debug_arches}
 %global include_debug_build 1
 %else
 %global include_debug_build 0
@@ -84,15 +102,23 @@
 %else
 %global include_debug_build 0
 %endif
-%else
-%global include_debug_build 0
-%endif
 
-# On x86_64 and AArch64, we use the Shenandoah HotSpot
-%ifarch x86_64 %{aarch64}
+# On certain architectures, we compile the Shenandoah GC
+%ifarch %{shenandoah_arches}
 %global use_shenandoah_hotspot 1
+%global shenandoah_feature shenandoahgc
 %else
 %global use_shenandoah_hotspot 0
+%global shenandoah_feature -shenandoahgc
+%endif
+
+# On certain architectures, we compile the ZGC
+%ifarch %{zgc_arches}
+%global use_zgc_hotspot 1
+%global zgc_feature zgc
+%else
+%global use_zgc_hotspot 0
+%global zgc_feature -zgc
 %endif
 
 %if %{include_debug_build}
@@ -108,7 +134,7 @@
 # is expected in one single case at the end of the build
 %global rev_build_loop  %{build_loop2} %{build_loop1}
 
-%ifarch %{jit_arches}
+%ifarch %{bootstrap_arches}
 %global bootstrap_build 1
 %else
 %global bootstrap_build 1
@@ -204,7 +230,7 @@
 %global stapinstall %{nil}
 %endif
 
-%ifarch %{jit_arches}
+%ifarch %{systemtap_arches}
 %global with_systemtap 1
 %else
 %global with_systemtap 0
@@ -212,14 +238,15 @@
 
 # New Version-String scheme-style defines
 %global majorver 11
-%global securityver 8
+# If you bump majorver, you must also bump vendor_version_string
+# Used via new version scheme. JDK 11 was
+# GA'ed in September 2018 => 18.9
+%global vendor_version_string 18.9
+%global securityver 9
 # buildjdkver is usually same as %%{majorver},
 # but in time of bootstrap of next jdk, it is majorver-1, 
 # and this it is better to change it here, on single place
 %global buildjdkver %{majorver}
-# Used via new version scheme. JDK 11 was
-# GA'ed in September 2018 => 18.9
-%global vendor_version_string 18.9
 # Add LTS designator for RHEL builds
 %if 0%{?rhel}
   %global lts_designator "LTS"
@@ -227,6 +254,26 @@
 %else
   %global lts_designator ""
   %global lts_designator_zip ""
+%endif
+
+# Define vendor information used by OpenJDK
+%global oj_vendor Red Hat, Inc.
+%global oj_vendor_url "https://www.redhat.com/"
+# Define what url should JVM offer in case of a crash report
+# order may be important, epel may have rhel declared
+%if 0%{?epel}
+%global oj_vendor_bug_url  https://bugzilla.redhat.com/enter_bug.cgi?product=Fedora%20EPEL&component=%{name}&version=epel%{epel}
+%else
+%if 0%{?fedora}
+# Does not work for rawhide, keeps the version field empty
+%global oj_vendor_bug_url  https://bugzilla.redhat.com/enter_bug.cgi?product=Fedora&component=%{name}&version=%{fedora}
+%else
+%if 0%{?rhel}
+%global oj_vendor_bug_url  https://bugzilla.redhat.com/enter_bug.cgi?product=Red%20Hat%20Enterprise%20Linux%20%{rhel}&component=%{name}
+%else
+%global oj_vendor_bug_url  https://bugzilla.redhat.com/enter_bug.cgi
+%endif
+%endif
 %endif
 
 # Define IcedTea version used for SystemTap tapsets and desktop file
@@ -237,8 +284,8 @@
 %global origin_nice     OpenJDK
 %global top_level_dir_name   %{origin}
 %global minorver        0
-%global buildver        10
-%global rpmrelease      1
+%global buildver        11
+%global rpmrelease      0
 #%%global tagsuffix      %%{nil}
 # priority must be 7 digits in total
 # setting to 1, so debug ones can have 0
@@ -315,12 +362,8 @@ exit 0
 
 
 %define post_headless() %{expand:
-%ifarch %{jit_arches}
-# MetaspaceShared::generate_vtable_methods not implemented for PPC JIT
-%ifnarch %{ppc64le}
-# see https://bugzilla.redhat.com/show_bug.cgi?id=513605
+%ifarch %{share_arches}
 %{jrebindir %%1}/java -Xshare:dump >/dev/null 2>/dev/null
-%endif
 %endif
 
 PRIORITY=%{priority}
@@ -414,10 +457,8 @@ alternatives \\
 %endif
   --slave %{_bindir}/jlink jlink %{sdkbindir %%1}/jlink \\
   --slave %{_bindir}/jmod jmod %{sdkbindir %%1}/jmod \\
-%ifarch %{jit_arches}
-%ifnarch s390x
+%ifarch %{sa_arches}
   --slave %{_bindir}/jhsdb jhsdb %{sdkbindir %%1}/jhsdb \\
-%endif
 %endif
   --slave %{_bindir}/jar jar %{sdkbindir %%1}/jar \\
   --slave %{_bindir}/jarsigner jarsigner %{sdkbindir %%1}/jarsigner \\
@@ -610,11 +651,9 @@ exit 0
 %{_jvmdir}/%{sdkdir %%1}/lib/libnio.so
 %{_jvmdir}/%{sdkdir %%1}/lib/libprefs.so
 %{_jvmdir}/%{sdkdir %%1}/lib/librmi.so
-# Zero and S390x don't have SA
-%ifarch %{jit_arches}
-%ifnarch s390x
+# Some architectures don't have the serviceability agent
+%ifarch %{sa_arches}
 %{_jvmdir}/%{sdkdir %%1}/lib/libsaproc.so
-%endif
 %endif
 %{_jvmdir}/%{sdkdir %%1}/lib/libsctp.so
 %{_jvmdir}/%{sdkdir %%1}/lib/libsunec.so
@@ -634,11 +673,9 @@ exit 0
 %{_mandir}/man1/unpack200-%{uniquesuffix %%1}.1*
 %{_jvmdir}/%{sdkdir %%1}/lib/server/
 %{_jvmdir}/%{sdkdir %%1}/lib/client/
-%ifarch %{jit_arches}
-%ifnarch %{power64}
+%ifarch %{share_arches}
 %attr(444, root, root) %ghost %{_jvmdir}/%{sdkdir %%1}/lib/server/classes.jsa
 %attr(444, root, root) %ghost %{_jvmdir}/%{sdkdir %%1}/lib/client/classes.jsa
-%endif
 %endif
 %dir %{_jvmdir}/%{sdkdir %%1}/lib/security
 %{_jvmdir}/%{sdkdir %%1}/lib/security/cacerts
@@ -683,11 +720,9 @@ exit 0
 %{_jvmdir}/%{sdkdir %%1}/bin/jdeprscan
 %{_jvmdir}/%{sdkdir %%1}/bin/jfr
 %{_jvmdir}/%{sdkdir %%1}/bin/jimage
-# Zero and S390x don't have SA
-%ifarch %{jit_arches}
-%ifnarch s390x
+# Some architectures don't have the serviceability agent
+%ifarch %{sa_arches}
 %{_jvmdir}/%{sdkdir %%1}/bin/jhsdb
-%endif
 %endif
 %{_jvmdir}/%{sdkdir %%1}/bin/jinfo
 %{_jvmdir}/%{sdkdir %%1}/bin/jlink
@@ -752,22 +787,7 @@ exit 0
 }
 
 %define files_static_libs() %{expand:
-%{_jvmdir}/%{sdkdir %%1}/lib/libj2pkcs11.a
-%{_jvmdir}/%{sdkdir %%1}/lib/libj2pcsc.a
-%{_jvmdir}/%{sdkdir %%1}/lib/libnio.a
-%{_jvmdir}/%{sdkdir %%1}/lib/libprefs.a
-%{_jvmdir}/%{sdkdir %%1}/lib/libjava.a
-%{_jvmdir}/%{sdkdir %%1}/lib/libjli.a
-%{_jvmdir}/%{sdkdir %%1}/lib/libnet.a
-%{_jvmdir}/%{sdkdir %%1}/lib/libjimage.a
-%{_jvmdir}/%{sdkdir %%1}/lib/libjaas.a
-%{_jvmdir}/%{sdkdir %%1}/lib/libfdlibm.a
-%{_jvmdir}/%{sdkdir %%1}/lib/libj2gss.a
-%{_jvmdir}/%{sdkdir %%1}/lib/libsunec.a
-%{_jvmdir}/%{sdkdir %%1}/lib/libjsig.a
-%{_jvmdir}/%{sdkdir %%1}/lib/libextnet.a
-%{_jvmdir}/%{sdkdir %%1}/lib/libverify.a
-%{_jvmdir}/%{sdkdir %%1}/lib/libzip.a
+%{_jvmdir}/%{sdkdir %%1}/lib/static/linux-%{archinstall}/glibc/lib*.a
 }
 
 %define files_javadoc() %{expand:
@@ -809,7 +829,8 @@ Requires: ca-certificates
 # Require jpackage-utils for ownership of /usr/lib/jvm/ and macros
 Requires: javapackages-tools
 # Require zone-info data provided by tzdata-java sub-package
-# 2020a required as of JDK-8243541 in 11.0.8+4
+# 2020b required as of JDK-8254177 in October CPU
+# Temporarily held at 2020a until 2020b has shipped
 Requires: tzdata-java >= 2020a
 # for support of kernel stream control
 # libsctp.so.1 is being `dlopen`ed on demand
@@ -934,7 +955,7 @@ Provides: java-%{javaver}-%{origin}-src%1 = %{epoch}:%{version}-%{release}
 
 Name:    java-%{javaver}-%{origin}
 Version: %{newjavaver}.%{buildver}
-Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}.redsleeve
+Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
 # and this change was brought into RHEL-4. java-1.5.0-ibm packages
 # also included the epoch in their virtual provides. This created a
@@ -969,7 +990,7 @@ URL:      http://openjdk.java.net/
 
 # to regenerate source0 (jdk) run update_package.sh
 # update_package.sh contains hard-coded repos, revisions, tags, and projects to regenerate the source archives
-Source0: shenandoah-jdk%{majorver}-shenandoah-jdk-%{newjavaver}+%{buildver}%{?tagsuffix:-%{tagsuffix}}-4curve.tar.xz
+Source0: jdk-updates-jdk%{majorver}u-jdk-%{newjavaver}+%{buildver}%{?tagsuffix:-%{tagsuffix}}-4curve.tar.xz
 
 # Use 'icedtea_sync.sh' to update the following
 # They are based on code contained in the IcedTea project (3.x).
@@ -993,6 +1014,9 @@ Source13: TestCryptoLevel.java
 
 # Ensure ECDSA is working
 Source14: TestECDSA.java
+
+# Ensure vendor settings are correct
+Source15: CheckVendor.java
 
 ############################################
 #
@@ -1039,19 +1063,15 @@ Patch8: s390-8214206_fix.patch
 
 #############################################
 #
-# Patches appearing in 11.0.9
+# Patches appearing in 11.0.10
 #
 # This section includes patches which are present
 # in the listed OpenJDK 8u release and should be
 # able to be removed once that release is out
 # and used by this RPM.
 #############################################
-# JDK-8227269, RH1826915: Slow class loading when running with JDWP
-Patch11: jdk8227269-rh1826915-slow_class_loading_with_jdwp.patch
-# JDK-8241750, RH1826915: x86_32 build failure after JDK-8227269
-Patch12: jdk8241750-rh1826915-x86-32_8227269_fix.patch
-# JDK-8245714, RH1828845: "Bad graph detected in build_loop_late" when loads are pinned on loop limit check uncommon branch
-Patch13: jdk8245714-rh1828845-build_loop_late_crash.patch
+# JDK-8254177: (tz) Upgrade time-zone data to tzdata2020b
+Patch9: jdk8254177-tzdata2020b.patch
 
 BuildRequires: autoconf
 BuildRequires: automake
@@ -1095,7 +1115,8 @@ BuildRequires: java-%{buildjdkver}-openjdk-devel
 %ifnarch %{jit_arches}
 BuildRequires: libffi-devel
 %endif
-# 2020a required as of JDK-8243541 in 11.0.8+4
+# 2020b required as of JDK-8254177 in October CPU
+# Temporarily held at 2020a until 2020b has shipped
 BuildRequires: tzdata-java >= 2020a
 # Earlier versions have a bug in tree vectorization on PPC
 BuildRequires: gcc >= 4.8.3-8
@@ -1356,9 +1377,7 @@ pushd %{top_level_dir_name}
 %patch6 -p1
 %patch7 -p1
 %patch8 -p1
-%patch11 -p1
-%patch12 -p1
-%patch13 -p1
+%patch9 -p1
 popd # openjdk
 
 %patch1000
@@ -1472,6 +1491,10 @@ bash ../configure \
     --with-version-pre="%{ea_designator}" \
     --with-version-opt=%{lts_designator} \
     --with-vendor-version-string="%{vendor_version_string}" \
+    --with-vendor-name="%{oj_vendor}" \
+    --with-vendor-url="%{oj_vendor_url}" \
+    --with-vendor-bug-url="%{oj_vendor_bug_url}" \
+    --with-vendor-vm-bug-url="%{oj_vendor_bug_url}" \
     --with-boot-jdk=/usr/lib/jvm/java-%{buildjdkver}-openjdk \
     --with-debug-level=$debugbuild \
     --with-native-debug-symbols=internal \
@@ -1488,9 +1511,7 @@ bash ../configure \
     --with-extra-ldflags="%{ourldflags}" \
     --with-num-cores="$NUM_PROC" \
     --disable-javac-server \
-%ifarch x86_64
-    --with-jvm-features=zgc \
-%endif
+    --with-jvm-features="%{shenandoah_feature},%{zgc_feature}" \
     --disable-warnings-as-errors
 
 # Debug builds don't need same targets as release for
@@ -1559,8 +1580,12 @@ $JAVA_HOME/bin/java --add-opens java.base/javax.crypto=ALL-UNNAMED TestCryptoLev
 $JAVA_HOME/bin/javac -d . %{SOURCE14}
 $JAVA_HOME/bin/java $(echo $(basename %{SOURCE14})|sed "s|\.java||")
 
+# Check correct vendor values have been set
+$JAVA_HOME/bin/javac -d . %{SOURCE15}
+$JAVA_HOME/bin/java $(echo $(basename %{SOURCE15})|sed "s|\.java||") "%{oj_vendor}" %{oj_vendor_url} %{oj_vendor_bug_url}
+
 # Check debug symbols in static libraries (smoke test)
-export STATIC_LIBS_HOME=$(pwd)/%{buildoutputdir -- $suffix}/images/%{static_libs_image}
+export STATIC_LIBS_HOME=$(pwd)/%{buildoutputdir $suffix}/images/%{static_libs_image}
 readelf --debug-dump $STATIC_LIBS_HOME/lib/libfdlibm.a | grep w_remainder.c
 readelf --debug-dump $STATIC_LIBS_HOME/lib/libfdlibm.a | grep e_remainder.c
 
@@ -1615,7 +1640,7 @@ done
 # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
 # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
 # Temporarily disabled on s390x as it sporadically crashes with SIGFPE, Arithmetic exception.
-%ifnarch s390x %{arm}
+%ifnarch s390x
 gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
 handle SIGSEGV pass nostop noprint
 handle SIGILL pass nostop noprint
@@ -1705,8 +1730,9 @@ pushd %{buildoutputdir $suffix}/images/%{jdkimage}
 
 popd
 # Install static libs artefacts
-cp -a %{buildoutputdir -- $suffix}/images/%{static_libs_image}/lib/*.a \
-  $RPM_BUILD_ROOT%{_jvmdir}/%{sdkdir -- $suffix}/lib
+mkdir -p $RPM_BUILD_ROOT%{_jvmdir}/%{sdkdir $suffix}/lib/static/linux-%{archinstall}/glibc
+cp -a %{buildoutputdir $suffix}/images/%{static_libs_image}/lib/*.a \
+  $RPM_BUILD_ROOT%{_jvmdir}/%{sdkdir $suffix}/lib/static/linux-%{archinstall}/glibc
 
 
 # Install Javadoc documentation
@@ -1941,9 +1967,94 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
-* Sun Oct 04 2020 Jacco Ligthart <jacco@redsleeve.org> - 1:11.0.8.10-1.redsleeve
-- removed arm from jit_arches
-- removed the gdb section of the SPEC file
+* Thu Oct 15 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.9.11-0
+- Delay tzdata 2020b dependency until tzdata update has shipped.
+- Resolves: rhbz#1876665
+
+* Thu Oct 15 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.9.11-0
+- Update to jdk-11.0.9+11
+- Update release notes for 11.0.9 release.
+- Add backport of JDK-8254177 to update to tzdata 2020b
+- Require tzdata 2020b due to resource changes in JDK-8254177
+- This tarball is embargoed until 2020-10-20 @ 1pm PT.
+- Resolves: rhbz#1876665
+
+* Thu Oct 15 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.9.10-0.1.ea
+- Improve quoting of vendor name
+- Resolves: rhbz#1876665
+
+* Wed Oct 14 2020 Jiri Vanek <jvanek@redhat.com> - 1:11.0.9.10-0.1.ea
+- Set vendor property and vendor URLs
+- Made URLs to be preconfigured by OS
+- Moved vendor_version_string to a better place
+- Resolves: rhbz#1876665
+
+* Wed Oct 14 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.9.10-0.0.ea
+- Update to jdk-11.0.9+10 (EA)
+- Resolves: rhbz#1876665
+
+* Wed Oct 14 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.9.9-0.0.ea
+- Update to jdk-11.0.9+9 (EA)
+- Resolves: rhbz#1876665
+
+* Wed Oct 14 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.9.8-0.0.ea
+- Update to jdk-11.0.9+8 (EA)
+- Remove JDK-8252258/RH1868406 now applied upstream.
+- Resolves: rhbz#1876665
+
+* Wed Oct 14 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.9.7-0.0.ea
+- Update to jdk-11.0.9+7 (EA)
+- Resolves: rhbz#1876665
+
+* Wed Oct 14 2020 Severin Gehwolf <sgehwolf@redhat.com> - 1:11.0.9.6-0.1.ea
+- Update static-libs packaging to new layout
+- Resolves: rhbz#1876665
+
+* Wed Oct 14 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.9.6-0.0.ea
+- Update to jdk-11.0.9+6 (EA)
+- Update tarball generation script to use PR3802, handling JDK-8233228 & JDK-8177334
+- Resolves: rhbz#1876665
+
+* Wed Oct 14 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.9.5-0.0.ea
+- Update to jdk-11.0.9+5 (EA)
+- Resolves: rhbz#1876665
+
+* Wed Oct 14 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.9.4-0.0.ea
+- Update to jdk-11.0.9+4 (EA)
+- Resolves: rhbz#1876665
+
+* Sun Oct 11 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.9.3-0.0.ea
+- Update to jdk-11.0.9+3 (EA)
+- Resolves: rhbz#1876665
+
+* Sat Oct 10 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.9.2-0.1.ea
+- Following JDK-8005165, class data sharing can be enabled on all JIT architectures
+- Resolves: rhbz#1876665
+
+* Thu Oct 08 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.9.2-0.0.ea
+- Update to jdk-11.0.9+2 (EA)
+- With Shenandoah now upstream in OpenJDK 11, we can use jdk-updates/jdk11 directly
+- Resolves: rhbz#1876665
+
+* Mon Oct 05 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.9.1-0.0.ea
+- JDK-8245832 increases the set of static libraries, so try and include them all with a wildcard.
+- Resolves: rhbz#1876665
+
+* Mon Oct 05 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.9.1-0.0.ea
+- Cleanup architecture and JVM feature handling in preparation for using upstreamed Shenandoah.
+- Resolves: rhbz#1876665
+
+* Mon Oct 05 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.9.1-0.0.ea
+- Update to shenandoah-jdk-11.0.9+1 (EA)
+- Switch to EA mode for 11.0.9 pre-release builds.
+- Drop JDK-8227269, JDK-8241750 & JDK-8245714 backports now applied upstream.
+- Resolves: rhbz#1876665
+
+* Tue Aug 25 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.8.10-2
+- Add JDK-8252258 to return default vendor to the original value of 'Oracle Corporation'
+- Include a test in the RPM to check the build has the correct vendor information.
+- Use 'oj_' prefix on new vendor globals to avoid a conflict with RPM's vendor value.
+- Resolves: rhbz#1876665
 
 * Sat Jul 11 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.8.10-1
 - Update to shenandoah-jdk-11.0.8+10 (GA)
