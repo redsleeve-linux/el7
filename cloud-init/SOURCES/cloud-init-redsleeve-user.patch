@@ -1,0 +1,12 @@
+diff -uNrp cloud-init-19.4.orig/rhel/cloud.cfg cloud-init-19.4/rhel/cloud.cfg
+--- cloud-init-19.4.orig/rhel/cloud.cfg	2020-10-13 14:40:36.353779891 +0000
++++ cloud-init-19.4/rhel/cloud.cfg	2020-10-13 14:42:10.121982459 +0000
+@@ -54,7 +54,7 @@ cloud_final_modules:
+ 
+ system_info:
+   default_user:
+-    name: cloud-user
++    name: redsleeve
+     lock_passwd: true
+     gecos: Cloud User
+     groups: [adm, systemd-journal]

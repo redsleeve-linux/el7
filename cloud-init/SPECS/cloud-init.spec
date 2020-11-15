@@ -13,7 +13,7 @@
 
 Name:           cloud-init
 Version:        19.4
-Release:        7%{?dist}
+Release:        7%{?dist}.redsleeve
 Summary:        Cloud instance init scripts
 
 Group:          System Environment/Base
@@ -55,7 +55,7 @@ Patch19: ci-ec2-Do-not-log-IMDSv2-token-values-instead-use-REDAC.patch
 # For bz#1821999 - [RHEL7.9] Do not log IMDSv2 token values into cloud-init.log
 Patch20: ci-ec2-only-redact-token-request-headers-in-logs-avoid-.patch
 
-Patch9999: cloud-init-centos-user.patch
+Patch9999: cloud-init-redsleeve-user.patch
 
 # Deal with noarch -> arch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1067089
@@ -226,6 +226,9 @@ fi
 %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
 
 %changelog
+* Wed Oct 14 2020 Jacco Ligthart <jacco@redsleeve.org 19.4-7.el7.redsleeve
+- rebrand for redsleeve
+
 * Wed May 20 2020 Miroslav Rezanina <mrezanin@redhat.com> - 19.4-7.el7
 - ci-ec2-only-redact-token-request-headers-in-logs-avoid-.patch [bz#1821999]
 - Resolves: bz#1821999

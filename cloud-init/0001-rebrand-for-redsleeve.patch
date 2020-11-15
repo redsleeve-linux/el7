@@ -1,6 +1,6 @@
-From 5737c31cbe030553164c87461e15dad59cec1d82 Mon Sep 17 00:00:00 2001
+From 33033d36869d210bd20c1d0301044a415bafef09 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Thu, 16 Jul 2020 00:14:47 +0200
+Date: Thu, 15 Oct 2020 01:48:30 +0200
 Subject: [PATCH] rebrand for redsleeve
 
 ---
@@ -11,14 +11,14 @@ Subject: [PATCH] rebrand for redsleeve
 
 diff --git a/SOURCES/cloud-init-redsleeve-user.patch b/SOURCES/cloud-init-redsleeve-user.patch
 new file mode 100644
-index 0000000..8311704
+index 0000000..665b156
 --- /dev/null
 +++ b/SOURCES/cloud-init-redsleeve-user.patch
 @@ -0,0 +1,12 @@
-+diff -uNrp cloud-init-18.2.orig/rhel/cloud.cfg cloud-init-18.2/rhel/cloud.cfg
-+--- cloud-init-18.2.orig/rhel/cloud.cfg	2018-11-04 15:38:13.763701007 +0000
-++++ cloud-init-18.2/rhel/cloud.cfg	2018-11-04 15:41:06.934576619 +0000
-+@@ -52,7 +52,7 @@ cloud_final_modules:
++diff -uNrp cloud-init-19.4.orig/rhel/cloud.cfg cloud-init-19.4/rhel/cloud.cfg
++--- cloud-init-19.4.orig/rhel/cloud.cfg	2020-10-13 14:40:36.353779891 +0000
+++++ cloud-init-19.4/rhel/cloud.cfg	2020-10-13 14:42:10.121982459 +0000
++@@ -54,7 +54,7 @@ cloud_final_modules:
 + 
 + system_info:
 +   default_user:
@@ -26,39 +26,39 @@ index 0000000..8311704
 ++    name: redsleeve
 +     lock_passwd: true
 +     gecos: Cloud User
-+     groups: [wheel, adm, systemd-journal]
++     groups: [adm, systemd-journal]
 diff --git a/SPECS/cloud-init.spec b/SPECS/cloud-init.spec
-index 544add5..2cab161 100644
+index f8ac672..790f28f 100644
 --- a/SPECS/cloud-init.spec
 +++ b/SPECS/cloud-init.spec
-@@ -7,7 +7,7 @@
+@@ -13,7 +13,7 @@
  
  Name:           cloud-init
- Version:        18.5
--Release:        6%{?dist}.5
-+Release:        6%{?dist}.5.redsleeve
+ Version:        19.4
+-Release:        7%{?dist}
++Release:        7%{?dist}.redsleeve
  Summary:        Cloud instance init scripts
  
  Group:          System Environment/Base
-@@ -69,7 +69,7 @@ Patch31: ci-ec2-Add-support-for-AWS-IMDS-v2-session-oriented-55.patch
- # For bz#1832177 - [Azure] cloud-init provisioning failed in Azure [rhel-7.8.z]
- Patch32: ci-url_helper-read_file_or_url-should-pass-headers-para.patch
+@@ -55,7 +55,7 @@ Patch19: ci-ec2-Do-not-log-IMDSv2-token-values-instead-use-REDAC.patch
+ # For bz#1821999 - [RHEL7.9] Do not log IMDSv2 token values into cloud-init.log
+ Patch20: ci-ec2-only-redact-token-request-headers-in-logs-avoid-.patch
  
 -Patch9999: cloud-init-centos-user.patch
 +Patch9999: cloud-init-redsleeve-user.patch
  
- 
  # Deal with noarch -> arch
-@@ -240,6 +240,9 @@ fi
+ # https://bugzilla.redhat.com/show_bug.cgi?id=1067089
+@@ -226,6 +226,9 @@ fi
  %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
  
  %changelog
-+* Thu Jul 16 2020 Jacco Ligthart <jacco@redsleeve.org 18.5-6.el7.5.redsleeve
++* Wed Oct 14 2020 Jacco Ligthart <jacco@redsleeve.org 19.4-7.el7.redsleeve
 +- rebrand for redsleeve
 +
- * Wed May 20 2020 Miroslav Rezanina <mrezanin@redhat.com> - 18.5-6.el7_8.5
- - ci-url_helper-read_file_or_url-should-pass-headers-para.patch [bz#1832177]
- - Resolves: bz#1832177
+ * Wed May 20 2020 Miroslav Rezanina <mrezanin@redhat.com> - 19.4-7.el7
+ - ci-ec2-only-redact-token-request-headers-in-logs-avoid-.patch [bz#1821999]
+ - Resolves: bz#1821999
 -- 
 1.8.3.1
 
