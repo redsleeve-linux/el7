@@ -35,7 +35,7 @@
 # MetaspaceShared::generate_vtable_methods not implemented for PPC JIT
 # See https://bugzilla.redhat.com/show_bug.cgi?id=513605
 %global share_arches    %{ix86} x86_64 sparcv9 sparc64 %{aarch64}
-%global jfr_arches      x86_64 sparcv9 sparc64 %{aarch64} %{power64}
+%global jfr_arches      %{jit_arches}
 
 # By default, we build a debug build during main build on JIT architectures
 %ifarch %{jit_arches}
@@ -64,7 +64,7 @@
 %endif
 
 %global bootstrap_targets images
-%global release_targets images zip-docs
+%global release_targets images docs-zip
 # No docs nor bootcycle for debug builds
 %global debug_targets images
 
@@ -181,10 +181,31 @@
 %global origin          openjdk
 %global origin_nice     OpenJDK
 %global top_level_dir_name   %{origin}
+
+# Define vendor information used by OpenJDK
+%global oj_vendor Red Hat, Inc.
+%global oj_vendor_url "https://www.redhat.com/"
+# Define what url should JVM offer in case of a crash report
+# order may be important, epel may have rhel declared
+%if 0%{?epel}
+%global oj_vendor_bug_url  https://bugzilla.redhat.com/enter_bug.cgi?product=Fedora%20EPEL&component=%{name}&version=epel%{epel}
+%else
+%if 0%{?fedora}
+# Does not work for rawhide, keeps the version field empty
+%global oj_vendor_bug_url  https://bugzilla.redhat.com/enter_bug.cgi?product=Fedora&component=%{name}&version=%{fedora}
+%else
+%if 0%{?rhel}
+%global oj_vendor_bug_url  https://bugzilla.redhat.com/enter_bug.cgi?product=Red%20Hat%20Enterprise%20Linux%20%{rhel}&component=%{name}
+%else
+%global oj_vendor_bug_url  https://bugzilla.redhat.com/enter_bug.cgi
+%endif
+%endif
+%endif
+
 # note, following three variables are sedded from update_sources if used correctly. Hardcode them rather there.
 %global shenandoah_project	aarch64-port
 %global shenandoah_repo		jdk8u-shenandoah
-%global shenandoah_revision    	aarch64-shenandoah-jdk8u265-b01
+%global shenandoah_revision    	aarch64-shenandoah-jdk8u272-b10
 # Define old aarch64/jdk8u tree variables for compatibility
 %global project         %{shenandoah_project}
 %global repo            %{shenandoah_repo}
@@ -713,7 +734,8 @@ Requires: ca-certificates
 # Require jpackage-utils for ownership of /usr/lib/jvm/
 Requires: jpackage-utils
 # Require zoneinfo data provided by tzdata-java subpackage.
-# 2020a required as of JDK-8243541
+# 2020b required as of JDK-8254177 in October CPU
+# Temporarily held at 2020a until 2020b has shipped
 Requires: tzdata-java >= 2020a
 # libsctp.so.1 is being `dlopen`ed on demand
 Requires: lksctp-tools%{?_isa}
@@ -846,7 +868,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
 
 Name:    java-%{javaver}-%{origin}
 Version: %{javaver}.%{updatever}.%{buildver}
-Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}.redsleeve
+Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
 # and this change was brought into RHEL-4. java-1.5.0-ibm packages
 # also included the epoch in their virtual provides. This created a
@@ -917,6 +939,9 @@ Source20: repackReproduciblePolycies.sh
 # New versions of config files with aarch64 support. This is not upstream yet.
 Source100: config.guess
 Source101: config.sub
+
+# Ensure vendor settings are correct
+Source16: CheckVendor.java
 
 ############################################
 #
@@ -995,8 +1020,6 @@ Patch107: s390-8214206_fix.patch
 # S8074839, PR2462: Resolve disabled warnings for libunpack and the unpack200 binary
 # This fixes printf warnings that lead to build failure with -Werror=format-security from optflags
 Patch502: pr2462-resolve_disabled_warnings_for_libunpack_and_the_unpack200_binary.patch
-# S8154313: Generated javadoc scattered all over the place
-Patch400: jdk8154313-generated_javadoc_scattered_all_over_the_place.patch
 # PR3591: Fix for bug 3533 doesn't add -mstackrealign to JDK code
 Patch571: jdk8199936-pr3591-enable_mstackrealign_on_x86_linux_as_well_as_x86_mac_os_x_jdk.patch
 # 8143245, PR3548: Zero build requires disabled warnings
@@ -1017,13 +1040,17 @@ Patch12: jdk8186464-rh1433262-zip64_failure.patch
 
 #############################################
 #
-# Patches appearing in 8u222
+# Patches appearing in 8u282
 #
 # This section includes patches which are present
 # in the listed OpenJDK 8u release and should be
 # able to be removed once that release is out
 # and used by this RPM.
 #############################################
+# JDK-8254177: (tz) Upgrade time-zone data to tzdata2020b
+Patch13: jdk8254177-tzdata2020b.patch
+# JDK-8215727, RH1889532: Restore JFR thread sampler loop to old / previous behavior
+Patch14: jdk8215727-rh1889532-restore_jfr_thread_sampler_loop.patch
 
 #############################################
 #
@@ -1109,7 +1136,8 @@ BuildRequires: java-1.8.0-openjdk-devel
 %ifnarch %{jit_arches}
 BuildRequires: libffi-devel
 %endif
-# 2020a required as of JDK-8243541
+# 2020b required as of JDK-8254177 in October CPU
+# Temporarily held at 2020a until 2020b has shipped
 BuildRequires: tzdata-java >= 2020a
 # Earlier versions have a bug in tree vectorization on PPC
 BuildRequires: gcc >= 4.8.3-8
@@ -1390,7 +1418,6 @@ sh %{SOURCE12}
 %patch502
 %patch504
 %patch512
-%patch400
 %patch523
 %patch528
 %patch529
@@ -1402,6 +1429,8 @@ sh %{SOURCE12}
 %patch577
 %patch541
 %patch12
+%patch13
+%patch14
 
 # RPM-only fixes
 %patch539
@@ -1509,12 +1538,21 @@ function buildjdk() {
     # Variable used in hs_err hook on build failures
     local top_builddir_abs_path=$(pwd)/${outputdir}
 
+    echo "Using output directory: ${outputdir}";
+    echo "Checking build JDK ${buildjdk} is operational..."
+    ${buildjdk}/bin/java -version
+    echo "Using make targets: ${maketargets}"
+    echo "Using debuglevel: ${debuglevel}"
+    echo "Building 8u%{updatever}-%{buildver}, milestone %{milestone}"
+
     mkdir -p ${outputdir}
     pushd ${outputdir}
 
     bash ${top_srcdir_abs_path}/configure \
 %ifarch %{jfr_arches}
     --enable-jfr \
+%else
+    --disable-jfr \
 %endif
 %ifnarch %{jit_arches}
     --with-jvm-variants=zero \
@@ -1523,6 +1561,10 @@ function buildjdk() {
     --with-milestone=%{milestone} \
     --with-update-version=%{updatever} \
     --with-build-number=%{buildver} \
+    --with-vendor-name="%{oj_vendor}" \
+    --with-vendor-url="%{oj_vendor_url}" \
+    --with-vendor-bug-url="%{oj_vendor_bug_url}" \
+    --with-vendor-vm-bug-url="%{oj_vendor_bug_url}" \
     --with-boot-jdk=${buildjdk} \
     --with-debug-level=${debuglevel} \
     --enable-unlimited-crypto \
@@ -1628,6 +1670,10 @@ $JAVA_HOME/bin/java TestCryptoLevel
 $JAVA_HOME/bin/javac -d . %{SOURCE14}
 $JAVA_HOME/bin/java $(echo $(basename %{SOURCE14})|sed "s|\.java||")
 
+# Check correct vendor values have been set
+$JAVA_HOME/bin/javac -d . %{SOURCE16}
+$JAVA_HOME/bin/java $(echo $(basename %{SOURCE16})|sed "s|\.java||") "%{oj_vendor}" %{oj_vendor_url} %{oj_vendor_bug_url}
+
 # Check debug symbols are present and can identify code
 find "$JAVA_HOME" -iname '*.so' -print0 | while read -d $'\0' lib
 do
@@ -1678,18 +1724,18 @@ done
 # Using line number 1 might cause build problems. See:
 # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
 # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
-#gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
-#handle SIGSEGV pass nostop noprint
-#handle SIGILL pass nostop noprint
-#set breakpoint pending on
-#break javaCalls.cpp:1
-#commands 1
-#backtrace
-#quit
-#end
-#run -version
-#EOF
-#grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
+gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
+handle SIGSEGV pass nostop noprint
+handle SIGILL pass nostop noprint
+set breakpoint pending on
+break javaCalls.cpp:1
+commands 1
+backtrace
+quit
+end
+run -version
+EOF
+grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
 
 # Check src.zip has all sources. See RHBZ#1130490
 jar -tf $JAVA_HOME/src.zip | grep 'sun.misc.Unsafe'
@@ -2118,8 +2164,87 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
-* Sun Oct 04 2020 Jacco Ligthart <jacco@redsleeve.org> 1:1.8.0.265.b01-1.redsleeve
-- removed the gdb section of the SPEC file
+* Tue Oct 20 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.272.b10-1
+- Add backport of JDK-8215727: "Restore JFR thread sampler loop to old / previous behaviour"
+- Resolves: rhbz#1876665
+
+* Sat Oct 17 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.272.b10-0
+- Update to aarch64-shenandoah-jdk8u272-b10.
+- Switch to GA mode for final release.
+- Update release notes for 8u272 release.
+- Add backport of JDK-8254177 to update to tzdata 2020b
+- Require tzdata 2020b due to resource changes in JDK-8254177
+- Delay tzdata 2020b dependency until tzdata update has shipped.
+- Adjust JDK-8062808/PR3548 following constantPool.hpp context change in JDK-8243302
+- Adjust PR3593 following g1StringDedupTable.cpp context change in JDK-8240124 & JDK-8244955
+- This tarball is embargoed until 2020-10-20 @ 1pm PT.
+- Resolves: rhbz#1876665
+
+* Thu Oct 15 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.272.b09-0.1.ea
+- Include a test in the RPM to check the build has the correct vendor information.
+- Use 'oj_' prefix on new vendor globals to avoid a conflict with RPM's vendor value.
+- Improve quoting of vendor name
+- Resolves: rhbz#1876665
+
+* Thu Oct 15 2020 Jiri Vanek <jvanek@redhat.com> - 1:1.8.0.272.b09-0.1.ea
+- Set vendor property and vendor URLs
+- Made URLs to be preconfigured by OS
+- Resolves: rhbz#1876665
+
+* Wed Oct 14 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.272.b09-0.0.ea
+- Update to aarch64-shenandoah-jdk8u272-b09 (EA).
+- Resolves: rhbz#1876665
+
+* Tue Oct 13 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.272.b08-0.0.ea
+- Update to aarch64-shenandoah-jdk8u272-b08 (EA).
+- Resolves: rhbz#1876665
+
+* Tue Oct 13 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.272.b07-0.0.ea
+- Update to aarch64-shenandoah-jdk8u272-b07.
+- Resolves: rhbz#1876665
+
+* Tue Oct 13 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.272.b06-0.0.ea
+- Update to aarch64-shenandoah-jdk8u272-b06.
+- Update tarball generation script to use PR3799, following inclusion of JDK-8245468 (TLSv1.3)
+- Resolves: rhbz#1876665
+
+* Mon Oct 12 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.272.b05-0.2.ea
+- Enable JFR on x86, now we have JDK-8252096: Shenandoah: adjust SerialPageShiftCount for x86_32 and JFR
+- Resolves: rhbz#1876665
+
+* Mon Oct 12 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.272.b05-0.1.ea
+- Update to aarch64-shenandoah-jdk8u272-b05-shenandoah-merge-2020-08-28.
+- Add additional s390 log2_intptr case in shenandoahUtils.cpp introduced by JDK-8245464
+- Resolves: rhbz#1876665
+
+* Thu Oct 08 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.272.b05-0.0.ea
+- Update to aarch64-shenandoah-jdk8u272-b05.
+- Fix context in JDK-8186464/RH1433262 patch, following JDK-8078334 @randomness tag addition.
+- Add additional s390 size_t case in g1ConcurrentMarkObjArrayProcessor.cpp introduced by JDK-8057003
+- Resolves: rhbz#1876665
+
+* Thu Oct 08 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.272.b04-0.0.ea
+- Update to aarch64-shenandoah-jdk8u272-b04.
+- Update tarball generation script to use PR3795, following inclusion of JDK-8177334
+- Resolves: rhbz#1876665
+
+* Wed Oct 07 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.272.b03-0.0.ea
+- Update to aarch64-shenandoah-jdk8u272-b03.
+- Resolves: rhbz#1876665
+
+* Tue Oct 06 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.272.b02-0.0.ea
+- Update to aarch64-shenandoah-jdk8u272-b02.
+- Remove JDK-8154313 backport now applied upstream.
+- Change target from 'zip-docs' to 'docs-zip', which is the naming used upstream.
+- Resolves: rhbz#1876665
+
+* Mon Oct 05 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.272.b01-0.1.ea
+- Update to aarch64-shenandoah-jdk8u272-b01.
+- Switch to EA mode.
+- Add debugging output for build.
+- JFR must now be explicitly disabled when unwanted (e.g. x86), following switch of upstream default.
+- Remove ZipConstants change from JDK-8186464 backport, now provided upstream by JDK-8075774
+- Resolves: rhbz#1876665
 
 * Mon Jul 27 2020 Jiri Vanek <jvanek@redhat.com> - 1:1.8.0.265.b01-1
 - ASSEMBLY_EXCEPTION LICENSE THIRD_PARTY_README moved to fully versioned dirs
