@@ -2,7 +2,7 @@
 Summary: A set of tools to gather troubleshooting information from a system
 Name: sos
 Version: 3.9
-Release: 4%{?dist}
+Release: 4%{?dist}.redsleeve
 Group: Applications/System
 Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
 License: GPLv2+
@@ -31,7 +31,7 @@ Patch8: sos-bz1853701-pci_gating_for_lspci.patch
 Patch9: sos-bz1853235-foreman_collect_stats_of_some_tables.patch
 Patch10: sos-bz1850925-logs_collect_also_not_persistent_logs.patch
 Patch11: sos-bz1856417-gluster-remove_only_dump_files.patch
-Patch12: sos-centos-branding.patch
+Patch12: sos-redsleeve-branding.patch
 
 %description
 Sos is a set of tools that gathers information about system
@@ -77,6 +77,9 @@ rm -rf ${RPM_BUILD_ROOT}
 %config(noreplace) %{_sysconfdir}/sos.conf
 
 %changelog
+* Sun Oct 04 2020 Jacco Ligthart <jacco@redsleeve.org> - 3.9-4.el7.redsleeve
+- Roll in RedSleeve Branding
+
 * Tue Sep 29 2020 CentOS Sources <bugs@centos.org> - 3.9-4.el7.centos
 - Roll in CentOS Branding
 
