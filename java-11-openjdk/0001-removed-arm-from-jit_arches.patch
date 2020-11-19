@@ -1,14 +1,14 @@
-From 47fc7e1dab8cbec3a7b0d973ee831e333a9a9664 Mon Sep 17 00:00:00 2001
+From b76cc7a76112afeb4fd9f548ec1e847e6a6068a8 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
 Date: Sun, 15 Nov 2020 02:11:19 +0100
 Subject: [PATCH] removed arm from jit_arches
 
 ---
- SPECS/java-11-openjdk.spec | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ SPECS/java-11-openjdk.spec | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)
 
 diff --git a/SPECS/java-11-openjdk.spec b/SPECS/java-11-openjdk.spec
-index 5c3926b..5b8cfd1 100644
+index 5c3926b..440d96e 100644
 --- a/SPECS/java-11-openjdk.spec
 +++ b/SPECS/java-11-openjdk.spec
 @@ -74,7 +74,7 @@
@@ -20,6 +20,15 @@ index 5c3926b..5b8cfd1 100644
  # Set of architectures which run a full bootstrap cycle
  %global bootstrap_arches %{jit_arches}
  # Set of architectures which support SystemTap tapsets
+@@ -82,7 +82,7 @@
+ # Set of architectures with a Ahead-Of-Time (AOT) compiler
+ %global aot_arches      x86_64 %{aarch64}
+ # Set of architectures which support the serviceability agent
+-%global sa_arches       %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64} %{arm}
++%global sa_arches       %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64}
+ # Set of architectures which support class data sharing
+ # As of JDK-8005165 in OpenJDK 10, class sharing is not arch-specific
+ # However, it does segfault on the Zero assembler port, so currently JIT only
 @@ -955,7 +955,7 @@ Provides: java-%{javaver}-%{origin}-src%1 = %{epoch}:%{version}-%{release}
  
  Name:    java-%{javaver}-%{origin}
