@@ -1,0 +1,47 @@
+From 96aece42291332f9347a437fc7ed6d809c710bc9 Mon Sep 17 00:00:00 2001
+From: Eduardo Otubo <otubo@redhat.com>
+Date: Mon, 24 Aug 2020 14:22:52 -0400
+Subject: [PATCH 2/3] Changing notation of subp call
+
+RH-Author: Eduardo Otubo <otubo@redhat.com>
+Message-id: <20200824142252.16298-1-otubo@redhat.com>
+Patchwork-id: 98215
+O-Subject: [RHEL-7.9.z/RHEL-8.2.1/RHEL-8.3.0 cloud-init PATCH] Changing notation of subp call
+Bugzilla: 1839619
+RH-Acked-by: Cathy Avery <cavery@redhat.com>
+RH-Acked-by: Mohammed Gamal <mgamal@redhat.com>
+
+The previous patch was applied upstream on top of a refactoring that moves subp
+to its own module (3c551f6e, Move subp into its own module. (#416), release
+20.2).
+
+Downstream we're not there yet, in order to avoid applying the above
+commit and add a huge refactoring, I'll just change this call and we can
+benefit of this changes in a future rebase.
+
+x-downstream-only: yes
+
+Signed-off-by: Eduardo Otubo <otubo@redhat.com>
+Signed-off-by: Jon Maloy <jmaloy.redhat.com>
+---
+ cloudinit/sources/helpers/vmware/imc/guestcust_util.py | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/cloudinit/sources/helpers/vmware/imc/guestcust_util.py b/cloudinit/sources/helpers/vmware/imc/guestcust_util.py
+index a270d9fb..816f52e9 100644
+--- a/cloudinit/sources/helpers/vmware/imc/guestcust_util.py
++++ b/cloudinit/sources/helpers/vmware/imc/guestcust_util.py
+@@ -136,8 +136,8 @@ def get_tools_config(section, key, defaultVal):
+     cmd = ['vmware-toolbox-cmd', 'config', 'get', section, key]
+ 
+     try:
+-        (outText, _) = subp.subp(cmd)
+-    except subp.ProcessExecutionError as e:
++        (outText, _) = util.subp(cmd)
++    except util.ProcessExecutionError as e:
+         if e.exit_code == 69:
+             logger.debug(
+                 "vmware-toolbox-cmd returned 69 (unavailable) for cmd: %s."
+-- 
+2.18.2
+

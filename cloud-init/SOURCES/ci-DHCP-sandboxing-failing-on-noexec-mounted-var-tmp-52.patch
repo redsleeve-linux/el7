@@ -1,0 +1,119 @@
+From cfe79543cf7c96bb7598f43eabdcfd3ca011a51b Mon Sep 17 00:00:00 2001
+From: Eduardo Otubo <otubo@redhat.com>
+Date: Mon, 24 Aug 2020 16:03:42 -0400
+Subject: [PATCH 3/3] DHCP sandboxing failing on noexec mounted /var/tmp (#521)
+
+RH-Author: Eduardo Otubo <otubo@redhat.com>
+Message-id: <20200824160342.23626-1-otubo@redhat.com>
+Patchwork-id: 98216
+O-Subject: [RHEL-8.2.0/RHEL-7.9/RHEL-8.2.1/RHEL-8.3.0 cloud-init PATCH] DHCP sandboxing failing on noexec mounted /var/tmp (#521)
+Bugzilla: 1871916
+RH-Acked-by: Cathy Avery <cavery@redhat.com>
+RH-Acked-by: Mohammed Gamal <mgamal@redhat.com>
+
+commit db86753f81af73826158c9522f2521f210300e2b
+Author: Eduardo Otubo <otubo@redhat.com>
+Date:   Mon Aug 24 15:34:24 2020 +0200
+
+    DHCP sandboxing failing on noexec mounted /var/tmp (#521)
+
+    * DHCP sandboxing failing on noexec mounted /var/tmp
+
+    If /var/tmp is mounted with noexec option the DHCP sandboxing will fail
+    with Permission Denied. This patch simply avoids this error by checking
+    the exec permission updating the dhcp path in negative case.
+
+    rhbz: https://bugzilla.redhat.com/show_bug.cgi?id=1857309
+
+    Signed-off-by: Eduardo Otubo <otubo@redhat.com>
+
+    * Replacing with os.* calls
+
+    * Adding test and removing isfile() useless call.
+
+    Co-authored-by: Rick Harding <rharding@mitechie.com>
+
+Signed-off-by: Eduardo Otubo <otubo@redhat.com>
+Signed-off-by: Jon Maloy <jmaloy.redhat.com>
+---
+ cloudinit/net/dhcp.py            |  6 +++++
+ cloudinit/net/tests/test_dhcp.py | 46 ++++++++++++++++++++++++++++++++
+ 2 files changed, 52 insertions(+)
+
+diff --git a/cloudinit/net/dhcp.py b/cloudinit/net/dhcp.py
+index c033cc8e..841e72ee 100644
+--- a/cloudinit/net/dhcp.py
++++ b/cloudinit/net/dhcp.py
+@@ -215,6 +215,12 @@ def dhcp_discovery(dhclient_cmd_path, interface, cleandir):
+     pid_file = os.path.join(cleandir, 'dhclient.pid')
+     lease_file = os.path.join(cleandir, 'dhcp.leases')
+ 
++    # In some cases files in /var/tmp may not be executable, launching dhclient
++    # from there will certainly raise 'Permission denied' error. Try launching
++    # the original dhclient instead.
++    if not os.access(sandbox_dhclient_cmd, os.X_OK):
++        sandbox_dhclient_cmd = dhclient_cmd_path
++
+     # ISC dhclient needs the interface up to send initial discovery packets.
+     # Generally dhclient relies on dhclient-script PREINIT action to bring the
+     # link up before attempting discovery. Since we are using -sf /bin/true,
+diff --git a/cloudinit/net/tests/test_dhcp.py b/cloudinit/net/tests/test_dhcp.py
+index c3fa1e04..08e2cfb5 100644
+--- a/cloudinit/net/tests/test_dhcp.py
++++ b/cloudinit/net/tests/test_dhcp.py
+@@ -406,6 +406,52 @@ class TestDHCPDiscoveryClean(CiTestCase):
+                  'eth9', '-sf', '/bin/true'], capture=True)])
+         m_kill.assert_has_calls([mock.call(my_pid, signal.SIGKILL)])
+ 
++    @mock.patch('cloudinit.net.dhcp.util.get_proc_ppid')
++    @mock.patch('cloudinit.net.dhcp.os.kill')
++    @mock.patch('cloudinit.net.dhcp.subp.subp')
++    def test_dhcp_discovery_outside_sandbox(self, m_subp, m_kill, m_getppid):
++        """dhcp_discovery brings up the interface and runs dhclient.
++
++        It also returns the parsed dhcp.leases file generated in the sandbox.
++        """
++        m_subp.return_value = ('', '')
++        tmpdir = self.tmp_dir()
++        dhclient_script = os.path.join(tmpdir, 'dhclient.orig')
++        script_content = '#!/bin/bash\necho fake-dhclient'
++        write_file(dhclient_script, script_content, mode=0o755)
++        lease_content = dedent("""
++            lease {
++              interface "eth9";
++              fixed-address 192.168.2.74;
++              option subnet-mask 255.255.255.0;
++              option routers 192.168.2.1;
++            }
++        """)
++        lease_file = os.path.join(tmpdir, 'dhcp.leases')
++        write_file(lease_file, lease_content)
++        pid_file = os.path.join(tmpdir, 'dhclient.pid')
++        my_pid = 1
++        write_file(pid_file, "%d\n" % my_pid)
++        m_getppid.return_value = 1  # Indicate that dhclient has daemonized
++
++        with mock.patch('os.access', return_value=False):
++            self.assertCountEqual(
++                [{'interface': 'eth9', 'fixed-address': '192.168.2.74',
++                  'subnet-mask': '255.255.255.0', 'routers': '192.168.2.1'}],
++                dhcp_discovery(dhclient_script, 'eth9', tmpdir))
++        # dhclient script got copied
++        with open(os.path.join(tmpdir, 'dhclient.orig')) as stream:
++            self.assertEqual(script_content, stream.read())
++        # Interface was brought up before dhclient called from sandbox
++        m_subp.assert_has_calls([
++            mock.call(
++                ['ip', 'link', 'set', 'dev', 'eth9', 'up'], capture=True),
++            mock.call(
++                [os.path.join(tmpdir, 'dhclient.orig'), '-1', '-v', '-lf',
++                 lease_file, '-pf', os.path.join(tmpdir, 'dhclient.pid'),
++                 'eth9', '-sf', '/bin/true'], capture=True)])
++        m_kill.assert_has_calls([mock.call(my_pid, signal.SIGKILL)])
++
+ 
+ class TestSystemdParseLeases(CiTestCase):
+ 
+-- 
+2.18.2
+

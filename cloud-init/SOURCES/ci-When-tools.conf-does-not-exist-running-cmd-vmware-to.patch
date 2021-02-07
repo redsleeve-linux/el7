@@ -1,0 +1,89 @@
+From ad54d6d1c78d007c1ee35fe421d946a6def5ee18 Mon Sep 17 00:00:00 2001
+From: Eduardo Otubo <otubo@redhat.com>
+Date: Fri, 10 Jul 2020 09:44:34 -0400
+Subject: [PATCH 1/3] When tools.conf does not exist, running cmd
+ "vmware-toolbox-cmd config get deployPkg enable-custom-scripts", the return
+ code will be EX_UNAVAILABLE(69), on this condition, it should not take it as
+ error. (#413)
+
+RH-Author: Eduardo Otubo <otubo@redhat.com>
+Message-id: <20200710094434.9711-1-otubo@redhat.com>
+Patchwork-id: 97934
+O-Subject: [RHEL-7.9.z/RHEL-8.2.1/RHEL-8.3.0 cloud-init PATCH] When tools.conf does not exist, running cmd "vmware-toolbox-cmd config get deployPkg enable-custom-scripts", the return code will be EX_UNAVAILABLE(69), on this condition, it should not take it as error. (#413)
+Bugzilla: 1839619
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Acked-by: Mohammed Gamal <mgamal@redhat.com>
+
+From: chengcheng-chcheng <63850735+chengcheng-chcheng@users.noreply.github.com>
+
+The diff seems slightly different from upstream because of some parts
+being in different positions. But the final result is the file patched
+guestcust_util.py (within this block) exactly identical to the one
+upstream.
+
+Also: Sorry for the commit message being just a Subject and this being
+enormous. I kept the original from upstream.
+
+commit c6d09af67626c2f2241c64c10c9e27e8752ba87b
+Author: chengcheng-chcheng <63850735+chengcheng-chcheng@users.noreply.github.com>
+Date:   Wed Jun 10 00:20:47 2020 +0800
+
+    When tools.conf does not exist, running cmd "vmware-toolbox-cmd config get deployPkg enable-custom-scripts", the return code will be EX_UNAVAILABLE(69), on this condition, it should not take it as error. (#413)
+
+Signed-off-by: Eduardo Otubo <otubo@redhat.com>
+Signed-off-by: Jon Maloy <jmaloy.redhat.com>
+---
+ .../helpers/vmware/imc/guestcust_util.py      | 33 +++++++++++--------
+ 1 file changed, 20 insertions(+), 13 deletions(-)
+
+diff --git a/cloudinit/sources/helpers/vmware/imc/guestcust_util.py b/cloudinit/sources/helpers/vmware/imc/guestcust_util.py
+index 3d369d04..a270d9fb 100644
+--- a/cloudinit/sources/helpers/vmware/imc/guestcust_util.py
++++ b/cloudinit/sources/helpers/vmware/imc/guestcust_util.py
+@@ -133,23 +133,30 @@ def get_tools_config(section, key, defaultVal):
+             'vmware-toolbox-cmd not installed, returning default value')
+         return defaultVal
+ 
+-    retValue = defaultVal
+     cmd = ['vmware-toolbox-cmd', 'config', 'get', section, key]
+ 
+     try:
+-        (outText, _) = util.subp(cmd)
+-        m = re.match(r'([^=]+)=(.*)', outText)
+-        if m:
+-            retValue = m.group(2).strip()
+-            logger.debug("Get tools config: [%s] %s = %s",
+-                         section, key, retValue)
+-        else:
++        (outText, _) = subp.subp(cmd)
++    except subp.ProcessExecutionError as e:
++        if e.exit_code == 69:
+             logger.debug(
+-                "Tools config: [%s] %s is not found, return default value: %s",
+-                section, key, retValue)
+-    except util.ProcessExecutionError as e:
+-        logger.error("Failed running %s[%s]", cmd, e.exit_code)
+-        logger.exception(e)
++                "vmware-toolbox-cmd returned 69 (unavailable) for cmd: %s."
++                " Return default value: %s", " ".join(cmd), defaultVal)
++        else:
++            logger.error("Failed running %s[%s]", cmd, e.exit_code)
++            logger.exception(e)
++        return defaultVal
++
++    retValue = defaultVal
++    m = re.match(r'([^=]+)=(.*)', outText)
++    if m:
++        retValue = m.group(2).strip()
++        logger.debug("Get tools config: [%s] %s = %s",
++                     section, key, retValue)
++    else:
++        logger.debug(
++            "Tools config: [%s] %s is not found, return default value: %s",
++            section, key, retValue)
+ 
+     return retValue
+ 
+-- 
+2.18.2
+

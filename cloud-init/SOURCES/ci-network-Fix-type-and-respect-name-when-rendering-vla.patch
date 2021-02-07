@@ -1,0 +1,262 @@
+From 12b8abf9bf245393cf4dc0bf2b0595bf4f3fbff1 Mon Sep 17 00:00:00 2001
+From: Eduardo Otubo <otubo@redhat.com>
+Date: Mon, 26 Oct 2020 14:17:23 -0400
+Subject: [PATCH] network: Fix type and respect name when rendering vlan in
+ sysconfig. (#541)
+
+RH-Author: Eduardo Otubo <otubo@redhat.com>
+Message-id: <20201026141723.31631-1-otubo@redhat.com>
+Patchwork-id: 98714
+O-Subject: [RHEL-7.9.z cloud-init PATCH] network: Fix type and respect name when rendering vlan in sysconfig. (#541)
+Bugzilla: 1861871
+RH-Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+RH-Acked-by: Cathy Avery <cavery@redhat.com>
+
+BZ: 1861871
+BRANCH: rhel7/master-19.4
+BREW: 32418261
+
+commit 8439b191ec2f336d544cab86dba2860f969cd5b8
+Author: Eduardo Otubo <otubo@redhat.com>
+Date:   Tue Sep 15 18:00:00 2020 +0200
+
+    network: Fix type and respect name when rendering vlan in sysconfig. (#541)
+
+    Prior to this change, vlans were rendered in sysconfig with
+    'TYPE=Ethernet', and incorrectly rendered the PHYSDEV based on
+    the name of the vlan device rather than the 'link' provided
+    in the network config.
+
+    The change here fixes:
+     * rendering of TYPE=Ethernet for a vlan
+     * adds a warning if the configured device name is not supported
+       per the RHEL 7 docs "11.5. Naming Scheme for VLAN Interfaces"
+
+    LP: #1788915
+    LP: #1826608
+    RHBZ: #1861871
+
+Conflicts:
+* A hunk on cloudinit/net/sysconfig.py could not apply cleanly as it
+depends on a verification on the distro flavor, which is not implemented
+on cloud-init-19.4.
+* Couple of hunks could not apply cleanly on tests/unittests/test_net.py
+because the definition of unit test response moved a little bit.
+
+Signed-off-by: Eduardo Otubo <otubo@redhat.com>
+Signed-off-by: Jon Maloy <jmaloy.redhat.com>
+---
+ cloudinit/net/sysconfig.py                    | 32 +++++++-
+ .../unittests/test_distros/test_netconfig.py  | 81 +++++++++++++++++++
+ tests/unittests/test_net.py                   |  4 -
+ 3 files changed, 112 insertions(+), 5 deletions(-)
+
+diff --git a/cloudinit/net/sysconfig.py b/cloudinit/net/sysconfig.py
+index 810b2830..4b4ed097 100644
+--- a/cloudinit/net/sysconfig.py
++++ b/cloudinit/net/sysconfig.py
+@@ -95,6 +95,10 @@ class ConfigMap(object):
+     def __len__(self):
+         return len(self._conf)
+ 
++    def skip_key_value(self, key, val):
++        """Skip the pair key, value if it matches a certain rule."""
++        return False
++
+     def to_string(self):
+         buf = six.StringIO()
+         buf.write(_make_header())
+@@ -102,6 +106,8 @@ class ConfigMap(object):
+             buf.write("\n")
+         for key in sorted(self._conf.keys()):
+             value = self._conf[key]
++            if self.skip_key_value(key, value):
++                continue
+             if isinstance(value, bool):
+                 value = self._bool_map[value]
+             if not isinstance(value, six.string_types):
+@@ -207,6 +213,7 @@ class NetInterface(ConfigMap):
+         'bond': 'Bond',
+         'bridge': 'Bridge',
+         'infiniband': 'InfiniBand',
++        'vlan': 'Vlan',
+     }
+ 
+     def __init__(self, iface_name, base_sysconf_dir, templates,
+@@ -260,6 +267,11 @@ class NetInterface(ConfigMap):
+             c.routes = self.routes.copy()
+         return c
+ 
++    def skip_key_value(self, key, val):
++        if key == 'TYPE' and val == 'Vlan':
++            return True
++        return False
++
+ 
+ class Renderer(renderer.Renderer):
+     """Renders network information in a /etc/sysconfig format."""
+@@ -599,7 +611,16 @@ class Renderer(renderer.Renderer):
+             iface_name = iface['name']
+             iface_cfg = iface_contents[iface_name]
+             iface_cfg['VLAN'] = True
+-            iface_cfg['PHYSDEV'] = iface_name[:iface_name.rfind('.')]
++            iface_cfg.kind = 'vlan'
++
++            rdev = iface['vlan-raw-device']
++            supported = _supported_vlan_names(rdev, iface['vlan_id'])
++            if iface_name not in supported:
++                LOG.info(
++                    "Name '%s' for vlan '%s' is not officially supported"
++                    "by RHEL. Supported: %s",
++                    iface_name, rdev, ' '.join(supported))
++            iface_cfg['PHYSDEV'] = rdev
+ 
+             iface_subnets = iface.get("subnets", [])
+             route_cfg = iface_cfg.routes
+@@ -771,6 +792,15 @@ class Renderer(renderer.Renderer):
+                             "\n".join(netcfg) + "\n", file_mode)
+ 
+ 
++def _supported_vlan_names(rdev, vid):
++    """Return list of supported names for vlan devices per RHEL doc
++    11.5. Naming Scheme for VLAN Interfaces."""
++    return [
++        v.format(rdev=rdev, vid=int(vid))
++        for v in ("{rdev}{vid:04}", "{rdev}{vid}",
++                  "{rdev}.{vid:04}", "{rdev}.{vid}")]
++
++
+ def available(target=None):
+     sysconfig = available_sysconfig(target=target)
+     nm = available_nm(target=target)
+diff --git a/tests/unittests/test_distros/test_netconfig.py b/tests/unittests/test_distros/test_netconfig.py
+index 67209955..4ea42030 100644
+--- a/tests/unittests/test_distros/test_netconfig.py
++++ b/tests/unittests/test_distros/test_netconfig.py
+@@ -526,6 +526,87 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
+                                V1_NET_CFG_IPV6,
+                                expected_cfgs=expected_cfgs.copy())
+ 
++    def test_vlan_render_unsupported(self):
++        """Render officially unsupported vlan names."""
++        cfg = {
++            'version': 2,
++            'ethernets': {
++                'eth0': {'addresses': ["192.10.1.2/24"],
++                         'match': {'macaddress': "00:16:3e:60:7c:df"}}},
++            'vlans': {
++                'infra0': {'addresses': ["10.0.1.2/16"],
++                           'id': 1001, 'link': 'eth0'}},
++        }
++        expected_cfgs = {
++            self.ifcfg_path('eth0'): dedent("""\
++                BOOTPROTO=none
++                DEVICE=eth0
++                HWADDR=00:16:3e:60:7c:df
++                IPADDR=192.10.1.2
++                NETMASK=255.255.255.0
++                NM_CONTROLLED=no
++                ONBOOT=yes
++                TYPE=Ethernet
++                USERCTL=no
++                """),
++            self.ifcfg_path('infra0'): dedent("""\
++                BOOTPROTO=none
++                DEVICE=infra0
++                IPADDR=10.0.1.2
++                NETMASK=255.255.0.0
++                NM_CONTROLLED=no
++                ONBOOT=yes
++                PHYSDEV=eth0
++                USERCTL=no
++                VLAN=yes
++                """),
++            self.control_path(): dedent("""\
++                NETWORKING=yes
++                """),
++        }
++        self._apply_and_verify(
++            self.distro.apply_network_config, cfg,
++            expected_cfgs=expected_cfgs)
++
++    def test_vlan_render(self):
++        cfg = {
++            'version': 2,
++            'ethernets': {
++                'eth0': {'addresses': ["192.10.1.2/24"]}},
++            'vlans': {
++                'eth0.1001': {'addresses': ["10.0.1.2/16"],
++                              'id': 1001, 'link': 'eth0'}},
++        }
++        expected_cfgs = {
++            self.ifcfg_path('eth0'): dedent("""\
++                BOOTPROTO=none
++                DEVICE=eth0
++                IPADDR=192.10.1.2
++                NETMASK=255.255.255.0
++                NM_CONTROLLED=no
++                ONBOOT=yes
++                TYPE=Ethernet
++                USERCTL=no
++                """),
++            self.ifcfg_path('eth0.1001'): dedent("""\
++                BOOTPROTO=none
++                DEVICE=eth0.1001
++                IPADDR=10.0.1.2
++                NETMASK=255.255.0.0
++                NM_CONTROLLED=no
++                ONBOOT=yes
++                PHYSDEV=eth0
++                USERCTL=no
++                VLAN=yes
++                """),
++            self.control_path(): dedent("""\
++                NETWORKING=yes
++                """),
++        }
++        self._apply_and_verify(
++            self.distro.apply_network_config, cfg,
++            expected_cfgs=expected_cfgs)
++
+ 
+ class TestNetCfgDistroOpensuse(TestNetCfgDistroBase):
+ 
+diff --git a/tests/unittests/test_net.py b/tests/unittests/test_net.py
+index a931a3e4..2eedb127 100644
+--- a/tests/unittests/test_net.py
++++ b/tests/unittests/test_net.py
+@@ -1496,7 +1496,6 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
+                 ONBOOT=yes
+                 PHYSDEV=bond0
+                 STARTMODE=auto
+-                TYPE=Ethernet
+                 USERCTL=no
+                 VLAN=yes"""),
+             'ifcfg-br0': textwrap.dedent("""\
+@@ -1541,7 +1540,6 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
+                 ONBOOT=yes
+                 PHYSDEV=eth0
+                 STARTMODE=auto
+-                TYPE=Ethernet
+                 USERCTL=no
+                 VLAN=yes"""),
+             'ifcfg-eth1': textwrap.dedent("""\
+@@ -2163,7 +2161,6 @@ iface bond0 inet6 static
+                 ONBOOT=yes
+                 PHYSDEV=en0
+                 STARTMODE=auto
+-                TYPE=Ethernet
+                 USERCTL=no
+                 VLAN=yes"""),
+         },
+@@ -3180,7 +3177,6 @@ USERCTL=no
+                 ONBOOT=yes
+                 PHYSDEV=eno1
+                 STARTMODE=auto
+-                TYPE=Ethernet
+                 USERCTL=no
+                 VLAN=yes
+                 """)
+-- 
+2.18.2
+

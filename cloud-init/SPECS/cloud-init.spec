@@ -13,7 +13,7 @@
 
 Name:           cloud-init
 Version:        19.4
-Release:        7%{?dist}.redsleeve
+Release:        7%{?dist}.3
 Summary:        Cloud instance init scripts
 
 Group:          System Environment/Base
@@ -54,8 +54,16 @@ Patch18: ci-Use-reload-or-try-restart-instead-of-try-reload-or-r.patch
 Patch19: ci-ec2-Do-not-log-IMDSv2-token-values-instead-use-REDAC.patch
 # For bz#1821999 - [RHEL7.9] Do not log IMDSv2 token values into cloud-init.log
 Patch20: ci-ec2-only-redact-token-request-headers-in-logs-avoid-.patch
+# For bz#1839619 - [ESXi][RHEL7.9][cloud-init]ERROR log in cloud-init.log after clone VM on ESXi platform [rhel-7.9.z]
+Patch21: ci-When-tools.conf-does-not-exist-running-cmd-vmware-to.patch
+# For bz#1839619 - [ESXi][RHEL7.9][cloud-init]ERROR log in cloud-init.log after clone VM on ESXi platform [rhel-7.9.z]
+Patch22: ci-Changing-notation-of-subp-call.patch
+# For bz#1871916 - [Azure][RHEL 7.9] cloud-init Permission denied with the use of mount option noexec [rhel-7.9.z]
+Patch23: ci-DHCP-sandboxing-failing-on-noexec-mounted-var-tmp-52.patch
+# For bz#1861871 - [rhel7][cloud-init] ifup bond0.504 Error: Connection activation failed: No suitable device found for this connection [rhel-7.9.z]
+Patch24: ci-network-Fix-type-and-respect-name-when-rendering-vla.patch
 
-Patch9999: cloud-init-redsleeve-user.patch
+Patch9999: cloud-init-centos-user.patch
 
 # Deal with noarch -> arch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1067089
@@ -226,8 +234,24 @@ fi
 %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
 
 %changelog
-* Wed Oct 14 2020 Jacco Ligthart <jacco@redsleeve.org 19.4-7.el7.redsleeve
-- rebrand for redsleeve
+* Tue Nov 10 2020 Jon Maloy <jmaloy@redhat.com> - 19.4-7.el7_9.3
+- ci-network-Fix-type-and-respect-name-when-rendering-vla.patch [bz#1861871]
+- Resolves: bz#1861871
+  ([rhel7][cloud-init] ifup bond0.504 Error: Connection activation failed: No suitable device found for this connection [rhel-7.9.z])
+
+* Tue Nov 10 2020 Jon Maloy <jmaloy@redhat.com> - 19.4-7.el7_9.3
+- ci-network-Fix-type-and-respect-name-when-rendering-vla.patch [bz#1861871]
+- Resolves: bz#1861871
+- ([rhel7][cloud-init] ifup bond0.504 Error: Connection activation failed: No suitable device found for this connection [rhel-7.9.z])
+
+* Fri Oct 23 2020 Jon Maloy <jmaloy@redhat.com> - 19.4-7.el7_9.2
+- ci-When-tools.conf-does-not-exist-running-cmd-vmware-to.patch [bz#1839619]
+- ci-Changing-notation-of-subp-call.patch [bz#1839619]
+- ci-DHCP-sandboxing-failing-on-noexec-mounted-var-tmp-52.patch [bz#1871916]
+- Resolves: bz#1839619
+  ([ESXi][RHEL7.9][cloud-init]ERROR log in cloud-init.log after clone VM on ESXi platform [rhel-7.9.z])
+- Resolves: bz#1871916
+  ([Azure][RHEL 7.9] cloud-init Permission denied with the use of mount option noexec [rhel-7.9.z])
 
 * Wed May 20 2020 Miroslav Rezanina <mrezanin@redhat.com> - 19.4-7.el7
 - ci-ec2-only-redact-token-request-headers-in-logs-avoid-.patch [bz#1821999]
