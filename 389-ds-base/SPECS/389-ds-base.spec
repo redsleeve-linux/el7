@@ -19,7 +19,7 @@
 %global use_tcmalloc 0
 %global variant base-asan
 %else
-%ifnarch s390 s390x %{arm}
+%if %{_arch} != "s390x" && %{_arch} != "s390"
 %global use_tcmalloc 1
 %else
 %global use_tcmalloc 0
@@ -39,7 +39,7 @@
 Summary:          389 Directory Server (%{variant})
 Name:             389-ds-base
 Version:          1.3.10.2
-Release:          %{?relprefix}6%{?prerel}%{?dist}.redsleeve
+Release:          %{?relprefix}9%{?prerel}%{?dist}
 License:          GPLv3+
 URL:              https://www.port389.org/
 Group:            System Environment/Daemons
@@ -153,6 +153,15 @@ Patch04:          0004-Ticket-51068-deadlock-when-updating-the-schema.patch
 Patch05:          0005-Issue-50745-ns-slapd-hangs-during-CleanAllRUV-tests.patch
 Patch06:          0006-Issue-51095-abort-operation-if-CSN-can-not-be-genera.patch
 Patch07:          0007-Issue-51132-Winsync-setting-winSyncWindowsFilter-not.patch 
+Patch08:          0008-Issue-4389-errors-log-with-incorrectly-formatted-mes.patch
+Patch09:          0009-Issue-4297-On-ADD-replication-URP-issue-internal-sea.patch
+Patch10:          0010-Issue-4379-allow-more-than-1-empty-AttributeDescript.patch
+Patch11:          0011-Issue-51233-ds-replcheck-crashes-in-offline-mode.patch
+Patch12:          0012-Issue-51166-Log-an-error-when-a-search-is-fully-unin.patch
+Patch13:          0013-Issue-4297-2nd-fix-for-on-ADD-replication-URP-issue-.patch
+Patch14:          0014-0002-Issue-4383-Do-not-normalize-escaped-spaces-in-a-DN.patch
+Patch15:          0015-Issue-4219-fix-crash-around-logging-internal-unindex.patch
+
 %description
 389 Directory Server is an LDAPv3 compliant server.  The base package includes
 the LDAP server and command line utilities for server administration.
@@ -505,10 +514,22 @@ fi
 %{_sysconfdir}/%{pkgname}/dirsrvtests
 
 %changelog
-* Wed Oct 14 2020 Jacco Ligthart <jacco@redsleeve.org> - 1.3.10.2-6.redsleeve
-- disabled tcmalloc for arm
+* Thu Jan 7 2021 Mark Reynolds <mreynolds@redhat.com> - 1.3.10.2-9
+- Bump version to 1.3.10.2-8
+- Resolves: Bug 1905450 - Internal unindexed search crashes the server
 
-* Thu Jun 4 2020 Mark Reynolds <mreynolds@redhat.com> - 1.3.10-2-6
+* Thu Dec 3 2020 Mark Reynolds <mreynolds@redhat.com> - 1.3.10.2-8
+- Bump version to 1.3.10.2-8
+- Resolves: Bug 1904145 - group rdn with leading space char and add fails error 21 invalid syntax and delete fails error 32
+- Resolves: Bug 1902042 - Entries conflict not resolved by replication
+
+* Wed Oct 21 2020 Mark Reynolds <mreynolds@redhat.com> - 1.3.10.2-7
+- Bump version to 1.3.10.2-7
+- Resolves: Bug 1870624 - RHDS - allow more than 1 empty AttributeDescription for ldapsearch, without the risk of denial of service
+- Resolves: Bug 1876028 - errors log with incorrectly formatted message parent_update_on_childchange on PARENTUPDATE_DEL
+- Resolves: Bug 1860008 - On ADD replication URP issue internal searches with filter containing unescaped chars
+
+* Thu Jun 4 2020 Mark Reynolds <mreynolds@redhat.com> - 1.3.10.2-6
 - Bump version to 1.3.10.2-6
 - Resolves: Bug 1839085 - IPA: Winsync not honoring parameters winSyncDirectoryFilter and winSyncWindowsFilter
 
