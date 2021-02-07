@@ -1,0 +1,50 @@
+From e489e4c361ca1153970d1f37db90081ad991f69b Mon Sep 17 00:00:00 2001
+From: Jan Jansky <jjansky@redhat.com>
+Date: Thu, 20 Aug 2020 09:43:08 +0200
+Subject: [PATCH] [networking] remove 'ethtool -e' option for bnx2x NICs
+
+Running EEPROM dump (ethtool -e) can result in bnx2x driver NICs to
+pause for few seconds and is not recommended in production environment.
+
+Related: #2200
+Resolves: #2208
+
+Signed-off-by: Jan Jansky <jjansky@redhat.com>
+Signed-off-by: Jake Hunsaker <jhunsake@redhat.com>
+---
+ sos/plugins/networking.py | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/sos/plugins/networking.py b/sos/plugins/networking.py
+index 56d5b44..b04bb98 100644
+--- a/sos/plugins/networking.py
++++ b/sos/plugins/networking.py
+@@ -179,7 +179,6 @@ class Networking(Plugin):
+                 "ethtool -a " + eth,
+                 "ethtool -c " + eth,
+                 "ethtool -g " + eth,
+-                "ethtool -e " + eth,
+                 "ethtool -P " + eth,
+                 "ethtool -l " + eth,
+                 "ethtool --phy-statistics " + eth,
+@@ -187,6 +186,17 @@ class Networking(Plugin):
+                 "ethtool --show-eee " + eth
+             ])
+ 
++            # skip EEPROM collection for 'bnx2x' NICs as this command
++            # can pause the NIC and is not production safe.
++            bnx_output = {
++                "cmd": "ethtool -i %s" % eth,
++                "output": "bnx2x"
++            }
++            bnx_pred = SoSPredicate(self,
++                                    cmd_outputs=bnx_output,
++                                    required={'cmd_outputs': 'none'})
++            self.add_cmd_output("ethtool -e %s" % eth, pred=bnx_pred)
++
+         # Collect information about bridges (some data already collected via
+         # "ip .." commands)
+         self.add_cmd_output([
+-- 
+1.8.3.1
+

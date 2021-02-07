@@ -2,7 +2,7 @@
 Summary: A set of tools to gather troubleshooting information from a system
 Name: sos
 Version: 3.9
-Release: 4%{?dist}.redsleeve
+Release: 5%{?dist}.2
 Group: Applications/System
 Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
 License: GPLv2+
@@ -31,7 +31,14 @@ Patch8: sos-bz1853701-pci_gating_for_lspci.patch
 Patch9: sos-bz1853235-foreman_collect_stats_of_some_tables.patch
 Patch10: sos-bz1850925-logs_collect_also_not_persistent_logs.patch
 Patch11: sos-bz1856417-gluster-remove_only_dump_files.patch
-Patch12: sos-redsleeve-branding.patch
+Patch12: sos-bz1857697-gluster-state_files_deletion.patch 
+Patch13: sos-bz1859885-kubernetes_ignore_empty_lines.patch
+Patch14: sos-bz1870379-networking_skip_eeprom_colection_for_bnx2x.patch
+Patch15: sos-bz1871207-audit_collect_etc_audisp.patch
+Patch16: sos-bz1886432-policy_fix_failure_conditions_with_upload.patch
+Patch17: sos-bz1897903-postgresql_collect_rh-postgresql12.patch
+Patch18: sos-bz1917074-networking_ethtool-e_conditionally_only.patch
+Patch19: sos-centos-branding.patch
 
 %description
 Sos is a set of tools that gathers information about system
@@ -54,6 +61,13 @@ support technicians and developers.
 %patch10 -p1
 %patch11 -p1
 %patch12 -p1
+%patch13 -p1
+%patch14 -p1
+%patch15 -p1
+%patch16 -p1
+%patch17 -p1
+%patch18 -p1
+%patch19 -p1
 
 %build
 make
@@ -77,11 +91,29 @@ rm -rf ${RPM_BUILD_ROOT}
 %config(noreplace) %{_sysconfdir}/sos.conf
 
 %changelog
-* Sun Oct 04 2020 Jacco Ligthart <jacco@redsleeve.org> - 3.9-4.el7.redsleeve
-- Roll in RedSleeve Branding
-
-* Tue Sep 29 2020 CentOS Sources <bugs@centos.org> - 3.9-4.el7.centos
+* Tue Feb 02 2021 CentOS Sources <bugs@centos.org> - 3.9-5.el7.centos.2
 - Roll in CentOS Branding
+
+* Thu Jan 21 2021 Jan Jansky <jjansky@redhat.com> = 3.9-5.2
+- [networking] 'ethtool -e <device>' conditionally only
+  Resolves: bz1917074
+
+* Mon Nov 23 2020 Jan Jansky <jjansky@redhat.com> = 3.9-5.1
+- Adjusting .1 zstream version
+
+* Fri Nov 20 2020 Jan Jansky <jjansky@redhat.com> = 3.9-5
+- [gluster] remove generated state files
+  Resolves: bz1857697
+- [kubernetes] ignore blank+empty lines
+  Resolves: bz1859885
+- [networking] remove 'ethtool -e' option for bnx2x NICs
+  Resolves: bz1870379
+- [auditd] collect /etc/audisp
+  Resolves: bz1871207
+- [policy] Fix several failure conditions with upload
+  Resolves: bz1886432
+- [postgresql] reorganize postgres from SCL
+  Resolves: bz1897903
 
 * Thu Jul 16 2020 Jan Jansky <jjansky@redhat.com> = 3.9-4
 - [gluster] remove only dump files

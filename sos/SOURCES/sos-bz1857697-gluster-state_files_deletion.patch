@@ -1,0 +1,36 @@
+From 30211bc276fc33e8d3f137c0860be54bbb537064 Mon Sep 17 00:00:00 2001
+From: Jan Jansky <jjansky@redhat.com>
+Date: Fri, 17 Jul 2020 09:51:58 +0200
+Subject: [PATCH] [gluster] remove generated state files
+
+Remove also generated state files in
+/run/gluster.
+
+Related: #2154
+Resolves: #2155
+
+Signed-off-by: Jan Jansky <jjansky@redhat.com>
+Signed-off-by: Jake Hunsaker <jhunsake@redhat.com>
+---
+ sos/plugins/gluster.py | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/sos/plugins/gluster.py b/sos/plugins/gluster.py
+index 777f941..4a9ebe3 100644
+--- a/sos/plugins/gluster.py
++++ b/sos/plugins/gluster.py
+@@ -44,7 +44,10 @@ class Gluster(Plugin, RedHatPlugin):
+             if not os.path.exists(self.statedump_dir):
+                 return
+             try:
+-                for name in glob.glob(self.statedump_dir + '/*.dump.[0-9]*'):
++                remove_files = glob.glob(self.statedump_dir + '/*.dump.[0-9]*')
++                remove_files.extend(glob.glob(self.statedump_dir +
++                                    '/glusterd_state_[0-9]*_[0-9]*'))
++                for name in remove_files:
+                     os.remove(name)
+             except OSError:
+                 pass
+-- 
+1.8.3.1
+

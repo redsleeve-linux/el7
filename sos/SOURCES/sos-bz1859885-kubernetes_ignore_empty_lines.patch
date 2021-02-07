@@ -1,0 +1,38 @@
+From 5c6793e0e9e41ed754020bb7a589587ba647ccb6 Mon Sep 17 00:00:00 2001
+From: Jan Jansky <jjansky@redhat.com>
+Date: Fri, 24 Jul 2020 09:21:11 +0200
+Subject: [PATCH] [kubernetes] ignore blank+empty lines in "kubectl get nodes"
+ output
+
+In a theoretical case when the command output contains empty or blank
+line, we must skip them before finding the first word there.
+
+Related: #2162
+Resolves: #2164
+
+Signed-off-by: Jan Jansky <jjansky@redhat.com>
+Signed-off-by: Jake Hunsaker <jhunsake@redhat.com>
+---
+ sos/plugins/kubernetes.py | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/sos/plugins/kubernetes.py b/sos/plugins/kubernetes.py
+index 8fc0eba..b7baae2 100644
+--- a/sos/plugins/kubernetes.py
++++ b/sos/plugins/kubernetes.py
+@@ -100,7 +100,11 @@ class Kubernetes(Plugin):
+         nodes = self.collect_cmd_output("%s get nodes" % self.kube_cmd)
+         if nodes['status'] == 0:
+             for line in nodes['output'].splitlines()[1:]:
+-                node = line.split()[0]
++                # find first word in the line and ignore empty+blank lines
++                words = line.split()
++                if not words:
++                    continue
++                node = words[0]
+                 self.add_cmd_output(
+                     "%s describe node %s" % (self.kube_cmd, node),
+                     subdir='nodes'
+-- 
+1.8.3.1
+

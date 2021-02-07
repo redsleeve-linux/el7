@@ -1,19 +1,6 @@
 diff -uNrp sos-3.9.orig/sos/policies/redhat.py sos-3.9/sos/policies/redhat.py
 --- sos-3.9.orig/sos/policies/redhat.py	2020-03-24 15:33:13.000000000 +0000
 +++ sos-3.9/sos/policies/redhat.py	2020-10-03 12:48:32.088747085 +0000
-@@ -31,9 +31,9 @@ except NameError:
- 
- 
- class RedHatPolicy(LinuxPolicy):
--    distro = "Red Hat"
--    vendor = "Red Hat"
--    vendor_url = "https://www.redhat.com/"
-+    distro = "CentOS"
-+    vendor = "CentOS"
-+    vendor_url = "https://www.centos.org/"
-     _redhat_release = '/etc/redhat-release'
-     _tmp_dir = "/var/tmp"
-     _rpmq_cmd = 'rpm -qa --queryformat "%{NAME}|%{VERSION}|%{RELEASE}\\n"'
 @@ -89,7 +89,7 @@ class RedHatPolicy(LinuxPolicy):
      def check(cls):
          """This method checks to see if we are running on Red Hat. It must be
@@ -79,15 +66,6 @@ diff -uNrp sos-3.9.orig/sos/policies/redhat.py sos-3.9/sos/policies/redhat.py
              release string at the beginning of the NAME field in the
              `/etc/os-release` file and returns ``True`` if it is
              found, and ``False`` otherwise.
-@@ -309,7 +309,7 @@ support representative.
-             return
-         if self.case_id:
-             self.upload_user = input(_(
--                "Enter your Red Hat Customer Portal username (empty to use "
-+                "Enter your Customer Portal username (empty to use "
-                 "public dropbox): ")
-             )
- 
 @@ -334,7 +334,7 @@ support representative.
  
      def get_upload_url_string(self):
@@ -133,3 +111,40 @@ diff -uNrp sos-3.9.orig/sos/policies/redhat.py sos-3.9/sos/policies/redhat.py
          except IOError:
              pass
          return coreos
+diff -uNrp sos-3.9.orig/sos/policies/redhat.py sos-3.9/sos/policies/redhat.py
+--- sos-3.9.orig/sos/policies/redhat.py	2021-02-02 15:39:49.180326048 +0000
++++ sos-3.9/sos/policies/redhat.py	2021-02-02 15:44:02.907874181 +0000
+@@ -31,9 +31,9 @@ except NameError:
+ 
+ 
+ class RedHatPolicy(LinuxPolicy):
+-    distro = "Red Hat"
+-    vendor = "Red Hat"
+-    vendor_url = "https://www.redhat.com/"
++    distro = "CentOS"
++    vendor = "CentOS"
++    vendor_url = "https://www.centos.org/"
+     _redhat_release = '/etc/redhat-release'
+     _tmp_dir = "/var/tmp"
+     _rpmq_cmd = 'rpm -qa --queryformat "%{NAME}|%{VERSION}|%{RELEASE}\\n"'
+@@ -87,9 +87,9 @@ class RedHatPolicy(LinuxPolicy):
+ 
+     @classmethod
+     def check(cls):
+-        """This method checks to see if we are running on Red Hat. It must be
++        """This method checks to see if we are running on CentOS Linux. It must be
+         overriden by concrete subclasses to return True when running on a
+-        Fedora, CentOS, RHEL or other Red Hat distribution or False otherwise."""
++        Fedora, CentOS, RHEL or other CentOS distribution or False otherwise."""
+         return False
+ 
+     def check_usrmove(self, pkgs):
+@@ -309,7 +309,7 @@ support representative.
+             return
+         if self.case_id:
+             self.upload_user = input(_(
+-                "Enter your Red Hat Customer Portal username (empty to use "
++                "Enter your Customer Portal username (empty to use "
+                 "public dropbox): ")
+             )
+             if not self.upload_user:

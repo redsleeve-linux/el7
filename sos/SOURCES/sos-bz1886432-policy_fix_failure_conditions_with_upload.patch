@@ -1,0 +1,129 @@
+From 8288b5bb76d01c7fb88c51672bfb5d33e077d2d8 Mon Sep 17 00:00:00 2001
+From: Jan Jansky <jjansky@redhat.com>
+Date: Thu, 8 Oct 2020 14:26:03 +0200
+Subject: [PATCH] [policy] Fix failure conditions with upload
+
+The logic for determining if an archive should be uploaded to the
+Customer Portal was too strict, ease it to now properly only block on a
+missing case number since username and passwords may now be provided via
+env vars.
+
+Fixes an issue whereby we ignore a user-provided FTP directory.
+
+Adds a timeout and a timeout handler for FTP connections, rather than
+letting the connection attempt continue indefinitely.
+
+Second, adds exception handling for an edge case where the connection to
+the FTP server fails, but does not generate an exception from the ftplib
+module.
+
+Additionally, correct the type-ing of the error numbers being checked so
+that we actually match them.
+
+Caling "sos report --upload --case-id=123 --batch" should fallback
+to uploading to FTP server as the upload user is unknown and can't
+be prompted in batch mode.
+
+Related: #2276
+Related: #2245
+Resolves: #2265
+
+Signed-off-by: Jan Jansky <jjansky@redhat.com>
+Signed-off-by: Jake Hunsaker <jhunsake@redhat.com>
+---
+ sos/policies/__init__.py | 19 +++++++++++++------
+ sos/policies/redhat.py   | 21 +++++++++++++++++----
+ 2 files changed, 30 insertions(+), 10 deletions(-)
+
+diff --git a/sos/policies/__init__.py b/sos/policies/__init__.py
+index ed3f0cc..a22c277 100644
+--- a/sos/policies/__init__.py
++++ b/sos/policies/__init__.py
+@@ -972,7 +972,8 @@ class LinuxPolicy(Policy):
+         """Should be overridden by policies to determine if a user needs to
+         be provided or not
+         """
+-        if not self.upload_user and not self._upload_user:
++        if not self.get_upload_password() and (self.get_upload_user() !=
++                                               self._upload_user):
+             msg = "Please provide upload user for %s: " % self.get_upload_url()
+             self.upload_user = input(_(msg))
+ 
+@@ -1029,7 +1030,8 @@ class LinuxPolicy(Policy):
+ 
+         """
+         self.upload_archive = archive
+-        self.upload_url = self.get_upload_url()
++        if not self.upload_url:
++            self.upload_url = self.get_upload_url()
+         if not self.upload_url:
+             raise Exception("No upload destination provided by policy or by "
+                             "--upload-url")
+@@ -1187,18 +1189,23 @@ class LinuxPolicy(Policy):
+             password = self.get_upload_password()
+ 
+         if not directory:
+-            directory = self._upload_directory
++            directory = self.upload_directory or self._upload_directory
+ 
+         try:
+-            session = ftplib.FTP(url, user, password)
++            session = ftplib.FTP(url, user, password, timeout=15)
++            if not session:
++                raise Exception("connection failed, did you set a user and "
++                                "password?")
+             session.cwd(directory)
++        except socket.timeout:
++            raise Exception("timeout hit while connecting to %s" % url)
+         except socket.gaierror:
+             raise Exception("unable to connect to %s" % url)
+         except ftplib.error_perm as err:
+             errno = str(err).split()[0]
+-            if errno == 503:
++            if errno == '503':
+                 raise Exception("could not login as '%s'" % user)
+-            if errno == 550:
++            if errno == '550':
+                 raise Exception("could not set upload directory to %s"
+                                 % directory)
+ 
+diff --git a/sos/policies/redhat.py b/sos/policies/redhat.py
+index 9fbe743..3412f44 100644
+--- a/sos/policies/redhat.py
++++ b/sos/policies/redhat.py
+@@ -312,15 +312,28 @@ support representative.
+                 "Enter your Red Hat Customer Portal username (empty to use "
+                 "public dropbox): ")
+             )
++            if not self.upload_user:
++                self.upload_url = RH_FTP_HOST
++                self.upload_user = self._upload_user
++
++    def _upload_user_set(self):
++        user = self.get_upload_user()
++        return user and (user != 'anonymous')
+ 
+     def get_upload_url(self):
++        if self.upload_url:
++            return self.upload_url
+         if self.commons['cmdlineopts'].upload_url:
+             return self.commons['cmdlineopts'].upload_url
+-        if (not self.case_id or not self.upload_user or not
+-                self.upload_password):
+-            # Cannot use the RHCP. Use anonymous dropbox
++        # anonymous FTP server should be used as fallback when either:
++        # - case id is not set, or
++        # - upload user isn't set AND batch mode prevents to prompt for it
++        if (not self.case_id) or \
++           ((not self._upload_user_set()) and
++               self.commons['cmdlineopts'].batch):
+             self.upload_user = self._upload_user
+-            self.upload_directory = self._upload_directory
++            if self.upload_directory is None:
++                self.upload_directory = self._upload_directory
+             self.upload_password = None
+             return RH_FTP_HOST
+         else:
+-- 
+1.8.3.1
+

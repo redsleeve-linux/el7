@@ -1,0 +1,34 @@
+From d5ea9277698836ae34547cb995a0683a1f9f505e Mon Sep 17 00:00:00 2001
+From: Jan Jansky <jjansky@redhat.com>
+Date: Mon, 7 Sep 2020 09:21:55 +0200
+Subject: [PATCH] [audit] collect /etc/audisp
+
+Collect audit event multiplexor config dir.
+
+Related: #2187
+Resolves: #2227
+
+Signed-off-by: Jan Jansky <jjansky@redhat.com>
+Signed-off-by: Jake Hunsaker <jhunsake@redhat.com>
+---
+ sos/plugins/auditd.py | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/sos/plugins/auditd.py b/sos/plugins/auditd.py
+index 8380a6d..bbcd28c 100644
+--- a/sos/plugins/auditd.py
++++ b/sos/plugins/auditd.py
+@@ -21,7 +21,9 @@ class Auditd(Plugin, RedHatPlugin, DebianPlugin, UbuntuPlugin):
+     def setup(self):
+         self.add_copy_spec([
+             "/etc/audit/auditd.conf",
+-            "/etc/audit/audit.rules"
++            "/etc/audit/audit.rules",
++            "/etc/audit/plugins.d/",
++            "/etc/audisp/",
+         ])
+         self.add_cmd_output([
+             "ausearch --input-logs -m avc,user_avc -ts today",
+-- 
+1.8.3.1
+
