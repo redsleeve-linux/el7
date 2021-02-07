@@ -13,9 +13,9 @@
 # if you want only debug build but providing java build only normal build but set normalbuild_parameter
 %global debugbuild_parameter  slowdebug
 %global normalbuild_parameter release
-%global debug_warning This package has full debug on. Install only in need and remove asap.
-%global debug_on with full debug on
-%global for_debug for packages with debug on
+%global debug_warning This package is unoptimised with full debugging. Install only as needed and remove ASAP.
+%global debug_on unoptimised with full debugging on
+%global for_debug for packages with debugging on and no optimisation
 
 # by default we build normal build always.
 %global include_normal_build 1
@@ -205,7 +205,7 @@
 # note, following three variables are sedded from update_sources if used correctly. Hardcode them rather there.
 %global shenandoah_project	aarch64-port
 %global shenandoah_repo		jdk8u-shenandoah
-%global shenandoah_revision    	aarch64-shenandoah-jdk8u272-b10
+%global shenandoah_revision    	aarch64-shenandoah-jdk8u282-b08
 # Define old aarch64/jdk8u tree variables for compatibility
 %global project         %{shenandoah_project}
 %global repo            %{shenandoah_repo}
@@ -735,8 +735,7 @@ Requires: ca-certificates
 Requires: jpackage-utils
 # Require zoneinfo data provided by tzdata-java subpackage.
 # 2020b required as of JDK-8254177 in October CPU
-# Temporarily held at 2020a until 2020b has shipped
-Requires: tzdata-java >= 2020a
+Requires: tzdata-java >= 2020b
 # libsctp.so.1 is being `dlopen`ed on demand
 Requires: lksctp-tools%{?_isa}
 # tool to copy jdk's configs - should be Recommends only, but then only dnf/yum enforce it,
@@ -868,7 +867,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
 
 Name:    java-%{javaver}-%{origin}
 Version: %{javaver}.%{updatever}.%{buildver}
-Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}.redsleeve
+Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
 # and this change was brought into RHEL-4. java-1.5.0-ibm packages
 # also included the epoch in their virtual provides. This created a
@@ -880,7 +879,7 @@ Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}.redsleeve
 # provides >= 1.6.0 must specify the epoch, "java >= 1:1.6.0".
 
 Epoch:   1
-Summary: %{origin_nice} Runtime Environment %{majorver}
+Summary: %{origin_nice} %{majorver} Runtime Environment
 Group:   Development/Languages
 
 # HotSpot code is licensed under GPLv2
@@ -978,15 +977,12 @@ Patch512: rh1649664-awt2dlibraries_compiled_with_no_strict_overflow.patch
 Patch523: pr2974-rh1337583-add_systemlineendings_option_to_keytool_and_use_line_separator_instead_of_crlf_in_pkcs10.patch
 # PR3083, RH1346460: Regression in SSL debug output without an ECC provider
 Patch528: pr3083-rh1346460-for_ssl_debug_return_null_instead_of_exception_when_theres_no_ecc_provider.patch
-# RH1566890: CVE-2018-3639
-Patch529: rh1566890-CVE_2018_3639-speculative_store_bypass.patch
-Patch531: rh1566890-CVE_2018_3639-speculative_store_bypass_toggle.patch
-# PR3601: Fix additional -Wreturn-type issues introduced by 8061651
-Patch530: pr3601-fix_additional_Wreturn_type_issues_introduced_by_8061651_for_prims_jvm_cpp.patch
 # PR2888: OpenJDK should check for system cacerts database (e.g. /etc/pki/java/cacerts)
 # PR3575, RH1567204: System cacerts database handling should not affect jssecacerts
 Patch539: pr2888-openjdk_should_check_for_system_cacerts_database_eg_etc_pki_java_cacerts.patch
 Patch541: rh1684077-openjdk_should_depend_on_pcsc-lite-libs_instead_of_pcsc-lite-devel.patch
+# RH1750419: Enable build of speculative store bypass hardened alt-java (CVE-2018-3639)
+Patch600: rh1750419-redhat_alt_java.patch
 
 #############################################
 #
@@ -1003,8 +999,6 @@ Patch541: rh1684077-openjdk_should_depend_on_pcsc-lite-libs_instead_of_pcsc-lite
 Patch103: pr3593-s390_use_z_format_specifier_for_size_t_arguments_as_size_t_not_equals_to_int.patch
 # x86: S8199936, PR3533: HotSpot generates code with unaligned stack, crashes on SSE operations (-mstackrealign workaround)
 Patch105: jdk8199936-pr3533-enable_mstackrealign_on_x86_linux_as_well_as_x86_mac_os_x.patch
-# AArch64: PR3519: Fix further functions with a missing return value (AArch64)
-Patch106: pr3519-fix_further_functions_with_a_missing_return_value.patch
 # S390 ambiguous log2_intptr calls
 Patch107: s390-8214206_fix.patch
 
@@ -1024,10 +1018,6 @@ Patch502: pr2462-resolve_disabled_warnings_for_libunpack_and_the_unpack200_binar
 Patch571: jdk8199936-pr3591-enable_mstackrealign_on_x86_linux_as_well_as_x86_mac_os_x_jdk.patch
 # 8143245, PR3548: Zero build requires disabled warnings
 Patch574: jdk8143245-pr3548-zero_build_requires_disabled_warnings.patch
-# 8197981, PR3548: Missing return statement in __sync_val_compare_and_swap_8
-Patch575: jdk8197981-pr3548-missing_return_statement_in_sync_val_compare_and_swap_8.patch
-# 8062808, PR3548: Turn on the -Wreturn-type warning
-Patch577: jdk8062808-pr3548-turn_on_the_wreturn_type_warning.patch
 # s390: JDK-8203030, Type fixing for s390
 Patch102: jdk8203030-zero_s390_31_bit_size_t_type_conflicts_in_shared_code.patch
 # 8035341: Allow using a system installed libpng
@@ -1047,10 +1037,6 @@ Patch12: jdk8186464-rh1433262-zip64_failure.patch
 # able to be removed once that release is out
 # and used by this RPM.
 #############################################
-# JDK-8254177: (tz) Upgrade time-zone data to tzdata2020b
-Patch13: jdk8254177-tzdata2020b.patch
-# JDK-8215727, RH1889532: Restore JFR thread sampler loop to old / previous behavior
-Patch14: jdk8215727-rh1889532-restore_jfr_thread_sampler_loop.patch
 
 #############################################
 #
@@ -1137,8 +1123,7 @@ BuildRequires: java-1.8.0-openjdk-devel
 BuildRequires: libffi-devel
 %endif
 # 2020b required as of JDK-8254177 in October CPU
-# Temporarily held at 2020a until 2020b has shipped
-BuildRequires: tzdata-java >= 2020a
+BuildRequires: tzdata-java >= 2020b
 # Earlier versions have a bug in tree vectorization on PPC
 BuildRequires: gcc >= 4.8.3-8
 
@@ -1151,110 +1136,110 @@ BuildRequires: systemtap-sdt-devel
 %{java_rpo %{nil}}
 
 %description
-The %{origin_nice} runtime environment.
+The %{origin_nice} %{majorver} runtime environment.
 
 %if %{include_debug_build}
 %package debug
-Summary: %{origin_nice} Runtime Environment %{majorver} %{debug_on}
+Summary: %{origin_nice} %{majorver} Runtime Environment %{debug_on}
 Group:   Development/Languages
 
 %{java_rpo -- %{debug_suffix_unquoted}}
 %description debug
-The %{origin_nice} runtime environment.
+The %{origin_nice} %{majorver} runtime environment.
 %{debug_warning}
 %endif
 
 %if %{include_normal_build}
 %package headless
-Summary: %{origin_nice} Headless Runtime Environment %{majorver}
+Summary: %{origin_nice} %{majorver} Headless Runtime Environment
 Group:   Development/Languages
 
 %{java_headless_rpo %{nil}}
 
 %description headless
-The %{origin_nice} runtime environment %{majorver} without audio and video support.
+The %{origin_nice} %{majorver} runtime environment without audio and video support.
 %endif
 
 %if %{include_debug_build}
 %package headless-debug
-Summary: %{origin_nice} Runtime Environment %{debug_on}
+Summary: %{origin_nice} %{majorver} Runtime Environment %{debug_on}
 Group:   Development/Languages
 
 %{java_headless_rpo -- %{debug_suffix_unquoted}}
 
 %description headless-debug
-The %{origin_nice} runtime environment %{majorver} without audio and video support.
+The %{origin_nice} %{majorver} runtime environment without audio and video support.
 %{debug_warning}
 %endif
 
 %if %{include_normal_build}
 %package devel
-Summary: %{origin_nice} Development Environment %{majorver}
+Summary: %{origin_nice} %{majorver} Development Environment
 Group:   Development/Tools
 
 %{java_devel_rpo %{nil}}
 
 %description devel
-The %{origin_nice} development tools %{majorver}.
+The %{origin_nice} %{majorver} development tools.
 %endif
 
 %if %{include_debug_build}
 %package devel-debug
-Summary: %{origin_nice} Development Environment %{majorver} %{debug_on}
+Summary: %{origin_nice} %{majorver} Development Environment %{debug_on}
 Group:   Development/Tools
 
 %{java_devel_rpo -- %{debug_suffix_unquoted}}
 
 %description devel-debug
-The %{origin_nice} development tools %{majorver}.
+The %{origin_nice} %{majorver} development tools.
 %{debug_warning}
 %endif
 
 %if %{include_normal_build}
 %package demo
-Summary: %{origin_nice} Demos %{majorver}
+Summary: %{origin_nice} %{majorver} Demos
 Group:   Development/Languages
 
 %{java_demo_rpo %{nil}}
 
 %description demo
-The %{origin_nice} demos %{majorver}.
+The %{origin_nice} %{majorver} demos.
 %endif
 
 %if %{include_debug_build}
 %package demo-debug
-Summary: %{origin_nice} Demos %{majorver} %{debug_on}
+Summary: %{origin_nice} %{majorver} Demos %{debug_on}
 Group:   Development/Languages
 
 %{java_demo_rpo -- %{debug_suffix_unquoted}}
 
 %description demo-debug
-The %{origin_nice} demos %{majorver}.
+The %{origin_nice} %{majorver} demos.
 %{debug_warning}
 %endif
 
 %if %{include_normal_build}
 %package src
-Summary: %{origin_nice} Source Bundle %{majorver}
+Summary: %{origin_nice} %{majorver} Source Bundle
 Group:   Development/Languages
 
 %{java_src_rpo %{nil}}
 
 %description src
-The java-%{origin}-src sub-package contains the complete %{origin_nice} %{majorver}
+The %{compatiblename}-src sub-package contains the complete %{origin_nice} %{majorver}
 class library source code for use by IDE indexers and debuggers.
 %endif
 
 %if %{include_debug_build}
 %package src-debug
-Summary: %{origin_nice} Source Bundle %{majorver} %{for_debug}
+Summary: %{origin_nice} %{majorver} Source Bundle %{for_debug}
 Group:   Development/Languages
 
 %{java_src_rpo -- %{debug_suffix_unquoted}}
 
 %description src-debug
-The java-%{origin}-src-slowdebug sub-package contains the complete %{origin_nice} %{majorver}
- class library source code for use by IDE indexers and debuggers. Debugging %{for_debug}.
+The %{compatiblename}-src-debug sub-package contains the complete %{origin_nice} %{majorver}
+ class library source code for use by IDE indexers and debuggers, %{for_debug}.
 %endif
 
 %if %{include_normal_build}
@@ -1409,7 +1394,6 @@ sh %{SOURCE12}
 %patch107
 
 # AArch64 fixes
-%patch106
 
 # x86 fixes
 %patch105
@@ -1420,20 +1404,14 @@ sh %{SOURCE12}
 %patch512
 %patch523
 %patch528
-%patch529
-%patch531
-%patch530
 %patch571
 %patch574
-%patch575
-%patch577
 %patch541
 %patch12
-%patch13
-%patch14
 
 # RPM-only fixes
 %patch539
+%patch600
 
 # RHEL-only patches
 %if ! 0%{?fedora} && 0%{?rhel} <= 7
@@ -1643,11 +1621,8 @@ install -m 644 nss.cfg $JAVA_HOME/jre/lib/security/
 rm $JAVA_HOME/jre/lib/tzdb.dat
 ln -s %{_datadir}/javazi-1.8/tzdb.dat $JAVA_HOME/jre/lib/tzdb.dat
 
-# Create fake alt-java as a placeholder for future alt-java
-pushd ${JAVA_HOME}
-cp -a jre/bin/java jre/bin/%{alt_java_name}
-cp -a bin/java bin/%{alt_java_name}
 # add alt-java man page
+pushd ${JAVA_HOME}
 echo "Hardened java binary recommended for launching untrusted code from the Web e.g. javaws" > man/man1/%{alt_java_name}.1
 cat man/man1/java.1 >> man/man1/%{alt_java_name}.1
 popd
@@ -1724,18 +1699,18 @@ done
 # Using line number 1 might cause build problems. See:
 # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
 # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
-#gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
-#handle SIGSEGV pass nostop noprint
-#handle SIGILL pass nostop noprint
-#set breakpoint pending on
-#break javaCalls.cpp:1
-#commands 1
-#backtrace
-#quit
-#end
-#run -version
-#EOF
-#grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
+gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
+handle SIGSEGV pass nostop noprint
+handle SIGILL pass nostop noprint
+set breakpoint pending on
+break javaCalls.cpp:1
+commands 1
+backtrace
+quit
+end
+run -version
+EOF
+grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
 
 # Check src.zip has all sources. See RHBZ#1130490
 jar -tf $JAVA_HOME/src.zip | grep 'sun.misc.Unsafe'
@@ -2164,8 +2139,73 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
-* Sat Nov 14 2020 Jacco Ligthart <jacco@redsleeve.org> 1:1.8.0.272.b10-1.redsleeve
-- removed the gdb section of the SPEC file
+* Sun Jan 17 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.282.b08-1
+- Cleanup package descriptions and version number placement.
+- Resolves: rhbz#1908963
+
+* Fri Jan 15 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.282.b08-0
+- Update to aarch64-shenandoah-jdk8u282-b08 (GA)
+- Update release notes for 8u282-b08.
+- This tarball is embargoed until 2021-01-19 @ 1pm PT.
+- Resolves: rhbz#1908963
+
+* Fri Jan 15 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.282.b07-0.0.ea
+- Update to aarch64-shenandoah-jdk8u282-b07 (EA)
+- Update release notes for 8u282-b07.
+- Fix placement issue in release notes, caught by comparing with vanilla version.
+- Resolves: rhbz#1903903
+
+* Wed Jan 13 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.282.b06-0.0.ea
+- Update to aarch64-shenandoah-jdk8u282-b06 (EA)
+- Update release notes for 8u282-b06.
+- Resolves: rhbz#1903903
+
+* Mon Jan 11 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.282.b05-0.0.ea
+- Update to aarch64-shenandoah-jdk8u282-b05 (EA)
+- Update release notes for 8u282-b05 and make some minor corrections.
+- Resolves: rhbz#1903903
+
+* Wed Jan 06 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.282.b04-0.0.ea
+- Update to aarch64-shenandoah-jdk8u282-b04 (EA)
+- Update release notes for 8u282-b04.
+- Remove upstreamed patch PR3519
+- Resolves: rhbz#1903903
+
+* Sat Jan 02 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.282.b03-0.0.ea
+- Update to aarch64-shenandoah-jdk8u282-b03 (EA)
+- Update release notes for 8u282-b03.
+- Resolves: rhbz#1903903
+
+* Wed Dec 16 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.282.b02-0.0.ea
+- Update to aarch64-shenandoah-jdk8u282-b02 (EA)
+- Update release notes for 8u282-b02.
+- Resolves: rhbz#1903903
+
+* Tue Dec 08 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.282.b01-0.1.ea
+- Extend RH1750419 alt-java fix to include external debuginfo, following JDK-8252395 in 8u282-b01
+- Resolves: rhbz#1901690
+
+* Tue Dec 08 2020 Jiri Vanek <jvanek@redhat.com> - 1:1.8.0.282.b01-0.1.ea
+- Added patch600: rh1750419-redhat_alt_java.patch
+- Replaced alt-java placeholder with real patched alt-java
+- Removed patch529: rh1566890-CVE_2018_3639-speculative_store_bypass.patch
+- Removed patch531: rh1566890-CVE_2018_3639-speculative_store_bypass_toggle.patch
+- Both surpassed by new patch
+- Resolves: rhbz#1901690
+
+* Mon Dec 07 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.282.b01-0.0.ea
+- Update to aarch64-shenandoah-jdk8u282-b01 (EA)
+- Update release notes for 8u282-b01.
+- Switch to EA mode.
+- Require tzdata 2020b due to resource changes in JDK-8254177
+- Remove PR3601, covered upstream by JDK-8062808.
+- Remove upstreamed JDK-8197981/PR3548, JDK-8062808/PR3548, JDK-8254177 & JDK-8215727.
+- Resolves: rhbz#1903903
+
+* Fri Nov 06 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.275.b01-0
+- Update to aarch64-shenandoah-jdk8u275-b01 (GA)
+- Update release notes for 8u275.
+- Resolves: rhbz#1895062
 
 * Tue Oct 20 2020 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.272.b10-1
 - Add backport of JDK-8215727: "Restore JFR thread sampler loop to old / previous behaviour"
