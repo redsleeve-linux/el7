@@ -1,0 +1,54 @@
+From cbb46dccb2804be3db142f5eb37acf2c0fa7e2b8 Mon Sep 17 00:00:00 2001
+From: Jan Friesse <jfriesse@redhat.com>
+Date: Tue, 10 Nov 2020 09:51:33 +0100
+Subject: [PATCH 1/2] Fix log_perror
+
+Also add definitions of log_printf and log_vprintf with format attribute
+so compiler have information about problems in printf strings.
+
+Signed-off-by: Jan Friesse <jfriesse@redhat.com>
+---
+ spausedd.c | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/spausedd.c b/spausedd.c
+index d453e39..0a6fe65 100644
+--- a/spausedd.c
++++ b/spausedd.c
+@@ -91,6 +91,15 @@ static int use_vmguestlib_stealtime = 0;
+ static VMGuestLibHandle guestlib_handle;
+ #endif
+ 
++/*
++ * Definitions (for attributes)
++ */
++static void	log_printf(int priority, const char *format, ...)
++    __attribute__((__format__(__printf__, 2, 3)));
++
++static void	log_vprintf(int priority, const char *format, va_list ap)
++    __attribute__((__format__(__printf__, 2, 0)));
++
+ /*
+  * Logging functions
+  */
+@@ -155,7 +164,7 @@ log_perror(int priority, const char *s)
+ 
+ 	stored_errno = errno;
+ 
+-	log_printf(priority, "%s (%u): %s", stored_errno, strerror(stored_errno));
++	log_printf(priority, "%s (%u): %s", s, stored_errno, strerror(stored_errno));
+ }
+ 
+ static int
+@@ -577,7 +586,7 @@ poll_run(uint64_t timeout)
+ 			    steal_perc);
+ 
+ 			if (steal_perc > max_steal_threshold) {
+-				log_printf(LOG_WARNING, "Steal time is > %0.1f%, this is usually because "
++				log_printf(LOG_WARNING, "Steal time is > %0.1f%%, this is usually because "
+ 				    "of overloaded host machine", max_steal_threshold);
+ 			}
+ 			times_not_scheduled++;
+-- 
+2.18.2
+

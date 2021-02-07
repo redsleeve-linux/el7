@@ -1,0 +1,44 @@
+From 3166a87749fa4817d90ed335f3c5843fc38e7304 Mon Sep 17 00:00:00 2001
+From: Jan Friesse <jfriesse@redhat.com>
+Date: Mon, 24 Feb 2020 14:58:45 +0100
+Subject: [PATCH] main: Add schedmiss timestamp into message
+
+This is useful for matching schedmiss event in stats map with logged
+event.
+
+(backported from master 35662dd0ec53f456445c30c0ef92892f47b25aa2)
+
+Signed-off-by: Jan Friesse <jfriesse@redhat.com>
+Reviewed-by: Christine Caulfield <ccaulfie@redhat.com>
+---
+ exec/main.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/exec/main.c b/exec/main.c
+index 204abc8..545c123 100644
+--- a/exec/main.c
++++ b/exec/main.c
+@@ -834,6 +834,7 @@ static void timer_function_scheduler_timeout (void *data)
+ 	struct scheduler_pause_timeout_data *timeout_data = (struct scheduler_pause_timeout_data *)data;
+ 	unsigned long long tv_current;
+ 	unsigned long long tv_diff;
++	uint64_t schedmiss_event_tstamp;
+ 
+ 	tv_current = qb_util_nano_current_get ();
+ 
+@@ -849,8 +850,11 @@ static void timer_function_scheduler_timeout (void *data)
+ 	timeout_data->tv_prev = tv_current;
+ 
+ 	if (tv_diff > timeout_data->max_tv_diff) {
+-		log_printf (LOGSYS_LEVEL_WARNING, "Corosync main process was not scheduled for %0.4f ms "
++		schedmiss_event_tstamp = qb_util_nano_from_epoch_get() / QB_TIME_NS_IN_MSEC;
++
++		log_printf (LOGSYS_LEVEL_WARNING, "Corosync main process was not scheduled (@%" PRIu64 ") for %0.4f ms "
+ 		    "(threshold is %0.4f ms). Consider token timeout increase.",
++		    schedmiss_event_tstamp,
+ 		    (float)tv_diff / QB_TIME_NS_IN_MSEC, (float)timeout_data->max_tv_diff / QB_TIME_NS_IN_MSEC);
+ 
+ 		icmap_set_float("runtime.schedmiss.delay", (float)tv_diff / QB_TIME_NS_IN_MSEC);
+-- 
+1.8.3.1
+

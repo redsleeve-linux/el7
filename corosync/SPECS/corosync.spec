@@ -23,13 +23,13 @@
 %global gittarver %{?numcomm:.%{numcomm}}%{?alphatag:-%{alphatag}}%{?dirty:-%{dirty}}
 
 %if %{with spausedd}
-%global spausedd_version 20190320
+%global spausedd_version 20190807
 %endif
 
 Name: corosync
 Summary: The Corosync Cluster Engine and Application Programming Interfaces
-Version: 2.4.3
-Release: 6%{?gitver}%{?dist}
+Version: 2.4.5
+Release: 7%{?gitver}%{?dist}.1
 License: BSD
 Group: System Environment/Base
 URL: http://corosync.github.io/corosync/
@@ -42,20 +42,23 @@ Source1: https://github.com/jfriesse/spausedd/releases/download/%{spausedd_versi
 %endif
 %endif
 
-Patch0: bz1536219-1-logging-Make-blackbox-configurable.patch
-Patch1: bz1536219-2-logging-Close-before-and-open-blackbox-after-fork.patch
-Patch2: bz1560468-1-totemcrypto-Check-length-of-the-packet.patch
-Patch3: bz1376819-1-configure-add-with-initconfigdir-option.patch
-Patch4: bz1376819-2-Use-RuntimeDirectory-instead-of-tmpfiles.d.patch
-Patch5: bz1634710-1-totemcrypto-Fix-importing-of-the-private-key.patch
-Patch6: bz1376819-3-qnetd-Check-existence-of-NSS-DB-dir-before-fork.patch
+Patch0: bz1656492-1-totem-Increase-ring_id-seq-after-load.patch
+Patch1: bz1780134-1-votequorum-Ignore-the-icmap_get_-return-value.patch
+Patch2: bz1780134-2-votequorum-Reflect-runtime-change-of-2Node-to-WFA.patch
+Patch3: bz1679792-1-votequorum-set-wfa-status-only-on-startup.patch
+Patch4: bz1835885-1-stats-Add-basic-schedule-miss-stats-to-needle.patch
+Patch5: bz1835885-2-main-Add-schedmiss-timestamp-into-message.patch
+Patch6: bz1835885-3-main-Make-schedmiss-in-cmap-and-log-equal.patch
+Patch7: bz1896311-1-Fix-log_perror.patch
+Patch8: bz1897087-1-Add-ability-to-move-process-into-root-cgroup.patch
 
 %if 0%{?rhel}
-ExclusiveArch: i686 x86_64 s390x ppc64le aarch64 %{arm}
+ExclusiveArch: i686 x86_64 s390x ppc64le aarch64
 %endif
 
 # Runtime bits
-Requires: corosynclib = %{version}-%{release}
+# The automatic dependency overridden in favor of explicit version lock
+Requires: corosynclib%{?_isa} = %{version}-%{release}
 Requires(pre): /usr/sbin/useradd
 Requires(post): /sbin/chkconfig
 Requires(preun): /sbin/chkconfig
@@ -64,6 +67,7 @@ Obsoletes: cman, clusterlib, clusterlib-devel
 
 # Build bits
 
+BuildRequires: gcc
 BuildRequires: groff
 BuildRequires: libqb-devel >= 0.14.2
 BuildRequires: nss-devel
@@ -114,13 +118,15 @@ BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 %setup -q -n %{name}-%{version}%{?gittarver}
 %endif
 
-%patch0 -p1 -b .bz1536219-1
-%patch1 -p1 -b .bz1536219-2
-%patch2 -p1 -b .bz1560468-1
-%patch3 -p1 -b .bz1376819-1
-%patch4 -p1 -b .bz1376819-2
-%patch5 -p1 -b .bz1634710-1
-%patch6 -p1 -b .bz1376819-3
+%patch0 -p1 -b .bz1656492-1
+%patch1 -p1 -b .bz1780134-1
+%patch2 -p1 -b .bz1780134-2
+%patch3 -p1 -b .bz1679792-1
+%patch4 -p1 -b .bz1835885-1
+%patch5 -p1 -b .bz1835885-2
+%patch6 -p1 -b .bz1835885-3
+%patch7 -p1 -d spausedd-%{spausedd_version}
+%patch8 -p1 -d spausedd-%{spausedd_version}
 
 %build
 %if %{with runautogen}
@@ -178,13 +184,14 @@ make %{_smp_mflags}
 
 %if %{with spausedd}
 cd spausedd-%{spausedd_version}
+CFLAGS="${CFLAGS:-%{optflags}}" ; export CFLAGS
 make \
 %if %{defined use_vmguestlib}
     WITH_VMGUESTLIB=1 \
 %else
     WITH_VMGUESTLIB=0 \
 %endif
-    %{?_smp_mflags} CFLAGS="%{optflags}"
+    %{?_smp_mflags}
 %endif
 
 %install
@@ -236,7 +243,7 @@ make DESTDIR="%{buildroot}" PREFIX="%{_prefix}" install
 
 %if %{with systemd}
 mkdir -p %{buildroot}/%{_unitdir}
-install -m 755 -p init/spausedd.service %{buildroot}/%{_unitdir}
+install -m 644 -p init/spausedd.service %{buildroot}/%{_unitdir}
 %else
 mkdir -p %{buildroot}/%{_initrddir}
 install -m 755 -p init/spausedd %{buildroot}/%{_initrddir}
@@ -391,7 +398,7 @@ This package contains corosync libraries.
 %package -n corosynclib-devel
 Summary: The Corosync Cluster Engine Development Kit
 Group: Development/Libraries
-Requires: corosynclib = %{version}-%{release}
+Requires: corosynclib%{?_isa} = %{version}-%{release}
 Requires: pkgconfig
 Provides: corosync-devel = %{version}
 Obsoletes: corosync-devel < 0.92-7
@@ -445,7 +452,8 @@ The Corosync Cluster Engine APIs.
 Summary: The Corosync Cluster Engine Qdevice
 Group: System Environment/Base
 Requires: %{name} = %{version}-%{release}
-Requires: corosynclib = %{version}-%{release}
+# The automatic dependency overridden in favor of explicit version lock
+Requires: corosynclib%{?_isa} = %{version}-%{release}
 Requires: nss-tools
 
 %if %{with systemd}
@@ -627,6 +635,63 @@ fi
 %endif
 
 %changelog
+* Fri Jan 15 2021 Jan Friesse <jfriesse@redhat.com> 2.4.5-7.1
+- Resolves: rhbz#1896311
+- Resolves: rhbz#1897087
+
+- spausedd: Fix log_perror (rhbz#1896311)
+- spausedd: Add ability to move process into root cgroup (rhbz#1897087)
+
+* Fri Jun 5 2020 Jan Friesse <jfriesse@redhat.com> 2.4.5-7
+- Related: rhbz#1835885
+
+- main: Make schedmiss in cmap and log equal (rhbz#1835885)
+- merge upstream commit 44c1c8ea31f981bdd7856d4eb8f4ac49f95a85e3 (rhbz#1835885)
+
+* Thu May 28 2020 Jan Friesse <jfriesse@redhat.com> 2.4.5-6
+- Resolves: rhbz#1835885
+
+- stats: Add basic schedule-miss stats to needle (rhbz#1835885)
+- merge upstream commit 274fda334a84253222e01b779349784ec552921b (rhbz#1835885)
+- main: Add schedmiss timestamp into message (rhbz#1835885)
+- merge upstream commit 3166a87749fa4817d90ed335f3c5843fc38e7304 (rhbz#1835885)
+
+* Tue Mar 24 2020 Jan Friesse <jfriesse@redhat.com> 2.4.5-5
+- Resolves: rhbz#1679792
+- Resolves: rhbz#1780134
+
+- votequorum: Ignore the icmap_get_* return value (rhbz#1780134)
+- merge upstream commit 8ad3c6bbb4556332c5a6b7fecdab73310c045b24 (rhbz#1780134)
+- votequorum: Reflect runtime change of 2Node to WFA (rhbz#1780134)
+- merge upstream commit bfbed8c320b0c0c5d3db48630f3de77e5fd62b75 (rhbz#1780134)
+- votequorum: set wfa status only on startup (rhbz#1679792)
+- merge upstream commit 6894792d76b1e8932bc822bb040933ae17e1a0c7 (rhbz#1679792)
+
+* Wed Aug 07 2019 Jan Friesse <jfriesse@redhat.com> - 2.4.5-4
+- Related: rhbz#1737884
+
+- Enhance spausedd makefile
+
+* Tue Aug 06 2019 Jan Friesse <jfriesse@redhat.com> - 2.4.5-3
+- Resolves: rhbz#1737884
+- Resolves: rhbz#1737887
+
+- Do not set exec permission for service file
+- Fix CFLAGS definition
+
+* Tue Jul 30 2019 Jan Friesse <jfriesse@redhat.com> 2.4.5-2
+- Resolves: rhbz#1656492
+
+- totem: Increase ring_id seq after load (rhbz#1656492)
+- merge upstream commit 1061804d09565363aba73e369faf310a7d2c4d86 (rhbz#1656492)
+
+* Tue Jul 30 2019 Jan Friesse <jfriesse@redhat.com> 2.4.5-1
+- Resolves: rhbz#1732039
+- Resolves: rhbz#1153818
+- Resolves: rhbz#1647120
+
+- Rebase to Corosync 2.4.5
+
 * Thu Mar 21 2019 Jan Friesse <jfriesse@redhat.com> 2.4.3-6
 - Resolves: rhbz#1542703
 

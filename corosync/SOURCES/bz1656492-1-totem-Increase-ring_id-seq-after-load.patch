@@ -1,0 +1,64 @@
+From 1061804d09565363aba73e369faf310a7d2c4d86 Mon Sep 17 00:00:00 2001
+From: Jan Friesse <jfriesse@redhat.com>
+Date: Mon, 15 Jul 2019 14:08:39 +0200
+Subject: [PATCH] totem: Increase ring_id seq after load
+
+This patch handles the situation where the leader
+node (the node with lowest node_id) crashes and is started again
+before token timeout of the rest of the cluster.
+The newly restarted node restores the ringid of the old ring from
+stable storage, so it has the same ringid as rest of the nodes,
+but ARU is zero. If the node is able to create a singleton membership
+before receiving the joinlist from rest of the cluster,
+everything works as expected, because the ring id gets increased
+correctly.
+
+But if the node receives a joinlist from another cluster node before
+its own joinlist, then it continues as it would had it never left
+the cluster. This is not correct, because the new node should always
+create a singleton configuration first.
+
+During the recovery phase, ARUs are compared and because they differ
+(the ARU of the old leader node is 0), the other nodes
+try to sent all of their previous messages. This is impossible
+(even if it was correct), because other nodes have already freed most
+of those messages. The implementation uses an assert to limit maximum
+number of messages sent during recovery (we could fix this,
+but it's not really the point).
+
+The solution here is to increase the ring_id sequence number by 1 after
+loading it from storage. During creation of the commit token it is
+always increased by 4, so it will not collide with an existing
+sequence.
+
+Thanks Christine Caulfield <ccaulfie@redhat.com> for clarify commit
+message.
+
+Signed-off-by: Jan Friesse <jfriesse@redhat.com>
+Reviewed-by: Christine Caulfield <ccaulfie@redhat.com>
+---
+ exec/totemsrp.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/exec/totemsrp.c b/exec/totemsrp.c
+index 0410ed9..c07bd43 100644
+--- a/exec/totemsrp.c
++++ b/exec/totemsrp.c
+@@ -5094,6 +5094,14 @@ void main_iface_change_fn (
+ 	if (instance->iface_changes++ == 0) {
+ 		instance->memb_ring_id_create_or_load (&instance->my_ring_id,
+ 		    &instance->my_id.addr[0]);
++		/*
++		 * Increase the ring_id sequence number. This doesn't follow specification.
++		 * Solves problem with restarted leader node (node with lowest nodeid) before
++		 * rest of the cluster forms new membership and guarantees unique ring_id for
++		 * new singleton configuration.
++		 */
++		instance->my_ring_id.seq++;
++
+ 		instance->token_ring_id_seq = instance->my_ring_id.seq;
+ 		log_printf (
+ 			instance->totemsrp_log_level_debug,
+-- 
+1.8.3.1
+

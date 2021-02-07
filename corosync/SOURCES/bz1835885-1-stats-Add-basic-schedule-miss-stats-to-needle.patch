@@ -1,0 +1,56 @@
+From 274fda334a84253222e01b779349784ec552921b Mon Sep 17 00:00:00 2001
+From: Christine Caulfield <ccaulfie@redhat.com>
+Date: Fri, 21 Feb 2020 09:20:29 +0000
+Subject: [PATCH] stats: Add basic schedule-miss stats to needle
+
+In camelback (48b6894ef41e9a06ccbb696d062d86ef60dc2c4b) we have
+a much more comprehensive system for recording
+schedule misses because it has a 'stats' map. This is much more basic
+and just writes the last event into cmap. You can still query and track
+the value though.
+
+Signed-off-by: Christine Caulfield <ccaulfie@redhat.com>
+Reviewed-by: Jan Friesse <jfriesse@redhat.com>
+---
+ exec/main.c     |  3 +++
+ man/cmap_keys.8 | 10 ++++++++++
+ 2 files changed, 13 insertions(+)
+
+diff --git a/exec/main.c b/exec/main.c
+index 787d5c9..204abc8 100644
+--- a/exec/main.c
++++ b/exec/main.c
+@@ -852,6 +852,9 @@ static void timer_function_scheduler_timeout (void *data)
+ 		log_printf (LOGSYS_LEVEL_WARNING, "Corosync main process was not scheduled for %0.4f ms "
+ 		    "(threshold is %0.4f ms). Consider token timeout increase.",
+ 		    (float)tv_diff / QB_TIME_NS_IN_MSEC, (float)timeout_data->max_tv_diff / QB_TIME_NS_IN_MSEC);
++
++		icmap_set_float("runtime.schedmiss.delay", (float)tv_diff / QB_TIME_NS_IN_MSEC);
++		icmap_set_uint64("runtime.schedmiss.timestamp", qb_util_nano_from_epoch_get() / QB_TIME_NS_IN_MSEC);
+ 	}
+ 
+ 	/*
+diff --git a/man/cmap_keys.8 b/man/cmap_keys.8
+index b0cd721..1045c65 100644
+--- a/man/cmap_keys.8
++++ b/man/cmap_keys.8
+@@ -256,6 +256,16 @@ Status of the processor. Can be one of joined and left.
+ Config version of the member node.
+ 
+ .TP
++runtime.schedmiss.timestamp
++The timestamp of the last time when corosync failed to be scheduled
++for the required amount of time. The even is warned in syslog but this
++is easier to find. The time is milli-seconds since the epoch.
++
++.B
++runtime.schedmiss.delay
++The amount of time (milliseconds as a float) that corosync was delayed.
++
++.TP
+ resources.process.PID.*
+ Prefix created by applications using SAM with CMAP integration.
+ It contains the following keys:
+-- 
+1.8.3.1
+

@@ -1,0 +1,60 @@
+From 44c1c8ea31f981bdd7856d4eb8f4ac49f95a85e3 Mon Sep 17 00:00:00 2001
+From: Jan Friesse <jfriesse@redhat.com>
+Date: Fri, 5 Jun 2020 14:42:26 +0200
+Subject: [PATCH] main: Make schedmiss in cmap and log equal
+
+Second call of qb_util_nano_from_epoch_get may differ a bit. Solution is
+to use previously stored timestamp (similarly as in master branch).
+
+Also fix man page to follow similar style as other keys.
+
+Thanks Patrik Hagara <phagara@redhat.com> for reporting the problem.
+
+Signed-off-by: Jan Friesse <jfriesse@redhat.com>
+Reviewed-by: Christine Caulfield <ccaulfie@redhat.com>
+---
+ exec/main.c     |  2 +-
+ man/cmap_keys.8 | 12 +++++++-----
+ 2 files changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/exec/main.c b/exec/main.c
+index 545c123d..5d05d573 100644
+--- a/exec/main.c
++++ b/exec/main.c
+@@ -858,7 +858,7 @@ static void timer_function_scheduler_timeout (void *data)
+ 		    (float)tv_diff / QB_TIME_NS_IN_MSEC, (float)timeout_data->max_tv_diff / QB_TIME_NS_IN_MSEC);
+ 
+ 		icmap_set_float("runtime.schedmiss.delay", (float)tv_diff / QB_TIME_NS_IN_MSEC);
+-		icmap_set_uint64("runtime.schedmiss.timestamp", qb_util_nano_from_epoch_get() / QB_TIME_NS_IN_MSEC);
++		icmap_set_uint64("runtime.schedmiss.timestamp", schedmiss_event_tstamp);
+ 	}
+ 
+ 	/*
+diff --git a/man/cmap_keys.8 b/man/cmap_keys.8
+index 1045c65e..d9e512d6 100644
+--- a/man/cmap_keys.8
++++ b/man/cmap_keys.8
+@@ -256,13 +256,15 @@ Status of the processor. Can be one of joined and left.
+ Config version of the member node.
+ 
+ .TP
+-runtime.schedmiss.timestamp
++runtime.schedmiss.*
++If corosync is not scheduled after the required period of time it will
++log this event and also write an entry to cmap under following keys:
++
++.B timestamp
+ The timestamp of the last time when corosync failed to be scheduled
+-for the required amount of time. The even is warned in syslog but this
+-is easier to find. The time is milli-seconds since the epoch.
++for the required amount of time. The time is milli-seconds since the epoch.
+ 
+-.B
+-runtime.schedmiss.delay
++.B delay
+ The amount of time (milliseconds as a float) that corosync was delayed.
+ 
+ .TP
+-- 
+2.18.2
+
