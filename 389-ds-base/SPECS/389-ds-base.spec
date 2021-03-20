@@ -19,7 +19,7 @@
 %global use_tcmalloc 0
 %global variant base-asan
 %else
-%if %{_arch} != "s390x" && %{_arch} != "s390"
+%ifnarch s390 s390x %{arm}
 %global use_tcmalloc 1
 %else
 %global use_tcmalloc 0
@@ -39,7 +39,7 @@
 Summary:          389 Directory Server (%{variant})
 Name:             389-ds-base
 Version:          1.3.10.2
-Release:          %{?relprefix}9%{?prerel}%{?dist}
+Release:          %{?relprefix}9%{?prerel}%{?dist}.redsleeve
 License:          GPLv3+
 URL:              https://www.port389.org/
 Group:            System Environment/Daemons
@@ -514,6 +514,9 @@ fi
 %{_sysconfdir}/%{pkgname}/dirsrvtests
 
 %changelog
+* Sun Feb 07 2021 Jacco Ligthart <jacco@redsleeve.org> - 1.3.10.2-9.redsleeve
+- disabled tcmalloc for arm
+
 * Thu Jan 7 2021 Mark Reynolds <mreynolds@redhat.com> - 1.3.10.2-9
 - Bump version to 1.3.10.2-8
 - Resolves: Bug 1905450 - Internal unindexed search crashes the server
