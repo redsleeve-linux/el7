@@ -1,6 +1,6 @@
-From d0d6926af5352d5941408a5a8634428fe1d186ef Mon Sep 17 00:00:00 2001
+From fbc33acbbc50e7056aadc1106f70c769abb7a09e Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sat, 10 Aug 2019 10:34:17 +0200
+Date: Fri, 20 Nov 2020 00:05:36 +0100
 Subject: [PATCH] Issue #17998: Fix an internal error in regular expression
 
 ---
@@ -290,21 +290,21 @@ index 0000000..47fba50
 + }
 +
 diff --git a/SPECS/python.spec b/SPECS/python.spec
-index 7538fb7..4693b65 100644
+index d8cb400..c423dd3 100644
 --- a/SPECS/python.spec
 +++ b/SPECS/python.spec
 @@ -114,7 +114,7 @@ Summary: An interpreted, interactive, object-oriented programming language
  Name: %{python}
  # Remember to also rebase python-docs when changing this:
  Version: 2.7.5
--Release: 86%{?dist}
-+Release: 86%{?dist}.redsleeve
+-Release: 90%{?dist}
++Release: 90%{?dist}.redsleeve
  License: Python
  Group: Development/Languages
  Requires: %{python}-libs%{?_isa} = %{version}-%{release}
-@@ -1332,6 +1332,9 @@ Patch325: 00325-CVE-2019-9948.patch
- # above:
- Patch5000: 05000-autotool-intermediates.patch
+@@ -1361,6 +1361,9 @@ Patch5000: 05000-autotool-intermediates.patch
+ 
+ Patch99999: 99999-python-2.7.5-issues-17979-17998.patch
  
 +Patch6001: python-2.7.5-Fix-re-engine-redsleeve.patch
 +Patch6002: python-2.7.5-Fix-re-engine2-redsleeve.patch
@@ -312,7 +312,7 @@ index 7538fb7..4693b65 100644
  # ======================================================
  # Additional metadata, and subpackages
  # ======================================================
-@@ -1762,6 +1765,8 @@ find -name "*~" |xargs rm -f
+@@ -1800,6 +1803,8 @@ find -name "*~" |xargs rm -f
  %patch5000 -p0 -b .autotool-intermediates
  %endif
  
@@ -321,20 +321,20 @@ index 7538fb7..4693b65 100644
  
  # ======================================================
  # Configuring and building the code:
-@@ -2624,6 +2629,13 @@ rm -fr %{buildroot}
+@@ -2662,6 +2667,13 @@ rm -fr %{buildroot}
  # ======================================================
  
  %changelog
-+* Sat Aug 10 2019 Jacco Ligthart <jacco@ligthart.nu> - 2.7.5-86.redsleeve
++* Thu Nov 19 2020 Jacco Ligthart <jacco@ligthart.nu> - 2.7.5-90.redsleeve
 +- Issue #17998: Fix an internal error in regular expression engine.
 +- https://github.com/OpenSCAP/scap-security-guide/issues/1332
 +- https://bugs.python.org/issue17998
 +- and related issue #18684
 +- https://bugs.python.org/issue18684
 +
- * Tue Jun 11 2019 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-86
- - Security fix for CVE-2019-10160
- Resolves: rhbz#1718388
+ * Fri Jul 31 2020 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-90
+ - Avoid infinite loop when reading specially crafted TAR files (CVE-2019-20907)
+ Resolves: rhbz#1856481
 -- 
 1.8.3.1
 

@@ -114,7 +114,7 @@ Summary: An interpreted, interactive, object-oriented programming language
 Name: %{python}
 # Remember to also rebase python-docs when changing this:
 Version: 2.7.5
-Release: 88%{?dist}
+Release: 90%{?dist}.redsleeve
 License: Python
 Group: Development/Languages
 Requires: %{python}-libs%{?_isa} = %{version}-%{release}
@@ -142,6 +142,7 @@ BuildRequires: gcc-c++
 %if %{with_gdbm}
 BuildRequires: gdbm-devel
 %endif
+BuildRequires: git-core
 BuildRequires: glibc-devel
 BuildRequires: gmp-devel
 BuildRequires: libdb-devel
@@ -1319,6 +1320,20 @@ Patch330: 00330-CVE-2018-20852.patch
 # Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1750773
 Patch332: 00332-CVE-2019-16056.patch
 
+# 00344 #
+# Fix CVE-2019-16935: XSS vulnerability in the documentation XML-RPC server in server_title field
+# Fixed upstream: https://bugs.python.org/issue38243
+# Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1797998
+# Also fix a race condition affecting the test
+# Fixed upstream: https://bugs.python.org/issue27614
+Patch344: 00344-CVE-2019-16935.patch
+
+# 00351 #
+# Avoid infinite loop when reading specially crafted TAR files using the tarfile module
+# (CVE-2019-20907).
+# See: https://bugs.python.org/issue39017
+Patch351: 00351-cve-2019-20907-fix-infinite-loop-in-tarfile.patch
+
 # (New patches go here ^^^)
 #
 # When adding new patches to "python" and "python3" in Fedora 17 onwards,
@@ -1343,7 +1358,11 @@ Patch332: 00332-CVE-2019-16056.patch
 #   %%{regenerate_autotooling_patch}
 # above:
 Patch5000: 05000-autotool-intermediates.patch
+
 Patch99999: 99999-python-2.7.5-issues-17979-17998.patch
+
+Patch6001: python-2.7.5-Fix-re-engine-redsleeve.patch
+Patch6002: python-2.7.5-Fix-re-engine2-redsleeve.patch
 
 # ======================================================
 # Additional metadata, and subpackages
@@ -1766,10 +1785,14 @@ mv Modules/cryptmodule.c Modules/_cryptmodule.c
 %patch325 -p1
 %patch330 -p1
 %patch332 -p1
+%patch344 -p1
 
 %ifarch %{arm} %{ix86} ppc
 %patch99999 -p1
 %endif
+
+# Patch 351 adds binary file for testing. We need to apply it using Git.
+git apply %{PATCH351}
 
 # This shouldn't be necesarry, but is right now (2.2a3)
 find -name "*~" |xargs rm -f
@@ -1780,6 +1803,8 @@ find -name "*~" |xargs rm -f
 %patch5000 -p0 -b .autotool-intermediates
 %endif
 
+%patch6001 -p1
+%patch6002 -p1
 
 # ======================================================
 # Configuring and building the code:
@@ -2642,6 +2667,21 @@ rm -fr %{buildroot}
 # ======================================================
 
 %changelog
+* Thu Nov 19 2020 Jacco Ligthart <jacco@ligthart.nu> - 2.7.5-90.redsleeve
+- Issue #17998: Fix an internal error in regular expression engine.
+- https://github.com/OpenSCAP/scap-security-guide/issues/1332
+- https://bugs.python.org/issue17998
+- and related issue #18684
+- https://bugs.python.org/issue18684
+
+* Fri Jul 31 2020 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-90
+- Avoid infinite loop when reading specially crafted TAR files (CVE-2019-20907)
+Resolves: rhbz#1856481
+
+* Fri Mar 20 2020 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-89
+- Security fix for CVE-2019-16935
+Resolves: rhbz#1797998
+
 * Wed Sep 25 2019 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-88
 - Security fix for CVE-2019-16056
 Resolves: rhbz#1750773
