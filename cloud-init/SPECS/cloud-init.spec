@@ -13,7 +13,7 @@
 
 Name:           cloud-init
 Version:        19.4
-Release:        7%{?dist}.3.redsleeve
+Release:        7%{?dist}.4
 Summary:        Cloud instance init scripts
 
 Group:          System Environment/Base
@@ -62,8 +62,10 @@ Patch22: ci-Changing-notation-of-subp-call.patch
 Patch23: ci-DHCP-sandboxing-failing-on-noexec-mounted-var-tmp-52.patch
 # For bz#1861871 - [rhel7][cloud-init] ifup bond0.504 Error: Connection activation failed: No suitable device found for this connection [rhel-7.9.z]
 Patch24: ci-network-Fix-type-and-respect-name-when-rendering-vla.patch
+# For bz#1900807 - Update existing user password RHEL7x
+Patch25: ci-DataSourceAzure-update-password-for-defuser-if-exist.patch
 
-Patch9999: cloud-init-redsleeve-user.patch
+Patch9999: cloud-init-centos-user.patch
 
 # Deal with noarch -> arch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1067089
@@ -234,8 +236,10 @@ fi
 %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
 
 %changelog
-* Sun Feb 07 2021 Jacco Ligthart <jacco@redsleeve.org 19.4-7.el7.3.redsleeve
-- rebrand for redsleeve
+* Tue Feb 16 2021 Jon Maloy <jmaloy@redhat.com> - 19.4-7.el7_9.4
+- ci-DataSourceAzure-update-password-for-defuser-if-exist.patch [bz#1900807]
+- Resolves: bz#1900807
+  (Update existing user password RHEL7x)
 
 * Tue Nov 10 2020 Jon Maloy <jmaloy@redhat.com> - 19.4-7.el7_9.3
 - ci-network-Fix-type-and-respect-name-when-rendering-vla.patch [bz#1861871]
