@@ -1,0 +1,307 @@
+From 649c8ed3f369aa11e3bdbb4784b61d2e6000cb6a Mon Sep 17 00:00:00 2001
+From: Lionel Landwerlin <lionel.g.landwerlin@intel.com>
+Date: Fri, 6 Mar 2020 16:56:25 +0200
+Subject: [PATCH 2/8] i965: store DRM fd on intel_screen
+
+v2: Fix storing of drm fd (Ajax)
+
+[mustard: backport to 18.3.4 - ajax]
+
+Signed-off-by: Lionel Landwerlin <lionel.g.landwerlin@intel.com>
+(cherry picked from commit b9d3d93769a96d973e379673e712a11b408f7712)
+---
+ .../drivers/dri/i965/brw_performance_query.c  | 27 +++++++------------
+ src/mesa/drivers/dri/i965/brw_reset.c         |  6 ++---
+ src/mesa/drivers/dri/i965/intel_batchbuffer.c |  6 ++---
+ src/mesa/drivers/dri/i965/intel_screen.c      | 14 +++++-----
+ src/mesa/drivers/dri/i965/intel_screen.h      |  3 +++
+ 5 files changed, 22 insertions(+), 34 deletions(-)
+
+diff --git a/src/mesa/drivers/dri/i965/brw_performance_query.c b/src/mesa/drivers/dri/i965/brw_performance_query.c
+index 10e3d024f17..703c79c4f97 100644
+--- a/src/mesa/drivers/dri/i965/brw_performance_query.c
++++ b/src/mesa/drivers/dri/i965/brw_performance_query.c
+@@ -1103,7 +1103,6 @@ brw_begin_perf_query(struct gl_context *ctx,
+ 
+       /* If the OA counters aren't already on, enable them. */
+       if (brw->perfquery.oa_stream_fd == -1) {
+-         __DRIscreen *screen = brw->screen->driScrnPriv;
+          const struct gen_device_info *devinfo = &brw->screen->devinfo;
+ 
+          /* The period_exponent gives a sampling period as follows:
+@@ -1163,7 +1162,7 @@ brw_begin_perf_query(struct gl_context *ctx,
+                                        metric_id,
+                                        query->oa_format,
+                                        period_exponent,
+-                                       screen->fd, /* drm fd */
++                                       brw->screen->fd, /* drm fd */
+                                        brw->hw_ctx))
+             return false;
+       } else {
+@@ -1847,8 +1846,6 @@ enumerate_sysfs_metrics(struct brw_context *brw)
+ static bool
+ kernel_has_dynamic_config_support(struct brw_context *brw)
+ {
+-   __DRIscreen *screen = brw->screen->driScrnPriv;
+-
+    hash_table_foreach(brw->perfquery.oa_metrics_table, entry) {
+       struct brw_perf_query_info *query = entry->data;
+       char config_path[280];
+@@ -1859,7 +1856,7 @@ kernel_has_dynamic_config_support(struct brw_context *brw)
+ 
+       /* Look for the test config, which we know we can't replace. */
+       if (read_file_uint64(config_path, &config_id) && config_id == 1) {
+-         return drmIoctl(screen->fd, DRM_IOCTL_I915_PERF_REMOVE_CONFIG,
++         return drmIoctl(brw->screen->fd, DRM_IOCTL_I915_PERF_REMOVE_CONFIG,
+                          &config_id) < 0 && errno == ENOENT;
+       }
+    }
+@@ -1870,8 +1867,6 @@ kernel_has_dynamic_config_support(struct brw_context *brw)
+ static void
+ init_oa_configs(struct brw_context *brw)
+ {
+-   __DRIscreen *screen = brw->screen->driScrnPriv;
+-
+    hash_table_foreach(brw->perfquery.oa_metrics_table, entry) {
+       const struct brw_perf_query_info *query = entry->data;
+       struct drm_i915_perf_oa_config config;
+@@ -1902,7 +1897,7 @@ init_oa_configs(struct brw_context *brw)
+       config.n_flex_regs = query->n_flex_regs;
+       config.flex_regs_ptr = (uintptr_t) query->flex_regs;
+ 
+-      ret = drmIoctl(screen->fd, DRM_IOCTL_I915_PERF_ADD_CONFIG, &config);
++      ret = drmIoctl(brw->screen->fd, DRM_IOCTL_I915_PERF_ADD_CONFIG, &config);
+       if (ret < 0) {
+          DBG("Failed to load \"%s\" (%s) metrics set in kernel: %s\n",
+              query->name, query->guid, strerror(errno));
+@@ -1917,7 +1912,6 @@ init_oa_configs(struct brw_context *brw)
+ static bool
+ query_topology(struct brw_context *brw)
+ {
+-   __DRIscreen *screen = brw->screen->driScrnPriv;
+    struct drm_i915_query_item item = {
+       .query_id = DRM_I915_QUERY_TOPOLOGY_INFO,
+    };
+@@ -1926,14 +1920,14 @@ query_topology(struct brw_context *brw)
+       .items_ptr = (uintptr_t) &item,
+    };
+ 
+-   if (drmIoctl(screen->fd, DRM_IOCTL_I915_QUERY, &query))
++   if (drmIoctl(brw->screen->fd, DRM_IOCTL_I915_QUERY, &query))
+       return false;
+ 
+    struct drm_i915_query_topology_info *topo_info =
+       (struct drm_i915_query_topology_info *) calloc(1, item.length);
+    item.data_ptr = (uintptr_t) topo_info;
+ 
+-   if (drmIoctl(screen->fd, DRM_IOCTL_I915_QUERY, &query) ||
++   if (drmIoctl(brw->screen->fd, DRM_IOCTL_I915_QUERY, &query) ||
+        item.length <= 0)
+       return false;
+ 
+@@ -1948,21 +1942,20 @@ query_topology(struct brw_context *brw)
+ static bool
+ getparam_topology(struct brw_context *brw)
+ {
+-   __DRIscreen *screen = brw->screen->driScrnPriv;
+    drm_i915_getparam_t gp;
+    int ret;
+ 
+    int slice_mask = 0;
+    gp.param = I915_PARAM_SLICE_MASK;
+    gp.value = &slice_mask;
+-   ret = drmIoctl(screen->fd, DRM_IOCTL_I915_GETPARAM, &gp);
++   ret = drmIoctl(brw->screen->fd, DRM_IOCTL_I915_GETPARAM, &gp);
+    if (ret)
+       return false;
+ 
+    int subslice_mask = 0;
+    gp.param = I915_PARAM_SUBSLICE_MASK;
+    gp.value = &subslice_mask;
+-   ret = drmIoctl(screen->fd, DRM_IOCTL_I915_GETPARAM, &gp);
++   ret = drmIoctl(brw->screen->fd, DRM_IOCTL_I915_GETPARAM, &gp);
+    if (ret)
+       return false;
+ 
+@@ -2013,7 +2006,6 @@ init_oa_sys_vars(struct brw_context *brw)
+ {
+    const struct gen_device_info *devinfo = &brw->screen->devinfo;
+    uint64_t min_freq_mhz = 0, max_freq_mhz = 0;
+-   __DRIscreen *screen = brw->screen->driScrnPriv;
+ 
+    if (!read_sysfs_drm_device_file_uint64(brw, "gt_min_freq_mhz", &min_freq_mhz))
+       return false;
+@@ -2041,7 +2033,7 @@ init_oa_sys_vars(struct brw_context *brw)
+    brw->perfquery.sys_vars.gt_min_freq = min_freq_mhz * 1000000;
+    brw->perfquery.sys_vars.gt_max_freq = max_freq_mhz * 1000000;
+    brw->perfquery.sys_vars.timestamp_frequency = devinfo->timestamp_frequency;
+-   brw->perfquery.sys_vars.revision = intel_device_get_revision(screen->fd);
++   brw->perfquery.sys_vars.revision = intel_device_get_revision(brw->screen->fd);
+    compute_topology_builtins(brw);
+ 
+    return true;
+@@ -2050,7 +2042,6 @@ init_oa_sys_vars(struct brw_context *brw)
+ static bool
+ get_sysfs_dev_dir(struct brw_context *brw)
+ {
+-   __DRIscreen *screen = brw->screen->driScrnPriv;
+    struct stat sb;
+    int min, maj;
+    DIR *drmdir;
+@@ -2059,7 +2050,7 @@ get_sysfs_dev_dir(struct brw_context *brw)
+ 
+    brw->perfquery.sysfs_dev_dir[0] = '\0';
+ 
+-   if (fstat(screen->fd, &sb)) {
++   if (fstat(brw->screen->fd, &sb)) {
+       DBG("Failed to stat DRM fd\n");
+       return false;
+    }
+diff --git a/src/mesa/drivers/dri/i965/brw_reset.c b/src/mesa/drivers/dri/i965/brw_reset.c
+index ad8c44f2d1c..90518780eb8 100644
+--- a/src/mesa/drivers/dri/i965/brw_reset.c
++++ b/src/mesa/drivers/dri/i965/brw_reset.c
+@@ -35,7 +35,6 @@ GLenum
+ brw_get_graphics_reset_status(struct gl_context *ctx)
+ {
+    struct brw_context *brw = brw_context(ctx);
+-   __DRIscreen *dri_screen = brw->screen->driScrnPriv;
+    struct drm_i915_reset_stats stats = { .ctx_id = brw->hw_ctx };
+ 
+    /* If hardware contexts are not being used (or
+@@ -51,7 +50,7 @@ brw_get_graphics_reset_status(struct gl_context *ctx)
+    if (brw->reset_count != 0)
+       return GL_NO_ERROR;
+ 
+-   if (drmIoctl(dri_screen->fd, DRM_IOCTL_I915_GET_RESET_STATS, &stats) != 0)
++   if (drmIoctl(brw->screen->fd, DRM_IOCTL_I915_GET_RESET_STATS, &stats) != 0)
+       return GL_NO_ERROR;
+ 
+    /* A reset was observed while a batch from this context was executing.
+@@ -77,10 +76,9 @@ brw_get_graphics_reset_status(struct gl_context *ctx)
+ void
+ brw_check_for_reset(struct brw_context *brw)
+ {
+-   __DRIscreen *dri_screen = brw->screen->driScrnPriv;
+    struct drm_i915_reset_stats stats = { .ctx_id = brw->hw_ctx };
+ 
+-   if (drmIoctl(dri_screen->fd, DRM_IOCTL_I915_GET_RESET_STATS, &stats) != 0)
++   if (drmIoctl(brw->screen->fd, DRM_IOCTL_I915_GET_RESET_STATS, &stats) != 0)
+       return;
+ 
+    if (stats.batch_active > 0 || stats.batch_pending > 0)
+diff --git a/src/mesa/drivers/dri/i965/intel_batchbuffer.c b/src/mesa/drivers/dri/i965/intel_batchbuffer.c
+index 6207de5a06f..7237e51ab5a 100644
+--- a/src/mesa/drivers/dri/i965/intel_batchbuffer.c
++++ b/src/mesa/drivers/dri/i965/intel_batchbuffer.c
+@@ -683,8 +683,7 @@ throttle(struct brw_context *brw)
+    }
+ 
+    if (brw->need_flush_throttle) {
+-      __DRIscreen *dri_screen = brw->screen->driScrnPriv;
+-      drmCommandNone(dri_screen->fd, DRM_I915_GEM_THROTTLE);
++      drmCommandNone(brw->screen->fd, DRM_I915_GEM_THROTTLE);
+       brw->need_flush_throttle = false;
+    }
+ }
+@@ -749,7 +748,6 @@ execbuffer(int fd,
+ static int
+ submit_batch(struct brw_context *brw, int in_fence_fd, int *out_fence_fd)
+ {
+-   __DRIscreen *dri_screen = brw->screen->driScrnPriv;
+    struct intel_batchbuffer *batch = &brw->batch;
+    int ret = 0;
+ 
+@@ -816,7 +814,7 @@ submit_batch(struct brw_context *brw, int in_fence_fd, int *out_fence_fd)
+          batch->exec_bos[index] = tmp_bo;
+       }
+ 
+-      ret = execbuffer(dri_screen->fd, batch, brw->hw_ctx,
++      ret = execbuffer(brw->screen->fd, batch, brw->hw_ctx,
+                        4 * USED_BATCH(*batch),
+                        in_fence_fd, out_fence_fd, flags);
+ 
+diff --git a/src/mesa/drivers/dri/i965/intel_screen.c b/src/mesa/drivers/dri/i965/intel_screen.c
+index 1feaf18219c..3e02c11700c 100644
+--- a/src/mesa/drivers/dri/i965/intel_screen.c
++++ b/src/mesa/drivers/dri/i965/intel_screen.c
+@@ -1636,7 +1636,7 @@ intel_get_param(struct intel_screen *screen, int param, int *value)
+    gp.param = param;
+    gp.value = value;
+ 
+-   if (drmIoctl(screen->driScrnPriv->fd, DRM_IOCTL_I915_GETPARAM, &gp) == -1) {
++   if (drmIoctl(screen->fd, DRM_IOCTL_I915_GETPARAM, &gp) == -1) {
+       ret = -errno;
+       if (ret != -EINVAL)
+          _mesa_warning(NULL, "drm_i915_getparam: %d", ret);
+@@ -1865,8 +1865,6 @@ err_out:
+ static bool
+ intel_init_bufmgr(struct intel_screen *screen)
+ {
+-   __DRIscreen *dri_screen = screen->driScrnPriv;
+-
+    if (getenv("INTEL_NO_HW") != NULL)
+       screen->no_hw = true;
+ 
+@@ -1880,7 +1878,7 @@ intel_init_bufmgr(struct intel_screen *screen)
+       break;
+    }
+ 
+-   screen->bufmgr = brw_bufmgr_init(&screen->devinfo, dri_screen->fd, bo_reuse);
++   screen->bufmgr = brw_bufmgr_init(&screen->devinfo, screen->fd, bo_reuse);
+    if (screen->bufmgr == NULL) {
+       fprintf(stderr, "[%s:%u] Error initializing buffer manager.\n",
+ 	      __func__, __LINE__);
+@@ -2038,8 +2036,7 @@ intel_detect_pipelined_register(struct intel_screen *screen,
+    /* Don't bother with error checking - if the execbuf fails, the
+     * value won't be written and we'll just report that there's no access.
+     */
+-   __DRIscreen *dri_screen = screen->driScrnPriv;
+-   drmIoctl(dri_screen->fd, DRM_IOCTL_I915_GEM_EXECBUFFER2, &execbuf);
++   drmIoctl(screen->fd, DRM_IOCTL_I915_GEM_EXECBUFFER2, &execbuf);
+ 
+    /* Check whether the value got written. */
+    void *results_map = brw_bo_map(NULL, results, MAP_READ);
+@@ -2475,6 +2472,7 @@ __DRIconfig **intelInitScreen2(__DRIscreen *dri_screen)
+    screen->driScrnPriv = dri_screen;
+    dri_screen->driverPrivate = (void *) screen;
+ 
++   screen->fd = dri_screen->fd;
+    screen->deviceID = gen_get_pci_device_id_override();
+    if (screen->deviceID < 0)
+       screen->deviceID = intel_get_integer(screen, I915_PARAM_CHIPSET_ID);
+@@ -2531,7 +2529,7 @@ __DRIconfig **intelInitScreen2(__DRIscreen *dri_screen)
+       screen->max_gtt_map_object_size = gtt_size / 4;
+    }
+ 
+-   screen->aperture_threshold = get_aperture_size(dri_screen->fd) * 3 / 4;
++   screen->aperture_threshold = get_aperture_size(screen->fd) * 3 / 4;
+ 
+    screen->hw_has_swizzling = intel_detect_swizzling(screen);
+    screen->hw_has_timestamp = intel_detect_timestamp(screen);
+@@ -2720,7 +2718,7 @@ __DRIconfig **intelInitScreen2(__DRIscreen *dri_screen)
+       struct drm_i915_reset_stats stats;
+       memset(&stats, 0, sizeof(stats));
+ 
+-      const int ret = drmIoctl(dri_screen->fd, DRM_IOCTL_I915_GET_RESET_STATS, &stats);
++      const int ret = drmIoctl(screen->fd, DRM_IOCTL_I915_GET_RESET_STATS, &stats);
+ 
+       screen->has_context_reset_notification =
+          (ret != -1 || errno != EINVAL);
+diff --git a/src/mesa/drivers/dri/i965/intel_screen.h b/src/mesa/drivers/dri/i965/intel_screen.h
+index 8d56fcd9e7a..6145afd56c5 100644
+--- a/src/mesa/drivers/dri/i965/intel_screen.h
++++ b/src/mesa/drivers/dri/i965/intel_screen.h
+@@ -56,6 +56,9 @@ struct intel_screen
+    /** Bytes of aperture usage beyond which execbuf is likely to fail. */
+    uint64_t aperture_threshold;
+ 
++   /** DRM fd associated with this screen. Not owned by this object. Do not close. */
++   int fd;
++
+    bool no_hw;
+    bool hw_has_swizzling;
+    bool has_exec_fence; /**< I915_PARAM_HAS_EXEC_FENCE */
+-- 
+2.23.0
+

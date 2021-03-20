@@ -61,7 +61,7 @@
 Summary: Mesa graphics libraries
 Name: mesa
 Version: 18.3.4
-Release: 10%{?dist}.redsleeve
+Release: 12%{?dist}.redsleeve
 License: MIT
 Group: System Environment/Libraries
 URL: http://www.mesa3d.org
@@ -96,6 +96,17 @@ Patch20: mesa-10.2-evergreen-big-endian.patch
 Patch21: 0001-pkgconfig-Fix-gl.pc-when-glvnd-is-enabled.patch
 
 Patch31: 0001-llvmpipe-use-ppc64le-ppc64-Large-code-model-for-JIT-.patch
+
+# i965 multi-screen fix
+Patch40: 0001-i965-initialize-bo_reuse-when-creating-brw_bufmgr.patch
+Patch41: 0002-i965-store-DRM-fd-on-intel_screen.patch
+Patch42: 0003-i965-share-buffer-managers-across-screens.patch
+Patch43: 0004-util-Add-os_same_file_description-helper.patch
+Patch44: 0005-util-remove-the-dependency-on-kcmp.h.patch
+Patch45: 0006-util-Change-os_same_file_description-return-type-fro.patch
+Patch46: 0007-i965-don-t-forget-to-set-screen-on-duped-image.patch
+Patch47: 0008-i965-fix-export-of-GEM-handles.patch
+Patch48: 0001-i965-bufmgr-Handle-NULL-bufmgr-in-brw_bufmgr_get_for.patch
 
 BuildRequires: pkgconfig autoconf automake libtool
 %if %{with_hardware}
@@ -358,6 +369,16 @@ grep -q ^/ src/gallium/auxiliary/vl/vl_decoder.c && exit 1
 #patch20 -p1 -b .egbe
 #%patch21 -p1 -b .glpc
 %patch31 -p1 -b .codemodel
+
+%patch40 -p1 -b .multi965.1
+%patch41 -p1 -b .multi965.2
+%patch42 -p1 -b .multi965.3
+%patch43 -p1 -b .util-Add-os_same_file_description-helper
+%patch44 -p1 -b .util-remove-the-dependency-on-kcmp.h
+%patch45 -p1 -b .util-Change-os_same_file_description-return-type-fro
+%patch46 -p1 -b .i965-don-t-forget-to-set-screen-on-duped-image
+%patch47 -p1 -b .i965-fix-export-of-GEM-handles
+%patch48 -p1 -b .i965-bufmgr-Handle-NULL-bufmgr-in-brw_bufmgr_get_for
 
 %if 0%{with_private_llvm}
 sed -i 's/\[llvm-config\]/\[mesa-private-llvm-config-%{__isa_bits}\]/g' configure.ac
@@ -674,8 +695,14 @@ rm -rf $RPM_BUILD_ROOT
 %endif
 
 %changelog
-* Fri Oct 02 2020 Jacco Ligthart <jacco@redsleeve.org> - 18.3.4-10.redsleeve
+* Thu Nov 19 2020 Jacco Ligthart <jacco@redsleeve.org> - 18.3.4-12.redsleeve
 - small changes to the spec to make it build on armv5
+
+* Tue Oct 27 2020 Michel Dänzer <mdaenzer@redhat.com> - 18.3.4-12
+- Fix for defect reported by Coverity/clang (#1803811)
+
+* Fri Oct 23 2020 Michel Dänzer <mdaenzer@redhat.com> - 18.3.4-11
+- Backport upstream i965 multi-screen fixes (#1803811)
 
 * Thu Jun 18 2020 Adam Jackson <ajax@redhat.com> - 18.3.4-10
 - Revert the previous fix due to regressions in Firefox, Chrome, etc.

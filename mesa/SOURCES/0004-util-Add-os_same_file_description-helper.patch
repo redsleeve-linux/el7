@@ -1,0 +1,273 @@
+From cd24e64b088c692c74f4383241df8d48d1007b31 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Michel=20D=C3=A4nzer?= <mdaenzer@redhat.com>
+Date: Mon, 6 Jan 2020 18:24:52 +0100
+Subject: [PATCH 4/8] util: Add os_same_file_description helper
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Acked-by: Pierre-Eric Pelloux-Prayer <pierre-eric.pelloux-prayer@amd.com>
+Part-of: <https://gitlab.freedesktop.org/mesa/mesa/merge_requests/3202>
+
+(cherry picked from commit f76cbc7901f7d500f5a4f74aedfd29970d1efd00)
+
+Signed-off-by: Michel Dänzer <mdaenzer@redhat.com>
+---
+ src/util/Makefile.sources |   2 +
+ src/util/meson.build      |   1 +
+ src/util/os_file.c        | 165 ++++++++++++++++++++++++++++++++++++++
+ src/util/os_file.h        |  45 +++++++++++
+ 4 files changed, 213 insertions(+)
+ create mode 100644 src/util/os_file.c
+ create mode 100644 src/util/os_file.h
+
+diff --git a/src/util/Makefile.sources b/src/util/Makefile.sources
+index b4d23947ab7..02e7a5e598b 100644
+--- a/src/util/Makefile.sources
++++ b/src/util/Makefile.sources
+@@ -27,6 +27,8 @@ MESA_UTIL_FILES := \
+ 	mesa-sha1.h \
+ 	os_time.c \
+ 	os_time.h \
++	os_file.c \
++	os_file.h \
+ 	os_misc.c \
+ 	os_misc.h \
+ 	u_process.c \
+diff --git a/src/util/meson.build b/src/util/meson.build
+index 156621aff65..d612e31952d 100644
+--- a/src/util/meson.build
++++ b/src/util/meson.build
+@@ -51,6 +51,7 @@ files_mesa_util = files(
+   'mesa-sha1.h',
+   'os_time.c',
+   'os_time.h',
++  'os_file.c',
+   'os_misc.c',
+   'os_misc.h',
+   'u_process.c',
+diff --git a/src/util/os_file.c b/src/util/os_file.c
+new file mode 100644
+index 00000000000..b502ff4b0ef
+--- /dev/null
++++ b/src/util/os_file.c
+@@ -0,0 +1,165 @@
++/*
++ * Copyright 2019 Intel Corporation
++ * SPDX-License-Identifier: MIT
++ */
++
++#include "os_file.h"
++
++#include <errno.h>
++#include <fcntl.h>
++#include <stdlib.h>
++#include <sys/stat.h>
++
++
++#if defined(WIN32)
++#include <io.h>
++#define open _open
++#define fdopen _fdopen
++#define O_CREAT _O_CREAT
++#define O_EXCL _O_EXCL
++#define O_WRONLY _O_WRONLY
++#endif
++
++
++FILE *
++os_file_create_unique(const char *filename, int filemode)
++{
++   int fd = open(filename, O_CREAT | O_EXCL | O_WRONLY, filemode);
++   if (fd == -1)
++      return NULL;
++   return fdopen(fd, "w");
++}
++
++
++#if defined(__linux__)
++
++#include <fcntl.h>
++#include <linux/kcmp.h>
++#include <sys/stat.h>
++#include <sys/syscall.h>
++#include <unistd.h>
++
++
++static ssize_t
++readN(int fd, char *buf, size_t len)
++{
++   int err = -ENODATA;
++   size_t total = 0;
++   do {
++      ssize_t ret = read(fd, buf + total, len - total);
++
++      if (ret < 0)
++         ret = -errno;
++
++      if (ret == -EINTR || ret == -EAGAIN)
++         continue;
++
++      if (ret <= 0) {
++         err = ret;
++         break;
++      }
++
++      total += ret;
++   } while (total != len);
++
++   return total ? (ssize_t)total : err;
++}
++
++char *
++os_read_file(const char *filename)
++{
++   /* Note that this also serves as a slight margin to avoid a 2x grow when
++    * the file is just a few bytes larger when we read it than when we
++    * fstat'ed it.
++    * The string's NULL terminator is also included in here.
++    */
++   size_t len = 64;
++
++   int fd = open(filename, O_RDONLY);
++   if (fd == -1) {
++      /* errno set by open() */
++      return NULL;
++   }
++
++   /* Pre-allocate a buffer at least the size of the file if we can read
++    * that information.
++    */
++   struct stat stat;
++   if (fstat(fd, &stat) == 0)
++      len += stat.st_size;
++
++   char *buf = malloc(len);
++   if (!buf) {
++      close(fd);
++      errno = -ENOMEM;
++      return NULL;
++   }
++
++   ssize_t actually_read;
++   size_t offset = 0, remaining = len - 1;
++   while ((actually_read = readN(fd, buf + offset, remaining)) == (ssize_t)remaining) {
++      char *newbuf = realloc(buf, 2 * len);
++      if (!newbuf) {
++         free(buf);
++         close(fd);
++         errno = -ENOMEM;
++         return NULL;
++      }
++
++      buf = newbuf;
++      len *= 2;
++      offset += actually_read;
++      remaining = len - offset - 1;
++   }
++
++   close(fd);
++
++   if (actually_read > 0)
++      offset += actually_read;
++
++   /* Final resize to actual size */
++   len = offset + 1;
++   char *newbuf = realloc(buf, len);
++   if (!newbuf) {
++      free(buf);
++      errno = -ENOMEM;
++      return NULL;
++   }
++   buf = newbuf;
++
++   buf[offset] = '\0';
++
++   return buf;
++}
++
++bool
++os_same_file_description(int fd1, int fd2)
++{
++   pid_t pid = getpid();
++
++   return syscall(SYS_kcmp, pid, pid, KCMP_FILE, fd1, fd2) == 0;
++}
++
++#else
++
++#include "u_debug.h"
++
++char *
++os_read_file(const char *filename)
++{
++   errno = -ENOSYS;
++   return NULL;
++}
++
++bool
++os_same_file_description(int fd1, int fd2)
++{
++   if (fd1 == fd2)
++      return true;
++
++   debug_warn_once("Can't tell if different file descriptors reference the same"
++                   " file description, false negatives might cause trouble!\n");
++   return false;
++}
++
++#endif
+diff --git a/src/util/os_file.h b/src/util/os_file.h
+new file mode 100644
+index 00000000000..1972beba32b
+--- /dev/null
++++ b/src/util/os_file.h
+@@ -0,0 +1,45 @@
++/*
++ * Copyright 2019 Intel Corporation
++ * SPDX-License-Identifier: MIT
++ *
++ * File operations helpers
++ */
++
++#ifndef _OS_FILE_H_
++#define _OS_FILE_H_
++
++#include <stdbool.h>
++#include <stdio.h>
++
++#ifdef  __cplusplus
++extern "C" {
++#endif
++
++/*
++ * Create a new file and opens it for writing-only.
++ * If the given filename already exists, nothing is done and NULL is returned.
++ * `errno` gets set to the failure reason; if that is not EEXIST, the caller
++ * might want to do something other than trying again.
++ */
++FILE *
++os_file_create_unique(const char *filename, int filemode);
++
++/*
++ * Read a file.
++ * Returns a char* that the caller must free(), or NULL and sets errno.
++ */
++char *
++os_read_file(const char *filename);
++
++/*
++ * Returns true if the two file descriptors passed in can be determined to
++ * reference the same file description, false otherwise
++ */
++bool
++os_same_file_description(int fd1, int fd2);
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif /* _OS_FILE_H_ */
+-- 
+2.26.2
+

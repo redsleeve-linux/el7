@@ -1,6 +1,6 @@
-From 34595e99e7b78ba9f2767a6779fa36b03b6e299b Mon Sep 17 00:00:00 2001
+From 882eb2e2dd7060c0a774182fef874a211b1a0d67 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sat, 3 Oct 2020 02:02:08 +0200
+Date: Fri, 20 Nov 2020 00:38:03 +0100
 Subject: [PATCH] SPEC adjusted to build on armv5
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] SPEC adjusted to build on armv5
  1 file changed, 13 insertions(+), 9 deletions(-)
 
 diff --git a/SPECS/mesa.spec b/SPECS/mesa.spec
-index 184c701..afaea39 100644
+index 6c18e42..f0e69cb 100644
 --- a/SPECS/mesa.spec
 +++ b/SPECS/mesa.spec
 @@ -7,7 +7,7 @@
@@ -24,12 +24,12 @@ index 184c701..afaea39 100644
  Summary: Mesa graphics libraries
  Name: mesa
  Version: 18.3.4
--Release: 10%{?dist}
-+Release: 10%{?dist}.redsleeve
+-Release: 12%{?dist}
++Release: 12%{?dist}.redsleeve
  License: MIT
  Group: System Environment/Libraries
  URL: http://www.mesa3d.org
-@@ -122,7 +122,8 @@ BuildRequires: python-mako
+@@ -133,7 +133,8 @@ BuildRequires: python-mako
  BuildRequires: gettext
  %if 0%{?with_llvm}
  %if 0%{?with_private_llvm}
@@ -39,8 +39,8 @@ index 184c701..afaea39 100644
  %else
  BuildRequires: llvm-devel >= 3.0
  %endif
-@@ -359,8 +360,8 @@ grep -q ^/ src/gallium/auxiliary/vl/vl_decoder.c && exit 1
- %patch31 -p1 -b .codemodel
+@@ -380,8 +381,8 @@ grep -q ^/ src/gallium/auxiliary/vl/vl_decoder.c && exit 1
+ %patch48 -p1 -b .i965-bufmgr-Handle-NULL-bufmgr-in-brw_bufmgr_get_for
  
  %if 0%{with_private_llvm}
 -sed -i 's/\[llvm-config\]/\[llvm-private-config-%{__isa_bits}\]/g' configure.ac
@@ -50,7 +50,7 @@ index 184c701..afaea39 100644
  %endif
  
  # need to use libdrm_nouveau2 on F17
-@@ -412,7 +413,7 @@ export CXXFLAGS="$RPM_OPT_FLAGS -fno-rtti -fno-exceptions"
+@@ -433,7 +434,7 @@ export CXXFLAGS="$RPM_OPT_FLAGS -fno-rtti -fno-exceptions"
      --enable-dri \
  %if %{with_hardware}
      %{?with_vmware:--enable-xa} \
@@ -59,7 +59,7 @@ index 184c701..afaea39 100644
  %else
      --with-gallium-drivers=%{?with_llvm:swrast} \
  %endif
-@@ -533,7 +534,7 @@ rm -rf $RPM_BUILD_ROOT
+@@ -554,7 +555,7 @@ rm -rf $RPM_BUILD_ROOT
  %endif
  %if 0%{?with_llvm}
  %{_libdir}/dri/r300_dri.so
@@ -68,7 +68,7 @@ index 184c701..afaea39 100644
  %if 0%{?with_radeonsi}
  %{_libdir}/dri/radeonsi_dri.so
  %endif
-@@ -567,8 +568,8 @@ rm -rf $RPM_BUILD_ROOT
+@@ -588,8 +589,8 @@ rm -rf $RPM_BUILD_ROOT
  %defattr(-,root,root,-)
  %{_libdir}/vdpau/libvdpau_nouveau.so.1*
  %if 0%{?with_llvm}
@@ -79,15 +79,15 @@ index 184c701..afaea39 100644
  %endif
  %endif
  %endif
-@@ -673,6 +674,9 @@ rm -rf $RPM_BUILD_ROOT
+@@ -694,6 +695,9 @@ rm -rf $RPM_BUILD_ROOT
  %endif
  
  %changelog
-+* Fri Oct 02 2020 Jacco Ligthart <jacco@redsleeve.org> - 18.3.4-10.redsleeve
++* Thu Nov 19 2020 Jacco Ligthart <jacco@redsleeve.org> - 18.3.4-12.redsleeve
 +- small changes to the spec to make it build on armv5
 +
- * Thu Jun 18 2020 Adam Jackson <ajax@redhat.com> - 18.3.4-10
- - Revert the previous fix due to regressions in Firefox, Chrome, etc.
+ * Tue Oct 27 2020 Michel Dänzer <mdaenzer@redhat.com> - 18.3.4-12
+ - Fix for defect reported by Coverity/clang (#1803811)
  
 -- 
 1.8.3.1

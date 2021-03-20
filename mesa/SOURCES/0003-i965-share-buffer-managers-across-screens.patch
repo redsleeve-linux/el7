@@ -1,0 +1,239 @@
+From f2ccb19e3e15a04fda47f8b0fcb08e32903031a1 Mon Sep 17 00:00:00 2001
+From: Lionel Landwerlin <lionel.g.landwerlin@intel.com>
+Date: Fri, 6 Mar 2020 17:06:25 +0200
+Subject: [PATCH 3/8] i965: share buffer managers across screens
+
+Signed-off-by: Lionel Landwerlin <lionel.g.landwerlin@intel.com>
+---
+ src/mesa/drivers/dri/i965/brw_bufmgr.c   | 84 ++++++++++++++++++++++--
+ src/mesa/drivers/dri/i965/brw_bufmgr.h   | 11 ++--
+ src/mesa/drivers/dri/i965/intel_screen.c |  7 +-
+ 3 files changed, 92 insertions(+), 10 deletions(-)
+
+diff --git a/src/mesa/drivers/dri/i965/brw_bufmgr.c b/src/mesa/drivers/dri/i965/brw_bufmgr.c
+index e676fbd9d18..32758f2b9ff 100644
+--- a/src/mesa/drivers/dri/i965/brw_bufmgr.c
++++ b/src/mesa/drivers/dri/i965/brw_bufmgr.c
+@@ -139,6 +139,10 @@ struct bo_cache_bucket {
+ };
+ 
+ struct brw_bufmgr {
++   uint32_t refcount;
++
++   struct list_head link;
++
+    int fd;
+ 
+    mtx_t lock;
+@@ -160,6 +164,12 @@ struct brw_bufmgr {
+    uint64_t initial_kflags;
+ };
+ 
++static mtx_t global_bufmgr_list_mutex = _MTX_INITIALIZER_NP;
++static struct list_head global_bufmgr_list = {
++   .next = &global_bufmgr_list,
++   .prev = &global_bufmgr_list,
++};
++
+ static int bo_set_tiling_internal(struct brw_bo *bo, uint32_t tiling_mode,
+                                   uint32_t stride);
+ 
+@@ -1292,8 +1302,19 @@ brw_bo_wait(struct brw_bo *bo, int64_t timeout_ns)
+ }
+ 
+ void
+-brw_bufmgr_destroy(struct brw_bufmgr *bufmgr)
++brw_bufmgr_unref(struct brw_bufmgr *bufmgr)
+ {
++   mtx_lock(&global_bufmgr_list_mutex);
++   if (p_atomic_dec_zero(&bufmgr->refcount)) {
++      list_del(&bufmgr->link);
++   } else {
++      bufmgr = NULL;
++   }
++   mtx_unlock(&global_bufmgr_list_mutex);
++
++   if (!bufmgr)
++      return;
++
+    mtx_destroy(&bufmgr->lock);
+ 
+    /* Free any cached buffer objects we were going to reuse */
+@@ -1322,6 +1343,9 @@ brw_bufmgr_destroy(struct brw_bufmgr *bufmgr)
+       }
+    }
+ 
++   close(bufmgr->fd);
++   bufmgr->fd = -1;
++
+    free(bufmgr);
+ }
+ 
+@@ -1664,14 +1688,21 @@ brw_using_softpin(struct brw_bufmgr *bufmgr)
+    return bufmgr->initial_kflags & EXEC_OBJECT_PINNED;
+ }
+ 
++static struct brw_bufmgr *
++brw_bufmgr_ref(struct brw_bufmgr *bufmgr)
++{
++   p_atomic_inc(&bufmgr->refcount);
++   return bufmgr;
++}
++
+ /**
+  * Initializes the GEM buffer manager, which uses the kernel to allocate, map,
+  * and manage map buffer objections.
+  *
+  * \param fd File descriptor of the opened DRM device.
+  */
+-struct brw_bufmgr *
+-brw_bufmgr_init(struct gen_device_info *devinfo, int fd, bool bo_reuse)
++static struct brw_bufmgr *
++brw_bufmgr_create(struct gen_device_info *devinfo, int fd, bool bo_reuse)
+ {
+    struct brw_bufmgr *bufmgr;
+ 
+@@ -1688,9 +1719,16 @@ brw_bufmgr_init(struct gen_device_info *devinfo, int fd, bool bo_reuse)
+     * Don't do this! Ensure that each library/bufmgr has its own device
+     * fd so that its namespace does not clash with another.
+     */
+-   bufmgr->fd = fd;
++   bufmgr->fd = dup(fd);
++   if (bufmgr->fd < 0) {
++      free(bufmgr);
++      return NULL;
++   }
++
++   p_atomic_set(&bufmgr->refcount, 1);
+ 
+    if (mtx_init(&bufmgr->lock, mtx_plain) != 0) {
++      close(bufmgr->fd);
+       free(bufmgr);
+       return NULL;
+    }
+@@ -1725,6 +1763,7 @@ brw_bufmgr_init(struct gen_device_info *devinfo, int fd, bool bo_reuse)
+           * might actually mean requiring 4.14.
+           */
+          fprintf(stderr, "i965 requires softpin (Kernel 4.5) on Gen10+.");
++         close(bufmgr->fd);
+          free(bufmgr);
+          return NULL;
+       }
+@@ -1739,3 +1778,40 @@ brw_bufmgr_init(struct gen_device_info *devinfo, int fd, bool bo_reuse)
+ 
+    return bufmgr;
+ }
++
++struct brw_bufmgr *
++brw_bufmgr_get_for_fd(struct gen_device_info *devinfo, int fd, bool bo_reuse)
++{
++   struct stat st;
++
++   if (fstat(fd, &st))
++      return NULL;
++
++   struct brw_bufmgr *bufmgr = NULL;
++
++   mtx_lock(&global_bufmgr_list_mutex);
++   list_for_each_entry(struct brw_bufmgr, iter_bufmgr, &global_bufmgr_list, link) {
++      struct stat iter_st;
++      if (fstat(iter_bufmgr->fd, &iter_st))
++         continue;
++
++      if (st.st_rdev == iter_st.st_rdev) {
++         bufmgr = brw_bufmgr_ref(iter_bufmgr);
++         goto unlock;
++      }
++   }
++
++   bufmgr = brw_bufmgr_create(devinfo, fd, bo_reuse);
++   list_addtail(&bufmgr->link, &global_bufmgr_list);
++
++ unlock:
++   mtx_unlock(&global_bufmgr_list_mutex);
++
++   return bufmgr;
++}
++
++int
++brw_bufmgr_get_fd(struct brw_bufmgr *bufmgr)
++{
++   return bufmgr->fd;
++}
+diff --git a/src/mesa/drivers/dri/i965/brw_bufmgr.h b/src/mesa/drivers/dri/i965/brw_bufmgr.h
+index a85c8f37bef..3d8729da487 100644
+--- a/src/mesa/drivers/dri/i965/brw_bufmgr.h
++++ b/src/mesa/drivers/dri/i965/brw_bufmgr.h
+@@ -300,9 +300,9 @@ int brw_bo_subdata(struct brw_bo *bo, uint64_t offset,
+ void brw_bo_wait_rendering(struct brw_bo *bo);
+ 
+ /**
+- * Tears down the buffer manager instance.
++ * Unref a buffer manager instance.
+  */
+-void brw_bufmgr_destroy(struct brw_bufmgr *bufmgr);
++void brw_bufmgr_unref(struct brw_bufmgr *bufmgr);
+ 
+ /**
+  * Get the current tiling (and resulting swizzling) mode for the bo.
+@@ -343,8 +343,9 @@ int brw_bo_busy(struct brw_bo *bo);
+ int brw_bo_madvise(struct brw_bo *bo, int madv);
+ 
+ /* drm_bacon_bufmgr_gem.c */
+-struct brw_bufmgr *brw_bufmgr_init(struct gen_device_info *devinfo, int fd,
+-                                   bool bo_reuse);
++struct brw_bufmgr *brw_bufmgr_get_for_fd(struct gen_device_info *devinfo, int fd,
++                                         bool bo_reuse);
++
+ struct brw_bo *brw_bo_gem_create_from_name(struct brw_bufmgr *bufmgr,
+                                            const char *name,
+                                            unsigned int handle);
+@@ -359,6 +360,8 @@ int brw_hw_context_set_priority(struct brw_bufmgr *bufmgr,
+ 
+ void brw_destroy_hw_context(struct brw_bufmgr *bufmgr, uint32_t ctx_id);
+ 
++int brw_bufmgr_get_fd(struct brw_bufmgr *bufmgr);
++
+ int brw_bo_gem_export_to_prime(struct brw_bo *bo, int *prime_fd);
+ struct brw_bo *brw_bo_gem_create_from_prime(struct brw_bufmgr *bufmgr,
+                                             int prime_fd);
+diff --git a/src/mesa/drivers/dri/i965/intel_screen.c b/src/mesa/drivers/dri/i965/intel_screen.c
+index 3e02c11700c..c374837c4a1 100644
+--- a/src/mesa/drivers/dri/i965/intel_screen.c
++++ b/src/mesa/drivers/dri/i965/intel_screen.c
+@@ -1668,7 +1668,7 @@ intelDestroyScreen(__DRIscreen * sPriv)
+ {
+    struct intel_screen *screen = sPriv->driverPrivate;
+ 
+-   brw_bufmgr_destroy(screen->bufmgr);
++   brw_bufmgr_unref(screen->bufmgr);
+    driDestroyOptionInfo(&screen->optionCache);
+ 
+    disk_cache_destroy(screen->disk_cache);
+@@ -1865,6 +1865,8 @@ err_out:
+ static bool
+ intel_init_bufmgr(struct intel_screen *screen)
+ {
++   __DRIscreen *dri_screen = screen->driScrnPriv;
++
+    if (getenv("INTEL_NO_HW") != NULL)
+       screen->no_hw = true;
+ 
+@@ -1878,12 +1880,13 @@ intel_init_bufmgr(struct intel_screen *screen)
+       break;
+    }
+ 
+-   screen->bufmgr = brw_bufmgr_init(&screen->devinfo, screen->fd, bo_reuse);
++   screen->bufmgr = brw_bufmgr_get_for_fd(&screen->devinfo, dri_screen->fd, bo_reuse);
+    if (screen->bufmgr == NULL) {
+       fprintf(stderr, "[%s:%u] Error initializing buffer manager.\n",
+ 	      __func__, __LINE__);
+       return false;
+    }
++   screen->fd = brw_bufmgr_get_fd(screen->bufmgr);
+ 
+    if (!intel_get_boolean(screen, I915_PARAM_HAS_EXEC_NO_RELOC)) {
+       fprintf(stderr, "[%s: %u] Kernel 3.9 required.\n", __func__, __LINE__);
+-- 
+2.23.0
+

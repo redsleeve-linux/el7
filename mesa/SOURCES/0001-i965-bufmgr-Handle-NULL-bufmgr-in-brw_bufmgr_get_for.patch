@@ -1,0 +1,36 @@
+From 735971d5a22a55b43f043f70cf5e973354d53852 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Michel=20D=C3=A4nzer?= <mdaenzer@redhat.com>
+Date: Tue, 27 Oct 2020 11:40:05 +0100
+Subject: [PATCH] i965/bufmgr: Handle NULL bufmgr in brw_bufmgr_get_for_fd
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+brw_bufmgr_create can return NULL, in which case we'd crash in
+list_addtail.
+
+Reported by Coverity/clang.
+
+Fixes: 4094558e8643 ("i965: share buffer managers across screens")
+Signed-off-by: Michel Dänzer <mdaenzer@redhat.com>
+---
+ src/mesa/drivers/dri/i965/brw_bufmgr.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/mesa/drivers/dri/i965/brw_bufmgr.c b/src/mesa/drivers/dri/i965/brw_bufmgr.c
+index 5a8680704eb..04cb2448a3e 100644
+--- a/src/mesa/drivers/dri/i965/brw_bufmgr.c
++++ b/src/mesa/drivers/dri/i965/brw_bufmgr.c
+@@ -1916,7 +1916,8 @@ brw_bufmgr_get_for_fd(struct gen_device_info *devinfo, int fd, bool bo_reuse)
+    }
+ 
+    bufmgr = brw_bufmgr_create(devinfo, fd, bo_reuse);
+-   list_addtail(&bufmgr->link, &global_bufmgr_list);
++   if (bufmgr)
++      list_addtail(&bufmgr->link, &global_bufmgr_list);
+ 
+  unlock:
+    mtx_unlock(&global_bufmgr_list_mutex);
+-- 
+2.28.0
+

@@ -1,0 +1,38 @@
+From 7680f8685e8b5dccc58babecf451ceab77fd373b Mon Sep 17 00:00:00 2001
+From: Lionel Landwerlin <lionel.g.landwerlin@intel.com>
+Date: Tue, 2 Jun 2020 11:52:35 +0300
+Subject: [PATCH 7/8] i965: don't forget to set screen on duped image
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+We'll start using this field more for querying image properties.
+Without it we run into a crash.
+
+Signed-off-by: Lionel Landwerlin <lionel.g.landwerlin@intel.com>
+Cc: <mesa-stable@lists.freedesktop.org>
+Reviewed-by: Kenneth Graunke <kenneth@whitecape.org>
+Part-of: <https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/4861>
+
+(cherry picked from commit e41e820648b1cb662cbe938c73d755331d48c6db)
+
+Signed-off-by: Michel Dänzer <mdaenzer@redhat.com>
+---
+ src/mesa/drivers/dri/i965/intel_screen.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/mesa/drivers/dri/i965/intel_screen.c b/src/mesa/drivers/dri/i965/intel_screen.c
+index 93f0f8ef401..9c8b0814506 100644
+--- a/src/mesa/drivers/dri/i965/intel_screen.c
++++ b/src/mesa/drivers/dri/i965/intel_screen.c
+@@ -943,6 +943,7 @@ intel_dup_image(__DRIimage *orig_image, void *loaderPrivate)
+       return NULL;
+ 
+    brw_bo_reference(orig_image->bo);
++   image->screen          = orig_image->screen;
+    image->bo              = orig_image->bo;
+    image->internal_format = orig_image->internal_format;
+    image->planar_format   = orig_image->planar_format;
+-- 
+2.26.2
+

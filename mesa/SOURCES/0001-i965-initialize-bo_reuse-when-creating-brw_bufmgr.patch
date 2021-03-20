@@ -1,0 +1,154 @@
+From 453530d58df83fac6f7191f56e75ddb00ec855d7 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Tapani=20P=C3=A4lli?= <tapani.palli@intel.com>
+Date: Wed, 28 Aug 2019 14:29:53 +0300
+Subject: [PATCH 1/8] i965: initialize bo_reuse when creating brw_bufmgr
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Fixes a possible data race spotted while debugging on other EGL
+related failures where glFinish and eglCreateContext are going on at
+the same time:
+
+  ==11558== Possible data race during read of size 1 at 0x5E78CD0 by thread #23
+  ==11558== Locks held: 1, at address 0x5E77CA8
+  ==11558==    at 0x61B71D4: bo_alloc_internal (brw_bufmgr.c:639)
+  ==11558==    by 0x61B7328: brw_bo_alloc (brw_bufmgr.c:669)
+  ==11558==    by 0x61EF975: recreate_growing_buffer (intel_batchbuffer.c:231)
+  ==11558==    by 0x61EFAAE: intel_batchbuffer_reset (intel_batchbuffer.c:255)
+  ==11558==    by 0x61EFB85: intel_batchbuffer_reset_and_clear_render_cache (intel_batchbuffer.c:280)
+  ==11558==    by 0x61F0507: brw_new_batch (intel_batchbuffer.c:551)
+  ==11558==    by 0x61F12C1: _intel_batchbuffer_flush_fence (intel_batchbuffer.c:888)
+  ==11558==    by 0x61BDD6B: intel_glFlush (brw_context.c:296)
+  ==11558==    by 0x61BDDB9: intel_finish (brw_context.c:307)
+  ==11558==    by 0x623831B: _mesa_Finish (context.c:1906)
+  ==11558==    by 0x46D556: deqp::egl::GLES2ThreadTest::Operation::execute(tcu::ThreadUtil::Thread&)
+  ==11558==    by 0x721502: tcu::ThreadUtil::Thread::run()
+  ==11558==
+  ==11558== This conflicts with a previous write of size 1 by thread #26
+  ==11558== Locks held: 1, at address 0x5D09878
+  ==11558==    at 0x61B98A9: brw_bufmgr_enable_reuse (brw_bufmgr.c:1541)
+  ==11558==    by 0x61BF09D: brw_process_driconf_options (brw_context.c:854)
+  ==11558==    by 0x61BF6CA: brwCreateContext (brw_context.c:993)
+  ==11558==    by 0x621181F: driCreateContextAttribs (dri_util.c:473)
+  ==11558==    by 0x53FE87B: dri2_create_context (egl_dri2.c:1388)
+  ==11558==    by 0x53EE7BE: eglCreateContext (eglapi.c:807)
+  ==11558==    by 0x5C8AB9: eglw::FuncPtrLibrary::createContext(void*, void*, void*, int const*) const
+  ==11558==    by 0x46E027: deqp::egl::GLES2ThreadTest::CreateContext::exec(tcu::ThreadUtil::Thread&)
+
+Signed-off-by: Tapani Pälli <tapani.palli@intel.com>
+Reviewed-by: Lionel Landwerlin <lionel.g.landwerlin@intel.com>
+Reviewed-by: Kenneth Graunke <kenneth@whitecape.org>
+(cherry picked from commit b65de51dcf7d5e6d1a6ccdb5121c385f5360de00)
+---
+ src/mesa/drivers/dri/i965/brw_bufmgr.c   | 16 ++--------------
+ src/mesa/drivers/dri/i965/brw_bufmgr.h   |  4 ++--
+ src/mesa/drivers/dri/i965/brw_context.c  |  9 ---------
+ src/mesa/drivers/dri/i965/intel_screen.c | 12 +++++++++++-
+ 4 files changed, 15 insertions(+), 26 deletions(-)
+
+diff --git a/src/mesa/drivers/dri/i965/brw_bufmgr.c b/src/mesa/drivers/dri/i965/brw_bufmgr.c
+index f1675b191c1..e676fbd9d18 100644
+--- a/src/mesa/drivers/dri/i965/brw_bufmgr.c
++++ b/src/mesa/drivers/dri/i965/brw_bufmgr.c
+@@ -1529,19 +1529,6 @@ brw_bo_flink(struct brw_bo *bo, uint32_t *name)
+    return 0;
+ }
+ 
+-/**
+- * Enables unlimited caching of buffer objects for reuse.
+- *
+- * This is potentially very memory expensive, as the cache at each bucket
+- * size is only bounded by how many buffers of that size we've managed to have
+- * in flight at once.
+- */
+-void
+-brw_bufmgr_enable_reuse(struct brw_bufmgr *bufmgr)
+-{
+-   bufmgr->bo_reuse = true;
+-}
+-
+ static void
+ add_bucket(struct brw_bufmgr *bufmgr, int size)
+ {
+@@ -1684,7 +1671,7 @@ brw_using_softpin(struct brw_bufmgr *bufmgr)
+  * \param fd File descriptor of the opened DRM device.
+  */
+ struct brw_bufmgr *
+-brw_bufmgr_init(struct gen_device_info *devinfo, int fd)
++brw_bufmgr_init(struct gen_device_info *devinfo, int fd, bool bo_reuse)
+ {
+    struct brw_bufmgr *bufmgr;
+ 
+@@ -1714,6 +1701,7 @@ brw_bufmgr_init(struct gen_device_info *devinfo, int fd)
+ 
+    bufmgr->has_llc = devinfo->has_llc;
+    bufmgr->has_mmap_wc = gem_param(fd, I915_PARAM_MMAP_VERSION) > 0;
++   bufmgr->bo_reuse = bo_reuse;
+ 
+    const uint64_t _4GB = 4ull << 30;
+ 
+diff --git a/src/mesa/drivers/dri/i965/brw_bufmgr.h b/src/mesa/drivers/dri/i965/brw_bufmgr.h
+index 32fc7a553c9..a85c8f37bef 100644
+--- a/src/mesa/drivers/dri/i965/brw_bufmgr.h
++++ b/src/mesa/drivers/dri/i965/brw_bufmgr.h
+@@ -343,11 +343,11 @@ int brw_bo_busy(struct brw_bo *bo);
+ int brw_bo_madvise(struct brw_bo *bo, int madv);
+ 
+ /* drm_bacon_bufmgr_gem.c */
+-struct brw_bufmgr *brw_bufmgr_init(struct gen_device_info *devinfo, int fd);
++struct brw_bufmgr *brw_bufmgr_init(struct gen_device_info *devinfo, int fd,
++                                   bool bo_reuse);
+ struct brw_bo *brw_bo_gem_create_from_name(struct brw_bufmgr *bufmgr,
+                                            const char *name,
+                                            unsigned int handle);
+-void brw_bufmgr_enable_reuse(struct brw_bufmgr *bufmgr);
+ 
+ int brw_bo_wait(struct brw_bo *bo, int64_t timeout_ns);
+ 
+diff --git a/src/mesa/drivers/dri/i965/brw_context.c b/src/mesa/drivers/dri/i965/brw_context.c
+index 6ba64e4e06d..6d218e49754 100644
+--- a/src/mesa/drivers/dri/i965/brw_context.c
++++ b/src/mesa/drivers/dri/i965/brw_context.c
+@@ -822,15 +822,6 @@ brw_process_driconf_options(struct brw_context *brw)
+                        brw->driContext->driScreenPriv->myNum,
+                        "i965", NULL);
+ 
+-   int bo_reuse_mode = driQueryOptioni(options, "bo_reuse");
+-   switch (bo_reuse_mode) {
+-   case DRI_CONF_BO_REUSE_DISABLED:
+-      break;
+-   case DRI_CONF_BO_REUSE_ALL:
+-      brw_bufmgr_enable_reuse(brw->bufmgr);
+-      break;
+-   }
+-
+    if (INTEL_DEBUG & DEBUG_NO_HIZ) {
+        brw->has_hiz = false;
+        /* On gen6, you can only do separate stencil with HIZ. */
+diff --git a/src/mesa/drivers/dri/i965/intel_screen.c b/src/mesa/drivers/dri/i965/intel_screen.c
+index c3bd30f7837..1feaf18219c 100644
+--- a/src/mesa/drivers/dri/i965/intel_screen.c
++++ b/src/mesa/drivers/dri/i965/intel_screen.c
+@@ -1870,7 +1870,17 @@ intel_init_bufmgr(struct intel_screen *screen)
+    if (getenv("INTEL_NO_HW") != NULL)
+       screen->no_hw = true;
+ 
+-   screen->bufmgr = brw_bufmgr_init(&screen->devinfo, dri_screen->fd);
++   bool bo_reuse = false;
++   int bo_reuse_mode = driQueryOptioni(&screen->optionCache, "bo_reuse");
++   switch (bo_reuse_mode) {
++   case DRI_CONF_BO_REUSE_DISABLED:
++      break;
++   case DRI_CONF_BO_REUSE_ALL:
++      bo_reuse = true;
++      break;
++   }
++
++   screen->bufmgr = brw_bufmgr_init(&screen->devinfo, dri_screen->fd, bo_reuse);
+    if (screen->bufmgr == NULL) {
+       fprintf(stderr, "[%s:%u] Error initializing buffer manager.\n",
+ 	      __func__, __LINE__);
+-- 
+2.23.0
+

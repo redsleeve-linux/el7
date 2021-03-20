@@ -1,0 +1,99 @@
+From 0de5ad2f5083fcf19e579f5a70641e0da0e70dc4 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Michel=20D=C3=A4nzer?= <mdaenzer@redhat.com>
+Date: Tue, 18 Feb 2020 19:04:00 +0100
+Subject: [PATCH 6/8] util: Change os_same_file_description return type from
+ bool to int
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+This allows communicating that it wasn't possible to determine whether
+the two file descriptors reference the same file description. When
+that's the case, log a warning in the amdgpu winsys.
+
+In turn, remove the corresponding debugging output from the fallback
+os_same_file_description implementation. It depends on the caller if
+false negatives are problematic or not.
+
+Reviewed-by: Eric Engestrom <eric@engestrom.ch>
+Reviewed-by: Marek Olšák <marek.olsak@amd.com>
+Tested-by: Marge Bot <https://gitlab.freedesktop.org/mesa/mesa/merge_requests/3879>
+Part-of: <https://gitlab.freedesktop.org/mesa/mesa/merge_requests/3879>
+
+(cherry picked from commit f5a8958910f53d924d062cbf024cebe4134f757a)
+
+Signed-off-by: Michel Dänzer <mdaenzer@redhat.com>
+---
+ src/util/os_file.c | 18 +++++++++++-------
+ src/util/os_file.h | 10 +++++++---
+ 2 files changed, 18 insertions(+), 10 deletions(-)
+
+diff --git a/src/util/os_file.c b/src/util/os_file.c
+index 128fe872db1..228f1e823c5 100644
+--- a/src/util/os_file.c
++++ b/src/util/os_file.c
+@@ -133,12 +133,16 @@ os_read_file(const char *filename)
+    return buf;
+ }
+ 
+-bool
++int
+ os_same_file_description(int fd1, int fd2)
+ {
+    pid_t pid = getpid();
+ 
+-   return syscall(SYS_kcmp, pid, pid, KCMP_FILE, fd1, fd2) == 0;
++   /* Same file descriptor trivially implies same file description */
++   if (fd1 == fd2)
++      return 0;
++
++   return syscall(SYS_kcmp, pid, pid, KCMP_FILE, fd1, fd2);
+ }
+ 
+ #else
+@@ -152,15 +156,15 @@ os_read_file(const char *filename)
+    return NULL;
+ }
+ 
+-bool
++int
+ os_same_file_description(int fd1, int fd2)
+ {
++   /* Same file descriptor trivially implies same file description */
+    if (fd1 == fd2)
+-      return true;
++      return 0;
+ 
+-   debug_warn_once("Can't tell if different file descriptors reference the same"
+-                   " file description, false negatives might cause trouble!\n");
+-   return false;
++   /* Otherwise we can't tell */
++   return -1;
+ }
+ 
+ #endif
+diff --git a/src/util/os_file.h b/src/util/os_file.h
+index 1972beba32b..58639476f60 100644
+--- a/src/util/os_file.h
++++ b/src/util/os_file.h
+@@ -32,10 +32,14 @@ char *
+ os_read_file(const char *filename);
+ 
+ /*
+- * Returns true if the two file descriptors passed in can be determined to
+- * reference the same file description, false otherwise
++ * Try to determine if two file descriptors reference the same file description
++ *
++ * Return values:
++ * - 0:   They reference the same file description
++ * - > 0: They do not reference the same file description
++ * - < 0: Unable to determine whether they reference the same file description
+  */
+-bool
++int
+ os_same_file_description(int fd1, int fd2);
+ 
+ #ifdef __cplusplus
+-- 
+2.26.2
+
