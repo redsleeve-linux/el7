@@ -27,7 +27,7 @@
 
 Name:           webkitgtk4
 Version:        2.28.2
-Release:        2%{?dist}
+Release:        2%{?dist}.redsleeve
 Summary:        GTK+ Web content engine library
 
 License:        LGPLv2
@@ -81,6 +81,8 @@ Patch58: icu-dont_use_clang_even_if_installed.patch
 # CVE-2017-7867 CVE-2017-7868
 Patch59: icu-rhbz1444101-icu-changeset-39671.patch
 %endif
+
+Patch1000: webkitgtk4_always_inc_atomic.patch
 
 BuildRequires:  at-spi2-core-devel
 BuildRequires:  bison
@@ -210,7 +212,7 @@ files for developing applications that use JavaScript engine from %{name}.
 %patch52 -p1 -b .icu7601.Indic-ccmp.patch
 %patch53 -p1 -b .gennorm2-man.patch
 %patch54 -p1 -b .icuinfo-man.patch
-%ifarch armv7hl
+%ifarch %{arm}
 %patch55 -p1 -b .armv7hl-disable-tests.patch
 %endif
 %patch56 -p1 -b .rhbz1360340-icu-changeset-39109.patch
@@ -237,12 +239,14 @@ files for developing applications that use JavaScript engine from %{name}.
 %autosetup -p1 -n webkitgtk-%{version}
 %endif
 
+%patch1000 -p1
+
 # Remove bundled libraries
 rm -rf Source/ThirdParty/gtest/
 rm -rf Source/ThirdParty/qunit/
 
 %build
-%ifarch s390 aarch64
+%ifarch s390 aarch64 %{arm}
 # Use linker flags to reduce memory consumption - on other arches the ld.gold is
 # used and also it doesn't have the --reduce-memory-overheads option
 %global optflags %{optflags} -Wl,--no-keep-memory -Wl,--reduce-memory-overheads
@@ -255,7 +259,7 @@ rm -rf Source/ThirdParty/qunit/
 %global optflags %(echo %{optflags} | sed 's/-g /-g1 /')
 %endif
 
-%ifarch ppc
+%ifarch ppc %{arm}
 # Use linker flag -relax to get WebKit build under ppc(32) with JIT disabled
 %global optflags %{optflags} -Wl,-relax
 %endif
@@ -334,10 +338,10 @@ pushd %{_target_platform}
   -DENABLE_BUBBLEWRAP_SANDBOX=OFF \
   -DUSE_OPENJPEG=OFF \
   -DUSE_WPE_RENDERER=OFF \
-%ifarch s390 aarch64
+%ifarch s390 aarch64 %{arm}
   -DUSE_LD_GOLD=OFF \
 %endif
-%ifarch s390 s390x ppc %{power64} aarch64 %{mips}
+%ifarch s390 s390x ppc %{power64} aarch64 %{mips} %{arm}
   -DENABLE_JIT=OFF \
   -DUSE_SYSTEM_MALLOC=ON \
 %endif
