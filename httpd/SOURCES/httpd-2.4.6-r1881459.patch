@@ -1,0 +1,36 @@
+diff --git a/modules/generators/mod_cgi.c b/modules/generators/mod_cgi.c
+index 7808262..38e43d3 100644
+--- a/modules/generators/mod_cgi.c
++++ b/modules/generators/mod_cgi.c
+@@ -946,6 +946,13 @@ static int cgi_handler(request_rec *r)
+         if ((ret = ap_scan_script_header_err_brigade_ex(r, bb, sbuf,
+                                                         APLOG_MODULE_INDEX)))
+         {
++            /* In the case of a timeout reading script output, clear
++             * the brigade to avoid a second attempt to read the
++             * output. */
++            if (ret == HTTP_GATEWAY_TIME_OUT) {
++                apr_brigade_cleanup(bb);
++            }
++
+             ret = log_script(r, conf, ret, dbuf, sbuf, bb, script_err);
+ 
+             /*
+diff --git a/modules/generators/mod_cgid.c b/modules/generators/mod_cgid.c
+index 56d3524..b1e7dec 100644
+--- a/modules/generators/mod_cgid.c
++++ b/modules/generators/mod_cgid.c
+@@ -1554,6 +1554,13 @@ static int cgid_handler(request_rec *r)
+         if ((ret = ap_scan_script_header_err_brigade_ex(r, bb, sbuf,
+                                                         APLOG_MODULE_INDEX)))
+         {
++            /* In the case of a timeout reading script output, clear
++             * the brigade to avoid a second attempt to read the
++             * output. */
++            if (ret == HTTP_GATEWAY_TIME_OUT) {
++                apr_brigade_cleanup(bb);
++            }
++
+             ret = log_script(r, conf, ret, dbuf, sbuf, bb, NULL);
+ 
+             /*

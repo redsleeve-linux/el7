@@ -15,7 +15,7 @@
 Summary: Apache HTTP Server
 Name: httpd
 Version: 2.4.6
-Release: 95%{?dist}.redsleeve
+Release: 97%{?dist}.redsleeve
 URL: http://httpd.apache.org/
 Source0: http://www.apache.org/dist/httpd/httpd-%{version}.tar.bz2
 Source1: index.html
@@ -201,6 +201,12 @@ Patch141: httpd-2.4.6-r1583175.patch
 Patch142: httpd-2.4.6-r1862604.patch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1724879
 Patch143: httpd-2.4.6-ssl-close-notify-client.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1852350
+Patch144: httpd-2.4.6-r1879224.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1785100
+Patch145: httpd-2.4.6-r1881459.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1862499
+Patch146: httpd-2.4.6-r1872790.patch
 
 # Security fixes
 Patch200: httpd-2.4.6-CVE-2013-6438.patch
@@ -462,6 +468,9 @@ rm modules/ssl/ssl_engine_dh.c
 %patch141 -p1 -b .r1583175
 %patch142 -p1 -b .r1862604
 %patch143 -p1 -b .ssl-close-notify-client
+%patch144 -p1 -b .r1879224
+%patch145 -p1 -b .r1881459
+%patch146 -p1 -b .r1872790
 
 %patch200 -p1 -b .cve6438
 %patch201 -p1 -b .cve0098
@@ -925,14 +934,21 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/rpm/macros.httpd
 
 %changelog
-* Fri Oct 02 2020 Jacco Ligthart <jacco@redsleeve.org> - 2.4.6-95.el7.redsleeve
+* Thu Nov 19 2020 Jacco Ligthart <jacco@redsleeve.org> - 2.4.6-97.el7.redsleeve
 - roll in redsleeve branding, based on RHEL
 
-* Tue Sep 29 2020 CentOS Sources <bugs@centos.org> - 2.4.6-95.el7.centos
+* Tue Nov 10 2020 CentOS Sources <bugs@centos.org> - 2.4.6-97.el7.centos
 - Remove index.html, add centos-noindex.tar.gz
 - change vstring
 - change symlink for poweredby.png
 - update welcome.conf with proper aliases
+
+* Wed Oct 07 2020 Lubos Uhliarik <luhliari@redhat.com> - 2.4.6-97
+- Resolves: #1852350 - httpd/mod_proxy_http/mod_ssl aborted when sending
+  a client cert to backend server
+- Resolves: #1785100 - mod_cgid takes CGIDScriptTimeout x 2 seconds for timeout
+- Resolves: #1862499 - Intermittent Segfault in Apache httpd due to pool
+  concurrency issues
 
 * Fri Apr 17 2020 Lubos Uhliarik <luhliari@redhat.com> - 2.4.6-95
 - Resolves: #1823262 - CVE-2020-1934 httpd: mod_proxy_ftp use of uninitialized
