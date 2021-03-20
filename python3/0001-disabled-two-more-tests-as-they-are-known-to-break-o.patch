@@ -1,6 +1,6 @@
-From 6ca5affc2f65fc31c906f1b11769ba0a58b3569c Mon Sep 17 00:00:00 2001
+From b822cb2d0153ca94c2e3c759a132c9be5f4e2e71 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Thu, 15 Oct 2020 01:35:38 +0200
+Date: Fri, 20 Nov 2020 00:13:02 +0100
 Subject: [PATCH] disabled two more tests, as they are known to break on armv5
 
 ---
@@ -8,19 +8,19 @@ Subject: [PATCH] disabled two more tests, as they are known to break on armv5
  1 file changed, 6 insertions(+), 1 deletion(-)
 
 diff --git a/SPECS/python3.spec b/SPECS/python3.spec
-index 8ad452e..f8fc55b 100644
+index 09546fb..5cb390b 100644
 --- a/SPECS/python3.spec
 +++ b/SPECS/python3.spec
 @@ -14,7 +14,7 @@ URL: https://www.python.org/
  #  WARNING  When rebasing to a new Python version,
  #           remember to update the python3-docs package as well
  Version: %{pybasever}.8
--Release: 17%{?dist}
-+Release: 17%{?dist}.redsleeve
+-Release: 18%{?dist}
++Release: 18%{?dist}.redsleeve
  License: Python
  
  
-@@ -1165,6 +1165,8 @@ CheckPython() {
+@@ -1187,6 +1187,8 @@ CheckPython() {
      -x test_distutils \
      -x test_bdist_rpm \
      %ifarch %{arm}
@@ -29,16 +29,16 @@ index 8ad452e..f8fc55b 100644
      -x test_gdb \
      %endif 
      %ifarch %{mips64}
-@@ -1652,6 +1654,9 @@ CheckPython optimized
+@@ -1674,6 +1676,9 @@ CheckPython optimized
  # ======================================================
  
  %changelog
-+* Wed Oct 14 2020 Jacco Ligthart <jacco@redsleeve.org> - 3.6.8-17.redsleeve
++* Thu Nov 19 2020 Jacco Ligthart <jacco@redsleeve.org> - 3.6.8-18.redsleeve
 +- disabled two more tests, as they are known to break on armv5
 +
- * Wed May 06 2020 Charalampos Stratakis <cstratak@redhat.com> - 3.6.8-17
- - Overhaul python's FIPS mode support
- Resolves: rhbz#1788459
+ * Fri Jul 31 2020 Charalampos Stratakis <cstratak@redhat.com> - 3.6.8-18
+ - Avoid infinite loop when reading specially crafted TAR files (CVE-2019-20907)
+ Resolves: rhbz#1856481
 -- 
 1.8.3.1
 
