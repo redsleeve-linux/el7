@@ -1,6 +1,6 @@
-From 04aa05c6c84dafa193fe5b484ae12c5912b8099e Mon Sep 17 00:00:00 2001
+From 4e59187d64c250c05a4974c6f161b2b96eef274e Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sun, 15 Nov 2020 01:53:14 +0100
+Date: Sat, 6 Feb 2021 06:15:38 +0100
 Subject: [PATCH] added arm to the ExclusiveArch and nobuildarches lists
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] added arm to the ExclusiveArch and nobuildarches lists
  1 file changed, 11 insertions(+), 3 deletions(-)
 
 diff --git a/SPECS/kernel.spec b/SPECS/kernel.spec
-index e234196..9e465bf 100644
+index dcaaece..a1d62ce 100644
 --- a/SPECS/kernel.spec
 +++ b/SPECS/kernel.spec
 @@ -229,6 +229,11 @@ Summary: The Linux kernel
@@ -45,16 +45,16 @@ index e234196..9e465bf 100644
  ExclusiveOS: Linux
  
  %kernel_reqprovconf
-@@ -1799,6 +1804,9 @@ fi
+@@ -1805,6 +1810,9 @@ fi
  %kernel_variant_files %{with_kdump} kdump
  
  %changelog
-+* Sat Nov 14 2020 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-1160.6.1.el7.redsleeve
++* Sat Feb 06 2021 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-1160.15.2.el7.redsleeve
 +- added arm to the ExclusiveArch and nobuildarches lists
 +
- * Wed Oct 21 2020 Augusto Caringi <acaringi@redhat.com> [3.10.0-1160.6.1.el7]
- - [net] netfilter: nf_queue: place bridge physports into queue_entry struct (Florian Westphal) [1885682]
- - [net] netfilter: nf_queue: do not release refcouts until nf_reinject is done (Florian Westphal) [1885682]
+ * Thu Jan 21 2021 Augusto Caringi <acaringi@redhat.com> [3.10.0-1160.15.2.el7]
+ - [fs] nfs: Fix security label length not being reset (Dave Wysochanski) [1917504]
+ 
 -- 
 1.8.3.1
 
