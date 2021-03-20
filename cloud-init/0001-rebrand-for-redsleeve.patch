@@ -1,6 +1,6 @@
-From 33033d36869d210bd20c1d0301044a415bafef09 Mon Sep 17 00:00:00 2001
+From d6412ad2d077e22fd9f589e1584c902d264d074b Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Thu, 15 Oct 2020 01:48:30 +0200
+Date: Sun, 7 Feb 2021 23:34:07 +0100
 Subject: [PATCH] rebrand for redsleeve
 
 ---
@@ -28,37 +28,37 @@ index 0000000..665b156
 +     gecos: Cloud User
 +     groups: [adm, systemd-journal]
 diff --git a/SPECS/cloud-init.spec b/SPECS/cloud-init.spec
-index f8ac672..790f28f 100644
+index fd51612..69b9d9d 100644
 --- a/SPECS/cloud-init.spec
 +++ b/SPECS/cloud-init.spec
 @@ -13,7 +13,7 @@
  
  Name:           cloud-init
  Version:        19.4
--Release:        7%{?dist}
-+Release:        7%{?dist}.redsleeve
+-Release:        7%{?dist}.3
++Release:        7%{?dist}.3.redsleeve
  Summary:        Cloud instance init scripts
  
  Group:          System Environment/Base
-@@ -55,7 +55,7 @@ Patch19: ci-ec2-Do-not-log-IMDSv2-token-values-instead-use-REDAC.patch
- # For bz#1821999 - [RHEL7.9] Do not log IMDSv2 token values into cloud-init.log
- Patch20: ci-ec2-only-redact-token-request-headers-in-logs-avoid-.patch
+@@ -63,7 +63,7 @@ Patch23: ci-DHCP-sandboxing-failing-on-noexec-mounted-var-tmp-52.patch
+ # For bz#1861871 - [rhel7][cloud-init] ifup bond0.504 Error: Connection activation failed: No suitable device found for this connection [rhel-7.9.z]
+ Patch24: ci-network-Fix-type-and-respect-name-when-rendering-vla.patch
  
 -Patch9999: cloud-init-centos-user.patch
 +Patch9999: cloud-init-redsleeve-user.patch
  
  # Deal with noarch -> arch
  # https://bugzilla.redhat.com/show_bug.cgi?id=1067089
-@@ -226,6 +226,9 @@ fi
+@@ -234,6 +234,9 @@ fi
  %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
  
  %changelog
-+* Wed Oct 14 2020 Jacco Ligthart <jacco@redsleeve.org 19.4-7.el7.redsleeve
++* Sun Feb 07 2021 Jacco Ligthart <jacco@redsleeve.org 19.4-7.el7.3.redsleeve
 +- rebrand for redsleeve
 +
- * Wed May 20 2020 Miroslav Rezanina <mrezanin@redhat.com> - 19.4-7.el7
- - ci-ec2-only-redact-token-request-headers-in-logs-avoid-.patch [bz#1821999]
- - Resolves: bz#1821999
+ * Tue Nov 10 2020 Jon Maloy <jmaloy@redhat.com> - 19.4-7.el7_9.3
+ - ci-network-Fix-type-and-respect-name-when-rendering-vla.patch [bz#1861871]
+ - Resolves: bz#1861871
 -- 
 1.8.3.1
 
