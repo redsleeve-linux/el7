@@ -1,6 +1,6 @@
-From 4e59187d64c250c05a4974c6f161b2b96eef274e Mon Sep 17 00:00:00 2001
+From d5134697fb1dc456c49eab93863bca00537b9ce7 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sat, 6 Feb 2021 06:15:38 +0100
+Date: Sat, 20 Mar 2021 23:04:03 +0100
 Subject: [PATCH] added arm to the ExclusiveArch and nobuildarches lists
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] added arm to the ExclusiveArch and nobuildarches lists
  1 file changed, 11 insertions(+), 3 deletions(-)
 
 diff --git a/SPECS/kernel.spec b/SPECS/kernel.spec
-index dcaaece..a1d62ce 100644
+index c9c6be4..e4ed1d1 100644
 --- a/SPECS/kernel.spec
 +++ b/SPECS/kernel.spec
 @@ -229,6 +229,11 @@ Summary: The Linux kernel
@@ -49,12 +49,12 @@ index dcaaece..a1d62ce 100644
  %kernel_variant_files %{with_kdump} kdump
  
  %changelog
-+* Sat Feb 06 2021 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-1160.15.2.el7.redsleeve
++* Sat Mar 20 2021 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-1160.21.1.el7.redsleeve
 +- added arm to the ExclusiveArch and nobuildarches lists
 +
- * Thu Jan 21 2021 Augusto Caringi <acaringi@redhat.com> [3.10.0-1160.15.2.el7]
- - [fs] nfs: Fix security label length not being reset (Dave Wysochanski) [1917504]
- 
+ * Mon Feb 22 2021 Augusto Caringi <acaringi@redhat.com> [3.10.0-1160.21.1.el7]
+ - [pinctrl] devicetree: Avoid taking direct reference to device name string (Aristeu Rozanski) [1922902] {CVE-2020-0427}
+ - [pinctrl] Delete an error message (Aristeu Rozanski) [1922902] {CVE-2020-0427}
 -- 
 1.8.3.1
 
