@@ -1,42 +1,29 @@
-From 9d3b9c871d01e49a954ca93d57d2e56e88741c0c Mon Sep 17 00:00:00 2001
+From 78c3faeeb87a2015cd78f8c754d8b7272b98b163 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sun, 4 Oct 2020 19:32:43 +0200
+Date: Tue, 31 Aug 2021 23:48:28 +0200
 Subject: [PATCH] Roll in RedSleeve Branding
 
 ---
- SOURCES/sos-redsleeve-branding.patch | 135 +++++++++++++++++++++++++++++++++++
+ SOURCES/sos-redsleeve-branding.patch | 150 +++++++++++++++++++++++++++++++++++
  SPECS/sos.spec                       |   7 +-
- 2 files changed, 140 insertions(+), 2 deletions(-)
+ 2 files changed, 155 insertions(+), 2 deletions(-)
  create mode 100644 SOURCES/sos-redsleeve-branding.patch
 
 diff --git a/SOURCES/sos-redsleeve-branding.patch b/SOURCES/sos-redsleeve-branding.patch
 new file mode 100644
-index 0000000..b6421d4
+index 0000000..afcc95a
 --- /dev/null
 +++ b/SOURCES/sos-redsleeve-branding.patch
-@@ -0,0 +1,135 @@
+@@ -0,0 +1,150 @@
 +diff -uNrp sos-3.9.orig/sos/policies/redhat.py sos-3.9/sos/policies/redhat.py
 +--- sos-3.9.orig/sos/policies/redhat.py	2020-03-24 15:33:13.000000000 +0000
 ++++ sos-3.9/sos/policies/redhat.py	2020-10-03 12:48:32.088747085 +0000
-+@@ -31,9 +31,9 @@ except NameError:
-+ 
-+ 
-+ class RedHatPolicy(LinuxPolicy):
-+-    distro = "Red Hat"
-+-    vendor = "Red Hat"
-+-    vendor_url = "https://www.redhat.com/"
-++    distro = "RedSleeve"
-++    vendor = "RedSleeve"
-++    vendor_url = "http://www.redsleeve.org/"
-+     _redhat_release = '/etc/redhat-release'
-+     _tmp_dir = "/var/tmp"
-+     _rpmq_cmd = 'rpm -qa --queryformat "%{NAME}|%{VERSION}|%{RELEASE}\\n"'
 +@@ -89,7 +89,7 @@ class RedHatPolicy(LinuxPolicy):
 +     def check(cls):
 +         """This method checks to see if we are running on Red Hat. It must be
 +         overriden by concrete subclasses to return True when running on a
 +-        Fedora, RHEL or other Red Hat distribution or False otherwise."""
-++        Fedora, RHEL, RedSleeve or other Red Hat distribution or False otherwise."""
+++        Fedora, CentOS, RHEL or other Red Hat distribution or False otherwise."""
 +         return False
 + 
 +     def check_usrmove(self, pkgs):
@@ -96,15 +83,6 @@ index 0000000..b6421d4
 +             release string at the beginning of the NAME field in the
 +             `/etc/os-release` file and returns ``True`` if it is
 +             found, and ``False`` otherwise.
-+@@ -309,7 +309,7 @@ support representative.
-+             return
-+         if self.case_id:
-+             self.upload_user = input(_(
-+-                "Enter your Red Hat Customer Portal username (empty to use "
-++                "Enter your Customer Portal username (empty to use "
-+                 "public dropbox): ")
-+             )
-+ 
 +@@ -334,7 +334,7 @@ support representative.
 + 
 +     def get_upload_url_string(self):
@@ -150,36 +128,73 @@ index 0000000..b6421d4
 +         except IOError:
 +             pass
 +         return coreos
++diff -uNrp sos-3.9.orig/sos/policies/redhat.py sos-3.9/sos/policies/redhat.py
++--- sos-3.9.orig/sos/policies/redhat.py	2021-02-02 15:39:49.180326048 +0000
+++++ sos-3.9/sos/policies/redhat.py	2021-02-02 15:44:02.907874181 +0000
++@@ -31,9 +31,9 @@ except NameError:
++ 
++ 
++ class RedHatPolicy(LinuxPolicy):
++-    distro = "Red Hat"
++-    vendor = "Red Hat"
++-    vendor_url = "https://www.redhat.com/"
+++    distro = "RedSleeve"
+++    vendor = "RedSleeve"
+++    vendor_url = "https://www.redsleeve.org/"
++     _redhat_release = '/etc/redhat-release'
++     _tmp_dir = "/var/tmp"
++     _rpmq_cmd = 'rpm -qa --queryformat "%{NAME}|%{VERSION}|%{RELEASE}\\n"'
++@@ -87,9 +87,9 @@ class RedHatPolicy(LinuxPolicy):
++ 
++     @classmethod
++     def check(cls):
++-        """This method checks to see if we are running on Red Hat. It must be
+++        """This method checks to see if we are running on RedSleeve Linux. It must be
++         overriden by concrete subclasses to return True when running on a
++-        Fedora, CentOS, RHEL or other Red Hat distribution or False otherwise."""
+++        Fedora, CentOS, RedSleeve or other Red Hat distribution or False otherwise."""
++         return False
++ 
++     def check_usrmove(self, pkgs):
++@@ -309,7 +309,7 @@ support representative.
++             return
++         if self.case_id:
++             self.upload_user = input(_(
++-                "Enter your Red Hat Customer Portal username (empty to use "
+++                "Enter your Customer Portal username (empty to use "
++                 "public dropbox): ")
++             )
++             if not self.upload_user:
 diff --git a/SPECS/sos.spec b/SPECS/sos.spec
-index ffa2e08..2fe143f 100644
+index 91a1b9f..38be329 100644
 --- a/SPECS/sos.spec
 +++ b/SPECS/sos.spec
 @@ -2,7 +2,7 @@
  Summary: A set of tools to gather troubleshooting information from a system
  Name: sos
  Version: 3.9
--Release: 4%{?dist}
-+Release: 4%{?dist}.redsleeve
+-Release: 5%{?dist}.2
++Release: 5%{?dist}.2.redsleeve
  Group: Applications/System
  Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
  License: GPLv2+
-@@ -31,7 +31,7 @@ Patch8: sos-bz1853701-pci_gating_for_lspci.patch
- Patch9: sos-bz1853235-foreman_collect_stats_of_some_tables.patch
- Patch10: sos-bz1850925-logs_collect_also_not_persistent_logs.patch
- Patch11: sos-bz1856417-gluster-remove_only_dump_files.patch
--Patch12: sos-centos-branding.patch
-+Patch12: sos-redsleeve-branding.patch
+@@ -38,7 +38,7 @@ Patch15: sos-bz1871207-audit_collect_etc_audisp.patch
+ Patch16: sos-bz1886432-policy_fix_failure_conditions_with_upload.patch
+ Patch17: sos-bz1897903-postgresql_collect_rh-postgresql12.patch
+ Patch18: sos-bz1917074-networking_ethtool-e_conditionally_only.patch
+-Patch19: sos-centos-branding.patch
++Patch19: sos-redsleeve-branding.patch
  
  %description
  Sos is a set of tools that gathers information about system
-@@ -77,6 +77,9 @@ rm -rf ${RPM_BUILD_ROOT}
+@@ -91,6 +91,9 @@ rm -rf ${RPM_BUILD_ROOT}
  %config(noreplace) %{_sysconfdir}/sos.conf
  
  %changelog
-+* Sun Oct 04 2020 Jacco Ligthart <jacco@redsleeve.org> - 3.9-4.el7.redsleeve
++* Sun Feb 07 2021 Jacco Ligthart <jacco@redsleeve.org> - 3.9-5.el7.2.redsleeve
 +- Roll in RedSleeve Branding
 +
- * Tue Sep 29 2020 CentOS Sources <bugs@centos.org> - 3.9-4.el7.centos
+ * Tue Feb 02 2021 CentOS Sources <bugs@centos.org> - 3.9-5.el7.centos.2
  - Roll in CentOS Branding
  
 -- 
