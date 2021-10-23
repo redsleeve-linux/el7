@@ -15,10 +15,10 @@
 Summary: Apache HTTP Server
 Name: httpd
 Version: 2.4.6
-Release: 97%{?dist}.redsleeve
+Release: 97%{?dist}.1
 URL: http://httpd.apache.org/
 Source0: http://www.apache.org/dist/httpd/httpd-%{version}.tar.bz2
-Source1: index.html
+Source1: centos-noindex.tar.gz
 Source2: httpd.logrotate
 Source3: httpd.sysconf
 Source4: httpd-ssl-pass-dialog
@@ -241,6 +241,7 @@ Patch228: httpd-2.4.6-CVE-2019-10098.patch
 Patch229: httpd-2.4.6-CVE-2018-1303.patch
 Patch230: httpd-2.4.6-CVE-2018-1283.patch
 Patch240: httpd-2.4.6-CVE-2020-1934.patch
+Patch241: httpd-2.4.6-CVE-2021-40438.patch
 
 License: ASL 2.0
 Group: System Environment/Daemons
@@ -504,6 +505,7 @@ rm modules/ssl/ssl_engine_dh.c
 %patch229 -p1 -b .cve1303
 %patch230 -p1 -b .cve1283
 %patch240 -p1 -b .cve1934
+%patch241 -p1 -b .cve40438
 
 # Patch in the vendor string and the release string
 sed -i '/^#define PLATFORM/s/Unix/%{vstring}/' os/unix/os.h
@@ -657,8 +659,9 @@ EOF
 
 # Handle contentdir
 mkdir $RPM_BUILD_ROOT%{contentdir}/noindex
-install -m 644 -p $RPM_SOURCE_DIR/index.html \
-        $RPM_BUILD_ROOT%{contentdir}/noindex/index.html
+tar xzf $RPM_SOURCE_DIR/centos-noindex.tar.gz \
+        -C $RPM_BUILD_ROOT%{contentdir}/noindex/ \
+        --strip-components=1
 
 rm -rf %{contentdir}/htdocs
 
@@ -682,7 +685,7 @@ rm -v $RPM_BUILD_ROOT%{docroot}/html/*.html \
       $RPM_BUILD_ROOT%{docroot}/cgi-bin/*
 
 # Symlink for the powered-by-$DISTRO image:
-ln -s ../../pixmaps/poweredby.png \
+ln -s ../noindex/images/poweredby.png \
         $RPM_BUILD_ROOT%{contentdir}/icons/poweredby.png
 
 # symlinks for /etc/httpd
@@ -868,7 +871,7 @@ rm -rf $RPM_BUILD_ROOT
 %{contentdir}/error/README
 %{contentdir}/error/*.var
 %{contentdir}/error/include/*.html
-%{contentdir}/noindex/index.html
+%{contentdir}/noindex/*
 
 %dir %{docroot}
 %dir %{docroot}/cgi-bin
@@ -934,14 +937,15 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/rpm/macros.httpd
 
 %changelog
-* Thu Nov 19 2020 Jacco Ligthart <jacco@redsleeve.org> - 2.4.6-97.el7.redsleeve
-- roll in redsleeve branding, based on RHEL
-
-* Tue Nov 10 2020 CentOS Sources <bugs@centos.org> - 2.4.6-97.el7.centos
+* Thu Oct 14 2021 CentOS Sources <bugs@centos.org> - 2.4.6-97.el7.centos.1
 - Remove index.html, add centos-noindex.tar.gz
 - change vstring
 - change symlink for poweredby.png
 - update welcome.conf with proper aliases
+
+* Thu Oct 07 2021 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-97.1
+- Resolves: #2011729 - CVE-2021-40438 httpd: mod_proxy: SSRF via a crafted
+  request uri-path containing "unix:"
 
 * Wed Oct 07 2020 Lubos Uhliarik <luhliari@redhat.com> - 2.4.6-97
 - Resolves: #1852350 - httpd/mod_proxy_http/mod_ssl aborted when sending
