@@ -1,6 +1,6 @@
-From f24b73e944c0595f5991bebedbf1b85b438c3c79 Mon Sep 17 00:00:00 2001
+From 2c478671e1e3859ba5ec867efb0f3385729c70f8 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sat, 20 Mar 2021 23:36:48 +0100
+Date: Sat, 30 Oct 2021 17:03:52 +0200
 Subject: [PATCH] removed arm from jit_arches
 
 ---
@@ -8,10 +8,10 @@ Subject: [PATCH] removed arm from jit_arches
  1 file changed, 8 insertions(+), 4 deletions(-)
 
 diff --git a/SPECS/java-11-openjdk.spec b/SPECS/java-11-openjdk.spec
-index 7d4769a..623a13a 100644
+index b16fce4..e362889 100644
 --- a/SPECS/java-11-openjdk.spec
 +++ b/SPECS/java-11-openjdk.spec
-@@ -74,7 +74,7 @@
+@@ -87,7 +87,7 @@
  # Set of architectures for which we build slowdebug builds
  %global debug_arches    %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64} s390x
  # Set of architectures with a Just-In-Time (JIT) compiler
@@ -20,7 +20,7 @@ index 7d4769a..623a13a 100644
  # Set of architectures which run a full bootstrap cycle
  %global bootstrap_arches %{jit_arches}
  # Set of architectures which support SystemTap tapsets
-@@ -82,7 +82,7 @@
+@@ -95,7 +95,7 @@
  # Set of architectures with a Ahead-Of-Time (AOT) compiler
  %global aot_arches      x86_64 %{aarch64}
  # Set of architectures which support the serviceability agent
@@ -29,7 +29,7 @@ index 7d4769a..623a13a 100644
  # Set of architectures which support class data sharing
  # As of JDK-8005165 in OpenJDK 10, class sharing is not arch-specific
  # However, it does segfault on the Zero assembler port, so currently JIT only
-@@ -968,7 +968,7 @@ Provides: java-%{javaver}-%{origin}-src%1 = %{epoch}:%{version}-%{release}
+@@ -1003,7 +1003,7 @@ Provides: java-%{javaver}-%{origin}-src%1 = %{epoch}:%{version}-%{release}
  
  Name:    java-%{javaver}-%{origin}
  Version: %{newjavaver}.%{buildver}
@@ -38,7 +38,7 @@ index 7d4769a..623a13a 100644
  # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
  # and this change was brought into RHEL-4. java-1.5.0-ibm packages
  # also included the epoch in their virtual provides. This created a
-@@ -1658,7 +1658,7 @@ done
+@@ -1815,7 +1815,7 @@ done
  # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
  # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
  # Temporarily disabled on s390x as it sporadically crashes with SIGFPE, Arithmetic exception.
@@ -47,17 +47,17 @@ index 7d4769a..623a13a 100644
  gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
  handle SIGSEGV pass nostop noprint
  handle SIGILL pass nostop noprint
-@@ -1987,6 +1987,10 @@ require "copy_jdk_configs.lua"
+@@ -2152,6 +2152,10 @@ require "copy_jdk_configs.lua"
  %endif
  
  %changelog
-+* Sat Mar 20 2021 Jacco Ligthart <jacco@redsleeve.org> - 1:11.0.10.0.9-1.redsleeve
++* Sat Oct 30 2021 Jacco Ligthart <jacco@redsleeve.org> - 1:11.0.13.0.8-1.redsleeve
 +- removed arm from jit_arches
 +- removed the gdb section of the SPEC file
 +
- * Tue Mar 02 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.10.0.9-1
- - Add backport of JDK-8258836 to fix -Xcheck:jni warnings
- - Resolves: rhbz#1897602
+ * Wed Oct 13 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.13.0.8-1
+ - Revert addition of libharfbuzz.so after its removal by JDK-8255790
+ - Resolves: rhbz#2012332
 -- 
 1.8.3.1
 
