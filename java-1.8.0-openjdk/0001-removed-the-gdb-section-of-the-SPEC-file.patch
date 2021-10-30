@@ -1,6 +1,6 @@
-From 1df07779472abff12275be17d4f478382aa59d2f Mon Sep 17 00:00:00 2001
+From 17d802d2889425449f071081c6d4d9bd57936932 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sun, 7 Feb 2021 22:23:46 +0100
+Date: Sat, 30 Oct 2021 17:00:02 +0200
 Subject: [PATCH] removed the gdb section of the SPEC file
 
 ---
@@ -8,10 +8,10 @@ Subject: [PATCH] removed the gdb section of the SPEC file
  1 file changed, 16 insertions(+), 13 deletions(-)
 
 diff --git a/SPECS/java-1.8.0-openjdk.spec b/SPECS/java-1.8.0-openjdk.spec
-index b97d9cd..34f8330 100644
+index 3c5af08..0fbaef7 100644
 --- a/SPECS/java-1.8.0-openjdk.spec
 +++ b/SPECS/java-1.8.0-openjdk.spec
-@@ -867,7 +867,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
+@@ -871,7 +871,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
  
  Name:    java-%{javaver}-%{origin}
  Version: %{javaver}.%{updatever}.%{buildver}
@@ -20,7 +20,7 @@ index b97d9cd..34f8330 100644
  # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
  # and this change was brought into RHEL-4. java-1.5.0-ibm packages
  # also included the epoch in their virtual provides. This created a
-@@ -1699,18 +1699,18 @@ done
+@@ -1729,18 +1729,18 @@ done
  # Using line number 1 might cause build problems. See:
  # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
  # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
@@ -51,16 +51,16 @@ index b97d9cd..34f8330 100644
  
  # Check src.zip has all sources. See RHBZ#1130490
  jar -tf $JAVA_HOME/src.zip | grep 'sun.misc.Unsafe'
-@@ -2139,6 +2139,9 @@ require "copy_jdk_configs.lua"
+@@ -2169,6 +2169,9 @@ require "copy_jdk_configs.lua"
  %endif
  
  %changelog
-+* Sun Feb 07 2021 Jacco Ligthart <jacco@redsleeve.org> 1:1.8.0.282.b08-1.redsleeve
++* Sat Oct 30 2021 Jacco Ligthart <jacco@redsleeve.org> 1:1.8.0.312.b07-1.redsleeve
 +- removed the gdb section of the SPEC file
 +
- * Sun Jan 17 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.282.b08-1
- - Cleanup package descriptions and version number placement.
- - Resolves: rhbz#1908963
+ * Fri Oct 15 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.312.b07-1
+ - Update to aarch64-shenandoah-jdk8u312-b07 (EA)
+ - Update release notes for 8u312-b07.
 -- 
 1.8.3.1
 
