@@ -1,28 +1,13 @@
-diff --git openjdk.orig/hotspot/src/share/vm/gc_implementation/g1/g1BiasedArray.hpp openjdk/hotspot/src/share/vm/gc_implementation/g1/g1BiasedArray.hpp
---- openjdk.orig/hotspot/src/share/vm/gc_implementation/g1/g1BiasedArray.hpp
-+++ openjdk/hotspot/src/share/vm/gc_implementation/g1/g1BiasedArray.hpp
-@@ -78,7 +78,8 @@
-     size_t num_target_elems = pointer_delta(end, bottom, mapping_granularity_in_bytes);
-     idx_t bias = (uintptr_t)bottom / mapping_granularity_in_bytes;
-     address base = create_new_base_array(num_target_elems, target_elem_size_in_bytes);
--    initialize_base(base, num_target_elems, bias, target_elem_size_in_bytes, log2_intptr(mapping_granularity_in_bytes));
-+    initialize_base(base, num_target_elems, bias, target_elem_size_in_bytes,
-+                    log2_intptr((uintptr_t) mapping_granularity_in_bytes));
+diff --git openjdk.orig/hotspot/src/share/vm/gc_implementation/shenandoah/shenandoahUtils.cpp openjdk/hotspot/src/share/vm/gc_implementation/shenandoah/shenandoahUtils.cpp
+--- openjdk.orig/hotspot/src/share/vm/gc_implementation/shenandoah/shenandoahUtils.cpp
++++ openjdk/hotspot/src/share/vm/gc_implementation/shenandoah/shenandoahUtils.cpp
+@@ -150,5 +150,5 @@
+     return value;
    }
  
-   size_t bias() const { return _bias; }
-diff --git openjdk.orig/hotspot/src/share/vm/runtime/os.cpp openjdk/hotspot/src/share/vm/runtime/os.cpp
---- openjdk.orig/hotspot/src/share/vm/runtime/os.cpp
-+++ openjdk/hotspot/src/share/vm/runtime/os.cpp
-@@ -1284,7 +1284,7 @@
+-  return (size_t)1 << (log2_intptr(value) + 1);
++  return (size_t)1 << (log2_intptr((uintptr_t) value) + 1);
  }
- 
- void os::set_memory_serialize_page(address page) {
--  int count = log2_intptr(sizeof(class JavaThread)) - log2_int(64);
-+  int count = log2_intptr((uintptr_t) sizeof(class JavaThread)) - log2_int(64);
-   _mem_serialize_page = (volatile int32_t *)page;
-   // We initialize the serialization page shift count here
-   // We assume a cache line size of 64 bytes
 diff --git openjdk.orig/hotspot/src/share/vm/gc_implementation/shenandoah/shenandoahNumberSeq.cpp openjdk/hotspot/src/share/vm/gc_implementation/shenandoah/shenandoahNumberSeq.cpp
 --- openjdk.orig/hotspot/src/share/vm/gc_implementation/shenandoah/shenandoahNumberSeq.cpp
 +++ openjdk/hotspot/src/share/vm/gc_implementation/shenandoah/shenandoahNumberSeq.cpp
@@ -35,3 +20,27 @@ diff --git openjdk.orig/hotspot/src/share/vm/gc_implementation/shenandoah/shenan
  
    // Defensively saturate for product bits:
    if (mag < 0) {
+diff --git openjdk.orig/hotspot/src/share/vm/gc_implementation/shenandoah/shenandoahHeap.cpp openjdk/hotspot/src/share/vm/gc_implementation/shenandoah/shenandoahHeap.cpp
+--- openjdk.orig/hotspot/src/share/vm/gc_implementation/shenandoah/shenandoahHeap.cpp
++++ openjdk/hotspot/src/share/vm/gc_implementation/shenandoah/shenandoahHeap.cpp
+@@ -659,7 +659,7 @@
+ }
+ 
+ size_t ShenandoahHeap::soft_max_capacity() const {
+-  size_t v = OrderAccess::load_acquire((volatile size_t*)&_soft_max_size);
++  size_t v = OrderAccess::load_acquire((volatile jlong*)&_soft_max_size);
+   assert(min_capacity() <= v && v <= max_capacity(),
+          err_msg("Should be in bounds: " SIZE_FORMAT " <= " SIZE_FORMAT " <= " SIZE_FORMAT,
+                  min_capacity(), v, max_capacity()));
+diff --git openjdk.orig/hotspot/src/share/vm/gc_implementation/shenandoah/shenandoahHeap.hpp openjdk/hotspot/src/share/vm/gc_implementation/shenandoah/shenandoahHeap.hpp
+--- openjdk.orig/hotspot/src/share/vm/gc_implementation/shenandoah/shenandoahHeap.hpp
++++ openjdk/hotspot/src/share/vm/gc_implementation/shenandoah/shenandoahHeap.hpp
+@@ -155,7 +155,7 @@
+ private:
+            size_t _initial_size;
+            size_t _minimum_size;
+-  volatile size_t _soft_max_size;
++  volatile jlong  _soft_max_size;
+   shenandoah_padding(0);
+   volatile jlong  _used;
+   volatile size_t _committed;

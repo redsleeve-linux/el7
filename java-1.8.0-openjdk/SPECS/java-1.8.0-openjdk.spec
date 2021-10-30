@@ -63,6 +63,9 @@
 %global bootstrap_build 1
 %endif
 
+# Remove build artifacts by default
+%global with_artifacts 0
+
 %global bootstrap_targets images
 %global release_targets images docs-zip
 # No docs nor bootcycle for debug builds
@@ -205,7 +208,7 @@
 # note, following three variables are sedded from update_sources if used correctly. Hardcode them rather there.
 %global shenandoah_project	aarch64-port
 %global shenandoah_repo		jdk8u-shenandoah
-%global shenandoah_revision    	aarch64-shenandoah-jdk8u282-b08
+%global shenandoah_revision    	aarch64-shenandoah-jdk8u312-b07
 # Define old aarch64/jdk8u tree variables for compatibility
 %global project         %{shenandoah_project}
 %global repo            %{shenandoah_repo}
@@ -250,6 +253,7 @@
 %global jdkimage       j2sdk-image
 # output dir stub
 %define buildoutputdir() %{expand:build/jdk8.build%1}
+%define installoutputdir() %{expand:install/jdk8.install%1}
 #we can copy the javadoc to not arched dir, or make it not noarch
 %global uniquejavadocdir()    %{expand:%{fullversion}%1}
 #main id and dir of this jdk
@@ -670,7 +674,7 @@ exit 0
 
 %global files_demo() %{expand:
 %defattr(-,root,root,-)
-%license %{buildoutputdir %%1}/images/%{jdkimage}/jre/LICENSE
+%license %{installoutputdir %%1}/images/%{jdkimage}/jre/LICENSE
 }
 
 %global files_src() %{expand:
@@ -682,13 +686,13 @@ exit 0
 %global files_javadoc() %{expand:
 %defattr(-,root,root,-)
 %doc %{_javadocdir}/%{uniquejavadocdir %%1}
-%license %{buildoutputdir %%1}/images/%{jdkimage}/jre/LICENSE
+%license %{installoutputdir %%1}/images/%{jdkimage}/jre/LICENSE
 }
 
 %global files_javadoc_zip() %{expand:
 %defattr(-,root,root,-)
 %doc %{_javadocdir}/%{uniquejavadocdir %%1}.zip
-%license %{buildoutputdir %%1}/images/%{jdkimage}/jre/LICENSE
+%license %{installoutputdir %%1}/images/%{jdkimage}/jre/LICENSE
 }
 
 %global files_accessibility() %{expand:
@@ -734,8 +738,8 @@ Requires: ca-certificates
 # Require jpackage-utils for ownership of /usr/lib/jvm/
 Requires: jpackage-utils
 # Require zoneinfo data provided by tzdata-java subpackage.
-# 2020b required as of JDK-8254177 in October CPU
-Requires: tzdata-java >= 2020b
+# 2021a required as of JDK-8260356 in April CPU
+Requires: tzdata-java >= 2021a
 # libsctp.so.1 is being `dlopen`ed on demand
 Requires: lksctp-tools%{?_isa}
 # tool to copy jdk's configs - should be Recommends only, but then only dnf/yum enforce it,
@@ -867,7 +871,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
 
 Name:    java-%{javaver}-%{origin}
 Version: %{javaver}.%{updatever}.%{buildver}
-Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}.redsleeve
+Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
 # and this change was brought into RHEL-4. java-1.5.0-ibm packages
 # also included the epoch in their virtual provides. This created a
@@ -958,6 +962,8 @@ Patch1:   rh1648242-accessible_toolkit_crash_do_not_break_jvm.patch
 Patch3:   rh1648644-java_access_bridge_privileged_security.patch
 # Turn on AssumeMP by default on RHEL systems
 Patch534: rh1648246-always_instruct_vm_to_assume_multiple_processors_are_available.patch
+# RH1750419: Enable build of speculative store bypass hardened alt-java (CVE-2018-3639)
+Patch600: rh1750419-redhat_alt_java.patch
 
 #############################################
 #
@@ -980,9 +986,10 @@ Patch528: pr3083-rh1346460-for_ssl_debug_return_null_instead_of_exception_when_t
 # PR2888: OpenJDK should check for system cacerts database (e.g. /etc/pki/java/cacerts)
 # PR3575, RH1567204: System cacerts database handling should not affect jssecacerts
 Patch539: pr2888-openjdk_should_check_for_system_cacerts_database_eg_etc_pki_java_cacerts.patch
+# RH1684077: Find pcsc-lite library without pcsc-lite-devel installed
 Patch541: rh1684077-openjdk_should_depend_on_pcsc-lite-libs_instead_of_pcsc-lite-devel.patch
-# RH1750419: Enable build of speculative store bypass hardened alt-java (CVE-2018-3639)
-Patch600: rh1750419-redhat_alt_java.patch
+# RH1862929: Optimise common separator cases in Scanner.useLocale
+Patch542: rh1862929-scanner_performance.patch
 
 #############################################
 #
@@ -1030,7 +1037,7 @@ Patch12: jdk8186464-rh1433262-zip64_failure.patch
 
 #############################################
 #
-# Patches appearing in 8u282
+# Patches appearing in 8u302
 #
 # This section includes patches which are present
 # in the listed OpenJDK 8u release and should be
@@ -1122,8 +1129,8 @@ BuildRequires: java-1.8.0-openjdk-devel
 %ifnarch %{jit_arches}
 BuildRequires: libffi-devel
 %endif
-# 2020b required as of JDK-8254177 in October CPU
-BuildRequires: tzdata-java >= 2020b
+# 2021a required as of JDK-8260356 in April CPU
+BuildRequires: tzdata-java >= 2021a
 # Earlier versions have a bug in tree vectorization on PPC
 BuildRequires: gcc >= 4.8.3-8
 
@@ -1407,6 +1414,7 @@ sh %{SOURCE12}
 %patch571
 %patch574
 %patch541
+%patch542
 %patch12
 
 # RPM-only fixes
@@ -1508,9 +1516,10 @@ export EXTRA_CFLAGS EXTRA_ASFLAGS
 
 function buildjdk() {
     local outputdir=${1}
-    local buildjdk=${2}
-    local maketargets=${3}
-    local debuglevel=${4}
+    local installdir=${2}
+    local buildjdk=${3}
+    local maketargets=${4}
+    local debuglevel=${5}
 
     local top_srcdir_abs_path=$(pwd)/%{top_level_dir_name}
     # Variable used in hs_err hook on build failures
@@ -1523,7 +1532,7 @@ function buildjdk() {
     echo "Using debuglevel: ${debuglevel}"
     echo "Building 8u%{updatever}-%{buildver}, milestone %{milestone}"
 
-    mkdir -p ${outputdir}
+    mkdir -p ${outputdir} ${installdir}
     pushd ${outputdir}
 
     bash ${top_srcdir_abs_path}/configure \
@@ -1583,6 +1592,23 @@ function buildjdk() {
     find images/%{jdkimage}/bin/ -exec chmod +x {} \;
 
     popd >& /dev/null
+
+    echo "Installing build from ${outputdir} to ${installdir}..."
+    echo "Installing images..."
+    mv ${outputdir}/images ${installdir}
+    if [ -d ${outputdir}/bundles ] ; then
+	echo "Installing bundles...";
+	mv ${outputdir}/bundles ${installdir} ;
+    fi
+    if [ -d ${outputdir}/docs ] ; then
+	echo "Installing docs...";
+	mv ${outputdir}/docs ${installdir} ;
+    fi
+
+%if !%{with_artifacts}
+    echo "Removing output directory...";
+    rm -rf ${outputdir}
+%endif
 }
 
 for suffix in %{build_loop} ; do
@@ -1595,6 +1621,8 @@ fi
 systemjdk=/usr/lib/jvm/java-openjdk
 builddir=%{buildoutputdir $suffix}
 bootbuilddir=boot${builddir}
+installdir=%{installoutputdir $suffix}
+bootinstalldir=boot${installdir}
 
 # Debug builds don't need same targets as release for
 # build speed-up
@@ -1604,15 +1632,17 @@ if echo $debugbuild | grep -q "debug" ; then
 fi
 
 %if %{bootstrap_build}
-buildjdk ${bootbuilddir} ${systemjdk} "%{bootstrap_targets}" ${debugbuild}
-buildjdk ${builddir} $(pwd)/${bootbuilddir}/images/%{jdkimage} "${maketargets}" ${debugbuild}
-rm -rf ${bootbuilddir}
+buildjdk ${bootbuilddir} ${bootinstalldir} ${systemjdk} "%{bootstrap_targets}" ${debugbuild}
+buildjdk ${builddir} ${installdir} $(pwd)/${bootinstalldir}/images/%{jdkimage} "${maketargets}" ${debugbuild}
+%if !%{with_artifacts}
+rm -rf ${bootinstalldir}
+%endif
 %else
-buildjdk ${builddir} ${systemjdk} "${maketargets}" ${debugbuild}
+buildjdk ${builddir} ${installdir} ${systemjdk} "${maketargets}" ${debugbuild}
 %endif
 
 # Install nss.cfg right away as we will be using the JRE above
-export JAVA_HOME=$(pwd)/%{buildoutputdir $suffix}/images/%{jdkimage}
+export JAVA_HOME=$(pwd)/%{installoutputdir $suffix}/images/%{jdkimage}
 
 # Install nss.cfg right away as we will be using the JRE above
 install -m 644 nss.cfg $JAVA_HOME/jre/lib/security/
@@ -1635,7 +1665,7 @@ done
 # We test debug first as it will give better diagnostics on a crash
 for suffix in %{rev_build_loop} ; do
 
-export JAVA_HOME=$(pwd)/%{buildoutputdir $suffix}/images/%{jdkimage}
+export JAVA_HOME=$(pwd)/%{installoutputdir $suffix}/images/%{jdkimage}
 
 # Check unlimited policy has been used
 $JAVA_HOME/bin/javac -d . %{SOURCE13}
@@ -1699,18 +1729,18 @@ done
 # Using line number 1 might cause build problems. See:
 # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
 # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
-#gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
-#handle SIGSEGV pass nostop noprint
-#handle SIGILL pass nostop noprint
-#set breakpoint pending on
-#break javaCalls.cpp:1
-#commands 1
-#backtrace
-#quit
-#end
-#run -version
-#EOF
-#grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
+gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
+handle SIGSEGV pass nostop noprint
+handle SIGILL pass nostop noprint
+set breakpoint pending on
+break javaCalls.cpp:1
+commands 1
+backtrace
+quit
+end
+run -version
+EOF
+grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
 
 # Check src.zip has all sources. See RHBZ#1130490
 jar -tf $JAVA_HOME/src.zip | grep 'sun.misc.Unsafe'
@@ -1734,7 +1764,7 @@ STRIP_KEEP_SYMTAB=libjvm*
 for suffix in %{build_loop} ; do
 
 # Install the jdk
-pushd %{buildoutputdir $suffix}/images/%{jdkimage}
+pushd %{installoutputdir $suffix}/images/%{jdkimage}
 
 # Install jsa directories so we can owe them
 mkdir -p $RPM_BUILD_ROOT%{_jvmdir}/%{jredir $suffix}/lib/%{archinstall}/server/
@@ -1837,8 +1867,8 @@ popd
 # Install Javadoc documentation
 # Always take docs from normal build to avoid building them twice
 install -d -m 755 $RPM_BUILD_ROOT%{_javadocdir}
-cp -a %{buildoutputdir $normal_suffix}/docs $RPM_BUILD_ROOT%{_javadocdir}/%{uniquejavadocdir $suffix}
-cp -a %{buildoutputdir $normal_suffix}/bundles/jdk-%{javaver}_%{updatever}%{milestone_version}${normal_suffix}-%{buildver}-docs.zip  $RPM_BUILD_ROOT%{_javadocdir}/%{uniquejavadocdir $suffix}.zip
+cp -a %{installoutputdir $normal_suffix}/docs $RPM_BUILD_ROOT%{_javadocdir}/%{uniquejavadocdir $suffix}
+cp -a %{installoutputdir $normal_suffix}/bundles/jdk-%{javaver}_%{updatever}%{milestone_version}${normal_suffix}-%{buildver}-docs.zip  $RPM_BUILD_ROOT%{_javadocdir}/%{uniquejavadocdir $suffix}.zip
 
 # Install release notes
 commondocdir=${RPM_BUILD_ROOT}%{_defaultdocdir}/%{uniquejavadocdir $suffix}
@@ -2139,8 +2169,182 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
-* Sun Feb 07 2021 Jacco Ligthart <jacco@redsleeve.org> 1:1.8.0.282.b08-1.redsleeve
-- removed the gdb section of the SPEC file
+* Fri Oct 15 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.312.b07-1
+- Update to aarch64-shenandoah-jdk8u312-b07 (EA)
+- Update release notes for 8u312-b07.
+- Switch to GA mode for final release.
+- This tarball is embargoed until 2021-10-19 @ 1pm PT.
+- Resolves: rhbz#2011826
+
+* Wed Oct 13 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.312.b05-0.3.ea
+- Add patch to improve performance of common separators in Scanner.useLocale
+- Move alt-java patch to correct section.
+- Resolves: rhbz#1862929
+
+* Tue Oct 12 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.312.b05-0.2.ea
+- Update to aarch64-shenandoah-jdk8u312-b05-shenandoah-merge-2021-10-07
+- Update release notes for 8u312-b05-shenandoah-merge-2021-10-07.
+- Resolves: rhbz#1999735
+
+* Thu Sep 30 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.312.b05-0.1.ea
+- Update to aarch64-shenandoah-jdk8u312-b05 (EA)
+- Update release notes for 8u312-b05.
+- Related: rhbz#1999735
+
+* Mon Sep 27 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.312.b04-0.2.ea
+- Reduce disk footprint by removing build artifacts by default.
+- Related: rhbz#1999735
+
+* Sun Sep 26 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.312.b04-0.1.ea
+- Update to aarch64-shenandoah-jdk8u312-b04 (EA)
+- Update release notes for 8u312-b04.
+- Related: rhbz#1999735
+
+* Fri Sep 24 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.312.b03-0.1.ea
+- Update to aarch64-shenandoah-jdk8u312-b03 (EA)
+- Update release notes for 8u312-b03.
+- Related: rhbz#1999735
+
+* Sun Sep 19 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.312.b02-0.1.ea
+- Update to aarch64-shenandoah-jdk8u312-b02 (EA)
+- Update release notes for 8u312-b02.
+- Related: rhbz#1999735
+
+* Sun Sep 19 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.312.b01-0.1.ea
+- Update to aarch64-shenandoah-jdk8u312-b01 (EA)
+- Update release notes for 8u312-b01.
+- Switch to EA mode.
+- Remove "-clean" suffix as no 8u312 builds are unclean.
+- Related: rhbz#1999735
+
+* Fri Sep 10 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.302.b08-1
+- Remove non-Free test and demo files from source tarball.
+- Related: rhbz#1999735
+
+* Fri Jul 16 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.302.b08-0
+- Update to aarch64-shenandoah-jdk8u302-b08 (EA)
+- Update release notes for 8u302-b08.
+- Switch to GA mode for final release.
+- This tarball is embargoed until 2021-07-20 @ 1pm PT.
+- Resolves: rhbz#1972395
+
+* Thu Jul 08 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.302.b07-0.0.ea
+- Update to aarch64-shenandoah-jdk8u302-b07 (EA)
+- Update release notes for 8u302-b07.
+- Resolves: rhbz#1967809
+
+* Tue Jul 06 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.302.b06-0.0.ea
+- Update to aarch64-shenandoah-jdk8u302-b06 (EA)
+- Update release notes for 8u302-b06.
+- Resolves: rhbz#1967809
+
+* Fri Jul 02 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.302.b05-0.0.ea
+- Update to aarch64-shenandoah-jdk8u302-b05 (EA)
+- Update release notes for 8u302-b05.
+- Remove JDK-8266929/RH1960024 as now upstream.
+- Resolves: rhbz#1967809
+
+* Wed Jun 30 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.302.b04-0.0.ea
+- Update to aarch64-shenandoah-jdk8u302-b04 (EA)
+- Update release notes for 8u302-b04.
+- Resolves: rhbz#1967809
+
+* Tue Jun 29 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.302.b03-0.1.ea
+- Update to aarch64-shenandoah-jdk8u302-b03-shenandoah-merge-2021-06-23 (EA)
+- Update release notes for 8u302-b03-shenandoah-merge-2021-06-23.
+- Resolves: rhbz#1967809
+
+* Sun Jun 27 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.302.b03-0.0.ea
+- Update to aarch64-shenandoah-jdk8u302-b03 (EA)
+- Update release notes for 8u302-b03.
+- Resolves: rhbz#1967809
+
+* Sat Jun 26 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.302.b02-0.0.ea
+- Update to aarch64-shenandoah-jdk8u302-b02 (EA)
+- Update release notes for 8u302-b02.
+- Resolves: rhbz#1967809
+
+* Fri Jun 25 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.302.b01-0.0.ea
+- Update to aarch64-shenandoah-jdk8u302-b01 (EA)
+- Update release notes for 8u302-b01.
+- Switch to EA mode.
+- Resolves: rhbz#1967809
+
+* Fri May 28 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.292.b10-2
+- Add JDK-8266929 backport for RH1960024.
+- Resolves: rhbz#1960024
+
+* Fri Apr 09 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.292.b10-1
+- Add CVE numbers.
+- Require tzdata 2021a due to JDK-8260356
+- Resolves: rhbz#1938201
+
+* Thu Apr 08 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.292.b10-0
+- Update to aarch64-shenandoah-jdk8u292-b10 (GA)
+- Update release notes for 8u292-b10.
+- This tarball is embargoed until 2021-04-20 @ 1pm PT.
+- Resolves: rhbz#1938201
+
+* Tue Mar 30 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.292.b09-0.0.ea
+- Update to aarch64-shenandoah-jdk8u292-b09 (EA)
+- Update release notes for 8u292-b09.
+- Resolves: rhbz#1938081
+
+* Sat Mar 27 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.292.b08-0.0.ea
+- Update to aarch64-shenandoah-jdk8u292-b08 (EA)
+- Update release notes for 8u292-b08.
+- Resolves: rhbz#1938081
+
+* Thu Mar 25 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.292.b07-0.0.ea
+- Update to aarch64-shenandoah-jdk8u292-b07 (EA)
+- Update release notes for 8u292-b07.
+- Resolves: rhbz#1938081
+
+* Mon Mar 22 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.292.b06-0.0.ea
+- Update to aarch64-shenandoah-jdk8u292-b06 (EA)
+- Update release notes for 8u292-b06.
+- Require tzdata 2020f due to JDK-8259048
+- Resolves: rhbz#1938081
+
+* Thu Mar 18 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.292.b05-0.2.ea
+- Update to aarch64-shenandoah-jdk8u292-b05-shenandoah-merge-2021-03-11 (EA)
+- Update release notes for 8u292-b05-shenandoah-merge-2021-03-11.
+- Extend s390 patch to fix issue caused by JDK-8252660 backport and lack of JDK-8188813 in 8u.
+- Revise JDK-8252660 s390 failure to make _soft_max_size a jlong so pointer types are accurate.
+- Resolves: rhbz#1938081
+
+* Thu Mar 18 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.292.b05-0.1.ea
+- Re-organise S/390 patches for upstream submission, separating 8u upstream from Shenandoah fixes.
+- Add new formatting case found in memprofiler.cpp on debug builds to PR3593 patch.
+- Resolves: rhbz#1938081
+
+* Mon Mar 08 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.292.b05-0.0.ea
+- Update to aarch64-shenandoah-jdk8u292-b05 (EA)
+- Update release notes for 8u292-b05.
+- Resolves: rhbz#1938081
+
+* Fri Mar 05 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.292.b04-0.0.ea
+- Update to aarch64-shenandoah-jdk8u292-b04 (EA)
+- Update release notes for 8u292-b04.
+- Resolves: rhbz#1938081
+
+* Thu Mar 04 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.292.b03-0.0.ea
+- Update to aarch64-shenandoah-jdk8u292-b03 (EA)
+- Update release notes for 8u292-b03.
+- Resolves: rhbz#1938081
+
+* Tue Mar 02 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.292.b02-0.0.ea
+- Update to aarch64-shenandoah-jdk8u292-b02 (EA)
+- Update release notes for 8u292-b02.
+- Resolves: rhbz#1938081
+
+* Fri Feb 12 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.292.b01-0.0.ea
+- Update to aarch64-shenandoah-jdk8u292-b01 (EA)
+- Update release notes for 8u292-b01.
+- Switch to EA mode.
+- Update tarball generation script to use PR3822 which handles
+    JDK-8233228 & JDK-8035166 changes
+- Resolves: rhbz#1938081
 
 * Sun Jan 17 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.282.b08-1
 - Cleanup package descriptions and version number placement.
