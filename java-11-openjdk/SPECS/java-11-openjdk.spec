@@ -11,17 +11,22 @@
 # $ rpmbuild -ba java-1.8.0-openjdk.spec --without slowdebug
 #
 # Only produce a release build on x86_64:
-# $ fedpkg mockbuild --without slowdebug
+# $ rhpkg mockbuild --without slowdebug
 #
 # Only produce a debug build on x86_64:
-# $ fedpkg local --without release
+# $ rhpkg local --without release
 #
 # Enable slowdebug builds by default on relevant arches.
 %bcond_without slowdebug
 # Enable release builds by default on relevant arches.
 %bcond_without release
+# Enable static library builds by default.
+%bcond_without staticlibs
+# Remove build artifacts by default
+%bcond_with artifacts
 
 # Workaround for stripping of debug symbols from static libraries
+%if %{with staticlibs}
 # RHEL 7 doesn't have __brp_strip_static_archive so need to redefine
 # the entire os_install_post macro
 %define __os_install_post    \
@@ -32,6 +37,10 @@
     } \
     %{!?__jar_repack:/usr/lib/rpm/redhat/brp-java-repack-jars} \
 %{nil}
+%global include_staticlibs 1
+%else
+%global include_staticlibs 0
+%endif
 
 # The -g flag says to use strip -g instead of full strip on DSOs or EXEs.
 # This fixes detailed NMT and other tools which need minimal debug info.
@@ -44,14 +53,18 @@
 # See https://github.com/rpm-software-management/rpm/issues/127 to comments at  "pmatilai commented on Aug 18, 2017"
 # (initiated in https://bugzilla.redhat.com/show_bug.cgi?id=1482192)
 %global debug_suffix_unquoted -debug
+%global main_suffix_unquoted -main
+%global staticlibs_suffix_unquoted -staticlibs
 # quoted one for shell operations
 %global debug_suffix "%{debug_suffix_unquoted}"
 %global normal_suffix ""
+%global main_suffix "%{main_suffix_unquoted}"
+%global staticlibs_suffix "%{staticlibs_suffix_unquoted}"
 
 # if you want only debug build but providing java build only normal build but set normalbuild_parameter
 %global debug_warning This package is unoptimised with full debugging. Install only as needed and remove ASAP.
-%global debug_on with full debugging on
-%global for_debug for packages with debugging on
+%global debug_on unoptimised with full debugging on
+%global for_debug for packages with debugging on and no optimisation
 
 %if %{with release}
 %global include_normal_build 1
@@ -74,7 +87,7 @@
 # Set of architectures for which we build slowdebug builds
 %global debug_arches    %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64} s390x
 # Set of architectures with a Just-In-Time (JIT) compiler
-%global jit_arches      %{debug_arches}
+%global jit_arches      %{debug_arches} %{arm}
 # Set of architectures which run a full bootstrap cycle
 %global bootstrap_arches %{jit_arches}
 # Set of architectures which support SystemTap tapsets
@@ -82,7 +95,7 @@
 # Set of architectures with a Ahead-Of-Time (AOT) compiler
 %global aot_arches      x86_64 %{aarch64}
 # Set of architectures which support the serviceability agent
-%global sa_arches       %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64}
+%global sa_arches       %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64} %{arm}
 # Set of architectures which support class data sharing
 # As of JDK-8005165 in OpenJDK 10, class sharing is not arch-specific
 # However, it does segfault on the Zero assembler port, so currently JIT only
@@ -131,10 +144,16 @@
 
 # if you disable both builds, then the build fails
 # Note that the debug build requires the normal build for docs
-%global build_loop  %{build_loop1} %{build_loop2}
+%global build_loop %{build_loop1} %{build_loop2}
 # note: that order: normal_suffix debug_suffix, in case of both enabled
 # is expected in one single case at the end of the build
 %global rev_build_loop  %{build_loop2} %{build_loop1}
+
+%if %{include_staticlibs}
+%global staticlibs_loop %{staticlibs_suffix}
+%else
+%global staticlibs_loop %{nil}
+%endif
 
 %ifarch %{bootstrap_arches}
 %global bootstrap_build 1
@@ -142,13 +161,24 @@
 %global bootstrap_build 1
 %endif
 
-%if %{bootstrap_build}
-%global release_targets bootcycle-images static-libs-image docs-zip
+%if %{include_staticlibs}
+# Extra target for producing the static-libraries. Separate from
+# other targets since this target is configured to use in-tree
+# AWT dependencies: lcms, libjpeg, libpng, libharfbuzz, giflib
+# and possibly others
+%global static_libs_target static-libs-image
 %else
-%global release_targets images docs-zip static-libs-image
+%global static_libs_target %{nil}
 %endif
+
+# RPM JDK builds keep the debug symbols internal, to be later stripped by RPM
+%global debug_symbols internal
+
+# unlike portables,the rpms have to use static_libs_target very dynamically
+%global bootstrap_targets images
+%global release_targets images docs-zip
 # No docs nor bootcycle for debug builds
-%global debug_targets images static-libs-image
+%global debug_targets images
 
 
 # Filter out flags from the optflags macro that cause problems with the OpenJDK build
@@ -167,7 +197,7 @@
 %global NSS_LIBDIR %(pkg-config --variable=libdir nss)
 
 # fix for https://bugzilla.redhat.com/show_bug.cgi?id=1111349
-%global _privatelibs libsplashscreen[.]so.*|libawt_xawt[.]so.*|libjli[.]so.*|libattach[.]so.*|libawt[.]so.*|libextnet[.]so.*|libawt_headless[.]so.*|libdt_socket[.]so.*|libfontmanager[.]so.*|libharfbuzz[.]so.*|libinstrument[.]so.*|libj2gss[.]so.*|libj2pcsc[.]so.*|libj2pkcs11[.]so.*|libjaas[.]so.*|libjavajpeg[.]so.*|libjdwp[.]so.*|libjimage[.]so.*|libjsound[.]so.*|liblcms[.]so.*|libmanagement[.]so.*|libmanagement_agent[.]so.*|libmanagement_ext[.]so.*|libmlib_image[.]so.*|libnet[.]so.*|libnio[.]so.*|libprefs[.]so.*|librmi[.]so.*|libsaproc[.]so.*|libsctp[.]so.*|libsunec[.]so.*|libunpack[.]so.*|libzip[.]so.*
+%global _privatelibs libsplashscreen[.]so.*|libawt_xawt[.]so.*|libjli[.]so.*|libattach[.]so.*|libawt[.]so.*|libextnet[.]so.*|libawt_headless[.]so.*|libdt_socket[.]so.*|libfontmanager[.]so.*|libinstrument[.]so.*|libj2gss[.]so.*|libj2pcsc[.]so.*|libj2pkcs11[.]so.*|libjaas[.]so.*|libjavajpeg[.]so.*|libjdwp[.]so.*|libjimage[.]so.*|libjsound[.]so.*|liblcms[.]so.*|libmanagement[.]so.*|libmanagement_agent[.]so.*|libmanagement_ext[.]so.*|libmlib_image[.]so.*|libnet[.]so.*|libnio[.]so.*|libprefs[.]so.*|librmi[.]so.*|libsaproc[.]so.*|libsctp[.]so.*|libsunec[.]so.*|libunpack[.]so.*|libzip[.]so.*
 
 %global __provides_exclude ^(%{_privatelibs})$
 %global __requires_exclude ^(%{_privatelibs})$
@@ -241,7 +271,7 @@
 # New Version-String scheme-style defines
 %global featurever 11
 %global interimver 0
-%global updatever 10
+%global updatever 13
 %global patchver 0
 # If you bump featurever, you must bump also vendor_version_string
 # Used via new version scheme. JDK 11 was
@@ -262,7 +292,7 @@
 
 # Define vendor information used by OpenJDK
 %global oj_vendor Red Hat, Inc.
-%global oj_vendor_url "https://www.redhat.com/"
+%global oj_vendor_url https://www.redhat.com/
 # Define what url should JVM offer in case of a crash report
 # order may be important, epel may have rhel declared
 %if 0%{?epel}
@@ -287,13 +317,14 @@
 %global origin          openjdk
 %global origin_nice     OpenJDK
 %global top_level_dir_name   %{origin}
-%global buildver        9
+%global top_level_dir_name_backup %{top_level_dir_name}-backup
+%global buildver        8
 %global rpmrelease      1
 #%%global tagsuffix      %%{nil}
 # priority must be 7 digits in total
 # setting to 1, so debug ones can have 0
-%global priority        00000%{interimver}1
-%global newjavaver      %{featurever}.%{interimver}.%{updatever}.%{patchver}
+%global priority 00000%{interimver}1
+%global newjavaver %{featurever}.%{interimver}.%{updatever}.%{patchver}
 
 # Omit trailing 0 in filenames when the patch version is 0
 %if 0%{?patchver} > 0
@@ -328,7 +359,8 @@
 %global jdkimage                jdk
 %global static_libs_image       static-libs
 # output dir stub
-%global buildoutputdir() %{expand:openjdk/build%1}
+%define buildoutputdir() %{expand:build/jdk11.build%1}
+%define installoutputdir() %{expand:install/jdk11.install%1}
 # we can copy the javadoc to not arched dir, or make it not noarch
 # javadoc is no longer noarch, as it have aot on only some arches
 %global uniquejavadocdir()    %{expand:%{fullversion}.%{_arch}%1}
@@ -642,7 +674,6 @@ exit 0
 %{_jvmdir}/%{sdkdir %%1}/lib/libawt_headless.so
 %{_jvmdir}/%{sdkdir %%1}/lib/libdt_socket.so
 %{_jvmdir}/%{sdkdir %%1}/lib/libfontmanager.so
-%{_jvmdir}/%{sdkdir %%1}/lib/libharfbuzz.so
 %{_jvmdir}/%{sdkdir %%1}/lib/libinstrument.so
 %{_jvmdir}/%{sdkdir %%1}/lib/libj2gss.so
 %{_jvmdir}/%{sdkdir %%1}/lib/libj2pcsc.so
@@ -683,10 +714,8 @@ exit 0
 %{_mandir}/man1/rmiregistry-%{uniquesuffix %%1}.1*
 %{_mandir}/man1/unpack200-%{uniquesuffix %%1}.1*
 %{_jvmdir}/%{sdkdir %%1}/lib/server/
-%{_jvmdir}/%{sdkdir %%1}/lib/client/
 %ifarch %{share_arches}
 %attr(444, root, root) %ghost %{_jvmdir}/%{sdkdir %%1}/lib/server/classes.jsa
-%attr(444, root, root) %ghost %{_jvmdir}/%{sdkdir %%1}/lib/client/classes.jsa
 %endif
 %dir %{_jvmdir}/%{sdkdir %%1}/lib/security
 %{_jvmdir}/%{sdkdir %%1}/lib/security/cacerts
@@ -710,7 +739,7 @@ exit 0
 %config(noreplace) %{_jvmdir}/%{sdkdir %%1}/conf/logging.properties
 %config(noreplace) %{_jvmdir}/%{sdkdir %%1}/conf/security/nss.cfg
 %config(noreplace) %{_jvmdir}/%{sdkdir %%1}/conf/management/jmxremote.access
-# this is conifg template, thus not config-noreplace
+# This is a configuration template and thus not config-noreplace
 %config  %{_jvmdir}/%{sdkdir %%1}/conf/management/jmxremote.password.template
 %config(noreplace) %{_jvmdir}/%{sdkdir %%1}/conf/management/management.properties
 %config(noreplace) %{_jvmdir}/%{sdkdir %%1}/conf/net.properties
@@ -822,8 +851,10 @@ Requires: xorg-x11-fonts-Type1
 Requires: %{name}-headless%1%{?_isa} = %{epoch}:%{version}-%{release}
 OrderWithRequires: %{name}-headless%1%{?_isa} = %{epoch}:%{version}-%{release}
 # for java-X-openjdk package's desktop binding
-#Recommends: gtk2%{?_isa}
-# rhel7 do not have week depndencies
+# rhel7 do not have weak dependencies
+%if 0%{?rhel} >= 8
+Recommends: gtk3%{?_isa}
+%endif
 
 Provides: java-%{javaver}-%{origin}%1 = %{epoch}:%{version}-%{release}
 
@@ -843,15 +874,19 @@ Requires: ca-certificates
 # Require jpackage-utils for ownership of /usr/lib/jvm/ and macros
 Requires: javapackages-tools
 # Require zone-info data provided by tzdata-java sub-package
-# 2020b required as of JDK-8254177 in October CPU
-Requires: tzdata-java >= 2020b
+# 2020f required as of JDK-8259048 in October CPU
+Requires: tzdata-java >= 2020f
 # for support of kernel stream control
 # libsctp.so.1 is being `dlopen`ed on demand
+%if 0%{?rhel} >= 8
+Suggests: lksctp-tools%{?_isa}, pcsc-lite-libs%{?_isa}
+%else
 Requires: lksctp-tools%{?_isa}
 # For smartcard support
 # libpcsclite.so & libpcsclite.so.1 are both tried for dlopen
 # and this package provides the latter (see RH910107)
 Requires: pcsc-lite-libs%{?_isa}
+%endif
 # tool to copy jdk's configs - should be Recommends only, but then only dnf/yum enforce it,
 # not rpm transaction and so no configs are persisted when pure rpm -u is run. It may be
 # considered as regression
@@ -968,7 +1003,7 @@ Provides: java-%{javaver}-%{origin}-src%1 = %{epoch}:%{version}-%{release}
 
 Name:    java-%{javaver}-%{origin}
 Version: %{newjavaver}.%{buildver}
-Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}.redsleeve
+Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
 # and this change was brought into RHEL-4. java-1.5.0-ibm packages
 # also included the epoch in their virtual provides. This created a
@@ -981,7 +1016,9 @@ Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}.redsleeve
 
 Epoch:   1
 Summary: %{origin_nice} %{featurever} Runtime Environment
+%if 0%{?rhel} <= 8
 Group:   Development/Languages
+%endif
 
 # HotSpot code is licensed under GPLv2
 # JDK library code is licensed under GPLv2 with the Classpath exception
@@ -1074,14 +1111,13 @@ Patch7: jdk8009550-rh910107-search_for_versioned_libpcsclite.patch
 
 #############################################
 #
-# Patches appearing in 11.0.11
+# Patches appearing in 11.0.12
 #
 # This section includes patches which are present
 # in the listed OpenJDK 8u release and should be
 # able to be removed once that release is out
 # and used by this RPM.
 #############################################
-Patch8: jdk8258836-jni_local_refs_exceed_capacity.patch
 
 BuildRequires: autoconf
 BuildRequires: automake
@@ -1125,8 +1161,8 @@ BuildRequires: java-%{buildjdkver}-openjdk-devel
 %ifnarch %{jit_arches}
 BuildRequires: libffi-devel
 %endif
-# 2020b required as of JDK-8254177 in October CPU
-BuildRequires: tzdata-java >= 2020b
+# 2020f required as of JDK-8259048 in October CPU
+BuildRequires: tzdata-java >= 2020f
 # Earlier versions have a bug in tree vectorization on PPC
 BuildRequires: gcc >= 4.8.3-8
 
@@ -1144,7 +1180,9 @@ The %{origin_nice} %{featurever} runtime environment.
 %if %{include_debug_build}
 %package debug
 Summary: %{origin_nice} %{featurever} Runtime Environment %{debug_on}
+%if 0%{?rhel} <= 8
 Group:   Development/Languages
+%endif
 
 %{java_rpo -- %{debug_suffix_unquoted}}
 %description debug
@@ -1155,7 +1193,9 @@ The %{origin_nice} %{featurever} runtime environment.
 %if %{include_normal_build}
 %package headless
 Summary: %{origin_nice} %{featurever} Headless Runtime Environment
+%if 0%{?rhel} <= 8
 Group:   Development/Languages
+%endif
 
 %{java_headless_rpo %{nil}}
 
@@ -1166,7 +1206,9 @@ The %{origin_nice} %{featurever} runtime environment without audio and video sup
 %if %{include_debug_build}
 %package headless-debug
 Summary: %{origin_nice} %{featurever} Runtime Environment %{debug_on}
+%if 0%{?rhel} <= 8
 Group:   Development/Languages
+%endif
 
 %{java_headless_rpo -- %{debug_suffix_unquoted}}
 
@@ -1178,7 +1220,9 @@ The %{origin_nice} %{featurever} runtime environment without audio and video sup
 %if %{include_normal_build}
 %package devel
 Summary: %{origin_nice} %{featurever} Development Environment
+%if 0%{?rhel} <= 8
 Group:   Development/Tools
+%endif
 
 %{java_devel_rpo %{nil}}
 
@@ -1189,7 +1233,9 @@ The %{origin_nice} %{featurever} development tools.
 %if %{include_debug_build}
 %package devel-debug
 Summary: %{origin_nice} %{featurever} Development Environment %{debug_on}
+%if 0%{?rhel} <= 8
 Group:   Development/Tools
+%endif
 
 %{java_devel_rpo -- %{debug_suffix_unquoted}}
 
@@ -1197,6 +1243,8 @@ Group:   Development/Tools
 The %{origin_nice} %{featurever} development tools.
 %{debug_warning}
 %endif
+
+%if %{include_staticlibs}
 
 %if %{include_normal_build}
 %package static-libs
@@ -1219,10 +1267,15 @@ The %{origin_nice} %{featurever} libraries for static linking.
 %{debug_warning}
 %endif
 
+# staticlibs
+%endif
+
 %if %{include_normal_build}
 %package jmods
 Summary: JMods for %{origin_nice} %{featurever}
+%if 0%{?rhel} <= 8
 Group:   Development/Tools
+%endif
 
 %{java_jmods_rpo %{nil}}
 
@@ -1233,7 +1286,9 @@ The JMods for %{origin_nice} %{featurever}.
 %if %{include_debug_build}
 %package jmods-debug
 Summary: JMods for %{origin_nice} %{featurever} %{debug_on}
+%if 0%{?rhel} <= 8
 Group:   Development/Tools
+%endif
 
 %{java_jmods_rpo -- %{debug_suffix_unquoted}}
 
@@ -1245,7 +1300,9 @@ The JMods for %{origin_nice} %{featurever}.
 %if %{include_normal_build}
 %package demo
 Summary: %{origin_nice} %{featurever} Demos
+%if 0%{?rhel} <= 8
 Group:   Development/Languages
+%endif
 
 %{java_demo_rpo %{nil}}
 
@@ -1256,7 +1313,9 @@ The %{origin_nice} %{featurever} demos.
 %if %{include_debug_build}
 %package demo-debug
 Summary: %{origin_nice} %{featurever} Demos %{debug_on}
+%if 0%{?rhel} <= 8
 Group:   Development/Languages
+%endif
 
 %{java_demo_rpo -- %{debug_suffix_unquoted}}
 
@@ -1268,7 +1327,9 @@ The %{origin_nice} %{featurever} demos.
 %if %{include_normal_build}
 %package src
 Summary: %{origin_nice} %{featurever} Source Bundle
+%if 0%{?rhel} <= 8
 Group:   Development/Languages
+%endif
 
 %{java_src_rpo %{nil}}
 
@@ -1280,7 +1341,9 @@ The %{compatiblename}-src sub-package contains the complete %{origin_nice} %{fea
 %if %{include_debug_build}
 %package src-debug
 Summary: %{origin_nice} %{featurever} Source Bundle %{for_debug}
+%if 0%{?rhel} <= 8
 Group:   Development/Languages
+%endif
 
 %{java_src_rpo -- %{debug_suffix_unquoted}}
 
@@ -1292,7 +1355,9 @@ The %{compatiblename}-src-debug sub-package contains the complete %{origin_nice}
 %if %{include_normal_build}
 %package javadoc
 Summary: %{origin_nice} %{featurever} API documentation
+%if 0%{?rhel} <= 8
 Group:   Documentation
+%endif
 Requires: javapackages-tools
 
 %{java_javadoc_rpo %{nil}}
@@ -1304,7 +1369,9 @@ The %{origin_nice} %{featurever} API documentation.
 %if %{include_normal_build}
 %package javadoc-zip
 Summary: %{origin_nice} %{featurever} API documentation compressed in a single archive
+%if 0%{?rhel} <= 8
 Group:   Documentation
+%endif
 Requires: javapackages-tools
 
 %{java_javadoc_rpo %{nil}}
@@ -1316,7 +1383,9 @@ The %{origin_nice} %{featurever} API documentation compressed in a single archiv
 %if %{include_debug_build}
 %package javadoc-debug
 Summary: %{origin_nice} %{featurever} API documentation %{for_debug}
+%if 0%{?rhel} <= 8
 Group:   Documentation
+%endif
 Requires: javapackages-tools
 
 %{java_javadoc_rpo -- %{debug_suffix_unquoted}}
@@ -1328,7 +1397,9 @@ The %{origin_nice} %{featurever} API documentation %{for_debug}.
 %if %{include_debug_build}
 %package javadoc-zip-debug
 Summary: %{origin_nice} %{featurever} API documentation compressed in a single archive %{for_debug}
+%if 0%{?rhel} <= 8
 Group:   Documentation
+%endif
 Requires: javapackages-tools
 
 %{java_javadoc_rpo -- %{debug_suffix_unquoted}}
@@ -1375,16 +1446,16 @@ if [ $prioritylength -ne 7 ] ; then
 fi
 
 # OpenJDK patches
+# Remove libraries that are linked by both static and dynamic builds
+sh %{SOURCE12} %{top_level_dir_name}
 
-# Remove libraries that are linked
-sh %{SOURCE12}
+# Patch the JDK
 pushd %{top_level_dir_name}
 %patch1 -p1
 %patch2 -p1
 %patch3 -p1
 %patch4 -p1
 %patch7 -p1
-%patch8 -p1
 popd # openjdk
 
 %patch1000
@@ -1396,7 +1467,6 @@ tar --strip-components=1 -x -I xz -f %{SOURCE8}
 %if %{include_debug_build}
 cp -r tapset tapset%{debug_suffix}
 %endif
-
 
 for suffix in %{build_loop} ; do
   for file in "tapset"$suffix/*.in; do
@@ -1474,21 +1544,29 @@ EXTRA_CFLAGS="$EXTRA_CFLAGS -fno-strict-aliasing"
 EXTRA_ASFLAGS="${EXTRA_CFLAGS}"
 export EXTRA_CFLAGS EXTRA_ASFLAGS
 
-for suffix in %{build_loop} ; do
-if [ "x$suffix" = "x" ] ; then
-  debugbuild=release
-else
-  # change --something to something and rpeffix as slow
-  debugbuild=`echo slow$suffix  | sed "s/-//g"`
-fi
+function buildjdk() {
+    local outputdir=${1}
+    local installdir=${2}
+    local buildjdk=${3}
+    local maketargets="${4}"
+    local debuglevel=${5}
+    local link_opt=${6}
 
-# Variable used in hs_err hook on build failures
-top_dir_abs_path=$(pwd)/%{top_level_dir_name}
+    local top_dir_abs_src_path=$(pwd)/%{top_level_dir_name}
+    local top_dir_abs_build_path=$(pwd)/${outputdir}
 
-mkdir -p %{buildoutputdir $suffix}
-pushd %{buildoutputdir $suffix}
+    echo "Using output directory: ${outputdir}";
+    echo "Checking build JDK ${buildjdk} is operational..."
+    ${buildjdk}/bin/java -version
+    echo "Using make targets: ${maketargets}"
+    echo "Using debuglevel: ${debuglevel}"
+    echo "Using link_opt: ${link_opt}"
+    echo "Building %{newjavaver}-%{buildver}, pre=%{ea_designator}, opt=%{lts_designator}"
 
-bash ../configure \
+    mkdir -p ${outputdir} ${installdir}
+    pushd ${outputdir}
+
+    bash ${top_dir_abs_src_path}/configure \
 %ifnarch %{jit_arches}
     --with-jvm-variants=zero \
 %endif
@@ -1503,14 +1581,14 @@ bash ../configure \
     --with-vendor-url="%{oj_vendor_url}" \
     --with-vendor-bug-url="%{oj_vendor_bug_url}" \
     --with-vendor-vm-bug-url="%{oj_vendor_bug_url}" \
-    --with-boot-jdk=/usr/lib/jvm/java-%{buildjdkver}-openjdk \
-    --with-debug-level=$debugbuild \
-    --with-native-debug-symbols=internal \
+    --with-boot-jdk=${buildjdk} \
+    --with-debug-level=${debuglevel} \
+    --with-native-debug-symbols="%{debug_symbols}" \
     --enable-unlimited-crypto \
     --with-zlib=system \
-    --with-libjpeg=system \
-    --with-giflib=system \
-    --with-libpng=system \
+    --with-libjpeg=${link_opt} \
+    --with-giflib=${link_opt} \
+    --with-libpng=${link_opt} \
     --with-lcms=bundled \
     --with-harfbuzz=bundled \
     --with-stdc++lib=dynamic \
@@ -1523,57 +1601,133 @@ bash ../configure \
     --with-jvm-features="%{shenandoah_feature},%{zgc_feature}" \
     --disable-warnings-as-errors
 
-# Debug builds don't need same targets as release for
-# build speed-up
-maketargets="%{release_targets}"
-if echo $debugbuild | grep -q "debug" ; then
-  maketargets="%{debug_targets}"
-fi
-make \
-    JAVAC_FLAGS=-g \
-    LOG=trace \
-    WARNINGS_ARE_ERRORS="-Wno-error" \
-    CFLAGS_WARNINGS_ARE_ERRORS="-Wno-error" \
-    $maketargets || ( pwd; find $top_dir_abs_path -name "hs_err_pid*.log" | xargs cat && false )
+    cat spec.gmk
 
-# the build (erroneously) removes read permissions from some jars
-# this is a regression in OpenJDK 7 (our compiler):
-# http://icedtea.classpath.org/bugzilla/show_bug.cgi?id=1437
-find images/%{jdkimage} -iname '*.jar' -exec chmod ugo+r {} \;
+    make \
+      JAVAC_FLAGS=-g \
+      LOG=trace \
+      WARNINGS_ARE_ERRORS="-Wno-error" \
+      CFLAGS_WARNINGS_ARE_ERRORS="-Wno-error" \
+      $maketargets || ( pwd; find ${top_dir_abs_src_path} ${top_dir_abs_build_path} -name "hs_err_pid*.log" | xargs cat && false )
 
-# Build screws up permissions on binaries
-# https://bugs.openjdk.java.net/browse/JDK-8173610
-find images/%{jdkimage} -iname '*.so' -exec chmod +x {} \;
-find images/%{jdkimage}/bin/ -exec chmod +x {} \;
+    popd
 
-popd >& /dev/null
+    echo "Installing build from ${outputdir} to ${installdir}..."
+    echo "Installing images..."
+    mv ${outputdir}/images ${installdir}
+    if [ -d ${outputdir}/bundles ] ; then
+	echo "Installing bundles...";
+	mv ${outputdir}/bundles ${installdir} ;
+    fi
+    if [ -d ${outputdir}/docs ] ; then
+	echo "Installing docs...";
+	mv ${outputdir}/docs ${installdir} ;
+    fi
 
-# Install nss.cfg right away as we will be using the JRE above
-export JAVA_HOME=$(pwd)/%{buildoutputdir $suffix}/images/%{jdkimage}
+%if !%{with artifacts}
+    echo "Removing output directory...";
+    rm -rf ${outputdir}
+%endif
+}
 
-# Install nss.cfg right away as we will be using the JRE above
-install -m 644 nss.cfg $JAVA_HOME/conf/security/
+function installjdk() {
+    local imagepath=${1}
 
-# Use system-wide tzdata
-rm $JAVA_HOME/lib/tzdb.dat
-ln -s %{_datadir}/javazi-1.8/tzdb.dat $JAVA_HOME/lib/tzdb.dat
+    # the build (erroneously) removes read permissions from some jars
+    # this is a regression in OpenJDK 7 (our compiler):
+    # http://icedtea.classpath.org/bugzilla/show_bug.cgi?id=1437
+    find ${imagepath} -iname '*.jar' -exec chmod ugo+r {} \;
 
-# Create fake alt-java as a placeholder for future alt-java
-pushd ${JAVA_HOME}
-# add alt-java man page
-echo "Hardened java binary recommended for launching untrusted code from the Web e.g. javaws" > man/man1/%{alt_java_name}.1
-cat man/man1/java.1 >> man/man1/%{alt_java_name}.1
-popd
+    # Build screws up permissions on binaries
+    # https://bugs.openjdk.java.net/browse/JDK-8173610
+    find ${imagepath} -iname '*.so' -exec chmod +x {} \;
+    find ${imagepath}/bin/ -exec chmod +x {} \;
+
+    # Install nss.cfg right away as we will be using the JRE above
+    install -m 644 nss.cfg ${imagepath}/conf/security/
+
+    # Use system-wide tzdata
+    rm ${imagepath}/lib/tzdb.dat
+    ln -s %{_datadir}/javazi-1.8/tzdb.dat ${imagepath}/lib/tzdb.dat
+
+    # Create fake alt-java as a placeholder for future alt-java
+    pushd ${imagepath}
+    # add alt-java man page
+    echo "Hardened java binary recommended for launching untrusted code from the Web e.g. javaws" > man/man1/%{alt_java_name}.1
+    cat man/man1/java.1 >> man/man1/%{alt_java_name}.1
+    popd
+}
+
+for suffix in %{build_loop} ; do
+
+  if [ "x$suffix" = "x" ] ; then
+      debugbuild=release
+  else
+      # change --something to something
+      debugbuild=`echo slow$suffix  | sed "s/-//g"`
+  fi
+
+  systemjdk=/usr/lib/jvm/java-%{buildjdkver}-openjdk
+
+  for loop in %{main_suffix} %{staticlibs_loop} ; do
+
+    builddir=%{buildoutputdir ${suffix}${loop}}
+    bootbuilddir=boot${builddir}
+    installdir=%{installoutputdir ${suffix}${loop}}
+    bootinstalldir=boot${installdir}
+
+    if test "x${loop}" = "x%{main_suffix}" ; then
+      # Copy the source tree so we can remove all in-tree libraries
+      cp -a %{top_level_dir_name} %{top_level_dir_name_backup}
+      # Remove all libraries that are linked
+      sh %{SOURCE12} %{top_level_dir_name} full
+      # Use system libraries
+      link_opt="system"
+      # Debug builds don't need same targets as release for
+      # build speed-up
+      maketargets="%{release_targets}"
+      if echo $debugbuild | grep -q "debug" ; then
+	maketargets="%{debug_targets}"
+      fi
+%if %{bootstrap_build}
+      buildjdk ${bootbuilddir} ${bootinstalldir} ${systemjdk} "%{bootstrap_targets}" ${debugbuild} ${link_opt}
+      buildjdk ${builddir} ${installdir} $(pwd)/${bootinstalldir}/images/%{jdkimage} "${maketargets}" ${debugbuild} ${link_opt}
+      %{!?with_artifacts:rm -rf ${bootinstalldir}}
+%else
+      buildjdk ${builddir} ${installdir} ${systemjdk} "${maketargets}" ${debugbuild} ${link_opt}
+%endif
+      # Restore original source tree we modified by removing full in-tree sources
+      rm -rf %{top_level_dir_name}
+      mv %{top_level_dir_name_backup} %{top_level_dir_name}
+    else
+      # Use bundled libraries for building statically
+      link_opt="bundled"
+      # Static library cycle only builds the static libraries
+      maketargets="%{static_libs_target}"
+      # Always just do the one build for the static libraries
+      buildjdk ${builddir} ${installdir} ${systemjdk} "${maketargets}" ${debugbuild} ${link_opt}
+    fi
+
+  done # end of main / staticlibs loop
+
+  # Final setup on the main image
+  top_dir_abs_main_build_path=$(pwd)/%{installoutputdir ${suffix}%{main_suffix}}
+  installjdk ${top_dir_abs_main_build_path}/images/%{jdkimage}
 
 # build cycles
-done
+done # end of release / debug cycle loop
 
 %check
 
 # We test debug first as it will give better diagnostics on a crash
 for suffix in %{rev_build_loop} ; do
 
-export JAVA_HOME=$(pwd)/%{buildoutputdir $suffix}/images/%{jdkimage}
+top_dir_abs_main_build_path=$(pwd)/%{installoutputdir ${suffix}%{main_suffix}}
+%if %{include_staticlibs}
+top_dir_abs_staticlibs_build_path=$(pwd)/%{installoutputdir ${suffix}%{staticlibs_loop}}
+%endif
+
+export JAVA_HOME=${top_dir_abs_main_build_path}/images/%{jdkimage}
 
 #check Shenandoah is enabled
 %if %{use_shenandoah_hotspot}
@@ -1590,7 +1744,7 @@ $JAVA_HOME/bin/java $(echo $(basename %{SOURCE14})|sed "s|\.java||")
 
 # Check correct vendor values have been set
 $JAVA_HOME/bin/javac -d . %{SOURCE15}
-$JAVA_HOME/bin/java $(echo $(basename %{SOURCE15})|sed "s|\.java||") "%{oj_vendor}" %{oj_vendor_url} %{oj_vendor_bug_url}
+$JAVA_HOME/bin/java $(echo $(basename %{SOURCE15})|sed "s|\.java||") "%{oj_vendor}" "%{oj_vendor_url}" "%{oj_vendor_bug_url}"
 
 # Check java launcher has no SSB mitigation
 if ! nm $JAVA_HOME/bin/java | grep set_speculation ; then true ; else false; fi
@@ -1602,13 +1756,16 @@ nm $JAVA_HOME/bin/%{alt_java_name} | grep set_speculation
 if ! nm $JAVA_HOME/bin/%{alt_java_name} | grep set_speculation ; then true ; else false; fi
 %endif
 
+%if %{include_staticlibs}
 # Check debug symbols in static libraries (smoke test)
-export STATIC_LIBS_HOME=$(pwd)/%{buildoutputdir $suffix}/images/%{static_libs_image}
+export STATIC_LIBS_HOME=${top_dir_abs_staticlibs_build_path}/images/%{static_libs_image}
 readelf --debug-dump $STATIC_LIBS_HOME/lib/libfdlibm.a | grep w_remainder.c
 readelf --debug-dump $STATIC_LIBS_HOME/lib/libfdlibm.a | grep e_remainder.c
+%endif
 
+so_suffix="so"
 # Check debug symbols are present and can identify code
-find "$JAVA_HOME" -iname '*.so' -print0 | while read -d $'\0' lib
+find "$JAVA_HOME" -iname "*.$so_suffix" -print0 | while read -d $'\0' lib
 do
   if [ -f "$lib" ] ; then
     echo "Testing $lib for debug symbols"
@@ -1658,7 +1815,7 @@ done
 # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
 # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
 # Temporarily disabled on s390x as it sporadically crashes with SIGFPE, Arithmetic exception.
-%ifnarch s390x %{arm}
+%ifnarch s390x
 gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
 handle SIGSEGV pass nostop noprint
 handle SIGILL pass nostop noprint
@@ -1674,7 +1831,7 @@ grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
 %endif
 
 # Check src.zip has all sources. See RHBZ#1130490
-jar -tf $JAVA_HOME/lib/src.zip | grep 'sun.misc.Unsafe'
+$JAVA_HOME/bin/jar -tf $JAVA_HOME/lib/src.zip | grep 'sun.misc.Unsafe'
 
 # Check class files include useful debugging information
 $JAVA_HOME/bin/javap -l java.lang.Object | grep "Compiled from"
@@ -1694,17 +1851,20 @@ STRIP_KEEP_SYMTAB=libjvm*
 
 for suffix in %{build_loop} ; do
 
+top_dir_abs_main_build_path=$(pwd)/%{installoutputdir ${suffix}%{main_suffix}}
+# Docs need to always be taken from the release build, as debug builds don't contain them
+# On release builds, this will just be the same as top_dir_abs_main_build_path
+top_dir_abs_release_build_path=$(pwd)/%{installoutputdir ${normal_suffix}%{main_suffix}}
+%if %{include_staticlibs}
+top_dir_abs_staticlibs_build_path=$(pwd)/%{installoutputdir ${suffix}%{staticlibs_loop}}
+%endif
+jdk_image=${top_dir_abs_main_build_path}/images/%{jdkimage}
+
 # Install the jdk
 mkdir -p $RPM_BUILD_ROOT%{_jvmdir}
-cp -a %{buildoutputdir $suffix}/images/%{jdkimage} \
-  $RPM_BUILD_ROOT%{_jvmdir}/%{sdkdir $suffix}
+cp -a ${jdk_image} $RPM_BUILD_ROOT%{_jvmdir}/%{sdkdir $suffix}
 
-# Install jsa directories so we can owe them
-mkdir -p $RPM_BUILD_ROOT%{_jvmdir}/%{sdkdir $suffix}/lib/%{archinstall}/server/
-mkdir -p $RPM_BUILD_ROOT%{_jvmdir}/%{sdkdir $suffix}/lib/%{archinstall}/client/
-mkdir -p $RPM_BUILD_ROOT%{_jvmdir}/%{sdkdir $suffix}/lib/client/ || true  ; # sometimes is here, sometimes not, ifout it or || true it out
-
-pushd %{buildoutputdir $suffix}/images/%{jdkimage}
+pushd ${jdk_image}
 
 %if %{with_systemtap}
   # Install systemtap support files
@@ -1748,18 +1908,19 @@ pushd %{buildoutputdir $suffix}/images/%{jdkimage}
 
 popd
 # Install static libs artefacts
+%if %{include_staticlibs}
 mkdir -p $RPM_BUILD_ROOT%{_jvmdir}/%{sdkdir $suffix}/lib/static/linux-%{archinstall}/glibc
-cp -a %{buildoutputdir $suffix}/images/%{static_libs_image}/lib/*.a \
+cp -a ${top_dir_abs_staticlibs_build_path}/images/%{static_libs_image}/lib/*.a \
   $RPM_BUILD_ROOT%{_jvmdir}/%{sdkdir $suffix}/lib/static/linux-%{archinstall}/glibc
-
+%endif
 
 # Install Javadoc documentation
 # Always take docs from normal build to avoid building them twice
 install -d -m 755 $RPM_BUILD_ROOT%{_javadocdir}
-cp -a %{buildoutputdir $normal_suffix}/images/docs $RPM_BUILD_ROOT%{_javadocdir}/%{uniquejavadocdir $suffix}
+cp -a ${top_dir_abs_release_build_path}/images/docs $RPM_BUILD_ROOT%{_javadocdir}/%{uniquejavadocdir $suffix}
 built_doc_archive=jdk-%{filever}%{ea_designator_zip}+%{buildver}%{lts_designator_zip}-docs.zip
-cp -a %{buildoutputdir $normal_suffix}/bundles/${built_doc_archive} \
-     $RPM_BUILD_ROOT%{_javadocdir}/%{uniquejavadocdir $suffix}.zip || ls -l %{buildoutputdir $normal_suffix}/bundles/
+cp -a ${top_dir_abs_release_build_path}/bundles/${built_doc_archive} \
+     $RPM_BUILD_ROOT%{_javadocdir}/%{uniquejavadocdir $suffix}.zip || ls -l ${top_dir_abs_release_build_path}/bundles/
 
 # Install release notes
 commondocdir=${RPM_BUILD_ROOT}%{_defaultdocdir}/%{uniquejavadocdir $suffix}
@@ -1934,8 +2095,10 @@ require "copy_jdk_configs.lua"
 %files devel
 %{files_devel %{nil}}
 
+%if %{include_staticlibs}
 %files static-libs
 %{files_static_libs %{nil}}
+%endif
 
 %files jmods
 %{files_jmods %{nil}}
@@ -1967,8 +2130,10 @@ require "copy_jdk_configs.lua"
 %files devel-debug
 %{files_devel -- %{debug_suffix_unquoted}}
 
+%if %{include_staticlibs}
 %files static-libs-debug
 %{files_static_libs -- %{debug_suffix_unquoted}}
+%endif
 
 %files jmods-debug
 %{files_jmods -- %{debug_suffix_unquoted}}
@@ -1987,9 +2152,148 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
-* Sat Mar 20 2021 Jacco Ligthart <jacco@redsleeve.org> - 1:11.0.10.0.9-1.redsleeve
-- removed arm from jit_arches
-- removed the gdb section of the SPEC file
+* Wed Oct 13 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.13.0.8-1
+- Revert addition of libharfbuzz.so after its removal by JDK-8255790
+- Resolves: rhbz#2012332
+
+* Wed Oct 13 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.13.0.8-1
+- Update to jdk-11.0.12.0+8
+- Update release notes to 11.0.12.0+8
+- Switch to GA mode for final release.
+- This tarball is embargoed until 2021-10-19 @ 1pm PT.
+- Resolves: rhbz#2012332
+
+* Tue Oct 12 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.13.0.7-0.1.ea
+- Update to jdk-11.0.13.0+7
+- Update release notes to 11.0.13.0+7
+- Resolves: rhbz#1999936
+
+* Mon Oct 11 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.13.0.1-0.1.ea
+- Update to jdk-11.0.13.0+1
+- Update release notes to 11.0.13.0+1
+- Update tarball generation script to use git following OpenJDK 11u's move to github
+- Switch to EA mode for 11.0.13 pre-release builds.
+- Remove non-Free test from source tarball.
+- Related: rhbz#1999936
+
+* Sun Oct 10 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.12.0.7-4
+- Reduce disk footprint by removing build artifacts by default.
+- Related: rhbz#1999936
+
+* Sun Oct 10 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.12.0.7-3
+- Restructure the build so a minimal initial build is then used for the final build (with docs)
+- This reduces pressure on the system JDK and ensures the JDK being built can do a full build
+- Related: rhbz#1999936
+
+* Mon Oct 04 2021 Severin Gehwolf <sgehwolf@redhat.com> - 1:11.0.12.0.7-2
+- Don't package lib/client and lib/client/classes.jsa which don't exist.
+- Resolves: rhbz#1698873
+
+* Thu Sep 02 2021 Jiri Vanek <jvanek@redhat.com> - 1:11.0.12.0.7-1
+- Minor cosmetic improvements to make spec more comparable between variants
+- Related: rhbz#1999936
+
+* Tue Jul 13 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.12.0.7-0
+- Update to jdk-11.0.12.0+7
+- Update release notes to 11.0.12.0+7
+- Switch to GA mode for final release.
+- This tarball is embargoed until 2021-07-20 @ 1pm PT.
+- Resolves: rhbz#1972395
+
+* Thu Jul 08 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.12.0.6-0.0.ea
+- Update to jdk-11.0.12.0+6
+- Update release notes to 11.0.12.0+6
+- Skip 11.0.12.0+5 as 11.0.12.0+6 only adds a test change
+- Resolves: rhbz#1967811
+
+* Thu Jul 08 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.12.0.4-0.0.ea
+- Update to jdk-11.0.12.0+4
+- Update release notes to 11.0.12.0+4
+- Correct bug ID JDK-8264846 to intended ID of JDK-8264848
+- Resolves: rhbz#1967811
+
+* Mon Jul 05 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.12.0.3-0.0.ea
+- Update to jdk-11.0.12.0+3
+- Update release notes to 11.0.12.0+3
+- Resolves: rhbz#1967811
+
+* Fri Jul 02 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.12.0.2-0.0.ea
+- Update to jdk-11.0.12.0+2
+- Update release notes to 11.0.12.0+2
+- Resolves: rhbz#1967811
+
+* Mon Jun 28 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.12.0.1-0.0.ea
+- Update to jdk-11.0.12.0+1
+- Update release notes to 11.0.12.0+1
+- Switch to EA mode for 11.0.12 pre-release builds.
+- Update ECC patch following JDK-8226374 (bug ID yet to be confirmed)
+- Remove local JDK-8187450 backport as now included upstream.
+- Resolves: rhbz#1967811
+
+* Tue Apr 13 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.11.0.9-1
+- Add backport of JDK-8187450 from 11.0.12 to fix RH1937736
+- Resolves: rhbz#1937736
+
+* Mon Apr 12 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.11.0.9-0
+- Update to jdk-11.0.11.0+9
+- Update release notes to 11.0.11.0+9
+- Switch to GA mode for final release.
+- This tarball is embargoed until 2021-04-20 @ 1pm PT.
+- Resolves: rhbz#1940228
+
+* Sun Apr 11 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.11.0.7-0.0.ea
+- Update to jdk-11.0.11.0+7
+- Update release notes to 11.0.11.0+7
+- Resolves: rhbz#1938082
+
+* Fri Apr 09 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.11.0.6-0.0.ea
+- Update to jdk-11.0.11.0+6
+- Update release notes to 11.0.11.0+6
+- Resolves: rhbz#1938082
+
+* Tue Apr 06 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.11.0.5-0.0.ea
+- Update to jdk-11.0.11.0+5
+- Update release notes to 11.0.11.0+5
+- Resolves: rhbz#1938082
+
+* Mon Mar 29 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.11.0.4-0.0.ea
+- Update to jdk-11.0.11.0+4
+- Update release notes to 11.0.11.0+4
+- Resolves: rhbz#1938082
+
+* Mon Mar 29 2021 Jayashree Huttanagoudar <jhuttana@redhat.com> - 1:11.0.11.0.3-0.1.ea
+- Fix issue where CheckVendor.java test erroneously passes when it should fail.
+- Add proper quoting so '&' is not treated as a special character by the shell.
+- Resolves: rhbz#1938082
+
+* Sat Mar 27 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.11.0.3-0.0.ea
+- Update to jdk-11.0.11.0+3
+- Update release notes to 11.0.11.0+3
+- Resolves: rhbz#1938082
+
+* Sat Mar 27 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.11.0.2-0.1.ea
+- Debug builds need to find their documentation from the release build.
+- RHEL 7 builds still include a doc package for debug builds, though debug builds do not build docs.
+- Resolves: rhbz#1930527
+
+* Thu Mar 25 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.11.0.2-0.1.ea
+- Perform static library build on a separate source tree with bundled image libraries
+- Make static library build optional
+- Based on initial work by Severin Gehwolf
+- Resolves: rhbz#1930527
+
+* Fri Mar 19 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.11.0.2-0.0.ea
+- Update to jdk-11.0.11.0+2
+- Update release notes to 11.0.11.0+2
+- Remove local backport of JDK-8258836 which is now available upstream.
+- Resolves: rhbz#1938082
+
+* Thu Mar 18 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.11.0.1-0.0.ea
+- Update to jdk-11.0.11.0+1
+- Update release notes to 11.0.11.0+1
+- Switch to EA mode for 11.0.11 pre-release builds.
+- Require tzdata 2020f to match upstream change JDK-8259048
+- Resolves: rhbz#1938082
 
 * Tue Mar 02 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.10.0.9-1
 - Add backport of JDK-8258836 to fix -Xcheck:jni warnings
