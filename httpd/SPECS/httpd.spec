@@ -15,7 +15,7 @@
 Summary: Apache HTTP Server
 Name: httpd
 Version: 2.4.6
-Release: 97%{?dist}.1
+Release: 97%{?dist}.2
 URL: http://httpd.apache.org/
 Source0: http://www.apache.org/dist/httpd/httpd-%{version}.tar.bz2
 Source1: centos-noindex.tar.gz
@@ -937,11 +937,14 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/rpm/macros.httpd
 
 %changelog
-* Thu Oct 14 2021 CentOS Sources <bugs@centos.org> - 2.4.6-97.el7.centos.1
+* Wed Nov 10 2021 CentOS Sources <bugs@centos.org> - 2.4.6-97.el7.centos.2
 - Remove index.html, add centos-noindex.tar.gz
 - change vstring
 - change symlink for poweredby.png
 - update welcome.conf with proper aliases
+
+* Mon Oct 25 2021 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-97.2
+- Resolves: #2015694 - proxy rewrite to unix socket fails with CVE-2021-40438 fix
 
 * Thu Oct 07 2021 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-97.1
 - Resolves: #2011729 - CVE-2021-40438 httpd: mod_proxy: SSRF via a crafted
