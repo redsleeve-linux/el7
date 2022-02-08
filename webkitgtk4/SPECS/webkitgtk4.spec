@@ -27,7 +27,7 @@
 
 Name:           webkitgtk4
 Version:        2.28.2
-Release:        2%{?dist}.redsleeve
+Release:        3%{?dist}
 Summary:        GTK+ Web content engine library
 
 License:        LGPLv2
@@ -81,8 +81,6 @@ Patch58: icu-dont_use_clang_even_if_installed.patch
 # CVE-2017-7867 CVE-2017-7868
 Patch59: icu-rhbz1444101-icu-changeset-39671.patch
 %endif
-
-Patch1000: webkitgtk4_always_inc_atomic.patch
 
 BuildRequires:  at-spi2-core-devel
 BuildRequires:  bison
@@ -212,7 +210,7 @@ files for developing applications that use JavaScript engine from %{name}.
 %patch52 -p1 -b .icu7601.Indic-ccmp.patch
 %patch53 -p1 -b .gennorm2-man.patch
 %patch54 -p1 -b .icuinfo-man.patch
-%ifarch %{arm}
+%ifarch armv7hl
 %patch55 -p1 -b .armv7hl-disable-tests.patch
 %endif
 %patch56 -p1 -b .rhbz1360340-icu-changeset-39109.patch
@@ -239,14 +237,12 @@ files for developing applications that use JavaScript engine from %{name}.
 %autosetup -p1 -n webkitgtk-%{version}
 %endif
 
-%patch1000 -p1
-
 # Remove bundled libraries
 rm -rf Source/ThirdParty/gtest/
 rm -rf Source/ThirdParty/qunit/
 
 %build
-%ifarch s390 aarch64 %{arm}
+%ifarch s390 aarch64
 # Use linker flags to reduce memory consumption - on other arches the ld.gold is
 # used and also it doesn't have the --reduce-memory-overheads option
 %global optflags %{optflags} -Wl,--no-keep-memory -Wl,--reduce-memory-overheads
@@ -259,7 +255,7 @@ rm -rf Source/ThirdParty/qunit/
 %global optflags %(echo %{optflags} | sed 's/-g /-g1 /')
 %endif
 
-%ifarch ppc %{arm}
+%ifarch ppc
 # Use linker flag -relax to get WebKit build under ppc(32) with JIT disabled
 %global optflags %{optflags} -Wl,-relax
 %endif
@@ -269,7 +265,7 @@ pushd ../icu/source
 autoconf
 CFLAGS='%optflags -fno-strict-aliasing'
 CXXFLAGS='%optflags -fno-strict-aliasing'
-%{!?endian: %global endian %(%{__python} -c "import sys;print (0 if sys.byteorder=='big' else 1)")}
+%{!?endian: %global endian %(/usr/bin/python2 -c "import sys;print (0 if sys.byteorder=='big' else 1)")}
 # " this line just fixes syntax highlighting for vim that is confused by the above and continues literal
 # Endian: BE=0 LE=1
 %if ! 0%{?endian}
@@ -338,10 +334,10 @@ pushd %{_target_platform}
   -DENABLE_BUBBLEWRAP_SANDBOX=OFF \
   -DUSE_OPENJPEG=OFF \
   -DUSE_WPE_RENDERER=OFF \
-%ifarch s390 aarch64 %{arm}
+%ifarch s390 aarch64
   -DUSE_LD_GOLD=OFF \
 %endif
-%ifarch s390 s390x ppc %{power64} aarch64 %{mips} %{arm}
+%ifarch s390 s390x ppc %{power64} aarch64 %{mips}
   -DENABLE_JIT=OFF \
   -DUSE_SYSTEM_MALLOC=ON \
 %endif
@@ -447,6 +443,10 @@ chmod 644 $RPM_BUILD_ROOT%{_libdir}/webkit2gtk-4.0/libicuuc.so.57.1
 %{_datadir}/gtk-doc/html/webkitdomgtk-4.0/
 
 %changelog
+* Tue Sep 28 2021 Michael Catanzaro <mcatanzaro@redhat.com> - 2.28.2-3
+- Fix CVE-2021-30858
+- Resolves: #2006421
+
 * Sat Jun 20 2020 Michael Catanzaro <mcatanzaro@redhat.com> - 2.28.2-2
 - Resolves: rhbz#1817144 Rebuild to support ppc and s390
 
