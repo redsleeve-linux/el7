@@ -1,6 +1,6 @@
-From d5134697fb1dc456c49eab93863bca00537b9ce7 Mon Sep 17 00:00:00 2001
+From c3e79f3d2186a7803cec352c10ba1bcf5d06fed6 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sat, 20 Mar 2021 23:04:03 +0100
+Date: Sat, 23 Oct 2021 15:08:16 +0200
 Subject: [PATCH] added arm to the ExclusiveArch and nobuildarches lists
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] added arm to the ExclusiveArch and nobuildarches lists
  1 file changed, 11 insertions(+), 3 deletions(-)
 
 diff --git a/SPECS/kernel.spec b/SPECS/kernel.spec
-index c9c6be4..e4ed1d1 100644
+index 8b663a2..c739cf6 100644
 --- a/SPECS/kernel.spec
 +++ b/SPECS/kernel.spec
 @@ -229,6 +229,11 @@ Summary: The Linux kernel
@@ -45,16 +45,16 @@ index c9c6be4..e4ed1d1 100644
  ExclusiveOS: Linux
  
  %kernel_reqprovconf
-@@ -1805,6 +1810,9 @@ fi
+@@ -1813,6 +1818,9 @@ fi
  %kernel_variant_files %{with_kdump} kdump
  
  %changelog
-+* Sat Mar 20 2021 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-1160.21.1.el7.redsleeve
++* Sat Oct 23 2021 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-1160.45.1.el7.redsleeve
 +- added arm to the ExclusiveArch and nobuildarches lists
 +
- * Mon Feb 22 2021 Augusto Caringi <acaringi@redhat.com> [3.10.0-1160.21.1.el7]
- - [pinctrl] devicetree: Avoid taking direct reference to device name string (Aristeu Rozanski) [1922902] {CVE-2020-0427}
- - [pinctrl] Delete an error message (Aristeu Rozanski) [1922902] {CVE-2020-0427}
+ * Fri Sep 24 2021 Rado Vrbovsky <rvrbovsk@redhat.com> [3.10.0-1160.45.1.el7]
+ - CI: handle RT branches in a single config (Veronika Kabatova)
+ - CI: Drop private CI config (Veronika Kabatova)
 -- 
 1.8.3.1
 
