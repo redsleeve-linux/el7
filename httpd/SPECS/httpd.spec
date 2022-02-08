@@ -15,10 +15,10 @@
 Summary: Apache HTTP Server
 Name: httpd
 Version: 2.4.6
-Release: 97%{?dist}.2.redsleeve
+Release: 97%{?dist}.4
 URL: http://httpd.apache.org/
 Source0: http://www.apache.org/dist/httpd/httpd-%{version}.tar.bz2
-Source1: index.html
+Source1: centos-noindex.tar.gz
 Source2: httpd.logrotate
 Source3: httpd.sysconf
 Source4: httpd-ssl-pass-dialog
@@ -242,6 +242,10 @@ Patch229: httpd-2.4.6-CVE-2018-1303.patch
 Patch230: httpd-2.4.6-CVE-2018-1283.patch
 Patch240: httpd-2.4.6-CVE-2020-1934.patch
 Patch241: httpd-2.4.6-CVE-2021-40438.patch
+Patch242: httpd-2.4.6-CVE-2021-44790.patch
+Patch243: httpd-2.4.6-CVE-2021-34798.patch
+Patch244: httpd-2.4.6-CVE-2021-39275.patch
+Patch245: httpd-2.4.6-CVE-2021-26691.patch
 
 License: ASL 2.0
 Group: System Environment/Daemons
@@ -506,6 +510,10 @@ rm modules/ssl/ssl_engine_dh.c
 %patch230 -p1 -b .cve1283
 %patch240 -p1 -b .cve1934
 %patch241 -p1 -b .cve40438
+%patch242 -p1 -b .cve44790
+%patch243 -p1 -b .cve34798
+%patch244 -p1 -b .cve39275
+%patch245 -p1 -b .cve26691
 
 # Patch in the vendor string and the release string
 sed -i '/^#define PLATFORM/s/Unix/%{vstring}/' os/unix/os.h
@@ -659,8 +667,9 @@ EOF
 
 # Handle contentdir
 mkdir $RPM_BUILD_ROOT%{contentdir}/noindex
-install -m 644 -p $RPM_SOURCE_DIR/index.html \
-        $RPM_BUILD_ROOT%{contentdir}/noindex/index.html
+tar xzf $RPM_SOURCE_DIR/centos-noindex.tar.gz \
+        -C $RPM_BUILD_ROOT%{contentdir}/noindex/ \
+        --strip-components=1
 
 rm -rf %{contentdir}/htdocs
 
@@ -684,7 +693,7 @@ rm -v $RPM_BUILD_ROOT%{docroot}/html/*.html \
       $RPM_BUILD_ROOT%{docroot}/cgi-bin/*
 
 # Symlink for the powered-by-$DISTRO image:
-ln -s ../../pixmaps/poweredby.png \
+ln -s ../noindex/images/poweredby.png \
         $RPM_BUILD_ROOT%{contentdir}/icons/poweredby.png
 
 # symlinks for /etc/httpd
@@ -870,7 +879,7 @@ rm -rf $RPM_BUILD_ROOT
 %{contentdir}/error/README
 %{contentdir}/error/*.var
 %{contentdir}/error/include/*.html
-%{contentdir}/noindex/index.html
+%{contentdir}/noindex/*
 
 %dir %{docroot}
 %dir %{docroot}/cgi-bin
@@ -936,14 +945,22 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/rpm/macros.httpd
 
 %changelog
-* Fri Nov 12 2021 Jacco Ligthart <jacco@redsleeve.org> - 2.4.6-97.el7.2.redsleeve
-- roll in redsleeve branding, based on RHEL
-
-* Wed Nov 10 2021 CentOS Sources <bugs@centos.org> - 2.4.6-97.el7.centos.2
+* Mon Jan 17 2022 CentOS Sources <bugs@centos.org> - 2.4.6-97.el7.centos.4
 - Remove index.html, add centos-noindex.tar.gz
 - change vstring
 - change symlink for poweredby.png
 - update welcome.conf with proper aliases
+
+* Mon Jan 10 2022 Luboš Uhliarik <luhliari@redhat.com>
+- Resolves: #2031072 - CVE-2021-34798 httpd: NULL pointer dereference via
+  malformed requests
+- Resolves: #2031074 - CVE-2021-39275 httpd: out-of-bounds write in
+  ap_escape_quotes() via malicious input
+- Resolves: #1969226 - CVE-2021-26691 httpd: Heap overflow in mod_session
+
+* Mon Jan 10 2022 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-97.3
+- Resolves: #2035058 - CVE-2021-44790 httpd: mod_lua: possible buffer overflow
+  when parsing multipart content
 
 * Mon Oct 25 2021 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-97.2
 - Resolves: #2015694 - proxy rewrite to unix socket fails with CVE-2021-40438 fix
