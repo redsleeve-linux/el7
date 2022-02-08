@@ -30,7 +30,17 @@
 %global ppc64le         ppc64le
 %global ppc64be         ppc64 ppc64p7
 %global multilib_arches %{power64} sparc64 x86_64
-%global jit_arches      %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64}
+# Set of architectures for which we build slowdebug builds
+%global debug_arches    %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64}
+# Set of architectures with a Just-In-Time (JIT) compiler
+%global jit_arches      %{debug_arches}
+# Set of architectures which use the Zero assembler port (!jit_arches)
+%global zero_arches %{arm} ppc s390 s390x
+# Set of architectures which run a full bootstrap cycle
+%global bootstrap_arches %{jit_arches}
+# Set of architectures which support SystemTap tapsets
+%global systemtap_arches %{jit_arches}
+# Set of architectures which support the serviceability agent
 %global sa_arches       %{ix86} x86_64 sparcv9 sparc64 %{aarch64}
 # MetaspaceShared::generate_vtable_methods not implemented for PPC JIT
 # See https://bugzilla.redhat.com/show_bug.cgi?id=513605
@@ -57,10 +67,10 @@
 # is expected in one single case at the end of the build
 %global rev_build_loop  %{build_loop2} %{build_loop1}
 
-%ifarch %{jit_arches}
-%global bootstrap_build 1
+%ifarch %{bootstrap_arches}
+%global bootstrap_build true
 %else
-%global bootstrap_build 1
+%global bootstrap_build false
 %endif
 
 # Remove build artifacts by default
@@ -206,9 +216,9 @@
 %endif
 
 # note, following three variables are sedded from update_sources if used correctly. Hardcode them rather there.
-%global shenandoah_project	aarch64-port
-%global shenandoah_repo		jdk8u-shenandoah
-%global shenandoah_revision    	aarch64-shenandoah-jdk8u312-b07
+%global shenandoah_project	openjdk
+%global shenandoah_repo		shenandoah-jdk8u
+%global shenandoah_revision    	aarch64-shenandoah-jdk8u322-b06
 # Define old aarch64/jdk8u tree variables for compatibility
 %global project         %{shenandoah_project}
 %global repo            %{shenandoah_repo}
@@ -738,8 +748,8 @@ Requires: ca-certificates
 # Require jpackage-utils for ownership of /usr/lib/jvm/
 Requires: jpackage-utils
 # Require zoneinfo data provided by tzdata-java subpackage.
-# 2021a required as of JDK-8260356 in April CPU
-Requires: tzdata-java >= 2021a
+# 2021e required as of JDK-8275766 in January 2022 CPU
+Requires: tzdata-java >= 2021e
 # libsctp.so.1 is being `dlopen`ed on demand
 Requires: lksctp-tools%{?_isa}
 # tool to copy jdk's configs - should be Recommends only, but then only dnf/yum enforce it,
@@ -871,7 +881,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
 
 Name:    java-%{javaver}-%{origin}
 Version: %{javaver}.%{updatever}.%{buildver}
-Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}.redsleeve
+Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
 # and this change was brought into RHEL-4. java-1.5.0-ibm packages
 # also included the epoch in their virtual provides. This created a
@@ -1129,8 +1139,8 @@ BuildRequires: java-1.8.0-openjdk-devel
 %ifnarch %{jit_arches}
 BuildRequires: libffi-devel
 %endif
-# 2021a required as of JDK-8260356 in April CPU
-BuildRequires: tzdata-java >= 2021a
+# 2021e required as of JDK-8275766 in January 2022 CPU
+BuildRequires: tzdata-java >= 2021e
 # Earlier versions have a bug in tree vectorization on PPC
 BuildRequires: gcc >= 4.8.3-8
 
@@ -1625,21 +1635,25 @@ installdir=%{installoutputdir $suffix}
 bootinstalldir=boot${installdir}
 
 # Debug builds don't need same targets as release for
-# build speed-up
-maketargets="%{release_targets}"
+# build speed-up. We also avoid bootstrapping these
+# slower builds.
 if echo $debugbuild | grep -q "debug" ; then
   maketargets="%{debug_targets}"
+  run_bootstrap=false
+else
+  maketargets="%{release_targets}"
+  run_bootstrap=%{bootstrap_build}
 fi
 
-%if %{bootstrap_build}
-buildjdk ${bootbuilddir} ${bootinstalldir} ${systemjdk} "%{bootstrap_targets}" ${debugbuild}
-buildjdk ${builddir} ${installdir} $(pwd)/${bootinstalldir}/images/%{jdkimage} "${maketargets}" ${debugbuild}
+if ${run_bootstrap} ; then
+  buildjdk ${bootbuilddir} ${bootinstalldir} ${systemjdk} "%{bootstrap_targets}" ${debugbuild}
+  buildjdk ${builddir} ${installdir} $(pwd)/${bootinstalldir}/images/%{jdkimage} "${maketargets}" ${debugbuild}
 %if !%{with_artifacts}
-rm -rf ${bootinstalldir}
+  rm -rf ${bootinstalldir}
 %endif
-%else
-buildjdk ${builddir} ${installdir} ${systemjdk} "${maketargets}" ${debugbuild}
-%endif
+else
+  buildjdk ${builddir} ${installdir} ${systemjdk} "${maketargets}" ${debugbuild}
+fi
 
 # Install nss.cfg right away as we will be using the JRE above
 export JAVA_HOME=$(pwd)/%{installoutputdir $suffix}/images/%{jdkimage}
@@ -1729,18 +1743,18 @@ done
 # Using line number 1 might cause build problems. See:
 # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
 # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
-#gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
-#handle SIGSEGV pass nostop noprint
-#handle SIGILL pass nostop noprint
-#set breakpoint pending on
-#break javaCalls.cpp:1
-#commands 1
-#backtrace
-#quit
-#end
-#run -version
-#EOF
-#grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
+gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
+handle SIGSEGV pass nostop noprint
+handle SIGILL pass nostop noprint
+set breakpoint pending on
+break javaCalls.cpp:1
+commands 1
+backtrace
+quit
+end
+run -version
+EOF
+grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
 
 # Check src.zip has all sources. See RHBZ#1130490
 jar -tf $JAVA_HOME/src.zip | grep 'sun.misc.Unsafe'
@@ -2169,8 +2183,21 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
-* Sat Oct 30 2021 Jacco Ligthart <jacco@redsleeve.org> 1:1.8.0.312.b07-1.redsleeve
-- removed the gdb section of the SPEC file
+* Fri Jan 21 2022 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.322.b06-1
+- Update to aarch64-shenandoah-jdk8u322-b06 (EA)
+- Update release notes for 8u322-b06.
+- Switch to GA mode for final release.
+- Require tzdata 2021e as of JDK-8275766.
+- Update tarball generation script to use git following shenandoah-jdk8u's move to github
+- Resolves: rhbz#2039366
+
+* Mon Jan 10 2022 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.322.b04-0.1.ea
+- Update to aarch64-shenandoah-jdk8u322-b04 (EA)
+- Update release notes for 8u322-b04.
+- Require tzdata 2021c as of JDK-8274407.
+- Switch to EA mode.
+- Turn off bootstrapping for slow debug builds, which are particularly slow on ppc64le.
+- Related: rhbz#2022809
 
 * Fri Oct 15 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.312.b07-1
 - Update to aarch64-shenandoah-jdk8u312-b07 (EA)
