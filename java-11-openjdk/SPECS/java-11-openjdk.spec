@@ -87,7 +87,7 @@
 # Set of architectures for which we build slowdebug builds
 %global debug_arches    %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64} s390x
 # Set of architectures with a Just-In-Time (JIT) compiler
-%global jit_arches      %{debug_arches}
+%global jit_arches      %{debug_arches} %{arm}
 # Set of architectures which run a full bootstrap cycle
 %global bootstrap_arches %{jit_arches}
 # Set of architectures which support SystemTap tapsets
@@ -95,7 +95,7 @@
 # Set of architectures with a Ahead-Of-Time (AOT) compiler
 %global aot_arches      x86_64 %{aarch64}
 # Set of architectures which support the serviceability agent
-%global sa_arches       %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64}
+%global sa_arches       %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64} %{arm}
 # Set of architectures which support class data sharing
 # As of JDK-8005165 in OpenJDK 10, class sharing is not arch-specific
 # However, it does segfault on the Zero assembler port, so currently JIT only
@@ -156,9 +156,9 @@
 %endif
 
 %ifarch %{bootstrap_arches}
-%global bootstrap_build 1
+%global bootstrap_build true
 %else
-%global bootstrap_build 1
+%global bootstrap_build false
 %endif
 
 %if %{include_staticlibs}
@@ -271,7 +271,7 @@
 # New Version-String scheme-style defines
 %global featurever 11
 %global interimver 0
-%global updatever 13
+%global updatever 14
 %global patchver 0
 # If you bump featurever, you must bump also vendor_version_string
 # Used via new version scheme. JDK 11 was
@@ -318,7 +318,7 @@
 %global origin_nice     OpenJDK
 %global top_level_dir_name   %{origin}
 %global top_level_dir_name_backup %{top_level_dir_name}-backup
-%global buildver        8
+%global buildver        9
 %global rpmrelease      1
 #%%global tagsuffix      %%{nil}
 # priority must be 7 digits in total
@@ -359,8 +359,8 @@
 %global jdkimage                jdk
 %global static_libs_image       static-libs
 # output dir stub
-%define buildoutputdir() %{expand:build/jdk11.build%1}
-%define installoutputdir() %{expand:install/jdk11.install%1}
+%define buildoutputdir() %{expand:build/jdk%{featurever}.build%1}
+%define installoutputdir() %{expand:install/jdk%{featurever}.install%1}
 # we can copy the javadoc to not arched dir, or make it not noarch
 # javadoc is no longer noarch, as it have aot on only some arches
 %global uniquejavadocdir()    %{expand:%{fullversion}.%{_arch}%1}
@@ -726,7 +726,7 @@ exit 0
 %dir %{_jvmdir}/%{sdkdir %%1}/conf/security/policy/limited
 %dir %{_jvmdir}/%{sdkdir %%1}/conf/security/policy/unlimited
 %config(noreplace) %{_jvmdir}/%{sdkdir %%1}/lib/security/default.policy
-%config(noreplace) %{_jvmdir}/%{sdkdir %%1}/lib/security/blacklisted.certs
+%config(noreplace) %{_jvmdir}/%{sdkdir %%1}/lib/security/blocked.certs
 %config(noreplace) %{_jvmdir}/%{sdkdir %%1}/lib/security/public_suffix_list.dat
 %config(noreplace) %{_jvmdir}/%{sdkdir %%1}/conf/security/policy/limited/exempt_local.policy
 %config(noreplace) %{_jvmdir}/%{sdkdir %%1}/conf/security/policy/limited/default_local.policy
@@ -1003,7 +1003,7 @@ Provides: java-%{javaver}-%{origin}-src%1 = %{epoch}:%{version}-%{release}
 
 Name:    java-%{javaver}-%{origin}
 Version: %{newjavaver}.%{buildver}
-Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}.redsleeve
+Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
 # and this change was brought into RHEL-4. java-1.5.0-ibm packages
 # also included the epoch in their virtual provides. This created a
@@ -1684,18 +1684,22 @@ for suffix in %{build_loop} ; do
       # Use system libraries
       link_opt="system"
       # Debug builds don't need same targets as release for
-      # build speed-up
-      maketargets="%{release_targets}"
+      # build speed-up. We also avoid bootstrapping these
+      # slower builds.
       if echo $debugbuild | grep -q "debug" ; then
-	maketargets="%{debug_targets}"
+        maketargets="%{debug_targets}"
+        run_bootstrap=false
+      else
+        maketargets="%{release_targets}"
+        run_bootstrap=%{bootstrap_build}
       fi
-%if %{bootstrap_build}
-      buildjdk ${bootbuilddir} ${bootinstalldir} ${systemjdk} "%{bootstrap_targets}" ${debugbuild} ${link_opt}
-      buildjdk ${builddir} ${installdir} $(pwd)/${bootinstalldir}/images/%{jdkimage} "${maketargets}" ${debugbuild} ${link_opt}
-      %{!?with_artifacts:rm -rf ${bootinstalldir}}
-%else
-      buildjdk ${builddir} ${installdir} ${systemjdk} "${maketargets}" ${debugbuild} ${link_opt}
-%endif
+      if ${run_bootstrap} ; then
+         buildjdk ${bootbuilddir} ${bootinstalldir} ${systemjdk} "%{bootstrap_targets}" ${debugbuild} ${link_opt}
+         buildjdk ${builddir} ${installdir} $(pwd)/${bootinstalldir}/images/%{jdkimage} "${maketargets}" ${debugbuild} ${link_opt}
+         %{!?with_artifacts:rm -rf ${bootinstalldir}}
+      else
+        buildjdk ${builddir} ${installdir} ${systemjdk} "${maketargets}" ${debugbuild} ${link_opt}
+      fi
       # Restore original source tree we modified by removing full in-tree sources
       rm -rf %{top_level_dir_name}
       mv %{top_level_dir_name_backup} %{top_level_dir_name}
@@ -1815,7 +1819,7 @@ done
 # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
 # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
 # Temporarily disabled on s390x as it sporadically crashes with SIGFPE, Arithmetic exception.
-%ifnarch s390x %{arm}
+%ifnarch s390x
 gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
 handle SIGSEGV pass nostop noprint
 handle SIGILL pass nostop noprint
@@ -2152,9 +2156,25 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
-* Sat Oct 30 2021 Jacco Ligthart <jacco@redsleeve.org> - 1:11.0.13.0.8-1.redsleeve
-- removed arm from jit_arches
-- removed the gdb section of the SPEC file
+* Mon Jan 17 2022 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.14.0.9-1
+- Update to jdk-11.0.14.0+9
+- Update release notes to 11.0.14.0+9
+- Switch to GA mode for final release.
+- This tarball is embargoed until 2022-01-18 @ 1pm PT.
+- Resolves: rhbz#2039366
+
+* Fri Jan 14 2022 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.14.0.8-0.1.ea
+- Update to jdk-11.0.14.0+8
+- Update release notes to 11.0.14.0+8
+- Switch to EA mode for 11.0.14 pre-release builds.
+- Turn off bootstrapping for slow debug builds, which are particularly slow on ppc64le.
+- Rename blacklisted.certs to blocked.certs following JDK-8253866
+- Resolves: rhbz#2022810
+
+* Wed Dec 01 2021 Jiri Vanek <jvanek@redhat.com> - 1:11.0.14.0.8-0.1.ea
+- Replaced hardcoded 11 by featurever where appropriate
+- Fixed comment of `for slowdebug` to correct `any debug`
+- Related: rhbz#2022810
 
 * Wed Oct 13 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.13.0.8-1
 - Revert addition of libharfbuzz.so after its removal by JDK-8255790
