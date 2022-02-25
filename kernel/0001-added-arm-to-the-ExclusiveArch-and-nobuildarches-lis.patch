@@ -1,6 +1,6 @@
-From c3e79f3d2186a7803cec352c10ba1bcf5d06fed6 Mon Sep 17 00:00:00 2001
+From 766fcc401ba32c369086382ecb35fc1b375316d9 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sat, 23 Oct 2021 15:08:16 +0200
+Date: Tue, 8 Feb 2022 17:33:54 +0100
 Subject: [PATCH] added arm to the ExclusiveArch and nobuildarches lists
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] added arm to the ExclusiveArch and nobuildarches lists
  1 file changed, 11 insertions(+), 3 deletions(-)
 
 diff --git a/SPECS/kernel.spec b/SPECS/kernel.spec
-index 8b663a2..c739cf6 100644
+index 4e190e4..f5804c6 100644
 --- a/SPECS/kernel.spec
 +++ b/SPECS/kernel.spec
 @@ -229,6 +229,11 @@ Summary: The Linux kernel
@@ -49,12 +49,12 @@ index 8b663a2..c739cf6 100644
  %kernel_variant_files %{with_kdump} kdump
  
  %changelog
-+* Sat Oct 23 2021 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-1160.45.1.el7.redsleeve
++* Tue Feb 08 2022 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-1160.53.1.el7.redsleeve
 +- added arm to the ExclusiveArch and nobuildarches lists
 +
- * Fri Sep 24 2021 Rado Vrbovsky <rvrbovsk@redhat.com> [3.10.0-1160.45.1.el7]
- - CI: handle RT branches in a single config (Veronika Kabatova)
- - CI: Drop private CI config (Veronika Kabatova)
+ * Thu Dec 16 2021 Rado Vrbovsky <rvrbovsk@redhat.com> [3.10.0-1160.53.1.el7]
+ - fuse: fix live lock in fuse_iget() (Miklos Szeredi) [1952046]
+ - fuse: fix bad inode (Miklos Szeredi) [1952046]
 -- 
 1.8.3.1
 
