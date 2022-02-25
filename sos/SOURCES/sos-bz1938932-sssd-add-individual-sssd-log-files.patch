@@ -1,0 +1,57 @@
+From ece97a2cbb1620c8667cf293c89c30147820350e Mon Sep 17 00:00:00 2001
+From: Jan Jansky <jjansky@redhat.com>
+Date: Tue, 6 Apr 2021 10:44:45 +0200
+Subject: [PATCH] [sssd] Add individual SSSD log files
+
+The issue is that SSSD creates individual log files for its
+components. To be able to track the issue we need all of them.
+
+With one wildcard copy set we usually get just one truncated
+log file and this is not very useful for solving issues. We
+need to track the request accross logs to understand the
+problem. Also log file names are specific for paricular
+configuration.
+
+With this patch we list log files under /var/log/sssd and
+we add them one by one.
+
+Related: #2445
+Resolves: #2476
+
+Signed-off-by: Jan Jansky <jjansky@redhat.com>
+Signed-off-by: Jake Hunsaker <jhunsake@redhat.com>
+---
+ sos/plugins/sssd.py | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/sos/plugins/sssd.py b/sos/plugins/sssd.py
+index ea9fdee..0c3aaf8 100644
+--- a/sos/plugins/sssd.py
++++ b/sos/plugins/sssd.py
+@@ -10,6 +10,7 @@
+ 
+ from sos.plugins import (Plugin, RedHatPlugin, DebianPlugin, UbuntuPlugin,
+                          SoSPredicate)
++from glob import glob
+ 
+ 
+ class Sssd(Plugin):
+@@ -23,12 +24,14 @@ class Sssd(Plugin):
+     def setup(self):
+         self.add_copy_spec([
+             "/etc/sssd/sssd.conf",
+-            "/var/log/sssd/*",
+             "/var/lib/sss/pubconf/krb5.include.d/*",
+             # SSSD 1.14
+             "/etc/sssd/conf.d/*.conf"
+         ])
+ 
++        # add individual log files
++        self.add_copy_spec(glob("/var/log/sssd/*log*"))
++
+         # call sssctl commands only when sssd service is running,
+         # otherwise the command timeouts
+         sssd_pred = SoSPredicate(self, services=["sssd"])
+-- 
+1.8.3.1
+

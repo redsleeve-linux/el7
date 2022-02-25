@@ -1,0 +1,37 @@
+From 79e2fc023072a74d7f54e332051b19f30039c0c3 Mon Sep 17 00:00:00 2001
+From: Jan Jansky <jjansky@redhat.com>
+Date: Thu, 3 Jun 2021 16:39:33 +0200
+Subject: [PATCH] [sssd] sssd plugin when sssd-common
+
+We have reports that sssd logs are not
+collected, when we investigated
+we found associate wants to collect
+sssd related logs also when only
+sssd-common package is installed.
+
+We got this confirmed by sbr-idm.
+
+Related: #2571
+Resolves: #2572
+
+Signed-off-by: Jan Jansky <jjansky@redhat.com>
+---
+ sos/plugins/sssd.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sos/plugins/sssd.py b/sos/plugins/sssd.py
+index c532800..6d1c24d 100644
+--- a/sos/plugins/sssd.py
++++ b/sos/plugins/sssd.py
+@@ -19,7 +19,7 @@ class Sssd(Plugin):
+ 
+     plugin_name = "sssd"
+     profiles = ('services', 'security', 'identity')
+-    packages = ('sssd',)
++    packages = ('sssd', 'sssd-common')
+ 
+     def setup(self):
+         self.add_copy_spec([
+-- 
+1.8.3.1
+

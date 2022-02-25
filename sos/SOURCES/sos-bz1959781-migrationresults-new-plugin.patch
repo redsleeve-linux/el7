@@ -1,0 +1,51 @@
+From 92ddbb87500ccaa0cc61211c6d380c64477901b5 Mon Sep 17 00:00:00 2001
+From: Barbora Vassova <bvassova@redhat.com>
+Date: Tue, 27 Jul 2021 14:35:21 +0200
+Subject: [PATCH] [MigrationResults] collect info about conversions and
+ upgrades
+
+A new tiny plugin independent on leapp and convert2rhel is proposed.
+
+It should collect /etc/migration-results with info about RHEL
+conversions and upgrades, whenever the file is present.
+
+Resolves: #2631
+Related: #2627
+Relevant to: rhbz#1959598
+
+Signed-off-by: Barbora Vassova <bvassova@redhat.com>
+---
+ sos/plugins/migration_results.py | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)
+ create mode 100644 sos/plugins/migration_results.py
+
+diff --git a/sos/plugins/migration_results.py b/sos/plugins/migration_results.py
+new file mode 100644
+index 0000000..cc7db2f
+--- /dev/null
++++ b/sos/plugins/migration_results.py
+@@ -0,0 +1,21 @@
++# This file is part of the sos project: https://github.com/sosreport/sos
++#
++# This copyrighted material is made available to anyone wishing to use,
++# modify, copy, or redistribute it subject to the terms and conditions of
++# version 2 of the GNU General Public License.
++#
++# See the LICENSE file in the source distribution for further information.
++
++from sos.plugins import Plugin, RedHatPlugin
++
++
++class MigrationResults(Plugin, RedHatPlugin):
++
++    """Information about conversions and upgrades"""
++
++    plugin_name = 'migration_results'
++    profiles = ('system',)
++
++    files = ('/etc/migration-results',)
++
++# vim: et ts=4 sw=4
+-- 
+1.8.3.1
+

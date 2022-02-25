@@ -1,0 +1,34 @@
+From e24dc299b7c41bf446b0330869c4b4687fdfbfde Mon Sep 17 00:00:00 2001
+From: Jan Jansky <jjansky@redhat.com>
+Date: Tue, 25 May 2021 10:00:34 +0200
+Subject: [PATCH] [foreman] Collect all apache foreman* logs in foreman plugin
+
+Some important logs are written to foreman_[access|error].log in
+/var/log/httpd dir. foreman plugin should collect all the logs that
+apache plugin skips to prevent duplicit collection.
+
+Related: #2554
+Resolves: #2557
+
+Signed-off-by: Jan Jansky <jjansky@redhat.com>
+Signed-off-by: Jake Hunsaker <jhunsake@redhat.com>
+---
+ sos/plugins/foreman.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sos/plugins/foreman.py b/sos/plugins/foreman.py
+index d3d3543..58f5256 100644
+--- a/sos/plugins/foreman.py
++++ b/sos/plugins/foreman.py
+@@ -114,7 +114,7 @@ class Foreman(Plugin):
+             "/etc/puppetlabs/puppet/ssl/certs/ca.pem",
+             "/etc/puppetlabs/puppet/ssl/certs/{}.pem".format(_hostname),
+             "/var/lib/puppet/ssl/certs/{}.pem".format(_hostname),
+-            "/var/log/{}*/foreman-ssl_*_ssl*log[.-]*".format(self.apachepkg),
++            "/var/log/{}*/foreman*".format(self.apachepkg),
+             "/var/log/{}*/katello-reverse-proxy_access_ssl.log*".format(
+                 self.apachepkg),
+             "/var/log/{}*/katello-reverse-proxy_error_ssl.log*".format(
+-- 
+1.8.3.1
+

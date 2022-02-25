@@ -1,0 +1,38 @@
+From e8cdf68382ae9160363fd6dba4bf75afd047c764 Mon Sep 17 00:00:00 2001
+From: Jan Jansky <jjansky@redhat.com>
+Date: Tue, 25 May 2021 10:12:16 +0200
+Subject: [PATCH] [foreman] Follow sizelimit to foreman maintain and installer
+ logs
+
+Specifying add_copy_spec to a directory means all files from the
+directory are collected. That is ridiculous for foremain-installer and
+namely foreman-maintain logs, where we should stick to the size limit by
+default. Hence collect files from the dir "specifically".
+
+Related: #2554
+Resolves: #2557
+
+Signed-off-by: Jan Jansky <jjansky@redhat.com>
+Signed-off-by: Jake Hunsaker <jhunsake@redhat.com>
+---
+ sos/plugins/foreman.py | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/sos/plugins/foreman.py b/sos/plugins/foreman.py
+index 58f5256..c742ebc 100644
+--- a/sos/plugins/foreman.py
++++ b/sos/plugins/foreman.py
+@@ -99,8 +99,8 @@ class Foreman(Plugin):
+             "/var/log/foreman-proxy/smart_proxy_dynflow_core*log*",
+             "/var/log/foreman-selinux-install.log",
+             "/var/log/foreman-proxy-certs-generate*",
+-            "/var/log/foreman-installer/",
+-            "/var/log/foreman-maintain/",
++            "/var/log/foreman-installer/*",
++            "/var/log/foreman-maintain/*",
+             "/var/log/syslog*",
+             # Specific to TFM, _all_ catalina logs are relevant. Adding this
+             # here rather than the tomcat plugin to ease maintenance and not
+-- 
+1.8.3.1
+

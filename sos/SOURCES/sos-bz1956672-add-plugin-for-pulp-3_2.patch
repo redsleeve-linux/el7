@@ -1,0 +1,40 @@
+From c7ddda1bb6dc85c0d509b656511fd79d3c1d7e06 Mon Sep 17 00:00:00 2001
+From: Jan Jansky <jjansky@redhat.com>
+Date: Tue, 15 Jun 2021 17:15:15 +0200
+Subject: [PATCH] [pulpcore] obfuscate two passwords from 'dynaconf list'
+
+The command also prints content of /etc/pulp/settings.py
+where we need to also obfuscate the SECRET_KEY and PASSWORD values.
+
+Related: #2583
+Resolves: #2584
+
+Signed-off-by: Jan Jansky <jjansky@redhat.com>
+---
+ sos/plugins/pulpcore.py | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/sos/plugins/pulpcore.py b/sos/plugins/pulpcore.py
+index 46fa0d5..f4ac467 100644
+--- a/sos/plugins/pulpcore.py
++++ b/sos/plugins/pulpcore.py
+@@ -115,6 +115,15 @@ class PulpCore(Plugin, IndependentPlugin):
+             "/etc/pulp/settings.py",
+             r"(PASSWORD\S*\s*:\s*)(.*)",
+             r"\1********")
+-
++        # apply the same for "dynaconf list" output that prints settings.py
++        # in a pythonic format
++        self.do_cmd_output_sub(
++            "dynaconf list",
++            r"(SECRET_KEY<str>\s*)'(.*)'",
++            r"\1********")
++        self.do_cmd_output_sub(
++            "dynaconf list",
++            r"(PASSWORD\S*\s*:\s*)(.*)",
++            r"\1********")
+ 
+ # vim: set et ts=4 sw=4 :
+-- 
+1.8.3.1
+

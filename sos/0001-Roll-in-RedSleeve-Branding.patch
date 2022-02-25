@@ -1,6 +1,6 @@
-From 78c3faeeb87a2015cd78f8c754d8b7272b98b163 Mon Sep 17 00:00:00 2001
+From 5a3624898a0650e03031dc28293727ab106c3d9b Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Tue, 31 Aug 2021 23:48:28 +0200
+Date: Wed, 1 Sep 2021 00:30:18 +0200
 Subject: [PATCH] Roll in RedSleeve Branding
 
 ---
@@ -166,35 +166,35 @@ index 0000000..afcc95a
 +             )
 +             if not self.upload_user:
 diff --git a/SPECS/sos.spec b/SPECS/sos.spec
-index 91a1b9f..38be329 100644
+index 798c72e..3b51ed4 100644
 --- a/SPECS/sos.spec
 +++ b/SPECS/sos.spec
 @@ -2,7 +2,7 @@
  Summary: A set of tools to gather troubleshooting information from a system
  Name: sos
  Version: 3.9
--Release: 5%{?dist}.2
-+Release: 5%{?dist}.2.redsleeve
+-Release: 5%{?dist}.7
++Release: 5%{?dist}.7.redsleeve
  Group: Applications/System
  Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
  License: GPLv2+
-@@ -38,7 +38,7 @@ Patch15: sos-bz1871207-audit_collect_etc_audisp.patch
- Patch16: sos-bz1886432-policy_fix_failure_conditions_with_upload.patch
- Patch17: sos-bz1897903-postgresql_collect_rh-postgresql12.patch
- Patch18: sos-bz1917074-networking_ethtool-e_conditionally_only.patch
--Patch19: sos-centos-branding.patch
-+Patch19: sos-redsleeve-branding.patch
+@@ -54,7 +54,7 @@ Patch31: sos-bz1964000-foreman-collect-all-apache-foreman.patch
+ Patch32: sos-bz1964000-foreman-follow-sizelimit-to-foreman-maintain-and-installer-logs.patch
+ Patch33: sos-bz1946641-sssd-plugin-when-sssd-common.patch
+ Patch34: sos-bz1959781-migrationresults-new-plugin.patch
+-Patch35: sos-centos-branding.patch
++Patch35: sos-redsleeve-branding.patch
  
  %description
  Sos is a set of tools that gathers information about system
-@@ -91,6 +91,9 @@ rm -rf ${RPM_BUILD_ROOT}
+@@ -123,6 +123,9 @@ rm -rf ${RPM_BUILD_ROOT}
  %config(noreplace) %{_sysconfdir}/sos.conf
  
  %changelog
-+* Sun Feb 07 2021 Jacco Ligthart <jacco@redsleeve.org> - 3.9-5.el7.2.redsleeve
++* Tue Aug 31 2021 Jacco Ligthart <jacco@redsleeve.org> - 3.9-5.el7.7.redsleeve
 +- Roll in RedSleeve Branding
 +
- * Tue Feb 02 2021 CentOS Sources <bugs@centos.org> - 3.9-5.el7.centos.2
+ * Tue Aug 31 2021 CentOS Sources <bugs@centos.org> - 3.9-5.el7.centos.7
  - Roll in CentOS Branding
  
 -- 

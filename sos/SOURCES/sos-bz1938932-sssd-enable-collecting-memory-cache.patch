@@ -1,0 +1,45 @@
+From 587383ccf28ba4908e3b5749ca0bf4f2bc9eb1c3 Mon Sep 17 00:00:00 2001
+From: Jan Jansky <jjansky@redhat.com>
+Date: Tue, 6 Apr 2021 11:00:45 +0200
+Subject: [PATCH] [sssd] Enable collecting SSSD memory cache
+
+SSSD plugin by default collects only logs and configuration.
+This patch enables collecting memory cache maintained
+by SSSD daemon. Cache does not contain any client sensible
+data so can be safely included in the sos-report.
+
+Related: #2444
+Resolves: #2476
+
+Signed-off-by: Jan Jansky <jjansky@redhat.com>
+Signed-off-by: Jake Hunsaker <jhunsake@redhat.com>
+---
+ sos/plugins/sssd.py | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/sos/plugins/sssd.py b/sos/plugins/sssd.py
+index 0c3aaf8..7bdd167 100644
+--- a/sos/plugins/sssd.py
++++ b/sos/plugins/sssd.py
+@@ -23,10 +23,16 @@ class Sssd(Plugin):
+ 
+     def setup(self):
+         self.add_copy_spec([
++            # Main config file
+             "/etc/sssd/sssd.conf",
+-            "/var/lib/sss/pubconf/krb5.include.d/*",
+             # SSSD 1.14
+-            "/etc/sssd/conf.d/*.conf"
++            "/etc/sssd/conf.d/*.conf",
++            # Main logs directory
++            "/var/log/sssd/*",
++            # Memory cache
++            "/var/lib/sss/mc/*",
++            # Dynamic Kerberos configuration
++            "/var/lib/sss/pubconf/krb5.include.d/*"
+         ])
+ 
+         # add individual log files
+-- 
+1.8.3.1
+

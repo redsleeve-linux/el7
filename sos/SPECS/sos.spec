@@ -2,7 +2,7 @@
 Summary: A set of tools to gather troubleshooting information from a system
 Name: sos
 Version: 3.9
-Release: 5%{?dist}.2.redsleeve
+Release: 5%{?dist}.7.redsleeve
 Group: Applications/System
 Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
 License: GPLv2+
@@ -38,7 +38,23 @@ Patch15: sos-bz1871207-audit_collect_etc_audisp.patch
 Patch16: sos-bz1886432-policy_fix_failure_conditions_with_upload.patch
 Patch17: sos-bz1897903-postgresql_collect_rh-postgresql12.patch
 Patch18: sos-bz1917074-networking_ethtool-e_conditionally_only.patch
-Patch19: sos-redsleeve-branding.patch
+Patch19: sos-bz1785813-foreman-proxy_password_scrub.patch
+Patch20: sos-bz1932772-candlepin-foreman_psql_with_--no-password_1.patch
+Patch21: sos-bz1932772-candlepin-foreman_psql_with_--no-password_2.patch
+Patch22: sos-bz1903144-pacemaker_fix_scrubbing_password.patch
+Patch23: sos-bz1886784-filesys_never_collect_panfs.patch
+Patch24: sos-bz1892692-openstack_ceilometer_backend_url.patch
+Patch25: sos-bz1938932-sssd-add-individual-sssd-log-files.patch
+Patch26: sos-bz1938932-sssd-enable-collecting-memory-cache.patch
+Patch27: sos-bz1938932-sssd-collect-memory-cache-individual-files.patch
+Patch28: sos-bz1956672-add-plugin-for-pulp-3.patch
+Patch29: sos-bz1956672-add-plugin-for-pulp-3_2.patch
+Patch30: sos-bz1956817-fix-unmatched-group-error-in-scrubbing-installer-logs.patch
+Patch31: sos-bz1964000-foreman-collect-all-apache-foreman.patch
+Patch32: sos-bz1964000-foreman-follow-sizelimit-to-foreman-maintain-and-installer-logs.patch
+Patch33: sos-bz1946641-sssd-plugin-when-sssd-common.patch
+Patch34: sos-bz1959781-migrationresults-new-plugin.patch
+Patch35: sos-redsleeve-branding.patch
 
 %description
 Sos is a set of tools that gathers information about system
@@ -68,6 +84,22 @@ support technicians and developers.
 %patch17 -p1
 %patch18 -p1
 %patch19 -p1
+%patch20 -p1
+%patch21 -p1
+%patch22 -p1
+%patch23 -p1
+%patch24 -p1
+%patch25 -p1
+%patch26 -p1
+%patch27 -p1
+%patch28 -p1
+%patch29 -p1
+%patch30 -p1
+%patch31 -p1
+%patch32 -p1
+%patch33 -p1
+%patch34 -p1
+%patch35 -p1
 
 %build
 make
@@ -91,11 +123,47 @@ rm -rf ${RPM_BUILD_ROOT}
 %config(noreplace) %{_sysconfdir}/sos.conf
 
 %changelog
-* Sun Feb 07 2021 Jacco Ligthart <jacco@redsleeve.org> - 3.9-5.el7.2.redsleeve
+* Tue Aug 31 2021 Jacco Ligthart <jacco@redsleeve.org> - 3.9-5.el7.7.redsleeve
 - Roll in RedSleeve Branding
 
-* Tue Feb 02 2021 CentOS Sources <bugs@centos.org> - 3.9-5.el7.centos.2
+* Tue Aug 31 2021 CentOS Sources <bugs@centos.org> - 3.9-5.el7.centos.7
 - Roll in CentOS Branding
+
+* Sat Aug 07 2021 Jan Jansky <jjansky@redhat.com> = 3.9-5.7
+- [migrationresults] new plugin
+  Resolves: bz1959781
+
+* Wed Jun 16 2021 Jan Jansky <jjansky@redhat.com> = 3.9-5.6
+- [pulpcore] add plugin for pulp-3
+  Resolves: bz1956672
+
+* Fri Jun 11 2021 Jan Jansky <jjansky@redhat.com> = 3.9-5.5
+- [sssd] Add individual SSSD log files
+  Resolves: bz1938932
+- [sssd] sssd plugin when sssd-common
+  Resolves: bz1946641
+- [foreman] fix unmatched group in scrubbing installer logs
+  Resolves: bz1956817
+- [foreman] Sizelimit foreman-maintain and installer logs
+  Resolves: bz1964000
+- [pulpcore] add plugin for pulp-3
+  Resolves: bz1956672
+
+* Thu Mar 18 2021 Jan Jansky <jjansky@redhat.com> = 3.9-5.4
+- [candlepin/foreman] psql with --no-password
+  Resolves: bz1932772
+- [pacemaker] password scrub fix
+  Resolves: bz1903144
+- [filesys] never collect panfs
+  Resolves: bz1886784
+- [openstack_ceilometer] backend_url protected
+  Resolves: bz1892692
+
+* Tue Mar 09 2021 Jan Jansky <jjansky@redhat.com> = 3.9-5.3
+- [candlepin/foreman] psql with --no-password
+  Resolves: bz1932772
+- [foreman] proxy_password scrub in installer logs
+  Resolves: bz1785813
 
 * Thu Jan 21 2021 Jan Jansky <jjansky@redhat.com> = 3.9-5.2
 - [networking] 'ethtool -e <device>' conditionally only

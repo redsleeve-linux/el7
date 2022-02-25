@@ -1,0 +1,36 @@
+From 612b65cf4551b8b40afbc75d707bc7e573fcc6fe Mon Sep 17 00:00:00 2001
+From: Jan Jansky <jjansky@redhat.com>
+Date: Tue, 4 May 2021 13:02:20 +0200
+Subject: [PATCH] [foreman] fix unmatched group error in scrubbing installer
+ logs
+
+Legacy PR.
+
+Having just one whitespace before "Found key:" failed to match
+the first group.
+
+Related: #2521
+Resolves: #2522
+
+Signed-off-by: Jan Jansky <jjansky@redhat.com>
+Signed-off-by: Jake Hunsaker <jhunsake@redhat.com>
+---
+ sos/plugins/foreman.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sos/plugins/foreman.py b/sos/plugins/foreman.py
+index 84fb4b0..d3d3543 100644
+--- a/sos/plugins/foreman.py
++++ b/sos/plugins/foreman.py
+@@ -274,7 +274,7 @@ class Foreman(Plugin):
+             satreg,
+             r"\1 ********")
+         # need to do two passes here, debug output has different formatting
+-        sat_debug_reg = (r"(\s)* (Found key: (\"(foreman(.*?)|katello)"
++        sat_debug_reg = (r"(\s)+(Found key: (\"(foreman(.*?)|katello)"
+                          r"::(.*(token|secret|key|passw).*)\") value:) "
+                          r"(.*)")
+         self.do_path_regex_sub(
+-- 
+1.8.3.1
+

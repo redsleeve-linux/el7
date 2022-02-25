@@ -1,0 +1,36 @@
+From 73524dc167179039e89a5af65f0c10c2b4fa4192 Mon Sep 17 00:00:00 2001
+From: Jan Jansky <jjansky@redhat.com>
+Date: Fri, 12 Mar 2021 17:40:03 +0100
+Subject: [PATCH] [openstack_ceilometer] Add backend_url to protected keys
+
+Backport #2298 to legacy-3.9.
+
+Related: #2298
+Resolves: #2448
+
+Signed-off-by: Jan Jansky <jjansky@redhat.com>
+Signed-off-by: Jake Hunsaker <jhunsake@redhat.com>
+---
+ sos/plugins/openstack_ceilometer.py | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/sos/plugins/openstack_ceilometer.py b/sos/plugins/openstack_ceilometer.py
+index c2f1450..a808778 100644
+--- a/sos/plugins/openstack_ceilometer.py
++++ b/sos/plugins/openstack_ceilometer.py
+@@ -50,10 +50,9 @@ class OpenStackCeilometer(Plugin):
+             "admin_password", "connection_password", "host_password",
+             "memcache_secret_key", "os_password", "password", "qpid_password",
+             "rabbit_password", "readonly_user_password", "secret_key",
+-            "ssl_key_password", "telemetry_secret", "metering_secret",
+-            "transport_url"
++            "ssl_key_password", "telemetry_secret", "metering_secret"
+         ]
+-        connection_keys = ["connection"]
++        connection_keys = ["connection", "backend_url", "transport_url"]
+ 
+         self.apply_regex_sub(
+             r"((?m)^\s*(%s)\s*=\s*)(.*)" % "|".join(protect_keys),
+-- 
+1.8.3.1
+

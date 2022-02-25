@@ -1,0 +1,59 @@
+From 7d6cb4e71b79d1f2393db475bf65dc4e143d09fa Mon Sep 17 00:00:00 2001
+From: Jan Jansky <jjansky@redhat.com>
+Date: Tue, 6 Apr 2021 11:06:13 +0200
+Subject: [PATCH] [sssd] Collect memory cache individual files
+
+By default SSSD collects all memory cache files:
+* /var/lib/sss/mc/passwd
+* /var/lib/sss/mc/group
+* /var/lib/sss/mc/initgroups
+
+They all are included in 25MB size limit for sosreport.
+This commits add memory cache files one - by - one,
+this way 25MB size limit will be aplied per file.
+
+Related: #2462
+Resolves: #2476
+
+Signed-off-by: Jan Jansky <jjansky@redhat.com>
+Signed-off-by: Jake Hunsaker <jhunsake@redhat.com>
+---
+ sos/plugins/sssd.py | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/sos/plugins/sssd.py b/sos/plugins/sssd.py
+index 7bdd167..c532800 100644
+--- a/sos/plugins/sssd.py
++++ b/sos/plugins/sssd.py
+@@ -23,21 +23,22 @@ class Sssd(Plugin):
+ 
+     def setup(self):
+         self.add_copy_spec([
+-            # Main config file
++            # main config file
+             "/etc/sssd/sssd.conf",
+             # SSSD 1.14
+             "/etc/sssd/conf.d/*.conf",
+-            # Main logs directory
+-            "/var/log/sssd/*",
+-            # Memory cache
+-            "/var/lib/sss/mc/*",
+-            # Dynamic Kerberos configuration
++            # dynamic Kerberos configuration
+             "/var/lib/sss/pubconf/krb5.include.d/*"
+         ])
+ 
+         # add individual log files
+         self.add_copy_spec(glob("/var/log/sssd/*log*"))
+ 
++        # add memory cache
++        self.add_copy_spec(["/var/lib/sss/mc/passwd",
++                            "/var/lib/sss/mc/group",
++                            "/var/lib/sss/mc/initgroups"])
++
+         # call sssctl commands only when sssd service is running,
+         # otherwise the command timeouts
+         sssd_pred = SoSPredicate(self, services=["sssd"])
+-- 
+1.8.3.1
+
