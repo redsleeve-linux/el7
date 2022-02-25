@@ -19,7 +19,7 @@
 %global use_tcmalloc 0
 %global variant base-asan
 %else
-%if "%{_arch}" != "s390x" && "%{_arch}" != "s390"
+%ifnarch s390 s390x %{arm}
 %global use_tcmalloc 1
 %else
 %global use_tcmalloc 0
@@ -39,7 +39,7 @@
 Summary:          389 Directory Server (%{variant})
 Name:             389-ds-base
 Version:          1.3.10.2
-Release:          %{?relprefix}14%{?prerel}%{?dist}
+Release:          %{?relprefix}14%{?prerel}%{?dist}.redsleeve
 License:          GPLv3+
 URL:              https://www.port389.org/
 Group:            System Environment/Daemons
@@ -531,6 +531,9 @@ fi
 %{_sysconfdir}/%{pkgname}/dirsrvtests
 
 %changelog
+* Tue Feb 08 2022 Jacco Ligthart <jacco@redsleeve.org> - 1.3.10.2-14.redsleeve
+- disabled tcmalloc for arm
+
 * Fri Oct 29 2021 Thierry Bordaz <tbordaz@redhat.com> - 1.3.10.2-14
 - Bump version to 1.3.10.2-14
 - Resolves: Bug 2018257 - hang because of incorrect accounting of readers in vattr rwlock
