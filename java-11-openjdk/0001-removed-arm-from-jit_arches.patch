@@ -1,6 +1,6 @@
-From 2c478671e1e3859ba5ec867efb0f3385729c70f8 Mon Sep 17 00:00:00 2001
+From 2374d6ded87d311ef6b11145235ccd0e7c82ed24 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sat, 30 Oct 2021 17:03:52 +0200
+Date: Tue, 8 Feb 2022 17:15:10 +0100
 Subject: [PATCH] removed arm from jit_arches
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] removed arm from jit_arches
  1 file changed, 8 insertions(+), 4 deletions(-)
 
 diff --git a/SPECS/java-11-openjdk.spec b/SPECS/java-11-openjdk.spec
-index b16fce4..e362889 100644
+index 54019ff..c83277a 100644
 --- a/SPECS/java-11-openjdk.spec
 +++ b/SPECS/java-11-openjdk.spec
 @@ -87,7 +87,7 @@
@@ -38,7 +38,7 @@ index b16fce4..e362889 100644
  # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
  # and this change was brought into RHEL-4. java-1.5.0-ibm packages
  # also included the epoch in their virtual provides. This created a
-@@ -1815,7 +1815,7 @@ done
+@@ -1819,7 +1819,7 @@ done
  # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
  # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
  # Temporarily disabled on s390x as it sporadically crashes with SIGFPE, Arithmetic exception.
@@ -47,17 +47,17 @@ index b16fce4..e362889 100644
  gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
  handle SIGSEGV pass nostop noprint
  handle SIGILL pass nostop noprint
-@@ -2152,6 +2152,10 @@ require "copy_jdk_configs.lua"
+@@ -2156,6 +2156,10 @@ require "copy_jdk_configs.lua"
  %endif
  
  %changelog
-+* Sat Oct 30 2021 Jacco Ligthart <jacco@redsleeve.org> - 1:11.0.13.0.8-1.redsleeve
++* Tue Feb 08 2022 Jacco Ligthart <jacco@redsleeve.org> - 1:11.0.14.0.9-1.redsleeve
 +- removed arm from jit_arches
 +- removed the gdb section of the SPEC file
 +
- * Wed Oct 13 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.13.0.8-1
- - Revert addition of libharfbuzz.so after its removal by JDK-8255790
- - Resolves: rhbz#2012332
+ * Mon Jan 17 2022 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.14.0.9-1
+ - Update to jdk-11.0.14.0+9
+ - Update release notes to 11.0.14.0+9
 -- 
 1.8.3.1
 
