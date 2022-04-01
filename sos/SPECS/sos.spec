@@ -1,8 +1,9 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
+%global __python /usr/bin/python2
 Summary: A set of tools to gather troubleshooting information from a system
 Name: sos
 Version: 3.9
-Release: 5%{?dist}.7.redsleeve
+Release: 5%{?dist}.10.redsleeve
 Group: Applications/System
 Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
 License: GPLv2+
@@ -54,7 +55,8 @@ Patch31: sos-bz1964000-foreman-collect-all-apache-foreman.patch
 Patch32: sos-bz1964000-foreman-follow-sizelimit-to-foreman-maintain-and-installer-logs.patch
 Patch33: sos-bz1946641-sssd-plugin-when-sssd-common.patch
 Patch34: sos-bz1959781-migrationresults-new-plugin.patch
-Patch35: sos-redsleeve-branding.patch
+Patch35: sos-bz2011337-dropbox-to-sftp.patch
+Patch36: sos-redsleeve-branding.patch
 
 %description
 Sos is a set of tools that gathers information about system
@@ -100,6 +102,7 @@ support technicians and developers.
 %patch33 -p1
 %patch34 -p1
 %patch35 -p1
+%patch36 -p1
 
 %build
 make
@@ -123,11 +126,23 @@ rm -rf ${RPM_BUILD_ROOT}
 %config(noreplace) %{_sysconfdir}/sos.conf
 
 %changelog
-* Tue Aug 31 2021 Jacco Ligthart <jacco@redsleeve.org> - 3.9-5.el7.7.redsleeve
+* Fri Feb 25 2022 Jacco Ligthart <jacco@redsleeve.org> - 3.9-5.el7.10.redsleeve
 - Roll in RedSleeve Branding
 
-* Tue Aug 31 2021 CentOS Sources <bugs@centos.org> - 3.9-5.el7.centos.7
+* Tue Feb 22 2022 CentOS Sources <bugs@centos.org> - 3.9-5.el7.centos.10
 - Roll in CentOS Branding
+
+* Fri Jan 07 2022 Barbora Vassova <bvassova@redhat.com = 3.9-5.10
+- [report] Handle exceptionally old pexpect versions
+  Resolves: bz2011337
+
+* Tue Dec 07 2021 Barbora Vassova <bvassova@redhat.com = 3.9-5.9
+- [Red Hat] SFTP api change
+  Resolves: bz2011337
+
+* Wed Oct 20 2021 Pavel Moravec <pmoravec@redhat.com = 3.9-5.8
+- [Red Hat] Update policy to use SFTP instead of legacy FTP
+  Resolves: bz2011337
 
 * Sat Aug 07 2021 Jan Jansky <jjansky@redhat.com> = 3.9-5.7
 - [migrationresults] new plugin

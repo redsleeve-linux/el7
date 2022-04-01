@@ -1,20 +1,20 @@
-From 5a3624898a0650e03031dc28293727ab106c3d9b Mon Sep 17 00:00:00 2001
+From 4ea667b4aa27e3e5e5f7ca2b84e3349a81f00901 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Wed, 1 Sep 2021 00:30:18 +0200
+Date: Fri, 25 Feb 2022 22:06:06 +0100
 Subject: [PATCH] Roll in RedSleeve Branding
 
 ---
- SOURCES/sos-redsleeve-branding.patch | 150 +++++++++++++++++++++++++++++++++++
+ SOURCES/sos-redsleeve-branding.patch | 162 +++++++++++++++++++++++++++++++++++
  SPECS/sos.spec                       |   7 +-
- 2 files changed, 155 insertions(+), 2 deletions(-)
+ 2 files changed, 167 insertions(+), 2 deletions(-)
  create mode 100644 SOURCES/sos-redsleeve-branding.patch
 
 diff --git a/SOURCES/sos-redsleeve-branding.patch b/SOURCES/sos-redsleeve-branding.patch
 new file mode 100644
-index 0000000..afcc95a
+index 0000000..c831889
 --- /dev/null
 +++ b/SOURCES/sos-redsleeve-branding.patch
-@@ -0,0 +1,150 @@
+@@ -0,0 +1,162 @@
 +diff -uNrp sos-3.9.orig/sos/policies/redhat.py sos-3.9/sos/policies/redhat.py
 +--- sos-3.9.orig/sos/policies/redhat.py	2020-03-24 15:33:13.000000000 +0000
 ++++ sos-3.9/sos/policies/redhat.py	2020-10-03 12:48:32.088747085 +0000
@@ -83,15 +83,6 @@ index 0000000..afcc95a
 +             release string at the beginning of the NAME field in the
 +             `/etc/os-release` file and returns ``True`` if it is
 +             found, and ``False`` otherwise.
-+@@ -334,7 +334,7 @@ support representative.
-+ 
-+     def get_upload_url_string(self):
-+         if self.get_upload_url().startswith(RH_API_HOST):
-+-            return "Red Hat Customer Portal"
-++            return "Customer Portal"
-+         return self.upload_url or RH_FTP_HOST
-+ 
-+     def get_upload_user(self):
 +@@ -389,7 +389,7 @@ class CentOsPolicy(RHELPolicy):
 + 
 + ATOMIC = "atomic"
@@ -156,45 +147,66 @@ index 0000000..afcc95a
 +         return False
 + 
 +     def check_usrmove(self, pkgs):
-+@@ -309,7 +309,7 @@ support representative.
++diff -uNrp sos-3.9.orig/sos/policies/redhat.py sos-3.9/sos/policies/redhat.py
++--- sos-3.9.orig/sos/policies/redhat.py	2022-02-23 17:25:33.120951926 +0000
+++++ sos-3.9/sos/policies/redhat.py	2022-02-23 17:27:58.698344937 +0000
++@@ -313,7 +313,7 @@ support representative.
 +             return
 +         if self.case_id:
 +             self.upload_user = input(_(
-+-                "Enter your Red Hat Customer Portal username (empty to use "
-++                "Enter your Customer Portal username (empty to use "
-+                 "public dropbox): ")
++-                "Enter your Red Hat Customer Portal username for uploading ["
+++                "Enter your Customer Portal username for uploading ["
++                 "empty for anonymous SFTP]: ")
 +             )
-+             if not self.upload_user:
++ 
++@@ -335,7 +335,7 @@ support representative.
++ 
++     def get_upload_url_string(self):
++         if self.get_upload_url().startswith(RH_API_HOST):
++-            return "Red Hat Customer Portal"
+++            return "Customer Portal"
++         elif self.get_upload_url().startswith(RH_SFTP_HOST):
++             return "Red Hat Secure FTP"
++         return self.upload_url
++@@ -403,7 +403,7 @@ support representative.
++             if not self.upload_url.startswith(RH_API_HOST):
++                 raise
++             else:
++-                print("Upload to Red Hat Customer Portal failed. Trying %s"
+++                print("Upload to Customer Portal failed. Trying %s"
++                       % RH_SFTP_HOST)
++                 self.upload_url = RH_SFTP_HOST
++                 uploaded = super(RHELPolicy, self).upload_archive(archive)
 diff --git a/SPECS/sos.spec b/SPECS/sos.spec
-index 798c72e..3b51ed4 100644
+index 03ffb0e..68302b8 100644
 --- a/SPECS/sos.spec
 +++ b/SPECS/sos.spec
-@@ -2,7 +2,7 @@
+@@ -3,7 +3,7 @@
  Summary: A set of tools to gather troubleshooting information from a system
  Name: sos
  Version: 3.9
--Release: 5%{?dist}.7
-+Release: 5%{?dist}.7.redsleeve
+-Release: 5%{?dist}.10
++Release: 5%{?dist}.10.redsleeve
  Group: Applications/System
  Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
  License: GPLv2+
-@@ -54,7 +54,7 @@ Patch31: sos-bz1964000-foreman-collect-all-apache-foreman.patch
- Patch32: sos-bz1964000-foreman-follow-sizelimit-to-foreman-maintain-and-installer-logs.patch
+@@ -56,7 +56,7 @@ Patch32: sos-bz1964000-foreman-follow-sizelimit-to-foreman-maintain-and-installe
  Patch33: sos-bz1946641-sssd-plugin-when-sssd-common.patch
  Patch34: sos-bz1959781-migrationresults-new-plugin.patch
--Patch35: sos-centos-branding.patch
-+Patch35: sos-redsleeve-branding.patch
+ Patch35: sos-bz2011337-dropbox-to-sftp.patch
+-Patch36: sos-centos-branding.patch
++Patch36: sos-redsleeve-branding.patch
  
  %description
  Sos is a set of tools that gathers information about system
-@@ -123,6 +123,9 @@ rm -rf ${RPM_BUILD_ROOT}
+@@ -126,6 +126,9 @@ rm -rf ${RPM_BUILD_ROOT}
  %config(noreplace) %{_sysconfdir}/sos.conf
  
  %changelog
-+* Tue Aug 31 2021 Jacco Ligthart <jacco@redsleeve.org> - 3.9-5.el7.7.redsleeve
++* Fri Feb 25 2022 Jacco Ligthart <jacco@redsleeve.org> - 3.9-5.el7.10.redsleeve
 +- Roll in RedSleeve Branding
 +
- * Tue Aug 31 2021 CentOS Sources <bugs@centos.org> - 3.9-5.el7.centos.7
+ * Tue Feb 22 2022 CentOS Sources <bugs@centos.org> - 3.9-5.el7.centos.10
  - Roll in CentOS Branding
  
 -- 

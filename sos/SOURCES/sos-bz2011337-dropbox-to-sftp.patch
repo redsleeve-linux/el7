@@ -1,0 +1,605 @@
+From a0d7fc6560439fc6de7ae7d246604c7b8f605182 Mon Sep 17 00:00:00 2001
+From: Pavel Moravec <pmoravec@redhat.com>
+Date: Wed, 6 Oct 2021 14:05:53 +0200
+Subject: [PATCH] [Red Hat] Update policy to use SFTP instead of legacy FTP
+ dropbox
+
+This is a backport of #2552 / #2467 to reflect on python2 systems the
+planned FTP dropbox replacement by SFTP system.
+
+Related: #2552
+Resolves: #2715
+
+Signed-off-by: Pavel Moravec <pmoravec@redhat.com>
+---
+ man/en/sosreport.1       |  14 +++++
+ sos/__init__.py          |   6 +-
+ sos/policies/__init__.py | 115 ++++++++++++++++++++++++++++++++++---
+ sos/policies/redhat.py   | 121 ++++++++++++++++++++++++++++-----------
+ sos/sosreport.py         |   3 +
+ 5 files changed, 215 insertions(+), 44 deletions(-)
+
+diff --git a/man/en/sosreport.1 b/man/en/sosreport.1
+index 4f7185f1..210f073f 100644
+--- a/man/en/sosreport.1
++++ b/man/en/sosreport.1
+@@ -32,6 +32,7 @@ sosreport \- Collect and package diagnostic and support data
+           [--encrypt-pass PASS]\fR
+           [--upload] [--upload-url url] [--upload-user user]\fR
+           [--upload-directory dir] [--upload-pass pass]\fR
++          [--upload-protocol protocol]\fR
+           [--experimental]\fR
+           [-h|--help]\fR
+ 
+@@ -314,6 +315,19 @@ when prompted rather than using this option.
+ Specify a directory to upload to, if one is not specified by a vendor default location
+ or if your destination server does not allow writes to '/'.
+ .TP
++.B \--upload-protocol PROTO
++Manually specify the protocol to use for uploading to the target \fBupload-url\fR.
++
++Normally this is determined via the upload address, assuming that the protocol is part
++of the address provided, e.g. 'https://example.com'. By using this option, sos will skip
++the protocol check and use the method defined for the specified PROTO.
++
++For RHEL systems, setting this option to \fBsftp\fR will skip the initial attempt to
++upload to the Red Hat Customer Portal, and only attempt an upload to Red Hat's SFTP server,
++which is typically used as a fallback target.
++
++Valid values for PROTO are: 'auto' (default), 'https', 'ftp', 'sftp'.
++.TP
+ .B \--experimental
+ Enable plugins marked as experimental. Experimental plugins may not have
+ been tested for this port or may still be under active development.
+diff --git a/sos/__init__.py b/sos/__init__.py
+index 111e066e..b4abf533 100644
+--- a/sos/__init__.py
++++ b/sos/__init__.py
+@@ -58,7 +58,7 @@ _arg_names = [
+     'no_postproc', 'note', 'onlyplugins', 'plugin_timeout', 'plugopts',
+     'preset', 'profiles', 'quiet', 'since', 'sysroot', 'threads', 'tmp_dir',
+     'upload', 'upload_url', 'upload_directory', 'upload_user', 'upload_pass',
+-    'verbosity', 'verify'
++    'upload_protocol', 'verbosity', 'verify'
+ ]
+ 
+ #: Arguments with non-zero default values
+@@ -69,7 +69,8 @@ _arg_defaults = {
+     "preset": "auto",
+     # Verbosity has an explicit zero default since the ArgumentParser
+     # count action default is None.
+-    "verbosity": 0
++    "verbosity": 0,
++    "upload_protocol": "auto"
+ }
+ 
+ 
+@@ -200,6 +201,7 @@ class SoSOptions(object):
+         self.upload_directory = ""
+         self.upload_user = ""
+         self.upload_pass = ""
++        self.upload_protocol = _arg_defaults["upload_protocol"]
+         self.verbosity = _arg_defaults["verbosity"]
+         self.verify = False
+         self._nondefault = set()
+diff --git a/sos/policies/__init__.py b/sos/policies/__init__.py
+index 1579ff5d..acda6379 100644
+--- a/sos/policies/__init__.py
++++ b/sos/policies/__init__.py
+@@ -15,7 +15,8 @@ from pwd import getpwuid
+ from sos.utilities import (ImporterHelper,
+                            import_module,
+                            shell_out,
+-                           sos_get_command_output)
++                           sos_get_command_output,
++                           is_executable)
+ from sos.plugins import IndependentPlugin, ExperimentalPlugin
+ from sos import _sos as _
+ from sos import SoSOptions, _arg_names
+@@ -944,6 +945,7 @@ class LinuxPolicy(Policy):
+         self.upload_user = cmdline_opts.upload_user
+         self.upload_directory = cmdline_opts.upload_directory
+         self.upload_password = cmdline_opts.upload_pass
++        self.upload_archive_name = ''
+ 
+         if not cmdline_opts.batch and not \
+                 cmdline_opts.quiet:
+@@ -1029,7 +1031,7 @@ class LinuxPolicy(Policy):
+                                             this method
+ 
+         """
+-        self.upload_archive = archive
++        self.upload_archive_name = archive
+         if not self.upload_url:
+             self.upload_url = self.get_upload_url()
+         if not self.upload_url:
+@@ -1051,7 +1053,9 @@ class LinuxPolicy(Policy):
+             'sftp': self.upload_sftp,
+             'https': self.upload_https
+         }
+-        if '://' not in self.upload_url:
++        if self.commons['cmdlineopts'].upload_protocol in prots.keys():
++            return prots[self.commons['cmdlineopts'].upload_protocol]
++        elif '://' not in self.upload_url:
+             raise Exception("Must provide protocol in upload URL")
+         prot, url = self.upload_url.split('://')
+         if prot not in prots.keys():
+@@ -1092,7 +1096,7 @@ class LinuxPolicy(Policy):
+         """
+         return self.upload_password or self._upload_password
+ 
+-    def upload_sftp(self):
++    def upload_sftp(self, user=None, password=None):
+         """Attempts to upload the archive to an SFTP location.
+ 
+         Due to the lack of well maintained, secure, and generally widespread
+@@ -1102,7 +1106,102 @@ class LinuxPolicy(Policy):
+         Do not override this method with one that uses python-paramiko, as the
+         upstream sos team will reject any PR that includes that dependency.
+         """
+-        raise NotImplementedError("SFTP support is not yet implemented")
++        # if we somehow don't have sftp available locally, fail early
++        if not is_executable('sftp'):
++            raise Exception('SFTP is not locally supported')
++
++        # soft dependency on python-pexpect, which we need to use to control
++        # sftp login since as of this writing we don't have a viable solution
++        # via ssh python bindings commonly available among downstreams
++        try:
++            import pexpect
++        except ImportError:
++            raise Exception('SFTP upload requires python-pexpect, which is '
++                            'not currently installed')
++
++        sftp_connected = False
++
++        if not user:
++            user = self.get_upload_user()
++        if not password:
++            password = self.get_upload_password()
++
++        # need to strip the protocol prefix here
++        sftp_url = self.get_upload_url().replace('sftp://', '')
++        sftp_cmd = "sftp -oStrictHostKeyChecking=no %s@%s" % (user, sftp_url)
++        ret = pexpect.spawn(sftp_cmd, encoding='utf-8')
++
++        sftp_expects = [
++            u'sftp>',
++            u'password:',
++            u'Connection refused',
++            pexpect.TIMEOUT,
++            pexpect.EOF
++        ]
++
++        idx = ret.expect(sftp_expects, timeout=15)
++
++        if idx == 0:
++            sftp_connected = True
++        elif idx == 1:
++            ret.sendline(password)
++            pass_expects = [
++                u'sftp>',
++                u'Permission denied',
++                pexpect.TIMEOUT,
++                pexpect.EOF
++            ]
++            sftp_connected = ret.expect(pass_expects, timeout=10) == 0
++            if not sftp_connected:
++                ret.close()
++                raise Exception("Incorrect username or password for %s"
++                                % self.get_upload_url_string())
++        elif idx == 2:
++            raise Exception("Connection refused by %s. Incorrect port?"
++                            % self.get_upload_url_string())
++        elif idx == 3:
++            raise Exception("Timeout hit trying to connect to %s"
++                            % self.get_upload_url_string())
++        elif idx == 4:
++            raise Exception("Unexpected error trying to connect to sftp: %s"
++                            % ret.before)
++
++        if not sftp_connected:
++            ret.close()
++            raise Exception("Unable to connect via SFTP to %s"
++                            % self.get_upload_url_string())
++
++        put_cmd = 'put %s %s' % (self.upload_archive_name,
++                                 self._get_sftp_upload_name())
++        ret.sendline(put_cmd)
++
++        put_expects = [
++            u'100%',
++            pexpect.TIMEOUT,
++            pexpect.EOF
++        ]
++
++        put_success = ret.expect(put_expects, timeout=180)
++
++        if put_success == 0:
++            ret.sendline('bye')
++            return True
++        elif put_success == 1:
++            raise Exception("Timeout expired while uploading")
++        elif put_success == 2:
++            raise Exception("Unknown error during upload: %s" % ret.before)
++        else:
++            raise Exception("Unexpected response from server: %s" % ret.before)
++
++    def _get_sftp_upload_name(self):
++        """If a specific file name pattern is required by the SFTP server,
++        override this method in the relevant Policy. Otherwise the archive's
++        name on disk will be used
++
++        :returns:       Filename as it will exist on the SFTP server
++        :rtype:         ``str``
++        """
++        return self.upload_archive_name.split('/')[-1]
+ 
+     def _upload_https_streaming(self, archive):
+         """If upload_https() needs to use requests.put(), this method is used
+@@ -1148,7 +1247,7 @@ class LinuxPolicy(Policy):
+             raise Exception("Unable to upload due to missing python requests "
+                             "library")
+ 
+-        with open(self.upload_archive, 'rb') as arc:
++        with open(self.upload_archive_name, 'rb') as arc:
+             if not self._use_https_streaming:
+                 r = self._upload_https_no_stream(arc)
+             else:
+@@ -1214,9 +1313,9 @@ class LinuxPolicy(Policy):
+                                 % directory)
+ 
+         try:
+-            with open(self.upload_archive, 'rb') as _arcfile:
++            with open(self.upload_archive_name, 'rb') as _arcfile:
+                 session.storbinary(
+-                    "STOR %s" % self.upload_archive.split('/')[-1],
++                    "STOR %s" % self.upload_archive_name.split('/')[-1],
+                     _arcfile
+                 )
+             session.quit()
+diff --git a/sos/policies/redhat.py b/sos/policies/redhat.py
+index 3412f445..4da96894 100644
+--- a/sos/policies/redhat.py
++++ b/sos/policies/redhat.py
+@@ -10,6 +10,7 @@
+ 
+ # This enables the use of with syntax in python 2.5 (e.g. jython)
+ from __future__ import print_function
++import json
+ import os
+ import sys
+ import re
+@@ -19,6 +20,12 @@ from sos.policies import LinuxPolicy, PackageManager, PresetDefaults
+ from sos import _sos as _
+ from sos import SoSOptions
+ 
++try:
++    import requests
++    REQUESTS_LOADED = True
++except ImportError:
++    REQUESTS_LOADED = False
++
+ OS_RELEASE = "/etc/os-release"
+ 
+ # In python2.7, input() will not properly return strings, and on python3.x
+@@ -44,9 +51,8 @@ class RedHatPolicy(LinuxPolicy):
+     _host_sysroot = '/'
+     default_scl_prefix = '/opt/rh'
+     name_pattern = 'friendly'
+-    upload_url = 'dropbox.redhat.com'
+-    upload_user = 'anonymous'
+-    upload_directory = '/incoming'
++    upload_url = None
++    upload_user = None
+ 
+     def __init__(self, sysroot=None):
+         super(RedHatPolicy, self).__init__(sysroot=sysroot)
+@@ -252,7 +258,7 @@ No changes will be made to system configuration.
+ """
+ 
+ RH_API_HOST = "https://access.redhat.com"
+-RH_FTP_HOST = "ftp://dropbox.redhat.com"
++RH_SFTP_HOST = "sftp://sftp.access.redhat.com"
+ 
+ 
+ class RHELPolicy(RedHatPolicy):
+@@ -268,9 +274,7 @@ An archive containing the collected information will be \
+ generated in %(tmpdir)s and may be provided to a %(vendor)s \
+ support representative.
+ """ + disclaimer_text + "%(vendor_text)s\n")
+-    _upload_url = RH_FTP_HOST
+-    _upload_user = 'anonymous'
+-    _upload_directory = '/incoming'
++    _upload_url = RH_SFTP_HOST
+ 
+     def __init__(self, sysroot=None):
+         super(RHELPolicy, self).__init__(sysroot=sysroot)
+@@ -309,33 +313,17 @@ support representative.
+             return
+         if self.case_id:
+             self.upload_user = input(_(
+-                "Enter your Red Hat Customer Portal username (empty to use "
+-                "public dropbox): ")
++                "Enter your Red Hat Customer Portal username for uploading ["
++                "empty for anonymous SFTP]: ")
+             )
+-            if not self.upload_user:
+-                self.upload_url = RH_FTP_HOST
+-                self.upload_user = self._upload_user
+-
+-    def _upload_user_set(self):
+-        user = self.get_upload_user()
+-        return user and (user != 'anonymous')
+ 
+     def get_upload_url(self):
+         if self.upload_url:
+             return self.upload_url
+-        if self.commons['cmdlineopts'].upload_url:
++        elif self.commons['cmdlineopts'].upload_url:
+             return self.commons['cmdlineopts'].upload_url
+-        # anonymous FTP server should be used as fallback when either:
+-        # - case id is not set, or
+-        # - upload user isn't set AND batch mode prevents to prompt for it
+-        if (not self.case_id) or \
+-           ((not self._upload_user_set()) and
+-               self.commons['cmdlineopts'].batch):
+-            self.upload_user = self._upload_user
+-            if self.upload_directory is None:
+-                self.upload_directory = self._upload_directory
+-            self.upload_password = None
+-            return RH_FTP_HOST
++        elif self.commons['cmdlineopts'].upload_protocol == 'sftp':
++            return RH_SFTP_HOST
+         else:
+             rh_case_api = "/hydra/rest/cases/%s/attachments"
+             return RH_API_HOST + rh_case_api % self.case_id
+@@ -348,13 +336,78 @@ support representative.
+     def get_upload_url_string(self):
+         if self.get_upload_url().startswith(RH_API_HOST):
+             return "Red Hat Customer Portal"
+-        return self.upload_url or RH_FTP_HOST
++        elif self.get_upload_url().startswith(RH_SFTP_HOST):
++            return "Red Hat Secure FTP"
++        return self.upload_url
+ 
+-    def get_upload_user(self):
+-        # if this is anything other than dropbox, annonymous won't work
+-        if self.upload_url != RH_FTP_HOST:
+-            return self.upload_user
+-        return self._upload_user
++    def _get_sftp_upload_name(self):
++        """The RH SFTP server will only automatically connect file uploads to
++        cases if the filename _starts_ with the case number
++        """
++        if self.case_id:
++            return "%s_%s" % (self.case_id,
++                              self.upload_archive_name.split('/')[-1])
++        return self.upload_archive_name
++
++    def upload_sftp(self):
++        """Override the base upload_sftp to allow for setting an on-demand
++        generated anonymous login for the RH SFTP server if a username and
++        password are not given
++        """
++        if RH_SFTP_HOST.split('//')[1] not in self.get_upload_url():
++            return super(RHELPolicy, self).upload_sftp()
++
++        if not REQUESTS_LOADED:
++            raise Exception("python-requests is not installed and is required"
++                            " for obtaining SFTP auth token.")
++        _token = None
++        _user = None
++        # we have a username and password, but we need to reset the password
++        # to be the token returned from the auth endpoint
++        if self.get_upload_user() and self.get_upload_password():
++            url = RH_API_HOST + '/hydra/rest/v1/sftp/token'
++            auth = self.get_upload_https_auth()
++            ret = requests.get(url, auth=auth, timeout=10)
++            if ret.status_code == 200:
++                # credentials are valid
++                _user = self.get_upload_user()
++                _token = json.loads(ret.text)['token']
++            else:
++                print("Unable to retrieve Red Hat auth token using provided "
++                      "credentials. Will try anonymous.")
++        # we either do not have a username or password/token, or both
++        if not _token:
++            aurl = RH_API_HOST + '/hydra/rest/v1/sftp/token?isAnonymous=true'
++            anon = requests.get(aurl, timeout=10)
++            if anon.status_code == 200:
++                resp = json.loads(anon.text)
++                _user = resp['username']
++                _token = resp['token']
++                print("Using anonymous user %s for upload. Please inform your "
++                      "support engineer." % _user)
++        if _user and _token:
++            return super(RHELPolicy, self).upload_sftp(user=_user,
++                                                       password=_token)
++        raise Exception("Could not retrieve valid or anonymous credentials")
++
++    def upload_archive(self, archive):
++        """Override the base upload_archive to provide for automatic failover
++        from RHCP failures to the public RH dropbox
++        """
++        try:
++            if not self.get_upload_user() or not self.get_upload_password():
++                self.upload_url = RH_SFTP_HOST
++            uploaded = super(RHELPolicy, self).upload_archive(archive)
++        except Exception:
++            uploaded = False
++            if not self.upload_url.startswith(RH_API_HOST):
++                raise
++            else:
++                print("Upload to Red Hat Customer Portal failed. Trying %s"
++                      % RH_SFTP_HOST)
++                self.upload_url = RH_SFTP_HOST
++                uploaded = super(RHELPolicy, self).upload_archive(archive)
++        return uploaded
+ 
+     def dist_version(self):
+         try:
+diff --git a/sos/sosreport.py b/sos/sosreport.py
+index 5f3fb411..170129ea 100644
+--- a/sos/sosreport.py
++++ b/sos/sosreport.py
+@@ -255,6 +255,9 @@ def _get_parser():
+                         help="Username to authenticate to upload server with")
+     parser.add_argument("--upload-pass", default=None,
+                         help="Password to authenticate to upload server with")
++    parser.add_argument("--upload-protocol", default='auto',
++                        choices=['auto', 'https', 'ftp', 'sftp'],
++                        help="Manually specify the upload protocol")
+ 
+     # Group to make add/del preset exclusive
+     preset_grp = parser.add_mutually_exclusive_group()
+-- 
+2.31.1
+
+From 97de66bc3228b29ff33e5ba67733f15065705d89 Mon Sep 17 00:00:00 2001
+From: root <root@bvassova-satellite69.gsslab.brq.redhat.com>
+Date: Tue, 23 Nov 2021 11:44:33 +0100
+Subject: [PATCH] [redhat] SFTP api change Backporting SFTP related changes
+ from #2764 and #2772.
+
+Related to: #2764, #2772
+Resolves: #2771
+
+Signed-off-by: Barbora Vassova <bvassova@redhat.com>
+---
+ sos/policies/__init__.py |  7 +++++--
+ sos/policies/redhat.py   | 18 +++++++++---------
+ 2 files changed, 14 insertions(+), 11 deletions(-)
+
+diff --git a/sos/policies/__init__.py b/sos/policies/__init__.py
+index acda63795..d78e79cfc 100644
+--- a/sos/policies/__init__.py
++++ b/sos/policies/__init__.py
+@@ -1178,7 +1178,8 @@ def upload_sftp(self, user=None, password=None):
+         put_expects = [
+             u'100%',
+             pexpect.TIMEOUT,
+-            pexpect.EOF
++            pexpect.EOF,
++            u'No such file or directory'
+         ]
+ 
+         put_success = ret.expect(put_expects, timeout=180)
+@@ -1190,6 +1191,8 @@ def upload_sftp(self, user=None, password=None):
+             raise Exception("Timeout expired while uploading")
+         elif put_success == 2:
+             raise Exception("Unknown error during upload: %s" % ret.before)
++        elif put_success == 3:
++            raise Exception("Unable to write archive to destination")
+         else:
+             raise Exception("Unexpected response from server: %s" % ret.before)
+ 
+@@ -1252,7 +1255,7 @@ def upload_https(self):
+                 r = self._upload_https_no_stream(arc)
+             else:
+                 r = self._upload_https_streaming(arc)
+-            if r.status_code != 201:
++            if r.status_code != 200 and r.status_code != 201:
+                 if r.status_code == 401:
+                     raise Exception(
+                         "Authentication failed: invalid user credentials"
+diff --git a/sos/policies/redhat.py b/sos/policies/redhat.py
+index 4da968945..960e7cd2a 100644
+--- a/sos/policies/redhat.py
++++ b/sos/policies/redhat.py
+@@ -257,7 +257,7 @@ def get_tmp_dir(self, opt_tmp_dir):
+ No changes will be made to system configuration.
+ """
+ 
+-RH_API_HOST = "https://access.redhat.com"
++RH_API_HOST = "https://api.access.redhat.com"
+ RH_SFTP_HOST = "sftp://sftp.access.redhat.com"
+ 
+ 
+@@ -325,7 +325,7 @@ def get_upload_url(self):
+         elif self.commons['cmdlineopts'].upload_protocol == 'sftp':
+             return RH_SFTP_HOST
+         else:
+-            rh_case_api = "/hydra/rest/cases/%s/attachments"
++            rh_case_api = "/support/v1/cases/%s/attachments"
+             return RH_API_HOST + rh_case_api % self.case_id
+ 
+     def _get_upload_headers(self):
+@@ -344,10 +344,10 @@ def _get_sftp_upload_name(self):
+         """The RH SFTP server will only automatically connect file uploads to
+         cases if the filename _starts_ with the case number
+         """
++        fname = self.upload_archive_name.split('/')[-1]
+         if self.case_id:
+-            return "%s_%s" % (self.case_id,
+-                              self.upload_archive_name.split('/')[-1])
+-        return self.upload_archive_name
++            return "%s_%s" % (self.case_id, fname)
++        return fname
+ 
+     def upload_sftp(self):
+         """Override the base upload_sftp to allow for setting an on-demand
+@@ -362,12 +362,12 @@ def upload_sftp(self):
+                             " for obtaining SFTP auth token.")
+         _token = None
+         _user = None
++        url = RH_API_HOST + '/support/v2/sftp/token'
+         # we have a username and password, but we need to reset the password
+         # to be the token returned from the auth endpoint
+         if self.get_upload_user() and self.get_upload_password():
+-            url = RH_API_HOST + '/hydra/rest/v1/sftp/token'
+             auth = self.get_upload_https_auth()
+-            ret = requests.get(url, auth=auth, timeout=10)
++            ret = requests.post(url, auth=auth, timeout=10)
+             if ret.status_code == 200:
+                 # credentials are valid
+                 _user = self.get_upload_user()
+@@ -377,8 +377,8 @@ def upload_sftp(self):
+                       "credentials. Will try anonymous.")
+         # we either do not have a username or password/token, or both
+         if not _token:
+-            aurl = RH_API_HOST + '/hydra/rest/v1/sftp/token?isAnonymous=true'
+-            anon = requests.get(aurl, timeout=10)
++            adata = {"isAnonymous": True}
++            anon = requests.post(url, data=json.dumps(adata), timeout=10)
+             if anon.status_code == 200:
+                 resp = json.loads(anon.text)
+                 _user = resp['username']
+From f231f9e502b2f98910c864c6c9000ae499280051 Mon Sep 17 00:00:00 2001
+From: Jake Hunsaker <jhunsake@redhat.com>
+Date: Tue, 4 Jan 2022 11:16:57 -0500
+Subject: [PATCH] [report] Handle exceptionally old pexpect versions
+
+Depending on configuration, certain downstreams may provide pexpect 2.3
+or 4.6 (or later). The backport for SFTP upload support assumed a 4.x
+version pexpect, however 2.x does not support the `encoding` parameter
+to `pexpect.spawn()`.
+
+Add a version check to determine if that parameter needs to be used or
+not. Note that this does not need to be implemented against `main`, as
+all supported downstreams for `main` support a minimum version of 4.x.
+
+Signed-off-by: Jake Hunsaker <jhunsake@redhat.com>
+---
+ sos/policies/__init__.py | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/sos/policies/__init__.py b/sos/policies/__init__.py
+index d78e79cfc..562ccad25 100644
+--- a/sos/policies/__init__.py
++++ b/sos/policies/__init__.py
+@@ -1129,7 +1129,13 @@ def upload_sftp(self, user=None, password=None):
+         # need to strip the protocol prefix here
+         sftp_url = self.get_upload_url().replace('sftp://', '')
+         sftp_cmd = "sftp -oStrictHostKeyChecking=no %s@%s" % (user, sftp_url)
+-        ret = pexpect.spawn(sftp_cmd, encoding='utf-8')
++
++        if int(pexpect.__version__[0]) >= 4:
++            # newer expect requires decoding from subprocess
++            ret = pexpect.spawn(sftp_cmd, encoding='utf-8')
++        else:
++            # older pexpect does not
++            ret = pexpect.spawn(sftp_cmd)
+ 
+         sftp_expects = [
+             u'sftp>',
