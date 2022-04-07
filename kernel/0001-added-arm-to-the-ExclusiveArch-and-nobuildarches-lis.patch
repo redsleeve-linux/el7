@@ -1,6 +1,6 @@
-From 766fcc401ba32c369086382ecb35fc1b375316d9 Mon Sep 17 00:00:00 2001
+From a0068220ffa2b9988ad8b68d65c8f39d64bf874c Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Tue, 8 Feb 2022 17:33:54 +0100
+Date: Fri, 25 Feb 2022 22:03:09 +0100
 Subject: [PATCH] added arm to the ExclusiveArch and nobuildarches lists
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] added arm to the ExclusiveArch and nobuildarches lists
  1 file changed, 11 insertions(+), 3 deletions(-)
 
 diff --git a/SPECS/kernel.spec b/SPECS/kernel.spec
-index 4e190e4..f5804c6 100644
+index 6029b71..2736dee 100644
 --- a/SPECS/kernel.spec
 +++ b/SPECS/kernel.spec
 @@ -229,6 +229,11 @@ Summary: The Linux kernel
@@ -45,16 +45,16 @@ index 4e190e4..f5804c6 100644
  ExclusiveOS: Linux
  
  %kernel_reqprovconf
-@@ -1813,6 +1818,9 @@ fi
+@@ -1807,6 +1812,9 @@ fi
  %kernel_variant_files %{with_kdump} kdump
  
  %changelog
-+* Tue Feb 08 2022 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-1160.53.1.el7.redsleeve
++* Fri Feb 25 2022 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-1160.59.1.el7.redsleeve
 +- added arm to the ExclusiveArch and nobuildarches lists
 +
- * Thu Dec 16 2021 Rado Vrbovsky <rvrbovsk@redhat.com> [3.10.0-1160.53.1.el7]
- - fuse: fix live lock in fuse_iget() (Miklos Szeredi) [1952046]
- - fuse: fix bad inode (Miklos Szeredi) [1952046]
+ * Wed Feb 16 2022 Rado Vrbovsky <rvrbovsk@redhat.com> [3.10.0-1160.59.1.el7]
+ - Revert "Merge: Fix tasks stuck in IO waiting for buffer_head lock" (Rado Vrbovsky) [2030609]
+ 
 -- 
 1.8.3.1
 
