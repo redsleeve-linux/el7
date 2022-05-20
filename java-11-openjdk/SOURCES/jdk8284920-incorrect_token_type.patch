@@ -1,0 +1,104 @@
+From 34af291680f7554b16412205e7b47aa2f829b29c Mon Sep 17 00:00:00 2001
+From: Anton Kozlov <akozlov@azul.com>
+Date: Fri, 15 Apr 2022 14:07:52 +0300
+Subject: [PATCH] 8284920: Incorrect Token type causes XPath expression to
+ return empty result
+
+Backport-of: 0d3aea2f11df585b491ae5c07de9f66679601d58
+
+Reviewed-by:
+---
+ .../com/sun/org/apache/xpath/internal/compiler/Lexer.java | 4 ++--
+ .../com/sun/org/apache/xpath/internal/compiler/Token.java | 4 ++--
+ .../org/apache/xpath/internal/compiler/XPathParser.java   | 8 ++++----
+ 3 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git openjdk.orig/src/java.xml/share/classes/com/sun/org/apache/xpath/internal/compiler/Lexer.java openjdk/src/java.xml/share/classes/com/sun/org/apache/xpath/internal/compiler/Lexer.java
+index b7b3f419eb2..41b58da8e99 100644
+--- openjdk.orig/src/java.xml/share/classes/com/sun/org/apache/xpath/internal/compiler/Lexer.java
++++ openjdk/src/java.xml/share/classes/com/sun/org/apache/xpath/internal/compiler/Lexer.java
+@@ -360,7 +360,7 @@ class Lexer
+ 
+         addToTokenQueue(pat.substring(i, i + 1));
+         break;
+-      case Token.COLON :
++      case Token.COLON_CHAR:
+         if (i>0)
+         {
+           if (posOfNSSep == (i - 1))
+@@ -615,7 +615,7 @@ class Lexer
+         resetTokenMark(tokPos + 1);
+       }
+ 
+-      if (m_processor.lookahead(Token.COLON, 1))
++      if (m_processor.lookahead(Token.COLON_CHAR, 1))
+       {
+         tokPos += 2;
+       }
+diff --git openjdk.orig/src/java.xml/share/classes/com/sun/org/apache/xpath/internal/compiler/Token.java openjdk/src/java.xml/share/classes/com/sun/org/apache/xpath/internal/compiler/Token.java
+index 8c4fee146c6..7bce14e5770 100644
+--- openjdk.orig/src/java.xml/share/classes/com/sun/org/apache/xpath/internal/compiler/Token.java
++++ openjdk/src/java.xml/share/classes/com/sun/org/apache/xpath/internal/compiler/Token.java
+@@ -45,10 +45,9 @@ public final class Token {
+     static final char LPAREN = '(';
+     static final char RPAREN = ')';
+     static final char COMMA = ',';
+-    static final char DOT = '.';
+     static final char AT = '@';
+     static final char US = '_';
+-    static final char COLON = ':';
++    static final char COLON_CHAR = ':';
+     static final char SQ = '\'';
+     static final char DQ = '"';
+     static final char DOLLAR = '$';
+@@ -58,6 +57,7 @@ public final class Token {
+     static final String DIV = "div";
+     static final String MOD = "mod";
+     static final String QUO = "quo";
++    static final String DOT = ".";
+     static final String DDOT = "..";
+     static final String DCOLON = "::";
+     static final String ATTR = "attribute";
+diff --git openjdk.orig/src/java.xml/share/classes/com/sun/org/apache/xpath/internal/compiler/XPathParser.java openjdk/src/java.xml/share/classes/com/sun/org/apache/xpath/internal/compiler/XPathParser.java
+index c3f9e1494be..22192fd06f6 100644
+--- openjdk.orig/src/java.xml/share/classes/com/sun/org/apache/xpath/internal/compiler/XPathParser.java
++++ openjdk/src/java.xml/share/classes/com/sun/org/apache/xpath/internal/compiler/XPathParser.java
+@@ -1413,7 +1413,7 @@ public class XPathParser
+ 
+       matchFound = true;
+     }
+-    else if (lookahead(Token.LPAREN, 1) || (lookahead(Token.COLON, 1) && lookahead(Token.LPAREN, 3)))
++    else if (lookahead(Token.LPAREN, 1) || (lookahead(Token.COLON_CHAR, 1) && lookahead(Token.LPAREN, 3)))
+     {
+       matchFound = FunctionCall();
+     }
+@@ -1457,7 +1457,7 @@ public class XPathParser
+ 
+     int opPos = m_ops.getOp(OpMap.MAPINDEX_LENGTH);
+ 
+-    if (lookahead(Token.COLON, 1))
++    if (lookahead(Token.COLON_CHAR, 1))
+     {
+       appendOp(4, OpCodes.OP_EXTFUNCTION);
+ 
+@@ -1841,7 +1841,7 @@ public class XPathParser
+       m_ops.setOp(m_ops.getOp(OpMap.MAPINDEX_LENGTH), OpCodes.NODENAME);
+       m_ops.setOp(OpMap.MAPINDEX_LENGTH, m_ops.getOp(OpMap.MAPINDEX_LENGTH) + 1);
+ 
+-      if (lookahead(Token.COLON, 1))
++      if (lookahead(Token.COLON_CHAR, 1))
+       {
+         if (tokenIs(Token.STAR))
+         {
+@@ -1944,7 +1944,7 @@ public class XPathParser
+   protected void QName() throws TransformerException
+   {
+     // Namespace
+-    if(lookahead(Token.COLON, 1))
++    if(lookahead(Token.COLON_CHAR, 1))
+     {
+       m_ops.setOp(m_ops.getOp(OpMap.MAPINDEX_LENGTH), m_queueMark - 1);
+       m_ops.setOp(OpMap.MAPINDEX_LENGTH, m_ops.getOp(OpMap.MAPINDEX_LENGTH) + 1);
+-- 
+2.34.1
+
