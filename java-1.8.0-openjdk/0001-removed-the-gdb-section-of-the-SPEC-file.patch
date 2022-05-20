@@ -1,6 +1,6 @@
-From 17d802d2889425449f071081c6d4d9bd57936932 Mon Sep 17 00:00:00 2001
+From 3fb7617bd8e0144855e17814a6c922d227320ec4 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sat, 30 Oct 2021 17:00:02 +0200
+Date: Tue, 8 Feb 2022 17:18:10 +0100
 Subject: [PATCH] removed the gdb section of the SPEC file
 
 ---
@@ -8,10 +8,10 @@ Subject: [PATCH] removed the gdb section of the SPEC file
  1 file changed, 16 insertions(+), 13 deletions(-)
 
 diff --git a/SPECS/java-1.8.0-openjdk.spec b/SPECS/java-1.8.0-openjdk.spec
-index 3c5af08..0fbaef7 100644
+index 67a8f14..87e6915 100644
 --- a/SPECS/java-1.8.0-openjdk.spec
 +++ b/SPECS/java-1.8.0-openjdk.spec
-@@ -871,7 +871,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
+@@ -881,7 +881,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
  
  Name:    java-%{javaver}-%{origin}
  Version: %{javaver}.%{updatever}.%{buildver}
@@ -20,7 +20,7 @@ index 3c5af08..0fbaef7 100644
  # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
  # and this change was brought into RHEL-4. java-1.5.0-ibm packages
  # also included the epoch in their virtual provides. This created a
-@@ -1729,18 +1729,18 @@ done
+@@ -1743,18 +1743,18 @@ done
  # Using line number 1 might cause build problems. See:
  # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
  # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
@@ -51,16 +51,16 @@ index 3c5af08..0fbaef7 100644
  
  # Check src.zip has all sources. See RHBZ#1130490
  jar -tf $JAVA_HOME/src.zip | grep 'sun.misc.Unsafe'
-@@ -2169,6 +2169,9 @@ require "copy_jdk_configs.lua"
+@@ -2183,6 +2183,9 @@ require "copy_jdk_configs.lua"
  %endif
  
  %changelog
-+* Sat Oct 30 2021 Jacco Ligthart <jacco@redsleeve.org> 1:1.8.0.312.b07-1.redsleeve
++* Tue Feb 08 2022 Jacco Ligthart <jacco@redsleeve.org> 1:1.8.0.322.b06-1.redsleeve
 +- removed the gdb section of the SPEC file
 +
- * Fri Oct 15 2021 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.312.b07-1
- - Update to aarch64-shenandoah-jdk8u312-b07 (EA)
- - Update release notes for 8u312-b07.
+ * Fri Jan 21 2022 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.322.b06-1
+ - Update to aarch64-shenandoah-jdk8u322-b06 (EA)
+ - Update release notes for 8u322-b06.
 -- 
 1.8.3.1
 
