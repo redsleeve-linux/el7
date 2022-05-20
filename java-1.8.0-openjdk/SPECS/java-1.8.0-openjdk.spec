@@ -218,7 +218,7 @@
 # note, following three variables are sedded from update_sources if used correctly. Hardcode them rather there.
 %global shenandoah_project	openjdk
 %global shenandoah_repo		shenandoah-jdk8u
-%global shenandoah_revision    	aarch64-shenandoah-jdk8u322-b06
+%global shenandoah_revision    	shenandoah-jdk8u332-b09
 # Define old aarch64/jdk8u tree variables for compatibility
 %global project         %{shenandoah_project}
 %global repo            %{shenandoah_repo}
@@ -881,7 +881,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
 
 Name:    java-%{javaver}-%{origin}
 Version: %{javaver}.%{updatever}.%{buildver}
-Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}.redsleeve
+Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
 # and this change was brought into RHEL-4. java-1.5.0-ibm packages
 # also included the epoch in their virtual provides. This created a
@@ -1743,18 +1743,18 @@ done
 # Using line number 1 might cause build problems. See:
 # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
 # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
-#gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
-#handle SIGSEGV pass nostop noprint
-#handle SIGILL pass nostop noprint
-#set breakpoint pending on
-#break javaCalls.cpp:1
-#commands 1
-#backtrace
-#quit
-#end
-#run -version
-#EOF
-#grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
+gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
+handle SIGSEGV pass nostop noprint
+handle SIGILL pass nostop noprint
+set breakpoint pending on
+break javaCalls.cpp:1
+commands 1
+backtrace
+quit
+end
+run -version
+EOF
+grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
 
 # Check src.zip has all sources. See RHBZ#1130490
 jar -tf $JAVA_HOME/src.zip | grep 'sun.misc.Unsafe'
@@ -2183,8 +2183,23 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
-* Tue Feb 08 2022 Jacco Ligthart <jacco@redsleeve.org> 1:1.8.0.322.b06-1.redsleeve
-- removed the gdb section of the SPEC file
+* Mon Apr 18 2022 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.332.b09-1
+- Update to shenandoah-jdk8u332-b09 (GA)
+- Update release notes for 8u332-b09.
+- Switch to GA mode for final release.
+- This tarball is embargoed until 2022-04-19 @ 1pm PT.
+- Resolves: rhbz#2073422
+
+* Mon Apr 18 2022 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.332.b06-0.1.ea
+- Update to shenandoah-jdk8u332-b06 (EA)
+- Update release notes for shenandoah-8u332-b06.
+- Resolves: rhbz#2047529
+
+* Sun Apr 17 2022 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.332.b01-0.1.ea
+- Update to shenandoah-jdk8u332-b01 (EA)
+- Update release notes for shenandoah-8u332-b01.
+- Switch to EA mode.
+- Related: rhbz#2047529
 
 * Fri Jan 21 2022 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.322.b06-1
 - Update to aarch64-shenandoah-jdk8u322-b06 (EA)
