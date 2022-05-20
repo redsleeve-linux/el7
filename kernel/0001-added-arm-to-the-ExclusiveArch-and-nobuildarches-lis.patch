@@ -1,6 +1,6 @@
-From a0068220ffa2b9988ad8b68d65c8f39d64bf874c Mon Sep 17 00:00:00 2001
+From 4206c7fbc9e9f29a00d8694ff92aa44e94a66f78 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Fri, 25 Feb 2022 22:03:09 +0100
+Date: Thu, 7 Apr 2022 22:06:36 +0200
 Subject: [PATCH] added arm to the ExclusiveArch and nobuildarches lists
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] added arm to the ExclusiveArch and nobuildarches lists
  1 file changed, 11 insertions(+), 3 deletions(-)
 
 diff --git a/SPECS/kernel.spec b/SPECS/kernel.spec
-index 6029b71..2736dee 100644
+index ae5b2a6..34184b6 100644
 --- a/SPECS/kernel.spec
 +++ b/SPECS/kernel.spec
 @@ -229,6 +229,11 @@ Summary: The Linux kernel
@@ -45,16 +45,16 @@ index 6029b71..2736dee 100644
  ExclusiveOS: Linux
  
  %kernel_reqprovconf
-@@ -1807,6 +1812,9 @@ fi
+@@ -1810,6 +1815,9 @@ fi
  %kernel_variant_files %{with_kdump} kdump
  
  %changelog
-+* Fri Feb 25 2022 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-1160.59.1.el7.redsleeve
++* Thu Apr 07 2022 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-1160.62.1.el7.redsleeve
 +- added arm to the ExclusiveArch and nobuildarches lists
 +
- * Wed Feb 16 2022 Rado Vrbovsky <rvrbovsk@redhat.com> [3.10.0-1160.59.1.el7]
- - Revert "Merge: Fix tasks stuck in IO waiting for buffer_head lock" (Rado Vrbovsky) [2030609]
- 
+ * Wed Mar 23 2022 Rado Vrbovsky <rvrbovsk@redhat.com> [3.10.0-1160.62.1.el7]
+ - cifs: fix handling of DFS links where we can not access all components (Ronnie Sahlberg) [1937304]
+ - redhat: kernel.spec: install new kernel boot entry in posttrans, not post (Denys Vlasenko) [1893756]
 -- 
 1.8.3.1
 
