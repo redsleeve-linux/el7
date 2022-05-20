@@ -272,7 +272,7 @@
 %global featurever 11
 %global interimver 0
 %global updatever 14
-%global patchver 0
+%global patchver 1
 # If you bump featurever, you must bump also vendor_version_string
 # Used via new version scheme. JDK 11 was
 # GA'ed in September 2018 => 18.9
@@ -318,7 +318,7 @@
 %global origin_nice     OpenJDK
 %global top_level_dir_name   %{origin}
 %global top_level_dir_name_backup %{top_level_dir_name}-backup
-%global buildver        9
+%global buildver        1
 %global rpmrelease      1
 #%%global tagsuffix      %%{nil}
 # priority must be 7 digits in total
@@ -2156,9 +2156,14 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
-* Tue Feb 08 2022 Jacco Ligthart <jacco@redsleeve.org> - 1:11.0.14.0.9-1.redsleeve
+* Fri Feb 25 2022 Jacco Ligthart <jacco@redsleeve.org> - 1:11.0.14.1.1-1.redsleeve
 - removed arm from jit_arches
 - removed the gdb section of the SPEC file
+
+* Fri Feb 11 2022 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.14.1.1-1
+- Update to jdk-11.0.14.1+1
+- Update release notes to 11.0.14.1+1
+- Resolves: rhbz#2052805
 
 * Mon Jan 17 2022 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.14.0.9-1
 - Update to jdk-11.0.14.0+9
