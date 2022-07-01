@@ -114,7 +114,7 @@ Summary: An interpreted, interactive, object-oriented programming language
 Name: %{python}
 # Remember to also rebase python-docs when changing this:
 Version: 2.7.5
-Release: 90%{?dist}.redsleeve
+Release: 92%{?dist}
 License: Python
 Group: Development/Languages
 Requires: %{python}-libs%{?_isa} = %{version}-%{release}
@@ -960,7 +960,7 @@ Patch211: 00211-pep466-UTF-7-decoder-fix-illegal-unicode.patch
 # http://bugs.python.org/issue18184
 Patch212: 00212-pep466-pyunicode_fromformat-raise-overflow.patch
 # 00213 #
-# Fix %S, %R and %V formats of PyUnicode_FromFormat().
+# Fix %%S, %%R and %%V formats of PyUnicode_FromFormat().
 # http://bugs.python.org/issue122023
 Patch213: 00213-pep466-pyunicode_fromformat-fix-formats.patch
 # 00214 #
@@ -1334,6 +1334,61 @@ Patch344: 00344-CVE-2019-16935.patch
 # See: https://bugs.python.org/issue39017
 Patch351: 00351-cve-2019-20907-fix-infinite-loop-in-tarfile.patch
 
+# 00354 #
+# Reject control chars in HTTP method in httplib.putrequest to prevent
+# HTTP header injection
+#
+# Backported from Python 3.5-3.10 (and adjusted for py2's single-module httplib):
+# - https://bugs.python.org/issue39603
+Patch354: 00354-cve-2020-26116-http-request-method-crlf-injection-in-httplib.patch
+
+# 00357 #
+# Security fix for CVE-2021-3177
+# Stack-based buffer overflow in PyCArg_repr in _ctypes/callproc.c
+# Backported from the upstream python3 branches: https://bugs.python.org/issue42938
+Patch357: 00357-CVE-2021-3177.patch
+
+# 00377 #
+# CVE-2022-0391: urlparse does not sanitize URLs containing ASCII newline and tabs
+#
+# ASCII newline and tab characters are stripped from the URL.
+#
+# Backported from Python 3.
+#
+# Upstream: https://bugs.python.org/issue43882
+# Tracking bug: https://bugzilla.redhat.com/show_bug.cgi?id=2047376
+Patch377: 00377-CVE-2022-0391.patch
+
+# 00378 #
+# Support expat 2.4.5
+#
+# Curly brackets were never allowed in namespace URIs
+# according to RFC 3986, and so-called namespace-validating
+# XML parsers have the right to reject them a invalid URIs.
+#
+# libexpat >=2.4.5 has become strcter in that regard due to
+# related security issues; with ET.XML instantiating a
+# namespace-aware parser under the hood, this test has no
+# future in CPython.
+#
+# References:
+# - https://datatracker.ietf.org/doc/html/rfc3968
+# - https://www.w3.org/TR/xml-names/
+#
+# Also, test_minidom.py: Support Expat >=2.4.5
+#
+# Upstream: https://bugs.python.org/issue46811
+#
+# Backported from Python 3.
+Patch378: 00378-support-expat-2-4-5.patch
+
+# 00380 #
+# Update the certificates utilized in the test suite
+# Backported from upstream:
+# https://github.com/python/cpython/commit/1f34aece28d143edb94ca202e661364ca394dc8c
+# https://github.com/python/cpython/commit/49d65958e13db03b9a4240d8bdaff1a4be69a1d7
+Patch380: 00380-update-test-certs.patch
+
 # (New patches go here ^^^)
 #
 # When adding new patches to "python" and "python3" in Fedora 17 onwards,
@@ -1360,9 +1415,6 @@ Patch351: 00351-cve-2019-20907-fix-infinite-loop-in-tarfile.patch
 Patch5000: 05000-autotool-intermediates.patch
 
 Patch99999: 99999-python-2.7.5-issues-17979-17998.patch
-
-Patch6001: python-2.7.5-Fix-re-engine-redsleeve.patch
-Patch6002: python-2.7.5-Fix-re-engine2-redsleeve.patch
 
 # ======================================================
 # Additional metadata, and subpackages
@@ -1786,6 +1838,11 @@ mv Modules/cryptmodule.c Modules/_cryptmodule.c
 %patch330 -p1
 %patch332 -p1
 %patch344 -p1
+%patch354 -p1
+%patch357 -p1
+%patch377 -p1
+%patch378 -p1
+%patch380 -p1
 
 %ifarch %{arm} %{ix86} ppc
 %patch99999 -p1
@@ -1803,8 +1860,6 @@ find -name "*~" |xargs rm -f
 %patch5000 -p0 -b .autotool-intermediates
 %endif
 
-%patch6001 -p1
-%patch6002 -p1
 
 # ======================================================
 # Configuring and building the code:
@@ -2667,12 +2722,15 @@ rm -fr %{buildroot}
 # ======================================================
 
 %changelog
-* Thu Nov 19 2020 Jacco Ligthart <jacco@ligthart.nu> - 2.7.5-90.redsleeve
-- Issue #17998: Fix an internal error in regular expression engine.
-- https://github.com/OpenSCAP/scap-security-guide/issues/1332
-- https://bugs.python.org/issue17998
-- and related issue #18684
-- https://bugs.python.org/issue18684
+* Tue May 24 2022 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-92
+- Security fix for CVE-2021-3177
+Resolves: rhbz#1918168
+
+* Tue May 17 2022 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-91
+- Security fixes for CVE-2020-26116, CVE-2020-26137 and CVE-2022-0391
+- Test fixes for the latest expat security release
+- Update the certificates utilized in the test suite
+Resolves: rhbz#1883014, rhbz#1883632, rhbz#2047376, rhbz#1896494
 
 * Fri Jul 31 2020 Charalampos Stratakis <cstratak@redhat.com> - 2.7.5-90
 - Avoid infinite loop when reading specially crafted TAR files (CVE-2019-20907)
