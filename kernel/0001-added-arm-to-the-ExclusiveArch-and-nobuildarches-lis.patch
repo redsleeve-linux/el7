@@ -1,6 +1,6 @@
-From 4206c7fbc9e9f29a00d8694ff92aa44e94a66f78 Mon Sep 17 00:00:00 2001
+From e04152fd47464f506441ce12ccd50fcaa0d7649b Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Thu, 7 Apr 2022 22:06:36 +0200
+Date: Fri, 20 May 2022 23:37:56 +0200
 Subject: [PATCH] added arm to the ExclusiveArch and nobuildarches lists
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] added arm to the ExclusiveArch and nobuildarches lists
  1 file changed, 11 insertions(+), 3 deletions(-)
 
 diff --git a/SPECS/kernel.spec b/SPECS/kernel.spec
-index ae5b2a6..34184b6 100644
+index 66a7990..7e03bbc 100644
 --- a/SPECS/kernel.spec
 +++ b/SPECS/kernel.spec
 @@ -229,6 +229,11 @@ Summary: The Linux kernel
@@ -49,12 +49,12 @@ index ae5b2a6..34184b6 100644
  %kernel_variant_files %{with_kdump} kdump
  
  %changelog
-+* Thu Apr 07 2022 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-1160.62.1.el7.redsleeve
++* Fri May 20 2022 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-1160.66.1.el7.redsleeve
 +- added arm to the ExclusiveArch and nobuildarches lists
 +
- * Wed Mar 23 2022 Rado Vrbovsky <rvrbovsk@redhat.com> [3.10.0-1160.62.1.el7]
- - cifs: fix handling of DFS links where we can not access all components (Ronnie Sahlberg) [1937304]
- - redhat: kernel.spec: install new kernel boot entry in posttrans, not post (Denys Vlasenko) [1893756]
+ * Wed Apr 27 2022 Rado Vrbovsky <rvrbovsk@redhat.com> [3.10.0-1160.66.1.el7]
+ - net-sysfs: add check for netdevice being present to speed_show (William Zhao) [2055457]
+ - CI: Drop baseline runs (Veronika Kabatova)
 -- 
 1.8.3.1
 
