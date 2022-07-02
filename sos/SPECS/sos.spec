@@ -3,7 +3,7 @@
 Summary: A set of tools to gather troubleshooting information from a system
 Name: sos
 Version: 3.9
-Release: 5%{?dist}.10.redsleeve
+Release: 5%{?dist}.11
 Group: Applications/System
 Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
 License: GPLv2+
@@ -56,7 +56,8 @@ Patch32: sos-bz1964000-foreman-follow-sizelimit-to-foreman-maintain-and-installe
 Patch33: sos-bz1946641-sssd-plugin-when-sssd-common.patch
 Patch34: sos-bz1959781-migrationresults-new-plugin.patch
 Patch35: sos-bz2011337-dropbox-to-sftp.patch
-Patch36: sos-redsleeve-branding.patch
+Patch36: sos-bz2043103-collect_decoded_dynflow_data.patch
+Patch37: sos-centos-branding.patch
 
 %description
 Sos is a set of tools that gathers information about system
@@ -103,6 +104,7 @@ support technicians and developers.
 %patch34 -p1
 %patch35 -p1
 %patch36 -p1
+%patch37 -p1
 
 %build
 make
@@ -126,11 +128,12 @@ rm -rf ${RPM_BUILD_ROOT}
 %config(noreplace) %{_sysconfdir}/sos.conf
 
 %changelog
-* Fri Feb 25 2022 Jacco Ligthart <jacco@redsleeve.org> - 3.9-5.el7.10.redsleeve
-- Roll in RedSleeve Branding
-
-* Tue Feb 22 2022 CentOS Sources <bugs@centos.org> - 3.9-5.el7.centos.10
+* Tue Jun 28 2022 CentOS Sources <bugs@centos.org> - 3.9-5.el7.centos.11
 - Roll in CentOS Branding
+
+* Wed Apr 06 2022 Barbora Vassova <bvassova@redhat.com> = 3.9-5.11
+- [foreman] Use psql-msgpack-decode wrapper for dynflow >= 1.6
+  Resolves: bz2043103
 
 * Fri Jan 07 2022 Barbora Vassova <bvassova@redhat.com = 3.9-5.10
 - [report] Handle exceptionally old pexpect versions
