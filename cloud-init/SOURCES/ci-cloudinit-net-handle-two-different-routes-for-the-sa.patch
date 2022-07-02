@@ -1,0 +1,92 @@
+From c85c5aa1c09bc4b78a015a2eb338a7fcb48ad4a3 Mon Sep 17 00:00:00 2001
+From: Emanuele Giuseppe Esposito <eesposit@redhat.com>
+Date: Mon, 13 Dec 2021 12:08:18 +0100
+Subject: [PATCH] cloudinit/net: handle two different routes for the same ip
+ (#1124)
+
+RH-Author: Emanuele Giuseppe Esposito <eesposit@redhat.com>
+RH-MergeRequest: 40: cloudinit/net: handle two different routes for the same ip (#1124)
+RH-Commit: [1/1] 5f1b03b15e7828a2bac80850ca70a72f981cdaa7
+RH-Bugzilla: 2003231
+RH-Acked-by: Eduardo Otubo <otubo@redhat.com>
+RH-Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Acked-by: Mohamed Gamal Morsy <mmorsy@redhat.com>
+
+commit 0e25076b34fa995161b83996e866c0974cee431f
+Author: Emanuele Giuseppe Esposito <eesposit@redhat.com>
+Date:   Mon Dec 6 18:34:26 2021 +0100
+
+    cloudinit/net: handle two different routes for the same ip (#1124)
+
+    If we set a dhcp server side like this:
+    $ cat /var/tmp/cloud-init/cloud-init-dhcp-f0rie5tm/dhcp.leases
+    lease {
+    ...
+    option classless-static-routes 31.169.254.169.254 0.0.0.0,31.169.254.169.254
+        10.112.143.127,22.10.112.140 0.0.0.0,0 10.112.140.1;
+    ...
+    }
+    cloud-init fails to configure the routes via 'ip route add' because to there are
+    two different routes for 169.254.169.254:
+
+    $ ip -4 route add 192.168.1.1/32 via 0.0.0.0 dev eth0
+    $ ip -4 route add 192.168.1.1/32 via 10.112.140.248 dev eth0
+
+    But NetworkManager can handle such scenario successfully as it uses "ip route append".
+    So change cloud-init to also use "ip route append" to fix the issue:
+
+    $ ip -4 route append 192.168.1.1/32 via 0.0.0.0 dev eth0
+    $ ip -4 route append 192.168.1.1/32 via 10.112.140.248 dev eth0
+
+    Signed-off-by: Emanuele Giuseppe Esposito <eesposit@redhat.com>
+
+    RHBZ: #2003231
+
+Conflicts:
+    cloudinit/net/tests/test_init.py: a mock call in
+    test_ephemeral_ipv4_network_with_rfc3442_static_routes is not
+    present downstream.
+
+    cloudinit/net/__init__.py: subp() method is implemented in util,
+    while in newer version it is implemented in subp file.
+
+Signed-off-by: Emanuele Giuseppe Esposito <eesposit@redhat.com>
+---
+ cloudinit/net/__init__.py        | 2 +-
+ cloudinit/net/tests/test_init.py | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/cloudinit/net/__init__.py b/cloudinit/net/__init__.py
+index bd806378..3d3f7108 100644
+--- a/cloudinit/net/__init__.py
++++ b/cloudinit/net/__init__.py
+@@ -970,7 +970,7 @@ class EphemeralIPv4Network(object):
+             if gateway != "0.0.0.0/0":
+                 via_arg = ['via', gateway]
+             util.subp(
+-                ['ip', '-4', 'route', 'add', net_address] + via_arg +
++                ['ip', '-4', 'route', 'append', net_address] + via_arg +
+                 ['dev', self.interface], capture=True)
+             self.cleanup_cmds.insert(
+                 0, ['ip', '-4', 'route', 'del', net_address] + via_arg +
+diff --git a/cloudinit/net/tests/test_init.py b/cloudinit/net/tests/test_init.py
+index 6db93e26..a0db549b 100644
+--- a/cloudinit/net/tests/test_init.py
++++ b/cloudinit/net/tests/test_init.py
+@@ -711,10 +711,10 @@ class TestEphemeralIPV4Network(CiTestCase):
+                 ['ip', '-family', 'inet', 'link', 'set', 'dev', 'eth0', 'up'],
+                 capture=True),
+             mock.call(
+-                ['ip', '-4', 'route', 'add', '169.254.169.254/32',
++                ['ip', '-4', 'route', 'append', '169.254.169.254/32',
+                  'via', '192.168.2.1', 'dev', 'eth0'], capture=True),
+             mock.call(
+-                ['ip', '-4', 'route', 'add', '0.0.0.0/0',
++                ['ip', '-4', 'route', 'append', '0.0.0.0/0',
+                  'via', '192.168.2.1', 'dev', 'eth0'], capture=True)]
+         expected_teardown_calls = [
+             mock.call(
+-- 
+2.27.0
+
