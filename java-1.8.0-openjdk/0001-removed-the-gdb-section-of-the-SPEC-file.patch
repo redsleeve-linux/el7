@@ -1,6 +1,6 @@
-From 3fb7617bd8e0144855e17814a6c922d227320ec4 Mon Sep 17 00:00:00 2001
+From 81ba1e9ced05dcedd5d713c886e1701517c31b08 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Tue, 8 Feb 2022 17:18:10 +0100
+Date: Fri, 20 May 2022 23:31:07 +0200
 Subject: [PATCH] removed the gdb section of the SPEC file
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] removed the gdb section of the SPEC file
  1 file changed, 16 insertions(+), 13 deletions(-)
 
 diff --git a/SPECS/java-1.8.0-openjdk.spec b/SPECS/java-1.8.0-openjdk.spec
-index 67a8f14..87e6915 100644
+index dfb3c81..29df9f8 100644
 --- a/SPECS/java-1.8.0-openjdk.spec
 +++ b/SPECS/java-1.8.0-openjdk.spec
 @@ -881,7 +881,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
@@ -55,12 +55,12 @@ index 67a8f14..87e6915 100644
  %endif
  
  %changelog
-+* Tue Feb 08 2022 Jacco Ligthart <jacco@redsleeve.org> 1:1.8.0.322.b06-1.redsleeve
++* Fri May 20 2022 Jacco Ligthart <jacco@redsleeve.org> 1:1.8.0.332.b09-1.redsleeve
 +- removed the gdb section of the SPEC file
 +
- * Fri Jan 21 2022 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.322.b06-1
- - Update to aarch64-shenandoah-jdk8u322-b06 (EA)
- - Update release notes for 8u322-b06.
+ * Mon Apr 18 2022 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.332.b09-1
+ - Update to shenandoah-jdk8u332-b09 (GA)
+ - Update release notes for 8u332-b09.
 -- 
 1.8.3.1
 

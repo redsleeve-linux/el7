@@ -13,7 +13,7 @@
 
 Name:           cloud-init
 Version:        19.4
-Release:        7%{?dist}.4.redsleeve
+Release:        7%{?dist}.5.redsleeve
 Summary:        Cloud instance init scripts
 
 Group:          System Environment/Base
@@ -64,6 +64,8 @@ Patch23: ci-DHCP-sandboxing-failing-on-noexec-mounted-var-tmp-52.patch
 Patch24: ci-network-Fix-type-and-respect-name-when-rendering-vla.patch
 # For bz#1900807 - Update existing user password RHEL7x
 Patch25: ci-DataSourceAzure-update-password-for-defuser-if-exist.patch
+# For bz#1897616 - [rhel-7]cloud-final.service fails if NetworkManager not installed.
+Patch26: ci-Fix-unit-failure-of-cloud-final.service-if-NetworkMa.patch
 
 Patch9999: cloud-init-redsleeve-user.patch
 
@@ -236,8 +238,13 @@ fi
 %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
 
 %changelog
-* Sat Mar 20 2021 Jacco Ligthart <jacco@redsleeve.org 19.4-7.el7.4.redsleeve
+* Tue Aug 31 2021 Jacco Ligthart <jacco@redsleeve.org 19.4-7.el7.5.redsleeve
 - rebrand for redsleeve
+
+* Tue Jun 29 2021 Miroslav Rezanina <mrezanin@redhat.com> - 19.4-7.el7_9.5
+- ci-Fix-unit-failure-of-cloud-final.service-if-NetworkMa.patch [bz#1897616]
+- Resolves: bz#1897616
+  ([rhel-7]cloud-final.service fails if NetworkManager not installed.)
 
 * Tue Feb 16 2021 Jon Maloy <jmaloy@redhat.com> - 19.4-7.el7_9.4
 - ci-DataSourceAzure-update-password-for-defuser-if-exist.patch [bz#1900807]

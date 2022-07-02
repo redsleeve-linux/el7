@@ -1,6 +1,6 @@
-From 7b712823f9ea06465167eb3e95a14d4d0739d56d Mon Sep 17 00:00:00 2001
+From 3e324a1974c9b90ae159b23acf4bbf892e41ba87 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sat, 3 Oct 2020 01:19:34 +0200
+Date: Wed, 1 Sep 2021 00:14:37 +0200
 Subject: [PATCH] Roll in RedSleeve Branding
 
 ---
@@ -30,35 +30,35 @@ index 0000000..cc034f5
 +   log_error ("exiting.");
 + #endif
 diff --git a/SPECS/dhcp.spec b/SPECS/dhcp.spec
-index c893632..a3352ca 100644
+index 99b750a..cc4eeb7 100644
 --- a/SPECS/dhcp.spec
 +++ b/SPECS/dhcp.spec
 @@ -18,7 +18,7 @@
  Summary:  Dynamic host configuration protocol software
  Name:     dhcp
  Version:  4.2.5
--Release:  82%{?dist}
-+Release:  82%{?dist}.redsleeve
+-Release:  83%{?dist}.1
++Release:  83%{?dist}.1.redsleeve
  # NEVER CHANGE THE EPOCH on this package.  The previous maintainer (prior to
  # dcantrell maintaining the package) made incorrect use of the epoch and
  # that's why it is at 12 now.  It should have never been used, but it was.
-@@ -120,7 +120,7 @@ Patch77:  dhcp-handle_ctx_signals.patch
- Patch78:  dhcp-system_time_changed.patch
+@@ -121,7 +121,7 @@ Patch78:  dhcp-system_time_changed.patch
  Patch79:  dhcp-close_file_in_noreplay.patch
  Patch80:  dhcp-resize_ldap_buffer.patch
--Patch81:  dhcp-4.2.5-centos-branding.patch
-+Patch81:  dhcp-4.2.5-redsleeve-branding.patch
+ Patch81:  dhcp-statement_parser.patch
+-Patch82:  dhcp-4.2.5-centos-branding.patch
++Patch82:  dhcp-4.2.5-redsleeve-branding.patch
  
  BuildRequires: autoconf
  BuildRequires: automake
-@@ -754,6 +754,9 @@ done
+@@ -757,6 +757,9 @@ done
  
  
  %changelog
-+* Fri Oct 02 2020 Jacco Ligthart <jacco@redsleeve.org> - 4.2.5-82.el7.redsleeve
++* Tue Aug 31 2021 Jacco Ligthart <jacco@redsleeve.org> - 4.2.5-83.el7.1.redsleeve
 +- Roll in RedSleeve Branding
 +
- * Tue Sep 29 2020 CentOS Sources <bugs@centos.org> - 4.2.5-82.el7.centos
+ * Wed Jun 09 2021 CentOS Sources <bugs@centos.org> - 4.2.5-83.el7.centos.1
  - Roll in CentOS Branding
  
 -- 

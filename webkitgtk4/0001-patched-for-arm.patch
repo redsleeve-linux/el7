@@ -1,12 +1,12 @@
-From 9f1990d22f4bb08549e45a7a0043a0227a8e2ae6 Mon Sep 17 00:00:00 2001
+From 93cd3d3c7602f1d29aae637fbecba699bef2bdc0 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sat, 20 Mar 2021 22:56:54 +0100
+Date: Tue, 8 Feb 2022 17:40:20 +0100
 Subject: [PATCH] patched for arm
 
 ---
  SOURCES/webkitgtk4_always_inc_atomic.patch | 31 ++++++++++++++++++++++++++++++
- SPECS/webkitgtk4.spec                      | 16 +++++++++------
- 2 files changed, 41 insertions(+), 6 deletions(-)
+ SPECS/webkitgtk4.spec                      | 19 ++++++++++++------
+ 2 files changed, 44 insertions(+), 6 deletions(-)
  create mode 100644 SOURCES/webkitgtk4_always_inc_atomic.patch
 
 diff --git a/SOURCES/webkitgtk4_always_inc_atomic.patch b/SOURCES/webkitgtk4_always_inc_atomic.patch
@@ -47,15 +47,15 @@ index 0000000..9a98a21
 + if (UNIX)
 +     check_function_exists(shm_open SHM_OPEN_EXISTS)
 diff --git a/SPECS/webkitgtk4.spec b/SPECS/webkitgtk4.spec
-index f6426a3..102ee26 100644
+index ec38193..97fc51f 100644
 --- a/SPECS/webkitgtk4.spec
 +++ b/SPECS/webkitgtk4.spec
 @@ -27,7 +27,7 @@
  
  Name:           webkitgtk4
  Version:        2.28.2
--Release:        2%{?dist}
-+Release:        2%{?dist}.redsleeve
+-Release:        3%{?dist}
++Release:        3%{?dist}.redsleeve
  Summary:        GTK+ Web content engine library
  
  License:        LGPLv2
@@ -115,6 +115,16 @@ index f6426a3..102ee26 100644
    -DENABLE_JIT=OFF \
    -DUSE_SYSTEM_MALLOC=ON \
  %endif
+@@ -443,6 +447,9 @@ chmod 644 $RPM_BUILD_ROOT%{_libdir}/webkit2gtk-4.0/libicuuc.so.57.1
+ %{_datadir}/gtk-doc/html/webkitdomgtk-4.0/
+ 
+ %changelog
++* Tue Feb 08 2022 Jacco Ligthart <jacco@redsleeve.org> - 2.28.2-3.redsleeve
++- patched for armv5
++
+ * Tue Sep 28 2021 Michael Catanzaro <mcatanzaro@redhat.com> - 2.28.2-3
+ - Fix CVE-2021-30858
+ - Resolves: #2006421
 -- 
 1.8.3.1
 

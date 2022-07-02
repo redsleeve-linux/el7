@@ -1,0 +1,81 @@
+From c539cdaf0348e2a52f0947d018b3d32fc63dc1f4 Mon Sep 17 00:00:00 2001
+From: Emanuele Giuseppe Esposito <eesposit@redhat.com>
+Date: Tue, 15 Jun 2021 14:01:12 +0200
+Subject: [PATCH] Fix unit failure of cloud-final.service if NetworkManager was
+ not present.
+
+RH-Author: Emanuele Giuseppe Esposito <eesposit@redhat.com>
+RH-MergeRequest: 17: Fix unit failure of cloud-final.service if NetworkManager was not present.
+RH-Commit: [1/1] 647305809fc533ef2c5b8e0e27c94a4f7c368728 (eesposit/cloud-init)
+RH-Bugzilla: 1897616
+RH-Acked-by: Eduardo Otubo <otubo@redhat.com>
+RH-Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+RH-Acked-by: Mohamed Gamal Morsy <mmorsy@redhat.com>
+
+Branch: rhel-7.9
+Brew: 37493950
+
+commit d3889c4645a1319c3d677006164b618ee53f4c8b
+Author: Eduardo Otubo <otubo@redhat.com>
+Date:   Mon Dec 7 14:23:22 2020 +0100
+
+    Fix unit failure of cloud-final.service if NetworkManager was not present.
+
+    RH-Author: Eduardo Terrell Ferrari Otubo (eterrell)
+    RH-MergeRequest: 27: Fix unit failure of cloud-final.service if NetworkManager was not present.
+    RH-Commit: [1/1] 3c65a2cca140fff48df1ef32919e3cb035506a2b (eterrell/cloud-init)
+    RH-Bugzilla: 1898943
+
+    cloud-final.service would fail if NetworkManager was not installed.
+
+    journal -u cloud-final.service would show:
+
+       cloud-init[5328]: Cloud-init v. 19.4 finished at ...
+       echo[5346]: try restart NetworkManager.service
+       systemctl[5349]: Failed to reload-or-try-restart
+           NetworkManager.service: Unit not found.
+       systemd[1]: cloud-final.service: control process exited,
+           code=exited status=5
+       systemd[1]: Failed to start Execute cloud user/final scripts.
+       systemd[1]: Unit cloud-final.service entered failed state.
+       systemd[1]: cloud-final.service failed.
+
+    The change here is to only attempt to restart NetworkManager if it is
+    present, and its SubState is 'running'.
+
+    The multi-line shell in a systemd unit is less than ideal, but I'm not
+    aware of any other way of conditionally doing this.
+
+    Note that both of 'try-reload-or-restart' and 'reload-or-try-restart'
+    will fail if the service is not present.  So this would also affect rhel
+    8 systems that do not use NetworkManager.
+
+    Signed-off-by: Eduardo Otubo <otubo@redhat.com>
+
+Signed-off-by: Emanuele Giuseppe Esposito <eesposit@redhat.com>
+---
+ rhel/systemd/cloud-final.service | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/rhel/systemd/cloud-final.service b/rhel/systemd/cloud-final.service
+index 621d4f8c..9dad1051 100644
+--- a/rhel/systemd/cloud-final.service
++++ b/rhel/systemd/cloud-final.service
+@@ -11,9 +11,12 @@ ExecStart=/usr/bin/cloud-init modules --mode=final
+ RemainAfterExit=yes
+ TimeoutSec=0
+ KillMode=process
+-ExecStartPost=/bin/echo "try restart NetworkManager.service"
++# Restart NetworkManager if it is present and running.
+ # TODO: try-reload-or-restart is available only on systemd >= 229
+-ExecStartPost=/usr/bin/systemctl reload-or-try-restart NetworkManager.service
++ExecStartPost=/bin/sh -c 'u=NetworkManager.service; \
++ out=$(systemctl show --property=SubState $u) || exit; \
++ [ "$out" = "SubState=running" ] || exit 0; \
++ systemctl reload-or-try-restart $u'
+ 
+ # Output needs to appear in instance console output
+ StandardOutput=journal+console
+-- 
+2.27.0
+
