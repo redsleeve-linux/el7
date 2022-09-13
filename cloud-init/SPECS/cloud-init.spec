@@ -13,7 +13,7 @@
 
 Name:           cloud-init
 Version:        19.4
-Release:        7%{?dist}.6
+Release:        7%{?dist}.6.redsleeve
 Summary:        Cloud instance init scripts
 
 Group:          System Environment/Base
@@ -69,7 +69,7 @@ Patch26: ci-Fix-unit-failure-of-cloud-final.service-if-NetworkMa.patch
 # For bz#2003231 - anything above 19.2 of cloud init it fails to assign default route and connect to the meta data service
 Patch27: ci-cloudinit-net-handle-two-different-routes-for-the-sa.patch
 
-Patch9999: cloud-init-centos-user.patch
+Patch9999: cloud-init-redsleeve-user.patch
 
 # Deal with noarch -> arch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1067089
@@ -240,6 +240,9 @@ fi
 %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
 
 %changelog
+* Sat Jul 02 2022 Jacco Ligthart <jacco@redsleeve.org 19.4-7.el7.6.redsleeve
+- rebrand for redsleeve
+
 * Mon Jan 24 2022 Jon Maloy <jmaloy@redhat.com> - 19.4-7.el7_9.6
 - ci-cloudinit-net-handle-two-different-routes-for-the-sa.patch [bz#2003231]
 - Resolves: bz#2003231

@@ -1,6 +1,6 @@
-From f3abb6697b11f13d66e94d6472667f06af953516 Mon Sep 17 00:00:00 2001
+From 689b4297e60e18f873de23c9ceb73b83509c7d62 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Wed, 1 Sep 2021 00:10:22 +0200
+Date: Sat, 2 Jul 2022 04:24:02 +0200
 Subject: [PATCH] rebrand for redsleeve
 
 ---
@@ -28,37 +28,37 @@ index 0000000..665b156
 +     gecos: Cloud User
 +     groups: [adm, systemd-journal]
 diff --git a/SPECS/cloud-init.spec b/SPECS/cloud-init.spec
-index 865b2f2..94bfd1a 100644
+index 98286db..1d88914 100644
 --- a/SPECS/cloud-init.spec
 +++ b/SPECS/cloud-init.spec
 @@ -13,7 +13,7 @@
  
  Name:           cloud-init
  Version:        19.4
--Release:        7%{?dist}.5
-+Release:        7%{?dist}.5.redsleeve
+-Release:        7%{?dist}.6
++Release:        7%{?dist}.6.redsleeve
  Summary:        Cloud instance init scripts
  
  Group:          System Environment/Base
-@@ -67,7 +67,7 @@ Patch25: ci-DataSourceAzure-update-password-for-defuser-if-exist.patch
- # For bz#1897616 - [rhel-7]cloud-final.service fails if NetworkManager not installed.
- Patch26: ci-Fix-unit-failure-of-cloud-final.service-if-NetworkMa.patch
+@@ -69,7 +69,7 @@ Patch26: ci-Fix-unit-failure-of-cloud-final.service-if-NetworkMa.patch
+ # For bz#2003231 - anything above 19.2 of cloud init it fails to assign default route and connect to the meta data service
+ Patch27: ci-cloudinit-net-handle-two-different-routes-for-the-sa.patch
  
 -Patch9999: cloud-init-centos-user.patch
 +Patch9999: cloud-init-redsleeve-user.patch
  
  # Deal with noarch -> arch
  # https://bugzilla.redhat.com/show_bug.cgi?id=1067089
-@@ -238,6 +238,9 @@ fi
+@@ -240,6 +240,9 @@ fi
  %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
  
  %changelog
-+* Tue Aug 31 2021 Jacco Ligthart <jacco@redsleeve.org 19.4-7.el7.5.redsleeve
++* Sat Jul 02 2022 Jacco Ligthart <jacco@redsleeve.org 19.4-7.el7.6.redsleeve
 +- rebrand for redsleeve
 +
- * Tue Jun 29 2021 Miroslav Rezanina <mrezanin@redhat.com> - 19.4-7.el7_9.5
- - ci-Fix-unit-failure-of-cloud-final.service-if-NetworkMa.patch [bz#1897616]
- - Resolves: bz#1897616
+ * Mon Jan 24 2022 Jon Maloy <jmaloy@redhat.com> - 19.4-7.el7_9.6
+ - ci-cloudinit-net-handle-two-different-routes-for-the-sa.patch [bz#2003231]
+ - Resolves: bz#2003231
 -- 
 1.8.3.1
 
