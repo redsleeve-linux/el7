@@ -3,7 +3,7 @@
 Summary: A set of tools to gather troubleshooting information from a system
 Name: sos
 Version: 3.9
-Release: 5%{?dist}.11
+Release: 5%{?dist}.11.redsleeve
 Group: Applications/System
 Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
 License: GPLv2+
@@ -57,7 +57,7 @@ Patch33: sos-bz1946641-sssd-plugin-when-sssd-common.patch
 Patch34: sos-bz1959781-migrationresults-new-plugin.patch
 Patch35: sos-bz2011337-dropbox-to-sftp.patch
 Patch36: sos-bz2043103-collect_decoded_dynflow_data.patch
-Patch37: sos-centos-branding.patch
+Patch37: sos-redsleeve-branding.patch
 
 %description
 Sos is a set of tools that gathers information about system
@@ -128,6 +128,9 @@ rm -rf ${RPM_BUILD_ROOT}
 %config(noreplace) %{_sysconfdir}/sos.conf
 
 %changelog
+* Sat Jul 02 2022 Jacco Ligthart <jacco@redsleeve.org> - 3.9-5.el7.11.redsleeve
+- Roll in RedSleeve Branding
+
 * Tue Jun 28 2022 CentOS Sources <bugs@centos.org> - 3.9-5.el7.centos.11
 - Roll in CentOS Branding
 

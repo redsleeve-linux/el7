@@ -1,6 +1,6 @@
-From 4ea667b4aa27e3e5e5f7ca2b84e3349a81f00901 Mon Sep 17 00:00:00 2001
+From 0990b060f8773a381e04e8c6993db025d5794954 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Fri, 25 Feb 2022 22:06:06 +0100
+Date: Sat, 2 Jul 2022 04:23:17 +0200
 Subject: [PATCH] Roll in RedSleeve Branding
 
 ---
@@ -178,35 +178,35 @@ index 0000000..c831889
 +                 self.upload_url = RH_SFTP_HOST
 +                 uploaded = super(RHELPolicy, self).upload_archive(archive)
 diff --git a/SPECS/sos.spec b/SPECS/sos.spec
-index 03ffb0e..68302b8 100644
+index a506573..3064196 100644
 --- a/SPECS/sos.spec
 +++ b/SPECS/sos.spec
 @@ -3,7 +3,7 @@
  Summary: A set of tools to gather troubleshooting information from a system
  Name: sos
  Version: 3.9
--Release: 5%{?dist}.10
-+Release: 5%{?dist}.10.redsleeve
+-Release: 5%{?dist}.11
++Release: 5%{?dist}.11.redsleeve
  Group: Applications/System
  Source0: https://github.com/sosreport/sos/archive/%{version}.tar.gz
  License: GPLv2+
-@@ -56,7 +56,7 @@ Patch32: sos-bz1964000-foreman-follow-sizelimit-to-foreman-maintain-and-installe
- Patch33: sos-bz1946641-sssd-plugin-when-sssd-common.patch
+@@ -57,7 +57,7 @@ Patch33: sos-bz1946641-sssd-plugin-when-sssd-common.patch
  Patch34: sos-bz1959781-migrationresults-new-plugin.patch
  Patch35: sos-bz2011337-dropbox-to-sftp.patch
--Patch36: sos-centos-branding.patch
-+Patch36: sos-redsleeve-branding.patch
+ Patch36: sos-bz2043103-collect_decoded_dynflow_data.patch
+-Patch37: sos-centos-branding.patch
++Patch37: sos-redsleeve-branding.patch
  
  %description
  Sos is a set of tools that gathers information about system
-@@ -126,6 +126,9 @@ rm -rf ${RPM_BUILD_ROOT}
+@@ -128,6 +128,9 @@ rm -rf ${RPM_BUILD_ROOT}
  %config(noreplace) %{_sysconfdir}/sos.conf
  
  %changelog
-+* Fri Feb 25 2022 Jacco Ligthart <jacco@redsleeve.org> - 3.9-5.el7.10.redsleeve
++* Sat Jul 02 2022 Jacco Ligthart <jacco@redsleeve.org> - 3.9-5.el7.11.redsleeve
 +- Roll in RedSleeve Branding
 +
- * Tue Feb 22 2022 CentOS Sources <bugs@centos.org> - 3.9-5.el7.centos.10
+ * Tue Jun 28 2022 CentOS Sources <bugs@centos.org> - 3.9-5.el7.centos.11
  - Roll in CentOS Branding
  
 -- 
