@@ -87,7 +87,7 @@
 # Set of architectures for which we build slowdebug builds
 %global debug_arches    %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64} s390x
 # Set of architectures with a Just-In-Time (JIT) compiler
-%global jit_arches      %{debug_arches}
+%global jit_arches      %{debug_arches} %{arm}
 # Set of architectures which run a full bootstrap cycle
 %global bootstrap_arches %{jit_arches}
 # Set of architectures which support SystemTap tapsets
@@ -95,7 +95,7 @@
 # Set of architectures with a Ahead-Of-Time (AOT) compiler
 %global aot_arches      x86_64 %{aarch64}
 # Set of architectures which support the serviceability agent
-%global sa_arches       %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64}
+%global sa_arches       %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64} %{arm}
 # Set of architectures which support class data sharing
 # As of JDK-8005165 in OpenJDK 10, class sharing is not arch-specific
 # However, it does segfault on the Zero assembler port, so currently JIT only
@@ -271,12 +271,8 @@
 # New Version-String scheme-style defines
 %global featurever 11
 %global interimver 0
-%global updatever 15
+%global updatever 16
 %global patchver 0
-# If you bump featurever, you must bump also vendor_version_string
-# Used via new version scheme. JDK 11 was
-# GA'ed in September 2018 => 18.9
-%global vendor_version_string 18.9
 # buildjdkver is usually same as %%{featurever},
 # but in time of bootstrap of next jdk, it is featurever-1,
 # and this it is better to change it here, on single place
@@ -309,6 +305,7 @@
 %endif
 %endif
 %endif
+%global oj_vendor_version (Red_Hat-%{version}-%{release})
 
 # Define IcedTea version used for SystemTap tapsets and desktop file
 %global icedteaver      3.15.0
@@ -318,20 +315,19 @@
 %global origin_nice     OpenJDK
 %global top_level_dir_name   %{origin}
 %global top_level_dir_name_backup %{top_level_dir_name}-backup
-%global buildver        9
-%global rpmrelease      2
+%global buildver        8
+%global rpmrelease      1
 #%%global tagsuffix      %%{nil}
 # priority must be 7 digits in total
 # setting to 1, so debug ones can have 0
 %global priority 00000%{interimver}1
 %global newjavaver %{featurever}.%{interimver}.%{updatever}.%{patchver}
 
-# Omit trailing 0 in filenames when the patch version is 0
-%if 0%{?patchver} > 0
-%global filever %{newjavaver}
-%else
-%global filever %{featurever}.%{interimver}.%{updatever}
-%endif
+# Strip up to 6 trailing zeros in newjavaver, as the JDK does, to get the correct version used in filenames
+%global filever %(svn=%{newjavaver}; for i in 1 2 3 4 5 6 ; do svn=${svn%%.0} ; done; echo ${svn})
+
+# The tag used to create the OpenJDK tarball
+%global vcstag jdk-%{filever}+%{buildver}%{?tagsuffix:-%{tagsuffix}}
 
 %global javaver         %{featurever}
 
@@ -874,8 +870,8 @@ Requires: ca-certificates
 # Require jpackage-utils for ownership of /usr/lib/jvm/ and macros
 Requires: javapackages-tools
 # Require zone-info data provided by tzdata-java sub-package
-# 2020f required as of JDK-8259048 in October CPU
-Requires: tzdata-java >= 2020f
+# 2022a required as of JDK-8283350 in 11.0.16
+Requires: tzdata-java >= 2022a
 # for support of kernel stream control
 # libsctp.so.1 is being `dlopen`ed on demand
 %if 0%{?rhel} >= 8
@@ -1003,7 +999,7 @@ Provides: java-%{javaver}-%{origin}-src%1 = %{epoch}:%{version}-%{release}
 
 Name:    java-%{javaver}-%{origin}
 Version: %{newjavaver}.%{buildver}
-Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}.redsleeve
+Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
 # and this change was brought into RHEL-4. java-1.5.0-ibm packages
 # also included the epoch in their virtual provides. This created a
@@ -1040,7 +1036,7 @@ URL:      http://openjdk.java.net/
 
 # to regenerate source0 (jdk) run update_package.sh
 # update_package.sh contains hard-coded repos, revisions, tags, and projects to regenerate the source archives
-Source0: jdk-updates-jdk%{featurever}u-jdk-%{filever}+%{buildver}%{?tagsuffix:-%{tagsuffix}}-4curve.tar.xz
+Source0: openjdk-jdk%{featurever}u-%{vcstag}-4curve.tar.xz
 
 # Use 'icedtea_sync.sh' to update the following
 # They are based on code contained in the IcedTea project (3.x).
@@ -1111,6 +1107,16 @@ Patch7: jdk8009550-rh910107-search_for_versioned_libpcsclite.patch
 
 #############################################
 #
+# Backportable patches
+#
+# This section includes patches which are
+# present in the current development tree, but
+# need to be reviewed & pushed to the appropriate
+# updates tree of OpenJDK.
+#############################################
+
+#############################################
+#
 # Patches appearing in 11.0.15
 #
 # This section includes patches which are present
@@ -1118,8 +1124,6 @@ Patch7: jdk8009550-rh910107-search_for_versioned_libpcsclite.patch
 # able to be removed once that release is out
 # and used by this RPM.
 #############################################
-# JDK-8284920: Incorrect Token type causes XPath expression to return empty result
-Patch8: jdk8284920-incorrect_token_type.patch
 
 BuildRequires: autoconf
 BuildRequires: automake
@@ -1163,8 +1167,8 @@ BuildRequires: java-%{buildjdkver}-openjdk-devel
 %ifnarch %{jit_arches}
 BuildRequires: libffi-devel
 %endif
-# 2020f required as of JDK-8259048 in October CPU
-BuildRequires: tzdata-java >= 2020f
+# 2022a required as of JDK-8283350 in 11.0.16
+BuildRequires: tzdata-java >= 2022a
 # Earlier versions have a bug in tree vectorization on PPC
 BuildRequires: gcc >= 4.8.3-8
 
@@ -1412,6 +1416,8 @@ The %{origin_nice} %{featurever} API documentation compressed in a single archiv
 
 %prep
 
+echo "Preparing %{oj_vendor_version}"
+
 # Using the echo macro breaks rpmdev-bumpspec, as it parses the first line of stdout :-(
 %if 0%{?stapinstall:1}
   echo "CPU: %{_target_cpu}, arch install directory: %{archinstall}, SystemTap install directory: %{stapinstall}"
@@ -1458,7 +1464,6 @@ pushd %{top_level_dir_name}
 %patch3 -p1
 %patch4 -p1
 %patch7 -p1
-%patch8 -p1
 popd # openjdk
 
 %patch1000
@@ -1579,7 +1584,7 @@ function buildjdk() {
     --with-version-build=%{buildver} \
     --with-version-pre="%{ea_designator}" \
     --with-version-opt=%{lts_designator} \
-    --with-vendor-version-string="%{vendor_version_string}" \
+    --with-vendor-version-string="%{oj_vendor_version}" \
     --with-vendor-name="%{oj_vendor}" \
     --with-vendor-url="%{oj_vendor_url}" \
     --with-vendor-bug-url="%{oj_vendor_bug_url}" \
@@ -1659,6 +1664,9 @@ function installjdk() {
     echo "Hardened java binary recommended for launching untrusted code from the Web e.g. javaws" > man/man1/%{alt_java_name}.1
     cat man/man1/java.1 >> man/man1/%{alt_java_name}.1
     popd
+
+    # Print release information
+    cat ${imagepath}/release
 }
 
 for suffix in %{build_loop} ; do
@@ -1751,7 +1759,7 @@ $JAVA_HOME/bin/java $(echo $(basename %{SOURCE14})|sed "s|\.java||")
 
 # Check correct vendor values have been set
 $JAVA_HOME/bin/javac -d . %{SOURCE15}
-$JAVA_HOME/bin/java $(echo $(basename %{SOURCE15})|sed "s|\.java||") "%{oj_vendor}" "%{oj_vendor_url}" "%{oj_vendor_bug_url}"
+$JAVA_HOME/bin/java $(echo $(basename %{SOURCE15})|sed "s|\.java||") "%{oj_vendor}" "%{oj_vendor_url}" "%{oj_vendor_bug_url}" "%{oj_vendor_version}"
 
 # Check java launcher has no SSB mitigation
 if ! nm $JAVA_HOME/bin/java | grep set_speculation ; then true ; else false; fi
@@ -1822,7 +1830,7 @@ done
 # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
 # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
 # Temporarily disabled on s390x as it sporadically crashes with SIGFPE, Arithmetic exception.
-%ifnarch s390x %{arm}
+%ifnarch s390x
 gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
 handle SIGSEGV pass nostop noprint
 handle SIGILL pass nostop noprint
@@ -2159,9 +2167,23 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
-* Fri May 20 2022 Jacco Ligthart <jacco@redsleeve.org> - 1:11.0.15.0.9-2.redsleeve
-- removed arm from jit_arches
-- removed the gdb section of the SPEC file
+* Sat Jul 16 2022 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.16.0.8-1
+- Update to jdk-11.0.16+8
+- Update release notes to 11.0.16+8
+- Use same tarball naming style as java-17-openjdk and java-latest-openjdk
+- Drop JDK-8284920 patch now upstreamed
+- Print release file during build, which should now include a correct SOURCE value from .src-rev
+- Update tarball script with IcedTea GitHub URL and .src-rev generation
+- Use "git apply" with patches in the tarball script to allow binary diffs
+- Include script to generate bug list for release notes
+- Update tzdata requirement to 2022a to match JDK-8283350
+- Make use of the vendor version string to store our version & release rather than an upstream release date
+- Explicitly require crypto-policies during build and runtime for system security properties
+- Resolves: rhbz#2106510
+
+* Thu Jul 14 2022 Jiri Vanek <jvanek@redhat.com> - 1:11.0.16.0.8-1
+- Add additional patch during tarball generation to align tests with ECC changes
+- Related: rhbz#2106510
 
 * Sat Apr 16 2022 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.15.0.9-2
 - Add JDK-8284920 fix for XPath regression
