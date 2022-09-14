@@ -8,17 +8,18 @@
 Reviewed-by: martin
 
 diff --git openjdk.orig/jdk/src/share/demo/nio/zipfs/src/com/sun/nio/zipfs/ZipFileSystem.java openjdk/jdk/src/share/demo/nio/zipfs/src/com/sun/nio/zipfs/ZipFileSystem.java
+index 26e2a5bf9e9..2630c118817 100644
 --- openjdk.orig/jdk/src/share/demo/nio/zipfs/src/com/sun/nio/zipfs/ZipFileSystem.java
 +++ openjdk/jdk/src/share/demo/nio/zipfs/src/com/sun/nio/zipfs/ZipFileSystem.java
-@@ -93,6 +93,7 @@
+@@ -92,6 +92,7 @@ public class ZipFileSystem extends FileSystem {
      private final boolean createNew;     // create a new zip if not exists
      private static final boolean isWindows =
          System.getProperty("os.name").startsWith("Windows");
 +    private final boolean forceEnd64;
  
-     ZipFileSystem(ZipFileSystemProvider provider,
-                   Path zfpath,
-@@ -109,12 +110,13 @@
+     // a threshold, in bytes, to decide whether to create a temp file
+     // for outputstream of a zip entry
+@@ -112,12 +113,13 @@ public class ZipFileSystem extends FileSystem {
          if (this.defaultDir.charAt(0) != '/')
              throw new IllegalArgumentException("default dir should be absolute");
  
@@ -33,7 +34,7 @@ diff --git openjdk.orig/jdk/src/share/demo/nio/zipfs/src/com/sun/nio/zipfs/ZipFi
                  }
              } else {
                  throw new FileSystemNotFoundException(zfpath.toString());
-@@ -1011,28 +1013,36 @@
+@@ -1014,28 +1016,36 @@ public class ZipFileSystem extends FileSystem {
                      end.cenoff = ENDOFF(buf);
                      end.comlen = ENDCOM(buf);
                      end.endpos = pos + i;
@@ -72,7 +73,7 @@ diff --git openjdk.orig/jdk/src/share/demo/nio/zipfs/src/com/sun/nio/zipfs/ZipFi
 +                        != end64buf.length ||
 +                        !end64SigAt(end64buf, 0)) {
 +                        return end;
-                     }
++                    }
 +                    // end64 found,
 +                    long cenlen64 = ZIP64_ENDSIZ(end64buf);
 +                    long cenoff64 = ZIP64_ENDOFF(end64buf);
@@ -82,7 +83,7 @@ diff --git openjdk.orig/jdk/src/share/demo/nio/zipfs/src/com/sun/nio/zipfs/ZipFi
 +                        cenoff64 != end.cenoff && end.cenoff != ZIP64_MINVAL ||
 +                        centot64 != end.centot && end.centot != ZIP64_MINVAL32) {
 +                        return end;
-+                    }
+                     }
 +                    // to use the end64 values
 +                    end.cenlen = cenlen64;
 +                    end.cenoff = cenoff64;
@@ -91,7 +92,7 @@ diff --git openjdk.orig/jdk/src/share/demo/nio/zipfs/src/com/sun/nio/zipfs/ZipFi
                      return end;
                  }
              }
-@@ -1198,7 +1208,7 @@
+@@ -1201,7 +1211,7 @@ public class ZipFileSystem extends FileSystem {
  
      // sync the zip file system, if there is any udpate
      private void sync() throws IOException {
@@ -100,7 +101,7 @@ diff --git openjdk.orig/jdk/src/share/demo/nio/zipfs/src/com/sun/nio/zipfs/ZipFi
          // check ex-closer
          if (!exChClosers.isEmpty()) {
              for (ExChannelCloser ecc : exChClosers) {
-@@ -1289,7 +1299,7 @@
+@@ -1292,7 +1302,7 @@ public class ZipFileSystem extends FileSystem {
              }
              end.centot = elist.size();
              end.cenlen = written - end.cenoff;
@@ -109,7 +110,7 @@ diff --git openjdk.orig/jdk/src/share/demo/nio/zipfs/src/com/sun/nio/zipfs/ZipFi
          }
          if (!streams.isEmpty()) {
              //
-@@ -1727,8 +1737,8 @@
+@@ -1849,8 +1859,8 @@ public class ZipFileSystem extends FileSystem {
          long endpos;
          int disktot;
  
@@ -120,7 +121,7 @@ diff --git openjdk.orig/jdk/src/share/demo/nio/zipfs/src/com/sun/nio/zipfs/ZipFi
              long xlen = cenlen;
              long xoff = cenoff;
              if (xlen >= ZIP64_MINVAL) {
-@@ -1753,8 +1763,8 @@
+@@ -1875,8 +1885,8 @@ public class ZipFileSystem extends FileSystem {
                  writeShort(os, 45);               // version needed to extract
                  writeInt(os, 0);                  // number of this disk
                  writeInt(os, 0);                  // central directory start disk
@@ -131,10 +132,11 @@ diff --git openjdk.orig/jdk/src/share/demo/nio/zipfs/src/com/sun/nio/zipfs/ZipFi
                  writeLong(os, cenlen);            // length of central directory
                  writeLong(os, cenoff);            // offset of central directory
  
-diff --git a/src/share/native/javopenjdk.orig/jdk/util/zip/zip_util.c openjdk/jdk/src/share/native/java/util/zip/zip_util.c
+diff --git openjdk.orig/jdk/src/share/native/java/util/zip/zip_util.c openjdk/jdk/src/share/native/java/util/zip/zip_util.c
+index 5fd6fea049d..858e5814e92 100644
 --- openjdk.orig/jdk/src/share/native/java/util/zip/zip_util.c
 +++ openjdk/jdk/src/share/native/java/util/zip/zip_util.c
-@@ -383,6 +383,9 @@
+@@ -385,6 +385,9 @@ findEND64(jzfile *zip, void *end64buf, jlong endpos)
  {
      char loc64[ZIP64_LOCHDR];
      jlong end64pos;
@@ -144,7 +146,7 @@ diff --git a/src/share/native/javopenjdk.orig/jdk/util/zip/zip_util.c openjdk/jd
      if (readFullyAt(zip->zfd, loc64, ZIP64_LOCHDR, endpos - ZIP64_LOCHDR) == -1) {
          return -1;    // end64 locator not found
      }
-@@ -545,6 +548,7 @@
+@@ -567,6 +570,7 @@ readCEN(jzfile *zip, jint knownTotal)
  {
      /* Following are unsigned 32-bit */
      jlong endpos, end64pos, cenpos, cenlen, cenoff;
@@ -152,7 +154,7 @@ diff --git a/src/share/native/javopenjdk.orig/jdk/util/zip/zip_util.c openjdk/jd
      /* Following are unsigned 16-bit */
      jint total, tablelen, i, j;
      unsigned char *cenbuf = NULL;
-@@ -572,13 +576,20 @@
+@@ -594,13 +598,20 @@ readCEN(jzfile *zip, jint knownTotal)
      cenlen = ENDSIZ(endbuf);
      cenoff = ENDOFF(endbuf);
      total  = ENDTOT(endbuf);
@@ -180,7 +182,8 @@ diff --git a/src/share/native/javopenjdk.orig/jdk/util/zip/zip_util.c openjdk/jd
              endpos = end64pos;
              endhdrlen = ZIP64_ENDHDR;
          }
-diff --git a/test/javopenjdk.orig/jdk/util/zip/ZipFile/ReadZip.java openjdk/jdk/test/java/util/zip/ZipFile/ReadZip.java
+diff --git openjdk.orig/jdk/test/java/util/zip/ZipFile/ReadZip.java openjdk/jdk/test/java/util/zip/ZipFile/ReadZip.java
+index ffe8a8ed712..9b380003893 100644
 --- openjdk.orig/jdk/test/java/util/zip/ZipFile/ReadZip.java
 +++ openjdk/jdk/test/java/util/zip/ZipFile/ReadZip.java
 @@ -22,7 +22,7 @@
@@ -192,7 +195,7 @@ diff --git a/test/javopenjdk.orig/jdk/util/zip/ZipFile/ReadZip.java openjdk/jdk/
   * @summary Make sure we can read a zip file.
     @key randomness
   * @run main/othervm ReadZip
-@@ -30,12 +30,24 @@
+@@ -31,12 +31,24 @@
   */
  
  import java.io.*;
@@ -217,7 +220,7 @@ diff --git a/test/javopenjdk.orig/jdk/util/zip/ZipFile/ReadZip.java openjdk/jdk/
  public class ReadZip {
      private static void unreached (Object o)
          throws Exception
-@@ -143,8 +155,6 @@
+@@ -144,8 +156,6 @@ public class ReadZip {
              newZip.delete();
          }
  
@@ -226,7 +229,7 @@ diff --git a/test/javopenjdk.orig/jdk/util/zip/ZipFile/ReadZip.java openjdk/jdk/
          // Throw a FNF exception when read a non-existing zip file
          try { unreached (new ZipFile(
                               new File(System.getProperty("test.src", "."),
-@@ -152,5 +162,54 @@
+@@ -153,5 +163,54 @@ public class ReadZip {
                                        + String.valueOf(new java.util.Random().nextInt())
                                        + ".zip")));
          } catch (FileNotFoundException fnfe) {}

@@ -216,9 +216,10 @@
 %endif
 
 # note, following three variables are sedded from update_sources if used correctly. Hardcode them rather there.
-%global shenandoah_project	openjdk
-%global shenandoah_repo		shenandoah-jdk8u
-%global shenandoah_revision    	shenandoah-jdk8u332-b09
+%global shenandoah_project      openjdk
+%global shenandoah_repo         shenandoah-jdk8u
+%global openjdk_revision        jdk8u342-b07
+%global shenandoah_revision     shenandoah-%{openjdk_revision}
 # Define old aarch64/jdk8u tree variables for compatibility
 %global project         %{shenandoah_project}
 %global repo            %{shenandoah_repo}
@@ -748,8 +749,9 @@ Requires: ca-certificates
 # Require jpackage-utils for ownership of /usr/lib/jvm/
 Requires: jpackage-utils
 # Require zoneinfo data provided by tzdata-java subpackage.
-# 2021e required as of JDK-8275766 in January 2022 CPU
-Requires: tzdata-java >= 2021e
+# 2022a required as of JDK-8283350 in 8u342
+Requires: tzdata-java >= 2022a
+# for support of kernel stream control
 # libsctp.so.1 is being `dlopen`ed on demand
 Requires: lksctp-tools%{?_isa}
 # tool to copy jdk's configs - should be Recommends only, but then only dnf/yum enforce it,
@@ -881,7 +883,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
 
 Name:    java-%{javaver}-%{origin}
 Version: %{javaver}.%{updatever}.%{buildver}
-Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}.redsleeve
+Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
 # and this change was brought into RHEL-4. java-1.5.0-ibm packages
 # also included the epoch in their virtual provides. This created a
@@ -1139,8 +1141,8 @@ BuildRequires: java-1.8.0-openjdk-devel
 %ifnarch %{jit_arches}
 BuildRequires: libffi-devel
 %endif
-# 2021e required as of JDK-8275766 in January 2022 CPU
-BuildRequires: tzdata-java >= 2021e
+# 2022a required as of JDK-8283350 in 8u342
+BuildRequires: tzdata-java >= 2022a
 # Earlier versions have a bug in tree vectorization on PPC
 BuildRequires: gcc >= 4.8.3-8
 
@@ -1619,6 +1621,7 @@ function buildjdk() {
     echo "Removing output directory...";
     rm -rf ${outputdir}
 %endif
+
 }
 
 for suffix in %{build_loop} ; do
@@ -1670,6 +1673,9 @@ pushd ${JAVA_HOME}
 echo "Hardened java binary recommended for launching untrusted code from the Web e.g. javaws" > man/man1/%{alt_java_name}.1
 cat man/man1/java.1 >> man/man1/%{alt_java_name}.1
 popd
+
+# Print release information
+cat ${JAVA_HOME}/release
 
 # build cycles
 done
@@ -1743,18 +1749,18 @@ done
 # Using line number 1 might cause build problems. See:
 # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
 # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
-#gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
-#handle SIGSEGV pass nostop noprint
-#handle SIGILL pass nostop noprint
-#set breakpoint pending on
-#break javaCalls.cpp:1
-#commands 1
-#backtrace
-#quit
-#end
-#run -version
-#EOF
-#grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
+gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
+handle SIGSEGV pass nostop noprint
+handle SIGILL pass nostop noprint
+set breakpoint pending on
+break javaCalls.cpp:1
+commands 1
+backtrace
+quit
+end
+run -version
+EOF
+grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
 
 # Check src.zip has all sources. See RHBZ#1130490
 jar -tf $JAVA_HOME/src.zip | grep 'sun.misc.Unsafe'
@@ -2183,8 +2189,17 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
-* Fri May 20 2022 Jacco Ligthart <jacco@redsleeve.org> 1:1.8.0.332.b09-1.redsleeve
-- removed the gdb section of the SPEC file
+* Sun Jul 17 2022 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.342.b07-1
+- Update to shenandoah-jdk8u342-b07
+- Update release notes for shenandoah-8u342-b07.
+- Print release file during build, which should now include a correct SOURCE value from .src-rev
+- Update tarball script with IcedTea GitHub URL and .src-rev generation
+- Use "git apply" with patches in the tarball script to allow binary diffs
+- Remove redundant "REPOS" variable from tarball script
+- Include script to generate bug list for release notes
+- Update tzdata requirement to 2022a to match JDK-8283350
+- Rebase JDK-8186464 patch so it applies after JDK-8190753
+- Resolves: rhbz#2106502
 
 * Mon Apr 18 2022 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.332.b09-1
 - Update to shenandoah-jdk8u332-b09 (GA)
