@@ -87,7 +87,7 @@
 # Set of architectures for which we build slowdebug builds
 %global debug_arches    %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64} s390x
 # Set of architectures with a Just-In-Time (JIT) compiler
-%global jit_arches      %{debug_arches}
+%global jit_arches      %{debug_arches} %{arm}
 # Set of architectures which run a full bootstrap cycle
 %global bootstrap_arches %{jit_arches}
 # Set of architectures which support SystemTap tapsets
@@ -95,7 +95,7 @@
 # Set of architectures with a Ahead-Of-Time (AOT) compiler
 %global aot_arches      x86_64 %{aarch64}
 # Set of architectures which support the serviceability agent
-%global sa_arches       %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64}
+%global sa_arches       %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64} %{arm}
 # Set of architectures which support class data sharing
 # As of JDK-8005165 in OpenJDK 10, class sharing is not arch-specific
 # However, it does segfault on the Zero assembler port, so currently JIT only
@@ -272,7 +272,7 @@
 %global featurever 11
 %global interimver 0
 %global updatever 16
-%global patchver 0
+%global patchver 1
 # buildjdkver is usually same as %%{featurever},
 # but in time of bootstrap of next jdk, it is featurever-1,
 # and this it is better to change it here, on single place
@@ -315,7 +315,7 @@
 %global origin_nice     OpenJDK
 %global top_level_dir_name   %{origin}
 %global top_level_dir_name_backup %{top_level_dir_name}-backup
-%global buildver        8
+%global buildver        1
 %global rpmrelease      1
 #%%global tagsuffix      %%{nil}
 # priority must be 7 digits in total
@@ -999,7 +999,7 @@ Provides: java-%{javaver}-%{origin}-src%1 = %{epoch}:%{version}-%{release}
 
 Name:    java-%{javaver}-%{origin}
 Version: %{newjavaver}.%{buildver}
-Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}.redsleeve
+Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
 # and this change was brought into RHEL-4. java-1.5.0-ibm packages
 # also included the epoch in their virtual provides. This created a
@@ -1064,6 +1064,9 @@ Source14: TestECDSA.java
 # Ensure vendor settings are correct
 Source15: CheckVendor.java
 
+# Ensure translations are available for new timezones
+Source18: TestTranslations.java
+
 ############################################
 #
 # RPM/distribution specific patches
@@ -1083,6 +1086,8 @@ Patch3:    rh649512-remove_uses_of_far_in_jpeg_libjpeg_turbo_1_4_compat_for_jdk1
 Patch4:    pr3183-rh1340845-support_fedora_rhel_system_crypto_policy.patch
 # RH1750419: Enable build of speculative store bypass hardened alt-java (CVE-2018-3639)
 Patch600: rh1750419-redhat_alt_java.patch
+# Add translations for Europe/Kyiv locally until upstream is fully updated for tzdata2022b
+Patch6: jdk8292223-tzdata2022b-kyiv.patch
 
 #############################################
 #
@@ -1463,6 +1468,7 @@ pushd %{top_level_dir_name}
 %patch2 -p1
 %patch3 -p1
 %patch4 -p1
+%patch6 -p1
 %patch7 -p1
 popd # openjdk
 
@@ -1771,6 +1777,14 @@ nm $JAVA_HOME/bin/%{alt_java_name} | grep set_speculation
 if ! nm $JAVA_HOME/bin/%{alt_java_name} | grep set_speculation ; then true ; else false; fi
 %endif
 
+# Check translations are available for new timezones
+$JAVA_HOME/bin/javac --add-exports java.base/sun.util.resources=ALL-UNNAMED \
+                     --add-exports java.base/sun.util.locale.provider=ALL-UNNAMED \
+                     -d . %{SOURCE18}
+$JAVA_HOME/bin/java --add-exports java.base/sun.util.resources=ALL-UNNAMED \
+                    --add-exports java.base/sun.util.locale.provider=ALL-UNNAMED \
+                    $(echo $(basename %{SOURCE18})|sed "s|\.java||") "Europe/Kiev" "Europe/Kyiv"
+
 %if %{include_staticlibs}
 # Check debug symbols in static libraries (smoke test)
 export STATIC_LIBS_HOME=${top_dir_abs_staticlibs_build_path}/images/%{static_libs_image}
@@ -1830,7 +1844,7 @@ done
 # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
 # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
 # Temporarily disabled on s390x as it sporadically crashes with SIGFPE, Arithmetic exception.
-%ifnarch s390x %{arm}
+%ifnarch s390x
 gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
 handle SIGSEGV pass nostop noprint
 handle SIGILL pass nostop noprint
@@ -2167,9 +2181,12 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
-* Wed Sep 14 2022 Jacco Ligthart <jacco@redsleeve.org> - 1:11.0.16.0.8-1.redsleeve
-- removed arm from jit_arches
-- removed the gdb section of the SPEC file
+* Wed Aug 24 2022 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.16.1.1-1
+- Update to jdk-11.0.16.1+1
+- Update release notes to 11.0.16.1+1
+- Add patch to provide translations for Europe/Kyiv added in tzdata2022b
+- Add test to ensure timezones can be translated
+- Resolves: rhbz#2119512
 
 * Sat Jul 16 2022 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.16.0.8-1
 - Update to jdk-11.0.16+8
