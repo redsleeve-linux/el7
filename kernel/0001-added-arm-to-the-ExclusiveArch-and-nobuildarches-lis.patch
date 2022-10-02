@@ -1,6 +1,6 @@
-From 1a0d0e2cc02a3ec2be4cf7a93c80cac380d6401d Mon Sep 17 00:00:00 2001
+From 3ed1edea205d40c30b88add64ca4ac3b02787226 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Fri, 1 Jul 2022 17:58:10 +0200
+Date: Wed, 14 Sep 2022 05:05:52 +0200
 Subject: [PATCH] added arm to the ExclusiveArch and nobuildarches lists
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] added arm to the ExclusiveArch and nobuildarches lists
  1 file changed, 11 insertions(+), 3 deletions(-)
 
 diff --git a/SPECS/kernel.spec b/SPECS/kernel.spec
-index 6e50d35..f4de28e 100644
+index 7b4c732..73bc9e7 100644
 --- a/SPECS/kernel.spec
 +++ b/SPECS/kernel.spec
 @@ -229,6 +229,11 @@ Summary: The Linux kernel
@@ -45,16 +45,16 @@ index 6e50d35..f4de28e 100644
  ExclusiveOS: Linux
  
  %kernel_reqprovconf
-@@ -1804,6 +1809,9 @@ fi
+@@ -1810,6 +1815,9 @@ fi
  %kernel_variant_files %{with_kdump} kdump
  
  %changelog
-+* Fri Jul 01 2022 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-1160.71.1.el7.redsleeve
++* Wed Sep 14 2022 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-1160.76.1.el7.redsleeve
 +- added arm to the ExclusiveArch and nobuildarches lists
 +
- * Wed Jun 15 2022 Rado Vrbovsky <rvrbovsk@redhat.com> [3.10.0-1160.71.1.el7]
- - netfilter: nf_tables: disallow non-stateful expression in sets earlier (Phil Sutter) [2093000] {CVE-2022-1966}
- - netfilter: nf_tables: fix memory leak if expr init fails (Phil Sutter) [2093000]
+ * Tue Jul 26 2022 Rado Vrbovsky <rvrbovsk@redhat.com> [3.10.0-1160.76.1.el7]
+ - sfc: complete the next packet when we receive a timestamp (Íñigo Huguet) [1793280]
+ 
 -- 
 1.8.3.1
 
