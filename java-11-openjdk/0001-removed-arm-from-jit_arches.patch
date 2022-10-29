@@ -1,6 +1,6 @@
-From bd33e812975a8b7f36421bc1a7d3ec18fd1698c6 Mon Sep 17 00:00:00 2001
+From bd1e1df35f978856ae6da5f079eb27519aa27063 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Wed, 14 Sep 2022 05:14:33 +0200
+Date: Sun, 2 Oct 2022 11:30:02 +0200
 Subject: [PATCH] removed arm from jit_arches
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] removed arm from jit_arches
  1 file changed, 8 insertions(+), 4 deletions(-)
 
 diff --git a/SPECS/java-11-openjdk.spec b/SPECS/java-11-openjdk.spec
-index a0d8120..b0ae149 100644
+index 12160de..6b67b7e 100644
 --- a/SPECS/java-11-openjdk.spec
 +++ b/SPECS/java-11-openjdk.spec
 @@ -87,7 +87,7 @@
@@ -38,7 +38,7 @@ index a0d8120..b0ae149 100644
  # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
  # and this change was brought into RHEL-4. java-1.5.0-ibm packages
  # also included the epoch in their virtual provides. This created a
-@@ -1830,7 +1830,7 @@ done
+@@ -1844,7 +1844,7 @@ done
  # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
  # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
  # Temporarily disabled on s390x as it sporadically crashes with SIGFPE, Arithmetic exception.
@@ -47,17 +47,17 @@ index a0d8120..b0ae149 100644
  gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
  handle SIGSEGV pass nostop noprint
  handle SIGILL pass nostop noprint
-@@ -2167,6 +2167,10 @@ require "copy_jdk_configs.lua"
+@@ -2181,6 +2181,10 @@ require "copy_jdk_configs.lua"
  %endif
  
  %changelog
-+* Wed Sep 14 2022 Jacco Ligthart <jacco@redsleeve.org> - 1:11.0.16.0.8-1.redsleeve
++* Sun Oct 02 2022 Jacco Ligthart <jacco@redsleeve.org> - 1:11.0.16.1.1-1.redsleeve
 +- removed arm from jit_arches
 +- removed the gdb section of the SPEC file
 +
- * Sat Jul 16 2022 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.16.0.8-1
- - Update to jdk-11.0.16+8
- - Update release notes to 11.0.16+8
+ * Wed Aug 24 2022 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.16.1.1-1
+ - Update to jdk-11.0.16.1+1
+ - Update release notes to 11.0.16.1+1
 -- 
 1.8.3.1
 
