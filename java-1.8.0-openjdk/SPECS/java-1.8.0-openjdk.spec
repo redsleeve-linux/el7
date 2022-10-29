@@ -190,7 +190,7 @@
 %global script 'use File::Spec; print File::Spec->abs2rel($ARGV[0], $ARGV[1])'
 %global abs2rel %{__perl} -e %{script}
 
-# Standard JPackage naming and versioning defines.
+# Standard JPackage naming and versioning defines
 %global origin          openjdk
 %global origin_nice     OpenJDK
 %global top_level_dir_name   %{origin}
@@ -218,7 +218,7 @@
 # note, following three variables are sedded from update_sources if used correctly. Hardcode them rather there.
 %global shenandoah_project      openjdk
 %global shenandoah_repo         shenandoah-jdk8u
-%global openjdk_revision        jdk8u345-b01
+%global openjdk_revision        jdk8u352-b08
 %global shenandoah_revision     shenandoah-%{openjdk_revision}
 # Define old aarch64/jdk8u tree variables for compatibility
 %global project         %{shenandoah_project}
@@ -235,7 +235,7 @@
 %global updatever       %(VERSION=%{whole_update}; echo ${VERSION##*u})
 # eg jdk8u60-b27 -> b27
 %global buildver        %(VERSION=%{version_tag}; echo ${VERSION##*-})
-%global rpmrelease      1
+%global rpmrelease      2
 # Define milestone (EA for pre-releases, GA ("fcs") for releases)
 # Release will be (where N is usually a number starting at 1):
 # - 0.N%%{?extraver}%%{?dist} for EA releases,
@@ -749,8 +749,9 @@ Requires: ca-certificates
 # Require jpackage-utils for ownership of /usr/lib/jvm/
 Requires: jpackage-utils
 # Require zoneinfo data provided by tzdata-java subpackage.
-# 2022a required as of JDK-8283350 in 8u342
-Requires: tzdata-java >= 2022a
+# 2022d required as of JDK-8294357
+# Should be bumped to 2022e once available (JDK-8295173)
+Requires: tzdata-java >= 2022d
 # for support of kernel stream control
 # libsctp.so.1 is being `dlopen`ed on demand
 Requires: lksctp-tools%{?_isa}
@@ -883,7 +884,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
 
 Name:    java-%{javaver}-%{origin}
 Version: %{javaver}.%{updatever}.%{buildver}
-Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}.redsleeve
+Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
 # and this change was brought into RHEL-4. java-1.5.0-ibm packages
 # also included the epoch in their virtual provides. This created a
@@ -949,14 +950,17 @@ Source13: TestCryptoLevel.java
 # Ensure ECDSA is working
 Source14: TestECDSA.java
 
+# Ensure vendor settings are correct
+Source16: CheckVendor.java
+
+# Ensure translations are available for new timezones
+Source18: TestTranslations.java
+
 Source20: repackReproduciblePolycies.sh
 
 # New versions of config files with aarch64 support. This is not upstream yet.
 Source100: config.guess
 Source101: config.sub
-
-# Ensure vendor settings are correct
-Source16: CheckVendor.java
 
 ############################################
 #
@@ -1049,13 +1053,17 @@ Patch12: jdk8186464-rh1433262-zip64_failure.patch
 
 #############################################
 #
-# Patches appearing in 8u302
+# Patches appearing in 8u362
 #
 # This section includes patches which are present
 # in the listed OpenJDK 8u release and should be
 # able to be removed once that release is out
 # and used by this RPM.
 #############################################
+# JDK-8294357: (tz) Update Timezone Data to 2022d
+Patch2002: jdk8294357-tzdata2022d.patch
+# JDK-8295173: (tz) Update Timezone Data to 2022e
+Patch2003: jdk8295173-tzdata2022e.patch
 
 #############################################
 #
@@ -1141,8 +1149,9 @@ BuildRequires: java-1.8.0-openjdk-devel
 %ifnarch %{jit_arches}
 BuildRequires: libffi-devel
 %endif
-# 2022a required as of JDK-8283350 in 8u342
-BuildRequires: tzdata-java >= 2022a
+# 2022d required as of JDK-8294357
+# Should be bumped to 2022e once available (JDK-8295173)
+BuildRequires: tzdata-java >= 2022d
 # Earlier versions have a bug in tree vectorization on PPC
 BuildRequires: gcc >= 4.8.3-8
 
@@ -1429,6 +1438,13 @@ sh %{SOURCE12}
 %patch542
 %patch12
 
+# Upstreamed fixes
+pushd %{top_level_dir_name}
+# tzdata updates targetted for 8u362
+%patch2002 -p1
+%patch2003 -p1
+popd
+
 # RPM-only fixes
 %patch539
 %patch600
@@ -1699,6 +1715,10 @@ $JAVA_HOME/bin/java $(echo $(basename %{SOURCE14})|sed "s|\.java||")
 $JAVA_HOME/bin/javac -d . %{SOURCE16}
 $JAVA_HOME/bin/java $(echo $(basename %{SOURCE16})|sed "s|\.java||") "%{oj_vendor}" %{oj_vendor_url} %{oj_vendor_bug_url}
 
+# Check translations are available for new timezones
+$JAVA_HOME/bin/javac -d . %{SOURCE18}
+$JAVA_HOME/bin/java $(echo $(basename %{SOURCE18})|sed "s|\.java||") JRE
+
 # Check debug symbols are present and can identify code
 find "$JAVA_HOME" -iname '*.so' -print0 | while read -d $'\0' lib
 do
@@ -1749,18 +1769,18 @@ done
 # Using line number 1 might cause build problems. See:
 # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
 # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
-#gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
-#handle SIGSEGV pass nostop noprint
-#handle SIGILL pass nostop noprint
-#set breakpoint pending on
-#break javaCalls.cpp:1
-#commands 1
-#backtrace
-#quit
-#end
-#run -version
-#EOF
-#grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
+gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
+handle SIGSEGV pass nostop noprint
+handle SIGILL pass nostop noprint
+set breakpoint pending on
+break javaCalls.cpp:1
+commands 1
+backtrace
+quit
+end
+run -version
+EOF
+grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
 
 # Check src.zip has all sources. See RHBZ#1130490
 jar -tf $JAVA_HOME/src.zip | grep 'sun.misc.Unsafe'
@@ -2189,8 +2209,16 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
-* Sun Oct 02 2022 Jacco Ligthart <jacco@redsleeve.org> 1:1.8.0.345.b01-1.redsleeve
-- removed the gdb section of the SPEC file
+* Sun Oct 16 2022 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.352.b08-2
+- Update in-tree tzdata to 2022e with JDK-8294357 & JDK-8295173
+- Add test to ensure timezones can be translated
+- Related: rhbz#2133695
+
+* Fri Oct 14 2022 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.352.b08-1
+- Update to shenandoah-jdk8u352-b08 (GA)
+- Update release notes for shenandoah-8u352-b08.
+- * This tarball is embargoed until 2022-10-18 @ 1pm PT. *
+- Resolves: rhbz#2133695
 
 * Thu Aug 04 2022 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.345.b01-1
 - Update to shenandoah-jdk8u345-b01 (GA)
