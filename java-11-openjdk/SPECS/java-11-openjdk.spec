@@ -87,7 +87,7 @@
 # Set of architectures for which we build slowdebug builds
 %global debug_arches    %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64} s390x
 # Set of architectures with a Just-In-Time (JIT) compiler
-%global jit_arches      %{debug_arches}
+%global jit_arches      %{debug_arches} %{arm}
 # Set of architectures which run a full bootstrap cycle
 %global bootstrap_arches %{jit_arches}
 # Set of architectures which support SystemTap tapsets
@@ -95,7 +95,7 @@
 # Set of architectures with a Ahead-Of-Time (AOT) compiler
 %global aot_arches      x86_64 %{aarch64}
 # Set of architectures which support the serviceability agent
-%global sa_arches       %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64}
+%global sa_arches       %{ix86} x86_64 sparcv9 sparc64 %{aarch64} %{power64} %{arm}
 # Set of architectures which support class data sharing
 # As of JDK-8005165 in OpenJDK 10, class sharing is not arch-specific
 # However, it does segfault on the Zero assembler port, so currently JIT only
@@ -271,7 +271,7 @@
 # New Version-String scheme-style defines
 %global featurever 11
 %global interimver 0
-%global updatever 17
+%global updatever 18
 %global patchver 0
 # buildjdkver is usually same as %%{featurever},
 # but in time of bootstrap of next jdk, it is featurever-1,
@@ -315,8 +315,8 @@
 %global origin_nice     OpenJDK
 %global top_level_dir_name   %{origin}
 %global top_level_dir_name_backup %{top_level_dir_name}-backup
-%global buildver        8
-%global rpmrelease      2
+%global buildver        10
+%global rpmrelease      1
 #%%global tagsuffix      %%{nil}
 # priority must be 7 digits in total
 # setting to 1, so debug ones can have 0
@@ -867,11 +867,10 @@ Provides: java-%{javaver}%1 = %{epoch}:%{version}-%{release}
 %global java_headless_rpo() %{expand:
 # Require /etc/pki/java/cacerts
 Requires: ca-certificates
-# Require jpackage-utils for ownership of /usr/lib/jvm/ and macros
+# Require javapackages-tools for ownership of /usr/lib/jvm/ and macros
 Requires: javapackages-tools
-# 2022d required as of JDK-8294357
-# Should be bumped to 2022e once available (JDK-8295173)
-Requires: tzdata-java >= 2022d
+# 2022g required as of JDK-8297804
+Requires: tzdata-java >= 2022g
 # for support of kernel stream control
 # libsctp.so.1 is being `dlopen`ed on demand
 %if 0%{?rhel} >= 8
@@ -999,7 +998,7 @@ Provides: java-%{javaver}-%{origin}-src%1 = %{epoch}:%{version}-%{release}
 
 Name:    java-%{javaver}-%{origin}
 Version: %{newjavaver}.%{buildver}
-Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}.redsleeve
+Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
 # and this change was brought into RHEL-4. java-1.5.0-ibm packages
 # also included the epoch in their virtual provides. This created a
@@ -1127,12 +1126,6 @@ Patch7: jdk8009550-rh910107-search_for_versioned_libpcsclite.patch
 # able to be removed once that release is out
 # and used by this RPM.
 #############################################
-# JDK-8293834: Update CLDR data following tzdata 2022c update
-Patch2001: jdk8293834-kyiv_cldr_update.patch
-# JDK-8294357: (tz) Update Timezone Data to 2022d
-Patch2002: jdk8294357-tzdata2022d.patch
-# JDK-8295173: (tz) Update Timezone Data to 2022e
-Patch2003: jdk8295173-tzdata2022e.patch
 
 BuildRequires: autoconf
 BuildRequires: automake
@@ -1176,9 +1169,8 @@ BuildRequires: java-%{buildjdkver}-openjdk-devel
 %ifnarch %{jit_arches}
 BuildRequires: libffi-devel
 %endif
-# 2022d required as of JDK-8294357
-# Should be bumped to 2022e once available (JDK-8295173)
-BuildRequires: tzdata-java >= 2022d
+# 2022g required as of JDK-8297804
+BuildRequires: tzdata-java >= 2022g
 # Earlier versions have a bug in tree vectorization on PPC
 BuildRequires: gcc >= 4.8.3-8
 
@@ -1474,10 +1466,6 @@ pushd %{top_level_dir_name}
 %patch3 -p1
 %patch4 -p1
 %patch7 -p1
-# tzdata updates targetted for 17.0.6
-%patch2001 -p1
-%patch2002 -p1
-%patch2003 -p1
 popd # openjdk
 
 %patch1000
@@ -1849,7 +1837,7 @@ done
 # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
 # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
 # Temporarily disabled on s390x as it sporadically crashes with SIGFPE, Arithmetic exception.
-%ifnarch s390x %{arm}
+%ifnarch s390x
 gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
 handle SIGSEGV pass nostop noprint
 handle SIGILL pass nostop noprint
@@ -2186,9 +2174,27 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
-* Sat Oct 29 2022 Jacco Ligthart <jacco@redsleeve.org> - 1:11.0.17.0.8-2.redsleeve
-- removed arm from jit_arches
-- removed the gdb section of the SPEC file
+* Wed Jan 11 2023 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.18.0.10-1
+- Update to jdk-11.0.18+10 (GA)
+- Update release notes to 11.0.18+10
+- Switch to GA mode for release
+- ** This tarball is embargoed until 2023-01-17 @ 1pm PT. **
+- Related: rhbz#2150192
+
+* Tue Jan 03 2023 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.18.0.9-0.2.ea
+- Update to jdk-11.0.18+9
+- Update release notes to 11.0.18+9
+- Drop local copy of JDK-8293834 now this is upstream
+- Require tzdata 2022g due to inclusion of JDK-8296108, JDK-8296715 & JDK-8297804
+- Update TestTranslations.java to test the new America/Ciudad_Juarez zone
+- Resolves: rhbz#2150192
+
+* Thu Dec 15 2022 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.18.0.1-0.1.ea
+- Update to jdk-11.0.18+1
+- Update release notes to 11.0.18+1
+- Switch to EA mode for 11.0.18 pre-release builds.
+- Drop local copies of JDK-8294357 & JDK-8295173 now upstream contains tzdata 2022e
+- Related: rhbz#2150192
 
 * Sat Oct 15 2022 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.17.0.8-2
 - Update in-tree tzdata to 2022e with JDK-8294357 & JDK-8295173
