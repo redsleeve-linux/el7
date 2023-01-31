@@ -1,0 +1,587 @@
+diff --git a/include/http_request.h b/include/http_request.h
+index 8bfda78..cd093aa 100644
+--- a/include/http_request.h
++++ b/include/http_request.h
+@@ -337,6 +337,21 @@ void ap_process_async_request(request_rec *r);
+  */
+ AP_DECLARE(void) ap_die(int type, request_rec *r);
+ 
++/**
++ * Check whether a connection is still established and has data available,
++ * optionnaly consuming blank lines ([CR]LF).
++ * @param c The current connection
++ * @param bb The brigade to filter
++ * @param max_blank_lines Max number of blank lines to consume, or zero
++ *                        to consider them as data (single read).
++ * @return APR_SUCCESS: connection established with data available,
++ *         APR_EAGAIN: connection established and empty,
++ *         APR_NOTFOUND: too much blank lines,
++ *         APR_E*: connection/general error.
++ */
++AP_DECLARE(apr_status_t) ap_check_pipeline(conn_rec *c, apr_bucket_brigade *bb,
++                                           unsigned int max_blank_lines);
++
+ /* Hooks */
+ 
+ /**
+diff --git a/include/httpd.h b/include/httpd.h
+index a552358..d2a060e 100644
+--- a/include/httpd.h
++++ b/include/httpd.h
+@@ -200,6 +200,10 @@ extern "C" {
+ #ifndef DEFAULT_LIMIT_REQUEST_FIELDS
+ #define DEFAULT_LIMIT_REQUEST_FIELDS 100
+ #endif
++/** default/hard limit on number of leading/trailing empty lines */
++#ifndef DEFAULT_LIMIT_BLANK_LINES
++#define DEFAULT_LIMIT_BLANK_LINES 10
++#endif
+ 
+ /**
+  * The default default character set name to add if AddDefaultCharset is
+diff --git a/modules/http/http_request.c b/modules/http/http_request.c
+index 9885de4..c80dc78 100644
+--- a/modules/http/http_request.c
++++ b/modules/http/http_request.c
+@@ -238,25 +238,117 @@ AP_DECLARE(void) ap_die(int type, request_rec *r)
+     }                                                                   \
+ } while(0)
+ 
+-static void check_pipeline(conn_rec *c, apr_bucket_brigade *bb)
++AP_DECLARE(apr_status_t) ap_check_pipeline(conn_rec *c, apr_bucket_brigade *bb,
++                                           unsigned int max_blank_lines)
+ {
+-    if (c->keepalive != AP_CONN_CLOSE) {
+-        apr_status_t rv;
++    apr_status_t rv = APR_EOF;
++    ap_input_mode_t mode = AP_MODE_SPECULATIVE;
++    unsigned int num_blank_lines = 0;
++    apr_size_t cr = 0;
++    char buf[2];
+ 
+-        rv = ap_get_brigade(c->input_filters, bb, AP_MODE_SPECULATIVE,
+-                            APR_NONBLOCK_READ, 1);
+-        if (rv != APR_SUCCESS || APR_BRIGADE_EMPTY(bb)) {
+-            /*
+-             * Error or empty brigade: There is no data present in the input
+-             * filter
+-             */
+-            c->data_in_input_filters = 0;
++    while (c->keepalive != AP_CONN_CLOSE && !c->aborted) {
++        apr_size_t len = cr + 1;
++
++        apr_brigade_cleanup(bb);
++        rv = ap_get_brigade(c->input_filters, bb, mode,
++                            APR_NONBLOCK_READ, len);
++
++        if (rv != APR_SUCCESS || APR_BRIGADE_EMPTY(bb) || !max_blank_lines) {
++            if (mode == AP_MODE_READBYTES) {
++                /* Unexpected error, stop with this connection */
++                ap_log_cerror(APLOG_MARK, APLOG_ERR, rv, c, APLOGNO(02967)
++                              "Can't consume pipelined empty lines");
++                c->keepalive = AP_CONN_CLOSE;
++                rv = APR_EGENERAL;
++            }
++            else if (rv != APR_SUCCESS || APR_BRIGADE_EMPTY(bb)) {
++                 if (rv != APR_SUCCESS && !APR_STATUS_IS_EAGAIN(rv)) {
++                     /* Pipe is dead */
++                     c->keepalive = AP_CONN_CLOSE;
++                 }
++                 else {
++                     /* Pipe is up and empty */
++                     rv = APR_EAGAIN;
++                 }
++             }
++             else {
++                 apr_off_t n = 0;
++                 /* Single read asked, (non-meta-)data available? */
++                 rv = apr_brigade_length(bb, 0, &n);
++                 if (rv == APR_SUCCESS && n <= 0) {
++                     rv = APR_EAGAIN;
++                 }
++            }
++            break;
+         }
+-        else {
+-            c->data_in_input_filters = 1;
++
++        /* Lookup and consume blank lines */
++        rv = apr_brigade_flatten(bb, buf, &len);
++        if (rv != APR_SUCCESS || len != cr + 1) {
++            int log_level;
++            if (mode == AP_MODE_READBYTES) {
++                /* Unexpected error, stop with this connection */
++                c->keepalive = AP_CONN_CLOSE;
++                log_level = APLOG_ERR;
++                rv = APR_EGENERAL;
++            }
++            else {
++                /* Let outside (non-speculative/blocking) read determine
++                 * where this possible failure comes from (metadata,
++                 * morphed EOF socket => empty bucket? debug only here).
++                 */
++                log_level = APLOG_DEBUG;
++                rv = APR_SUCCESS;
++            }
++            ap_log_cerror(APLOG_MARK, log_level, rv, c, APLOGNO(02968)
++                          "Can't check pipelined data");
++            break;
++        }
++
++        if (mode == AP_MODE_READBYTES) {
++            /* [CR]LF consumed, try next */
++            mode = AP_MODE_SPECULATIVE;
++            cr = 0;
++        }
++        else if (cr) {
++            AP_DEBUG_ASSERT(len == 2 && buf[0] == APR_ASCII_CR);
++            if (buf[1] == APR_ASCII_LF) {
++                /* consume this CRLF */
++                mode = AP_MODE_READBYTES;
++                num_blank_lines++;
++            }
++            else {
++                /* CR(?!LF) is data */
++                break;
++            }
++         }
++         else {
++            if (buf[0] == APR_ASCII_LF) {
++                /* consume this LF */
++                mode = AP_MODE_READBYTES;
++                num_blank_lines++;
++            }
++            else if (buf[0] == APR_ASCII_CR) {
++                cr = 1;
++            }
++            else {
++                /* Not [CR]LF, some data */
++                break;
++            }
++        }
++
++        if (num_blank_lines > max_blank_lines) {
++             /* Enough blank lines with this connection,
++              * stop and don't recycle it.
++              */
++            c->keepalive = AP_CONN_CLOSE;
++            rv = APR_NOTFOUND;
++            break;
+         }
+-        apr_brigade_cleanup(bb);
+     }
++
++    return rv;
+ }
+ 
+ AP_DECLARE(void) ap_process_request_after_handler(request_rec *r)
+@@ -264,6 +356,7 @@ AP_DECLARE(void) ap_process_request_after_handler(request_rec *r)
+     apr_bucket_brigade *bb;
+     apr_bucket *b;
+     conn_rec *c = r->connection;
++    apr_status_t rv;
+ 
+     /* Send an EOR bucket through the output filter chain.  When
+      * this bucket is destroyed, the request will be logged and
+@@ -284,7 +377,15 @@ AP_DECLARE(void) ap_process_request_after_handler(request_rec *r)
+ 
+     if (c->cs)
+         c->cs->state = CONN_STATE_WRITE_COMPLETION;
+-    check_pipeline(c, bb);
++
++    /* Check pipeline consuming blank lines, they must not be interpreted as
++     * the next pipelined request, otherwise we would block on the next read
++     * without flushing data, and hence possibly delay pending response(s)
++     * until the next/real request comes in or the keepalive timeout expires.
++     */
++    rv = ap_check_pipeline(c, bb, DEFAULT_LIMIT_BLANK_LINES);
++    c->data_in_input_filters = (rv == APR_SUCCESS);
++
+     AP_PROCESS_REQUEST_RETURN((uintptr_t)r, r->uri, r->status);
+     if (ap_extended_status) {
+         ap_time_process_request(c->sbh, STOP_PREQUEST);
+diff --git a/modules/proxy/mod_proxy.h b/modules/proxy/mod_proxy.h
+index f6f7069..dcc3dba 100644
+--- a/modules/proxy/mod_proxy.h
++++ b/modules/proxy/mod_proxy.h
+@@ -251,6 +251,10 @@ typedef struct {
+                                 * filter chain or not */
+     unsigned int inreslist:1;  /* connection in apr_reslist? */
+     const char   *uds_path;    /* Unix domain socket path */
++    apr_bucket_brigade *tmp_bb;/* Temporary brigade created with the connection
++                                * and its scpool/bucket_alloc (NULL before),
++                                * must be left cleaned when used (locally).
++                                */
+ } proxy_conn_rec;
+ 
+ typedef struct {
+@@ -569,6 +573,7 @@ PROXY_DECLARE(int) ap_proxy_checkproxyblock2(request_rec *r, proxy_server_conf *
+ PROXY_DECLARE(int) ap_proxy_pre_http_request(conn_rec *c, request_rec *r);
+ /* DEPRECATED (will be replaced with ap_proxy_connect_backend */
+ PROXY_DECLARE(int) ap_proxy_connect_to_backend(apr_socket_t **, const char *, apr_sockaddr_t *, const char *, proxy_server_conf *, request_rec *);
++/* DEPRECATED (will be replaced with ap_proxy_check_connection */
+ PROXY_DECLARE(apr_status_t) ap_proxy_ssl_connection_cleanup(proxy_conn_rec *conn,
+                                                             request_rec *r);
+ PROXY_DECLARE(int) ap_proxy_ssl_enable(conn_rec *c);
+@@ -870,6 +875,28 @@ PROXY_DECLARE(int) ap_proxy_acquire_connection(const char *proxy_function,
+ PROXY_DECLARE(int) ap_proxy_release_connection(const char *proxy_function,
+                                                proxy_conn_rec *conn,
+                                                server_rec *s);
++
++#define PROXY_CHECK_CONN_EMPTY (1 << 0)
++/**
++ * Check a connection to the backend
++ * @param scheme calling proxy scheme (http, ajp, ...)
++ * @param conn   acquired connection
++ * @param server current server record
++ * @param max_blank_lines how many blank lines to consume,
++ *                        or zero for none (considered data)
++ * @param flags  PROXY_CHECK_* bitmask
++ * @return APR_SUCCESS: connection established,
++ *         APR_ENOTEMPTY: connection established with data,
++ *         APR_ENOSOCKET: not connected,
++ *         APR_EINVAL: worker in error state (unusable),
++ *         other: connection closed/aborted (remotely)
++ */
++PROXY_DECLARE(apr_status_t) ap_proxy_check_connection(const char *scheme,
++                                                      proxy_conn_rec *conn,
++                                                      server_rec *server,
++                                                      unsigned max_blank_lines,
++                                                      int flags);
++
+ /**
+  * Make a connection to the backend
+  * @param proxy_function calling proxy scheme (http, ajp, ...)
+diff --git a/modules/proxy/mod_proxy_ajp.c b/modules/proxy/mod_proxy_ajp.c
+index 81039bf..9b69a2e 100644
+--- a/modules/proxy/mod_proxy_ajp.c
++++ b/modules/proxy/mod_proxy_ajp.c
+@@ -753,7 +753,10 @@ static int proxy_ajp_handler(request_rec *r, proxy_worker *worker,
+             break;
+ 
+         /* Step Two: Make the Connection */
+-        if (ap_proxy_connect_backend(scheme, backend, worker, r->server)) {
++        if (ap_proxy_check_connection(scheme, backend, r->server, 0,
++                                      PROXY_CHECK_CONN_EMPTY)
++                && ap_proxy_connect_backend(scheme, backend, worker,
++                                            r->server)) {
+             ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(00896)
+                           "failed to make connection to backend: %s",
+                           backend->hostname);
+diff --git a/modules/proxy/mod_proxy_fcgi.c b/modules/proxy/mod_proxy_fcgi.c
+index 7889b0e..292b2c4 100644
+--- a/modules/proxy/mod_proxy_fcgi.c
++++ b/modules/proxy/mod_proxy_fcgi.c
+@@ -1007,7 +1007,10 @@ static int proxy_fcgi_handler(request_rec *r, proxy_worker *worker,
+     backend->close = 1;
+ 
+     /* Step Two: Make the Connection */
+-    if (ap_proxy_connect_backend(FCGI_SCHEME, backend, worker, r->server)) {
++    if (ap_proxy_check_connection(FCGI_SCHEME, backend, r->server, 0,
++                                  PROXY_CHECK_CONN_EMPTY)
++            && ap_proxy_connect_backend(FCGI_SCHEME, backend, worker,
++                                        r->server)) {
+         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(01079)
+                       "failed to make connection to backend: %s",
+                       backend->hostname);
+diff --git a/modules/proxy/mod_proxy_http.c b/modules/proxy/mod_proxy_http.c
+index bb5cdf9..6767c89 100644
+--- a/modules/proxy/mod_proxy_http.c
++++ b/modules/proxy/mod_proxy_http.c
+@@ -1228,7 +1228,7 @@ apr_status_t ap_proxy_http_process_response(apr_pool_t * p, request_rec *r,
+     const char *buf;
+     char keepchar;
+     apr_bucket *e;
+-    apr_bucket_brigade *bb, *tmp_bb;
++    apr_bucket_brigade *bb;
+     apr_bucket_brigade *pass_bb;
+     int len, backasswards;
+     int interim_response = 0; /* non-zero whilst interim 1xx responses
+@@ -1284,16 +1284,17 @@ apr_status_t ap_proxy_http_process_response(apr_pool_t * p, request_rec *r,
+     backend->r->proxyreq = PROXYREQ_RESPONSE;
+     apr_table_setn(r->notes, "proxy-source-port", apr_psprintf(r->pool, "%hu",
+                    origin->local_addr->port));
+-    tmp_bb = apr_brigade_create(p, c->bucket_alloc);
+     do {
+         apr_status_t rc;
+ 
+         apr_brigade_cleanup(bb);
+ 
+-        rc = ap_proxygetline(tmp_bb, buffer, sizeof(buffer), backend->r, 0, &len);
++        rc = ap_proxygetline(backend->tmp_bb, buffer, sizeof(buffer),
++                             backend->r, 0, &len);
+         if (len == 0) {
+             /* handle one potential stray CRLF */
+-            rc = ap_proxygetline(tmp_bb, buffer, sizeof(buffer), backend->r, 0, &len);
++            rc = ap_proxygetline(backend->tmp_bb, buffer, sizeof(buffer),
++                                 backend->r, 0, &len);
+         }
+         if (len <= 0) {
+             ap_log_rerror(APLOG_MARK, APLOG_ERR, rc, r, APLOGNO(01102)
+@@ -1944,13 +1945,8 @@ static int proxy_http_handler(request_rec *r, proxy_worker *worker,
+                                               worker, r->server)) != OK)
+         goto cleanup;
+ 
+-
+     backend->is_ssl = is_ssl;
+ 
+-    if (is_ssl) {
+-        ap_proxy_ssl_connection_cleanup(backend, r);
+-    }
+-
+     /*
+      * In the case that we are handling a reverse proxy connection and this
+      * is not a request that is coming over an already kept alive connection
+@@ -1975,7 +1971,10 @@ static int proxy_http_handler(request_rec *r, proxy_worker *worker,
+             break;
+ 
+         /* Step Two: Make the Connection */
+-        if (ap_proxy_connect_backend(proxy_function, backend, worker, r->server)) {
++        if (ap_proxy_check_connection(proxy_function, backend, r->server, 1,
++                                      PROXY_CHECK_CONN_EMPTY)
++                && ap_proxy_connect_backend(proxy_function, backend, worker,
++                                            r->server)) {
+             ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(01114)
+                           "HTTP: failed to make connection to backend: %s",
+                           backend->hostname);
+diff --git a/modules/proxy/proxy_util.c b/modules/proxy/proxy_util.c
+index e5862f8..4334001 100644
+--- a/modules/proxy/proxy_util.c
++++ b/modules/proxy/proxy_util.c
+@@ -1407,14 +1407,15 @@ static apr_status_t connection_cleanup(void *theconn)
+ static void socket_cleanup(proxy_conn_rec *conn)
+ {
+     conn->sock = NULL;
++    conn->tmp_bb = NULL;
+     conn->connection = NULL;
+     apr_pool_clear(conn->scpool);
+ }
+ 
++/* DEPRECATED */
+ PROXY_DECLARE(apr_status_t) ap_proxy_ssl_connection_cleanup(proxy_conn_rec *conn,
+                                                             request_rec *r)
+ {
+-    apr_bucket_brigade *bb;
+     apr_status_t rv;
+ 
+     /*
+@@ -1426,22 +1427,21 @@ PROXY_DECLARE(apr_status_t) ap_proxy_ssl_connection_cleanup(proxy_conn_rec *conn
+      * processed. We don't expect any data to be in the returned brigade.
+      */
+     if (conn->sock && conn->connection) {
+-        bb = apr_brigade_create(r->pool, r->connection->bucket_alloc);
+-        rv = ap_get_brigade(conn->connection->input_filters, bb,
++        rv = ap_get_brigade(conn->connection->input_filters, conn->tmp_bb,
+                             AP_MODE_READBYTES, APR_NONBLOCK_READ,
+                             HUGE_STRING_LEN);
+-        if ((rv != APR_SUCCESS) && !APR_STATUS_IS_EAGAIN(rv)) {
+-            socket_cleanup(conn);
+-        }
+-        if (!APR_BRIGADE_EMPTY(bb)) {
++        if (!APR_BRIGADE_EMPTY(conn->tmp_bb)) {
+             apr_off_t len;
+ 
+-            rv = apr_brigade_length(bb, 0, &len);
++            rv = apr_brigade_length(conn->tmp_bb, 0, &len);
+             ap_log_rerror(APLOG_MARK, APLOG_TRACE3, rv, r,
+                           "SSL cleanup brigade contained %"
+                           APR_OFF_T_FMT " bytes of data.", len);
++            apr_brigade_cleanup(conn->tmp_bb);
++        }
++        if ((rv != APR_SUCCESS) && !APR_STATUS_IS_EAGAIN(rv)) {
++            socket_cleanup(conn);
+         }
+-        apr_brigade_destroy(bb);
+     }
+     return APR_SUCCESS;
+ }
+@@ -2666,13 +2666,89 @@ static apr_status_t socket_connect_un(apr_socket_t *sock,
+ }
+ #endif
+ 
++PROXY_DECLARE(apr_status_t) ap_proxy_check_connection(const char *scheme,
++                                                      proxy_conn_rec *conn,
++                                                      server_rec *server,
++                                                      unsigned max_blank_lines,
++                                                      int flags)
++{
++    apr_status_t rv = APR_SUCCESS;
++    proxy_worker *worker = conn->worker;
++
++    if (!PROXY_WORKER_IS_USABLE(worker)) {
++        /*
++         * The worker is in error likely done by a different thread / process
++         * e.g. for a timeout or bad status. We should respect this and should
++         * not continue with a connection via this worker even if we got one.
++         */
++        rv = APR_EINVAL;
++    }
++    else if (conn->connection) {
++        /* We have a conn_rec, check the full filter stack for things like
++         * SSL alert/shutdown, filters aside data...
++         */
++        rv = ap_check_pipeline(conn->connection, conn->tmp_bb,
++                               max_blank_lines);
++        apr_brigade_cleanup(conn->tmp_bb);
++        if (rv == APR_SUCCESS) {
++            /* Some data available, the caller might not want them. */
++            if (flags & PROXY_CHECK_CONN_EMPTY) {
++                rv = APR_ENOTEMPTY;
++            }
++        }
++        else if (APR_STATUS_IS_EAGAIN(rv)) {
++            /* Filter chain is OK and empty, yet we can't determine from
++             * ap_check_pipeline (actually ap_core_input_filter) whether
++             * an empty non-blocking read is EAGAIN or EOF on the socket
++             * side (it's always SUCCESS), so check it explicitely here.
++             */
++            if (is_socket_connected(conn->sock)) {
++                rv = APR_SUCCESS;
++            }
++            else {
++                rv = APR_EPIPE;
++            }
++        }
++    }
++    else if (conn->sock) {
++        /* For modules working with sockets directly, check it. */
++        if (!is_socket_connected(conn->sock)) {
++            rv = APR_EPIPE;
++        }
++    }
++    else {
++        rv = APR_ENOSOCKET;
++    }
++
++    if (rv == APR_SUCCESS) {
++        ap_log_error(APLOG_MARK, APLOG_TRACE2, 0, server,
++                     "%s: reusing backend connection %pI<>%pI",
++                     scheme, conn->connection->local_addr,
++                     conn->connection->client_addr);
++    }
++    else if (conn->sock) {
++        socket_cleanup(conn);
++
++        if (rv != APR_ENOTEMPTY) {
++            ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, server, APLOGNO(00951)
++                         "%s: backend socket is disconnected.",
++                         scheme);
++        } else {
++            ap_log_error(APLOG_MARK, APLOG_INFO, 0, server, APLOGNO(03408)
++                         "%s: reusable backend connection is not empty: "
++                         "forcibly closed", scheme);
++        }
++    }
++
++    return rv;
++}
++
+ PROXY_DECLARE(int) ap_proxy_connect_backend(const char *proxy_function,
+                                             proxy_conn_rec *conn,
+                                             proxy_worker *worker,
+                                             server_rec *s)
+ {
+     apr_status_t rv;
+-    int connected = 0;
+     int loglevel;
+     apr_sockaddr_t *backend_addr = conn->addr;
+     /* the local address to use for the outgoing connection */
+@@ -2682,15 +2758,12 @@ PROXY_DECLARE(int) ap_proxy_connect_backend(const char *proxy_function,
+     proxy_server_conf *conf =
+         (proxy_server_conf *) ap_get_module_config(sconf, &proxy_module);
+ 
+-    if (conn->sock) {
+-        if (!(connected = is_socket_connected(conn->sock))) {
+-            socket_cleanup(conn);
+-            ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, s, APLOGNO(00951)
+-                         "%s: backend socket is disconnected.",
+-                         proxy_function);
+-        }
++    rv = ap_proxy_check_connection(proxy_function, conn, s, 0, 0);
++    if (rv == APR_EINVAL) {
++        return DECLINED;
+     }
+-    while ((backend_addr || conn->uds_path) && !connected) {
++
++    while (rv != APR_SUCCESS && (backend_addr || conn->uds_path)) {
+ #if APR_HAVE_SYS_UN_H
+         if (conn->uds_path)
+         {
+@@ -2867,8 +2940,6 @@ PROXY_DECLARE(int) ap_proxy_connect_backend(const char *proxy_function,
+                 }
+             }
+         }
+-
+-        connected    = 1;
+     }
+ 
+     if (PROXY_WORKER_IS_USABLE(worker)) {
+@@ -2878,7 +2949,7 @@ PROXY_DECLARE(int) ap_proxy_connect_backend(const char *proxy_function,
+          * Although some connections may be alive
+          * no further connections to the worker could be made
+          */
+-        if (!connected) {
++        if (rv != APR_SUCCESS) {
+             if (!(worker->s->status & PROXY_WORKER_IGNORE_ERRORS)) {
+                 worker->s->error_time = apr_time_now();
+                 worker->s->status |= PROXY_WORKER_IN_ERROR;
+@@ -2899,7 +2970,6 @@ PROXY_DECLARE(int) ap_proxy_connect_backend(const char *proxy_function,
+             worker->s->error_time = 0;
+             worker->s->retries = 0;
+         }
+-        return connected ? OK : DECLINED;
+     }
+     else {
+         /*
+@@ -2907,11 +2977,12 @@ PROXY_DECLARE(int) ap_proxy_connect_backend(const char *proxy_function,
+          * e.g. for a timeout or bad status. We should respect this and should
+          * not continue with a connection via this worker even if we got one.
+          */
+-         if (connected) {
++         if (rv == APR_SUCCESS) {
+              socket_cleanup(conn);
+          }
+-         return DECLINED;
++         rv = APR_EINVAL;
+     }
++    return rv == APR_SUCCESS ? OK : DECLINED;
+ }
+ 
+ static apr_status_t connection_shutdown(void *theconn)
+@@ -2956,6 +3027,7 @@ PROXY_DECLARE(int) ap_proxy_connection_create(const char *proxy_function,
+     }
+ 
+     bucket_alloc = apr_bucket_alloc_create(conn->scpool);
++    conn->tmp_bb = apr_brigade_create(conn->scpool, bucket_alloc);
+     /*
+      * The socket is now open, create a new backend server connection
+      */
+diff --git a/server/protocol.c b/server/protocol.c
+index a6aeb24..065efdf 100644
+--- a/server/protocol.c
++++ b/server/protocol.c
+@@ -594,14 +594,9 @@ static int read_request_line(request_rec *r, apr_bucket_brigade *bb)
+     char *ll;
+     char *uri;
+     apr_size_t len;
+-    int num_blank_lines = 0;
+     core_server_config *conf = ap_get_core_module_config(r->server->module_config);
+     int strict = (conf->http_conformance != AP_HTTP_CONFORMANCE_UNSAFE);
+-    int max_blank_lines = r->server->limit_req_fields;
+-
+-    if (max_blank_lines <= 0) {
+-        max_blank_lines = DEFAULT_LIMIT_REQUEST_FIELDS;
+-    }
++    int num_blank_lines = DEFAULT_LIMIT_BLANK_LINES;
+ 
+     /* Read past empty lines until we get a real request line,
+      * a read error, the connection closes (EOF), or we timeout.
+@@ -648,7 +643,7 @@ static int read_request_line(request_rec *r, apr_bucket_brigade *bb)
+             r->protocol  = apr_pstrdup(r->pool, "HTTP/1.0");
+             return 0;
+         }
+-    } while ((len <= 0) && (++num_blank_lines < max_blank_lines));
++    } while ((len <= 0) && (--num_blank_lines >= 0));
+ 
+     if (APLOGrtrace5(r)) {
+         ap_log_rerror(APLOG_MARK, APLOG_TRACE5, 0, r,

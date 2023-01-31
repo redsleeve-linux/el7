@@ -15,10 +15,10 @@
 Summary: Apache HTTP Server
 Name: httpd
 Version: 2.4.6
-Release: 97%{?dist}.5.redsleeve
+Release: 98%{?dist}.6
 URL: http://httpd.apache.org/
 Source0: http://www.apache.org/dist/httpd/httpd-%{version}.tar.bz2
-Source1: index.html
+Source1: centos-noindex.tar.gz
 Source2: httpd.logrotate
 Source3: httpd.sysconf
 Source4: httpd-ssl-pass-dialog
@@ -207,6 +207,8 @@ Patch144: httpd-2.4.6-r1879224.patch
 Patch145: httpd-2.4.6-r1881459.patch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1862499
 Patch146: httpd-2.4.6-r1872790.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=2101997
+Patch147: httpd-2.4.6-head-404.patch
 
 # Security fixes
 Patch200: httpd-2.4.6-CVE-2013-6438.patch
@@ -517,6 +519,10 @@ rm modules/ssl/ssl_engine_dh.c
 %patch245 -p1 -b .cve26691
 %patch246 -p1 -b .cve22720
 
+# need to be applied in the end since security patches
+# are changing the code that present in this patch
+%patch147 -p1 -b .head-404
+
 # Patch in the vendor string and the release string
 sed -i '/^#define PLATFORM/s/Unix/%{vstring}/' os/unix/os.h
 sed -i 's/@RELEASE@/%{release}/' server/core.c
@@ -669,8 +675,9 @@ EOF
 
 # Handle contentdir
 mkdir $RPM_BUILD_ROOT%{contentdir}/noindex
-install -m 644 -p $RPM_SOURCE_DIR/index.html \
-        $RPM_BUILD_ROOT%{contentdir}/noindex/index.html
+tar xzf $RPM_SOURCE_DIR/centos-noindex.tar.gz \
+        -C $RPM_BUILD_ROOT%{contentdir}/noindex/ \
+        --strip-components=1
 
 rm -rf %{contentdir}/htdocs
 
@@ -694,7 +701,7 @@ rm -v $RPM_BUILD_ROOT%{docroot}/html/*.html \
       $RPM_BUILD_ROOT%{docroot}/cgi-bin/*
 
 # Symlink for the powered-by-$DISTRO image:
-ln -s ../../pixmaps/poweredby.png \
+ln -s ../noindex/images/poweredby.png \
         $RPM_BUILD_ROOT%{contentdir}/icons/poweredby.png
 
 # symlinks for /etc/httpd
@@ -880,7 +887,7 @@ rm -rf $RPM_BUILD_ROOT
 %{contentdir}/error/README
 %{contentdir}/error/*.var
 %{contentdir}/error/include/*.html
-%{contentdir}/noindex/index.html
+%{contentdir}/noindex/*
 
 %dir %{docroot}
 %dir %{docroot}/cgi-bin
@@ -946,14 +953,15 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/rpm/macros.httpd
 
 %changelog
-* Fri Apr 01 2022 Jacco Ligthart <jacco@redsleeve.org> - 2.4.6-97.el7.5.redsleeve
-- roll in redsleeve branding, based on RHEL
-
-* Thu Mar 24 2022 CentOS Sources <bugs@centos.org> - 2.4.6-97.el7.centos.5
+* Tue Jan 24 2023 CentOS Sources <bugs@centos.org> - 2.4.6-98.el7.centos.6
 - Remove index.html, add centos-noindex.tar.gz
 - change vstring
 - change symlink for poweredby.png
 - update welcome.conf with proper aliases
+
+* Wed Dec 07 2022 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-97.6
+- Resolves: #2101997 - HEAD request with a 404 and custom ErrorPage causes
+  corrupt and mixed-up responses
 
 * Tue Mar 22 2022 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-97.5
 - Resolves: #2065243 - CVE-2022-22720 httpd: HTTP request smuggling
