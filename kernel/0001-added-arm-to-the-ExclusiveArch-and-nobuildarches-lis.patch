@@ -1,6 +1,6 @@
-From 3ed1edea205d40c30b88add64ca4ac3b02787226 Mon Sep 17 00:00:00 2001
+From a9acf37526670da6185f547aded0c98a437d85b3 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Wed, 14 Sep 2022 05:05:52 +0200
+Date: Sat, 12 Nov 2022 04:28:21 +0100
 Subject: [PATCH] added arm to the ExclusiveArch and nobuildarches lists
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] added arm to the ExclusiveArch and nobuildarches lists
  1 file changed, 11 insertions(+), 3 deletions(-)
 
 diff --git a/SPECS/kernel.spec b/SPECS/kernel.spec
-index 7b4c732..73bc9e7 100644
+index 5647564..ca831ab 100644
 --- a/SPECS/kernel.spec
 +++ b/SPECS/kernel.spec
 @@ -229,6 +229,11 @@ Summary: The Linux kernel
@@ -49,12 +49,12 @@ index 7b4c732..73bc9e7 100644
  %kernel_variant_files %{with_kdump} kdump
  
  %changelog
-+* Wed Sep 14 2022 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-1160.76.1.el7.redsleeve
++* Sat Nov 12 2022 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-1160.80.1.el7.redsleeve
 +- added arm to the ExclusiveArch and nobuildarches lists
 +
- * Tue Jul 26 2022 Rado Vrbovsky <rvrbovsk@redhat.com> [3.10.0-1160.76.1.el7]
- - sfc: complete the next packet when we receive a timestamp (Íñigo Huguet) [1793280]
- 
+ * Sat Oct 08 2022 Rado Vrbovsky <rvrbovsk@redhat.com> [3.10.0-1160.80.1.el7]
+ - scsi: lpfc: Fix FCP I/O flush functionality for TMF routines (Dick Kennedy) [1969988]
+ - scsi: lpfc: Fix illegal memory access on Abort IOCBs (Dick Kennedy) [1969988]
 -- 
 1.8.3.1
 
