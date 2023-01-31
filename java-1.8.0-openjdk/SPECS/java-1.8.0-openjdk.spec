@@ -218,7 +218,7 @@
 # note, following three variables are sedded from update_sources if used correctly. Hardcode them rather there.
 %global shenandoah_project      openjdk
 %global shenandoah_repo         shenandoah-jdk8u
-%global openjdk_revision        jdk8u352-b08
+%global openjdk_revision        jdk8u362-b08
 %global shenandoah_revision     shenandoah-%{openjdk_revision}
 # Define old aarch64/jdk8u tree variables for compatibility
 %global project         %{shenandoah_project}
@@ -235,7 +235,7 @@
 %global updatever       %(VERSION=%{whole_update}; echo ${VERSION##*u})
 # eg jdk8u60-b27 -> b27
 %global buildver        %(VERSION=%{version_tag}; echo ${VERSION##*-})
-%global rpmrelease      2
+%global rpmrelease      1
 # Define milestone (EA for pre-releases, GA ("fcs") for releases)
 # Release will be (where N is usually a number starting at 1):
 # - 0.N%%{?extraver}%%{?dist} for EA releases,
@@ -748,10 +748,8 @@ Obsoletes: sinjdoc
 Requires: ca-certificates
 # Require jpackage-utils for ownership of /usr/lib/jvm/
 Requires: jpackage-utils
-# Require zoneinfo data provided by tzdata-java subpackage.
-# 2022d required as of JDK-8294357
-# Should be bumped to 2022e once available (JDK-8295173)
-Requires: tzdata-java >= 2022d
+# 2022g required as of JDK-8297804
+Requires: tzdata-java >= 2022g
 # for support of kernel stream control
 # libsctp.so.1 is being `dlopen`ed on demand
 Requires: lksctp-tools%{?_isa}
@@ -884,7 +882,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
 
 Name:    java-%{javaver}-%{origin}
 Version: %{javaver}.%{updatever}.%{buildver}
-Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}.redsleeve
+Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
 # and this change was brought into RHEL-4. java-1.5.0-ibm packages
 # also included the epoch in their virtual provides. This created a
@@ -991,8 +989,6 @@ Patch600: rh1750419-redhat_alt_java.patch
 #############################################
 # PR2737: Allow multiple initialization of PKCS11 libraries
 Patch5: pr2737-allow_multiple_pkcs11_library_initialisation_to_be_a_non_critical_error.patch
-# PR2095, RH1163501: 2048-bit DH upper bound too small for Fedora infrastructure (sync with IcedTea 2.x)
-Patch504: rh1163501-increase_2048_bit_dh_upper_bound_fedora_infrastructure_in_dhparametergenerator.patch
 # Turn off strict overflow on IndicRearrangementProcessor{,2}.cpp following 8140543: Arrange font actions
 Patch512: rh1649664-awt2dlibraries_compiled_with_no_strict_overflow.patch
 # RH1337583, PR2974: PKCS#10 certificate requests now use CRLF line endings rather than system line endings
@@ -1060,10 +1056,6 @@ Patch12: jdk8186464-rh1433262-zip64_failure.patch
 # able to be removed once that release is out
 # and used by this RPM.
 #############################################
-# JDK-8294357: (tz) Update Timezone Data to 2022d
-Patch2002: jdk8294357-tzdata2022d.patch
-# JDK-8295173: (tz) Update Timezone Data to 2022e
-Patch2003: jdk8295173-tzdata2022e.patch
 
 #############################################
 #
@@ -1149,9 +1141,8 @@ BuildRequires: java-1.8.0-openjdk-devel
 %ifnarch %{jit_arches}
 BuildRequires: libffi-devel
 %endif
-# 2022d required as of JDK-8294357
-# Should be bumped to 2022e once available (JDK-8295173)
-BuildRequires: tzdata-java >= 2022d
+# 2022g required as of JDK-8297804
+BuildRequires: tzdata-java >= 2022g
 # Earlier versions have a bug in tree vectorization on PPC
 BuildRequires: gcc >= 4.8.3-8
 
@@ -1428,7 +1419,6 @@ sh %{SOURCE12}
 
 # Upstreamable fixes
 %patch502
-%patch504
 %patch512
 %patch523
 %patch528
@@ -1440,9 +1430,6 @@ sh %{SOURCE12}
 
 # Upstreamed fixes
 pushd %{top_level_dir_name}
-# tzdata updates targetted for 8u362
-%patch2002 -p1
-%patch2003 -p1
 popd
 
 # RPM-only fixes
@@ -1769,18 +1756,18 @@ done
 # Using line number 1 might cause build problems. See:
 # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
 # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
-#gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
-#handle SIGSEGV pass nostop noprint
-#handle SIGILL pass nostop noprint
-#set breakpoint pending on
-#break javaCalls.cpp:1
-#commands 1
-#backtrace
-#quit
-#end
-#run -version
-#EOF
-#grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
+gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
+handle SIGSEGV pass nostop noprint
+handle SIGILL pass nostop noprint
+set breakpoint pending on
+break javaCalls.cpp:1
+commands 1
+backtrace
+quit
+end
+run -version
+EOF
+grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
 
 # Check src.zip has all sources. See RHBZ#1130490
 jar -tf $JAVA_HOME/src.zip | grep 'sun.misc.Unsafe'
@@ -2209,8 +2196,24 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
-* Sun Oct 29 2022 Jacco Ligthart <jacco@redsleeve.org> 1:1.8.0.352.b08-2.redsleeve
-- removed the gdb section of the SPEC file
+* Fri Jan 13 2023 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.362.b08-1
+- Update to shenandoah-jdk8u352-b08 (GA)
+- Update release notes for shenandoah-8u352-b08.
+- Fix broken links and missing release notes in older releases.
+- Drop RH1163501 patch which is not upstream or in 11, 17 & 19 packages and seems obsolete
+  - Patch was broken by inclusion of "JDK-8293554: Enhanced DH Key Exchanges"
+  - Patch was added for a specific corner case of a 4096-bit DH key on a Fedora host that no longer exists
+  - Fedora now appears to be using RSA and the JDK now supports ECC in preference to large DH keys
+- Resolves: rhbz#2160111
+
+* Wed Jan 11 2023 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.362.b07-0.1.ea
+- Update to shenandoah-jdk8u362-b07 (EA)
+- Update release notes for shenandoah-8u362-b07.
+- Switch to EA mode for 8u362 pre-release builds.
+- Require tzdata 2022g due to inclusion of JDK-8296108, JDK-8296715 & JDK-8297804
+- Drop tzdata patches for 2022d & 2022e (JDK-8294357 & JDK-8295173) which are now upstream
+- Update TestTranslations.java to test the new America/Ciudad_Juarez zone
+- Resolves: rhbz#2150191
 
 * Sun Oct 16 2022 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.352.b08-2
 - Update in-tree tzdata to 2022e with JDK-8294357 & JDK-8295173
