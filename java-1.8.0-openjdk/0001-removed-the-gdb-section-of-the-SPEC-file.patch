@@ -1,6 +1,6 @@
-From 443d7b0e20630d133baaec9afa1e46541a992a0e Mon Sep 17 00:00:00 2001
+From ce928d49f248fecb36e8865cd1c341248fda1af1 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sun, 2 Oct 2022 11:31:50 +0200
+Date: Sat, 29 Oct 2022 13:33:02 +0200
 Subject: [PATCH] removed the gdb section of the SPEC file
 
 ---
@@ -8,10 +8,10 @@ Subject: [PATCH] removed the gdb section of the SPEC file
  1 file changed, 16 insertions(+), 13 deletions(-)
 
 diff --git a/SPECS/java-1.8.0-openjdk.spec b/SPECS/java-1.8.0-openjdk.spec
-index 5513ed2..464ac12 100644
+index 41c4891..bbe8da0 100644
 --- a/SPECS/java-1.8.0-openjdk.spec
 +++ b/SPECS/java-1.8.0-openjdk.spec
-@@ -883,7 +883,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
+@@ -884,7 +884,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
  
  Name:    java-%{javaver}-%{origin}
  Version: %{javaver}.%{updatever}.%{buildver}
@@ -20,7 +20,7 @@ index 5513ed2..464ac12 100644
  # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
  # and this change was brought into RHEL-4. java-1.5.0-ibm packages
  # also included the epoch in their virtual provides. This created a
-@@ -1749,18 +1749,18 @@ done
+@@ -1769,18 +1769,18 @@ done
  # Using line number 1 might cause build problems. See:
  # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
  # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
@@ -51,16 +51,16 @@ index 5513ed2..464ac12 100644
  
  # Check src.zip has all sources. See RHBZ#1130490
  jar -tf $JAVA_HOME/src.zip | grep 'sun.misc.Unsafe'
-@@ -2189,6 +2189,9 @@ require "copy_jdk_configs.lua"
+@@ -2209,6 +2209,9 @@ require "copy_jdk_configs.lua"
  %endif
  
  %changelog
-+* Sun Oct 02 2022 Jacco Ligthart <jacco@redsleeve.org> 1:1.8.0.345.b01-1.redsleeve
++* Sun Oct 29 2022 Jacco Ligthart <jacco@redsleeve.org> 1:1.8.0.352.b08-2.redsleeve
 +- removed the gdb section of the SPEC file
 +
- * Thu Aug 04 2022 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.345.b01-1
- - Update to shenandoah-jdk8u345-b01 (GA)
- - Update release notes for 8u345-b01.
+ * Sun Oct 16 2022 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.352.b08-2
+ - Update in-tree tzdata to 2022e with JDK-8294357 & JDK-8295173
+ - Add test to ensure timezones can be translated
 -- 
 1.8.3.1
 
