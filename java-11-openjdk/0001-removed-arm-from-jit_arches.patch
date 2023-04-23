@@ -1,6 +1,6 @@
-From a1e192bc23366b0e2441ed03a41eea6122d8dc99 Mon Sep 17 00:00:00 2001
+From 7ea09a3ac8835530d6b7b6b7a8dff7dfbae10631 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sat, 29 Oct 2022 13:28:22 +0200
+Date: Tue, 31 Jan 2023 18:52:53 +0100
 Subject: [PATCH] removed arm from jit_arches
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] removed arm from jit_arches
  1 file changed, 8 insertions(+), 4 deletions(-)
 
 diff --git a/SPECS/java-11-openjdk.spec b/SPECS/java-11-openjdk.spec
-index 4a35107..638dfb1 100644
+index 1c6bd8e..1a9c076 100644
 --- a/SPECS/java-11-openjdk.spec
 +++ b/SPECS/java-11-openjdk.spec
 @@ -87,7 +87,7 @@
@@ -29,7 +29,7 @@ index 4a35107..638dfb1 100644
  # Set of architectures which support class data sharing
  # As of JDK-8005165 in OpenJDK 10, class sharing is not arch-specific
  # However, it does segfault on the Zero assembler port, so currently JIT only
-@@ -999,7 +999,7 @@ Provides: java-%{javaver}-%{origin}-src%1 = %{epoch}:%{version}-%{release}
+@@ -998,7 +998,7 @@ Provides: java-%{javaver}-%{origin}-src%1 = %{epoch}:%{version}-%{release}
  
  Name:    java-%{javaver}-%{origin}
  Version: %{newjavaver}.%{buildver}
@@ -38,7 +38,7 @@ index 4a35107..638dfb1 100644
  # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
  # and this change was brought into RHEL-4. java-1.5.0-ibm packages
  # also included the epoch in their virtual provides. This created a
-@@ -1849,7 +1849,7 @@ done
+@@ -1837,7 +1837,7 @@ done
  # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
  # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
  # Temporarily disabled on s390x as it sporadically crashes with SIGFPE, Arithmetic exception.
@@ -47,17 +47,17 @@ index 4a35107..638dfb1 100644
  gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
  handle SIGSEGV pass nostop noprint
  handle SIGILL pass nostop noprint
-@@ -2186,6 +2186,10 @@ require "copy_jdk_configs.lua"
+@@ -2174,6 +2174,10 @@ require "copy_jdk_configs.lua"
  %endif
  
  %changelog
-+* Sat Oct 29 2022 Jacco Ligthart <jacco@redsleeve.org> - 1:11.0.17.0.8-2.redsleeve
++* Tue Jan 31 2023 Jacco Ligthart <jacco@redsleeve.org> - 1:11.0.18.0.10-1.redsleeve
 +- removed arm from jit_arches
 +- removed the gdb section of the SPEC file
 +
- * Sat Oct 15 2022 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.17.0.8-2
- - Update in-tree tzdata to 2022e with JDK-8294357 & JDK-8295173
- - Update CLDR data with Europe/Kyiv (JDK-8293834)
+ * Wed Jan 11 2023 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.18.0.10-1
+ - Update to jdk-11.0.18+10 (GA)
+ - Update release notes to 11.0.18+10
 -- 
 1.8.3.1
 
