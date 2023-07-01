@@ -218,7 +218,7 @@
 # note, following three variables are sedded from update_sources if used correctly. Hardcode them rather there.
 %global shenandoah_project      openjdk
 %global shenandoah_repo         shenandoah-jdk8u
-%global openjdk_revision        jdk8u362-b08
+%global openjdk_revision        jdk8u372-b07
 %global shenandoah_revision     shenandoah-%{openjdk_revision}
 # Define old aarch64/jdk8u tree variables for compatibility
 %global project         %{shenandoah_project}
@@ -882,7 +882,7 @@ Provides: java-%{javaver}-%{origin}-accessibility = %{epoch}:%{version}-%{releas
 
 Name:    java-%{javaver}-%{origin}
 Version: %{javaver}.%{updatever}.%{buildver}
-Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}.redsleeve
+Release: %{?eaprefix}%{rpmrelease}%{?extraver}%{?dist}
 # java-1.5.0-ibm from jpackage.org set Epoch to 1 for unknown reasons
 # and this change was brought into RHEL-4. java-1.5.0-ibm packages
 # also included the epoch in their virtual provides. This created a
@@ -1049,13 +1049,15 @@ Patch12: jdk8186464-rh1433262-zip64_failure.patch
 
 #############################################
 #
-# Patches appearing in 8u362
+# Patches appearing in 8u382
 #
 # This section includes patches which are present
 # in the listed OpenJDK 8u release and should be
 # able to be removed once that release is out
 # and used by this RPM.
 #############################################
+# JDK-8271199, RH2175317: Mutual TLS handshake fails signing client certificate with custom sensitive PKCS11 key
+Patch2001: jdk8271199-rh2175317-custom_pkcs11_provider_support.patch
 
 #############################################
 #
@@ -1141,8 +1143,8 @@ BuildRequires: java-1.8.0-openjdk-devel
 %ifnarch %{jit_arches}
 BuildRequires: libffi-devel
 %endif
-# 2022g required as of JDK-8297804
-BuildRequires: tzdata-java >= 2022g
+# 2023c required as of JDK-8305113
+BuildRequires: tzdata-java >= 2023c
 # Earlier versions have a bug in tree vectorization on PPC
 BuildRequires: gcc >= 4.8.3-8
 
@@ -1430,6 +1432,8 @@ sh %{SOURCE12}
 
 # Upstreamed fixes
 pushd %{top_level_dir_name}
+# 8u382 fix
+%patch2001 -p1
 popd
 
 # RPM-only fixes
@@ -1756,18 +1760,18 @@ done
 # Using line number 1 might cause build problems. See:
 # https://bugzilla.redhat.com/show_bug.cgi?id=1539664
 # https://bugzilla.redhat.com/show_bug.cgi?id=1538767
-#gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
-#handle SIGSEGV pass nostop noprint
-#handle SIGILL pass nostop noprint
-#set breakpoint pending on
-#break javaCalls.cpp:1
-#commands 1
-#backtrace
-#quit
-#end
-#run -version
-#EOF
-#grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
+gdb -q "$JAVA_HOME/bin/java" <<EOF | tee gdb.out
+handle SIGSEGV pass nostop noprint
+handle SIGILL pass nostop noprint
+set breakpoint pending on
+break javaCalls.cpp:1
+commands 1
+backtrace
+quit
+end
+run -version
+EOF
+grep 'JavaCallWrapper::JavaCallWrapper' gdb.out
 
 # Check src.zip has all sources. See RHBZ#1130490
 jar -tf $JAVA_HOME/src.zip | grep 'sun.misc.Unsafe'
@@ -2196,8 +2200,17 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
-* Tue Jan 31 2023 Jacco Ligthart <jacco@redsleeve.org> 1:1.8.0.362.b08-1.redsleeve
-- removed the gdb section of the SPEC file
+* Tue Apr 18 2023 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.372.b07-1
+- Update to shenandoah-jdk8u372-b07 (GA)
+- Update release notes for shenandoah-8u372-b07.
+- Require tzdata 2023c due to inclusion of JDK-8305113 in 8u372-b07
+- Update generate_tarball.sh to add support for passing a boot JDK to the configure run
+- Add POSIX-friendly error codes to generate_tarball.sh and fix whitespace
+- Remove .jcheck and GitHub support when generating tarballs, as done in upstream release tarballs
+- Include JDK-8271199 backport early ahead of 8u382 (RH2175317)
+- ** This tarball is embargoed until 2023-04-18 @ 1pm PT. **
+- Resolves: rhbz#2185182
+- Resolves: rhbz#2159458
 
 * Fri Jan 13 2023 Andrew Hughes <gnu.andrew@redhat.com> - 1:1.8.0.362.b08-1
 - Update to shenandoah-jdk8u352-b08 (GA)
