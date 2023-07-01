@@ -1,13 +1,13 @@
-From 97ea6fade95bcde4c51040e9ae62bdf9fa34e7e7 Mon Sep 17 00:00:00 2001
+From 4ae6380b80a1cf8a4ba51672fecf9ae8d4050ef3 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Tue, 31 Jan 2023 18:45:50 +0100
+Date: Sun, 23 Apr 2023 22:43:26 +0200
 Subject: [PATCH] roll in redsleeve branding, based on RHEL
 
 ---
  SOURCES/index.html   |  6 +++---
  SOURCES/welcome.conf |  4 ----
- SPECS/httpd.spec     | 16 +++++++++-------
- 3 files changed, 12 insertions(+), 14 deletions(-)
+ SPECS/httpd.spec     | 12 ++++++------
+ 3 files changed, 9 insertions(+), 13 deletions(-)
 
 diff --git a/SOURCES/index.html b/SOURCES/index.html
 index 06ad3fc..9541e5e 100644
@@ -53,44 +53,33 @@ index c1b6c11..5d1e452 100644
 -Alias /images/apache_pb.gif /usr/share/httpd/noindex/images/apache_pb.gif
 -Alias /images/poweredby.png /usr/share/httpd/noindex/images/poweredby.png
 diff --git a/SPECS/httpd.spec b/SPECS/httpd.spec
-index 83df334..82114ea 100644
+index b7d74b0..2bb262f 100644
 --- a/SPECS/httpd.spec
 +++ b/SPECS/httpd.spec
-@@ -15,10 +15,10 @@
+@@ -16,10 +16,10 @@
  Summary: Apache HTTP Server
  Name: httpd
  Version: 2.4.6
--Release: 98%{?dist}.6
-+Release: 98%{?dist}.6.redsleeve
+-Release: 98%{?dist}.7
++Release: 98%{?dist}.7.redsleeve
  URL: http://httpd.apache.org/
  Source0: http://www.apache.org/dist/httpd/httpd-%{version}.tar.bz2
--Source1: centos-noindex.tar.gz
+-Source1: centos-noindex.tar.gz 
 +Source1: index.html
  Source2: httpd.logrotate
  Source3: httpd.sysconf
  Source4: httpd-ssl-pass-dialog
-@@ -675,9 +675,8 @@ EOF
- 
- # Handle contentdir
- mkdir $RPM_BUILD_ROOT%{contentdir}/noindex
+@@ -681,9 +681,6 @@ mkdir $RPM_BUILD_ROOT%{contentdir}/noindex
+ install -m 644 -p $RPM_SOURCE_DIR/index.html \
+         $RPM_BUILD_ROOT%{contentdir}/noindex/index.html
+ rm -rf %{contentdir}/htdocs
 -tar xzf $RPM_SOURCE_DIR/centos-noindex.tar.gz \
 -        -C $RPM_BUILD_ROOT%{contentdir}/noindex/ \
 -        --strip-components=1
-+install -m 644 -p $RPM_SOURCE_DIR/index.html \
-+        $RPM_BUILD_ROOT%{contentdir}/noindex/index.html
  
- rm -rf %{contentdir}/htdocs
- 
-@@ -701,7 +700,7 @@ rm -v $RPM_BUILD_ROOT%{docroot}/html/*.html \
-       $RPM_BUILD_ROOT%{docroot}/cgi-bin/*
- 
- # Symlink for the powered-by-$DISTRO image:
--ln -s ../noindex/images/poweredby.png \
-+ln -s ../../pixmaps/poweredby.png \
-         $RPM_BUILD_ROOT%{contentdir}/icons/poweredby.png
- 
- # symlinks for /etc/httpd
-@@ -887,7 +886,7 @@ rm -rf $RPM_BUILD_ROOT
+ # remove manual sources
+ find $RPM_BUILD_ROOT%{contentdir}/manual \( \
+@@ -891,7 +888,7 @@ rm -rf $RPM_BUILD_ROOT
  %{contentdir}/error/README
  %{contentdir}/error/*.var
  %{contentdir}/error/include/*.html
@@ -99,16 +88,16 @@ index 83df334..82114ea 100644
  
  %dir %{docroot}
  %dir %{docroot}/cgi-bin
-@@ -953,6 +952,9 @@ rm -rf $RPM_BUILD_ROOT
+@@ -957,6 +954,9 @@ rm -rf $RPM_BUILD_ROOT
  %{_sysconfdir}/rpm/macros.httpd
  
  %changelog
-+* Tue Jan 31 2023 Jacco Ligthart <jacco@redsleeve.org> - 2.4.6-98.el7.6.redsleeve
++* Sun Apr 23 2023 Jacco Ligthart <jacco@redsleeve.org> - 2.4.6-98.el7.7.redsleeve
 +- roll in redsleeve branding, based on RHEL
 +
- * Tue Jan 24 2023 CentOS Sources <bugs@centos.org> - 2.4.6-98.el7.centos.6
- - Remove index.html, add centos-noindex.tar.gz
- - change vstring
+ * Wed Apr  5 2023 Johnny Hughes <johnny@centos.org>
+ - Manual CentOS Debranding
+ 
 -- 
 1.8.3.1
 

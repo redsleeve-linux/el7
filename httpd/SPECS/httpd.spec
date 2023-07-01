@@ -4,6 +4,7 @@
 %define mmn 20120211
 %define oldmmnisa %{mmn}-%{__isa_name}-%{__isa_bits}
 %define mmnisa %{mmn}%{__isa_name}%{__isa_bits}
+%define vstring %(source /etc/os-release; echo ${REDHAT_SUPPORT_PRODUCT})
 %define vstring CentOS
 
 # Drop automatic provides for module DSOs
@@ -15,7 +16,7 @@
 Summary: Apache HTTP Server
 Name: httpd
 Version: 2.4.6
-Release: 98%{?dist}.6.redsleeve
+Release: 98%{?dist}.7.redsleeve
 URL: http://httpd.apache.org/
 Source0: http://www.apache.org/dist/httpd/httpd-%{version}.tar.bz2
 Source1: index.html
@@ -249,6 +250,7 @@ Patch243: httpd-2.4.6-CVE-2021-34798.patch
 Patch244: httpd-2.4.6-CVE-2021-39275.patch
 Patch245: httpd-2.4.6-CVE-2021-26691.patch
 Patch246: httpd-2.4.6-CVE-2022-22720.patch
+Patch247: httpd-2.4.6-CVE-2023-25690.patch
 
 License: ASL 2.0
 Group: System Environment/Daemons
@@ -518,6 +520,7 @@ rm modules/ssl/ssl_engine_dh.c
 %patch244 -p1 -b .cve39275
 %patch245 -p1 -b .cve26691
 %patch246 -p1 -b .cve22720
+%patch247 -p1 -b .cve25690
 
 # need to be applied in the end since security patches
 # are changing the code that present in this patch
@@ -677,7 +680,6 @@ EOF
 mkdir $RPM_BUILD_ROOT%{contentdir}/noindex
 install -m 644 -p $RPM_SOURCE_DIR/index.html \
         $RPM_BUILD_ROOT%{contentdir}/noindex/index.html
-
 rm -rf %{contentdir}/htdocs
 
 # remove manual sources
@@ -952,14 +954,15 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/rpm/macros.httpd
 
 %changelog
-* Tue Jan 31 2023 Jacco Ligthart <jacco@redsleeve.org> - 2.4.6-98.el7.6.redsleeve
+* Sun Apr 23 2023 Jacco Ligthart <jacco@redsleeve.org> - 2.4.6-98.el7.7.redsleeve
 - roll in redsleeve branding, based on RHEL
 
-* Tue Jan 24 2023 CentOS Sources <bugs@centos.org> - 2.4.6-98.el7.centos.6
-- Remove index.html, add centos-noindex.tar.gz
-- change vstring
-- change symlink for poweredby.png
-- update welcome.conf with proper aliases
+* Wed Apr  5 2023 Johnny Hughes <johnny@centos.org>
+- Manual CentOS Debranding
+
+* Tue Mar 21 2023 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-97.7
+- Resolves: #2177742 - CVE-2023-25690 httpd: HTTP request splitting with
+  mod_rewrite and mod_proxy 
 
 * Wed Dec 07 2022 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-97.6
 - Resolves: #2101997 - HEAD request with a 404 and custom ErrorPage causes
