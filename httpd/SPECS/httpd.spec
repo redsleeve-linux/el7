@@ -16,10 +16,10 @@
 Summary: Apache HTTP Server
 Name: httpd
 Version: 2.4.6
-Release: 98%{?dist}.7.redsleeve
+Release: 99%{?dist}.1
 URL: http://httpd.apache.org/
 Source0: http://www.apache.org/dist/httpd/httpd-%{version}.tar.bz2
-Source1: index.html
+Source1: centos-noindex.tar.gz
 Source2: httpd.logrotate
 Source3: httpd.sysconf
 Source4: httpd-ssl-pass-dialog
@@ -678,8 +678,9 @@ EOF
 
 # Handle contentdir
 mkdir $RPM_BUILD_ROOT%{contentdir}/noindex
-install -m 644 -p $RPM_SOURCE_DIR/index.html \
-        $RPM_BUILD_ROOT%{contentdir}/noindex/index.html
+tar xzf $RPM_SOURCE_DIR/centos-noindex.tar.gz \
+        -C $RPM_BUILD_ROOT%{contentdir}/noindex/ \
+        --strip-components=1
 rm -rf %{contentdir}/htdocs
 
 # remove manual sources
@@ -888,7 +889,7 @@ rm -rf $RPM_BUILD_ROOT
 %{contentdir}/error/README
 %{contentdir}/error/*.var
 %{contentdir}/error/include/*.html
-%{contentdir}/noindex/index.html
+%{contentdir}/noindex/*
 
 %dir %{docroot}
 %dir %{docroot}/cgi-bin
@@ -954,11 +955,8 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/rpm/macros.httpd
 
 %changelog
-* Sun Apr 23 2023 Jacco Ligthart <jacco@redsleeve.org> - 2.4.6-98.el7.7.redsleeve
-- roll in redsleeve branding, based on RHEL
-
-* Wed Apr  5 2023 Johnny Hughes <johnny@centos.org>
-- Manual CentOS Debranding
+* Thu Apr 27 2023 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-99.1
+- Resolves: #2190143 - mod_rewrite regression with CVE-2023-25690
 
 * Tue Mar 21 2023 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-97.7
 - Resolves: #2177742 - CVE-2023-25690 httpd: HTTP request splitting with
