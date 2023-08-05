@@ -271,7 +271,7 @@
 # New Version-String scheme-style defines
 %global featurever 11
 %global interimver 0
-%global updatever 18
+%global updatever 19
 %global patchver 0
 # buildjdkver is usually same as %%{featurever},
 # but in time of bootstrap of next jdk, it is featurever-1,
@@ -315,7 +315,7 @@
 %global origin_nice     OpenJDK
 %global top_level_dir_name   %{origin}
 %global top_level_dir_name_backup %{top_level_dir_name}-backup
-%global buildver        10
+%global buildver        7
 %global rpmrelease      1
 #%%global tagsuffix      %%{nil}
 # priority must be 7 digits in total
@@ -1119,13 +1119,17 @@ Patch7: jdk8009550-rh910107-search_for_versioned_libpcsclite.patch
 
 #############################################
 #
-# Patches appearing in 11.0.18
+# Patches appearing in 11.0.20
 #
 # This section includes patches which are present
 # in the listed OpenJDK 8u release and should be
 # able to be removed once that release is out
 # and used by this RPM.
 #############################################
+# JDK-8274864: Remove Amman/Cairo hacks in ZoneInfoFile
+Patch2002: jdk8274864-remove_amman_cairo_hacks.patch
+# JDK-8305113: (tz) Update Timezone Data to 2023c
+Patch2003: jdk8305113-tzdata2023c.patch
 
 BuildRequires: autoconf
 BuildRequires: automake
@@ -1169,8 +1173,8 @@ BuildRequires: java-%{buildjdkver}-openjdk-devel
 %ifnarch %{jit_arches}
 BuildRequires: libffi-devel
 %endif
-# 2022g required as of JDK-8297804
-BuildRequires: tzdata-java >= 2022g
+# 2023c required as of JDK-8305113
+BuildRequires: tzdata-java >= 2023c
 # Earlier versions have a bug in tree vectorization on PPC
 BuildRequires: gcc >= 4.8.3-8
 
@@ -1466,6 +1470,9 @@ pushd %{top_level_dir_name}
 %patch3 -p1
 %patch4 -p1
 %patch7 -p1
+# tzdata update
+%patch2002 -p1
+%patch2003 -p1
 popd # openjdk
 
 %patch1000
@@ -2174,9 +2181,24 @@ require "copy_jdk_configs.lua"
 %endif
 
 %changelog
-* Tue Jan 31 2023 Jacco Ligthart <jacco@redsleeve.org> - 1:11.0.18.0.10-1.redsleeve
+* Sun Apr 23 2023 Jacco Ligthart <jacco@redsleeve.org> - 1:11.0.19.0.7-1.redsleeve
 - removed arm from jit_arches
 - removed the gdb section of the SPEC file
+
+* Fri Apr 14 2023 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.19.0.7-1
+- Update to jdk-11.0.19.0+7
+- Update release notes to 11.0.19.0+7
+- Require tzdata 2023c due to local inclusion of JDK-8274864 & JDK-8305113
+- Update generate_tarball.sh to add support for passing a boot JDK to the configure run
+- Add POSIX-friendly error codes to generate_tarball.sh and fix whitespace
+- Remove .jcheck and GitHub support when generating tarballs, as done in upstream release tarballs
+- Rebase RH1750419 alt-java patch against 11.0.19+6
+- ** This tarball is embargoed until 2023-04-18 @ 1pm PT. **
+- Resolves: rhbz#2185182
+
+* Fri Jan 13 2023 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.18.0.10-2
+- Add missing release note for JDK-8295687
+- Resolves: rhbz#2160111
 
 * Wed Jan 11 2023 Andrew Hughes <gnu.andrew@redhat.com> - 1:11.0.18.0.10-1
 - Update to jdk-11.0.18+10 (GA)
