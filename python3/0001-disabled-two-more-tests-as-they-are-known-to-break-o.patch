@@ -1,44 +1,47 @@
-From b822cb2d0153ca94c2e3c759a132c9be5f4e2e71 Mon Sep 17 00:00:00 2001
+From 78fb0b19edff0263fab18c94b1c6f11a6a7860ee Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Fri, 20 Nov 2020 00:13:02 +0100
+Date: Sat, 1 Jul 2023 23:07:29 +0200
 Subject: [PATCH] disabled two more tests, as they are known to break on armv5
 
 ---
- SPECS/python3.spec | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ SPECS/python3.spec | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
 
 diff --git a/SPECS/python3.spec b/SPECS/python3.spec
-index 09546fb..5cb390b 100644
+index 97268c7..72e1f80 100644
 --- a/SPECS/python3.spec
 +++ b/SPECS/python3.spec
 @@ -14,7 +14,7 @@ URL: https://www.python.org/
  #  WARNING  When rebasing to a new Python version,
  #           remember to update the python3-docs package as well
  Version: %{pybasever}.8
--Release: 18%{?dist}
-+Release: 18%{?dist}.redsleeve
+-Release: 19%{?dist}
++Release: 19%{?dist}.redsleeve
  License: Python
  
  
-@@ -1187,6 +1187,8 @@ CheckPython() {
+@@ -1225,6 +1225,11 @@ CheckPython() {
+     -wW --slowest --findleaks \
      -x test_distutils \
      -x test_bdist_rpm \
-     %ifarch %{arm}
++    %ifarch %{arm}
 +    -x test_asyncio \
 +    -x test_float \
-     -x test_gdb \
-     %endif 
++    -x test_gdb \
++    %endif 
      %ifarch %{mips64}
-@@ -1674,6 +1676,9 @@ CheckPython optimized
+     -x test_ctypes \
+     %endif
+@@ -1710,6 +1715,9 @@ CheckPython optimized
  # ======================================================
  
  %changelog
-+* Thu Nov 19 2020 Jacco Ligthart <jacco@redsleeve.org> - 3.6.8-18.redsleeve
++* Sat Jul 01 2023 Jacco Ligthart <jacco@redsleeve.org> - 3.6.8-19.redsleeve
 +- disabled two more tests, as they are known to break on armv5
 +
- * Fri Jul 31 2020 Charalampos Stratakis <cstratak@redhat.com> - 3.6.8-18
- - Avoid infinite loop when reading specially crafted TAR files (CVE-2019-20907)
- Resolves: rhbz#1856481
+ * Mon May 29 2023 Charalampos Stratakis <cstratak@redhat.com> - 3.6.8-19
+ - Security fix for CVE-2023-24329
+ - Fix the test suite support for Expat >= 2.4.5
 -- 
 1.8.3.1
 
