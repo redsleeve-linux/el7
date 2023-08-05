@@ -1,13 +1,13 @@
-From 4ae6380b80a1cf8a4ba51672fecf9ae8d4050ef3 Mon Sep 17 00:00:00 2001
+From 66bb880b8ce200d3892abc6f682e6184c00c4c4d Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Sun, 23 Apr 2023 22:43:26 +0200
+Date: Sat, 1 Jul 2023 23:06:27 +0200
 Subject: [PATCH] roll in redsleeve branding, based on RHEL
 
 ---
  SOURCES/index.html   |  6 +++---
  SOURCES/welcome.conf |  4 ----
- SPECS/httpd.spec     | 12 ++++++------
- 3 files changed, 9 insertions(+), 13 deletions(-)
+ SPECS/httpd.spec     | 15 +++++++++------
+ 3 files changed, 12 insertions(+), 13 deletions(-)
 
 diff --git a/SOURCES/index.html b/SOURCES/index.html
 index 06ad3fc..9541e5e 100644
@@ -53,33 +53,36 @@ index c1b6c11..5d1e452 100644
 -Alias /images/apache_pb.gif /usr/share/httpd/noindex/images/apache_pb.gif
 -Alias /images/poweredby.png /usr/share/httpd/noindex/images/poweredby.png
 diff --git a/SPECS/httpd.spec b/SPECS/httpd.spec
-index b7d74b0..2bb262f 100644
+index 4964aa7..a96a877 100644
 --- a/SPECS/httpd.spec
 +++ b/SPECS/httpd.spec
 @@ -16,10 +16,10 @@
  Summary: Apache HTTP Server
  Name: httpd
  Version: 2.4.6
--Release: 98%{?dist}.7
-+Release: 98%{?dist}.7.redsleeve
+-Release: 99%{?dist}.1
++Release: 99%{?dist}.1.redsleeve
  URL: http://httpd.apache.org/
  Source0: http://www.apache.org/dist/httpd/httpd-%{version}.tar.bz2
--Source1: centos-noindex.tar.gz 
+-Source1: centos-noindex.tar.gz
 +Source1: index.html
  Source2: httpd.logrotate
  Source3: httpd.sysconf
  Source4: httpd-ssl-pass-dialog
-@@ -681,9 +681,6 @@ mkdir $RPM_BUILD_ROOT%{contentdir}/noindex
- install -m 644 -p $RPM_SOURCE_DIR/index.html \
-         $RPM_BUILD_ROOT%{contentdir}/noindex/index.html
- rm -rf %{contentdir}/htdocs
+@@ -678,9 +678,9 @@ EOF
+ 
+ # Handle contentdir
+ mkdir $RPM_BUILD_ROOT%{contentdir}/noindex
 -tar xzf $RPM_SOURCE_DIR/centos-noindex.tar.gz \
 -        -C $RPM_BUILD_ROOT%{contentdir}/noindex/ \
 -        --strip-components=1
++install -m 644 -p $RPM_SOURCE_DIR/index.html \
++        $RPM_BUILD_ROOT%{contentdir}/noindex/index.html
++
+ rm -rf %{contentdir}/htdocs
  
  # remove manual sources
- find $RPM_BUILD_ROOT%{contentdir}/manual \( \
-@@ -891,7 +888,7 @@ rm -rf $RPM_BUILD_ROOT
+@@ -889,7 +889,7 @@ rm -rf $RPM_BUILD_ROOT
  %{contentdir}/error/README
  %{contentdir}/error/*.var
  %{contentdir}/error/include/*.html
@@ -88,15 +91,15 @@ index b7d74b0..2bb262f 100644
  
  %dir %{docroot}
  %dir %{docroot}/cgi-bin
-@@ -957,6 +954,9 @@ rm -rf $RPM_BUILD_ROOT
+@@ -955,6 +955,9 @@ rm -rf $RPM_BUILD_ROOT
  %{_sysconfdir}/rpm/macros.httpd
  
  %changelog
-+* Sun Apr 23 2023 Jacco Ligthart <jacco@redsleeve.org> - 2.4.6-98.el7.7.redsleeve
++* Sat Jul 01 2023 Jacco Ligthart <jacco@redsleeve.org> - 2.4.6-99.1.redsleeve
 +- roll in redsleeve branding, based on RHEL
 +
- * Wed Apr  5 2023 Johnny Hughes <johnny@centos.org>
- - Manual CentOS Debranding
+ * Thu Apr 27 2023 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-99.1
+ - Resolves: #2190143 - mod_rewrite regression with CVE-2023-25690
  
 -- 
 1.8.3.1

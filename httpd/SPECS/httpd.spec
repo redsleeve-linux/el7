@@ -16,10 +16,10 @@
 Summary: Apache HTTP Server
 Name: httpd
 Version: 2.4.6
-Release: 99%{?dist}.1
+Release: 99%{?dist}.1.redsleeve
 URL: http://httpd.apache.org/
 Source0: http://www.apache.org/dist/httpd/httpd-%{version}.tar.bz2
-Source1: centos-noindex.tar.gz
+Source1: index.html
 Source2: httpd.logrotate
 Source3: httpd.sysconf
 Source4: httpd-ssl-pass-dialog
@@ -678,9 +678,9 @@ EOF
 
 # Handle contentdir
 mkdir $RPM_BUILD_ROOT%{contentdir}/noindex
-tar xzf $RPM_SOURCE_DIR/centos-noindex.tar.gz \
-        -C $RPM_BUILD_ROOT%{contentdir}/noindex/ \
-        --strip-components=1
+install -m 644 -p $RPM_SOURCE_DIR/index.html \
+        $RPM_BUILD_ROOT%{contentdir}/noindex/index.html
+
 rm -rf %{contentdir}/htdocs
 
 # remove manual sources
@@ -889,7 +889,7 @@ rm -rf $RPM_BUILD_ROOT
 %{contentdir}/error/README
 %{contentdir}/error/*.var
 %{contentdir}/error/include/*.html
-%{contentdir}/noindex/*
+%{contentdir}/noindex/index.html
 
 %dir %{docroot}
 %dir %{docroot}/cgi-bin
@@ -955,6 +955,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/rpm/macros.httpd
 
 %changelog
+* Sat Jul 01 2023 Jacco Ligthart <jacco@redsleeve.org> - 2.4.6-99.1.redsleeve
+- roll in redsleeve branding, based on RHEL
+
 * Thu Apr 27 2023 Luboš Uhliarik <luhliari@redhat.com> - 2.4.6-99.1
 - Resolves: #2190143 - mod_rewrite regression with CVE-2023-25690
 
