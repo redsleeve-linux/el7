@@ -1,6 +1,6 @@
-From ee5aa7b92735a32966870ea0b7cbcab576d407aa Mon Sep 17 00:00:00 2001
+From 4f642634fd967b3d0d02387878bffe6fea73c789 Mon Sep 17 00:00:00 2001
 From: Jacco Ligthart <jacco@redsleeve.org>
-Date: Fri, 10 Mar 2023 00:49:09 +0100
+Date: Sat, 1 Jul 2023 23:07:08 +0200
 Subject: [PATCH] added arm to the ExclusiveArch and nobuildarches lists
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] added arm to the ExclusiveArch and nobuildarches lists
  1 file changed, 11 insertions(+), 3 deletions(-)
 
 diff --git a/SPECS/kernel.spec b/SPECS/kernel.spec
-index 7283d80..092d89d 100644
+index b6e71a7..c2d474f 100644
 --- a/SPECS/kernel.spec
 +++ b/SPECS/kernel.spec
 @@ -229,6 +229,11 @@ Summary: The Linux kernel
@@ -49,12 +49,12 @@ index 7283d80..092d89d 100644
  %kernel_variant_files %{with_kdump} kdump
  
  %changelog
-+* Thu Mar 09 2023 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-1160.88.1.el7.redsleeve
++* Sat Jul 01 2023 Jacco Ligthart <jacco@redsleeve.org> - 3.10.0-1160.92.1.el7.redsleeve
 +- added arm to the ExclusiveArch and nobuildarches lists
 +
- * Sat Feb 18 2023 Rado Vrbovsky <rvrbovsk@redhat.com> [3.10.0-1160.88.1.el7]
- - KVM: x86: add bit to indicate correct tsc_shift (Marcelo Tosatti) [2152838]
- - KVM: x86: rewrite handling of scaled TSC for kvmclock (Marcelo Tosatti) [2152838]
+ * Thu May 18 2023 Rado Vrbovsky <rvrbovsk@redhat.com> [3.10.0-1160.92.1.el7]
+ - packet: fix use-after-free in prb_retire_rx_blk_timer_expired() (Florian Westphal) [2182642]
+ - x86/bugs: Workaround for incorrectly set X86_BUG_RETBLEED under VMware (Waiman Long) [2189556]
 -- 
 1.8.3.1
 
